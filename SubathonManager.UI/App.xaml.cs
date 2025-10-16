@@ -23,8 +23,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        string folder = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory)!, 
-            "data");
+        string folder = Path.GetFullPath(Path.Combine(string.Empty, 
+            "data"));
         Directory.CreateDirectory(folder);
         
         Config.LoadOrCreateDefault();
