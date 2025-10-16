@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -21,7 +22,9 @@ namespace SubathonManager.Twitch
         private TwitchClient? _chat = null!;
         private EventSubWebsocketClient? _eventSub = null!;
 
-        private readonly string _tokenFile = "data/twitch_token.json";
+        private readonly string _tokenFile = Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!
+            , "data/twitch_token.json");
             // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "twitch_token.json");
 
         public string? AccessToken { get; private set; }

@@ -1,13 +1,16 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using IniParser;
 using IniParser.Model;
 
 namespace SubathonManager.Core
 {
     public static class Config
-    {
-        private static readonly string ConfigPath = "data/config.ini";
+    {        
+        private static readonly string ConfigPath = Path.Combine(
+            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!
+            , "data/config.ini");
             // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
 
         private static readonly FileIniDataParser Parser = new();
@@ -49,11 +52,7 @@ namespace SubathonManager.Core
         {
             Data = new IniData();
             Data["Server"]["Port"] = "14040";
-            Data["Database"]["Path"] = "data/subathonmanager.db";
-            
-            Data["Twitch"]["AccessToken"] = "";
-            Data["Twitch"]["Username"] = "";
-            Data["Twitch"]["Channel"] = "";
+            Data["Database"]["Path"] = GetDatabasePath();
         }
 
         public static void Save()
@@ -63,7 +62,14 @@ namespace SubathonManager.Core
 
         public static string GetDatabasePath()
         {
-            return Data["Database"]?["Path"] ?? "data/subathonmanager.db";
+            if (Data["Database"]["Path"] == null)
+            {
+                return Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!
+                    , "data/subathonmanager.db");
+            }
+
+            return Data["Database"]["Path"];
         }
     }
 }
