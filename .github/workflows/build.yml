@@ -28,6 +28,7 @@ jobs:
 
       - name: Determine version
         id: vars
+        shell: bash
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
