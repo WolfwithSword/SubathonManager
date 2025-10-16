@@ -7,8 +7,8 @@ namespace SubathonManager.Core
 {
     public static class Config
     {
-        private static readonly string ConfigPath =
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+        private static readonly string ConfigPath = "data/config.ini";
+            // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
 
         private static readonly FileIniDataParser Parser = new();
         public static IniData Data { get; private set; } = new();
