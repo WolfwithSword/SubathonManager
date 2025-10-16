@@ -26,7 +26,7 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore SubathonManager.sln
 
-      - name: Determine version
+      - name: Determine version and filename
         id: vars
         shell: bash
         run: |
@@ -34,6 +34,12 @@ jobs:
             echo "nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "filename=SubathonManager-nightly.zip" >> $GITHUB_OUTPUT
+          else
+            echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
           fi
 
       - name: Build project
@@ -47,15 +53,14 @@ jobs:
             -p:PublishTrimmed=false 
             -p:InformationalVersion=${{ steps.vars.outputs.version }} 
             -o build
-
       - name: Compress
-        run: Compress-Archive -Path build\* -DestinationPath SubathonManager.zip
+        run: Compress-Archive -Path build\* -DestinationPath ${{ steps.vars.outputs.filename }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: SubathonManager
-          path: SubathonManager.zip
+          path: ${{ steps.vars.outputs.filename }}
 
   release:
     name: Create Release
@@ -79,10 +84,10 @@ jobs:
             echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
           fi
 
-      - name: Zip release files
-        run: |
-          cd build
-          zip -r ../${{ steps.vars.outputs.filename }} .
+      # - name: Zip release files
+      #   run: |
+      #     cd build
+      #     zip -r ../${{ steps.vars.outputs.filename }} .
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly'
