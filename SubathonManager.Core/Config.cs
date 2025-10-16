@@ -9,9 +9,8 @@ namespace SubathonManager.Core
     public static class Config
     {        
         private static readonly string ConfigPath = Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!
+            Path.GetDirectoryName(AppContext.BaseDirectory)!
             , "data/config.ini");
-            // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
 
         private static readonly FileIniDataParser Parser = new();
         public static IniData Data { get; private set; } = new();
@@ -20,7 +19,7 @@ namespace SubathonManager.Core
 
         public static void LoadOrCreateDefault()
         {
-            string folder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, 
+            string folder = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory)!, 
                 "data");
             Directory.CreateDirectory(folder);
             
@@ -68,7 +67,7 @@ namespace SubathonManager.Core
         {
             if (Data["Database"]["Path"] == null)
             {
-                string folder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, 
+                string folder = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory)!, 
                     "data");
                 Directory.CreateDirectory(folder);
                 return Path.Combine(folder, "subathonmanager.db");

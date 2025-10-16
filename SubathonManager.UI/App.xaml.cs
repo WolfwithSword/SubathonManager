@@ -23,7 +23,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        string folder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, 
+        string folder = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory)!, 
             "data");
         Directory.CreateDirectory(folder);
         

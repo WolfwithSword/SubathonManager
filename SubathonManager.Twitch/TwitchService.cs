@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Net;
-using System.Reflection;
 using System.Text.Json;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -23,7 +22,7 @@ namespace SubathonManager.Twitch
         private EventSubWebsocketClient? _eventSub = null!;
 
         private readonly string _tokenFile = Path.Combine(
-            Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!
+            Path.GetDirectoryName(AppContext.BaseDirectory)!
             , "data/twitch_token.json");
             // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "twitch_token.json");
 
