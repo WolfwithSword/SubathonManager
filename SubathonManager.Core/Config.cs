@@ -20,6 +20,10 @@ namespace SubathonManager.Core
 
         public static void LoadOrCreateDefault()
         {
+            string folder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, 
+                "data");
+            Directory.CreateDirectory(folder);
+            
             // TODO impl logger
             Console.WriteLine($"[Config] Checking config at {ConfigPath}");
             var dir = Path.GetDirectoryName(ConfigPath);
@@ -64,9 +68,10 @@ namespace SubathonManager.Core
         {
             if (Data["Database"]["Path"] == null)
             {
-                return Path.Combine(
-                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!
-                    , "data/subathonmanager.db");
+                string folder = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, 
+                    "data");
+                Directory.CreateDirectory(folder);
+                return Path.Combine(folder, "subathonmanager.db");
             }
 
             return Data["Database"]["Path"];
