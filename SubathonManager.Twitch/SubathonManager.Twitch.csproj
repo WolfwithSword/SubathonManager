@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
+      <PackageReference Include="TwitchLib.Client" Version="3.4.0" />
+      <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />
+      <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.7.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
+    </ItemGroup>
+
+</Project>

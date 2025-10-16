@@ -1,0 +1,108 @@
+﻿using System.IO;
+using System.Windows;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
+using SubathonManager.Server;
+using SubathonManager.Core;
+using SubathonManager.Data;
+using SubathonManager.Twitch;
+
+namespace SubathonManager.UI;
+
+public partial class App : Application
+{    
+    private WebServer _server;
+    private FileSystemWatcher _configWatcher;
+    public static TwitchService? _twitchService { get; private set; } = new();
+    
+    public static string AppVersion =>
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion ?? "dev";
+    
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+        
+        Config.LoadOrCreateDefault();
+
+        using var db = new AppDbContext();
+        db.Database.Migrate();
+        AppDbContext.SeedDefaultValues(db);
+
+        _server = new WebServer(int.Parse(Config.Data["Server"]["Port"]));
+
+        Task.Run(async () =>
+        {
+            if (_twitchService.HasTokenFile())
+            {
+                var tokenValid = await _twitchService.ValidateTokenAsync();
+                if (!tokenValid)
+                {
+                    _twitchService.RevokeTokenFile();
+                    Console.WriteLine("Twitch token expired, deleted file.");
+                }
+                else
+                {
+                    await _twitchService.InitializeAsync();
+                }
+            }
+        });
+        
+        Task.Run(() => _server.StartAsync());
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _server?.Stop();
+        if (_twitchService != null)
+        {
+            try
+            {
+                var cts = new CancellationTokenSource(5000);
+                Task.Run(() => _twitchService.StopAsync(cts.Token));
+                Console.WriteLine("TwitchService stopped cleanly.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error stopping TwitchService: {ex.Message}");
+            }
+        }
+        base.OnExit(e);
+    }
+    
+    public void WatchConfig()
+    {
+        // not working. Want to restart webserver on port change
+        string configFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+        _configWatcher = new FileSystemWatcher(Path.GetDirectoryName(configFile)!)
+        {
+            Filter = Path.GetFileName(configFile),
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size
+        };
+
+        _configWatcher.Changed += ConfigChanged;
+        _configWatcher.EnableRaisingEvents = true;
+    }
+    
+    private void ConfigChanged(object sender, FileSystemEventArgs e)
+    {
+        // not being called
+        try
+        {
+            // Reload config
+            Config.LoadOrCreateDefault();
+            int newPort = int.Parse(Config.Data["Server"]["Port"]);
+            Console.WriteLine($"Config reloaded! New server port: {newPort}");
+
+            // Optionally restart your server
+            _server?.Stop();
+            _server = new WebServer(newPort);
+            Task.Run(() => _server.StartAsync());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reloading config: {ex}");
+        }
+    }
+}
