@@ -161,7 +161,14 @@ namespace SubathonManager.Twitch
             await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
             tokenResponse.Close();
             
-            listener.Stop();
+            try
+            {
+                listener.Stop();
+            }
+            catch
+            {
+            
+            }
 
             if (!string.IsNullOrEmpty(AccessToken))
             {

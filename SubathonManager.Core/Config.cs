@@ -11,6 +11,10 @@ namespace SubathonManager.Core
         private static readonly string ConfigPath = Path.Combine(
             Path.GetDirectoryName(AppContext.BaseDirectory)!
             , "data/config.ini");
+        
+        public static readonly string DataFolder = Path.Combine(
+            Path.GetDirectoryName(AppContext.BaseDirectory)!
+            , "data");
 
         private static readonly FileIniDataParser Parser = new();
         public static IniData Data { get; private set; } = new();
