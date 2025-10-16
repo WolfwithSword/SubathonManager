@@ -31,13 +31,18 @@ jobs:
         shell: bash
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+            echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF_NAME}" =~ ^[0-9]+$ ]]; then
+            # Likely a PR build, use SHA
+            echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
           fi
           
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "filename=SubathonManager-nightly.zip" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF_NAME}" =~ ^[0-9]+$ ]]; then
+            echo "filename=SubathonManager-${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
           else
             echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
           fi
@@ -80,6 +85,8 @@ jobs:
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "filename=SubathonManager-nightly.zip" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF_NAME}" =~ ^[0-9]+$ ]]; then
+            echo "filename=SubathonManager-${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
           else
             echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
           fi
