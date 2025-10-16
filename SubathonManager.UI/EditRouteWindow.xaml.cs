@@ -335,6 +335,7 @@ public partial class EditRouteWindow : FluentWindow
             newWidget.Height = 200;
             db.Widgets.Add(newWidget);
             await db.SaveChangesAsync();
+            _route.Widgets.Add(newWidget);
             
             _widgets.Insert(0, newWidget);
             await RefreshWidgetZIndicesAsync();

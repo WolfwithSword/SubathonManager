@@ -2,6 +2,10 @@
 
 public static class TwitchEvents
 {
-    // TODO twitch events for anything we need to then send out
-    // May not be needed actually
+    public static event Action? TwitchConnected;
+
+    public static void RaiseTwitchConnected()
+    {
+        TwitchConnected?.Invoke();
+    }
 }
