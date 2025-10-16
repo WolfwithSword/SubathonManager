@@ -8,7 +8,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
-using SubathonManager.Twitch;
+using SubathonManager.Core.Events;
 
 // TODO: split up? same for xaml?
 
@@ -17,17 +17,13 @@ namespace SubathonManager.UI
     public partial class MainWindow : FluentWindow
     {
         private Route? _selectedRoute;
-        private TwitchService _twitchService = App._twitchService;
         public ObservableCollection<Route> Overlays { get; set; } = new();
         
         public MainWindow()
         {
+            TwitchEvents.TwitchConnected += UpdateTwitchStatus;
+            
             InitializeComponent();
-            if (_twitchService == null)
-            {
-                _twitchService = App._twitchService;
-            }
-
             ApplicationThemeManager.Apply(this);
 
             Loaded += MainWindow_Loaded;
@@ -39,7 +35,7 @@ namespace SubathonManager.UI
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LoadRoutes();
-            ServerPortTextBox.Text = Config.Data["Server"]["Port"].ToString();
+            ServerPortTextBox.Text = Config.Data["Server"]["Port"];
             
             using var db = new AppDbContext();
 
@@ -258,21 +254,20 @@ namespace SubathonManager.UI
 
         private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Make button say "Reconnect" when it is already connected
             // TODO: Smartly stop everything inside before initialize, i think i do rn?
             try
             {
                 try
                 {
                     var cts = new CancellationTokenSource(5000);
-                    await _twitchService.StopAsync(cts.Token);
+                    await App._twitchService!.StopAsync(cts.Token);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex); // maybe?
                 }
 
-                await _twitchService.InitializeAsync();
+                await App._twitchService!.InitializeAsync();
                 Console.WriteLine("Twitch connection established");
             }
             catch
@@ -280,6 +275,15 @@ namespace SubathonManager.UI
                 Console.WriteLine("Failed to initialize twitch service.");
             }
 
+        }
+
+        private void UpdateTwitchStatus()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TwitchStatusText.Text = App._twitchService!.UserName != string.Empty ? App._twitchService.UserName : "Disconnected";
+                ConnectTwitchBtn.Content = App._twitchService!.UserName != string.Empty ? "Reconnect Twitch" : "Connect Twitch";
+            });
         }
         
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)

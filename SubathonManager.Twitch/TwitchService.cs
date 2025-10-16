@@ -26,7 +26,7 @@ namespace SubathonManager.Twitch
             // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "twitch_token.json");
 
         public string? AccessToken { get; private set; }
-        public string? UserName { get; private set; }
+        public string? UserName { get; private set; } = string.Empty;
         public string? UserId { get; private set; }
 
         public TwitchService()
@@ -88,12 +88,20 @@ namespace SubathonManager.Twitch
                 await StartOAuthFlowAsync();
             }
 
-            await InitializeApiAsync();
-            Console.WriteLine("Twitch Initialized API");
-            await InitializeChatAsync();
-            Console.WriteLine("Twitch Initialized Chat");
-            await InitializeEventSubAsync();
-            Console.WriteLine("Twitch Initialized EventSub");
+            try
+            {
+                await InitializeApiAsync();
+                Console.WriteLine("Twitch Initialized API");
+                await InitializeChatAsync();
+                Console.WriteLine("Twitch Initialized Chat");
+                await InitializeEventSubAsync();
+                Console.WriteLine("Twitch Initialized EventSub");
+                TwitchEvents.RaiseTwitchConnected();
+            }
+            catch
+            {
+                // 
+            }
         }
 
         private async Task StartOAuthFlowAsync()
@@ -166,7 +174,7 @@ namespace SubathonManager.Twitch
             }
             catch
             {
-            
+                //
             }
 
             if (!string.IsNullOrEmpty(AccessToken))
@@ -254,7 +262,7 @@ namespace SubathonManager.Twitch
                         "channel.subscribe", // This does not include resubscribes, channel.subscription.message does
                         "channel.cheer",
                         "channel.raid",
-                        "channel.subscription.message" // TODO verify this does not dube channel.subscribe. This does include duration_months for adv
+                        "channel.subscription.message" // TODO verify this does not dupe channel.subscribe. This does include duration_months for adv
                     };
 
                     foreach (var type in eventTypes)
@@ -263,9 +271,9 @@ namespace SubathonManager.Twitch
                         {
 
                             var condition = new Dictionary<string, string>
-                                { { "broadcaster_user_id", UserId },{ "to_broadcaster_user_id", UserId }, 
-                                    { "moderator_user_id", UserId }, { "user_id", UserId } };
-                            var x = await _api.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
+                                { { "broadcaster_user_id", UserId! },{ "to_broadcaster_user_id", UserId! }, 
+                                    { "moderator_user_id", UserId! }, { "user_id", UserId! } };
+                            var x = await _api!.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
                                 type.Contains("follow") ? "2" : "1", condition, 
                                 EventSubTransportMethod.Websocket, _eventSub.SessionId,
                                 clientId: Config.TwitchClientId,

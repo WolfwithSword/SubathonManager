@@ -37,7 +37,7 @@ public partial class App : Application
 
         Task.Run(async () =>
         {
-            if (_twitchService.HasTokenFile())
+            if (_twitchService!.HasTokenFile())
             {
                 var tokenValid = await _twitchService.ValidateTokenAsync();
                 if (!tokenValid)
@@ -93,12 +93,11 @@ public partial class App : Application
         // not being called
         try
         {
-            // Reload config
+            // Attempt reload config
             Config.LoadOrCreateDefault();
             int newPort = int.Parse(Config.Data["Server"]["Port"]);
             Console.WriteLine($"Config reloaded! New server port: {newPort}");
 
-            // Optionally restart your server
             _server?.Stop();
             _server = new WebServer(newPort);
             Task.Run(() => _server.StartAsync());
