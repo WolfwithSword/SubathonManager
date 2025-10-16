@@ -84,7 +84,7 @@ jobs:
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "filename=SubathonManager-nightly.zip" >> $GITHUB_OUTPUT
-          elif [[ "${GITHUB_REF_NAME}" =~ ^[0-9]+$ ]]; then
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
             echo "filename=SubathonManager-${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
           else
             echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
