@@ -1,14 +1,18 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using IniParser;
 using IniParser.Model;
 
 namespace SubathonManager.Core
 {
     public static class Config
-    {
-        private static readonly string ConfigPath =
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+    {        
+        private static readonly string ConfigPath = Path.GetFullPath(Path.Combine(string.Empty
+            , "data/config.ini"));
+        
+        public static readonly string DataFolder = Path.GetFullPath(Path.Combine(string.Empty
+            , "data"));
 
         private static readonly FileIniDataParser Parser = new();
         public static IniData Data { get; private set; } = new();
@@ -17,6 +21,10 @@ namespace SubathonManager.Core
 
         public static void LoadOrCreateDefault()
         {
+            string folder = Path.GetFullPath(Path.Combine(string.Empty, 
+                "data"));
+            Directory.CreateDirectory(folder);
+            
             // TODO impl logger
             Console.WriteLine($"[Config] Checking config at {ConfigPath}");
             var dir = Path.GetDirectoryName(ConfigPath);
@@ -49,11 +57,7 @@ namespace SubathonManager.Core
         {
             Data = new IniData();
             Data["Server"]["Port"] = "14040";
-            Data["Database"]["Path"] = "data/subathonmanager.db";
-            
-            Data["Twitch"]["AccessToken"] = "";
-            Data["Twitch"]["Username"] = "";
-            Data["Twitch"]["Channel"] = "";
+            Data["Database"]["Path"] = GetDatabasePath();
         }
 
         public static void Save()
@@ -63,7 +67,15 @@ namespace SubathonManager.Core
 
         public static string GetDatabasePath()
         {
-            return Data["Database"]?["Path"] ?? "data/subathonmanager.db";
+            if (Data["Database"]["Path"] == null)
+            {
+                string folder = Path.GetFullPath(Path.Combine(string.Empty, 
+                    "data"));
+                Directory.CreateDirectory(folder);
+                return Path.Combine(folder, "subathonmanager.db");
+            }
+
+            return Data["Database"]["Path"];
         }
     }
 }

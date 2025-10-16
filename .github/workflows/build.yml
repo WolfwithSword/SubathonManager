@@ -16,23 +16,42 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
       - name: Restore dependencies
         run: dotnet restore SubathonManager.sln
 
-      - name: Determine version
+      - name: Determine version and filename
         id: vars
+        shell: bash
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+            echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           else
             echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "filename=SubathonManager-nightly.zip" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            echo "filename=SubathonManager-${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
+          else
+            echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
           fi
 
       - name: Build project
@@ -47,14 +66,14 @@ jobs:
             -p:InformationalVersion=${{ steps.vars.outputs.version }} 
             -o build
 
-      - name: Compress
-        run: Compress-Archive -Path build\* -DestinationPath SubathonManager.zip
+      # - name: Compress
+      #   run: Compress-Archive -Path build\* -DestinationPath ${{ steps.vars.outputs.filename }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SubathonManager
-          path: SubathonManager.zip
+          name: SubathonManager-${{steps.vars.outputs.version}}
+          path: build
 
   release:
     name: Create Release
@@ -63,20 +82,30 @@ jobs:
     if: (github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main'
 
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: SubathonManager
-          path: build/
-
       - name: Determine release filename
         id: vars
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "filename=SubathonManager-nightly.zip" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            echo "filename=SubathonManager-${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
           else
             echo "filename=SubathonManager-${GITHUB_REF_NAME}.zip" >> $GITHUB_OUTPUT
           fi
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: SubathonManager-${{steps.vars.outputs.version}}
+          path: build/
 
       - name: Zip release files
         run: |

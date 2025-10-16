@@ -17,12 +17,13 @@ namespace SubathonManager.Twitch
     {
         private readonly string _callbackUrl;
 
-        private TwitchAPI _api = null!;
-        private TwitchClient _chat = null!;
-        private EventSubWebsocketClient _eventSub = null!;
+        private TwitchAPI? _api = null!;
+        private TwitchClient? _chat = null!;
+        private EventSubWebsocketClient? _eventSub = null!;
 
-        private readonly string _tokenFile =
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "twitch_token.json");
+        private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
+            , "data/twitch_token.json"));
+            // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "twitch_token.json");
 
         public string? AccessToken { get; private set; }
         public string? UserName { get; private set; }
@@ -159,7 +160,14 @@ namespace SubathonManager.Twitch
             await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
             tokenResponse.Close();
             
-            listener.Stop();
+            try
+            {
+                listener.Stop();
+            }
+            catch
+            {
+            
+            }
 
             if (!string.IsNullOrEmpty(AccessToken))
             {
@@ -412,8 +420,8 @@ namespace SubathonManager.Twitch
         public async Task StopAsync(CancellationToken cancellationToken)
         {
             // api has no disconnect? 
-            _chat.Disconnect();
-            await _eventSub.DisconnectAsync();
+            if (_chat != null ) _chat.Disconnect();
+            if (_eventSub != null) await _eventSub.DisconnectAsync();
         }
     }
 }

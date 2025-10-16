@@ -33,6 +33,7 @@ namespace SubathonManager.UI
             Loaded += MainWindow_Loaded;
             SaveSettingsButton.Click += SaveSettingsButton_Click;
             TitleBar.Title = $"Subathon Manager - {App.AppVersion}";
+            DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)

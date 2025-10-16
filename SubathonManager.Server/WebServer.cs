@@ -94,7 +94,14 @@ public class WebServer
     public void Stop()
     {
         _running = false;
-        _listener.Stop();
+        try
+        {
+            _listener.Stop();
+        }
+        catch
+        {
+            
+        }
     }
     
     private async Task HandleRequestAsync(HttpListenerContext ctx)
