@@ -152,14 +152,14 @@ namespace SubathonManager.Data
             }
 
             int affected = 0;
-            if (ev.SecondsValue > 0)
+            if (ev.SecondsValue != 0)
                 affected += await db.Database.ExecuteSqlRawAsync(
                     "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {0}" +
                     " WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} " +
                     "AND MillisecondsCumulative - MillisecondsElapsed > 0", 
                    (int) TimeSpan.FromSeconds(ev.GetFinalSecondsValue()).TotalMilliseconds, subathon.Id);
             
-            if (ev.PointsValue > 0)
+            if (ev.PointsValue != 0)
                 affected += await db.Database.ExecuteSqlRawAsync(
                     "UPDATE SubathonDatas SET Points = Points + {0}" +
                     " WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} " +
