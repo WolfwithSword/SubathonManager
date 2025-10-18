@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SubathonManager.Data;
 
@@ -10,9 +11,11 @@ using SubathonManager.Data;
 namespace SubathonManager.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251017182129_ChangeDatatypeToLong")]
+    partial class ChangeDatatypeToLong
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
@@ -78,9 +81,6 @@ namespace SubathonManager.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsPaused")
                         .HasColumnType("INTEGER");
 
@@ -89,9 +89,6 @@ namespace SubathonManager.Data.Migrations
 
                     b.Property<long>("MillisecondsElapsed")
                         .HasColumnType("INTEGER");
-
-                    b.Property<double>("Multiplier")
-                        .HasColumnType("REAL");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -115,9 +112,6 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnOrder(1);
 
-                    b.Property<int>("Amount")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Currency")
                         .HasColumnType("TEXT");
 
@@ -137,9 +131,6 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<int?>("PointsValue")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("ProcessedToSubathon")
                         .HasColumnType("INTEGER");
 
                     b.Property<double?>("SecondsValue")

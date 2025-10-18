@@ -256,12 +256,15 @@ namespace SubathonManager.Twitch
                 Console.WriteLine("Connected to EventSub WebSocket, session ID: " + _eventSub.SessionId);
                 if (!e.IsRequestedReconnect)
                 {
+                    // TODO listen to community gift sub, but do not add time as counts as channel.subscribe
+                    // but handy for showing "X gifted 50x subs" ? or not needed? 
                     var eventTypes = new[]
                     {
                         "channel.follow",
                         "channel.subscribe", // This does not include resubscribes, channel.subscription.message does
                         "channel.cheer",
                         "channel.raid",
+                        "channel.subscription.gift",
                         "channel.subscription.message" // TODO verify this does not dupe channel.subscribe. This does include duration_months for adv
                     };
 
@@ -322,11 +325,40 @@ namespace SubathonManager.Twitch
                 return Task.CompletedTask;
             };
 
+            _eventSub.ChannelSubscriptionGift += (s, e) =>
+            {
+                var eventMeta = e.Metadata as WebsocketEventSubMetadata;
+                Guid.TryParse(eventMeta.MessageId, out var _id);
+                if (_id == Guid.Empty) _id = Guid.NewGuid();
+                SubathonEvent _event = new SubathonEvent
+                {
+                    Id = _id,
+                    Source = SubathonEventSource.Twitch,
+                    Currency = "sub",
+                    EventType = SubathonEventType.TwitchGiftSub,
+                    Value = e.Payload.Event.Tier,
+                    User = e.Payload.Event.UserName,
+                    Amount = e.Payload.Event.Total,
+                    EventTimestamp = eventMeta.MessageTimestamp
+                };
+                SubathonEvents.RaiseSubathonEventCreated(_event);
+                
+                Console.WriteLine($"GiftSubs from {e.Payload.Event.UserName} {e.Payload.Event.Total} {e.Payload.Event.Tier}");
+                return Task.CompletedTask;
+            };
+
             _eventSub.ChannelSubscribe += (s, e) =>
             {
+                ///////////// Maybe we IGNORE if it's gifted, and rely on diff pubsub for gifts
+                ///
+                /// 
                 // this appears to only be new subs, not resubs
                 
                 // value can be equiv to tier
+                if (e.Payload.Event.IsGift)
+                {
+                    return Task.CompletedTask;
+                }
                 
                 var eventMeta = e.Metadata as WebsocketEventSubMetadata;
                 Guid.TryParse(eventMeta.MessageId, out var _id);
@@ -336,7 +368,7 @@ namespace SubathonManager.Twitch
                     Id = _id,
                     Source = SubathonEventSource.Twitch,
                     Currency = "sub",
-                    EventType = e.Payload.Event.IsGift ? SubathonEventType.TwitchGiftSub : SubathonEventType.TwitchSub,
+                    EventType = SubathonEventType.TwitchSub,
                     Value = e.Payload.Event.Tier,
                     User = e.Payload.Event.UserName,
                     EventTimestamp = eventMeta.MessageTimestamp

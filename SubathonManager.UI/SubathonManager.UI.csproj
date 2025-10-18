@@ -16,6 +16,7 @@
     <ItemGroup>
       <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
       <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
+      <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
       <ProjectReference Include="..\SubathonManager.Twitch\SubathonManager.Twitch.csproj" />
     </ItemGroup>
 

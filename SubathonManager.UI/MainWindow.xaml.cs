@@ -17,6 +17,7 @@ namespace SubathonManager.UI
     public partial class MainWindow : FluentWindow
     {
         private Route? _selectedRoute;
+        private DateTime? _lastUpdatedTimerAt = null;
         public ObservableCollection<Route> Overlays { get; set; } = new();
         
         public MainWindow()
@@ -30,8 +31,11 @@ namespace SubathonManager.UI
             SaveSettingsButton.Click += SaveSettingsButton_Click;
             TitleBar.Title = $"Subathon Manager - {App.AppVersion}";
             DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
-        }
 
+            SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
+            Task.Run(() => App.InitSubathonTimer());
+        }
+        
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LoadRoutes();
@@ -99,6 +103,101 @@ namespace SubathonManager.UI
                         Raid2TextBox.Text = p;
                         break;
                 }
+            }
+        }
+
+        private async void UpdateTimerValue(SubathonData subathon, DateTime time)
+        {
+            if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    TimerValue.Text = subathon.TimeRemaining().ToString();
+                    _lastUpdatedTimerAt = time;
+                    TogglePauseTimerBtn.Content = subathon.IsPaused ? "Resume Timer" : "Pause Timer";
+                    ToggleLockTimerBtn.Content = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
+                });
+            }
+        }
+
+        private void StartNewSubathon_Click(object sender, RoutedEventArgs e)
+        {
+            Task.Run(() => AppDbContext.DisableAllTimers(new AppDbContext()));
+            using var db = new AppDbContext();
+            SubathonData subathon = new SubathonData();
+            TimeSpan initialMs = Utils.ParseDurationString(InitialSubathonTime.Text);
+            if (initialMs == TimeSpan.Zero)
+            {
+                initialMs = TimeSpan.FromSeconds(1);
+            }
+            subathon.MillisecondsCumulative += (int) initialMs.TotalMilliseconds;
+            subathon.IsPaused = true; 
+            db.SubathonDatas.Add(subathon);
+            db.SaveChanges();
+            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+        }
+
+        private void AddTime_Click(object sender, RoutedEventArgs e)
+        {
+            TimeSpan timeToAdjust = Utils.ParseDurationString(AdjustSubathonTime.Text);
+            if (timeToAdjust == TimeSpan.Zero) return;
+
+            string rawText = AdjustSubathonTime.Text.Replace(" ", "");
+            
+            SubathonEvent _event = new SubathonEvent();
+            _event.EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1);
+            _event.Value = rawText;
+            _event.SecondsValue = timeToAdjust.TotalSeconds;
+            _event.PointsValue = 0;
+            _event.Source = SubathonEventSource.Command;
+            _event.EventType = SubathonEventType.Command;
+            _event.User = "SYSTEM";  //App._twitchService == null ? "You" : App._twitchService.UserName;
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(_event);
+        }
+        
+        private void SubtractTime_Click(object sender, RoutedEventArgs e)
+        {
+            TimeSpan timeToAdjust = Utils.ParseDurationString(AdjustSubathonTime.Text);
+            if (timeToAdjust == TimeSpan.Zero) return;
+
+            string rawText = AdjustSubathonTime.Text.Replace(" ", "");
+            
+            SubathonEvent _event = new SubathonEvent();
+            _event.EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1);
+            _event.Value = rawText;
+            _event.SecondsValue = -timeToAdjust.TotalSeconds;
+            _event.PointsValue = 0;
+            _event.Source = SubathonEventSource.Command;
+            _event.EventType = SubathonEventType.Command;
+            _event.User = "SYSTEM";  //App._twitchService == null ? "You" : App._twitchService.UserName;
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(_event);
+        }
+
+        private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)
+        {
+            using var db = new AppDbContext();
+            int affected = db.Database.ExecuteSqlRaw(
+                "UPDATE SubathonDatas SET IsPaused = 1 - IsPaused " +
+                "AND MillisecondsCumulative - MillisecondsElapsed > 0");
+            if (affected > 0)
+            {
+                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+                if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+            }
+        }
+
+        private void ToggleLockSubathon_Click(object sender, RoutedEventArgs e)
+        {
+            using var db = new AppDbContext();
+            int affected = db.Database.ExecuteSqlRaw(
+                "UPDATE SubathonDatas SET IsLocked = 1 - IsLocked " +
+                "AND MillisecondsCumulative - MillisecondsElapsed > 0");
+            if (affected > 0)
+            {
+                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+                if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
             }
         }
 
