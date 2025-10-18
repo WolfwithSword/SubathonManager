@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Data", "Sub
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Twitch", "SubathonManager.Twitch\SubathonManager.Twitch.csproj", "{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Services", "SubathonManager.Services\SubathonManager.Services.csproj", "{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SubathonManager.Data;
 
@@ -10,9 +11,11 @@ using SubathonManager.Data;
 namespace SubathonManager.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251017202323_AddNewSubathonFields")]
+    partial class AddNewSubathonFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
@@ -115,9 +118,6 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnOrder(1);
 
-                    b.Property<int>("Amount")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("Currency")
                         .HasColumnType("TEXT");
 
@@ -137,9 +137,6 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<int?>("PointsValue")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("ProcessedToSubathon")
                         .HasColumnType("INTEGER");
 
                     b.Property<double?>("SecondsValue")

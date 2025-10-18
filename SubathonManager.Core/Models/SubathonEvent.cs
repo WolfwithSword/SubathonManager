@@ -20,12 +20,18 @@ public class SubathonEvent
     // TODO get current time of timer before adding/subtracting seconds
     public int CurrentTime { get; set; } = 0;
 
+    public int CurrentPoints { get; set; } = 0;
+
     public SubathonEventType? EventType { get; set; } = SubathonEventType.Unknown;
 
     public double? SecondsValue { get; set; } = 0;
     public int? PointsValue { get; set; } = 0;
     public string? User { get; set; } = "";
     public string Value { get; set; } = "";
+    
+    public int Amount { get; set; } = 1; // how many times to multiply everything for amount, only used for giftsubs
+    
+    public bool ProcessedToSubathon { get; set; } = false;
 
     [CurrencyValidation] public string? Currency { get; set; } = "";
 
@@ -34,7 +40,8 @@ public class SubathonEvent
     public double Multiplier { get; set; } = 1;
     
     // do we want to later finetune power hour to be for selectable events?
-    public double GetFinalSecondsValue() => SecondsValue * Multiplier ?? 0; 
+    public double GetFinalSecondsValue() => Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : Multiplier) ?? 0; 
+    public double GetFinalPointsValue() => Amount * PointsValue ?? 0; 
 }
 
 public class CurrencyValidationAttribute : ValidationAttribute

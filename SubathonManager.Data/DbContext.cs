@@ -14,6 +14,8 @@ namespace SubathonManager.Data
 
         public DbSet<SubathonEvent> SubathonEvents { get; set; }
         public DbSet<SubathonValue> SubathonValues { get; set; }
+        
+        public DbSet<SubathonData> SubathonDatas { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -98,6 +100,82 @@ namespace SubathonManager.Data
                     }
                 }
             }
+        }
+
+        public static async Task PauseAllTimers(AppDbContext db)
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsPaused = 1");
+        }
+        
+        public static async Task DisableAllTimers(AppDbContext db)
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsActive = 0");
+            await PauseAllTimers(db);
+        }
+
+        public static async Task<bool> ProcessSubathonEvent(SubathonEvent ev)
+        {
+            using var db = new AppDbContext();
+            // do we want to only do not locked?
+            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive && !s.IsLocked);
+            
+            if (subathon == null)
+            {
+                // ev.ProcessedToSubathon = false;
+                // db.Add(ev);
+                // await db.SaveChangesAsync();
+                return false;
+            }
+
+            ev.Multiplier = subathon.Multiplier;
+            ev.CurrentTime = (int)subathon.TimeRemaining().TotalMilliseconds;
+
+            SubathonValue? subathonValue = null;
+            if (ev.Source != SubathonEventSource.Command)
+            {
+                subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
+                    v.EventType == ev.EventType && (v.Meta == ev.Value || v.Meta == string.Empty));
+
+                if (subathonValue == null)
+                {
+                    return false;
+                }
+            }
+
+            if (ev.Source != SubathonEventSource.Command)
+            {
+                if (ev.Value.All(char.IsDigit) && ev.Currency != "sub")
+                {
+                    ev.SecondsValue = double.Parse(ev.Value) * subathonValue!.Seconds;
+                }
+                ev.PointsValue = subathonValue!.Points;
+            }
+
+            int affected = 0;
+            if (ev.SecondsValue > 0)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {0}" +
+                    " WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} " +
+                    "AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+                   (int) TimeSpan.FromSeconds(ev.GetFinalSecondsValue()).TotalMilliseconds, subathon.Id);
+            
+            if (ev.PointsValue > 0)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = Points + {0}" +
+                    " WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} " +
+                    "AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+                    (int) ev.GetFinalPointsValue(), subathon.Id);
+
+            if (affected > 0)
+            {
+                ev.ProcessedToSubathon = true;
+                await db.Entry(subathon).ReloadAsync();
+                // i dont think we need to queue these
+                Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+            }
+            db.Add(ev);
+            await db.SaveChangesAsync();
+            return affected > 0;
         }
         
         public static void SeedDefaultValues(AppDbContext db)

@@ -101,15 +101,16 @@ public partial class EditRouteWindow : FluentWindow
     {
         if (_route == null) return;
         using var db = new AppDbContext();
-        var route = await db.Routes.FirstOrDefaultAsync(r => r.Id == _route.Id);
-        if (route == null) return;
+        await db.Entry(_route).ReloadAsync();
+        // var route = await db.Routes.FirstOrDefaultAsync(r => r.Id == _route.Id);
+        // if (route == null) return;
 
-        route.Name = RouteNameBox.Text.Trim();
-        if (int.TryParse(RouteWidthBox.Text, out var w)) route.Width = w;
-        if (int.TryParse(RouteHeightBox.Text, out var h)) route.Height = h;
+        _route.Name = RouteNameBox.Text.Trim();
+        if (int.TryParse(RouteWidthBox.Text, out var w)) _route.Width = w;
+        if (int.TryParse(RouteHeightBox.Text, out var h)) _route.Height = h;
 
         await db.SaveChangesAsync();
-        _route = route;
+        // _route = route;
         UpdateWebViewScale();
     }
     
@@ -144,12 +145,13 @@ public partial class EditRouteWindow : FluentWindow
 
     private async void CopyWidget_Click(object sender, RoutedEventArgs e)
     {
-        var wi = GetWidgetFromSender(sender);
-        if (wi == null) return;
+        var w = GetWidgetFromSender(sender);
+        if (w == null) return;
 
         using var db = new AppDbContext();
-        var w = await db.Widgets.Include(x => x.CssVariables).FirstOrDefaultAsync(x => x.Id == wi.Id);
-        if (w == null) return;
+        await db.Entry(w).ReloadAsync();
+        // var w = await db.Widgets.Include(x => x.CssVariables).FirstOrDefaultAsync(x => x.Id == wi.Id);
+        // if (w == null) return;
 
         // clone widget
         var clone = new Widget(w.Name + " (Copy)", w.HtmlPath);
