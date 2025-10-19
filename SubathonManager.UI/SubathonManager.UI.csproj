@@ -17,12 +17,30 @@
       <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
       <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
       <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
-      <ProjectReference Include="..\SubathonManager.Twitch\SubathonManager.Twitch.csproj" />
+      <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />
       <PackageReference Include="WPF-UI" Version="4.0.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="MainWindow.SubathonTimer.cs">
+        <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="MainWindow.Routes.cs">
+        <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="MainWindow.Validation.cs">
+        <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="MainWindow.Settings.cs">
+        <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="MainWindow.Simulate.cs">
+        <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>

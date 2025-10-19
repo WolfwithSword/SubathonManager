@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Core", "Sub
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Data", "SubathonManager.Data\SubathonManager.Data.csproj", "{CD70A16D-778E-4B39-B2E2-28393FC2EF72}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Twitch", "SubathonManager.Twitch\SubathonManager.Twitch.csproj", "{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Integration", "SubathonManager.Integration\SubathonManager.Integration.csproj", "{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Services", "SubathonManager.Services\SubathonManager.Services.csproj", "{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}"
 EndProject

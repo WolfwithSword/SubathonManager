@@ -36,6 +36,13 @@ public class SubathonData
     {
         return TimeSpan.FromMilliseconds(MillisecondsRemaining());
     }
+
+    public TimeSpan TimeRemainingRounded()
+    {
+        double totalSeconds = TimeRemaining().TotalSeconds;
+        return TimeSpan.FromSeconds(Math.Round(totalSeconds));
+    }
+    
     // isActive // only ever one
     
 }

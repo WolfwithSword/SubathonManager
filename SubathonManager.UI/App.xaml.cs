@@ -6,7 +6,7 @@ using SubathonManager.Server;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
-using SubathonManager.Twitch;
+using SubathonManager.Integration;
 using SubathonManager.Services;
 
 namespace SubathonManager.UI;
@@ -18,6 +18,7 @@ public partial class App : Application
     private static TimerService _timerService { get; set; } = new();
     private static EventService _eventService { get; set; } = new();
     public static TwitchService? _twitchService { get; private set; } = new();
+    public static StreamElementsService? _streamElementsService { get; private set; } = new();
     
     public static string AppVersion =>
         Assembly.GetExecutingAssembly()
@@ -61,6 +62,13 @@ public partial class App : Application
         Task.Run(() => _timerService.StartAsync());
         TimerEvents.TimerTickEvent += UpdateSubathonTimers;
         Task.Run(() => _eventService.LoopAsync());
+        Task.Run(() =>
+        {
+            Task.Delay(200);
+            _streamElementsService!.InitClient();
+            return Task.CompletedTask;
+        });
+
     }
 
     public static async void InitSubathonTimer()
@@ -90,6 +98,8 @@ public partial class App : Application
         Task.Run(() => _eventService.StopAsync());
         _timerService.Stop();
         _server?.Stop();
+        _streamElementsService?.Disconnect();
+        
         if (_twitchService != null)
         {
             try

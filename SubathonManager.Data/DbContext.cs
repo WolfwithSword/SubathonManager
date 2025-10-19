@@ -40,6 +40,12 @@ namespace SubathonManager.Data
 
             modelBuilder.Entity<SubathonEvent>()
                 .HasKey(e => new { e.Id, e.Source });
+            
+            modelBuilder.Entity<SubathonEvent>()
+                .HasOne(e => e.LinkedSubathon)
+                .WithMany() 
+                .HasForeignKey(e => e.SubathonId)
+                .IsRequired(false); 
 
             modelBuilder.Entity<SubathonValue>()
                 .HasKey(sv => new { sv.EventType, sv.Meta });
@@ -115,21 +121,25 @@ namespace SubathonManager.Data
 
         public static async Task<bool> ProcessSubathonEvent(SubathonEvent ev)
         {
-            using var db = new AppDbContext();
-            // do we want to only do not locked?
-            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive && !s.IsLocked);
+            await using var db = new AppDbContext();
+            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
             
-            if (subathon == null)
+            
+            if (subathon == null || subathon.IsLocked) // we only do math if it's unlocked, otherwise, only link
             {
-                // ev.ProcessedToSubathon = false;
-                // db.Add(ev);
-                // await db.SaveChangesAsync();
+                
+                ev.ProcessedToSubathon = false;
+                if (subathon != null)
+                    ev.SubathonId = subathon.Id;
+                db.Add(ev);
+                await db.SaveChangesAsync();
                 return false;
             }
-
+            
+            ev.SubathonId = subathon.Id;
             ev.Multiplier = subathon.Multiplier;
             ev.CurrentTime = (int)subathon.TimeRemaining().TotalMilliseconds;
-
+            
             SubathonValue? subathonValue = null;
             if (ev.Source != SubathonEventSource.Command)
             {
@@ -144,13 +154,18 @@ namespace SubathonManager.Data
 
             if (ev.Source != SubathonEventSource.Command)
             {
-                if (ev.Value.All(char.IsDigit) && ev.Currency != "sub")
+                if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub")
                 {
-                    ev.SecondsValue = double.Parse(ev.Value) * subathonValue!.Seconds;
+                    ev.SecondsValue = parsedValue * subathonValue!.Seconds;
                 }
+                else if (ev.Currency == "sub")
+                {
+                    ev.SecondsValue = subathonValue!.Seconds;
+                }
+                
                 ev.PointsValue = subathonValue!.Points;
             }
-
+            
             int affected = 0;
             if (ev.SecondsValue != 0)
                 affected += await db.Database.ExecuteSqlRawAsync(
@@ -177,6 +192,58 @@ namespace SubathonManager.Data
             await db.SaveChangesAsync();
             return affected > 0;
         }
+
+        public static async void UndoSimulatedEvents(List<SubathonEvent> events, bool doAll = false)
+        {
+            // Remove simulated events from the active subathon only
+            // idea - recent events in main page can have "remove" option each that invoke this with a list of 1 
+            using var db = new AppDbContext();
+            
+            int pointsToRemove = 0;
+            long msToRemove = 0;
+
+            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
+            if (subathon == null) return;
+            
+            if (doAll)
+            {
+                // Do All for current subathon
+                events = await db.SubathonEvents.Where(e => e.SubathonId == subathon.Id 
+                                                            && e.Source == SubathonEventSource.Simulated)
+                    .ToListAsync();
+                
+            }
+
+            foreach (SubathonEvent ev in events)
+            {
+                if (ev.SubathonId != subathon.Id) continue;
+                msToRemove += (long) ev.GetFinalSecondsValue() * 1000;
+                pointsToRemove +=  (int) ev.GetFinalPointsValue();
+            }
+            
+            int affected = 0;
+            if (msToRemove != 0)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {0}" +
+                    " WHERE IsActive = 1 AND Id = {1} " 
+                    , msToRemove, subathon.Id);
+            
+            if (pointsToRemove != 0)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = Points - {0}" +
+                    " WHERE IsActive = 1 AND Id = {1} ", 
+                    pointsToRemove, subathon.Id);
+
+            db.RemoveRange(events);
+            await db.SaveChangesAsync();
+            
+            if (affected > 0)
+            {
+                await db.Entry(subathon).ReloadAsync();
+                Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+            }
+
+        }
         
         public static void SeedDefaultValues(AppDbContext db)
         {
@@ -190,7 +257,8 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.TwitchGiftSub, Meta = "3000", Seconds = 300, Points = 5 },
                 new SubathonValue { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
-                new SubathonValue { EventType = SubathonEventType.TwitchRaid, Seconds = 0 }
+                new SubathonValue { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
+                new SubathonValue { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12} // per 1 unit/dollar of given currency
             };
 
             foreach (var def in defaults)
