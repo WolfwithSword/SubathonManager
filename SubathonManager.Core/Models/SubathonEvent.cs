@@ -32,7 +32,10 @@ public class SubathonEvent
     public int Amount { get; set; } = 1; // how many times to multiply everything for amount, only used for giftsubs
     
     public bool ProcessedToSubathon { get; set; } = false;
-
+    
+    public Guid? SubathonId { get; set; }
+    public SubathonData? LinkedSubathon  { get; set; }
+    
     [CurrencyValidation] public string? Currency { get; set; } = "";
 
     // For determining if power hour (or negative power hour) is enabled, the multiplier.

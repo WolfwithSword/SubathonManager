@@ -58,6 +58,7 @@ namespace SubathonManager.Core
             Data = new IniData();
             Data["Server"]["Port"] = "14040";
             Data["Database"]["Path"] = GetDatabasePath();
+            Data["StreamElements"]["JWT"] = "";
         }
 
         public static void Save()
