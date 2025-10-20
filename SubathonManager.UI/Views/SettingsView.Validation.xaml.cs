@@ -2,16 +2,16 @@
 using System.Globalization;
 using Wpf.Ui.Controls;
 
-namespace SubathonManager.UI
+namespace SubathonManager.UI.Views
 {
-    public partial class MainWindow
+    public partial class SettingsView
     {
-        private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        public void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !int.TryParse(e.Text, out _);
         }
         
-        private void DecimalOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        public void DecimalOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !double.TryParse(
                 ((TextBox)sender).Text.Insert(((TextBox)sender).SelectionStart, e.Text),

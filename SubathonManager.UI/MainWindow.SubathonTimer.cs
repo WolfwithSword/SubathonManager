@@ -23,16 +23,7 @@ namespace SubathonManager.UI
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play16 : SymbolRegular.Pause16;
                     LockText.Text = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen16 : SymbolRegular.LockClosed16;
-                    
-                    
-                    TimerValueSettings.Text = subathon.TimeRemainingRounded().ToString();
-                    PauseText2.Text = subathon.IsPaused ? "Resume Timer" : "Pause Timer";
-                    PauseIcon2.Symbol = subathon.IsPaused  ? SymbolRegular.Play16 : SymbolRegular.Pause16;
-                    LockText2.Text = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
-                    LockIcon2.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen16 : SymbolRegular.LockClosed16;
-                    
                     PointsValue.Text = $"{subathon.Points.ToString()} Pts";
-                    PointsValueSettings.Text = subathon.Points.ToString();
                 });
             }
         }

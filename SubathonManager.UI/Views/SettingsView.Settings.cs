@@ -4,9 +4,9 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 
-namespace SubathonManager.UI
+namespace SubathonManager.UI.Views
 {
-    public partial class MainWindow
+    public partial class SettingsView
     {
         private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
         {

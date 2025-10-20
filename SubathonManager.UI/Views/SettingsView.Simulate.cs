@@ -1,9 +1,9 @@
 ﻿using System.Windows;
 using SubathonManager.Integration;
 
-namespace SubathonManager.UI
+namespace SubathonManager.UI.Views
 {
-    public partial class MainWindow
+    public partial class SettingsView
     {
         private async void TestSETip_Click(object sender, RoutedEventArgs e)
         {
