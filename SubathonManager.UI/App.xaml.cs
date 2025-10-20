@@ -61,7 +61,6 @@ public partial class App : Application
         Task.Run(() => _server.StartAsync());
         Task.Run(() => _timerService.StartAsync());
         TimerEvents.TimerTickEvent += UpdateSubathonTimers;
-        Task.Run(() => _eventService.LoopAsync());
         Task.Run(() =>
         {
             Task.Delay(200);
@@ -87,9 +86,22 @@ public partial class App : Application
             time.TotalMilliseconds);
         
         var subathon = await db.SubathonDatas.SingleOrDefaultAsync(x => x.IsActive && !x.IsPaused);
-        
-        // TODO push to websocket, and UI. Queue events, sort by time, consume
-        if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+
+        if (subathon != null)
+        {
+            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+            if (subathon.TimeRemainingRounded().TotalSeconds <= 0 && !subathon.IsPaused)
+            {
+                
+                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsLocked = 1" +
+                                                     " WHERE IsActive = 1 AND IsPaused = 0 " +
+                                                     "AND Id = {0}", 
+                    subathon.Id);
+            }
+
+            await db.Entry(subathon).ReloadAsync();
+            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+        }
         // if (subathon != null) Console.WriteLine($"Subathon Timer Updated: {subathon.MillisecondsCumulative} {subathon.MillisecondsElapsed} {subathon.PredictedEndTime()} {subathon.TimeRemaining()}");
     }
 

@@ -107,6 +107,7 @@ public class StreamElementsService
             _event.Id = tipGuid;
         
         SubathonEvents.RaiseSubathonEventCreated(_event);
+        // Console.WriteLine($"SE Tip: {e.Amount} {e.Currency} {e.Username} {e.TipId}");
     }
 
     public void Disconnect()
