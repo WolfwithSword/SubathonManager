@@ -2,14 +2,13 @@
 using System.Windows.Controls;
 using System.Collections.ObjectModel;
 using Microsoft.EntityFrameworkCore;
-using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
 {
-    public partial class EventListView : UserControl
+    public partial class EventListView
     {
         public ObservableCollection<SubathonEvent> EventItems { get; set; } = new();
         private int _maxItems = 20;
@@ -29,17 +28,17 @@ namespace SubathonManager.UI.Views
             Task.Run(() => LoadRecentEvents());
         }
 
-        private async void OnSubathonEventProcessed(SubathonEvent _event)
+        private async void OnSubathonEventProcessed(SubathonEvent subathonEvent)
         {
-            if (_event.PointsValue < 1 && _event.SecondsValue < 1) return;
+            if (subathonEvent.PointsValue < 1 && subathonEvent.SecondsValue < 1) return;
             
             await Dispatcher.InvokeAsync(() =>
             {
-                var existing = EventItems.FirstOrDefault(x => x.Id == _event.Id);
+                var existing = EventItems.FirstOrDefault(x => x.Id == subathonEvent.Id);
                 if (existing != null)
                     EventItems.Remove(existing);
 
-                EventItems.Insert(0, _event);
+                EventItems.Insert(0, subathonEvent);
                 while (EventItems.Count > _maxItems)
                     EventItems.RemoveAt(EventItems.Count - 1);
             });

@@ -3,57 +3,56 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
-using TwitchLib.Api.Helix.Models.Streams.GetStreamKey;
 
 namespace SubathonManager.Integration;
 
 public class StreamElementsService
 {
 
-    private Client? client;
+    private Client? _client;
     public bool Connected { get; private set; } = false;
-    private string JwtToken = "";
-    private bool HasAuthError = false;
+    private string _jwtToken = "";
+    private bool _hasAuthError = false;
     
     public bool InitClient()
     {
-        HasAuthError = false;
+        _hasAuthError = false;
         Connected = false;
         GetJwtFromConfig();
-        if (JwtToken.Equals(String.Empty)) return false;
+        if (_jwtToken.Equals(String.Empty)) return false;
         
-        if (client != null)
+        if (_client != null)
         {
             Disconnect();
         }
 
-        client = new Client(JwtToken);
+        _client = new Client(_jwtToken);
         
-        client.OnConnected += _OnConnected;
-        client.OnAuthenticated += _OnAuthenticated;
-        client.OnTip += _OnTip;
-        client.OnDisconnected += _OnDisconnected;
-        client.OnAuthenticationFailure += _OnAuthenticateError;
+        _client.OnConnected += _OnConnected;
+        _client.OnAuthenticated += _OnAuthenticated;
+        _client.OnTip += _OnTip;
+        _client.OnDisconnected += _OnDisconnected;
+        _client.OnAuthenticationFailure += _OnAuthenticateError;
         
-        client.Connect();
+        _client.Connect();
         return true;
     }
 
     public bool IsTokenEmpty()
     {
-        return string.IsNullOrEmpty(JwtToken);
+        return string.IsNullOrEmpty(_jwtToken);
     }
 
     public void SetJwtToken(string token)
     {
-        JwtToken = token;
+        _jwtToken = token;
         Config.Data["StreamElements"]["JWT"] = token;
         Config.Save();
     }
 
     private void GetJwtFromConfig()
     {
-        JwtToken = Config.Data["StreamElements"]["JWT"] ?? "";
+        _jwtToken = Config.Data["StreamElements"]["JWT"] ?? "";
     }
 
     private void _OnConnected(object? sender, EventArgs e)
@@ -66,14 +65,14 @@ public class StreamElementsService
         Console.WriteLine($"StreamElementsService Disconnected");
         Connected = false;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
-        if (!HasAuthError)
+        if (!_hasAuthError)
         {
             Task.Run(() =>
             {
                 Task.Delay(200);
-                if (!HasAuthError && !Connected && client != null)
+                if (!_hasAuthError && !Connected && _client != null)
                 {
-                    client.Connect();
+                    _client.Connect();
                 } 
             });
         }
@@ -83,7 +82,7 @@ public class StreamElementsService
     {
         Console.WriteLine($"StreamElementsService Authenticated");
         Connected = true;
-        HasAuthError = false;
+        _hasAuthError = false;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
     }
 
@@ -91,37 +90,37 @@ public class StreamElementsService
     {
         Console.WriteLine($"StreamElementsService Authentication Error");
         Connected = false;
-        HasAuthError = true;
+        _hasAuthError = true;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
     }
 
     private void _OnTip(object? sender, StreamElementsNET.Models.Tip.Tip e)
     {
-        SubathonEvent _event = new();
-        _event.User = e.Username;
-        _event.Currency = e.Currency;
-        _event.Value = $"{e.Amount}";
-        _event.Source = SubathonEventSource.StreamElements;
-        _event.EventType = SubathonEventType.StreamElementsDonation;
+        SubathonEvent subathonEvent = new();
+        subathonEvent.User = e.Username;
+        subathonEvent.Currency = e.Currency;
+        subathonEvent.Value = $"{e.Amount}";
+        subathonEvent.Source = SubathonEventSource.StreamElements;
+        subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
         if (Guid.TryParse(e.TipId, out var tipGuid))
-            _event.Id = tipGuid;
+            subathonEvent.Id = tipGuid;
         
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         // Console.WriteLine($"SE Tip: {e.Amount} {e.Currency} {e.Username} {e.TipId}");
     }
 
     public void Disconnect()
     {
-        if (client == null) return;
+        if (_client == null) return;
         try
         {
-            client.Disconnect();
-            client.OnConnected -= _OnConnected;
-            client.OnAuthenticated -= _OnAuthenticated;
-            client.OnTip -= _OnTip;
-            client.OnDisconnected -= _OnDisconnected;
-            client.OnAuthenticationFailure -= _OnAuthenticateError;
-            client = null;
+            _client.Disconnect();
+            _client.OnConnected -= _OnConnected;
+            _client.OnAuthenticated -= _OnAuthenticated;
+            _client.OnTip -= _OnTip;
+            _client.OnDisconnected -= _OnDisconnected;
+            _client.OnAuthenticationFailure -= _OnAuthenticateError;
+            _client = null;
         }
         catch (Exception ex)
         {
@@ -131,20 +130,20 @@ public class StreamElementsService
 
     public static void SimulateTip(string value = "10.00", string currency = "USD")
     {
-        if (!double.TryParse(value, out var _value))
+        if (!double.TryParse(value, out var val))
         {
             Console.WriteLine($"Invalid value for simulated tip. {value}");
             return;
         }
 
-        SubathonEvent _event = new();
-        _event.User = "SYSTEM";
-        _event.Currency = currency;
+        SubathonEvent subathonEvent = new();
+        subathonEvent.User = "SYSTEM";
+        subathonEvent.Currency = currency;
         
-        _event.Value = value; // TODO verify format, must be parsable as a double
-        _event.Source = SubathonEventSource.Simulated;
-        _event.EventType = SubathonEventType.StreamElementsDonation;
+        subathonEvent.Value = value; // TODO verify format, must be parsable as a double
+        subathonEvent.Source = SubathonEventSource.Simulated;
+        subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
         
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 }

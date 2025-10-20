@@ -1,10 +1,9 @@
-﻿using System.Windows.Controls;
-using SubathonManager.Core.Events;
+﻿using SubathonManager.Core.Events;
 using SubathonManager.Core;
 
 namespace SubathonManager.UI.Views;
 
-public partial class SettingsView : UserControl
+public partial class SettingsView
 {
     private DateTime? _lastUpdatedTimerAt;
     public SettingsView()

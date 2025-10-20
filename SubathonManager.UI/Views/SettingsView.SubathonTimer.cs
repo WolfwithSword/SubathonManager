@@ -10,7 +10,7 @@ namespace SubathonManager.UI.Views;
 public partial class SettingsView
 {
     
-    private async void UpdateTimerValue(SubathonData subathon, DateTime time)
+    private void UpdateTimerValue(SubathonData subathon, DateTime time)
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
@@ -27,7 +27,7 @@ public partial class SettingsView
             }
         }
         
-        private async void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
+        private void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
         {
             AppDbContext.UndoSimulatedEvents(new(), true);
         }

@@ -23,7 +23,7 @@ namespace SubathonManager.Data
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             var dbPath = Config.GetDatabasePath();
-            Directory.CreateDirectory(Path.GetDirectoryName(dbPath));
+            Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
             optionsBuilder.UseSqlite($"Data Source={dbPath}");
         }
 

@@ -5,18 +5,18 @@ namespace SubathonManager.UI.Views
 {
     public partial class SettingsView
     {
-        private async void TestSETip_Click(object sender, RoutedEventArgs e)
+        private void TestSETip_Click(object sender, RoutedEventArgs e)
         {
             var value = SimulateSETipAmountBox.Text;
             StreamElementsService.SimulateTip(value);
         }
         
-        private async void TestTwitchFollow_Click(object sender, RoutedEventArgs e)
+        private void TestTwitchFollow_Click(object sender, RoutedEventArgs e)
         {
             TwitchService.SimulateFollow();
         }
 
-        private async void TestTwitchRaid_Click(object sender, RoutedEventArgs e)
+        private void TestTwitchRaid_Click(object sender, RoutedEventArgs e)
         {
             if (int.TryParse(SimulateRaidAmt.Text, out var parsedAmount))
             {
@@ -27,7 +27,7 @@ namespace SubathonManager.UI.Views
             }
         }
 
-        private async void TestTwitchSub_Click(object sender, RoutedEventArgs e)
+        private void TestTwitchSub_Click(object sender, RoutedEventArgs e)
         {
             string tier = "";
             string selectedTier =
@@ -48,14 +48,12 @@ namespace SubathonManager.UI.Views
                 TwitchService.SimulateSubscription(tier);
         }
 
-        private async void TestTwitchGiftSub_Click(object sender, RoutedEventArgs e)
+        private void TestTwitchGiftSub_Click(object sender, RoutedEventArgs e)
         {
             string tier = "";
-            int amount = 0;
-            
             string selectedTier =
                 (SimGiftSubTierSelection.SelectedItem as System.Windows.Controls.ComboBoxItem).Content?.ToString() ?? "";
-            amount = int.TryParse(SimGiftSubAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
+            int amount = int.TryParse(SimGiftSubAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
             switch (selectedTier)
             {
                 case "Tier 1":
@@ -72,7 +70,7 @@ namespace SubathonManager.UI.Views
                 TwitchService.SimulateGiftSubscriptions(tier, amount);
         }
 
-        private async void TestTwitchCheer_Click(object sender, RoutedEventArgs e)
+        private void TestTwitchCheer_Click(object sender, RoutedEventArgs e)
         {
             if (int.TryParse(SimulateCheerAmt.Text, out var parsedAmount))
             {

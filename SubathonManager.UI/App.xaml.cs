@@ -13,12 +13,12 @@ namespace SubathonManager.UI;
 
 public partial class App : Application
 {    
-    private WebServer _server;
-    private FileSystemWatcher _configWatcher;
-    private static TimerService _timerService { get; set; } = new();
-    private static EventService _eventService { get; set; } = new();
-    public static TwitchService? _twitchService { get; private set; } = new();
-    public static StreamElementsService? _streamElementsService { get; private set; } = new();
+    private WebServer? _server;
+    private FileSystemWatcher? _configWatcher;
+    private static TimerService AppTimerService { get; set; } = new();
+    private static EventService AppEventService { get; set; } = new();
+    public static TwitchService? AppTwitchService { get; private set; } = new();
+    public static StreamElementsService? AppStreamElementsService { get; private set; } = new();
     
     public static string AppVersion =>
         Assembly.GetExecutingAssembly()
@@ -43,30 +43,31 @@ public partial class App : Application
 
         Task.Run(async () =>
         {
-            if (_twitchService!.HasTokenFile())
+            if (AppTwitchService!.HasTokenFile())
             {
-                var tokenValid = await _twitchService.ValidateTokenAsync();
+                var tokenValid = await AppTwitchService.ValidateTokenAsync();
                 if (!tokenValid)
                 {
-                    _twitchService.RevokeTokenFile();
+                    AppTwitchService.RevokeTokenFile();
                     Console.WriteLine("Twitch token expired, deleted file.");
                 }
                 else
                 {
-                    await _twitchService.InitializeAsync();
+                    await AppTwitchService.InitializeAsync();
                 }
             }
         });
         
         Task.Run(() => _server.StartAsync());
-        Task.Run(() => _timerService.StartAsync());
+        Task.Run(() => AppTimerService.StartAsync());
         TimerEvents.TimerTickEvent += UpdateSubathonTimers;
         Task.Run(() =>
         {
             Task.Delay(200);
-            _streamElementsService!.InitClient();
+            AppStreamElementsService!.InitClient();
             return Task.CompletedTask;
         });
+        WatchConfig();
 
     }
 
@@ -107,17 +108,17 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        Task.Run(() => _eventService.StopAsync());
-        _timerService.Stop();
+        Task.Run(() => AppEventService.StopAsync());
+        AppTimerService.Stop();
         _server?.Stop();
-        _streamElementsService?.Disconnect();
+        AppStreamElementsService?.Disconnect();
         
-        if (_twitchService != null)
+        if (AppTwitchService != null)
         {
             try
             {
                 var cts = new CancellationTokenSource(5000);
-                Task.Run(() => _twitchService.StopAsync(cts.Token));
+                Task.Run(() => AppTwitchService.StopAsync(cts.Token));
                 Console.WriteLine("TwitchService stopped cleanly.");
             }
             catch (Exception ex)
@@ -130,8 +131,8 @@ public partial class App : Application
     
     public void WatchConfig()
     {
-        // not working. Want to restart webserver on port change
-        string configFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.ini");
+        string configFile = Path.GetFullPath(Path.Combine(string.Empty
+            , "data/config.ini"));
         _configWatcher = new FileSystemWatcher(Path.GetDirectoryName(configFile)!)
         {
             Filter = Path.GetFileName(configFile),
@@ -144,17 +145,17 @@ public partial class App : Application
     
     private void ConfigChanged(object sender, FileSystemEventArgs e)
     {
-        // not being called
         try
         {
-            // Attempt reload config
-            Config.LoadOrCreateDefault();
+            
             int newPort = int.Parse(Config.Data["Server"]["Port"]);
-            Console.WriteLine($"Config reloaded! New server port: {newPort}");
-
-            _server?.Stop();
-            _server = new WebServer(newPort);
-            Task.Run(() => _server.StartAsync());
+            if (_server?.Port != newPort)
+            {
+                Console.WriteLine($"Config reloaded! New server port: {newPort}");
+                _server?.Stop();
+                _server = new WebServer(newPort);
+                Task.Run(() => _server.StartAsync());
+            }
         }
         catch (Exception ex)
         {

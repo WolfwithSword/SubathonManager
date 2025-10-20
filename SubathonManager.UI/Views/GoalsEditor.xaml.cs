@@ -7,7 +7,7 @@ using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
 {
-    public partial class GoalsEditor : UserControl
+    public partial class GoalsEditor
     {
         private SubathonGoalSet? _activeGoalSet;
 

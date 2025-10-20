@@ -1,6 +1,5 @@
 ﻿using SubathonManager.Core.Models;
 using SubathonManager.Data;
-using SubathonManager.Core;
 namespace SubathonManager.Services;
 
 // We don't need one of these for Subathon updates, because those fire every second anyways
