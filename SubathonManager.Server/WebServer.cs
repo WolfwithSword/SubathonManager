@@ -25,20 +25,6 @@ public class WebServer
             if (routes.Count == 0)
             {
                 Console.WriteLine("No routes found.");
-                // Route route = new();
-                // route.Name = "test";
-                // //
-                // Widget widget = new Widget("test", "C:\\Users\\WolfwithSword\\Documents\\subman\\testwidgets\\widget.html");
-                // widget.Route = route;
-                // //
-                // db.Routes.Add(route);
-                // db.SaveChanges();
-                // db.Widgets.Add(widget);
-                // db.SaveChanges();
-                // widget.ScanCssVariables();
-                // db.CssVariables.AddRange(widget.CssVariables);
-                // db.SaveChanges();
-                // AddRoute(route);
             }
             else {
                 foreach (var route in routes)
@@ -100,7 +86,7 @@ public class WebServer
         }
         catch
         {
-            
+            //
         }
     }
     

@@ -4,9 +4,9 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 
-namespace SubathonManager.UI
+namespace SubathonManager.UI.Views
 {
-    public partial class MainWindow
+    public partial class SettingsView
     {
         private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
         {
@@ -22,8 +22,8 @@ namespace SubathonManager.UI
         {
             Dispatcher.Invoke(() =>
             {
-                TwitchStatusText.Text = App._twitchService!.UserName != string.Empty ? App._twitchService.UserName : "Disconnected";
-                ConnectTwitchBtn.Content = App._twitchService!.UserName != string.Empty ? "Reconnect" : "Connect";
+                TwitchStatusText.Text = App.AppTwitchService!.UserName != string.Empty ? App.AppTwitchService.UserName : "Disconnected";
+                ConnectTwitchBtn.Content = App.AppTwitchService!.UserName != string.Empty ? "Reconnect" : "Connect";
             });
         }
 
@@ -44,14 +44,14 @@ namespace SubathonManager.UI
                 try
                 {
                     var cts = new CancellationTokenSource(5000);
-                    await App._twitchService!.StopAsync(cts.Token);
+                    await App.AppTwitchService!.StopAsync(cts.Token);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex); //
                 }
 
-                await App._twitchService!.InitializeAsync();
+                await App.AppTwitchService!.InitializeAsync();
                 Console.WriteLine("Twitch connection established");
             }
             catch
@@ -64,11 +64,11 @@ namespace SubathonManager.UI
         {
             try
             {
-                App._streamElementsService!.Disconnect();
-                App._streamElementsService!.SetJwtToken(SEJWTTokenBox.Password);
+                App.AppStreamElementsService!.Disconnect();
+                App.AppStreamElementsService!.SetJwtToken(SEJWTTokenBox.Password);
                 await Task.Delay(100);
-                App._streamElementsService!.InitClient();
-                if (App._streamElementsService.IsTokenEmpty())
+                App.AppStreamElementsService!.InitClient();
+                if (App.AppStreamElementsService.IsTokenEmpty())
                 {
                     Process.Start(new ProcessStartInfo
                     {

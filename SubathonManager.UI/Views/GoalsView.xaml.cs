@@ -1,7 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
-using Wpf.Ui.Controls;
 using System.Windows.Media;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
@@ -10,7 +9,7 @@ using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Views;
 
-public partial class GoalsView : UserControl
+public partial class GoalsView
 {
     public ObservableCollection<GoalViewModel> Goals { get; set; } = new();
     private int _subathonLastPoints = -1;
@@ -36,7 +35,7 @@ public partial class GoalsView : UserControl
             {
                 foreach (var goal in Goals)
                 {
-                    if (!goal.Completed && subathon.Points >= goal.Points)
+                    if (!goal.Completed && subathon.Points >= goal.Points || subathon.Points == 0)
                     {
                         LoadGoals();
                         break;
@@ -100,7 +99,7 @@ public partial class GoalsView : UserControl
         public Brush TextColor => Completed ? Brushes.Gray : Brushes.White;
         public Brush PointsColor => Completed ? Brushes.DarkGray : Brushes.LightBlue;
         public double OpacityValue => Completed ? 0.6 : 1.0;
-        public TextDecorationCollection PointsDecoration =>
+        public TextDecorationCollection? PointsDecoration =>
             Completed ? TextDecorations.Strikethrough : null;
     }
 }

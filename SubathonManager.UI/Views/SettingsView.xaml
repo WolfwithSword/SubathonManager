@@ -1,0 +1,357 @@
+﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SubathonManager.UI.Views"
+             mc:Ignorable="d"
+             Background="{DynamicResource UiBrushPrimary}"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             d:DesignHeight="800" d:DesignWidth="1200">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Server Settings" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="DataFolderText" VerticalAlignment="Center" FontSize="12" Margin="24,0,0,10"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                            <TextBlock Text="Port:" Width="50" VerticalAlignment="Center"/>
+                            <ui:TextBox x:Name="ServerPortTextBox" Width="100"/>
+                        </StackPanel>
+                        <ui:Button x:Name="SaveSettingsButton" Content="Save Settings" Width="120" Height="30" Margin="0,10,0,5"/>
+
+                        <StackPanel HorizontalAlignment="Right" Margin="12 -120 12 4">
+                            <TextBlock x:Name="TimerValueSettings" Text="" VerticalAlignment="Center"
+                                       HorizontalAlignment="Right" FontSize="40" Margin="6 0 6 0"/>
+                            <TextBlock x:Name="PointsValueSettings" Text="" VerticalAlignment="Center" 
+                                       HorizontalAlignment="Right" FontSize="30" Margin="6 0 6 0"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <ui:Button x:Name="TogglePauseTimerBtnSettings"
+                                           Click="TogglePauseSubathon_Click"
+                                           Width="160" Height="30" Margin="0,10,6,5">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <ui:SymbolIcon x:Name="PauseIcon2" Symbol="Pause16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="PauseText2" Text="Pause Timer" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </ui:Button>
+                                <ui:Button x:Name="ToggleLockTimerBtnSettings"
+                                           Click="ToggleLockSubathon_Click"
+                                           Width="160" Height="30" Margin="0,10,6,5">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <ui:SymbolIcon x:Name="LockIcon2" Symbol="LockClosed16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="LockText2" Text="Lock Subathon" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </ui:Button>
+
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                                <ui:Button x:Name="RemoveAllSimulatedEventsBtn"
+                                           Click="RemoveSimEvents_Click"
+                                           Content="Undo Simulated Events"
+                                           Width="324" Height="30" Margin="2,10,2,5"/>
+                            </StackPanel>
+                        </StackPanel>
+                        
+                         <!-- Subathon Values -->
+                        
+                        <Separator Margin="0,10"/>
+                        <TextBlock Text="Values and Connections" FontWeight="Bold" FontSize="16" Margin="0,20,0,10"/>
+                        
+                        <!-- Twitch --> 
+                        <Expander Header="Twitch" IsExpanded="False">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Button x:Name="ConnectTwitchBtn"
+                                               Content="Connect"
+                                               Width="120"
+                                               Height="35"
+                                               Margin="0,5,0,10"
+                                               Click="ConnectTwitchButton_Click"/>
+                                    <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+                                </StackPanel>
+                                
+                                <StackPanel Margin="10,5,0,5">
+                                    
+                                    <!-- Cheer / Bits -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="300"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="CheerTextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
+                                            
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="Cheer2TextBox"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="100"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        PlaceholderText="100"
+                                                        Height="30"
+                                                        FontSize="12"
+                                                        PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateCheerAmt"/>
+                                            <ui:Button Icon="Add24" Foreground="White"
+                                                       Content="Test"
+                                                       Click="TestTwitchCheer_Click"
+                                                       Width="60" Padding="2"
+                                                       Height="30"
+                                                       Margin="4,0,0,0"></ui:Button>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Raid -->
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="300"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="RaidTextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="Raid2TextBox"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                                                                
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="25"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        PlaceholderText="25"
+                                                        Height="30"
+                                                        FontSize="12"
+                                                        PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateRaidAmt"/>
+                                            <ui:Button Icon="Add24" Foreground="White"
+                                                       Content="Test"
+                                                       Click="TestTwitchRaid_Click"
+                                                       Width="60" Padding="2"
+                                                       Height="30"
+                                                       Margin="4,0,0,0"></ui:Button>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="300"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="FollowTextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="Follow2TextBox"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                                                                
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <ui:Button Icon="Add24" Foreground="White"
+                                                       Content="Test"
+                                                       Click="TestTwitchFollow_Click"
+                                                       Width="60" Padding="2"
+                                                       Height="30"
+                                                       Margin="4,0,0,0"></ui:Button>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Subs -->
+                                    <Expander Header="Subs" IsExpanded="True" Margin="0,5,0,0">
+                                        <StackPanel Margin="10,5,0,5">
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="300"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                    <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
+                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                                x:Name="SubT1TextBox"/>
+                                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                                x:Name="SubT1TextBox2"/>
+                                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <ComboBox Text="Tier" Width="120" 
+                                                              x:Name="SimSubTierSelection"
+                                                              SelectedIndex="0" Margin="4 0 4 0">
+                                                        <ComboBoxItem Content="Tier 1"/>
+                                                        <ComboBoxItem Content="Tier 2"/>
+                                                        <ComboBoxItem Content="Tier 3"/>
+                                                    </ComboBox>
+                                                    <ui:Button Icon="Add24" Foreground="White"
+                                                               Content="Test"
+                                                               Click="TestTwitchSub_Click"
+                                                               Width="60" Padding="2"
+                                                               Height="30"
+                                                               Margin="4,0,0,0"></ui:Button>
+                                                </StackPanel>
+                                                
+                                            </Grid>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="SubT2TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="SubT2TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="SubT3TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="SubT3TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            
+                                            <Separator Margin="0,8"/>
+                                            
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="300"/>
+                                                </Grid.ColumnDefinitions>
+                                              <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                    <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                                x:Name="GiftSubT1TextBox"/>
+                                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                                x:Name="GiftSubT1TextBox2"/>
+                                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                                                             
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                                Text="1" PlaceholderText="1" Height="35" FontSize="14"
+                                                                x:Name="SimGiftSubAmtInput"/>
+                                                    <ComboBox Text="Tier" Width="120" 
+                                                              x:Name="SimGiftSubTierSelection"
+                                                              SelectedIndex="0" Margin="4 0 4 0">
+                                                        <ComboBoxItem Content="Tier 1"/>
+                                                        <ComboBoxItem Content="Tier 2"/>
+                                                        <ComboBoxItem Content="Tier 3"/>
+                                                    </ComboBox>
+                                                    <ui:Button Icon="Add24" Foreground="White"
+                                                               Content="Test"
+                                                               Click="TestTwitchGiftSub_Click"
+                                                               Width="60" Padding="2"
+                                                               Height="30"
+                                                               Margin="4,0,0,0"></ui:Button>
+                                                </StackPanel>
+                                                
+                                            </Grid>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftSubT2TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftSubT2TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftSubT3TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftSubT3TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <!-- so the twitchlib for some reason doesnt have a tier for prime?? need to investigate -->
+                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                            <!--     <TextBlock Text="Prime Sub (seconds):" Width="200" VerticalAlignment="Center"/> -->
+                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                            <!--              " x:Name="SubPrimeTextBox"/> -->
+                                            <!-- </StackPanel> -->
+                                        </StackPanel>
+                                    </Expander>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+
+                        
+                        <!-- StreamElements --> 
+                        <Expander Header="StreamElements" IsExpanded="False">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Button x:Name="ConnectSEBtn"
+                                               Content="Connect"
+                                               Width="120"
+                                               Height="35"
+                                               Margin="0,5,0,10"
+                                               Click="ConnectSEButton_Click"/>
+                                    <ui:PasswordBox x:Name="SEJWTTokenBox" Width="200" Height="35"  PlaceholderText="JWT Token"
+                                                    Margin="14 5 0 10"/>
+                                    <TextBlock x:Name="SEStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+                                </StackPanel>
+                                <StackPanel Margin="10,5,0,5">
+                                    
+                                    <Grid Margin="0,2">
+                                        
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="300"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                            <TextBlock Text="Tips:" Width="100" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SETipBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                            
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SETipBox2"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                                        PlaceholderText="1.00"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="12"
+                                                        Height="30"
+                                                        PreviewTextInput="DecimalOnly_PreviewTextInput" x:Name="SimulateSETipAmountBox"/>
+                                            <ui:Button Icon="Add24" Foreground="White"
+                                                       Content="Test"
+                                                       Click="TestSETip_Click"
+                                                       Width="60" Padding="2"
+                                                       Height="30"
+                                                       Margin="4,0,0,0"></ui:Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+                        
+                        <!-- Commands --> 
+                        <Expander Header="Commands" IsExpanded="False">
+                            <StackPanel Margin="10,5,0,5">
+                                <!-- TODO commands -->
+                            </StackPanel>
+                        </Expander>
+
+
+                        <ui:Button x:Name="SaveAllSubathonValuesButton" Content="Save All" Width="120" Height="30" Margin="0,20,0,0" Click="SaveAllSubathonValuesButton_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+</UserControl>

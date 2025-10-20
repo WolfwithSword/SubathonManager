@@ -32,13 +32,19 @@
       <Compile Update="MainWindow.Routes.cs">
         <DependentUpon>MainWindow.xaml</DependentUpon>
       </Compile>
-      <Compile Update="MainWindow.Validation.cs">
-        <DependentUpon>MainWindow.xaml</DependentUpon>
+      <Compile Update="Views\SettingsView.Settings.cs">
+        <DependentUpon>SettingsView.xaml</DependentUpon>
       </Compile>
-      <Compile Update="MainWindow.Settings.cs">
-        <DependentUpon>MainWindow.xaml</DependentUpon>
+      <Compile Update="Views\SettingsView.Simulate.cs">
+        <DependentUpon>SettingsView.xaml</DependentUpon>
       </Compile>
-      <Compile Update="MainWindow.Simulate.cs">
+      <Compile Update="Views\SettingsView.SubathonTimer.cs">
+        <DependentUpon>SettingsView.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="Views\SettingsView.Validation.xaml.cs">
+        <DependentUpon>SettingsView.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="MainWindow.Validation.xaml.cs">
         <DependentUpon>MainWindow.xaml</DependentUpon>
       </Compile>
     </ItemGroup>

@@ -1,7 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Reflection;
-using IniParser;
+﻿using IniParser;
 using IniParser.Model;
 
 namespace SubathonManager.Core

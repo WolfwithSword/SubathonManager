@@ -4,13 +4,12 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
-using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI;
 
-public partial class EditRouteWindow : FluentWindow
+public partial class EditRouteWindow
 {
     private readonly Guid _routeId;
     private Route? _route;
@@ -114,7 +113,7 @@ public partial class EditRouteWindow : FluentWindow
         UpdateWebViewScale();
     }
     
-    private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+    private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
         e.Handled = !int.TryParse(e.Text, out _);
     }
@@ -255,9 +254,10 @@ public partial class EditRouteWindow : FluentWindow
         if (_selectedWidget == null) return;
 
         using var db = new AppDbContext();
-        var widget = await db.Widgets.Include(x => x.CssVariables)
-            .FirstOrDefaultAsync(x => x.Id == _selectedWidget.Id);
+        var widget = await db.Widgets.Include(wX => wX.CssVariables)
+            .FirstOrDefaultAsync(wX => wX.Id == _selectedWidget.Id);
 
+        if (widget == null) return;
         widget.Name = WidgetNameBox.Text;
         widget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
         widget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;

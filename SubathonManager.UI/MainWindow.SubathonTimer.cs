@@ -11,7 +11,7 @@ namespace SubathonManager.UI
 {
     public partial class MainWindow
     {
-        private async void UpdateTimerValue(SubathonData subathon, DateTime time)
+        private void UpdateTimerValue(SubathonData subathon, DateTime time)
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
@@ -23,25 +23,10 @@ namespace SubathonManager.UI
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play16 : SymbolRegular.Pause16;
                     LockText.Text = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen16 : SymbolRegular.LockClosed16;
-                    
-                    
-                    TimerValueSettings.Text = subathon.TimeRemainingRounded().ToString();
-                    PauseText2.Text = subathon.IsPaused ? "Resume Timer" : "Pause Timer";
-                    PauseIcon2.Symbol = subathon.IsPaused  ? SymbolRegular.Play16 : SymbolRegular.Pause16;
-                    LockText2.Text = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
-                    LockIcon2.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen16 : SymbolRegular.LockClosed16;
-                    
                     PointsValue.Text = $"{subathon.Points.ToString()} Pts";
-                    PointsValueSettings.Text = subathon.Points.ToString();
                 });
             }
         }
-        
-        private async void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
-        {
-            AppDbContext.UndoSimulatedEvents(new(), true);
-        }
-
 
         private void StartNewSubathon_Click(object sender, RoutedEventArgs e)
         {
@@ -83,7 +68,7 @@ namespace SubathonManager.UI
             TimeSpan diff = timeToSet - subathon.TimeRemainingRounded();
 
             string rawText = AdjustSubathonTime.Text.Replace(" ", "");
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
                 Value = $"SET {rawText}",
@@ -94,7 +79,7 @@ namespace SubathonManager.UI
                 User = "SYSTEM"
             };
             _lastUpdatedTimerAt = null;
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
         
         private void AdjustSubathonTimeBy(int direction)
@@ -104,7 +89,7 @@ namespace SubathonManager.UI
 
             string rawText = AdjustSubathonTime.Text.Replace(" ", "");
             string cmd = direction > 0 ? "ADD" : "SUBTRACT";
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
                 Value = $"{cmd} {rawText}",
@@ -115,7 +100,7 @@ namespace SubathonManager.UI
                 User = "SYSTEM"
             };
             _lastUpdatedTimerAt = null;
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
         
         
@@ -141,7 +126,7 @@ namespace SubathonManager.UI
 
             int diff = parsedInt - subathon.Points;
 
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
                 Value = $"SET {AdjustSubathonPoints.Text}",
@@ -152,7 +137,7 @@ namespace SubathonManager.UI
                 User = "SYSTEM"
             };
             _lastUpdatedTimerAt = null;
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
         
         private void AdjustSubathonPointsBy(int direction)
@@ -162,7 +147,7 @@ namespace SubathonManager.UI
             if (parsedInt < 0) return;
 
             string cmd = direction > 0 ? "ADD" : "SUBTRACT";
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
                 Value = $"{cmd} {AdjustSubathonPoints.Text}",
@@ -173,7 +158,7 @@ namespace SubathonManager.UI
                 User = "SYSTEM"
             };
             _lastUpdatedTimerAt = null;
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
         
         private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)
