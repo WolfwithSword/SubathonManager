@@ -16,6 +16,9 @@ namespace SubathonManager.Data
         public DbSet<SubathonValue> SubathonValues { get; set; }
         
         public DbSet<SubathonData> SubathonDatas { get; set; }
+        
+        public DbSet<SubathonGoal> SubathonGoals { get; set; }
+        public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -49,6 +52,12 @@ namespace SubathonManager.Data
 
             modelBuilder.Entity<SubathonValue>()
                 .HasKey(sv => new { sv.EventType, sv.Meta });
+            
+            modelBuilder.Entity<SubathonGoalSet>()
+                .HasMany(s => s.Goals)
+                .WithOne(g => g.LinkedGoalSet)
+                .HasForeignKey(g => g.GoalSetId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public override int SaveChanges()
@@ -123,11 +132,12 @@ namespace SubathonManager.Data
         {
             await using var db = new AppDbContext();
             SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
-            
+            SubathonEvent? dupeCheck = await db.SubathonEvents.SingleOrDefaultAsync(s => s.Id == ev.Id 
+                && s.Source == ev.Source);
+            if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return false;
             
             if (subathon == null || subathon.IsLocked) // we only do math if it's unlocked, otherwise, only link
             {
-                
                 ev.ProcessedToSubathon = false;
                 if (subathon != null)
                     ev.SubathonId = subathon.Id;
@@ -136,10 +146,11 @@ namespace SubathonManager.Data
                 return false;
             }
             
+            int initialPoints = subathon.Points;
+            
             ev.SubathonId = subathon.Id;
             ev.Multiplier = subathon.Multiplier;
             ev.CurrentTime = (int)subathon.TimeRemaining().TotalMilliseconds;
-            
             SubathonValue? subathonValue = null;
             if (ev.Source != SubathonEventSource.Command)
             {
@@ -181,16 +192,116 @@ namespace SubathonManager.Data
                     "AND MillisecondsCumulative - MillisecondsElapsed > 0", 
                     (int) ev.GetFinalPointsValue(), subathon.Id);
 
+            if (ev.PointsValue == 0 && ev.SecondsValue == 0)
+            {
+                ev.ProcessedToSubathon = true;
+            }
+            
             if (affected > 0)
             {
                 ev.ProcessedToSubathon = true;
                 await db.Entry(subathon).ReloadAsync();
                 // i dont think we need to queue these
                 Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+                if (subathon.Points != initialPoints)
+                {
+                    // look for last completed goal according to initial, and then reg points. If diff, push either completed update, or list update if undo
+                    SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(g=> g.Goals).FirstOrDefaultAsync(g => g.IsActive);
+                    if (goalSet != null)
+                    {
+                        SubathonGoal? prevCompletedGoal1 = goalSet.Goals
+                            .OrderByDescending(g => g.Points)
+                            .FirstOrDefault(g => g.Points <= initialPoints);
+                        
+                        SubathonGoal? prevCompletedGoal2 = goalSet.Goals
+                            .OrderByDescending(g => g.Points)
+                            .FirstOrDefault(g => g.Points <= subathon.Points);
+
+                        if (prevCompletedGoal1 != null && prevCompletedGoal2 != null &&
+                            prevCompletedGoal1.Id != prevCompletedGoal2.Id)
+                        {
+                            // TODO test if goalcompleted works separately
+                            // the else is for if we undid stuff
+                            if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
+                                Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);
+                            else
+                                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals);
+                        }
+                    }
+                }
             }
-            db.Add(ev);
+
+            if (dupeCheck != null)
+                db.Update(ev);
+            else 
+                db.Add(ev);
+            
             await db.SaveChangesAsync();
-            return affected > 0;
+            return affected > 0 || (ev.ProcessedToSubathon);
+        }
+
+        public static async void DeleteSubathonEvent(SubathonEvent ev)
+        {
+            if (ev.SubathonId == null) return;
+            
+            using var db = new AppDbContext();
+
+            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
+            if (ev.SubathonId != subathon?.Id) return;
+            
+            int initialPoints = subathon?.Points ?? 0;
+            
+            long msToRemove = (long) ev.GetFinalSecondsValue() * 1000; 
+            int pointsToRemove = (int) ev.GetFinalPointsValue();
+            
+            int affected = 0;
+            if (msToRemove != 0)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {0}" +
+                    " WHERE IsActive = 1 AND Id = {1} " 
+                    , msToRemove, ev.SubathonId);
+            
+            if (pointsToRemove != 0)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = Points - {0}" +
+                    " WHERE IsActive = 1 AND Id = {1} ", 
+                    pointsToRemove, ev.SubathonId);
+
+            await db.Entry(ev).ReloadAsync();
+            db.Remove(ev);
+            await db.SaveChangesAsync();
+            Core.Events.SubathonEvents.RaiseSubathonEventsDeleted();
+            
+            if (affected > 0)
+            {
+                await db.Entry(subathon!).ReloadAsync();
+                Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon!, DateTime.Now);
+                if (subathon!.Points != initialPoints)
+                {
+                    SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(g=> g.Goals).FirstOrDefaultAsync(g => g.IsActive);
+                    if (goalSet != null)
+                    {
+                        SubathonGoal? prevCompletedGoal1 = goalSet.Goals
+                            .OrderByDescending(g => g.Points)
+                            .FirstOrDefault(g => g.Points <= initialPoints);
+                        
+                        SubathonGoal? prevCompletedGoal2 = goalSet.Goals
+                            .OrderByDescending(g => g.Points)
+                            .FirstOrDefault(g => g.Points <= subathon.Points);
+
+                        if (prevCompletedGoal1 != null && prevCompletedGoal2 != null &&
+                            prevCompletedGoal1.Id != prevCompletedGoal2.Id)
+                        {
+                            // TODO test if goalcompleted works separately
+                            // the else is for if we undid stuff
+                            if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
+                                Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);
+                            else
+                                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals);
+                        }
+                    }
+                }
+            }
         }
 
         public static async void UndoSimulatedEvents(List<SubathonEvent> events, bool doAll = false)
@@ -204,6 +315,8 @@ namespace SubathonManager.Data
 
             SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
             if (subathon == null) return;
+            
+            int initialPoints = subathon.Points; // TODO (think done, needs test) if we go under a completed goal, invoke list updated instead
             
             if (doAll)
             {
@@ -236,13 +349,38 @@ namespace SubathonManager.Data
 
             db.RemoveRange(events);
             await db.SaveChangesAsync();
+            Core.Events.SubathonEvents.RaiseSubathonEventsDeleted();
             
             if (affected > 0)
             {
                 await db.Entry(subathon).ReloadAsync();
                 Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            }
+                if (subathon.Points != initialPoints)
+                {
+                    SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(g=> g.Goals).FirstOrDefaultAsync(g => g.IsActive);
+                    if (goalSet != null)
+                    {
+                        SubathonGoal? prevCompletedGoal1 = goalSet.Goals
+                            .OrderByDescending(g => g.Points)
+                            .FirstOrDefault(g => g.Points <= initialPoints);
+                        
+                        SubathonGoal? prevCompletedGoal2 = goalSet.Goals
+                            .OrderByDescending(g => g.Points)
+                            .FirstOrDefault(g => g.Points <= subathon.Points);
 
+                        if (prevCompletedGoal1 != null && prevCompletedGoal2 != null &&
+                            prevCompletedGoal1.Id != prevCompletedGoal2.Id)
+                        {
+                            // TODO test if goalcompleted works separately
+                            // the else is for if we undid stuff
+                            if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
+                                Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);
+                            else
+                                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals);
+                        }
+                    }
+                }
+            }
         }
         
         public static void SeedDefaultValues(AppDbContext db)
@@ -268,6 +406,21 @@ namespace SubathonManager.Data
                 {
                     db.SubathonValues.Add(def);
                 }
+            }
+
+            if (!db.SubathonDatas.Any(s => s.IsActive))
+            {
+                SubathonData subathon = new SubathonData();
+                TimeSpan initialMs = TimeSpan.FromHours(8);
+                subathon.MillisecondsCumulative += (int)initialMs.TotalMilliseconds;
+                subathon.IsPaused = true;
+                db.SubathonDatas.Add(subathon);
+            }
+
+            if (!db.SubathonGoalSets.Any(s => s.IsActive))
+            {
+                SubathonGoalSet goalSet = new SubathonGoalSet();
+                db.SubathonGoalSets.Add(goalSet);
             }
 
             db.SaveChanges();

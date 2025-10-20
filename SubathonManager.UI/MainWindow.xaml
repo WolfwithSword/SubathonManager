@@ -3,7 +3,7 @@
                        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-                       xmlns:local="clr-namespace:SubathonManager.UI"
+                       xmlns:views="clr-namespace:SubathonManager.UI.Views"
                        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                        mc:Ignorable="d"
                        Background="{DynamicResource UiBrushPrimary}"
@@ -25,67 +25,119 @@
             <TabItem Header="Home">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="400"/>
+                        <ColumnDefinition Width="500"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                    <!-- <ScrollViewer Grid.Column="0" >-->
-                    <StackPanel  Grid.Column="0"  Margin="10">
+                    <StackPanel  Grid.Column="0" Margin="10">
                         <TextBlock Text="Welcome to Subathon Manager!" 
                                    FontSize="22" FontWeight="Bold" Margin="0,0,0,10"/>
-                        <TextBlock Text="Use the Overlays tab to manage your routes and the Settings tab to configure the server." 
-                                   TextWrapping="Wrap" FontSize="16"/>
-
+                        <TextBlock Text="Use the Overlays tab to manage your overlays and widgets, and the Settings tab to configure your settings." 
+                                   TextWrapping="Wrap" FontSize="16" Margin="0 0 0 6"/>
+                        <Separator Margin="4 12 4 8"/>
+                        <TextBlock Text="Recent Events" HorizontalAlignment="Left" Margin="18 8 4 8"/>
+                        <views:EventListView Margin="0 8 0 0 "/>
                     </StackPanel>
                    <StackPanel Grid.Column="1" Margin="34 10 10 10">
                        <Grid>
                            <Grid.RowDefinitions>
-                               <RowDefinition Height="400"/>
+                               <RowDefinition Height="290"/>
                                <RowDefinition Height="*"/>
                            </Grid.RowDefinitions>
                            <StackPanel Grid.Row="0" Margin="10">
-                               <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                               <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,5">
                                    <ui:Button x:Name="StartSubathonBtn" 
                                                       Click="StartNewSubathon_Click"
                                                       Content="Start New Subathon"
-                                                      Width="240" Height="30" Margin="0,10,20,5"/>
-                                   <TextBlock Text="Initial Time:" Width="80" VerticalAlignment="Center" Margin="18 0 6 0"/>
-                                   <ui:TextBox x:Name="InitialSubathonTime" Text="8h" Width="140" VerticalAlignment="Center"/>
+                                                      Width="220" Height="30" Margin="0,10,20,5"/>
+                                   <TextBlock Text="Initial Time:" Width="80" VerticalAlignment="Center" Margin="18 10 6 5"/>
+                                   <ui:TextBox x:Name="InitialSubathonTime" Text="8h" Width="140" VerticalAlignment="Center" Margin="0 10 0 5"/>
                                </StackPanel>
                                
-                               <TextBlock x:Name="TimerValue" Text="" VerticalAlignment="Center" FontSize="40" Margin="0 0 6 0"/>
+                               <TextBlock x:Name="TimerValue" HorizontalAlignment="Right" 
+                                          Text="" VerticalAlignment="Center" FontSize="44" Margin="0 6 16 4"/>
 
-                               <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                               <StackPanel Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,16,5">
                                    
+                                   <TextBlock Text="Time:" VerticalAlignment="Center" FontSize="18" Margin="2 10 4 5"/>
                                    <ui:Button x:Name="AddTimeBtn"
                                               Click="AddTime_Click"
-                                              Content="Quick Add"
-                                              Width="120" Height="34" Margin="0,10,6,5"/>
-                                   <ui:TextBox x:Name="AdjustSubathonTime" Margin="0,10,0,5" 
-                                               Text="5m" Height="34" Width="140" VerticalAlignment="Center"/>
+                                              ToolTip="Add Time"
+                                              Width="38" Height="34" Margin="3,10,3,5">
+                                       <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                   </ui:Button>
                                    <ui:Button x:Name="SubtractTimeBtn"
                                               Click="SubtractTime_Click"
-                                              Content="Quick Subtract"
-                                              Width="120" Height="34" Margin="6,10,6,5"/>
+                                              ToolTip="Subtract Time"
+                                              Width="38" Height="34" Margin="3,10,3,5">
+                                       <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                   </ui:Button>
+                                   <ui:Button x:Name="SetTimeBtn"
+                                              Click="SetTime_Click"
+                                              ToolTip="Set Time"
+                                              Width="38" Height="34" Margin="3,10,3,5">
+                                       <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Clock24" Width="20" Height="20" Margin="0,0,0,0"/>
+                                   </ui:Button>
+                                   <ui:TextBox x:Name="AdjustSubathonTime" Margin="5,10,0,5" 
+                                               Text="5m" Height="34" Width="140" VerticalAlignment="Center"/>
                                </StackPanel>
-                               <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+
+                               <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,0,16,5">
                                    <ui:Button x:Name="TogglePauseTimerBtn"
                                               Click="TogglePauseSubathon_Click"
-                                              Content="Pause Timer"
-                                              Width="180" Height="30" Margin="0,10,6,5"/>
+                                              Width="160" Height="50" Margin="0,10,6,5">
+                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                           <ui:SymbolIcon x:Name="PauseIcon" Symbol="Pause16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                           <TextBlock x:Name="PauseText" Text="Pause Timer" VerticalAlignment="Center"/>
+                                       </StackPanel>
+                                   </ui:Button>
                                    <ui:Button x:Name="ToggleLockTimerBtn"
                                               Click="ToggleLockSubathon_Click"
-                                              Content="Lock Subathon"
-                                              Width="120" Height="30" Margin="0,10,6,5"/>
+                                              Width="160" Height="50" Margin="0,10,0,5">
+                                       <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                           <ui:SymbolIcon x:Name="LockIcon" Symbol="LockClosed16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                           <TextBlock x:Name="LockText" Text="Lock Subathon" VerticalAlignment="Center"/>
+                                       </StackPanel>
+                                   </ui:Button>
                                </StackPanel>
-                               <!-- TODO buttons and timer view make nicer -->
+                               <Separator Margin="46 8 8 4"/>
                            </StackPanel>
-                           <ScrollViewer Grid.Row="1">
-                               <!-- TODO list of recent events, max 20?  -->
-                           </ScrollViewer>
+                           <Grid Grid.Row="1">
+                               <StackPanel>
+                                   <TextBlock x:Name="PointsValue" HorizontalAlignment="Right" 
+                                              Text="" VerticalAlignment="Center" FontSize="34" Margin="0 2 24 6"/>
+                                   
+                                   <StackPanel Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,24,5">
+                                       
+                                       <TextBlock Text="Points:" VerticalAlignment="Center" FontSize="18" Margin="2 10 4 5"/>
+                                       <ui:Button x:Name="AddPointsBtn"
+                                                  Click="AddPoints_Click"
+                                                  ToolTip="Add Points"
+                                                  Width="38" Height="34" Margin="3,10,3,5">
+                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                       </ui:Button>
+                                       <ui:Button x:Name="SubtractPointsBtn"
+                                                  Click="SubtractPoints_Click"
+                                                  ToolTip="Subtract Points"
+                                                  Width="38" Height="34" Margin="3,10,3,5">
+                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                       </ui:Button>
+                                       <ui:Button x:Name="SetPointsBtn"
+                                                  Click="SetPoints_Click"
+                                                  ToolTip="Set Points"
+                                                  Width="38" Height="34" Margin="3,10,3,5">
+                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Pen20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                       </ui:Button>
+                                       <ui:TextBox x:Name="AdjustSubathonPoints" Margin="5,10,0,5" 
+                                                   Text="1" Height="34" Width="140" VerticalAlignment="Center"
+                                                   PreviewTextInput="NumberOnly_PreviewTextInput" />
+                                   </StackPanel>
+                                   <views:GoalsView/>
+                               </StackPanel>
+                           </Grid>
                            
                        </Grid>
                    </StackPanel>
-                    <!-- </ScrollViewer> -->
                    
                 </Grid>
             </TabItem>
@@ -185,7 +237,11 @@
                     </ScrollViewer>
                 </Grid>
             </TabItem>
-
+            
+            <!-- Goals Tab -->
+            <TabItem Header="Goals">
+                <views:GoalsEditor/>
+            </TabItem>
             <!-- Settings Tab -->
             <TabItem Header="Settings">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -202,22 +258,32 @@
 
                         <StackPanel HorizontalAlignment="Right" Margin="12 -120 12 4">
                             <TextBlock x:Name="TimerValueSettings" Text="" VerticalAlignment="Center" FontSize="40" Margin="6 0 6 0"/>
-                            
+                            <TextBlock x:Name="PointsValueSettings" Text="" VerticalAlignment="Center" FontSize="30" Margin="6 0 6 0"/>
+
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                 <ui:Button x:Name="TogglePauseTimerBtnSettings"
                                            Click="TogglePauseSubathon_Click"
-                                           Content="Pause Timer"
-                                           Width="150" Height="30" Margin="0,10,6,5"/>
+                                           Width="160" Height="30" Margin="0,10,6,5">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <ui:SymbolIcon x:Name="PauseIcon2" Symbol="Pause16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="PauseText2" Text="Pause Timer" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </ui:Button>
                                 <ui:Button x:Name="ToggleLockTimerBtnSettings"
                                            Click="ToggleLockSubathon_Click"
-                                           Content="Lock Subathon"
-                                           Width="150" Height="30" Margin="0,10,6,5"/>
+                                           Width="160" Height="30" Margin="0,10,6,5">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <ui:SymbolIcon x:Name="LockIcon2" Symbol="LockClosed16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="LockText2" Text="Lock Subathon" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </ui:Button>
+
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                                 <ui:Button x:Name="RemoveAllSimulatedEventsBtn"
                                            Click="RemoveSimEvents_Click"
                                            Content="Undo Simulated Events"
-                                           Width="304" Height="30" Margin="2,10,2,5"/>
+                                           Width="324" Height="30" Margin="2,10,2,5"/>
                             </StackPanel>
                         </StackPanel>
                         
@@ -287,10 +353,10 @@
                                             <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
                                             <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
                                                         x:Name="RaidTextBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
                                             <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
                                                         x:Name="Raid2TextBox"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
                                         </StackPanel>
                                                                                 
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">

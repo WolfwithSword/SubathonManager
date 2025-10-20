@@ -16,6 +16,9 @@ public class EventService: IDisposable
     {
         Core.Events.SubathonEvents.SubathonEventCreated += AddSubathonEvent;
         _processingTask = Task.Run(LoopAsync);
+        _processingTask.ContinueWith(t => 
+                Console.WriteLine($"Event loop crashed: {t.Exception}"), 
+            TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private void AddSubathonEvent(SubathonEvent subathonEvent)
@@ -45,14 +48,16 @@ public class EventService: IDisposable
                 }
 
                 if (next == null) continue;
-
                 bool wasEffective = await AppDbContext.ProcessSubathonEvent(next);
-                // TODO SEND TO WEBSERVER, BUT ONLY IF wasEffective
+                
+                if (wasEffective)
+                    Core.Events.SubathonEvents.RaiseSubathonEventProcessed(next);
                 // also webserver should listen to the timer updated stuff, just like MainWindow does
             }
         }
         catch (OperationCanceledException ex)
         {
+            Console.WriteLine(ex.Message);
             // TODO
         }
     }

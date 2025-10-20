@@ -15,7 +15,7 @@ public class Utils
         input = input.Trim();
         if (input.Contains(":"))
         {
-            return ParseDurationString(input);
+            return ParseColonDurationString(input);
         }
 
         return ParseLetterDurationString(input);
@@ -24,7 +24,7 @@ public class Utils
 
     private static TimeSpan ParseColonDurationString(string input)
     {
-        var parts = input.Split(":");
+        var parts = input.Replace(".", ":").Split(":");
         int[] values = Array.ConvertAll(parts, p =>
         {
             if (int.TryParse(p, out var v)) return v;
