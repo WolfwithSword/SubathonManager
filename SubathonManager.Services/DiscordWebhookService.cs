@@ -142,9 +142,9 @@ public class DiscordWebhookService : IDisposable
             sb.AppendLine($"**Value:** {val} {(string.IsNullOrEmpty(e.Currency) ? "" : e.Currency)}");
             if (e.Command != SubathonCommandType.SetMultiplier && e.Command != SubathonCommandType.StopMultiplier)
             {
-                sb.AppendLine($"**Seconds:** {e.GetFinalSecondsValue()} &nbsp **Points:** {e.GetFinalPointsValue()}");
+                sb.AppendLine($"**Seconds:** {e.GetFinalSecondsValue()} | **Points:** {e.GetFinalPointsValue()}");
                 if (e.Command == SubathonCommandType.None)
-                    sb.AppendLine($"**Multipliers:** x{e.MultiplierSeconds} time &nbsp x{e.MultiplierPoints} pts");
+                    sb.AppendLine($"**Multipliers:** x{e.MultiplierSeconds} time | x{e.MultiplierPoints} pts");
             }
         }
 
