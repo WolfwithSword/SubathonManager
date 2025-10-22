@@ -15,15 +15,17 @@ namespace SubathonManager.UI
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
+                // TODO perhaps we need to better bind this instead of invoking updates every second? if perf issues
                 Dispatcher.Invoke(() =>
                 {
                     TimerValue.Text = subathon.TimeRemainingRounded().ToString();
                     _lastUpdatedTimerAt = time;
-                    PauseText.Text = subathon.IsPaused ? "Resume Timer" : "Pause Timer";
-                    PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play16 : SymbolRegular.Pause16;
-                    LockText.Text = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
-                    LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen16 : SymbolRegular.LockClosed16;
+                    // PauseText.Text = subathon.IsPaused ? "Resume" : "Pause";
+                    PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
+                    // LockText.Text = subathon.IsLocked ? "Unlock" : "Lock";
+                    LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
                     PointsValue.Text = $"{subathon.Points.ToString()} Pts";
+                    LockStatus.Visibility = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
                 });
             }
         }
@@ -65,14 +67,13 @@ namespace SubathonManager.UI
             SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
             if (subathon == null) return;
 
-            TimeSpan diff = timeToSet - subathon.TimeRemainingRounded();
-
             string rawText = AdjustSubathonTime.Text.Replace(" ", "");
             SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
-                Value = $"SET {rawText}",
-                SecondsValue = diff.TotalSeconds,
+                Value = $"{SubathonCommandType.SetTime} {rawText}",
+                SecondsValue = timeToSet.TotalSeconds,
+                Command = SubathonCommandType.SetTime,
                 PointsValue = 0,
                 Source = SubathonEventSource.Command,
                 EventType = SubathonEventType.Command,
@@ -88,12 +89,13 @@ namespace SubathonManager.UI
             if (timeToAdjust == TimeSpan.Zero) return;
 
             string rawText = AdjustSubathonTime.Text.Replace(" ", "");
-            string cmd = direction > 0 ? "ADD" : "SUBTRACT";
+            SubathonCommandType cmd = direction > 0 ? SubathonCommandType.AddTime : SubathonCommandType.SubtractTime;
             SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd,
                 Value = $"{cmd} {rawText}",
-                SecondsValue = direction * timeToAdjust.TotalSeconds,
+                SecondsValue = timeToAdjust.TotalSeconds,
                 PointsValue = 0,
                 Source = SubathonEventSource.Command,
                 EventType = SubathonEventType.Command,
@@ -124,14 +126,13 @@ namespace SubathonManager.UI
             SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
             if (subathon == null) return;
 
-            int diff = parsedInt - subathon.Points;
-
             SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
-                Value = $"SET {AdjustSubathonPoints.Text}",
+                Value = $"{SubathonCommandType.SetPoints} {AdjustSubathonPoints.Text}",
+                Command = SubathonCommandType.SetPoints,
                 SecondsValue = 0,
-                PointsValue = diff,
+                PointsValue = parsedInt,
                 Source = SubathonEventSource.Command,
                 EventType = SubathonEventType.Command,
                 User = "SYSTEM"
@@ -145,14 +146,15 @@ namespace SubathonManager.UI
             if (!int.TryParse(AdjustSubathonPoints.Text, out var parsedInt))
                 return;
             if (parsedInt < 0) return;
-
-            string cmd = direction > 0 ? "ADD" : "SUBTRACT";
+            SubathonCommandType cmd =
+                direction > 0 ? SubathonCommandType.AddPoints : SubathonCommandType.SubtractPoints;
             SubathonEvent subathonEvent = new SubathonEvent
             {
                 EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd,
                 Value = $"{cmd} {AdjustSubathonPoints.Text}",
                 SecondsValue = 0,
-                PointsValue = direction * parsedInt,
+                PointsValue = parsedInt,
                 Source = SubathonEventSource.Command,
                 EventType = SubathonEventType.Command,
                 User = "SYSTEM"
@@ -164,27 +166,43 @@ namespace SubathonManager.UI
         private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)
         {
             using var db = new AppDbContext();
-            int affected = db.Database.ExecuteSqlRaw(
-                "UPDATE SubathonDatas SET IsPaused = 1 - IsPaused " +
-                "AND MillisecondsCumulative - MillisecondsElapsed > 0");
-            if (affected > 0)
+            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            if (subathon == null) return;
+            SubathonCommandType cmd = subathon.IsPaused ? SubathonCommandType.Resume : SubathonCommandType.Pause;
+            SubathonEvent subathonEvent = new SubathonEvent
             {
-                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
-                if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            }
+                EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd, 
+                Value = $"{cmd}",
+                SecondsValue = 0,
+                PointsValue = 0,
+                Source = SubathonEventSource.Command,
+                EventType = SubathonEventType.Command,
+                User = "SYSTEM"
+            };
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
         private void ToggleLockSubathon_Click(object sender, RoutedEventArgs e)
         {
             using var db = new AppDbContext();
-            int affected = db.Database.ExecuteSqlRaw(
-                "UPDATE SubathonDatas SET IsLocked = 1 - IsLocked " +
-                "AND MillisecondsCumulative - MillisecondsElapsed > 0");
-            if (affected > 0)
+            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            if (subathon == null) return;
+            SubathonCommandType cmd = subathon.IsLocked ? SubathonCommandType.Unlock : SubathonCommandType.Lock;
+            SubathonEvent subathonEvent = new SubathonEvent
             {
-                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
-                if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            }
+                EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd, 
+                Value = $"{cmd}",
+                SecondsValue = 0,
+                PointsValue = 0,
+                Source = SubathonEventSource.Command,
+                EventType = SubathonEventType.Command,
+                User = "SYSTEM"
+            };
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
     }
 }

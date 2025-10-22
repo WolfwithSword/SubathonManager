@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SubathonManager.Data;
 
@@ -10,9 +11,11 @@ using SubathonManager.Data;
 namespace SubathonManager.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021230722_changeMultiplierStruct")]
+    partial class changeMultiplierStruct
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
@@ -166,10 +169,7 @@ namespace SubathonManager.Data.Migrations
                     b.Property<int?>("EventType")
                         .HasColumnType("INTEGER");
 
-                    b.Property<double>("MultiplierPoints")
-                        .HasColumnType("REAL");
-
-                    b.Property<double>("MultiplierSeconds")
+                    b.Property<double>("Multiplier")
                         .HasColumnType("REAL");
 
                     b.Property<int?>("PointsValue")

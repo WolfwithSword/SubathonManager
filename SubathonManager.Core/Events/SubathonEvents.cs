@@ -4,7 +4,7 @@ namespace SubathonManager.Core.Events;
 public static class SubathonEvents
 {
     public static event Action<SubathonEvent>? SubathonEventCreated;
-    public static event Action<SubathonEvent>? SubathonEventProcessed; // Run through queue, processed or not to subathon
+    public static event Action<SubathonEvent, bool>? SubathonEventProcessed; // Run through queue, processed or not to subathon
     public static event Action? SubathonEventsDeleted;
     public static event Action<SubathonData, DateTime>? SubathonDataUpdate;
     
@@ -16,14 +16,14 @@ public static class SubathonEvents
         SubathonEventsDeleted?.Invoke();
     }
 
-    public static void RaiseSubathonEventCreated(SubathonEvent _event)
+    public static void RaiseSubathonEventCreated(SubathonEvent subathonEvent)
     {
-        SubathonEventCreated?.Invoke(_event);
+        SubathonEventCreated?.Invoke(subathonEvent);
     }
     
-    public static void RaiseSubathonEventProcessed(SubathonEvent _event)
+    public static void RaiseSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)
     {
-        SubathonEventProcessed?.Invoke(_event);
+        SubathonEventProcessed?.Invoke(subathonEvent, wasEffective);
     }
     
     public static void RaiseSubathonDataUpdate(SubathonData data, DateTime time)

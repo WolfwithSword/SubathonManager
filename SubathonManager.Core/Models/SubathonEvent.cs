@@ -28,7 +28,7 @@ public class SubathonEvent
     public int? PointsValue { get; set; } = 0;
     public string? User { get; set; } = "";
     public string Value { get; set; } = "";
-    
+    public SubathonCommandType Command { get; set; } = SubathonCommandType.None;
     public int Amount { get; set; } = 1; // how many times to multiply everything for amount, only used for giftsubs
     
     public bool ProcessedToSubathon { get; set; } = false;
@@ -40,11 +40,12 @@ public class SubathonEvent
 
     // For determining if power hour (or negative power hour) is enabled, the multiplier.
     // when adding time to timer, take SecondsValue and always multiply by Multiplier
-    public double Multiplier { get; set; } = 1;
+    public double MultiplierPoints { get; set; } = 1;
+    public double MultiplierSeconds { get; set; } = 1;
     
     // do we want to later finetune power hour to be for selectable events?
-    public double GetFinalSecondsValue() => Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : Multiplier) ?? 0; 
-    public double GetFinalPointsValue() => Amount * PointsValue ?? 0; 
+    public double GetFinalSecondsValue() => Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : MultiplierSeconds) ?? 0; 
+    public double GetFinalPointsValue() => Amount * PointsValue * (Source == SubathonEventSource.Command ? 1 : Math.Round(MultiplierPoints+0.001)) ?? 0; 
 }
 
 public class CurrencyValidationAttribute : ValidationAttribute

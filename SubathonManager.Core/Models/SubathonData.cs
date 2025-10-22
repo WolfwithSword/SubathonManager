@@ -20,7 +20,7 @@ public class SubathonData
     public bool IsLocked { get; set; } = true;
     
     // proper power hour value is here
-    public double Multiplier { get; set; } = 1;
+    public MultiplierData Multiplier { get; set; } = new();
 
     public DateTime PredictedEndTime()
     {

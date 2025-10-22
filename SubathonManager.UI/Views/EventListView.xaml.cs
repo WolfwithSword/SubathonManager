@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Collections.ObjectModel;
 using Microsoft.EntityFrameworkCore;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
@@ -28,9 +29,11 @@ namespace SubathonManager.UI.Views
             Task.Run(() => LoadRecentEvents());
         }
 
-        private async void OnSubathonEventProcessed(SubathonEvent subathonEvent)
+        private async void OnSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)
         {
-            if (subathonEvent.PointsValue < 1 && subathonEvent.SecondsValue < 1) return;
+            if (subathonEvent.PointsValue < 1 
+                && subathonEvent.SecondsValue < 1 
+                && subathonEvent.Source != SubathonEventSource.Command) return;
             
             await Dispatcher.InvokeAsync(() =>
             {
@@ -52,7 +55,8 @@ namespace SubathonManager.UI.Views
             if (subathon != null)
             {
                 events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id 
-                                                             && (ev.SecondsValue >= 1 || ev.PointsValue >= 1 ))
+                                                             && (ev.SecondsValue >= 1 || ev.PointsValue >= 1 
+                                                                 || ev.Command != SubathonCommandType.None))
                     .OrderByDescending(e => e.EventTimestamp)
                     .Take(_maxItems)
                     .ToListAsync();

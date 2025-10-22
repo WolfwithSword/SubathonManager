@@ -2,6 +2,7 @@
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Globalization;
+using SubathonManager.Core.Enums;
 
 namespace SubathonManager.UI.Converters
 {
@@ -33,6 +34,23 @@ namespace SubathonManager.UI.Converters
             => throw new NotImplementedException();
     }
 
+    public class IsNotMetaCommandConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is SubathonCommandType type)
+            {
+                return type == SubathonCommandType.None || type == SubathonCommandType.Unknown 
+                    ? Visibility.Visible : Visibility.Collapsed;
+            }
+
+            return Visibility.Visible;
+        }
+        
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public class GreaterThanOneToVisibilityConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -44,7 +62,19 @@ namespace SubathonManager.UI.Converters
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
-    
+
+    public class GreaterThanZeroToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is double d) return d > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (value is int i) return i > 0 ? Visibility.Visible : Visibility.Collapsed;
+            return Visibility.Collapsed;
+        }
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
     public class EventTypeValueConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)

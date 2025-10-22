@@ -49,8 +49,8 @@ public class EventService: IDisposable
                 if (next == null) continue;
                 bool wasEffective = await AppDbContext.ProcessSubathonEvent(next);
                 
-                if (wasEffective)
-                    Core.Events.SubathonEvents.RaiseSubathonEventProcessed(next);
+                // if (wasEffective)
+                Core.Events.SubathonEvents.RaiseSubathonEventProcessed(next, wasEffective);
                 // also webserver should listen to the timer updated stuff, just like MainWindow does
             }
         }

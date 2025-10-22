@@ -16,6 +16,7 @@ namespace SubathonManager.Data
         public DbSet<SubathonValue> SubathonValues { get; set; }
         
         public DbSet<SubathonData> SubathonDatas { get; set; }
+        public DbSet<MultiplierData> MultiplierDatas { get; set; }
         
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
@@ -57,6 +58,10 @@ namespace SubathonManager.Data
                 .HasMany(s => s.Goals)
                 .WithOne(g => g.LinkedGoalSet)
                 .HasForeignKey(g => g.GoalSetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SubathonData>().HasOne(s => s.Multiplier)
+                .WithOne(m => m.LinkedSubathon).HasForeignKey<MultiplierData>(m => m.SubathonId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
 
@@ -121,6 +126,12 @@ namespace SubathonManager.Data
         {
             await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsPaused = 1");
         }
+
+        public static async Task ResetPowerHour(AppDbContext db)
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null," +
+                                                 " ApplyToSeconds=false, ApplyToPoints=false ");
+        }
         
         public static async Task DisableAllTimers(AppDbContext db)
         {
@@ -131,10 +142,119 @@ namespace SubathonManager.Data
         public static async Task<bool> ProcessSubathonEvent(SubathonEvent ev)
         {
             await using var db = new AppDbContext();
-            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
+            SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
+                .FirstOrDefaultAsync(s => s.IsActive);
             SubathonEvent? dupeCheck = await db.SubathonEvents.SingleOrDefaultAsync(s => s.Id == ev.Id 
                 && s.Source == ev.Source);
             if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return false;
+
+            if (subathon != null && ev.Source == SubathonEventSource.Command && ev.Command != SubathonCommandType.None)
+            {
+                int ranCmd = int.MinValue;
+                switch (ev.Command)
+                {
+                    case SubathonCommandType.SetPoints:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET Points = {1} " +
+                            "WHERE IsActive = 1" +
+                            " AND Id = {0}", subathon.Id, ev.PointsValue!);
+                        break;
+                    case SubathonCommandType.AddPoints:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET Points = Points + {1} " +
+                            "WHERE IsActive = 1" +
+                            " AND Id = {0}", subathon.Id, ev.PointsValue!);
+                        break;
+                    case SubathonCommandType.SubtractPoints:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET Points = Points - {1} " +
+                            "WHERE IsActive = 1" +
+                            " AND Id = {0}", subathon.Id, ev.PointsValue!);
+                        break;
+                    case SubathonCommandType.SetTime:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsElapsed + {1} " +
+                            "WHERE IsActive = 1" +
+                            " AND Id = {0}", subathon.Id, ev.SecondsValue! * 1000);
+                        break;
+                    case SubathonCommandType.AddTime:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {1} " +
+                            "WHERE IsActive = 1" +
+                            " AND Id = {0}", subathon.Id, ev.SecondsValue! * 1000);
+                        break;
+                    case SubathonCommandType.SubtractTime:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {1} " +
+                            "WHERE IsActive = 1" +
+                            " AND Id = {0}", subathon.Id, ev.SecondsValue! * 1000);
+                        break;
+                    case SubathonCommandType.Unlock:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET IsLocked = 0 " +
+                            "WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0" +
+                            " AND Id = {0}", subathon.Id);
+                        break;
+                    case SubathonCommandType.Lock:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET IsLocked = 1 " +
+                            "WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0" +
+                            " AND Id = {0}", subathon.Id);
+                        break;
+                    case SubathonCommandType.Resume:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET IsPaused = 0 " +
+                            "WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0" +
+                            " AND Id = {0}", subathon.Id);
+                        break;
+                    case SubathonCommandType.Pause:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET IsPaused = 1 " +
+                            "WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0" +
+                            " AND Id = {0}", subathon.Id);
+                        break;
+                    case SubathonCommandType.StopMultiplier:
+                        ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET " +
+                                                                      "Multiplier = 1, Duration = null WHERE " +
+                                                                      " SubathonId = {0}", subathon.Id);
+                        
+                        if (string.IsNullOrEmpty(ev.Value)) 
+                            ev.Value = $"{ev.Command}";
+                        break;
+                    case SubathonCommandType.SetMultiplier:
+                        // string dataStr = $"{parsedAmt}|{durationStr}s|{applyPts}|{applyTime}";
+                        string[] data = ev.Value.Split("|");
+                        if (!double.TryParse(data[0], out var parsedAmt))
+                            return false;
+                        TimeSpan? duration;
+                        if (data[1] == "xs")
+                            duration = null;
+                        else
+                            duration = Utils.ParseDurationString(data[1]);
+                        if (!bool.TryParse(data[2], out var applyPts))
+                            return false;
+                        if (!bool.TryParse(data[3], out var applyTime))
+                            return false;
+
+                        ev.Value = $"{ev.Command} {ev.Value}";
+                        ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}," +
+                                                                      " Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}" +
+                                                                      " WHERE SubathonId = {5}",
+                            parsedAmt, duration, DateTime.Now, applyTime, applyPts, subathon.Id);
+                        break;
+                }
+
+                if (ranCmd >= 0)
+                {
+                    await db.Entry(subathon).ReloadAsync();
+                    Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+                    ev.ProcessedToSubathon = true;
+                    ev.SubathonId = subathon.Id;
+                    db.Add(ev);
+                    await db.SaveChangesAsync();
+                    return true;
+                }
+            }
             
             if (subathon == null || subathon.IsLocked) // we only do math if it's unlocked, otherwise, only link
             {
@@ -143,13 +263,15 @@ namespace SubathonManager.Data
                     ev.SubathonId = subathon.Id;
                 db.Add(ev);
                 await db.SaveChangesAsync();
+                
                 return false;
             }
             
             int initialPoints = subathon.Points;
             
             ev.SubathonId = subathon.Id;
-            ev.Multiplier = subathon.Multiplier;
+            ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
+            ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
             ev.CurrentTime = (int)subathon.TimeRemaining().TotalMilliseconds;
             SubathonValue? subathonValue = null;
             if (ev.Source != SubathonEventSource.Command)
