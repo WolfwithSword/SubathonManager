@@ -20,6 +20,7 @@ public partial class App
     
     public static TwitchService? AppTwitchService { get; private set; } = new();
     public static StreamElementsService? AppStreamElementsService { get; private set; } = new();
+    private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
     
     public static string AppVersion =>
         Assembly.GetExecutingAssembly()
@@ -75,6 +76,8 @@ public partial class App
         });
         WatchConfig();
 
+        AppDiscordWebhookService = new DiscordWebhookService();
+        
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -96,6 +99,15 @@ public partial class App
             {
                 Console.WriteLine($"Error stopping TwitchService: {ex.Message}");
             }
+        }
+
+        if (AppDiscordWebhookService != null)
+        {
+            Task.Run(() =>
+            {
+                AppDiscordWebhookService?.StopAsync();
+                AppDiscordWebhookService?.Dispose();
+            });
         }
         base.OnExit(e);
     }
@@ -127,6 +139,7 @@ public partial class App
                 _server = new WebServer(newPort);
                 Task.Run(() => _server.StartAsync());
             }
+            AppDiscordWebhookService?.LoadFromConfig();
         }
         catch (Exception ex)
         {

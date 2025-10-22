@@ -249,7 +249,10 @@ namespace SubathonManager.Data
                     await db.Entry(subathon).ReloadAsync();
                     Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
                     ev.ProcessedToSubathon = true;
-                    ev.SubathonId = subathon.Id;
+                    ev.SubathonId = subathon.Id;   
+                    ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+                    ev.CurrentPoints = subathon.Points;
+
                     db.Add(ev);
                     await db.SaveChangesAsync();
                     return true;
@@ -260,7 +263,11 @@ namespace SubathonManager.Data
             {
                 ev.ProcessedToSubathon = false;
                 if (subathon != null)
+                {
                     ev.SubathonId = subathon.Id;
+                    ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+                    ev.CurrentPoints = subathon.Points;
+                }
                 db.Add(ev);
                 await db.SaveChangesAsync();
                 
@@ -272,7 +279,9 @@ namespace SubathonManager.Data
             ev.SubathonId = subathon.Id;
             ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
             ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
-            ev.CurrentTime = (int)subathon.TimeRemaining().TotalMilliseconds;
+            ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+            ev.CurrentPoints = subathon.Points;
+            
             SubathonValue? subathonValue = null;
             if (ev.Source != SubathonEventSource.Command)
             {

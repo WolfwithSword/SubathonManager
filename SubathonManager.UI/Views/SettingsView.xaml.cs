@@ -18,6 +18,7 @@ public partial class SettingsView
         
         ServerPortTextBox.Text = Config.Data["Server"]["Port"];
         LoadValues();
+        InitWebhookSettings();
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
     }
