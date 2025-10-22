@@ -11,12 +11,13 @@ using SubathonManager.Services;
 
 namespace SubathonManager.UI;
 
-public partial class App : Application
+public partial class App
 {    
     private WebServer? _server;
     private FileSystemWatcher? _configWatcher;
     private static TimerService AppTimerService { get; set; } = new();
     private static EventService AppEventService { get; set; } = new();
+    
     public static TwitchService? AppTwitchService { get; private set; } = new();
     public static StreamElementsService? AppStreamElementsService { get; private set; } = new();
     
@@ -37,7 +38,12 @@ public partial class App : Application
         using var db = new AppDbContext();
         db.Database.Migrate();
         AppDbContext.SeedDefaultValues(db);
-        Task.Run(() => AppDbContext.PauseAllTimers(new AppDbContext()));
+        Task.Run(() =>
+            {
+                AppDbContext.PauseAllTimers(new AppDbContext());
+                AppDbContext.ResetPowerHour(new AppDbContext());
+            }
+        );
 
         _server = new WebServer(int.Parse(Config.Data["Server"]["Port"]));
 
@@ -69,41 +75,6 @@ public partial class App : Application
         });
         WatchConfig();
 
-    }
-
-    public static async void InitSubathonTimer()
-    {
-        using var db = new AppDbContext();
-        var subathon = await db.SubathonDatas.SingleOrDefaultAsync(x => x.IsActive);
-        if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-    }
-    
-    private async void UpdateSubathonTimers(TimeSpan time)
-    {
-        using var db = new AppDbContext();
-        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0}" +
-                                             " WHERE IsActive = 1 AND IsPaused = 0 " +
-                                             "AND MillisecondsCumulative - MillisecondsElapsed > 0", 
-            time.TotalMilliseconds);
-        
-        var subathon = await db.SubathonDatas.SingleOrDefaultAsync(x => x.IsActive && !x.IsPaused);
-
-        if (subathon != null)
-        {
-            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            if (subathon.TimeRemainingRounded().TotalSeconds <= 0 && !subathon.IsPaused)
-            {
-                
-                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsLocked = 1" +
-                                                     " WHERE IsActive = 1 AND IsPaused = 0 " +
-                                                     "AND Id = {0}", 
-                    subathon.Id);
-            }
-
-            await db.Entry(subathon).ReloadAsync();
-            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-        }
-        // if (subathon != null) Console.WriteLine($"Subathon Timer Updated: {subathon.MillisecondsCumulative} {subathon.MillisecondsElapsed} {subathon.PredictedEndTime()} {subathon.TimeRemaining()}");
     }
 
     protected override void OnExit(ExitEventArgs e)

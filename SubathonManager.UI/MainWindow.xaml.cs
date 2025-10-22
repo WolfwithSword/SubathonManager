@@ -20,6 +20,7 @@ namespace SubathonManager.UI
             TitleBar.Title = $"Subathon Manager - {App.AppVersion}";
 
             SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
+            SubathonEvents.SubathonDataUpdate += UpdateMultiplierUi;
             Task.Run(App.InitSubathonTimer);
         }
         

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SubathonManager.Data;
 
@@ -10,9 +11,11 @@ using SubathonManager.Data;
 namespace SubathonManager.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021211951_addCommandType")]
+    partial class addCommandType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
@@ -39,39 +42,6 @@ namespace SubathonManager.Data.Migrations
                     b.HasIndex("WidgetId");
 
                     b.ToTable("CssVariables");
-                });
-
-            modelBuilder.Entity("SubathonManager.Core.Models.MultiplierData", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasColumnOrder(0);
-
-                    b.Property<bool>("ApplyToPoints")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("ApplyToSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<TimeSpan?>("Duration")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double>("Multiplier")
-                        .HasColumnType("REAL");
-
-                    b.Property<DateTime?>("Started")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("SubathonId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SubathonId")
-                        .IsUnique();
-
-                    b.ToTable("MultiplierDatas");
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.Route", b =>
@@ -123,6 +93,9 @@ namespace SubathonManager.Data.Migrations
                     b.Property<long>("MillisecondsElapsed")
                         .HasColumnType("INTEGER");
 
+                    b.Property<double>("Multiplier")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -166,10 +139,7 @@ namespace SubathonManager.Data.Migrations
                     b.Property<int?>("EventType")
                         .HasColumnType("INTEGER");
 
-                    b.Property<double>("MultiplierPoints")
-                        .HasColumnType("REAL");
-
-                    b.Property<double>("MultiplierSeconds")
+                    b.Property<double>("Multiplier")
                         .HasColumnType("REAL");
 
                     b.Property<int?>("PointsValue")
@@ -312,16 +282,6 @@ namespace SubathonManager.Data.Migrations
                     b.Navigation("Widget");
                 });
 
-            modelBuilder.Entity("SubathonManager.Core.Models.MultiplierData", b =>
-                {
-                    b.HasOne("SubathonManager.Core.Models.SubathonData", "LinkedSubathon")
-                        .WithOne("Multiplier")
-                        .HasForeignKey("SubathonManager.Core.Models.MultiplierData", "SubathonId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("LinkedSubathon");
-                });
-
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonEvent", b =>
                 {
                     b.HasOne("SubathonManager.Core.Models.SubathonData", "LinkedSubathon")
@@ -355,12 +315,6 @@ namespace SubathonManager.Data.Migrations
             modelBuilder.Entity("SubathonManager.Core.Models.Route", b =>
                 {
                     b.Navigation("Widgets");
-                });
-
-            modelBuilder.Entity("SubathonManager.Core.Models.SubathonData", b =>
-                {
-                    b.Navigation("Multiplier")
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonGoalSet", b =>

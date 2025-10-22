@@ -47,6 +47,12 @@
       <Compile Update="MainWindow.Validation.xaml.cs">
         <DependentUpon>MainWindow.xaml</DependentUpon>
       </Compile>
+      <Compile Update="App.Subathon.xaml.cs">
+        <DependentUpon>App.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="MainWindow.Multiplier.cs">
+        <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
     </ItemGroup>
 
     <ItemGroup>
