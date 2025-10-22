@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using System.Diagnostics;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -8,6 +9,42 @@ namespace SubathonManager.UI.Views
 {
     public partial class SettingsView
     {
+
+        private void InitWebhookSettings()
+        {
+            foreach (SubathonEventType eventType in Enum.GetValues(typeof(SubathonEventType)))
+            {
+                bool.TryParse(Config.Data["Discord"][$"Events.Log.{eventType}"] ?? "false", out var check);
+                CheckBox typeCheckBox = new()
+                {
+                    Content = eventType.ToString(),
+                    IsChecked = check,
+                    Margin = new Thickness(0, 4, 8 ,4),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                EventWebhookListPanel.Children.Add(typeCheckBox);
+            }
+            
+            bool.TryParse(Config.Data["Discord"][$"Events.Log.Simulated"] ?? "false", out var logSim);
+            LogSimEventsCbx.IsChecked = logSim;
+            ErrorWebhookUrlBx.Text = Config.Data["Discord"]["WebhookUrl"] ?? "";
+            EventWebhookUrlBx.Text = Config.Data["Discord"]["Events.WebhookUrl"] ?? "";
+        }
+
+        private void UpdateWebhookSettings()
+        {
+            foreach (var child in EventWebhookListPanel.Children)
+            {
+                if (child is CheckBox checkbox)
+                    Config.Data["Discord"][$"Events.Log.{checkbox.Content}"] = checkbox.IsChecked.ToString();
+            }
+
+            Config.Data["Discord"]["WebhookUrl"] = ErrorWebhookUrlBx.Text;
+            Config.Data["Discord"]["Events.WebhookUrl"] = EventWebhookUrlBx.Text;
+            Config.Data["Discord"][$"Events.Log.Simulated"] = LogSimEventsCbx.IsChecked.ToString();
+            Config.Save();
+        }
+        
         private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
         {
             // only top level ones, not subathon ones
@@ -137,7 +174,10 @@ namespace SubathonManager.UI.Views
             if (seTipValue != null && int.TryParse(SETipBox2.Text, out var seTipPoints))
                 seTipValue.Points = seTipPoints;
 
+            // TODO webhook settings
             db.SaveChanges();
+            
+            UpdateWebhookSettings();
         }
 
         private void LoadValues()

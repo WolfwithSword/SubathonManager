@@ -8,10 +8,10 @@ public enum SubathonEventType
     TwitchRaid,
     TwitchFollow,
     StreamElementsDonation,
-    KoFiDonation,
-    KoFiSub,
-    Command, // from any chat
-    YouTubeMembership,
-    YouTubeDonation,
+    //KoFiDonation,
+    //KoFiSub,
+    Command, // from any chat or ui
+    //YouTubeMembership,
+    //YouTubeDonation,
     Unknown
 }

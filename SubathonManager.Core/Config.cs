@@ -56,6 +56,15 @@ namespace SubathonManager.Core
             Data["Server"]["Port"] = "14040";
             Data["Database"]["Path"] = GetDatabasePath();
             Data["StreamElements"]["JWT"] = "";
+
+            Data["Discord"]["Events.WebhookUrl"] = "";
+            Data["Discord"]["WebhookUrl"] = "";
+            
+            foreach (Core.Enums.SubathonEventType type in Enum.GetValues(typeof(Core.Enums.SubathonEventType)))
+            {
+                Data["Discord"][$"Events.Log.{type}"] = $"{false}";
+            }
+            Data["Discord"]["Events.Log.Simulated"] = $"{false}";
         }
 
         public static void Save()
