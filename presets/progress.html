@@ -1,0 +1,104 @@
+<meta charset=utf-8>
+<link href="https://fonts.cdnfonts.com/css/bright-orchid" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/milker" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/beachday" rel="stylesheet">
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js></script>
+
+<link rel="stylesheet" type="text/css" href="./progress.styles.css"  />
+
+
+<div class="progress-container">
+  <div class="labels">
+    <span class="label" id="current-label">0</span>
+    <span class="label" id="max-label"></span>
+  </div>
+
+  <div class="bar">
+    <div id="bar-fill"></div>
+    <div id="goal-markers"></div>
+  </div>
+  
+  <div id="multiplier-tag" class="hidden"></div>
+</div>
+
+
+<script>
+let currentPoints = { current: 0, target: 0 };
+let maxGoalPoints = 0;
+let goals = [];
+
+const currentLabel = document.getElementById("current-label");
+const maxLabel = document.getElementById("max-label");
+const barFill = document.getElementById("bar-fill");
+const markersContainer = document.getElementById("goal-markers");
+const multiplierTag = document.getElementById("multiplier-tag");
+
+function animate() {
+  currentPoints.current += (currentPoints.target - currentPoints.current) * 0.1;
+  if (Math.abs(currentPoints.target - currentPoints.current) < 0.01) {
+    currentPoints.current = currentPoints.target;
+  }
+
+  const displayed = Math.round(currentPoints.current);
+  currentLabel.textContent = displayed;
+  
+  const labels = document.querySelector(".labels");
+  const bar = document.querySelector(".bar");
+
+  if (displayed >= maxGoalPoints && maxGoalPoints > 0) {
+    labels.classList.add("centered");
+    bar.classList.add("glowing");
+    maxLabel.textContent = "";
+  } else {
+    labels.classList.remove("centered");
+    bar.classList.remove("glowing");
+    maxLabel.textContent = maxGoalPoints;
+  }
+
+  const progress = maxGoalPoints > 0
+    ? Math.min(displayed / maxGoalPoints, 1)
+    : 0;
+
+  barFill.style.width = (progress * 100) + "%";
+
+  requestAnimationFrame(animate);
+}
+  
+function updateMarkers() {
+  markersContainer.innerHTML = "";
+
+  const filtered = goals.filter(g => g.points > currentPoints.target);
+  filtered.forEach(goal => {
+    const pct = goal.points / maxGoalPoints;
+    const mark = document.createElement("div");
+    mark.className = "mark";
+    mark.style.left = (pct * 100) + "%";
+    markersContainer.appendChild(mark);
+  });
+}
+
+function handleSubathonUpdate(data) {
+    if (data.type != "subathon_timer") return;
+    currentPoints.target = data.total_points;
+    updateMarkers();
+    
+    if (data.multiplier_points && data.multiplier_points != 1) {
+        multiplierTag.textContent = `x${data.multiplier_points}`;
+        multiplierTag.classList.remove("hidden");
+        multiplierTag.classList.add("show");
+    } else {
+        multiplierTag.classList.remove("show");
+        multiplierTag.classList.add("hidden");
+    }
+}
+
+function handleGoalsUpdate(data) {
+    if (data && data.type == "goals_list") {
+        goals = data.goals;
+        maxGoalPoints = Math.max(...goals.map(g => g.points));
+        updateMarkers();
+    }
+}
+
+requestAnimationFrame(animate);
+</script>

@@ -19,6 +19,7 @@ public partial class SettingsView
         ServerPortTextBox.Text = Config.Data["Server"]["Port"];
         LoadValues();
         InitWebhookSettings();
+        InitTwitchAutoSettings();
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
     }

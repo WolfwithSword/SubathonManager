@@ -44,6 +44,21 @@ namespace SubathonManager.UI.Views
             Config.Data["Discord"][$"Events.Log.Simulated"] = LogSimEventsCbx.IsChecked.ToString();
             Config.Save();
         }
+
+        private void InitTwitchAutoSettings()
+        {
+            bool.TryParse(Config.Data["Twitch"]["PauseOnEnd"] ?? "false", out var pauseOnEnd);
+            TwitchPauseOnEndBx.IsChecked = pauseOnEnd;
+            
+            bool.TryParse(Config.Data["Twitch"]["LockOnEnd"] ?? "false", out var lockOnEnd);
+            TwitchLockOnEndBx.IsChecked = lockOnEnd;
+            
+            bool.TryParse(Config.Data["Twitch"]["ResumeOnStart"] ?? "false", out var resumeOnStart);
+            TwitchResumeOnStartBx.IsChecked = resumeOnStart;
+            
+            bool.TryParse(Config.Data["Twitch"]["UnlockOnStart"] ?? "false", out var unlockOnStart);
+            TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
+        }
         
         private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
         {
@@ -174,10 +189,15 @@ namespace SubathonManager.UI.Views
             if (seTipValue != null && int.TryParse(SETipBox2.Text, out var seTipPoints))
                 seTipValue.Points = seTipPoints;
 
-            // TODO webhook settings
             db.SaveChanges();
+
+            Config.Data["Twitch"]["PauseOnEnd"] = TwitchPauseOnEndBx.IsChecked.ToString();
+            Config.Data["Twitch"]["LockOnEnd"] = TwitchLockOnEndBx.IsChecked.ToString();
+            Config.Data["Twitch"]["ResumeOnStart"] = TwitchResumeOnStartBx.IsChecked.ToString();
+            Config.Data["Twitch"]["UnlockOnStart"] = TwitchUnlockOnStartBx.IsChecked.ToString();
+                
+            UpdateWebhookSettings(); // also calls save
             
-            UpdateWebhookSettings();
         }
 
         private void LoadValues()

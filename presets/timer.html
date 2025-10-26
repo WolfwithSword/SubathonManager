@@ -1,0 +1,208 @@
+<meta charset=utf-8>
+<link href="https://fonts.cdnfonts.com/css/bright-orchid" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/milker" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/beachday" rel="stylesheet">
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js></script>
+
+<link rel="stylesheet" type="text/css" href="./timer.styles.css"  />
+<div class="container">
+    <div id="timerContainer" class="timer-container">
+     <div class="timer-overlay" id="timer-overlay">
+         <svg viewBox="0 0 48 48" class="lock-icon">
+            <path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v4H9V6z"/>
+        </svg>
+     </div>
+      <div id="timer" class="timer">
+        <div id="hoursGroup" class="digit-group"></div>
+        <span class="colon" id="hoursColon">:</span>
+        <div id="minutesGroup" class="digit-group"></div>
+        <span class="colon">:</span>
+        <div id="secondsGroup" class="digit-group"></div>
+      </div>
+  <div id="multiplier-tag" class="hidden"></div>
+    </div>
+</div>
+
+<script>
+    class AnimatedDigit {
+        constructor(container) {
+            this.container = container;
+            this.currentChar = container.textContent || '';
+            this.queue = [];
+            this.isAnimating = false;
+
+            container.style.position = "relative";
+            container.style.display = "inline-block";
+            container.style.width = "1ch"; 
+            container.style.overflow = "hidden";
+        }
+
+        update(newChar) {
+            if (newChar === this.currentChar) return;
+            this.queue.push(newChar);
+            if (!this.isAnimating) this.processQueue();
+        }
+
+        processQueue() {
+            if (this.queue.length === 0) return;
+
+            const newChar = this.queue[this.queue.length - 1];
+            this.queue = [];
+
+            if (newChar === this.currentChar) {
+                this.isAnimating = false;
+                return;
+            }
+
+            this.isAnimating = true;
+
+            const oldSpan = document.createElement("span");
+            oldSpan.textContent = this.currentChar;
+            oldSpan.style.position = "absolute";
+            oldSpan.style.top = "0";
+            oldSpan.style.left = "0";
+            oldSpan.style.width = "100%";
+            oldSpan.style.transition = "transform 0.25s ease, opacity 0.25s ease";
+
+            const newSpan = document.createElement("span");
+            newSpan.textContent = newChar;
+            newSpan.style.position = "absolute";
+            newSpan.style.top = "0";
+            newSpan.style.left = "0";
+            newSpan.style.width = "100%";
+            newSpan.style.transform = "translateY(-100%)";
+            newSpan.style.opacity = "0";
+            newSpan.style.transition = "transform 0.25s ease, opacity 0.25s ease";
+
+            this.container.innerHTML = '';
+            this.container.appendChild(oldSpan);
+            this.container.appendChild(newSpan);
+
+            newSpan.getBoundingClientRect();
+
+            oldSpan.style.transform = "translateY(100%)";
+            oldSpan.style.opacity = "0";
+            newSpan.style.transform = "translateY(0)";
+            newSpan.style.opacity = "1";
+
+            setTimeout(() => {
+                this.container.textContent = newChar;
+                this.currentChar = newChar;
+                this.isAnimating = false;
+            }, 250);
+        }
+
+    }
+    const hoursDigits = initDigitGroup("hoursGroup", 2);
+    const minutesDigits = initDigitGroup("minutesGroup", 2);
+    const secondsDigits = initDigitGroup("secondsGroup", 2);
+
+    const multiplierTag = document.getElementById("multiplier-tag");
+    const timerQueue = [];
+    let isRendering = false;
+    let currentData = null;
+    
+    function initDigitGroup(groupId, length = 2) {
+        const group = document.getElementById(groupId);
+        const digits = [];
+        for (let i = 0; i < length; i++) {
+            const div = document.createElement("div");
+            div.className = "digit";
+            group.appendChild(div);
+            digits.push(new AnimatedDigit(div));
+        }
+        return digits;
+    }
+
+    function enqueueTimerUpdate(data) {
+        currentData = data;
+        if (!isRendering) processQueue();
+    }
+
+    async function processQueue() {
+        if (!currentData) return;
+
+        isRendering = true;
+        const data = currentData;
+        currentData = null;
+
+        await renderTimer(data);
+
+        isRendering = false;
+        if (currentData) processQueue();
+    }
+
+    async function renderTimer(data) {
+        return new Promise(resolve => {
+            const hours = data.hours + (data.days * 24);
+            const minutes = data.minutes.toString().padStart(2, "0");
+            const seconds = data.seconds.toString().padStart(2, "0");
+      
+            const hoursColon = document.getElementById('hoursColon');
+            const hoursGroup = document.getElementById("hoursGroup");
+            if (hours == 0) {
+                hoursGroup.classList.add("hidden-time");
+                hoursColon.classList.add("hidden-time");
+            }
+            else {
+                hoursGroup.classList.remove("hidden-time");
+                hoursColon.classList.remove("hidden-time");
+            }
+            
+            updateDigitGroup("hoursGroup", hoursDigits, hours.toString());
+            updateDigitGroup("minutesGroup", minutesDigits, minutes);
+            updateDigitGroup("secondsGroup", secondsDigits, seconds);
+
+            const timer = document.getElementById("timer");
+            if (data.is_paused) timer.classList.add("paused");
+            else timer.classList.remove("paused");
+            
+            const container = document.querySelector('.timer-container');
+            if (data.is_locked)
+                container.classList.add('timer-locked');
+            else
+                container.classList.remove('timer-locked');
+
+            setTimeout(resolve, 50); 
+        });
+    }
+    
+    function updateDigitGroup(groupId, digitArray, valueString) {
+        const group = document.getElementById(groupId);
+        if (digitArray.length !== valueString.length) {
+            group.innerHTML = "";
+            digitArray.length = 0;
+
+            for (let i = 0; i < valueString.length; i++) {
+                const div = document.createElement("div");
+                div.className = "digit";
+                group.appendChild(div);
+                digitArray.push(new AnimatedDigit(div));
+            }
+        }
+
+        digitArray.forEach((digit, i) => digit.update(valueString[i]));
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type != "subathon_timer") return;
+        enqueueTimerUpdate(data);
+        console.log(data.multiplier_time);
+        if (data.multiplier_time && data.multiplier_time != 1) {
+            
+            multiplierTag.textContent = `x${data.multiplier_time}`;
+            multiplierTag.classList.remove("hidden");
+            multiplierTag.classList.add("show");
+        } else {
+            multiplierTag.classList.remove("show");
+            multiplierTag.classList.add("hidden");
+        }
+    }
+
+    
+    function handleSubathonDisconnect() {
+        const timer = document.getElementById("timer");
+        timer.classList.add("paused");
+    }
+
+</script>

@@ -8,7 +8,7 @@ public static class SubathonEvents
     public static event Action? SubathonEventsDeleted;
     public static event Action<SubathonData, DateTime>? SubathonDataUpdate;
     
-    public static event Action<List<SubathonGoal>>? SubathonGoalListUpdated;
+    public static event Action<List<SubathonGoal>, int>? SubathonGoalListUpdated;
     public static event Action<SubathonGoal, int>? SubathonGoalCompleted;
 
     public static void RaiseSubathonEventsDeleted()
@@ -37,8 +37,8 @@ public static class SubathonEvents
         SubathonGoalCompleted?.Invoke(goal, points);
     }
 
-    public static void RaiseSubathonGoalListUpdated(List<SubathonGoal> goals)
+    public static void RaiseSubathonGoalListUpdated(List<SubathonGoal> goals, int points)
     {
-        SubathonGoalListUpdated?.Invoke(goals);
+        SubathonGoalListUpdated?.Invoke(goals, points);
     }
 }

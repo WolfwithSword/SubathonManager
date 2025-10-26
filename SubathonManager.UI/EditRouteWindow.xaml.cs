@@ -11,6 +11,7 @@ namespace SubathonManager.UI;
 
 public partial class EditRouteWindow
 {
+    // todo unpopulate widget on delete. fix ui in general
     private readonly Guid _routeId;
     private Route? _route;
     private ObservableCollection<Widget> _widgets = new();
@@ -232,9 +233,11 @@ public partial class EditRouteWindow
     {
         
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        using var db = new AppDbContext();
         widgetHelper.SyncCssVariables(widget);
-        
-        _selectedWidget = widget;
+        _selectedWidget = db.Widgets.Include(wX => wX.CssVariables)
+            .FirstOrDefault(wX => wX.Id == widget.Id);
+        widget = _selectedWidget!;
 
         WidgetEditPanel.Visibility = Visibility.Visible;
         EmptyEditorPanel.Visibility = Visibility.Collapsed;
@@ -246,6 +249,22 @@ public partial class EditRouteWindow
         WidgetYBox.Text = $"{widget.Y}";
 
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
+        CssVarsList.ItemsSource = _editingCssVars;
+    }
+
+    private void ReloadCSS_Click(object sender, RoutedEventArgs e)
+    {
+        // todo, button to delete vars no longer found or tie in here
+        if (_selectedWidget == null) return;
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        widgetHelper.SyncCssVariables(_selectedWidget);
+        
+        using var db = new AppDbContext();
+        var widget = db.Widgets.Include(wX => wX.CssVariables)
+            .FirstOrDefault(wX => wX.Id == _selectedWidget.Id);
+        _selectedWidget = widget;
+        
+        _editingCssVars = new ObservableCollection<CssVariable>(_selectedWidget!.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
     }
     
@@ -280,8 +299,8 @@ public partial class EditRouteWindow
     private async Task SwapWidgetZAsync(Widget a, Widget b)
     {
         using var db = new AppDbContext();
-        var wa = await db.Widgets.FirstOrDefaultAsync(w => w.Id == a.Id);
-        var wb = await db.Widgets.FirstOrDefaultAsync(w => w.Id == b.Id);
+        var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == a.Id);
+        var wb = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == b.Id);
         if (wa == null || wb == null) return;
 
         int tmp = wa.Z;

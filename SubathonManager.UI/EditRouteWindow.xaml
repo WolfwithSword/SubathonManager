@@ -168,19 +168,19 @@
                     <UniformGrid Columns="2" Rows="2" Margin="0,8">
                         <StackPanel>
                             <TextBlock Text="Width" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetWidthBox" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetWidthBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Height" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetHeightBox" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetHeightBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="X" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetXBox" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetXBox" Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Y" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetYBox" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetYBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                         </StackPanel>
                     </UniformGrid>
 
@@ -188,19 +188,23 @@
 
                     <!-- CSS Variables -->
                     <TextBlock Text="CSS Variables" FontWeight="Bold" Margin="0,0,0,6"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="250">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="480" MaxHeight="480">
                         <ItemsControl x:Name="CssVarsList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" Margin="0,2">
-                                        <TextBlock Text="{Binding Name}" Width="120"/>
-                                        <TextBox Text="{Binding Value}" Width="180"/>
+                                    <StackPanel Orientation="Vertical"> 
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                            <TextBox Text="{Binding Value}" Width="160"/>
+                                        </StackPanel>
+                                        <Separator Margin="16 1"></Separator>
                                     </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <Button Content="Save" Width="100" Margin="0,12,0,0" Click="SaveWidgetButton_Click"/>
+                    <Button Content="Reload CSS Vars" Width="150" Margin="0,8,0,4" Click="ReloadCSS_Click"/>
+                    <Button Content="Save" Width="150" Margin="0,8,0,0" Click="SaveWidgetButton_Click"/>
                 </StackPanel>
             </StackPanel>
         </Border>

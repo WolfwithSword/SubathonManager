@@ -22,7 +22,7 @@ public partial class GoalsView
         SubathonEvents.SubathonGoalListUpdated += OnGoalsUpdate;
     }
 
-    private void OnGoalsUpdate(List<SubathonGoal> goals)
+    private void OnGoalsUpdate(List<SubathonGoal> goals, int points)
     {
         Dispatcher.InvokeAsync(() => { LoadGoals() ;});
     }

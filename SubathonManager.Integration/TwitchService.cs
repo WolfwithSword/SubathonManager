@@ -264,6 +264,8 @@ public class TwitchService
                 // but handy for showing "X gifted 50x subs" ? or not needed? 
                 var eventTypes = new[]
                 {
+                    "stream.offline",
+                    "stream.online",
                     "channel.follow",
                     "channel.subscribe", // This does not include resubscribes, channel.subscription.message does
                     "channel.cheer",
@@ -310,6 +312,80 @@ public class TwitchService
             return Task.CompletedTask;
         };
 
+        _eventSub.StreamOnline += (s, e) =>
+        {
+
+            if (bool.TryParse(Config.Data["Twitch"]["ResumeOnStart"] ?? "false", out var resumeOnStart) && resumeOnStart)
+            {
+                SubathonEvent subathonEvent = new SubathonEvent
+                {
+                    EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                    Command = SubathonCommandType.Resume,
+                    Value = $"{SubathonCommandType.Resume}",
+                    SecondsValue = 0,
+                    PointsValue = 0,
+                    Source = SubathonEventSource.Command,
+                    EventType = SubathonEventType.Command,
+                    User = "AUTO"
+                };
+                SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            }
+
+            if (bool.TryParse(Config.Data["Twitch"]["UnlockOnStart"] ?? "false", out var unlockOnStart) && unlockOnStart)
+            {
+                SubathonEvent subathonEvent = new SubathonEvent
+                {
+                    EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                    Command = SubathonCommandType.Unlock,
+                    Value = $"{SubathonCommandType.Unlock}",
+                    SecondsValue = 0,
+                    PointsValue = 0,
+                    Source = SubathonEventSource.Command,
+                    EventType = SubathonEventType.Command,
+                    User = "AUTO"
+                };
+                SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            }
+            return Task.CompletedTask;
+        };
+
+        _eventSub.StreamOffline += (s, e) =>
+        {
+
+            if (bool.TryParse(Config.Data["Twitch"]["PauseOnEnd"] ?? "false", out var pauseOnEnd) && pauseOnEnd)
+            {
+                SubathonEvent subathonEvent = new SubathonEvent
+                {
+                    EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                    Command = SubathonCommandType.Pause,
+                    Value = $"{SubathonCommandType.Pause}",
+                    SecondsValue = 0,
+                    PointsValue = 0,
+                    Source = SubathonEventSource.Command,
+                    EventType = SubathonEventType.Command,
+                    User = "AUTO"
+                };
+                SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            }
+
+            if (bool.TryParse(Config.Data["Twitch"]["LockOnEnd"] ?? "false", out var lockOnEnd) && lockOnEnd)
+            {
+                SubathonEvent subathonEvent = new SubathonEvent
+                {
+                    EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                    Command = SubathonCommandType.Lock,
+                    Value = $"{SubathonCommandType.Lock}",
+                    SecondsValue = 0,
+                    PointsValue = 0,
+                    Source = SubathonEventSource.Command,
+                    EventType = SubathonEventType.Command,
+                    User = "AUTO"
+                };
+                SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            }
+            return Task.CompletedTask;
+        };
+        
         _eventSub.ChannelFollow += (s, e) =>
         {
             Console.WriteLine($"New follow from {e.Payload.Event.UserName}");

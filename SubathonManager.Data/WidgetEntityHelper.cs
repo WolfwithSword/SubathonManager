@@ -21,10 +21,10 @@ public class WidgetEntityHelper
             {
                 db.CssVariables.Add(variable);
                 Console.WriteLine($"[Widget {widget.Name}] Added new CSS variable: {variable.Name}");
-                widget.CssVariables.Add(variable);
             }
         }
         db.SaveChanges();
+        // db.Entry(widget).Reload();
     }
 
     public async Task<bool> UpdateWidgetPosition(string widgetId, Dictionary<string, JsonElement> data)
@@ -43,6 +43,7 @@ public class WidgetEntityHelper
                 
                 await db.SaveChangesAsync();
                 WidgetEvents.RaisePositionUpdated(widget);
+                await db.Entry(widget).ReloadAsync();
                 return true;
             }
         }

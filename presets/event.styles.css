@@ -1,0 +1,104 @@
+:root {
+    --border-color: #48446e;
+    --inner-border-color: #655fa0;
+    --main-background-color: #d9d7fb;
+    --font: beachday;
+    --event-width: 200px;
+    --text-color: #8C46ED;
+    --event-glow: rgba(180,50,240,0.45);
+    --glow-color: #494475;
+    --tem4: 2;
+}
+
+.event-card {
+  display: flex;
+  align-items: center;
+  min-width: var(--event-width);
+  max-width: var(--event-width);
+  justify-content: space-between;
+  width: var(--event-width);
+
+  background: var(--main-background-color);
+  border: 1px solid var(--border-color);
+  outline: 3px solid var(--border-color);
+  outline-offset: -1px;
+  
+  box-shadow: inset 0 0 0 2px var(--inner-border-color);
+  filter: drop-shadow(0 0 2px  var(--glow-color));
+  
+  backdrop-filter: blur(8px);
+  border-radius: 4px 12px;
+  padding: 8px 12px;
+
+  color: var(--text-color);
+  font-family: var(--font), sans-serif;
+  font-size: 1rem;
+  pointer-events: auto;
+}
+
+.event-content {
+  display: flex;
+  min-width: var(--event-width);
+  max-width: var(--event-width);
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.event-content.animating {
+  animation: popFade 0.35s ease forwards;
+}
+
+@keyframes popFade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.event-card.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.event-card.hide {
+  opacity: 0;
+  transform: translateX(28px);
+}
+
+.event-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--text-color);
+  flex-shrink: 0;
+  display: block;
+  z-index: 99;
+  overflow:visible;
+  vertical-align: middle; 
+  filter: drop-shadow(0 0 4px var(--event-glow));
+}
+
+.event-text {
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  line-height: 1.2;
+}
+
+.event-user {
+  font-weight: 100;
+  max-width: 80%;
+  min-width: 80%;
+  width: 80%;
+  overflow: hidden;
+}
+
+.event-value {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  min-height: 1.2rem;
+}
