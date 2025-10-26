@@ -66,9 +66,11 @@ jobs:
             -p:InformationalVersion=${{ steps.vars.outputs.version }} 
             -o build
 
-      # - name: Compress
-      #   run: Compress-Archive -Path build\* -DestinationPath ${{ steps.vars.outputs.filename }}
-
+      - name: Copy presets folder into build output
+        run: |
+          mkdir -Force build\presets
+          xcopy presets build\presets /E /I /Y
+          
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:

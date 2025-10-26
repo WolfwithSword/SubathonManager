@@ -109,10 +109,11 @@ namespace SubathonManager.UI.Views
             db.SubathonGoals.Remove(goal);
             db.SaveChanges();
             db.Entry(_activeGoalSet!).Reload();
+            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
             });
         }
 
@@ -134,7 +135,8 @@ namespace SubathonManager.UI.Views
             GoalSetNameBox.Text = newGoalSet.Name;
             GoalsStack.Children.Clear();
             StatusText.Text = "";
-            SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals);
+            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
         }
 
         private void AddGoal_Click(object sender, RoutedEventArgs e)
@@ -157,11 +159,11 @@ namespace SubathonManager.UI.Views
             db.SubathonGoals.Add(newGoal);
             db.SaveChanges();
             db.Entry(_activeGoalSet).Reload();
-
+            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
             });
             
             // do we want to push event update here? probably
@@ -193,7 +195,8 @@ namespace SubathonManager.UI.Views
             if (sender != null && e != null)
             {
                 Dispatcher.InvokeAsync(() => { LoadGoals(); });
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals);
+                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
                 // TODO push update event
             }
         }

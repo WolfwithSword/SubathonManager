@@ -1,0 +1,97 @@
+:root {
+    --border-color: #48446e;
+    --inner-border-color: #655fa0;
+    --main-background-color: #d9d7fb;
+    --goal-text-color: #111;
+    --goal-height: 44px;
+    --goal-gap: 6px;
+    --visible-items: 3;
+    --completed-item-state: block; /* block or none */
+}
+
+
+.goals-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 4px;
+    padding-bottom: 8px;
+    gap: 0;
+    max-height: calc(  calc(var(--goal-height) + 2*var(--goal-gap))  * var(--visible-items)  - var(--goal-gap)) ;
+    transition: max-height 0.4s ease;
+}
+
+.goals-container:after {
+    max-height: calc(  calc(var(--goal-height) + 2*var(--goal-gap))  * var(--visible-items)  - var(--goal-gap));
+}
+
+.goal-row:first-child.completed-row {
+    display: var(--completed-item-state);
+}
+
+.goal-row {
+    margin-top: var(--goal-gap);
+    margin-bottom: var(--goal-gap);
+    margin-left: 4px;
+    margin-right: 4px;
+    transition:
+        height 0.35s ease,
+        margin 0.35s ease,
+        opacity 0.35s ease,
+        transform 0.35s ease;
+}
+
+.goal-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--goal-height);
+    min-height: var(--goal-height);
+    max-height: var(--goal-height);
+    padding: 0 12px;
+    border-radius: 4px 12px;
+
+    background-color: var(--main-background-color);
+    outline: 4px solid var(--border-color);
+    outline-offset: -1px;
+    box-shadow: inset 0 0 0 3px var(--inner-border-color);
+
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--goal-text-color);
+
+    transition:
+        filter 0.35s ease,
+        opacity 0.35s ease,
+        transform 0.35s ease;
+}
+
+.goal-points {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.15);
+    font-weight: 600;
+    filter: drop-shadow(0 0 4px rgba(0,0,0,0.1));
+}
+
+.goal-item.completed {
+    text-decoration: line-through;
+    filter: brightness(0.85);
+    opacity: 0.25;
+    transition: opacity 0.5s ease;
+}
+
+.goal-row.enter {
+    opacity: 0;
+    transform: translateY(12px);
+}
+.goal-row.enter-active {
+    opacity: 1;
+    transform: translateY(0);
+}
+.goal-row.exit {
+    opacity: 0;
+    transform: translateY(-12px);
+}

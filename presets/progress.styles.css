@@ -1,0 +1,135 @@
+:root {
+    --gradient-start: #8f88e6;
+    --gradient-end: #aa00ff;
+    
+    --multiplier-text-color: #48446e;
+    --font: milker;
+    --border-color: #48446e;
+    --inner-border-color: #655fa0;
+    --main-background-color: #d9d7fb;
+}
+.progress-container {
+  width: 100%;
+  max-width: 450px;
+}
+
+.labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+  color: var(--text-color);
+  position: relative;
+  height: 1.3rem;
+}
+
+.label {
+    font-family: var(--font), sans-serif;
+    font-weight: 100;
+}
+
+#current-label,
+#max-label {
+  transition: all 0.5s ease;
+  display: inline-block;
+}
+
+.labels.centered #current-label {
+  position: absolute;
+  right: 50%;
+  top: 0;
+  margin-bottom: 8px;
+  transform: translateX(50%);
+}
+
+.labels.centered #max-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bar {
+  position: relative;
+  height: 6px;
+  background: var(--main-background-color);
+  border-radius: 999px;
+  margin-top: 4px;
+}
+
+#bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+#goal-markers {
+  position: absolute;
+  top: -6px;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  pointer-events: none;
+}
+
+#goal-markers .mark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: white;
+  transform: translateX(-50%) rotate(45deg);
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.25));
+  opacity: 0.85;
+}
+
+.bar.glowing #bar-fill {
+  animation: glowPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%   { filter: drop-shadow(0 0 2px var(--main-background-color)); }
+  50%  { filter: drop-shadow(0 0 6px var(--main-background-color)); }
+  100% { filter: drop-shadow(0 0 2px var(--main-background-color)); }
+}
+
+@keyframes glowPulseMultiplier {
+  0%   { filter: drop-shadow(0 0 2px var(--inner-border-color)); }
+  25%   { filter: drop-shadow(0 0 2px var(--inner-border-color)); }
+  50%  { filter: drop-shadow(0 0 3px var(--inner-border-color)); }
+  75% { filter: drop-shadow(0 0 2px var(--inner-border-color)); }
+  100% { filter: drop-shadow(0 0 2px var(--inner-border-color)); }
+}
+
+#multiplier-tag {
+  position: absolute;
+  left: 92%;
+  margin-top: 1px;
+  transform: rotate(10deg);
+  outline: 2px solid var(--border-color);
+  outline-offset: -1px;
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 0 2px var(--inner-border-color);
+  background-color: var(--main-background-color);
+  color: var(--multiplier-text-color);
+  font-weight: 600;
+  font-size: 1.2rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+#multiplier-tag.show {
+  opacity: 1;
+  transform: translateX(-50%) rotate(10deg) translateY(-2px);
+  animation: glowPulseMultiplier 1.8s ease-in-out infinite;
+}
+
+#multiplier-tag.hidden {
+  opacity: 0;
+  transform: translateX(-50%) rotate(10deg) translateY(-8px);
+}
