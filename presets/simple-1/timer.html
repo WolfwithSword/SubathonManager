@@ -187,7 +187,6 @@
     function handleSubathonUpdate(data) {
         if (data.type != "subathon_timer") return;
         enqueueTimerUpdate(data);
-        console.log(data.multiplier_time);
         if (data.multiplier_time && data.multiplier_time != 1) {
             
             multiplierTag.textContent = `x${data.multiplier_time}`;
