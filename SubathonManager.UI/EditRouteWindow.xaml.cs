@@ -112,6 +112,7 @@ public partial class EditRouteWindow
         await db.SaveChangesAsync();
         // _route = route;
         UpdateWebViewScale();
+        OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
     }
     
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -129,7 +130,8 @@ public partial class EditRouteWindow
     {
         var wi = GetWidgetFromSender(sender);
         if (wi == null) return;
-
+        Guid routeId = wi.RouteId;
+        
         using var db = new AppDbContext();
         var w = await db.Widgets.FirstOrDefaultAsync(x => x.Id == wi.Id);
         if (w != null)
@@ -141,6 +143,7 @@ public partial class EditRouteWindow
         _widgets.Remove(wi);
         await RefreshWidgetZIndicesAsync();
         RefreshWebView();
+        OverlayEvents.RaiseOverlayRefreshRequested(routeId);
     }
 
     private async void CopyWidget_Click(object sender, RoutedEventArgs e)
@@ -293,7 +296,8 @@ public partial class EditRouteWindow
         RefreshWebView();
         
         WidgetsList.Items.Refresh();
-        
+        OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
+
     }
     
     private async Task SwapWidgetZAsync(Widget a, Widget b)

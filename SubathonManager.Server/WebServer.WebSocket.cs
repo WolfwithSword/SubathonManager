@@ -21,6 +21,7 @@ public partial class WebServer
         SubathonEvents.SubathonEventProcessed += SendSubathonEventProcessed;
         SubathonEvents.SubathonGoalCompleted += SendGoalCompleted;
         SubathonEvents.SubathonGoalListUpdated += SendGoalsUpdated;
+        OverlayEvents.OverlayRefreshRequested += SendRefreshRequest;
     }
 
     private void StopWebsocketServer()
@@ -29,6 +30,7 @@ public partial class WebServer
         SubathonEvents.SubathonEventProcessed -= SendSubathonEventProcessed;
         SubathonEvents.SubathonGoalCompleted -= SendGoalCompleted;
         SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
+        OverlayEvents.OverlayRefreshRequested -= SendRefreshRequest;
     }
 
     private void SendGoalsUpdated(List<SubathonGoal> goals, int currentPoints)
@@ -122,6 +124,17 @@ public partial class WebServer
     {
         if (!subathonEvent.ProcessedToSubathon) return;
         Task.Run(() => BroadcastAsync(SubathonEventToObject(subathonEvent)));
+    }
+
+    private void SendRefreshRequest(Guid id)
+    {
+        Task.Run(() =>
+            BroadcastAsync(new
+            {
+                type = "refresh_request",
+                id = id.ToString()
+            })
+        );
     }
 
     private object SubathonDataToObject(SubathonData subathon)
@@ -274,7 +287,7 @@ public partial class WebServer
         }
     }
 
-    public string GetWebsocketInjectionScript()
+    public string GetWebsocketInjectionScript(string? routeId = "")
     {
         string script = $@"
                         <script>
@@ -305,6 +318,10 @@ public partial class WebServer
                                             window.handleGoalsUpdate(data);
                                         else if (typeof window.handleGoalCompleted === 'function' && data.type == 'goal_completed')
                                             window.handleGoalCompleted(data);
+                                        else if (data.type == 'refresh_request' && document.title == 'overlay-{routeId}') {{
+                                            // for only the merged page
+                                            window.location.reload();
+                                        }}
                                         //else console.log('[Subathon WS] Received:', data);
                                     }} catch (e) {{
                                         console.error('[Subathon WS] JSON error:', e);

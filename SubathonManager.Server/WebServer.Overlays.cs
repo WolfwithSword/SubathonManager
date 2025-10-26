@@ -124,7 +124,7 @@ public partial class WebServer
     private string GenerateMergedPage(Route route, bool isEditor = false)
     {
         StringBuilder sb = new StringBuilder();
-        sb.AppendLine("<html><head><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
+        sb.AppendLine($"<html><head><title>overlay-{route.Id.ToString()}</title><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
         
         sb.AppendLine($@"
             <style>
@@ -246,6 +246,8 @@ public partial class WebServer
             });
             </script>
         ");
+
+        sb.AppendLine(@$"{GetWebsocketInjectionScript(route.Id.ToString())}");
 
         // moving in edit mode
         if (isEditor)
