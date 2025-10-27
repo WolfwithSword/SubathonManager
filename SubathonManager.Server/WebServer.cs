@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 using SubathonManager.Data;
 
@@ -7,16 +8,17 @@ namespace SubathonManager.Server;
 
 public partial class WebServer
 {
+    private readonly IDbContextFactory<AppDbContext> _factory;
     public int Port { get; }
     private readonly HttpListener _listener;
     private bool _running;
     
     private readonly HashSet<string> _servedFolders = new();
     
-    public WebServer(int port = 14040)
+    public WebServer(IDbContextFactory<AppDbContext> factory ,int port = 14040)
     {
-        
-        using (var db = new AppDbContext())
+        _factory = factory;
+        using (var db = _factory.CreateDbContext())
         {
             var routes = db.Routes.ToList();
             if (routes.Count == 0)

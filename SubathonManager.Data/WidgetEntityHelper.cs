@@ -24,7 +24,6 @@ public class WidgetEntityHelper
             }
         }
         db.SaveChanges();
-        // db.Entry(widget).Reload();
     }
 
     public async Task<bool> UpdateWidgetPosition(string widgetId, Dictionary<string, JsonElement> data)

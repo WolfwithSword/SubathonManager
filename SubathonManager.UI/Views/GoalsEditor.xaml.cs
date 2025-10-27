@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
@@ -10,9 +11,11 @@ namespace SubathonManager.UI.Views
     public partial class GoalsEditor
     {
         private SubathonGoalSet? _activeGoalSet;
+        private readonly IDbContextFactory<AppDbContext> _factory;
 
         public GoalsEditor()
         {
+            _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             LoadActiveGoalSet();
             SubathonEvents.SubathonDataUpdate += UpdatePointsCount;
@@ -24,7 +27,7 @@ namespace SubathonManager.UI.Views
         }
         private void LoadActiveGoalSet()
         {
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
             _activeGoalSet = db.SubathonGoalSets.Include(gs => gs.Goals)
                 .FirstOrDefault(gs => gs.IsActive);
             if (_activeGoalSet == null)
@@ -52,7 +55,7 @@ namespace SubathonManager.UI.Views
             GoalsStack.Children.Clear();
 
             if (_activeGoalSet == null) return;
-            using var db = new AppDbContext();
+            await using var db = await _factory.CreateDbContextAsync();
             await db.Entry(_activeGoalSet!).ReloadAsync();
 
             var goals = _activeGoalSet!.Goals.OrderBy(g => g.Points).ToList();
@@ -105,11 +108,11 @@ namespace SubathonManager.UI.Views
         
         private void DeleteGoal_Click(SubathonGoal goal)
         {
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
             db.SubathonGoals.Remove(goal);
             db.SaveChanges();
             db.Entry(_activeGoalSet!).Reload();
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
@@ -119,7 +122,7 @@ namespace SubathonManager.UI.Views
 
         private void CreateNewGoalSet_Click(object sender, RoutedEventArgs e)
         {
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
             foreach (var gs in db.SubathonGoalSets)
                 gs.IsActive = false;
 
@@ -135,7 +138,7 @@ namespace SubathonManager.UI.Views
             GoalSetNameBox.Text = newGoalSet.Name;
             GoalsStack.Children.Clear();
             StatusText.Text = "";
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
         }
 
@@ -144,7 +147,7 @@ namespace SubathonManager.UI.Views
             if (_activeGoalSet == null) return;
             SaveGoals_Click(null, null);
 
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
 
             int maxPoints = 0;
             if (_activeGoalSet.Goals.Count > 0)
@@ -159,7 +162,7 @@ namespace SubathonManager.UI.Views
             db.SubathonGoals.Add(newGoal);
             db.SaveChanges();
             db.Entry(_activeGoalSet).Reload();
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
@@ -175,7 +178,7 @@ namespace SubathonManager.UI.Views
 
             _activeGoalSet.Name = GoalSetNameBox.Text;
 
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
             db.Update(_activeGoalSet);
             foreach (StackPanel panel in GoalsStack.Children.OfType<StackPanel>())
             {
@@ -195,9 +198,8 @@ namespace SubathonManager.UI.Views
             if (sender != null && e != null)
             {
                 Dispatcher.InvokeAsync(() => { LoadGoals(); });
-                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+                SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
                 SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
-                // TODO push update event
             }
         }
     }

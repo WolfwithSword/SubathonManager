@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
 
@@ -9,16 +10,18 @@ public partial class App
     
     public static async void InitSubathonTimer()
     {
-        using var db = new AppDbContext();
-        var subathon = await db.SubathonDatas.SingleOrDefaultAsync(x => x.IsActive);
+        var factory = AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        await using var db =  await factory.CreateDbContextAsync();
+        var subathon = await db.SubathonDatas.AsNoTracking().SingleOrDefaultAsync(x => x.IsActive);
         if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
     }
 
     private async void SetPowerHour(double value, TimeSpan? duration, bool applySeconds, bool applyPoints)
     {
-        await AppDbContext.ResetPowerHour(new AppDbContext());
+        await AppDbContext.ResetPowerHour(await _factory.CreateDbContextAsync());
         
-        using var db = new AppDbContext();
+        await using var db =  await _factory.CreateDbContextAsync();
+        
         var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
             .SingleOrDefaultAsync(x => x.IsActive);
         if (subathon == null) return;
@@ -35,10 +38,8 @@ public partial class App
     
     private async void UpdateSubathonTimers(TimeSpan time)
     {
-        using var db = new AppDbContext();
-        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0}" +
-                                             " WHERE IsActive = 1 AND IsPaused = 0 " +
-                                             "AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+        await using var db = await _factory.CreateDbContextAsync();
+        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed > 0", 
             time.TotalMilliseconds);
         
         var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
@@ -49,21 +50,20 @@ public partial class App
         {
             if (subathon.TimeRemainingRounded().TotalSeconds <= 0 && !subathon.IsPaused)
             {
-                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsLocked = 1" +
-                                                     " WHERE IsActive = 1 AND IsPaused = 0 " +
-                                                     "AND Id = {0}", 
+                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND IsPaused = 0 AND Id = {0}", 
                     subathon.Id);
             }
 
             if (subathon.Multiplier.Duration != null && (subathon.Multiplier.Multiplier < 1 || subathon.Multiplier.Multiplier > 1) 
                                        && DateTime.Now >= subathon.Multiplier.Started + subathon.Multiplier.Duration)
             {
-                await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null " +
-                                                     " WHERE SubathonId = {0}", 
+                await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null  WHERE SubathonId = {0}", 
                     subathon.Id);
             }
 
             await db.Entry(subathon).ReloadAsync();
+            db.Entry(subathon).State = EntityState.Detached;
+            db.Entry(subathon.Multiplier).State = EntityState.Detached;
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
         }
         // if (subathon != null) Console.WriteLine($"Subathon Timer Updated: {subathon.MillisecondsCumulative} {subathon.MillisecondsElapsed} {subathon.PredictedEndTime()} {subathon.TimeRemaining()}");

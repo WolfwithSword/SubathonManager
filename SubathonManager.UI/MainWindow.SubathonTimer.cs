@@ -32,8 +32,8 @@ namespace SubathonManager.UI
 
         private void StartNewSubathon_Click(object sender, RoutedEventArgs e)
         {
-            Task.Run(() => AppDbContext.DisableAllTimers(new AppDbContext()));
-            using var db = new AppDbContext();
+            Task.Run(() => AppDbContext.DisableAllTimers(_factory.CreateDbContext()));
+            using var db = _factory.CreateDbContext();
             SubathonData subathon = new SubathonData();
             TimeSpan initialMs = Utils.ParseDurationString(InitialSubathonTime.Text);
             if (initialMs == TimeSpan.Zero)
@@ -44,6 +44,7 @@ namespace SubathonManager.UI
             subathon.IsPaused = true; 
             db.SubathonDatas.Add(subathon);
             db.SaveChanges();
+            db.Entry(subathon).State = EntityState.Detached;
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
             SubathonEvents.RaiseSubathonEventsDeleted();
         }
@@ -63,8 +64,8 @@ namespace SubathonManager.UI
             TimeSpan timeToSet = Utils.ParseDurationString(AdjustSubathonTime.Text);
             if (timeToSet <= TimeSpan.Zero) return;
             
-            using var db = new AppDbContext();
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            using var db = _factory.CreateDbContext();
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             if (subathon == null) return;
 
             string rawText = AdjustSubathonTime.Text.Replace(" ", "");
@@ -122,8 +123,8 @@ namespace SubathonManager.UI
                 return;
             if (parsedInt < 0) return;
             
-            using var db = new AppDbContext();
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            using var db = _factory.CreateDbContext();
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             if (subathon == null) return;
 
             SubathonEvent subathonEvent = new SubathonEvent
@@ -165,8 +166,8 @@ namespace SubathonManager.UI
         
         private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)
         {
-            using var db = new AppDbContext();
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            using var db = _factory.CreateDbContext();
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             if (subathon == null) return;
             SubathonCommandType cmd = subathon.IsPaused ? SubathonCommandType.Resume : SubathonCommandType.Pause;
             SubathonEvent subathonEvent = new SubathonEvent
@@ -186,8 +187,8 @@ namespace SubathonManager.UI
 
         private void ToggleLockSubathon_Click(object sender, RoutedEventArgs e)
         {
-            using var db = new AppDbContext();
-            SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+            using var db = _factory.CreateDbContext();
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
             if (subathon == null) return;
             SubathonCommandType cmd = subathon.IsLocked ? SubathonCommandType.Unlock : SubathonCommandType.Lock;
             SubathonEvent subathonEvent = new SubathonEvent

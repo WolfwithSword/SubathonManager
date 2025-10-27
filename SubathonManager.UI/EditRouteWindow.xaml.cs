@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
@@ -17,9 +18,11 @@ public partial class EditRouteWindow
     private ObservableCollection<Widget> _widgets = new();
     private Widget? _selectedWidget;
     private ObservableCollection<CssVariable> _editingCssVars = new();
+    private readonly IDbContextFactory<AppDbContext> _factory;
     
     public EditRouteWindow(Guid routeId)
     {
+        _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         _routeId = routeId;
         WidgetsList.ItemsSource = _widgets;
@@ -43,8 +46,8 @@ public partial class EditRouteWindow
             {
                 _selectedWidget.X = updatedWidget.X;
                 _selectedWidget.Y = updatedWidget.Y;
-                WidgetXBox.Text = $"{updatedWidget.X}";
-                WidgetYBox.Text = $"{updatedWidget.Y}";
+                if (WidgetXBox.Text != $"{updatedWidget.X}") WidgetXBox.Text = $"{updatedWidget.X}";
+                if (WidgetYBox.Text != $"{updatedWidget.Y}") WidgetYBox.Text = $"{updatedWidget.Y}";
             });
         }
 
@@ -52,7 +55,7 @@ public partial class EditRouteWindow
     
     private async Task LoadRouteAsync()
     {
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         _route = await db.Routes
             .Include(r => r.Widgets)
             .ThenInclude(w => w.CssVariables)
@@ -64,9 +67,9 @@ public partial class EditRouteWindow
             return;
         }
 
-        RouteNameBox.Text = _route.Name;
-        RouteWidthBox.Text = _route.Width.ToString();
-        RouteHeightBox.Text = _route.Height.ToString();
+        if (RouteNameBox.Text != _route.Name) RouteNameBox.Text = _route.Name;
+        if (RouteWidthBox.Text != _route.Width.ToString()) RouteWidthBox.Text = _route.Width.ToString();
+        if (RouteHeightBox.Text != _route.Height.ToString()) RouteHeightBox.Text = _route.Height.ToString();
 
         _widgets.Clear();
         var sorted = _route.Widgets.OrderByDescending(w => w.Z).ToList();
@@ -100,7 +103,7 @@ public partial class EditRouteWindow
     private async void SaveRouteButton_Click(object sender, RoutedEventArgs e)
     {
         if (_route == null) return;
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         await db.Entry(_route).ReloadAsync();
         // var route = await db.Routes.FirstOrDefaultAsync(r => r.Id == _route.Id);
         // if (route == null) return;
@@ -132,7 +135,7 @@ public partial class EditRouteWindow
         if (wi == null) return;
         Guid routeId = wi.RouteId;
         
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         var w = await db.Widgets.FirstOrDefaultAsync(x => x.Id == wi.Id);
         if (w != null)
         {
@@ -151,7 +154,7 @@ public partial class EditRouteWindow
         var w = GetWidgetFromSender(sender);
         if (w == null) return;
 
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         await db.Entry(w).ReloadAsync();
         // var w = await db.Widgets.Include(x => x.CssVariables).FirstOrDefaultAsync(x => x.Id == wi.Id);
         // if (w == null) return;
@@ -236,7 +239,7 @@ public partial class EditRouteWindow
     {
         
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
-        using var db = new AppDbContext();
+        using var db = _factory.CreateDbContext();
         widgetHelper.SyncCssVariables(widget);
         _selectedWidget = db.Widgets.Include(wX => wX.CssVariables)
             .FirstOrDefault(wX => wX.Id == widget.Id);
@@ -245,11 +248,11 @@ public partial class EditRouteWindow
         WidgetEditPanel.Visibility = Visibility.Visible;
         EmptyEditorPanel.Visibility = Visibility.Collapsed;
 
-        WidgetNameBox.Text = widget.Name;
-        WidgetWidthBox.Text = widget.Width.ToString();
-        WidgetHeightBox.Text = widget.Height.ToString();
-        WidgetXBox.Text = $"{widget.X}";
-        WidgetYBox.Text = $"{widget.Y}";
+        if (WidgetNameBox.Text != widget.Name) WidgetNameBox.Text = widget.Name;
+        if (WidgetWidthBox.Text != widget.Width.ToString()) WidgetWidthBox.Text = widget.Width.ToString();
+        if (WidgetHeightBox.Text != widget.Height.ToString()) WidgetHeightBox.Text = widget.Height.ToString();
+        if (WidgetXBox.Text != $"{widget.X}") WidgetXBox.Text = $"{widget.X}";
+        if (WidgetYBox.Text != $"{widget.Y}") WidgetYBox.Text = $"{widget.Y}";
 
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
@@ -262,7 +265,7 @@ public partial class EditRouteWindow
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
         widgetHelper.SyncCssVariables(_selectedWidget);
         
-        using var db = new AppDbContext();
+        using var db = _factory.CreateDbContext();
         var widget = db.Widgets.Include(wX => wX.CssVariables)
             .FirstOrDefault(wX => wX.Id == _selectedWidget.Id);
         _selectedWidget = widget;
@@ -275,7 +278,7 @@ public partial class EditRouteWindow
     {
         if (_selectedWidget == null) return;
 
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         var widget = await db.Widgets.Include(wX => wX.CssVariables)
             .FirstOrDefaultAsync(wX => wX.Id == _selectedWidget.Id);
 
@@ -302,7 +305,7 @@ public partial class EditRouteWindow
     
     private async Task SwapWidgetZAsync(Widget a, Widget b)
     {
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == a.Id);
         var wb = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == b.Id);
         if (wa == null || wb == null) return;
@@ -321,7 +324,7 @@ public partial class EditRouteWindow
     private async Task RefreshWidgetZIndicesAsync()
     {
         // _widgets is sorted descending
-        using var db = new AppDbContext();
+        await using var db = await _factory.CreateDbContextAsync();
         int start = _widgets.Count;
         for (int i = 0; i < _widgets.Count; i++)
         {
@@ -350,7 +353,7 @@ public partial class EditRouteWindow
         if (dlg.ShowDialog() == true)
         {
             string path = dlg.FileName;
-            using var db = new AppDbContext();
+            await using var db = await _factory.CreateDbContextAsync();
             var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
             newWidget.RouteId = _route!.Id;
             newWidget.X = 0;
@@ -420,8 +423,10 @@ public partial class EditRouteWindow
         {
             PreviewWebView.Dispose();
         }
-        base.OnClosed(e);
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
+        WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
+        Loaded -= EditRouteWindow_Loaded;
+        base.OnClosed(e);
     }
 
 

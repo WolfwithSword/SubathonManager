@@ -17,7 +17,7 @@ public class Route
     public string GetRouteUrl(bool editMode = false)
     {
         string qString = editMode ? "?edit=true" : "";
-        return $"http://localhost:{Config.Data["Server"]["Port"]}/route/{Id.ToString()}{qString}";
+        return $"http://localhost:{Config.Data["Server"]["Port"]}/route/{Id}{qString}";
     }
     
     

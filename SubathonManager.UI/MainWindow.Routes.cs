@@ -11,7 +11,7 @@ namespace SubathonManager.UI
         private void LoadRoutes()
         {
             Overlays.Clear();
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
             var routes = db.Routes.OrderByDescending(r => r.UpdatedTimestamp).ToList();
 
             foreach (var route in routes)
@@ -32,7 +32,7 @@ namespace SubathonManager.UI
         
         private void AddRoute_Click(object sender, RoutedEventArgs e)
         {
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
             var newRoute = new Route
             {
                 Name = "New Overlay",
@@ -49,7 +49,7 @@ namespace SubathonManager.UI
         {
             if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is Route route)
             {
-                using var db = new AppDbContext();
+                using var db = _factory.CreateDbContext();
                 var found = db.Routes.FirstOrDefault(r => r.Id == route.Id);
                 if (found != null)
                 {
@@ -65,7 +65,7 @@ namespace SubathonManager.UI
         {
             if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is Route route)
             {
-                using var db = new AppDbContext();
+                using var db = _factory.CreateDbContext();
                 var dbRoute = db.Routes.Include(r => r.Widgets)
                     .ThenInclude(w => w.CssVariables).FirstOrDefault(r => r.Id == route.Id);
 

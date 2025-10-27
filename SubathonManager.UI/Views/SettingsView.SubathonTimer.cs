@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
-using SubathonManager.Data;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 
 namespace SubathonManager.UI.Views;
@@ -17,44 +17,78 @@ public partial class SettingsView
                 Dispatcher.Invoke(() =>
                 {
                     _lastUpdatedTimerAt = time;
-                    TimerValueSettings.Text = subathon.TimeRemainingRounded().ToString();
-                    PauseText2.Text = subathon.IsPaused ? "Resume Timer" : "Pause Timer";
-                    PauseIcon2.Symbol = subathon.IsPaused  ? SymbolRegular.Play16 : SymbolRegular.Pause16;
-                    LockText2.Text = subathon.IsLocked ? "Unlock Subathon" : "Lock Subathon";
-                    LockIcon2.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen16 : SymbolRegular.LockClosed16;
-                    PointsValueSettings.Text = $"{subathon.Points.ToString()} Pts";
+                    
+                    // doing comparisons first to avoid too much UI updating
+                    string timerVal = subathon.TimeRemainingRounded().ToString();
+                    if (TimerValueSettings.Text != timerVal) TimerValueSettings.Text = timerVal;
+
+                    if (subathon.IsPaused && PauseText2.Text != "Resume Timer") PauseText2.Text = "Resume Timer";
+                    else if (!subathon.IsPaused && PauseText2.Text != "Pause Timer") PauseText2.Text = "Pause Timer";
+
+                    if (subathon.IsPaused && PauseIcon2.Symbol != SymbolRegular.Play16)
+                        PauseIcon2.Symbol = SymbolRegular.Play16;
+                    else if (!subathon.IsPaused && PauseIcon2.Symbol != SymbolRegular.Pause16)
+                        PauseIcon2.Symbol = SymbolRegular.Pause16;
+                    
+                    if (subathon.IsLocked && LockText2.Text != "Unlock Subathon") LockText2.Text = "Unlock Subathon";
+                    else if (!subathon.IsLocked && LockText2.Text != "Lock Subathon") LockText2.Text = "Lock Subathon";
+                    
+                    if (subathon.IsLocked && LockIcon2.Symbol != SymbolRegular.LockOpen16)
+                        LockIcon2.Symbol = SymbolRegular.LockOpen16;
+                    else if (!subathon.IsLocked && LockIcon2.Symbol != SymbolRegular.LockClosed16)
+                        LockIcon2.Symbol = SymbolRegular.LockClosed16;
+                    
+                    string pts = $"{subathon.Points} Pts";
+                    if (PointsValueSettings.Text != pts) PointsValueSettings.Text = pts;
                 });
             }
         }
         
         private void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
         {
-            AppDbContext.UndoSimulatedEvents(new(), true);
+            using var db = _factory.CreateDbContext();
+            App.AppEventService.UndoSimulatedEvents(db, new(), true);
         }
         
         private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)
         {
-            using var db = new AppDbContext();
-            int affected = db.Database.ExecuteSqlRaw(
-                "UPDATE SubathonDatas SET IsPaused = 1 - IsPaused " +
-                "AND MillisecondsCumulative - MillisecondsElapsed > 0");
-            if (affected > 0)
+            using var db = _factory.CreateDbContext();
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+            if (subathon == null) return;
+            SubathonCommandType cmd = subathon.IsPaused ? SubathonCommandType.Resume : SubathonCommandType.Pause;
+            SubathonEvent subathonEvent = new SubathonEvent
             {
-                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
-                if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            }
+                EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd, 
+                Value = $"{cmd}",
+                SecondsValue = 0,
+                PointsValue = 0,
+                Source = SubathonEventSource.Command,
+                EventType = SubathonEventType.Command,
+                User = "SYSTEM"
+            };
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
         private void ToggleLockSubathon_Click(object sender, RoutedEventArgs e)
         {
-            using var db = new AppDbContext();
-            int affected = db.Database.ExecuteSqlRaw(
-                "UPDATE SubathonDatas SET IsLocked = 1 - IsLocked " +
-                "AND MillisecondsCumulative - MillisecondsElapsed > 0");
-            if (affected > 0)
+            using var db = _factory.CreateDbContext();
+            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+            if (subathon == null) return;
+            SubathonCommandType cmd = subathon.IsLocked ? SubathonCommandType.Unlock : SubathonCommandType.Lock;
+            SubathonEvent subathonEvent = new SubathonEvent
             {
-                SubathonData? subathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
-                if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            }
+                EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd, 
+                Value = $"{cmd}",
+                SecondsValue = 0,
+                PointsValue = 0,
+                Source = SubathonEventSource.Command,
+                EventType = SubathonEventType.Command,
+                User = "SYSTEM"
+            };
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 }
