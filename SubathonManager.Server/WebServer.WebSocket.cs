@@ -29,8 +29,8 @@ public partial class WebServer
         SubathonEvents.SubathonDataUpdate -= SendSubathonDataUpdate;
         SubathonEvents.SubathonEventProcessed -= SendSubathonEventProcessed;
         SubathonEvents.SubathonGoalCompleted -= SendGoalCompleted;
-        SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
         OverlayEvents.OverlayRefreshRequested -= SendRefreshRequest;
+        SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
     }
 
     private void SendGoalsUpdated(List<SubathonGoal> goals, int currentPoints)
@@ -73,8 +73,7 @@ public partial class WebServer
 
     private async Task InitConnection(WebSocket socket)
     {
-        using var db = new AppDbContext();
-        
+        await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .FirstOrDefaultAsync(s => s.IsActive);
         if (subathon is null) return;
@@ -160,7 +159,6 @@ public partial class WebServer
 
     private void SendSubathonDataUpdate(SubathonData subathon, DateTime time)
     {
-        Console.WriteLine(subathon.Multiplier.Multiplier);
         Task.Run(() => BroadcastAsync(SubathonDataToObject(subathon)));
     }
     
@@ -318,7 +316,7 @@ public partial class WebServer
                                             window.handleGoalsUpdate(data);
                                         else if (typeof window.handleGoalCompleted === 'function' && data.type == 'goal_completed')
                                             window.handleGoalCompleted(data);
-                                        else if (data.type == 'refresh_request' && document.title == 'overlay-{routeId}') {{
+                                        else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && document.title.includes(data.id)) {{
                                             // for only the merged page
                                             window.location.reload();
                                         }}

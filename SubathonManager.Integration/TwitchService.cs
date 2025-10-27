@@ -393,7 +393,7 @@ public class TwitchService
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta.MessageId, out var _id);
             if (_id == Guid.Empty) _id = Guid.NewGuid();
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 Id = _id,
                 Source = SubathonEventSource.Twitch,
@@ -401,7 +401,7 @@ public class TwitchService
                 User = e.Payload.Event.UserName,
                 EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
             };
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             // TODO 
 
             return Task.CompletedTask;
@@ -412,7 +412,7 @@ public class TwitchService
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta.MessageId, out var _id);
             if (_id == Guid.Empty) _id = Guid.NewGuid();
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 Id = _id,
                 Source = SubathonEventSource.Twitch,
@@ -423,7 +423,7 @@ public class TwitchService
                 Amount = e.Payload.Event.Total,
                 EventTimestamp = eventMeta.MessageTimestamp
             };
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
             Console.WriteLine(
                 $"GiftSubs from {e.Payload.Event.UserName} {e.Payload.Event.Total} {e.Payload.Event.Tier}");
@@ -446,7 +446,7 @@ public class TwitchService
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta.MessageId, out var _id);
             if (_id == Guid.Empty) _id = Guid.NewGuid();
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 Id = _id,
                 Source = SubathonEventSource.Twitch,
@@ -456,7 +456,7 @@ public class TwitchService
                 User = e.Payload.Event.UserName,
                 EventTimestamp = eventMeta.MessageTimestamp
             };
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
             // TODO VERY IMPORTANT
             // TODO Fire Event with _event, have it save to DB, and add to time.
@@ -476,7 +476,7 @@ public class TwitchService
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta.MessageId, out var _id);
             if (_id == Guid.Empty) _id = Guid.NewGuid();
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 Id = _id,
                 Source = SubathonEventSource.Twitch,
@@ -486,7 +486,7 @@ public class TwitchService
                 User = e.Payload.Event.UserName,
                 EventTimestamp = eventMeta.MessageTimestamp
             };
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             // TODO
 
             Console.WriteLine($"ReSub from {e.Payload.Event.UserName} {e.Payload.Event.Tier}");
@@ -498,7 +498,7 @@ public class TwitchService
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta.MessageId, out var _id);
             if (_id == Guid.Empty) _id = Guid.NewGuid();
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 Id = _id,
                 Source = SubathonEventSource.Twitch,
@@ -508,7 +508,7 @@ public class TwitchService
                 Value = e.Payload.Event.Bits.ToString(),
                 EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
             };
-            SubathonEvents.RaiseSubathonEventCreated(_event);
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             // TODO
 
             Console.WriteLine($"Bits from {e.Payload.Event.UserName}: {e.Payload.Event.Bits}");
@@ -520,7 +520,7 @@ public class TwitchService
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta.MessageId, out var _id);
             if (_id == Guid.Empty) _id = Guid.NewGuid();
-            SubathonEvent _event = new SubathonEvent
+            SubathonEvent subathonEvent = new SubathonEvent
             {
                 Id = _id,
                 Source = SubathonEventSource.Twitch,
@@ -529,8 +529,7 @@ public class TwitchService
                 Value = e.Payload.Event.Viewers.ToString(),
                 EventTimestamp = eventMeta.MessageTimestamp
             };
-            SubathonEvents.RaiseSubathonEventCreated(_event);
-            // TODO
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
             Console.WriteLine(
                 $"Raid from {e.Payload.Event.FromBroadcasterUserName} ({e.Payload.Event.Viewers})");
@@ -550,19 +549,19 @@ public class TwitchService
 
     public static void SimulateRaid(int viewers=50)
     {
-        SubathonEvent _event = new SubathonEvent
+        SubathonEvent subathonEvent = new SubathonEvent
         {
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.TwitchRaid,
             User = "SYSTEM",
             Value = $"{viewers}"
         };
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
     
     public static void SimulateCheer(int bitsCount=100)
     {
-        SubathonEvent _event = new SubathonEvent
+        SubathonEvent subathonEvent = new SubathonEvent
         {
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.TwitchCheer,
@@ -570,14 +569,14 @@ public class TwitchService
             Currency = "bits",
             Value = $"{bitsCount}"
         };
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
     public static void SimulateSubscription(string tier)
     {
         if (tier != "1000" && tier != "2000" && tier != "3000") return;
         
-        SubathonEvent _event = new SubathonEvent
+        SubathonEvent subathonEvent = new SubathonEvent
         {
             Source = SubathonEventSource.Simulated,
             Currency = "sub",
@@ -585,14 +584,14 @@ public class TwitchService
             Value = tier,
             User = "SYSTEM"
         };
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
     public static void SimulateGiftSubscriptions(string tier, int amount)
     {
         if (tier != "1000" && tier != "2000" && tier != "3000") return;
 
-        SubathonEvent _event = new SubathonEvent
+        SubathonEvent subathonEvent = new SubathonEvent
         {
             Source = SubathonEventSource.Simulated,
             Currency = "sub",
@@ -601,17 +600,17 @@ public class TwitchService
             User = "SYSTEM",
             Amount = amount
         };
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }    
     public static void SimulateFollow()
     {
-        SubathonEvent _event = new SubathonEvent
+        SubathonEvent subathonEvent = new SubathonEvent
         {
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.TwitchFollow,
             User = "SYSTEM",
         };
-        SubathonEvents.RaiseSubathonEventCreated(_event);
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 }
 

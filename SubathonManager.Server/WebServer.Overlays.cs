@@ -32,7 +32,7 @@ public partial class WebServer
             if (Guid.TryParse(widgetId, out var widgetGuid))
             {
                 
-                using var db = new AppDbContext();
+                await using var db = await _factory.CreateDbContextAsync();
                 var widget = await db.Widgets
                     .Include(ww => ww.CssVariables)
                     .FirstOrDefaultAsync(w => w.Id == widgetGuid);
@@ -52,13 +52,13 @@ public partial class WebServer
                             string html = await File.ReadAllTextAsync(filePath);
 
                             var cssOverrides = new StringBuilder();
+                            cssOverrides.AppendLine(GetWebsocketInjectionScript());
                             cssOverrides.AppendLine("<style type=\"text/css\">\n:root, html {");
                             foreach (var v in widget.CssVariables)
                             {
                                 cssOverrides.AppendLine($"  --{v.Name}: {v.Value} !important;");
                             }
                             cssOverrides.AppendLine("}\n</style>");
-                            html += $"{GetWebsocketInjectionScript()}";
                             if (html.Contains("</head>", StringComparison.OrdinalIgnoreCase))
                             {
                                 html = html.Replace("</head>", cssOverrides + "\n</head>", StringComparison.OrdinalIgnoreCase);
@@ -95,7 +95,7 @@ public partial class WebServer
             string routeId = parts[1];
             if (Guid.TryParse(routeId, out var routeGuid))
             {
-                using var db = new AppDbContext();
+                await using var db = await _factory.CreateDbContextAsync();
                 var route = await db.Routes
                     .Include(r => r.Widgets)
                     .ThenInclude(w => w.CssVariables)
@@ -124,7 +124,7 @@ public partial class WebServer
     private string GenerateMergedPage(Route route, bool isEditor = false)
     {
         StringBuilder sb = new StringBuilder();
-        sb.AppendLine($"<html><head><title>overlay-{route.Id.ToString()}</title><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
+        sb.AppendLine($"<html><head><title>overlay-{route.Id}</title><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
         
         sb.AppendLine($@"
             <style>
@@ -199,18 +199,11 @@ public partial class WebServer
         }
 
         string overlayClass = isEditor ? "overlay-edit" : ""; 
-        sb.AppendLine($@"<div data-id=""{route.Id.ToString()}"" id=""overlay"" class=""{overlayClass}"">");
+        sb.AppendLine($@"<div data-id=""{route.Id}"" id=""overlay"" class=""{overlayClass}"">");
 
         
         foreach (var w in route.Widgets)
         {
-            
-            /*if (isEditor) // todo check if performant doing this each time, we only sync variables if it's viewed in editor?
-            // i also sync when opening one for editing. Honestly this here may not even be necessary anymore
-            {
-                WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
-                widgetHelper.SyncCssVariables(w);
-            }*/
             
             string cssClass = "widget-wrapper";
             if (isEditor) cssClass += " widget-edit";
@@ -220,7 +213,7 @@ public partial class WebServer
                               style=""left:{w.X}px; top:{w.Y}px; z-index:{w.Z}; 
                                        width:{w.Width}px; height:{w.Height}px;"">");
 
-            sb.AppendLine($@"<iframe src=""/widget/{w.Id.ToString()}/"" 
+            sb.AppendLine($@"<iframe src=""/widget/{w.Id}/"" 
                                sandbox=""allow-scripts allow-same-origin"" 
                                frameborder=""0"" scrolling=""no"">
                             </iframe>");

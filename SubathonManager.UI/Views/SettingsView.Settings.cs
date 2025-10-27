@@ -48,16 +48,16 @@ namespace SubathonManager.UI.Views
         private void InitTwitchAutoSettings()
         {
             bool.TryParse(Config.Data["Twitch"]["PauseOnEnd"] ?? "false", out var pauseOnEnd);
-            TwitchPauseOnEndBx.IsChecked = pauseOnEnd;
+            if (TwitchPauseOnEndBx.IsChecked != pauseOnEnd) TwitchPauseOnEndBx.IsChecked = pauseOnEnd;
             
             bool.TryParse(Config.Data["Twitch"]["LockOnEnd"] ?? "false", out var lockOnEnd);
-            TwitchLockOnEndBx.IsChecked = lockOnEnd;
+            if (TwitchLockOnEndBx.IsChecked != lockOnEnd) TwitchLockOnEndBx.IsChecked = lockOnEnd;
             
             bool.TryParse(Config.Data["Twitch"]["ResumeOnStart"] ?? "false", out var resumeOnStart);
-            TwitchResumeOnStartBx.IsChecked = resumeOnStart;
+            if (TwitchResumeOnStartBx.IsChecked != resumeOnStart) TwitchResumeOnStartBx.IsChecked = resumeOnStart;
             
             bool.TryParse(Config.Data["Twitch"]["UnlockOnStart"] ?? "false", out var unlockOnStart);
-            TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
+            if (TwitchUnlockOnStartBx.IsChecked != unlockOnStart) TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
         }
         
         private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -74,8 +74,10 @@ namespace SubathonManager.UI.Views
         {
             Dispatcher.Invoke(() =>
             {
-                TwitchStatusText.Text = App.AppTwitchService!.UserName != string.Empty ? App.AppTwitchService.UserName : "Disconnected";
-                ConnectTwitchBtn.Content = App.AppTwitchService!.UserName != string.Empty ? "Reconnect" : "Connect";
+                string username = App.AppTwitchService!.UserName != string.Empty ? App.AppTwitchService.UserName! : "Disconnected";
+                if (TwitchStatusText.Text != username) TwitchStatusText.Text = username; 
+                string connectBtn = App.AppTwitchService!.UserName != string.Empty ? "Reconnect" : "Connect";
+                if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
             });
         }
 
@@ -83,8 +85,11 @@ namespace SubathonManager.UI.Views
         {
             Dispatcher.Invoke(() =>
             {
-                SEStatusText.Text = status ? "Connected" : "Disconnected";
-                ConnectSEBtn.Content = status? "Reconnect" : "Connect";
+                if (status && SEStatusText.Text != "Connected") SEStatusText.Text = "Connected";
+                else if (!status && SEStatusText.Text != "Disconnected") SEStatusText.Text = "Disconnected";
+                
+                if (status && ConnectSEBtn.Content.ToString() != "Reconnect") ConnectSEBtn.Content = "Reconnect";
+                else if (!status && ConnectSEBtn.Content.ToString() != "Connect") ConnectSEBtn.Content = "Connect";
             });
         }
 
@@ -137,8 +142,7 @@ namespace SubathonManager.UI.Views
         
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
-
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
 
             // Twitch values
             var cheerValue =
@@ -202,7 +206,7 @@ namespace SubathonManager.UI.Views
 
         private void LoadValues()
         {
-            using var db = new AppDbContext();
+            using var db = _factory.CreateDbContext();
 
             // one minor possible issue
             // TODO UI will show these values even if not saved, so maybe have a textblock *after* each for "Current Value"?
@@ -214,60 +218,66 @@ namespace SubathonManager.UI.Views
             {
                 var v = $"{val.Seconds}";
                 var p = $"{val.Points}";
+                
+                TextBox? box = null;
+                TextBox? box2 = null;
                 switch (val.EventType) 
                 { 
                     case SubathonEventType.TwitchFollow:
-                        FollowTextBox.Text = v;
-                        Follow2TextBox.Text = p;
+                        box = FollowTextBox;
+                        box2 = Follow2TextBox;
                         break;
                     case SubathonEventType.TwitchCheer:
-                        CheerTextBox.Text = $"{Math.Round(val.Seconds * 100)}";
-                        Cheer2TextBox.Text =  $"{val.Points}"; // in backend when adding, need to round down when adding for odd bits
+                        v = $"{Math.Round(val.Seconds * 100)}";
+                        box = CheerTextBox;
+                        box2 = Cheer2TextBox; // in backend when adding, need to round down when adding for odd bits
                         break;
                     case SubathonEventType.TwitchSub:
                         switch (val.Meta)
                         {
                             case "1000":
-                                SubT1TextBox.Text = v;
-                                SubT1TextBox2.Text = p;
+                                box = SubT1TextBox;
+                                box2 = SubT1TextBox2;
                                 break;
                             case "2000":
-                                SubT2TextBox.Text = v;
-                                SubT2TextBox2.Text = p;
+                                box = SubT2TextBox;
+                                box2 = SubT2TextBox2;
                                 break;
                             case "3000":
-                                SubT3TextBox.Text = v;
-                                SubT3TextBox2.Text = p;
+                                box = SubT3TextBox;
+                                box2 = SubT3TextBox2;
                                 break;
                         }
-
                         break;
                     case SubathonEventType.TwitchGiftSub:
                         switch (val.Meta)
                         {
                             case "1000":
-                                GiftSubT1TextBox.Text = v;
-                                GiftSubT1TextBox2.Text = p;
+                                box = GiftSubT1TextBox;
+                                box2 = GiftSubT1TextBox2;
                                 break;
                             case "2000":
-                                GiftSubT2TextBox.Text = v;
-                                GiftSubT2TextBox2.Text = p;
+                                box = GiftSubT2TextBox;
+                                box2 = GiftSubT2TextBox2;
                                 break;
                             case "3000":
-                                GiftSubT3TextBox.Text = v;
-                                GiftSubT3TextBox2.Text = p;
+                                box = GiftSubT3TextBox;
+                                box2 = GiftSubT3TextBox2;
                                 break;
                         }
                         break;
                     case SubathonEventType.TwitchRaid:
-                        RaidTextBox.Text = v;
-                        Raid2TextBox.Text = p;
+                        box = RaidTextBox;
+                        box2 = Raid2TextBox;
                         break;
                     case SubathonEventType.StreamElementsDonation:
-                        SETipBox.Text = v;
-                        SETipBox2.Text = p;
+                        box = SETipBox;
+                        box2 = SETipBox2;
                         break;
                 }
+                
+                if (box != null && box.Text != v) box.Text = v;
+                if (box2 != null && box2.Text != p) box2.Text = p;
             }
         }
     }

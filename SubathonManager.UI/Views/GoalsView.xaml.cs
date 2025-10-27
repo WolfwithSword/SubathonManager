@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
@@ -13,9 +14,11 @@ public partial class GoalsView
 {
     public ObservableCollection<GoalViewModel> Goals { get; set; } = new();
     private int _subathonLastPoints = -1;
+    private readonly IDbContextFactory<AppDbContext> _factory;
 
     public GoalsView()
     {
+        _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         LoadGoals();
         SubathonEvents.SubathonDataUpdate += OnSubathonUpdate;
@@ -48,14 +51,14 @@ public partial class GoalsView
     
     private void LoadGoals()
     {
-        using var db = new AppDbContext();
+        using var db = _factory.CreateDbContext();
         
         var activeGoalSet = db.SubathonGoalSets
             .Include(gs => gs.Goals.OrderBy(g => g.Points))
             .FirstOrDefault(gs => gs.IsActive);
         if (activeGoalSet == null) return;
         
-        var activeSubathon = db.SubathonDatas.FirstOrDefault(s => s.IsActive);
+        var activeSubathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         int currentPoints = activeSubathon?.Points ?? 0;
 
         Goals.Clear();

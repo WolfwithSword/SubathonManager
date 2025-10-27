@@ -14,7 +14,7 @@ public partial class MainWindow
     
     public void TogglePowerMultiplier_Click(object sender, EventArgs e)
     {
-        using var db = new AppDbContext();
+        using var db = _factory.CreateDbContext();
         SubathonData? subathon = db.SubathonDatas
             .Include(s => s.Multiplier).FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
@@ -80,12 +80,9 @@ public partial class MainWindow
         
     }
 
-    private void UpdateMultiplierUi(SubathonData sb, DateTime time)
+    private void UpdateMultiplierUi(SubathonData subathon, DateTime time)
     {
-        using var db = new AppDbContext();
-        SubathonData? subathon = db.SubathonDatas
-            .Include(s => s.Multiplier).FirstOrDefault(s => s.IsActive && sb.Id == s.Id);
-        if (subathon == null) return;
+        using var db = _factory.CreateDbContext();
 
         bool isMultiplierSet = subathon.Multiplier.Multiplier < 1 || subathon.Multiplier.Multiplier > 1;
 
@@ -98,11 +95,17 @@ public partial class MainWindow
         
         Dispatcher.Invoke(() =>
         {
-            MultiplierIcon.Symbol = isMultiplierSet ? SymbolRegular.Prohibited20 : SymbolRegular.Play20;
-            ToggleMultiplierBtn.ToolTip = isMultiplierSet ? "Stop Multiplier" : "Start Multiplier";
-            MultiplierVals.Text = $"Time x{(subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1)}\t" +
-                                  $"Points x{(subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1)}";
-            MultiplierRemainingTime.Text = !isMultiplierSet || newDuration == null ? "" : $"Remaining: {newDuration}";
+            if (isMultiplierSet && MultiplierIcon.Symbol != SymbolRegular.Prohibited20) MultiplierIcon.Symbol = SymbolRegular.Prohibited20;
+            else if (!isMultiplierSet && MultiplierIcon.Symbol != SymbolRegular.Play20) MultiplierIcon.Symbol =  SymbolRegular.Play20;
+            
+            if (isMultiplierSet && ToggleMultiplierBtn.ToolTip.ToString() != "Stop Multiplier") ToggleMultiplierBtn.ToolTip = "Stop Multiplier";
+            else if (!isMultiplierSet && ToggleMultiplierBtn.ToolTip.ToString() != "Start Multiplier") ToggleMultiplierBtn.ToolTip = "Start Multiplier";
+            
+            string valsText = $"Time x{(subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1)}\tPoints x{(subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1)}";
+            if (MultiplierVals.Text != valsText) MultiplierVals.Text = valsText;
+
+            string multiplierRemainingText = !isMultiplierSet || newDuration == null ? "" : $"Remaining: {newDuration}";
+            if (MultiplierRemainingTime.Text != multiplierRemainingText) MultiplierRemainingTime.Text = multiplierRemainingText;
         });
         
         // color of btn?

@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Server;
 using SubathonManager.Core;
@@ -16,11 +17,15 @@ public partial class App
     private WebServer? _server;
     private FileSystemWatcher? _configWatcher;
     private static TimerService AppTimerService { get; set; } = new();
-    private static EventService AppEventService { get; set; } = new();
+    public static EventService AppEventService { get; set; }
     
     public static TwitchService? AppTwitchService { get; private set; } = new();
     public static StreamElementsService? AppStreamElementsService { get; private set; } = new();
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
+
+    public static IServiceProvider AppServices { get; private set; }
+    
+    private IDbContextFactory<AppDbContext> _factory;
     
     public static string AppVersion =>
         Assembly.GetExecutingAssembly()
@@ -30,23 +35,38 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        var services = new ServiceCollection();
+        
         string folder = Path.GetFullPath(Path.Combine(string.Empty, 
             "data"));
         Directory.CreateDirectory(folder);
         
         Config.LoadOrCreateDefault();
 
-        using var db = new AppDbContext();
+        services.AddDbContextFactory<AppDbContext>();
+        services.AddSingleton<EventService>();
+        
+        AppServices = services.BuildServiceProvider();
+        
+        var factory = AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = factory;
+        
+        AppEventService = AppServices.GetRequiredService<EventService>();
+        
+        using var db =  _factory.CreateDbContext();
         db.Database.Migrate();
         AppDbContext.SeedDefaultValues(db);
+        
         Task.Run(() =>
             {
-                AppDbContext.PauseAllTimers(new AppDbContext());
-                AppDbContext.ResetPowerHour(new AppDbContext());
+                using var context1 = _factory.CreateDbContext();
+                AppDbContext.PauseAllTimers(context1);
+                using var context2 = _factory.CreateDbContext();
+                AppDbContext.ResetPowerHour(context2);
             }
         );
 
-        _server = new WebServer(int.Parse(Config.Data["Server"]["Port"]));
+        _server = new WebServer(_factory, int.Parse(Config.Data["Server"]["Port"]));
 
         Task.Run(async () =>
         {
@@ -78,11 +98,12 @@ public partial class App
 
         AppDiscordWebhookService = new DiscordWebhookService();
         
+        
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
-        Task.Run(() => AppEventService.StopAsync());
+        Task.Run(() => AppServices.GetRequiredService<EventService>().StopAsync());
         AppTimerService.Stop();
         _server?.Stop();
         AppStreamElementsService?.Disconnect();
@@ -136,7 +157,7 @@ public partial class App
             {
                 Console.WriteLine($"Config reloaded! New server port: {newPort}");
                 _server?.Stop();
-                _server = new WebServer(newPort);
+                _server = new WebServer(_factory, newPort);
                 Task.Run(() => _server.StartAsync());
             }
             AppDiscordWebhookService?.LoadFromConfig();

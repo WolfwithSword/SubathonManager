@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Enums;
@@ -13,9 +14,11 @@ namespace SubathonManager.UI.Views
     {
         public ObservableCollection<SubathonEvent> EventItems { get; set; } = new();
         private int _maxItems = 20;
+        private readonly IDbContextFactory<AppDbContext> _factory;
 
         public EventListView()
         {
+            _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             EventListPanel.ItemsSource = EventItems;
             LoadRecentEvents();
@@ -49,8 +52,8 @@ namespace SubathonManager.UI.Views
 
         private async void LoadRecentEvents()
         {
-            using var db = new AppDbContext();
-            SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
+            await using var db = await _factory.CreateDbContextAsync();
+            SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
             List<SubathonEvent> events = new();
             if (subathon != null)
             {
@@ -93,7 +96,8 @@ namespace SubathonManager.UI.Views
                         PointsValue = ev.PointsValue,
                     };
                     
-                    AppDbContext.DeleteSubathonEvent(ev);
+                    using var db = _factory.CreateDbContext();
+                    App.AppEventService.DeleteSubathonEvent(db, ev);
                     SubathonEvents.RaiseSubathonEventCreated(newEv);
                 });;
             }
@@ -105,7 +109,9 @@ namespace SubathonManager.UI.Views
             {
                 Task.Run(() =>
                 {
-                    AppDbContext.DeleteSubathonEvent(ev);
+                    
+                    using var db = _factory.CreateDbContext();
+                    App.AppEventService.DeleteSubathonEvent(db, ev);
                 });
             }
         }
