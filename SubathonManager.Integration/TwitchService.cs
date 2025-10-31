@@ -391,11 +391,11 @@ public class TwitchService
             Console.WriteLine($"New follow from {e.Payload.Event.UserName}");
 
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
-            Guid.TryParse(eventMeta.MessageId, out var _id);
-            if (_id == Guid.Empty) _id = Guid.NewGuid();
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
             SubathonEvent subathonEvent = new SubathonEvent
             {
-                Id = _id,
+                Id = mId,
                 Source = SubathonEventSource.Twitch,
                 EventType = SubathonEventType.TwitchFollow,
                 User = e.Payload.Event.UserName,
@@ -410,11 +410,11 @@ public class TwitchService
         _eventSub.ChannelSubscriptionGift += (s, e) =>
         {
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
-            Guid.TryParse(eventMeta.MessageId, out var _id);
-            if (_id == Guid.Empty) _id = Guid.NewGuid();
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
             SubathonEvent subathonEvent = new SubathonEvent
             {
-                Id = _id,
+                Id = mId,
                 Source = SubathonEventSource.Twitch,
                 Currency = "sub",
                 EventType = SubathonEventType.TwitchGiftSub,
@@ -444,11 +444,11 @@ public class TwitchService
             }
 
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
-            Guid.TryParse(eventMeta.MessageId, out var _id);
-            if (_id == Guid.Empty) _id = Guid.NewGuid();
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
             SubathonEvent subathonEvent = new SubathonEvent
             {
-                Id = _id,
+                Id = mId,
                 Source = SubathonEventSource.Twitch,
                 Currency = "sub",
                 EventType = SubathonEventType.TwitchSub,
@@ -474,11 +474,11 @@ public class TwitchService
             int duration = e.Payload.Event.DurationMonths; // TODO Do we want to take this into account and multiply?
 
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
-            Guid.TryParse(eventMeta.MessageId, out var _id);
-            if (_id == Guid.Empty) _id = Guid.NewGuid();
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
             SubathonEvent subathonEvent = new SubathonEvent
             {
-                Id = _id,
+                Id = mId,
                 Source = SubathonEventSource.Twitch,
                 Currency = "sub",
                 EventType = SubathonEventType.TwitchSub,
@@ -496,11 +496,11 @@ public class TwitchService
         _eventSub.ChannelCheer += (s, e) =>
         {
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
-            Guid.TryParse(eventMeta.MessageId, out var _id);
-            if (_id == Guid.Empty) _id = Guid.NewGuid();
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
             SubathonEvent subathonEvent = new SubathonEvent
             {
-                Id = _id,
+                Id = mId,
                 Source = SubathonEventSource.Twitch,
                 EventType = SubathonEventType.TwitchCheer,
                 User = e.Payload.Event.UserName,
@@ -518,11 +518,11 @@ public class TwitchService
         _eventSub.ChannelRaid += (s, e) =>
         {
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
-            Guid.TryParse(eventMeta.MessageId, out var _id);
-            if (_id == Guid.Empty) _id = Guid.NewGuid();
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
             SubathonEvent subathonEvent = new SubathonEvent
             {
-                Id = _id,
+                Id = mId,
                 Source = SubathonEventSource.Twitch,
                 EventType = SubathonEventType.TwitchRaid,
                 User = e.Payload.Event.FromBroadcasterUserName,
