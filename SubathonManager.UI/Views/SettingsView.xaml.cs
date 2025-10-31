@@ -15,11 +15,18 @@ public partial class SettingsView
         _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
+        StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
         
         SaveSettingsButton.Click += SaveSettingsButton_Click;
         DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
         SEJWTTokenBox.Text = Config.Data["StreamElements"]["JWT"];
+        SLTokenBox.Text = Config.Data["StreamLabs"]["SocketToken"];
+
+        if (App.AppStreamElementsService != null)
+            UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
+        if (App.AppStreamLabsService != null)
+            UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
         
         ServerPortTextBox.Text = Config.Data["Server"]["Port"];
         LoadValues();

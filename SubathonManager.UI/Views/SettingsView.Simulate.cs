@@ -10,7 +10,13 @@ namespace SubathonManager.UI.Views
             var value = SimulateSETipAmountBox.Text;
             StreamElementsService.SimulateTip(value);
         }
-        
+
+        private void TestSLTip_Click(object sender, RoutedEventArgs e)
+        {
+            var value = SimulateSLTipAmountBox.Text;
+            StreamLabsService.SimulateTip(value);
+        }
+
         private void TestTwitchFollow_Click(object sender, RoutedEventArgs e)
         {
             TwitchService.SimulateFollow();

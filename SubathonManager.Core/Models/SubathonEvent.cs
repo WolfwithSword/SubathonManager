@@ -44,8 +44,8 @@ public class SubathonEvent
     public double MultiplierSeconds { get; set; } = 1;
     
     // do we want to later finetune power hour to be for selectable events?
-    public double GetFinalSecondsValue() => Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : MultiplierSeconds) ?? 0; 
-    public double GetFinalPointsValue() => Amount * PointsValue * (Source == SubathonEventSource.Command ? 1 : Math.Round(MultiplierPoints+0.001)) ?? 0; 
+    public double GetFinalSecondsValue() => Math.Ceiling(Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : MultiplierSeconds) ?? 0); 
+    public double GetFinalPointsValue() => Math.Floor(Amount * PointsValue * (Source == SubathonEventSource.Command ? 1 : Math.Round(MultiplierPoints+0.001)) ?? 0); 
 }
 
 public class CurrencyValidationAttribute : ValidationAttribute

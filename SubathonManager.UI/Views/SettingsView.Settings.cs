@@ -81,16 +81,25 @@ namespace SubathonManager.UI.Views
             });
         }
 
-        private void UpdateSEStatus(bool status)
+        private void UpdateConnectionStatus(bool status, TextBlock textBlock, Button button)
         {
             Dispatcher.Invoke(() =>
             {
-                if (status && SEStatusText.Text != "Connected") SEStatusText.Text = "Connected";
-                else if (!status && SEStatusText.Text != "Disconnected") SEStatusText.Text = "Disconnected";
+                if (status && textBlock.Text != "Connected") textBlock.Text = "Connected";
+                else if (!status && textBlock.Text != "Disconnected") textBlock.Text = "Disconnected";
                 
-                if (status && ConnectSEBtn.Content.ToString() != "Reconnect") ConnectSEBtn.Content = "Reconnect";
-                else if (!status && ConnectSEBtn.Content.ToString() != "Connect") ConnectSEBtn.Content = "Connect";
+                if (status && button.Content.ToString() != "Reconnect") button.Content = "Reconnect";
+                else if (!status && button.Content.ToString() != "Connect") button.Content = "Connect";
             });
+        }
+        private void UpdateSEStatus(bool status)
+        {
+            UpdateConnectionStatus(status, SEStatusText, ConnectSEBtn);
+        }
+
+        private void UpdateSLStatus(bool status)
+        {
+            UpdateConnectionStatus(status, SLStatusText, ConnectSLBtn);
         }
 
         private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
@@ -130,6 +139,29 @@ namespace SubathonManager.UI.Views
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = "https://streamelements.com/dashboard/account/channels",
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch
+            {
+                Console.WriteLine("Failed to initialize streamelements service."); 
+            }
+        }
+        
+        private async void ConnectSLButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await App.AppStreamLabsService!.DisconnectAsync();
+                App.AppStreamLabsService!.SetSocketToken(SLTokenBox.Password);
+                await Task.Delay(100);
+                await App.AppStreamLabsService!.InitClientAsync();
+                if (App.AppStreamLabsService.IsTokenEmpty())
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://streamlabs.com/dashboard#/settings/api-settings",
                         UseShellExecute = true
                     });
                 }
@@ -192,7 +224,15 @@ namespace SubathonManager.UI.Views
                 seTipValue.Seconds = seTipSeconds;
             if (seTipValue != null && int.TryParse(SETipBox2.Text, out var seTipPoints))
                 seTipValue.Points = seTipPoints;
-
+            
+            var slTipValue =
+                db.SubathonValues.FirstOrDefault(sv =>
+                    sv.EventType == SubathonEventType.StreamLabsDonation && sv.Meta == "");
+            if (slTipValue != null && double.TryParse(SLTipBox.Text, out var slTipSeconds))
+                slTipValue.Seconds = slTipSeconds;
+            if (slTipValue != null && int.TryParse(SLTipBox2.Text, out var slTipPoints))
+                slTipValue.Points = slTipPoints;
+            
             db.SaveChanges();
 
             Config.Data["Twitch"]["PauseOnEnd"] = TwitchPauseOnEndBx.IsChecked.ToString();
@@ -273,6 +313,10 @@ namespace SubathonManager.UI.Views
                     case SubathonEventType.StreamElementsDonation:
                         box = SETipBox;
                         box2 = SETipBox2;
+                        break;
+                    case SubathonEventType.StreamLabsDonation:
+                        box = SLTipBox;
+                        box2 = SLTipBox2;
                         break;
                 }
                 

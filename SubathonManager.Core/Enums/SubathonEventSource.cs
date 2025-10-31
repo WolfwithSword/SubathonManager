@@ -8,5 +8,6 @@ public enum SubathonEventSource
     YouTube,
     Command, // can be from any chat
     Simulated, // buttons to test in UI? 
-    Unknown // default
+    Unknown, // default
+    StreamLabs
 }
