@@ -62,7 +62,7 @@ public class StreamLabsService
         subathonEvent.Value = $"{message.Amount}";
         subathonEvent.Source = SubathonEventSource.StreamLabs;
         subathonEvent.EventType = SubathonEventType.StreamLabsDonation;
-        Console.WriteLine(message.MessageId);
+        // Console.WriteLine(message.MessageId);
         if (Guid.TryParse(message.MessageId, out var tipGuid))
             subathonEvent.Id = tipGuid;
         
