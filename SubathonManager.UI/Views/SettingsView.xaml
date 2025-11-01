@@ -18,8 +18,12 @@
                             <TextBlock Text="Port:" Width="50" VerticalAlignment="Center"/>
                             <ui:TextBox x:Name="ServerPortTextBox" Width="100"/>
                         </StackPanel>
-                        <ui:Button x:Name="SaveSettingsButton" Content="Save Settings" Width="120" Height="30" Margin="0,10,0,5"/>
-
+                        
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button x:Name="SaveSettingsButton" VerticalAlignment="Center"
+                                       Content="Save Port" Width="120" Height="30" Margin="0,10,0,5"/>
+                            <TextBlock x:Name="ServerStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 0"/>
+                        </StackPanel>
                         <StackPanel HorizontalAlignment="Right" Margin="12 -120 12 4">
                             <TextBlock x:Name="TimerValueSettings" Text="" VerticalAlignment="Center"
                                        HorizontalAlignment="Right" FontSize="40" Margin="6 0 6 0"/>

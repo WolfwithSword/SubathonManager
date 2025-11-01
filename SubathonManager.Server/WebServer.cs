@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 
 using SubathonManager.Data;
+using SubathonManager.Core.Events;
 
 namespace SubathonManager.Server;
 
@@ -11,7 +12,7 @@ public partial class WebServer
     private readonly IDbContextFactory<AppDbContext> _factory;
     public int Port { get; }
     private readonly HttpListener _listener;
-    private bool _running;
+    public bool Running { get; private set; }
     
     private readonly HashSet<string> _servedFolders = new();
     
@@ -41,11 +42,11 @@ public partial class WebServer
 
     public async Task StartAsync()
     {
-        _running = true;
+        Running = true;
         _listener.Start();
         Console.WriteLine($"WebServer running at http://localhost:{Port}/");
-
-        while (_running)
+        WebServerEvents.RaiseWebServerStatusChange(Running);
+        while (Running)
         {
             try
             {
@@ -65,7 +66,7 @@ public partial class WebServer
 
     public void Stop()
     {
-        _running = false;
+        Running = false;
         try
         {
             _listener.Stop();
@@ -74,6 +75,10 @@ public partial class WebServer
         catch
         {
             //
+        }
+        finally
+        {
+            WebServerEvents.RaiseWebServerStatusChange(Running);
         }
     }
     

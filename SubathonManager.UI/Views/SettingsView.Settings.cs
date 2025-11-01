@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Diagnostics;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
-using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
 {
@@ -43,6 +42,16 @@ namespace SubathonManager.UI.Views
             Config.Data["Discord"]["Events.WebhookUrl"] = EventWebhookUrlBx.Text;
             Config.Data["Discord"][$"Events.Log.Simulated"] = LogSimEventsCbx.IsChecked.ToString();
             Config.Save();
+        }
+
+        private void UpdateServerStatus(bool status)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (ServerStatusText == null) return;
+                if (status && ServerStatusText.Text != "Running") ServerStatusText.Text = "Running";
+                else if (!status && ServerStatusText.Text != "Not Running") ServerStatusText.Text = "Not Running";
+            });
         }
 
         private void InitTwitchAutoSettings()

@@ -34,5 +34,7 @@ public partial class SettingsView
         InitTwitchAutoSettings();
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
+        WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
+        UpdateServerStatus(App.AppWebServer?.Running ?? false);
     }
 }
