@@ -347,6 +347,59 @@
                             </StackPanel>
                         </Expander>
                         
+                        <!-- StreamLabs --> 
+                        <Expander Header="StreamLabs" IsExpanded="False">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:Button x:Name="ConnectSLBtn"
+                                               Content="Connect"
+                                               Width="120"
+                                               Height="35"
+                                               Margin="0,5,0,10"
+                                               Click="ConnectSLButton_Click"/>
+                                    <ui:PasswordBox x:Name="SLTokenBox" Width="200" Height="35"  PlaceholderText="Socket Token"
+                                                    Margin="14 5 0 10"/>
+                                    <TextBlock x:Name="SLStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+                                </StackPanel>
+                                <StackPanel Margin="10,5,0,5">
+                                    
+                                    <Grid Margin="0,2">
+                                        
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="300"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                            <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SLTipBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                            
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SLTipBox2"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                                        PlaceholderText="1.00"
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        FontSize="12"
+                                                        Height="30"
+                                                        PreviewTextInput="DecimalOnly_PreviewTextInput" x:Name="SimulateSLTipAmountBox"/>
+                                            <ui:Button Icon="Add24" Foreground="White"
+                                                       Content="Test"
+                                                       Click="TestSLTip_Click"
+                                                       Width="60" Padding="2"
+                                                       Height="30"
+                                                       Margin="4,0,0,0"></ui:Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Expander>
+                        
                         <!-- Commands --> 
                         <Expander Header="Commands" IsExpanded="False">
                             <StackPanel Margin="10,5,0,5">

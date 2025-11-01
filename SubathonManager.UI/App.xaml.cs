@@ -21,6 +21,7 @@ public partial class App
     
     public static TwitchService? AppTwitchService { get; private set; } = new();
     public static StreamElementsService? AppStreamElementsService { get; private set; } = new();
+    public static StreamLabsService? AppStreamLabsService { get; private set; } = new();
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
 
     public static IServiceProvider AppServices { get; private set; }
@@ -94,11 +95,15 @@ public partial class App
             AppStreamElementsService!.InitClient();
             return Task.CompletedTask;
         });
+        Task.Run(() =>
+        {
+            Task.Delay(200);
+            return AppStreamLabsService!.InitClientAsync();
+        });
+        
         WatchConfig();
 
         AppDiscordWebhookService = new DiscordWebhookService();
-        
-        
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -107,6 +112,7 @@ public partial class App
         AppTimerService.Stop();
         _server?.Stop();
         AppStreamElementsService?.Disconnect();
+        if (AppStreamLabsService!.Connected) Task.Run(() => { AppStreamLabsService?.DisconnectAsync(); });
         
         if (AppTwitchService != null)
         {

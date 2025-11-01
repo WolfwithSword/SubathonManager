@@ -154,7 +154,8 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
                 new SubathonValue { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
-                new SubathonValue { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12} // per 1 unit/dollar of given currency
+                new SubathonValue { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12}, // per 1 unit/dollar of given currency
+                new SubathonValue { EventType = SubathonEventType.StreamLabsDonation, Seconds = 12} // per 1 unit/dollar of given currency
             };
 
             foreach (var def in defaults)

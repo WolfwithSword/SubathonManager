@@ -13,14 +13,15 @@
 <script>
 
 const eventTypesToDisplay = ["TwitchGiftSub", 
-                                            "TwitchSub",
-                                            "TwitchCheer",
-                                            "StreamElementsDonation",
-                                            //"Command",
-                                            //"TwitchRaid",
-                                            //"TwitchFollow",
-                                            //"Unknown"
-                                          ];
+                             "TwitchSub",
+                             "TwitchCheer",
+                             "StreamElementsDonation",
+                             "StreamLabsDonation",
+                             //"Command",
+                             //"TwitchRaid",
+                             //"TwitchFollow",
+                             //"Unknown"
+                            ];
 
 const eventQueue = [];
 let isUpdating = false;
@@ -58,6 +59,7 @@ function createEventIcon(eventType) {
       return makeSVG("M12 2l10 10-10 10L2 12 12 2z");
 
     case "StreamElementsDonation":
+    case "StreamLabsDonation":
       // coin stack
       return makeSVG("M12 2c5 0 9 1.79 9 4s-4 4-9 4-9-1.79-9-4 4-4 9-4zm-9 7v3c0 2.21 4 4 9 4s9-1.79 9-4V9c-2 2-6 3-9 3s-7-1-9-3zm0 6v3c0 2.21 4 4 9 4s9-1.79 9-4v-3c-2 2-6 3-9 3s-7-1-9-3z");
 
