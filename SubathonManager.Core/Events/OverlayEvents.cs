@@ -7,4 +7,9 @@ public static class OverlayEvents
     {
         OverlayRefreshRequested?.Invoke(routeGuid);
     }
+
+    public static void RaiseOverlayRefreshAllRequested()
+    {
+        OverlayRefreshRequested?.Invoke(Guid.Empty);
+    }
 }

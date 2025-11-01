@@ -81,10 +81,11 @@ namespace SubathonManager.UI.Views
             });
         }
 
-        private void UpdateConnectionStatus(bool status, TextBlock textBlock, Button button)
+        private void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
         {
             Dispatcher.Invoke(() =>
             {
+                if (textBlock == null || button == null) return;
                 if (status && textBlock.Text != "Connected") textBlock.Text = "Connected";
                 else if (!status && textBlock.Text != "Disconnected") textBlock.Text = "Disconnected";
                 

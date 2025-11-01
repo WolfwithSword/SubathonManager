@@ -214,7 +214,7 @@ public class EventService: IDisposable
 
         if (ev.Source != SubathonEventSource.Command)
         {
-            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub")
+            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && !string.IsNullOrEmpty(ev.Value.Trim()))
             {
                 ev.SecondsValue = parsedValue * subathonValue!.Seconds;
             }
@@ -222,6 +222,8 @@ public class EventService: IDisposable
             {
                 ev.SecondsValue = subathonValue!.Seconds;
             }
+            else
+                ev.SecondsValue = subathonValue!.Seconds;
             
             ev.PointsValue = subathonValue!.Points;
         }

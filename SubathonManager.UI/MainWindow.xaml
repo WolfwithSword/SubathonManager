@@ -90,30 +90,41 @@
                                        </StackPanel>
                                    </StackPanel>
                                 </Grid>
-                               <StackPanel Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,16,5">
-                                   
-                                   <!-- <TextBlock Text="Time:" VerticalAlignment="Center" FontSize="18" Margin="2 10 4 5"/> -->
-                                   <ui:Button x:Name="AddTimeBtn"
-                                              Click="AddTime_Click"
-                                              ToolTip="Add Time"
-                                              Width="38" Height="34" Margin="3,10,3,5">
-                                       <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
-                                   </ui:Button>
-                                   <ui:Button x:Name="SubtractTimeBtn"
-                                              Click="SubtractTime_Click"
-                                              ToolTip="Subtract Time"
-                                              Width="38" Height="34" Margin="3,10,3,5">
-                                       <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
-                                   </ui:Button>
-                                   <ui:Button x:Name="SetTimeBtn"
-                                              Click="SetTime_Click"
-                                              ToolTip="Set Time"
-                                              Width="38" Height="34" Margin="3,10,3,5">
-                                       <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Clock24" Width="20" Height="20" Margin="0,0,0,0"/>
-                                   </ui:Button>
-                                   <ui:TextBox x:Name="AdjustSubathonTime" Margin="5,10,0,5" 
-                                               Text="5m" Height="34" Width="140" VerticalAlignment="Center"/>
-                               </StackPanel>
+                               <Grid Margin="124 0 0 0">
+                                   <Grid.ColumnDefinitions>
+                                       <ColumnDefinition Width="120"/>
+                                       <ColumnDefinition Width="*"/>
+                                   </Grid.ColumnDefinitions>
+                                   <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                                       <ui:Button Click="SendRefreshRequest_Click" Width="50" Height="50" Margin="12 2 6 2" ToolTip="Refresh Overlays">
+                                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                               <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="44" Margin="2 0"/>
+                                           </StackPanel>
+                                       </ui:Button>
+                                   </StackPanel>
+                                   <StackPanel Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,16,5">
+                                       <ui:Button x:Name="AddTimeBtn"
+                                                  Click="AddTime_Click"
+                                                  ToolTip="Add Time"
+                                                  Width="38" Height="34" Margin="3,10,3,5">
+                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                       </ui:Button>
+                                       <ui:Button x:Name="SubtractTimeBtn"
+                                                  Click="SubtractTime_Click"
+                                                  ToolTip="Subtract Time"
+                                                  Width="38" Height="34" Margin="3,10,3,5">
+                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                       </ui:Button>
+                                       <ui:Button x:Name="SetTimeBtn"
+                                                  Click="SetTime_Click"
+                                                  ToolTip="Set Time"
+                                                  Width="38" Height="34" Margin="3,10,3,5">
+                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Clock24" Width="20" Height="20" Margin="0,0,0,0"/>
+                                       </ui:Button>
+                                       <ui:TextBox x:Name="AdjustSubathonTime" Margin="5,10,0,5" 
+                                                   Text="5m" Height="34" Width="140" VerticalAlignment="Center"/>
+                                   </StackPanel>
+                               </Grid>
                                <Separator Margin="46 8 8 4"/>
                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                    <TextBlock x:Name="MultiplierRemainingTime" HorizontalAlignment="Center"
@@ -196,6 +207,7 @@
                 <Grid Margin="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="10"/>
                         <ColumnDefinition Width="3*"/>
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
@@ -284,6 +296,13 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
+                    <Rectangle Grid.RowSpan="2" Grid.Row="0" Grid.Column="1" Width="2" Stroke="#30808080" Margin="6 4 2 4" VerticalAlignment="Stretch"/>            
+                    <ui:Button Grid.Row="0" Grid.Column="2" Click="SendRefreshRequest_Click" Width="180" Height="48" Margin="12 2">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="16 0 0 0"/>
+                            <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="54" Margin="2 0"/>
+                        </StackPanel>
+                    </ui:Button>
                 </Grid>
             </TabItem>
             
