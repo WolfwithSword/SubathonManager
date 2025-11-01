@@ -322,7 +322,10 @@ public class EventService: IDisposable
         await db.Entry(ev).ReloadAsync();
         db.Remove(ev);
         await db.SaveChangesAsync();
-        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted();
+        
+        var events = new List<SubathonEvent>();
+        events.Add(ev);
+        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted(events);
         
         if (affected > 0)
         {
@@ -399,7 +402,7 @@ public class EventService: IDisposable
 
         db.RemoveRange(events);
         await db.SaveChangesAsync();
-        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted();
+        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted(events);
         
         if (affected > 0)
         {

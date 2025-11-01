@@ -28,6 +28,7 @@ public class DiscordWebhookService : IDisposable
     {
         LoadFromConfig();
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
+        SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
         _backgroundTask = Task.Run(ProcessQueueAsync);
     }
 
@@ -54,6 +55,49 @@ public class DiscordWebhookService : IDisposable
         // only queue events we care about based on settings
         // so not-logged ones don't clog the queue downstream
         _eventQueue.Enqueue(subathonEvent);
+    }
+
+    private void OnSubathonEventDeleted(List<SubathonEvent>? subathonEvents)
+    {
+        if (subathonEvents?.Count == 1)
+        {
+            SubathonEvent subathonEvent = subathonEvents.Single().ShallowClone();
+            if (string.IsNullOrEmpty(_eventWebhookUrl)) return;
+            if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
+            if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
+            // todo other logic?
+
+            subathonEvent.Value += " [DELETED]";
+            _eventQueue.Enqueue(subathonEvent);
+        }
+        else if (subathonEvents?.Count > 1)
+        {
+            double totalPoints = 0;
+            double totalSeconds = 0;
+            foreach (var subathonEvent in subathonEvents)
+            {
+                totalPoints += subathonEvent.GetFinalPointsValue();
+                totalSeconds += subathonEvent.GetFinalSecondsValue();
+            }
+            
+            var embed = new
+            {
+                title=$"Deleted {subathonEvents.Count} Events",
+                description=$"**Total Seconds:** {totalSeconds}s\n**Total Points:** {totalPoints}",
+                color = 0x86ACBD,
+                timestamp = DateTime.Now.ToUniversalTime().ToString("o")
+            };
+
+            var payload = new
+            {
+                username = "Subathon Manager",
+                embeds = new[] {embed}
+            };
+
+            Task.Run(() =>
+                SendWebhookAsync(payload)
+            );
+        }
     }
 
     private async Task ProcessQueueAsync()
@@ -95,10 +139,10 @@ public class DiscordWebhookService : IDisposable
         {
             var embeds = batch.Select(e => new
             {
-                title=$"{e.EventType}{(e.EventType == SubathonEventType.Command ? $" - {e.Command}" : 
-                    (e.Source == SubathonEventSource.Simulated ? " - Simulated" : ""))}",
+                title=$"{e.EventType}{(e.Value.EndsWith(" [DELETED]") ? " - Deleted" : (e.EventType == SubathonEventType.Command ? $" - {e.Command}" : 
+                    (e.Source == SubathonEventSource.Simulated ? " - Simulated" :  "")))}",
                 description=BuildEventDescription(e),
-                color = e.ProcessedToSubathon ? 0x00ff88 : 0xffaa55,
+                color = (e.ProcessedToSubathon && e.Value.EndsWith(" [DELETED]") ? 0x691911 : (e.ProcessedToSubathon ? 0x00ff88 : 0xffaa55)),
                 timestamp = e.EventTimestamp.ToUniversalTime().ToString("o"),
                 footer = new {text = $"{e.Source} {e.Id}\nCurrent: {TimeSpan.FromSeconds(e.CurrentTime)} | {e.CurrentPoints}"}
             });
@@ -119,7 +163,7 @@ public class DiscordWebhookService : IDisposable
     {
         var sb = new StringBuilder();
         sb.AppendLine($"**User:** {e.User}");
-        var val = e.Value;
+        var val = e.Value.Replace("[DELETED]", "").Trim();
         if (e.Currency == "sub")
         {
             switch (val)
