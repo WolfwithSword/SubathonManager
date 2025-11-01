@@ -12,14 +12,17 @@ public partial class SettingsView
     private readonly IDbContextFactory<AppDbContext> _factory;
     public SettingsView()
     {
-        _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = App.AppServices!.GetRequiredService<IDbContextFactory<AppDbContext>>();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
         StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
         
         SaveSettingsButton.Click += SaveSettingsButton_Click;
-        DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
+        
+        if (App.AppVersion.StartsWith("dev"))
+            DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
+        
         SEJWTTokenBox.Text = Config.Data["StreamElements"]["JWT"];
         SLTokenBox.Text = Config.Data["StreamLabs"]["SocketToken"];
 
