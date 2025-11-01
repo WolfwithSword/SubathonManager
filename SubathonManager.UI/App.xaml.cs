@@ -14,19 +14,19 @@ namespace SubathonManager.UI;
 
 public partial class App
 {    
-    private WebServer? _server;
+    public static WebServer? AppWebServer { get; private set; }
     private FileSystemWatcher? _configWatcher;
-    private static TimerService AppTimerService { get; set; } = new();
-    public static EventService AppEventService { get; set; }
+    private static TimerService AppTimerService { get; } = new();
+    public static EventService? AppEventService { get; private set; }
     
-    public static TwitchService? AppTwitchService { get; private set; } = new();
-    public static StreamElementsService? AppStreamElementsService { get; private set; } = new();
-    public static StreamLabsService? AppStreamLabsService { get; private set; } = new();
+    public static TwitchService? AppTwitchService { get; } = new();
+    public static StreamElementsService? AppStreamElementsService { get; } = new();
+    public static StreamLabsService? AppStreamLabsService { get;} = new();
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
 
-    public static IServiceProvider AppServices { get; private set; }
+    public static IServiceProvider? AppServices { get; private set; }
     
-    private IDbContextFactory<AppDbContext> _factory;
+    private IDbContextFactory<AppDbContext>? _factory;
     
     public static string AppVersion =>
         Assembly.GetExecutingAssembly()
@@ -67,7 +67,7 @@ public partial class App
             }
         );
 
-        _server = new WebServer(_factory, int.Parse(Config.Data["Server"]["Port"]));
+        AppWebServer = new WebServer(_factory, int.Parse(Config.Data["Server"]["Port"]));
 
         Task.Run(async () =>
         {
@@ -86,7 +86,7 @@ public partial class App
             }
         });
         
-        Task.Run(() => _server.StartAsync());
+        Task.Run(() => AppWebServer.StartAsync());
         Task.Run(() => AppTimerService.StartAsync());
         TimerEvents.TimerTickEvent += UpdateSubathonTimers;
         Task.Run(() =>
@@ -108,9 +108,9 @@ public partial class App
 
     protected override void OnExit(ExitEventArgs e)
     {
-        Task.Run(() => AppServices.GetRequiredService<EventService>().StopAsync());
+        Task.Run(() => AppServices?.GetRequiredService<EventService>().StopAsync());
         AppTimerService.Stop();
-        _server?.Stop();
+        AppWebServer?.Stop();
         AppStreamElementsService?.Disconnect();
         if (AppStreamLabsService!.Connected) Task.Run(() => { AppStreamLabsService?.DisconnectAsync(); });
         
@@ -159,12 +159,12 @@ public partial class App
         {
             
             int newPort = int.Parse(Config.Data["Server"]["Port"]);
-            if (_server?.Port != newPort)
+            if (AppWebServer?.Port != newPort)
             {
                 Console.WriteLine($"Config reloaded! New server port: {newPort}");
-                _server?.Stop();
-                _server = new WebServer(_factory, newPort);
-                Task.Run(() => _server.StartAsync());
+                AppWebServer?.Stop();
+                AppWebServer = new WebServer(_factory!, newPort);
+                Task.Run(() => AppWebServer.StartAsync());
             }
             AppDiscordWebhookService?.LoadFromConfig();
         }

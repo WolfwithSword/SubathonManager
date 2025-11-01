@@ -36,7 +36,9 @@ public class Widget
     [ForeignKey("Route")]
     public Guid RouteId { get; set; }
     public Route Route { get; set; } = null!;
-    
+
+    public bool Visibility { get; set; } = true;
+
     public Widget(string name, string htmlPath)
     {
         Name = name;

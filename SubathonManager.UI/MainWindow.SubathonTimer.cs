@@ -46,7 +46,7 @@ namespace SubathonManager.UI
             db.SaveChanges();
             db.Entry(subathon).State = EntityState.Detached;
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            SubathonEvents.RaiseSubathonEventsDeleted();
+            SubathonEvents.RaiseSubathonEventsDeleted(new List<SubathonEvent>());
         }
 
         private void AddTime_Click(object sender, RoutedEventArgs e)

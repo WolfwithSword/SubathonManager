@@ -316,7 +316,7 @@ public partial class WebServer
                                             window.handleGoalsUpdate(data);
                                         else if (typeof window.handleGoalCompleted === 'function' && data.type == 'goal_completed')
                                             window.handleGoalCompleted(data);
-                                        else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && document.title.includes(data.id)) {{
+                                        else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && (document.title.includes(data.id) || data.id == '{Guid.Empty}')) {{
                                             // for only the merged page
                                             window.location.reload();
                                         }}

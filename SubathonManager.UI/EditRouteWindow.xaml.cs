@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using Wpf.Ui.Controls;
 
 namespace SubathonManager.UI;
 
@@ -258,6 +259,30 @@ public partial class EditRouteWindow
         CssVarsList.ItemsSource = _editingCssVars;
     }
 
+    private async void ToggleVisibility_Click(object sender, RoutedEventArgs e)
+    {
+        var widget = GetWidgetFromSender(sender);
+        if (widget == null) return;
+        
+        await using var db = await _factory.CreateDbContextAsync();
+        var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == widget.Id);
+        if (wa == null) return;
+
+        widget = wa;
+        widget.Visibility = !widget.Visibility;
+
+        await db.SaveChangesAsync();
+        RefreshWebView();
+        if (sender is Wpf.Ui.Controls.Button btn && btn.Content is Wpf.Ui.Controls.SymbolIcon icon)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                icon.Symbol = widget.Visibility ? SymbolRegular.Eye20 : SymbolRegular.EyeOff20;
+            });
+        }
+        OverlayEvents.RaiseOverlayRefreshRequested(widget.RouteId);
+    }
+    
     private void ReloadCSS_Click(object sender, RoutedEventArgs e)
     {
         // todo, button to delete vars no longer found or tie in here

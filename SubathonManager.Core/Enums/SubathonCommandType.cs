@@ -15,5 +15,6 @@ public enum SubathonCommandType
     SetMultiplier,
     StopMultiplier,
     None,
-    Unknown
+    Unknown,
+    RefreshOverlays
 }

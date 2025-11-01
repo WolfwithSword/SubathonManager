@@ -31,7 +31,12 @@ namespace SubathonManager.UI
         
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadRoutes();
+            LoadRoutes();        
+            Task.Run(() =>
+            {
+                Task.Delay(500);
+                OverlayEvents.RaiseOverlayRefreshAllRequested();
+            });
         }
     }
 }

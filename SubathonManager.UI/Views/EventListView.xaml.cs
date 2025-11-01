@@ -18,7 +18,7 @@ namespace SubathonManager.UI.Views
 
         public EventListView()
         {
-            _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            _factory = App.AppServices!.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             EventListPanel.ItemsSource = EventItems;
             LoadRecentEvents();
@@ -27,7 +27,7 @@ namespace SubathonManager.UI.Views
             SubathonEvents.SubathonEventsDeleted += OnSubathonEventsDeleted;
         }
 
-        private void OnSubathonEventsDeleted()
+        private void OnSubathonEventsDeleted(List<SubathonEvent> events)
         {
             Task.Run(() => LoadRecentEvents());
         }

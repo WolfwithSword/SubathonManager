@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Input;
 using Microsoft.EntityFrameworkCore;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 
@@ -18,6 +19,11 @@ namespace SubathonManager.UI
                 Overlays.Add(route);
 
             OverlaysList.ItemsSource = Overlays;
+        }
+
+        private void SendRefreshRequest_Click(object sender, RoutedEventArgs e)
+        {
+            OverlayEvents.RaiseOverlayRefreshAllRequested();
         }
         
         private void CopyRouteUrl_Click(object sender, RoutedEventArgs e)

@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Diagnostics;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
-using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
 {
@@ -45,6 +44,16 @@ namespace SubathonManager.UI.Views
             Config.Save();
         }
 
+        private void UpdateServerStatus(bool status)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (ServerStatusText == null) return;
+                if (status && ServerStatusText.Text != "Running") ServerStatusText.Text = "Running";
+                else if (!status && ServerStatusText.Text != "Not Running") ServerStatusText.Text = "Not Running";
+            });
+        }
+
         private void InitTwitchAutoSettings()
         {
             bool.TryParse(Config.Data["Twitch"]["PauseOnEnd"] ?? "false", out var pauseOnEnd);
@@ -81,10 +90,11 @@ namespace SubathonManager.UI.Views
             });
         }
 
-        private void UpdateConnectionStatus(bool status, TextBlock textBlock, Button button)
+        private void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
         {
             Dispatcher.Invoke(() =>
             {
+                if (textBlock == null || button == null) return;
                 if (status && textBlock.Text != "Connected") textBlock.Text = "Connected";
                 else if (!status && textBlock.Text != "Disconnected") textBlock.Text = "Disconnected";
                 

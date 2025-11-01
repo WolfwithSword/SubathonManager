@@ -5,15 +5,15 @@ public static class SubathonEvents
 {
     public static event Action<SubathonEvent>? SubathonEventCreated;
     public static event Action<SubathonEvent, bool>? SubathonEventProcessed; // Run through queue, processed or not to subathon
-    public static event Action? SubathonEventsDeleted;
+    public static event Action<List<SubathonEvent>>? SubathonEventsDeleted;
     public static event Action<SubathonData, DateTime>? SubathonDataUpdate;
     
     public static event Action<List<SubathonGoal>, int>? SubathonGoalListUpdated;
     public static event Action<SubathonGoal, int>? SubathonGoalCompleted;
 
-    public static void RaiseSubathonEventsDeleted()
+    public static void RaiseSubathonEventsDeleted(List<SubathonEvent> subathonEvent)
     {
-        SubathonEventsDeleted?.Invoke();
+        SubathonEventsDeleted?.Invoke(subathonEvent);
     }
 
     public static void RaiseSubathonEventCreated(SubathonEvent subathonEvent)

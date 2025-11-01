@@ -214,7 +214,7 @@ public class EventService: IDisposable
 
         if (ev.Source != SubathonEventSource.Command)
         {
-            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub")
+            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && !string.IsNullOrEmpty(ev.Value.Trim()))
             {
                 ev.SecondsValue = parsedValue * subathonValue!.Seconds;
             }
@@ -222,6 +222,8 @@ public class EventService: IDisposable
             {
                 ev.SecondsValue = subathonValue!.Seconds;
             }
+            else
+                ev.SecondsValue = subathonValue!.Seconds;
             
             ev.PointsValue = subathonValue!.Points;
         }
@@ -320,7 +322,10 @@ public class EventService: IDisposable
         await db.Entry(ev).ReloadAsync();
         db.Remove(ev);
         await db.SaveChangesAsync();
-        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted();
+        
+        var events = new List<SubathonEvent>();
+        events.Add(ev);
+        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted(events);
         
         if (affected > 0)
         {
@@ -397,7 +402,7 @@ public class EventService: IDisposable
 
         db.RemoveRange(events);
         await db.SaveChangesAsync();
-        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted();
+        Core.Events.SubathonEvents.RaiseSubathonEventsDeleted(events);
         
         if (affected > 0)
         {

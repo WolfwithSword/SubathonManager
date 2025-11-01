@@ -180,6 +180,10 @@ public partial class WebServer
                     outline-color: rgba(100, 180, 255, 0.9);
                     animation: pulse 1.5s infinite;
                  }}
+                .widget-hidden {{
+                    opacity: 0.4 !important;
+                    outline-color: rgba(60, 10, 10, 0.4);
+                }}
             </style>
         ");
         
@@ -204,9 +208,11 @@ public partial class WebServer
         
         foreach (var w in route.Widgets)
         {
+            if (!isEditor && !w.Visibility) continue;
             
             string cssClass = "widget-wrapper";
             if (isEditor) cssClass += " widget-edit";
+            if (!w.Visibility) cssClass += " widget-hidden";
             
             string titleAttr = isEditor ? $" title=\"{WebUtility.HtmlEncode(w.Name)}\nZ:{w.Z}\"" : "";
             sb.AppendLine($@"<div data-id=""{w.Id.ToString()}"" class=""{cssClass}"" {titleAttr} 
