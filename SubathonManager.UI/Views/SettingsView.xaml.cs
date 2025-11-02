@@ -35,6 +35,7 @@ public partial class SettingsView
         LoadValues();
         InitWebhookSettings();
         InitTwitchAutoSettings();
+        InitCommandSettings();
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
