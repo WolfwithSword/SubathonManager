@@ -405,9 +405,28 @@
                         </Expander>
                         
                         <!-- Commands --> 
-                        <Expander Header="Commands" IsExpanded="False">
+                        <Expander Header="Chat Commands" IsExpanded="False">
                             <StackPanel Margin="10,5,0,5">
-                                <!-- TODO commands -->
+                                <!-- EnumName |       | TBX Name | Cbx Mods | Cbx VIPs | Tbx Whitelist  -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Command" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="Name" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3" Text="Mods?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="4" Text="VIPs?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="5" Text="User Whitelist" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Grid>
+                                <Separator Margin="4 4"/>
+                                <StackPanel x:Name="CommandListPanel" Margin="8 4">
+                                    
+                                </StackPanel>
                             </StackPanel>
                         </Expander>
 
