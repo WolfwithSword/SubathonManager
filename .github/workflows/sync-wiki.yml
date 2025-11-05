@@ -21,6 +21,7 @@ jobs:
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+          fi
       - name: Mirror wiki folder
         if: steps.check.outputs.exists == 'true'
         run: |
@@ -36,3 +37,4 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "Sync from main repo wiki folder"
             git push "$WIKI_URL" main || git push "$WIKI_URL" master || true
+          fi

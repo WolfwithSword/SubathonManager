@@ -15,6 +15,10 @@ jobs:
     outputs:
       only_wiki: ${{ steps.check.outputs.only_wiki }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
       - name: Check changed files
         id: filter
         uses: dorny/paths-filter@v3
