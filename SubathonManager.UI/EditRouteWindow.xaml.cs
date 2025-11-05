@@ -117,6 +117,21 @@ public partial class EditRouteWindow
         // _route = route;
         UpdateWebViewScale();
         OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+        
+        await Task.Run(async () =>
+        {
+            await Dispatcher.InvokeAsync(() => 
+                { 
+                    SaveRouteButton.Content = "Saved!";
+                } 
+            );
+            await Task.Delay(1500);
+            await Dispatcher.InvokeAsync(() => 
+                { 
+                    SaveRouteButton.Content = "Save";
+                } 
+            );
+        });
     }
     
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -325,6 +340,20 @@ public partial class EditRouteWindow
         
         WidgetsList.Items.Refresh();
         OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
+        await Task.Run(async () =>
+        {
+            await Dispatcher.InvokeAsync(() => 
+                { 
+                    SaveWidgetButton.Content = "Saved!";
+                } 
+            );
+            await Task.Delay(1500);
+            await Dispatcher.InvokeAsync(() => 
+                { 
+                    SaveWidgetButton.Content = "Save";
+                } 
+            );
+        });
 
     }
     
