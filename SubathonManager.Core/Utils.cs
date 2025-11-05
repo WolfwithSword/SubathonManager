@@ -1,4 +1,6 @@
 ﻿using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SubathonManager.Core;
 
@@ -86,5 +88,20 @@ public class Utils
             }
         }
         return  new TimeSpan(days, hours, minutes, seconds);
+    }
+
+    public static Guid CreateGuidFromUniqueString(string key)
+    {       
+        using var sha1 = SHA1.Create();
+        byte[] hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(key));
+
+        byte[] guidBytes = new byte[16];
+        Array.Copy(hash, guidBytes, 16);
+
+        guidBytes[6] = (byte)((guidBytes[6] & 0x0F) | (5 << 4));
+        guidBytes[8] = (byte)((guidBytes[8] & 0x3F) | 0x80);
+
+        return new Guid(guidBytes);
+        
     }
 }

@@ -14,6 +14,7 @@ public class EventService: IDisposable
     private readonly SemaphoreSlim _signal = new(0);
     private readonly object _lock = new();
     private Task? _processingTask;
+    private CurrencyService _currencyService = new();
 
     public EventService(IDbContextFactory<AppDbContext> factory)
     {
@@ -23,6 +24,17 @@ public class EventService: IDisposable
         _processingTask.ContinueWith(t => 
                 Console.WriteLine($"Event loop crashed: {t.Exception}"), 
             TaskContinuationOptions.OnlyOnFaulted);
+        Task.Run(() =>_currencyService.StartAsync());
+    }
+
+    public List<string> ValidEventCurrencies()
+    {
+        return Task.Run(() => _currencyService.GetValidCurrenciesAsync()).Result;
+    }
+
+    public void ReInitCurrencyService()
+    {
+        Task.Run(() => _currencyService.StartAsync());
     }
 
     private void AddSubathonEvent(SubathonEvent subathonEvent)
@@ -71,7 +83,7 @@ public class EventService: IDisposable
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .FirstOrDefaultAsync(s => s.IsActive);
-        SubathonEvent? dupeCheck = await db.SubathonEvents.SingleOrDefaultAsync(s => s.Id == ev.Id 
+        SubathonEvent? dupeCheck = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s => s.Id == ev.Id 
             && s.Source == ev.Source);
         if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return false;
 
@@ -174,7 +186,7 @@ public class EventService: IDisposable
 
                 db.Add(ev);
                 await db.SaveChangesAsync();
-                await CheckForGoalChange(db, subathon, initialPoints);
+                await CheckForGoalChange(db, subathon.Points, initialPoints);
                 return true;
             }
         }
@@ -214,18 +226,26 @@ public class EventService: IDisposable
 
         if (ev.Source != SubathonEventSource.Command)
         {
-            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && !string.IsNullOrEmpty(ev.Value.Trim()))
+            ev.PointsValue = subathonValue!.Points;
+            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && ev.Currency != "member"
+                && !_currencyService.IsValidCurrency(ev.Currency)
+                && !string.IsNullOrEmpty(ev.Value.Trim()))
             {
                 ev.SecondsValue = parsedValue * subathonValue!.Seconds;
             }
-            else if (ev.Currency == "sub")
+            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits".Split(",").Contains(ev.Currency))
             {
                 ev.SecondsValue = subathonValue!.Seconds;
             }
+            else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency))
+            {
+                double rate = Task.Run(() =>
+                    _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency)).Result;
+                ev.SecondsValue = Math.Round(subathonValue!.Seconds * rate, 2);
+                ev.PointsValue = (int) Math.Floor((double) ev.PointsValue! * rate);
+            }
             else
                 ev.SecondsValue = subathonValue!.Seconds;
-            
-            ev.PointsValue = subathonValue!.Points;
         }
         
         int affected = 0;
@@ -247,7 +267,12 @@ public class EventService: IDisposable
         if (affected > 0)
         {
             ev.ProcessedToSubathon = true;
-            await CheckForGoalChange(db, subathon, initialPoints);
+            await CheckForGoalChange(db, subathon.Points, initialPoints);
+            await db.Entry(subathon.Multiplier).ReloadAsync();
+            await db.Entry(subathon).ReloadAsync();
+            db.Entry(subathon).State = EntityState.Detached;
+            db.Entry(subathon.Multiplier).State = EntityState.Detached;
+            Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon!, DateTime.Now);
         }
 
         if (dupeCheck != null)
@@ -258,13 +283,10 @@ public class EventService: IDisposable
         await db.SaveChangesAsync();
         return affected > 0 || (ev.ProcessedToSubathon);
     }
-    private static async Task CheckForGoalChange(AppDbContext db, SubathonData subathon, int initialPoints)
+    
+    private static async Task CheckForGoalChange(AppDbContext db, int newPoints, int initialPoints)
     {
-        await db.Entry(subathon).ReloadAsync();
-        db.Entry(subathon).State = EntityState.Detached;
-        db.Entry(subathon.Multiplier).State = EntityState.Detached;
-        Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-        if (subathon.Points != initialPoints)
+        if (newPoints != initialPoints)
         {
             // look for last completed goal according to initial, and then reg points. If diff, push either completed update, or list update if undo
             SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking()
@@ -277,19 +299,19 @@ public class EventService: IDisposable
                 
                 SubathonGoal? prevCompletedGoal2 = goalSet.Goals
                     .OrderByDescending(g => g.Points)
-                    .FirstOrDefault(g => g.Points <= subathon.Points);
+                    .FirstOrDefault(g => g.Points <= newPoints);
 
                 if (prevCompletedGoal2 != null &&
                     prevCompletedGoal1?.Id != prevCompletedGoal2.Id)
                 {
                     if (prevCompletedGoal1 == null ||  prevCompletedGoal1!.Points <= prevCompletedGoal2.Points)
-                        Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);
+                        Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, newPoints);
                     else
-                        Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.Points);
+                        Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints);
                 }
-                else if (prevCompletedGoal2 == null && prevCompletedGoal1 == null)
+                else if (prevCompletedGoal2 == null && prevCompletedGoal1 == null || newPoints < initialPoints)
                 {
-                    Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.Points);
+                    Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints);
                 }
             }
         }

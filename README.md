@@ -9,5 +9,36 @@
 ![Static Badge](https://img.shields.io/badge/OPENSOURCE-g?style=flat-square)
 ![Static Badge](https://img.shields.io/badge/NO%20AI-orange?style=flat-square)
 
-An all-in-one Subathon Manager for Twitch. Manage your timer and goals overlay, settings, and more all locally!
+An all-in-one Subathon Manager for Twitch and YouTube. Manage your timer, goals,
+overlays, settings, and more all locally!
 
+## [Download Latest](https://github.com/WolfwithSword/SubathonManager/releases/latest)
+
+[Check the Wiki](https://github.com/WolfwithSword/SubathonManager/wiki)
+
+
+## Supported Integrations 
+- **Twitch**
+  - Cheers/Bits
+  - Follows, Raids
+  - Subs & Gift Subs
+  - Chat Commands
+  - Auto lock/pause on stream end
+  - Auto unlock/resume on stream start
+- **Youtube**
+  - SuperChats
+  - Memberships & Gift Memberships
+    - Due to limitations, we treat all memberships as a single level/tier
+  - Chat Commands
+- **StreamElements**
+  - SE Pay Tips
+- **StreamLabs**
+  - Donations
+
+## Features
+
+- Currency conversions for donations/tips/superchats using daily floating rates
+- Audit & Event logging to file and Discord webhooks
+- Built in overlay editor and host server for local html widgets
+- Goals list tracking
+- Multiplier modes for time and/or points

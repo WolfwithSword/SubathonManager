@@ -1,0 +1,234 @@
+﻿using YTLiveChat.Contracts;
+using YTLiveChat.Contracts.Models;
+using YTLiveChat.Contracts.Services;
+using YTLiveChat.Services; 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
+using SubathonManager.Core.Models;
+
+namespace SubathonManager.Integration;
+
+public class YouTubeService : IDisposable
+{
+    private int _pollTime = 1500;
+    private readonly HttpClient _httpClient;
+    private readonly IYTLiveChat _ytLiveChat;
+    private bool _disposed = false;
+    private string? _ytHandle;
+    public bool Running;
+    private readonly ILogger<YTLiveChat.Services.YTLiveChat> _chatLogger = NullLogger<YTLiveChat.Services.YTLiveChat>.Instance;
+    private readonly ILogger<YTHttpClient> _httpClientLogger = NullLogger<YTHttpClient>.Instance;
+    
+    public YouTubeService()
+    {
+        var options = new YTLiveChatOptions
+        {
+            RequestFrequency = _pollTime,
+        };
+        
+        if (_httpClient == null)
+            _httpClient = new HttpClient()
+            {
+                BaseAddress = new Uri(options.YoutubeBaseUrl)
+            };
+        
+        var ytHttpClient = new YTHttpClient(_httpClient, _httpClientLogger);
+        _ytLiveChat = new YTLiveChat.Services.YTLiveChat(options, ytHttpClient, _chatLogger);
+        
+        _ytLiveChat.InitialPageLoaded += OnInitialPageLoaded;
+        _ytLiveChat.ChatReceived += OnChatReceived;
+        _ytLiveChat.ChatStopped += OnChatStopped;
+        _ytLiveChat.ErrorOccurred += OnErrorOccurred;
+    }
+
+    public bool Start(string? handle)
+    {
+        try
+        {
+            _ytLiveChat.Stop();
+        }
+        catch (Exception ex)
+        {
+            //
+        }
+        Console.WriteLine("Begin YouTube Service");
+        Running = false;
+        YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, "None");
+        
+        _ytHandle = handle ?? Config.Data["YouTube"]["Handle"] ?? "";
+        if (string.IsNullOrEmpty(_ytHandle))
+            return Running;
+        if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
+        Console.WriteLine("Youtube Starting for " + _ytHandle);
+        _ytLiveChat.Start(handle: _ytHandle);
+        return true;
+    }
+
+    private void OnInitialPageLoaded(object? sender, InitialPageLoadedEventArgs e)
+    {
+        Running = true;
+        YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
+        Console.WriteLine($"Successfully loaded YouTube Live ID: {e.LiveId}");
+    }
+    private void OnChatStopped(object? sender, ChatStoppedEventArgs e)
+    {
+        Running = false;
+        YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
+    }
+
+    private void OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
+    {
+        Running = false;
+        YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
+    }
+    
+    private void OnChatReceived(object? sender, ChatReceivedEventArgs e)
+    {
+        ChatItem item = e.ChatItem;
+
+        string user = item.Author.Name.Replace("@", "");
+        if (item.Superchat != null)
+        {
+            SubathonEvent subathonEvent = new();
+            subathonEvent.User = user;
+            subathonEvent.Currency = $"{item.Superchat.Currency}".ToUpper();
+            subathonEvent.Value = $"{item.Superchat.AmountValue}";
+            subathonEvent.Source = SubathonEventSource.YouTube;
+            subathonEvent.EventType = SubathonEventType.YouTubeSuperChat;
+            subathonEvent.Id = Utils.CreateGuidFromUniqueString(item.Id);
+            subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            return;
+        }
+
+        if (item.MembershipDetails != null)
+        {
+            
+            SubathonEvent subathonEvent = new();
+            subathonEvent.Source = SubathonEventSource.YouTube;
+            subathonEvent.Id = Utils.CreateGuidFromUniqueString(item.Id);
+            subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
+            
+            // there can be up to 6 unique membership tiers
+            // we will check/store as Meta
+            // however due to limitation on New Members not showing tier
+            // we treat it as if there is only one for now
+            
+            var details = item.MembershipDetails;
+            string tier = details.HeaderSubtext ?? details.LevelName;
+            if (string.IsNullOrEmpty(tier))
+                tier = details.LevelName;
+            subathonEvent.Value = tier;
+            subathonEvent.Currency = "member";
+            
+            if (tier.ToLower().Contains("new") && details.EventType == MembershipEventType.Unknown)
+                details.EventType = MembershipEventType.New;
+            
+            switch (details.EventType)
+            {
+                case MembershipEventType.Milestone: // essentially a resub
+                    subathonEvent.EventType = SubathonEventType.YouTubeMembership;
+                    break;
+                case MembershipEventType.GiftPurchase:
+                    subathonEvent.EventType = SubathonEventType.YouTubeGiftMembership;
+                    user = details.GifterUsername?.Replace("@", "") ?? user;
+                    subathonEvent.Amount = details.GiftCount ?? 1;
+                    break;
+                case MembershipEventType.GiftRedemption:
+                    // NEVER PROCESS THIS
+                    return;
+                case MembershipEventType.New:
+                    subathonEvent.EventType = SubathonEventType.YouTubeMembership;
+                    break;
+                default:
+                    subathonEvent.EventType = SubathonEventType.YouTubeMembership;
+                    break;
+            }
+            subathonEvent.User = user;
+            
+            // temp
+            subathonEvent.Value = "DEFAULT";
+            
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            return;
+        }
+        
+        // else - check if command and has perms
+        // TODO Command parsing
+        // string messagePreview = string.Join("", item.Message.Select(p => p.ToString()));
+        // if (messagePreview.StartsWith("!"))
+        //     Console.WriteLine($"{item.Author.Name} - {messagePreview} - {item.IsOwner} - {item.IsModerator} - {item.Timestamp.DateTime.ToLocalTime()}");
+    }
+    
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _ytLiveChat.Stop();
+                _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
+                _ytLiveChat.ChatReceived -= OnChatReceived;
+                _ytLiveChat.ChatStopped -= OnChatStopped;
+                _ytLiveChat.ErrorOccurred -= OnErrorOccurred;
+                _ytLiveChat.Dispose();
+                _httpClient.Dispose();
+            }
+            _disposed = true;
+        }
+    }
+    
+    public static void SimulateSuperChat(string value = "10.00", string currency = "USD")
+    {
+        if (!double.TryParse(value, out var val))
+        {
+            Console.WriteLine($"Invalid value for simulated tip. {value}");
+            return;
+        }
+
+        SubathonEvent subathonEvent = new();
+        subathonEvent.User = "SYSTEM";
+        subathonEvent.Currency = currency;
+        subathonEvent.Value = value;
+        subathonEvent.Source = SubathonEventSource.Simulated;
+        subathonEvent.EventType = SubathonEventType.YouTubeSuperChat;
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+    
+    public static void SimulateMembership(string tier = "DEFAULT")
+    {
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            Currency = "member",
+            EventType = SubathonEventType.YouTubeMembership,
+            Value = tier,
+            User = "SYSTEM"
+        };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+
+    public static void SimulateGiftMemberships(int amount)
+    {
+        string tier = "DEFAULT";
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            Currency = "member",
+            EventType = SubathonEventType.YouTubeGiftMembership,
+            Value = tier,
+            User = "SYSTEM",
+            Amount = amount
+        };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    } 
+}

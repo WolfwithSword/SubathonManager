@@ -10,11 +10,12 @@ public enum SubathonEventType
     StreamElementsDonation,
     Command, // from any chat or ui
     Unknown,
-    StreamLabsDonation
+    StreamLabsDonation,
+    YouTubeMembership,
+    YouTubeGiftMembership,
+    YouTubeSuperChat
     
     //KoFiDonation,
     //KoFiSub,
-    //YouTubeMembership,
-    //YouTubeDonation,
     // any new must be added after the last
 }

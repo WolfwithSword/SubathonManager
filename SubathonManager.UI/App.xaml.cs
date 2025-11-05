@@ -20,6 +20,7 @@ public partial class App
     public static EventService? AppEventService { get; private set; }
     
     public static TwitchService? AppTwitchService { get; } = new();
+    public static YouTubeService? AppYouTubeService { get; } = new();
     public static StreamElementsService? AppStreamElementsService { get; } = new();
     public static StreamLabsService? AppStreamLabsService { get;} = new();
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
@@ -85,6 +86,8 @@ public partial class App
                 }
             }
         });
+
+        AppYouTubeService!.Start(null);
         
         Task.Run(() => AppWebServer.StartAsync());
         Task.Run(() => AppTimerService.StartAsync());
@@ -127,7 +130,6 @@ public partial class App
                 Console.WriteLine($"Error stopping TwitchService: {ex.Message}");
             }
         }
-
         if (AppDiscordWebhookService != null)
         {
             Task.Run(() =>
@@ -136,6 +138,9 @@ public partial class App
                 AppDiscordWebhookService?.Dispose();
             });
         }
+        
+        AppYouTubeService?.Dispose();
+        
         base.OnExit(e);
     }
     
