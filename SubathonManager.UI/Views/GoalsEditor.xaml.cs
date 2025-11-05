@@ -201,6 +201,21 @@ namespace SubathonManager.UI.Views
                 SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
                 SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
             }
+            
+            Task.Run(async () =>
+            {
+                await Dispatcher.InvokeAsync(() => 
+                    { 
+                        SaveGoalsBtn.Content = "Saved!";
+                    } 
+                );
+                await Task.Delay(1500);
+                await Dispatcher.InvokeAsync(() => 
+                    { 
+                        SaveGoalsBtn.Content = "Save Changes";
+                    } 
+                );
+            });
         }
     }
 }

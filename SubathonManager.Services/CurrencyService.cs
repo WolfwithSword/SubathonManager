@@ -30,7 +30,7 @@ public class CurrencyService
     {
         DefaultCurrency = Config.Data["Currency"]["Primary"]?.ToUpperInvariant().Trim() ?? "USD";
         _currencyFile = Path.Combine(_dataDirectory, $"{DefaultCurrency.ToLowerInvariant().Trim()}.json");
-        if (!File.Exists(_currencyFile))
+        if (File.Exists(_currencyFile))
         {
             try
             {
@@ -129,7 +129,6 @@ public class CurrencyService
     {
         fromCurrency = fromCurrency.ToUpperInvariant().Trim();
         toCurrency ??= DefaultCurrency;
-
         if (fromCurrency == toCurrency)
             return amount;
         

@@ -207,7 +207,8 @@
                         </ItemsControl>
                     </ScrollViewer>
                     <Button Content="Reload CSS Vars" Width="150" Margin="0,8,0,4" Click="ReloadCSS_Click"/>
-                    <Button Content="Save" Width="150" Margin="0,8,0,0" Click="SaveWidgetButton_Click"/>
+                    <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="0,8,0,0"
+                            Click="SaveWidgetButton_Click"/>
                 </StackPanel>
             </StackPanel>
         </Border>

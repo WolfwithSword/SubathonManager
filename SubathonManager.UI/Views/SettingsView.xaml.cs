@@ -19,8 +19,6 @@ public partial class SettingsView
         StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
         
-        SaveSettingsButton.Click += SaveSettingsButton_Click;
-        
         if (App.AppVersion.StartsWith("dev"))
             DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
         

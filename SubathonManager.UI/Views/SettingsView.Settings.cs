@@ -207,7 +207,7 @@ namespace SubathonManager.UI.Views
             if (TwitchUnlockOnStartBx.IsChecked != unlockOnStart) TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
         }
         
-        private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
+        private void SaveTopAppSettings()
         {
             // only top level ones, not subathon ones
 
@@ -349,6 +349,7 @@ namespace SubathonManager.UI.Views
         
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
+            SaveTopAppSettings();
             using var db = _factory.CreateDbContext();
             
             void SaveSubTier(SubathonEventType type, string meta, Wpf.Ui.Controls.TextBox tb,
@@ -428,8 +429,22 @@ namespace SubathonManager.UI.Views
             
             UpdateCommandSettings();
             
-            UpdateWebhookSettings(); // also calls save
-
+            UpdateWebhookSettings();
+            
+            Task.Run(async () =>
+            {
+                await Dispatcher.InvokeAsync(() => 
+                    { 
+                        SaveAllSubathonValuesButton.Content = "Saved!";
+                    } 
+                );
+                await Task.Delay(1500);
+                await Dispatcher.InvokeAsync(() => 
+                    { 
+                        SaveAllSubathonValuesButton.Content = "Save All";
+                    } 
+                );
+            });
         }
 
         private void LoadValues()
