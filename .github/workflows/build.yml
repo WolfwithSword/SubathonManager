@@ -25,9 +25,9 @@ jobs:
             non_wiki:
               - '**'
               - '!wiki/**'
-              - '!.github/workflows/**
+              - '!.github/workflows/**'
             workflows:
-              - '.github/workflows/**
+              - '.github/workflows/**'
       - name: Did only wiki change?
         id: check
         run: |
