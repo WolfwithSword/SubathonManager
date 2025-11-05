@@ -16,7 +16,7 @@ jobs:
       only_wiki: ${{ steps.check.outputs.only_wiki }}
     steps:
       - name: Check changed files
-        id: check
+        id: filter
         uses: dorny/paths-filter@v3
         with:
           filters: |
