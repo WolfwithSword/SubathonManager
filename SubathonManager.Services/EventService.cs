@@ -186,7 +186,7 @@ public class EventService: IDisposable
 
                 db.Add(ev);
                 await db.SaveChangesAsync();
-                await CheckForGoalChange(db, subathon, initialPoints);
+                await CheckForGoalChange(db, subathon.Points, initialPoints);
                 return true;
             }
         }
@@ -267,7 +267,12 @@ public class EventService: IDisposable
         if (affected > 0)
         {
             ev.ProcessedToSubathon = true;
-            await CheckForGoalChange(db, subathon, initialPoints);
+            await CheckForGoalChange(db, subathon.Points, initialPoints);
+            await db.Entry(subathon.Multiplier).ReloadAsync();
+            await db.Entry(subathon).ReloadAsync();
+            db.Entry(subathon).State = EntityState.Detached;
+            db.Entry(subathon.Multiplier).State = EntityState.Detached;
+            Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon!, DateTime.Now);
         }
 
         if (dupeCheck != null)
@@ -278,13 +283,10 @@ public class EventService: IDisposable
         await db.SaveChangesAsync();
         return affected > 0 || (ev.ProcessedToSubathon);
     }
-    private static async Task CheckForGoalChange(AppDbContext db, SubathonData subathon, int initialPoints)
+    
+    private static async Task CheckForGoalChange(AppDbContext db, int newPoints, int initialPoints)
     {
-        await db.Entry(subathon).ReloadAsync();
-        db.Entry(subathon).State = EntityState.Detached;
-        db.Entry(subathon.Multiplier).State = EntityState.Detached;
-        Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-        if (subathon.Points != initialPoints)
+        if (newPoints != initialPoints)
         {
             // look for last completed goal according to initial, and then reg points. If diff, push either completed update, or list update if undo
             SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking()
@@ -297,19 +299,19 @@ public class EventService: IDisposable
                 
                 SubathonGoal? prevCompletedGoal2 = goalSet.Goals
                     .OrderByDescending(g => g.Points)
-                    .FirstOrDefault(g => g.Points <= subathon.Points);
+                    .FirstOrDefault(g => g.Points <= newPoints);
 
                 if (prevCompletedGoal2 != null &&
                     prevCompletedGoal1?.Id != prevCompletedGoal2.Id)
                 {
                     if (prevCompletedGoal1 == null ||  prevCompletedGoal1!.Points <= prevCompletedGoal2.Points)
-                        Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);
+                        Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, newPoints);
                     else
-                        Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.Points);
+                        Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints);
                 }
-                else if (prevCompletedGoal2 == null && prevCompletedGoal1 == null)
+                else if (prevCompletedGoal2 == null && prevCompletedGoal1 == null || newPoints < initialPoints)
                 {
-                    Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.Points);
+                    Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints);
                 }
             }
         }
