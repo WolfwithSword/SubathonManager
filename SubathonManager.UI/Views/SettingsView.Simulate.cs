@@ -8,13 +8,21 @@ namespace SubathonManager.UI.Views
         private void TestSETip_Click(object sender, RoutedEventArgs e)
         {
             var value = SimulateSETipAmountBox.Text;
-            StreamElementsService.SimulateTip(value);
+            var currency = SimulateSECurrencyBox.Text;
+            StreamElementsService.SimulateTip(value, currency);
+        }
+        private void TestYTSuperChat_Click(object sender, RoutedEventArgs e)
+        {
+            var value = SimulateSCAmt.Text;
+            var currency = SimulateSCCurrencyBox.Text;
+            YouTubeService.SimulateSuperChat(value, currency);
         }
 
         private void TestSLTip_Click(object sender, RoutedEventArgs e)
         {
             var value = SimulateSLTipAmountBox.Text;
-            StreamLabsService.SimulateTip(value);
+            var currency = SimulateSLCurrencyBox.Text;
+            StreamLabsService.SimulateTip(value, currency);
         }
 
         private void TestTwitchFollow_Click(object sender, RoutedEventArgs e)
@@ -53,7 +61,19 @@ namespace SubathonManager.UI.Views
             if (!string.IsNullOrEmpty(tier))
                 TwitchService.SimulateSubscription(tier);
         }
+        
+        private void TestYTMembership_Click(object sender, RoutedEventArgs e)
+        {
+            YouTubeService.SimulateMembership();
+        }
 
+        private void TestYTGiftMembership_Click(object sender, RoutedEventArgs e)
+        {
+            int amount = int.TryParse(SimGiftMembershipAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
+            if (amount > 0)
+                YouTubeService.SimulateGiftMemberships(amount);
+        }
+        
         private void TestTwitchGiftSub_Click(object sender, RoutedEventArgs e)
         {
             string tier = "";

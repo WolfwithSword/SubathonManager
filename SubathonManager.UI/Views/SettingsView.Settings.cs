@@ -10,6 +10,19 @@ namespace SubathonManager.UI.Views
     public partial class SettingsView
     {
 
+        private void InitCurrencySelects()
+        {
+            var currencies = App.AppEventService!.ValidEventCurrencies().OrderBy(x => x).ToList();
+            DefaultCurrencyBox.ItemsSource = currencies;
+            DefaultCurrencyBox.SelectedItem = Config.Data["Currency"]["Primary"]?.Trim().ToUpperInvariant() ?? "USD";
+            SimulateSECurrencyBox.ItemsSource = currencies;
+            SimulateSECurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
+            SimulateSLCurrencyBox.ItemsSource = currencies;
+            SimulateSLCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
+            SimulateSCCurrencyBox.ItemsSource = currencies;
+            SimulateSCCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
+        }
+        
         private void InitCommandSettings()
         {
             foreach (SubathonCommandType commandType in Enum.GetValues(typeof(SubathonCommandType)))
@@ -79,6 +92,11 @@ namespace SubathonManager.UI.Views
 
                 CommandListPanel.Children.Add(entryPanel);
             }   
+        }
+
+        private void InitYoutubeSettings()
+        {
+            YTUserHandle.Text = Config.Data["YouTube"]["Handle"] ?? "";
         }
         
         private void UpdateCommandSettings()
@@ -192,6 +210,14 @@ namespace SubathonManager.UI.Views
         private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
         {
             // only top level ones, not subathon ones
+
+            string selectedCurrency = DefaultCurrencyBox.Text;
+            if (selectedCurrency.Length >= 3)
+            {
+                Config.Data["Currency"]["Primary"] = selectedCurrency;
+                Config.Save();
+                App.AppEventService!.ReInitCurrencyService();
+            }
             if (int.TryParse(ServerPortTextBox.Text, out var port))
             {
                 Config.Data["Server"]["Port"] = port.ToString();
@@ -207,6 +233,15 @@ namespace SubathonManager.UI.Views
                 if (TwitchStatusText.Text != username) TwitchStatusText.Text = username; 
                 string connectBtn = App.AppTwitchService!.UserName != string.Empty ? "Reconnect" : "Connect";
                 if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
+            });
+        }
+
+        private void UpdateYoutubeStatus(bool status,  string name)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (YTUserHandle.Text != name && name != "None") YTUserHandle.Text = name; 
+                UpdateConnectionStatus(status, YTStatusText, ConnectYTBtn);
             });
         }
 
@@ -232,9 +267,19 @@ namespace SubathonManager.UI.Views
             UpdateConnectionStatus(status, SLStatusText, ConnectSLBtn);
         }
 
+        private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)
+        {
+            string user = YTUserHandle.Text.Trim();
+            if (!user.StartsWith("@"))
+                user = "@" + user;
+            Config.Data["YouTube"]["Handle"] = user;
+            Config.Save();
+
+            App.AppYouTubeService!.Start(user);
+        }
+
         private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: Smartly stop everything inside before initialize, i think i do rn?
             try
             {
                 try
@@ -305,7 +350,29 @@ namespace SubathonManager.UI.Views
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
             using var db = _factory.CreateDbContext();
-
+            
+            void SaveSubTier(SubathonEventType type, string meta, Wpf.Ui.Controls.TextBox tb,
+                Wpf.Ui.Controls.TextBox tb2)
+            {
+                var val = db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == meta);
+                if (val != null && double.TryParse(tb.Text, out var seconds))
+                    val.Seconds = seconds;
+                if (val != null && int.TryParse(tb2.Text, out var points))
+                    val.Points = points;
+            }
+            
+            // YT Values
+            var superchatValue = db.SubathonValues.FirstOrDefault(sv =>
+                sv.EventType == SubathonEventType.YouTubeSuperChat
+                && sv.Meta == "");
+            if (superchatValue != null && double.TryParse(YTDonoBox.Text, out var scSeconds))
+                superchatValue.Seconds = scSeconds;
+            if (superchatValue != null && int.TryParse(YTDonoBox2.Text, out var scPoints))
+                superchatValue.Points = scPoints;
+            
+            SaveSubTier(SubathonEventType.YouTubeMembership, "DEFAULT", MemberT1TextBox, MemberT1TextBox2);
+            SaveSubTier(SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberT1TextBox, GiftMemberT1TextBox2);
+            
             // Twitch values
             var cheerValue =
                 db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchCheer && sv.Meta == "");
@@ -328,17 +395,6 @@ namespace SubathonManager.UI.Views
                 followValue.Seconds = followSeconds;
             if (followValue != null && int.TryParse(Follow2TextBox.Text, out var followPoints))
                 followValue.Points = followPoints;
-
-            void SaveSubTier(SubathonEventType type, string meta, Wpf.Ui.Controls.TextBox tb,
-                Wpf.Ui.Controls.TextBox tb2)
-            {
-                var val = db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == meta);
-                if (val != null && double.TryParse(tb.Text, out var seconds))
-                    val.Seconds = seconds;
-                if (val != null && int.TryParse(tb2.Text, out var points))
-                    val.Points = points;
-
-            }
 
             SaveSubTier(SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2);
             SaveSubTier(SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2);
@@ -395,6 +451,18 @@ namespace SubathonManager.UI.Views
                 TextBox? box2 = null;
                 switch (val.EventType) 
                 { 
+                    case SubathonEventType.YouTubeMembership:
+                        box = MemberT1TextBox;
+                        box2 = MemberT1TextBox2;
+                        break;
+                    case SubathonEventType.YouTubeGiftMembership:
+                        box = GiftMemberT1TextBox;
+                        box2 = GiftMemberT1TextBox2;
+                        break;
+                    case SubathonEventType.YouTubeSuperChat:
+                        box = YTDonoBox;
+                        box2 = YTDonoBox2;
+                        break;
                     case SubathonEventType.TwitchFollow:
                         box = FollowTextBox;
                         box2 = Follow2TextBox;

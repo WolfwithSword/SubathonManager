@@ -10,9 +10,38 @@ on:
   workflow_dispatch: 
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      only_wiki: ${{ steps.check.outputs.only_wiki }}
+    steps:
+      - name: Check changed files
+        id: check
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            wiki:
+              - 'wiki/**'
+            non_wiki:
+              - '**'
+              - '!wiki/**'
+              - '!.github/workflows/**
+            workflows:
+              - '.github/workflows/**
+      - name: Did only wiki change?
+        id: check
+        run: |
+          if [[ "${{ steps.filter.outputs.wiki }}" == "true" && "${{ steps.filter.outputs.non_wiki }}" != "true" ]]; then
+            echo "only_wiki=true" >> $GITHUB_OUTPUT
+          else
+            echo "only_wiki=false" >> $GITHUB_OUTPUT
+          fi
+          
   build:
     name: Build Windows App
     runs-on: windows-latest
+    needs: changes
+    if: needs.changes.outputs.only_wiki != 'true'
 
     steps:
       - name: Checkout repository
@@ -80,8 +109,8 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: build
-    if: (github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main'
+    needs: [build, changes]
+    if: needs.changes.outputs.only_wiki != 'true' && ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main'))
 
     steps:
       - name: Determine release filename

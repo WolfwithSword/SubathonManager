@@ -11,3 +11,4 @@
 
 An all-in-one Subathon Manager for Twitch. Manage your timer and goals overlay, settings, and more all locally!
 
+[Check the Wiki](https://github.com/WolfwithSword/SubathonManager/wiki)

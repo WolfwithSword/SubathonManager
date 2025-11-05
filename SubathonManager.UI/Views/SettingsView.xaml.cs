@@ -14,6 +14,7 @@ public partial class SettingsView
     {
         _factory = App.AppServices!.GetRequiredService<IDbContextFactory<AppDbContext>>();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
+        YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
         StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
@@ -36,9 +37,12 @@ public partial class SettingsView
         InitWebhookSettings();
         InitTwitchAutoSettings();
         InitCommandSettings();
+        InitYoutubeSettings();
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
         UpdateServerStatus(App.AppWebServer?.Running ?? false);
+
+        InitCurrencySelects();
     }
 }

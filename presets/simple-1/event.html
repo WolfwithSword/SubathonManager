@@ -17,6 +17,9 @@ const eventTypesToDisplay = ["TwitchGiftSub",
                              "TwitchCheer",
                              "StreamElementsDonation",
                              "StreamLabsDonation",
+                             "YouTubeMembership",
+                             "YouTubeGiftMembership",
+                             "YouTubeSuperChat",
                              //"Command",
                              //"TwitchRaid",
                              //"TwitchFollow",
@@ -45,19 +48,22 @@ function createEventIcon(eventType) {
   }
 
   switch(eventType) {
-
+      
+    case "YouTubeGiftMembership":
     case "TwitchGiftSub":
       // present
       return makeSVG("M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8h16zm0-2H4V8a2 2 0 0 1 2-2h3.17a3 3 0 1 1 0 2H15a3 3 0 1 1 0-2H18a2 2 0 0 1 2 2v2zm-8-5a1 1 0 1 0 0 2h1V7a1 1 0 0 0-1-1z");
-
+      
+    case "YouTubeMembership":
     case "TwitchSub":
       // star
       return makeSVG("M12 17.3l6.18 3.7-1.64-7.03 5.46-4.73-7.19-.61L12 2 9.19 8.63l-7.19.61 5.46 4.73L5.82 21z");
-
+      
     case "TwitchCheer":
       // diamond
       return makeSVG("M12 2l10 10-10 10L2 12 12 2z");
-
+  
+    case "YouTubeSuperChat":
     case "StreamElementsDonation":
     case "StreamLabsDonation":
       // coin stack
@@ -93,6 +99,9 @@ function handleSubathonEvent(data) {
             if (data.value == "1000") data.value = "T1";
             else if (data.value == "2000") data.value = "T2";
             else if (data.value == "3000") data.value = "T3";
+        }
+        if (data.currency == "member") {
+            data.value = "";
         }
         
         let event = {
@@ -152,7 +161,7 @@ function showEventCard({ user, amount, currency, value, source, type }) {
   const valueDiv = document.createElement("div");
   valueDiv.className = "event-value";
   
-  if (type == "TwitchGiftSub") {
+  if (type == "TwitchGiftSub" || type == "YouTubeGiftMembership") {
     valueDiv.textContent = `x${amount} ${value}`;
   }
   else if (currency != 'sub' && currency != "") {
