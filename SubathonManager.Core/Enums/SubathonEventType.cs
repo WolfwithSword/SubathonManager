@@ -19,3 +19,36 @@ public enum SubathonEventType
     //KoFiSub,
     // any new must be added after the last
 }
+
+public static class SubathonEventTypeHelper
+{
+    private static readonly SubathonEventType[] CurrencyDontationEvents = new[]
+    {
+        SubathonEventType.YouTubeSuperChat,
+        SubathonEventType.StreamElementsDonation,
+        SubathonEventType.StreamLabsDonation
+    };
+    
+    private static readonly SubathonEventType[] MembershipTypes = new[]
+    {
+        SubathonEventType.YouTubeMembership,
+        SubathonEventType.YouTubeGiftMembership
+    };
+    private static readonly SubathonEventType[] SubscriptionTypes = new[]
+    {
+        SubathonEventType.TwitchSub,
+        SubathonEventType.TwitchGiftSub
+    };
+    
+    public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
+        eventType.HasValue && CurrencyDontationEvents.Contains(eventType.Value);
+    
+    public static bool IsMembershipType(this SubathonEventType? eventType) => 
+        eventType.HasValue && MembershipTypes.Contains(eventType.Value);
+    
+    public static bool IsSubscriptionType(this SubathonEventType? eventType) => 
+        eventType.HasValue && SubscriptionTypes.Contains(eventType.Value);
+
+    public static bool IsSubOrMembershipType(this SubathonEventType? eventType) =>
+        eventType.IsMembershipType() || eventType.IsSubscriptionType();
+}

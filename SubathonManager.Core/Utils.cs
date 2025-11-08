@@ -102,6 +102,54 @@ public class Utils
         guidBytes[8] = (byte)((guidBytes[8] & 0x3F) | 0x80);
 
         return new Guid(guidBytes);
-        
     }
+    
+    public static string TryParseCurrency(string amountString)
+    {
+        string currency = "";
+        var match = Regex.Match(amountString, @"^(?<code>[A-Z]{3})(?![A-Z])");
+        if (match.Success)
+            currency = match.Groups["code"].Value;
+        else
+        {
+            if (amountString.Contains('$'))
+            {
+                if (amountString.StartsWith("A$")) currency = "AUD";
+                else if (amountString.StartsWith("CA$")) currency = "CAD";
+                else if (amountString.StartsWith("R$")) currency = "BRL";
+                else if (amountString.StartsWith("HK$")) currency = "HKD";
+                else if (amountString.StartsWith("MX$")) currency = "MXN";
+                else if (amountString.StartsWith("NT$")) currency = "TWD";
+                else if (amountString.StartsWith("NZ$")) currency = "NZD";
+            }
+            else if (amountString.Contains("₨"))
+            {
+                if (amountString.StartsWith("PK₨")) currency = "PKR";
+                else if (amountString.StartsWith("LK₨")) currency = "LKR";
+                else if (amountString.StartsWith("MU₨")) currency = "MUR";
+                else if (amountString.StartsWith("NP₨")) currency = "NPR";
+            }
+            else
+            {
+                if (amountString.StartsWith("₩")) currency = "KRW";
+                else if (amountString.StartsWith("₱")) currency = "PHP";
+                else if (amountString.StartsWith("₫")) currency = "VND";
+                else if (amountString.StartsWith("₦")) currency = "NGN";
+                else if (amountString.StartsWith("₴")) currency = "UAH";
+                else if (amountString.StartsWith("₲")) currency = "PYG"; // 
+                else if (amountString.StartsWith("₡")) currency = "CRC";
+                else if (amountString.StartsWith("₺")) currency = "TRY";
+                else if (amountString.StartsWith("₼")) currency = "AZN";
+                else if (amountString.StartsWith("₸")) currency = "KZT";
+                else if (amountString.StartsWith("₭")) currency = "LAK";
+                else if (amountString.StartsWith("₾")) currency = "GEL";
+                else if (amountString.StartsWith("₸")) currency = "KZT";
+                else if (amountString.StartsWith("₮")) currency = "MNT";
+                else if (amountString.StartsWith("₹")) currency = "INR";
+                else if (amountString.StartsWith("₣")) currency = "CHF";
+            }
+        }
+        return currency;
+    }
+
 }

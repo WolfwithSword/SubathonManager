@@ -64,11 +64,10 @@ public class EventService: IDisposable
                 }
 
                 if (next == null) continue;
-                bool wasEffective = await ProcessSubathonEvent(next);
+                (bool wasEffective, bool dupeUneeded) = await ProcessSubathonEvent(next);
                 
-                // if (wasEffective)
-                Core.Events.SubathonEvents.RaiseSubathonEventProcessed(next, wasEffective);
-                // also webserver should listen to the timer updated stuff, just like MainWindow does
+                if (!dupeUneeded)
+                    Core.Events.SubathonEvents.RaiseSubathonEventProcessed(next, wasEffective);
             }
         }
         catch (OperationCanceledException ex)
@@ -78,14 +77,14 @@ public class EventService: IDisposable
         }
     }
     
-    public async Task<bool> ProcessSubathonEvent(SubathonEvent ev)
+    public async Task<(bool, bool)> ProcessSubathonEvent(SubathonEvent ev) // effective, dupe-was-processed
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .FirstOrDefaultAsync(s => s.IsActive);
         SubathonEvent? dupeCheck = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s => s.Id == ev.Id 
             && s.Source == ev.Source);
-        if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return false;
+        if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return (false, true);
 
         int initialPoints = subathon?.Points ?? 0;
         if (subathon != null && ev.Source == SubathonEventSource.Command && ev.Command != SubathonCommandType.None)
@@ -155,16 +154,16 @@ public class EventService: IDisposable
                     // string dataStr = $"{parsedAmt}|{durationStr}s|{applyPts}|{applyTime}";
                     string[] data = ev.Value.Split("|");
                     if (!double.TryParse(data[0], out var parsedAmt))
-                        return false;
+                        return (false, false);
                     TimeSpan? duration;
                     if (data[1] == "xs")
                         duration = null;
                     else
                         duration = Utils.ParseDurationString(data[1]);
                     if (!bool.TryParse(data[2], out var applyPts))
-                        return false;
+                        return (false, false);
                     if (!bool.TryParse(data[3], out var applyTime))
-                        return false;
+                        return (false, false);
 
                     ev.Value = $"{ev.Command} {ev.Value}";
                     ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4} WHERE SubathonId = {5}",
@@ -187,7 +186,7 @@ public class EventService: IDisposable
                 db.Add(ev);
                 await db.SaveChangesAsync();
                 await CheckForGoalChange(db, subathon.Points, initialPoints);
-                return true;
+                return (true, false);
             }
         }
         
@@ -203,7 +202,7 @@ public class EventService: IDisposable
             db.Add(ev);
             await db.SaveChangesAsync();
             
-            return false;
+            return (false, false);
         }
         
         ev.SubathonId = subathon.Id;
@@ -219,9 +218,8 @@ public class EventService: IDisposable
                 v.EventType == ev.EventType && (v.Meta == ev.Value || v.Meta == string.Empty));
 
             if (subathonValue == null)
-            {
-                return false;
-            }
+                return (false, false);
+            
         }
 
         if (ev.Source != SubathonEventSource.Command)
@@ -244,6 +242,13 @@ public class EventService: IDisposable
                 ev.SecondsValue = Math.Round(subathonValue!.Seconds * rate, 2);
                 ev.PointsValue = (int) Math.Floor((double) ev.PointsValue! * rate);
             }
+            else if (ev.EventType.IsCurrencyDonation() && string.IsNullOrEmpty(ev.Currency))
+            {
+                ev.PointsValue = 0;
+                ev.SecondsValue = 0;
+                ev.ProcessedToSubathon = false;
+                ev.Currency = "???";
+            }
             else
                 ev.SecondsValue = subathonValue!.Seconds;
         }
@@ -259,7 +264,7 @@ public class EventService: IDisposable
                 "UPDATE SubathonDatas SET Points = Points + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
                 (int) ev.GetFinalPointsValue(), subathon.Id);
 
-        if (ev.PointsValue == 0 && ev.SecondsValue == 0)
+        if (ev.PointsValue == 0 && ev.SecondsValue == 0 && ev.Currency != "???")
         {
             ev.ProcessedToSubathon = true;
         }
@@ -281,7 +286,7 @@ public class EventService: IDisposable
             db.Add(ev);
         
         await db.SaveChangesAsync();
-        return affected > 0 || (ev.ProcessedToSubathon);
+        return (affected > 0 || (ev.ProcessedToSubathon), false);
     }
     
     private static async Task CheckForGoalChange(AppDbContext db, int newPoints, int initialPoints)

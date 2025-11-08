@@ -37,6 +37,9 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        
+        Console.OutputEncoding = System.Text.Encoding.UTF8;/////////////////
+
         var services = new ServiceCollection();
         
         string folder = Path.GetFullPath(Path.Combine(string.Empty, 

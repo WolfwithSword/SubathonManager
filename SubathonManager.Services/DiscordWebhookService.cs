@@ -126,7 +126,7 @@ public class DiscordWebhookService : IDisposable
         if (_eventQueue.IsEmpty) return;
         var sb = new StringBuilder();
         var events = new List<SubathonEvent>();
-        while (_eventQueue.TryDequeue(out var subathonEvent) && events.Count < (_maxMsgPerMinute * 10) )
+        while (events.Count < (_maxMsgPerMinute * 10) && _eventQueue.TryDequeue(out var subathonEvent) )
         {
             events.Add(subathonEvent);
         }
