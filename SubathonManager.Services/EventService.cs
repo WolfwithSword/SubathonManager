@@ -235,19 +235,22 @@ public class EventService: IDisposable
             {
                 ev.SecondsValue = subathonValue!.Seconds;
             }
-            else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency))
+            else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency)
+                     && ev.EventType.IsCurrencyDonation())
             {
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency)).Result;
                 ev.SecondsValue = Math.Round(subathonValue!.Seconds * rate, 2);
                 ev.PointsValue = (int) Math.Floor((double) ev.PointsValue! * rate);
             }
-            else if (ev.EventType.IsCurrencyDonation() && string.IsNullOrEmpty(ev.Currency))
+            else if (ev.EventType.IsCurrencyDonation() && (string.IsNullOrEmpty(ev.Currency) ||
+                                                           !_currencyService.IsValidCurrency(ev.Currency)))
             {
                 ev.PointsValue = 0;
                 ev.SecondsValue = 0;
                 ev.ProcessedToSubathon = false;
-                ev.Currency = "???";
+                if (string.IsNullOrEmpty(ev.Currency))
+                    ev.Currency = "???";
             }
             else
                 ev.SecondsValue = subathonValue!.Seconds;

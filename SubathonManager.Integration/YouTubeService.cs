@@ -100,6 +100,11 @@ public class YouTubeService : IDisposable
         Running = true;
         ChatItem item = e.ChatItem;
 
+        if (item.Timestamp.DateTime.ToLocalTime() <
+            DateTime.Now - TimeSpan.FromMinutes(3)) // only if it's not older than 3 min,
+                                                    // to avoid reparsing old events that had new id's
+            return;
+        
         string user = item.Author.Name.Replace("@", "");
         if (item.Superchat != null)
         {
