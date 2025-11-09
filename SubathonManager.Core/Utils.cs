@@ -64,7 +64,7 @@ public class Utils
         {
             return new TimeSpan(0, 0, 0, int.Parse(input));
         }
-        var regex = new Regex(@"(\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase);
+        var regex = new Regex(@"(\d+d|\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase);
         
         int days = 0, hours = 0, minutes = 0, seconds = 0;
         foreach(Match match in regex.Matches(input))

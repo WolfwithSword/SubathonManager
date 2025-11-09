@@ -108,13 +108,19 @@ public class YouTubeService : IDisposable
         string user = item.Author.Name.Replace("@", "");
         if (item.Superchat != null)
         {
-            string currency =  item.Superchat.Currency.ToUpper().Trim();
+            string currency = item.Superchat.Currency.ToUpper().Trim();
             string raw = item.Superchat.AmountString.Trim();
             if (currency == "USD" && !raw.StartsWith('$')) // Parsed incorrectly
                 currency = Utils.TryParseCurrency(raw);
-            
+
             if (currency == "" || currency == "???")
-                Console.WriteLine($"Unknown currency detected: {user}  - {item.Superchat.AmountString}");
+            {
+                string message = $"Unknown currency detected: From: {user},  {item.Superchat.AmountString}";
+                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventType.YouTubeSuperChat), 
+                    message, item.Timestamp.DateTime.ToLocalTime());
+                Console.WriteLine(message);
+            }
+            
             SubathonEvent subathonEvent = new();
             subathonEvent.User = user;
             subathonEvent.Currency = $"{currency}".Trim().ToUpper();

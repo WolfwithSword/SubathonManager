@@ -1,6 +1,6 @@
 ﻿namespace SubathonManager.Core.Events;
 
-public class StreamElementsEvents
+public static class StreamElementsEvents
 {
     public static event Action<bool>? StreamElementsConnectionChanged;
 

@@ -1,6 +1,6 @@
 ﻿namespace SubathonManager.Core.Events;
 
-public class YouTubeEvents
+public static class YouTubeEvents
 {
     
     public static event Action<bool, string>? YouTubeConnectionUpdated;

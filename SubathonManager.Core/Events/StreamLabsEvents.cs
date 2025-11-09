@@ -1,6 +1,6 @@
 ﻿namespace SubathonManager.Core.Events;
 
-public class StreamLabsEvents
+public static class StreamLabsEvents
 {
     public static event Action<bool>? StreamLabsConnectionChanged;
 
