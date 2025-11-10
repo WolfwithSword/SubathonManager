@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging; 
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Data;
@@ -10,17 +11,15 @@ public partial class SettingsView
 {
     private DateTime? _lastUpdatedTimerAt;
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SettingsView>>();
     public SettingsView()
     {
-        _factory = App.AppServices!.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = AppServices.Provider!.GetRequiredService<IDbContextFactory<AppDbContext>>();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
         YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
         StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
-        
-        if (App.AppVersion.StartsWith("dev"))
-            DataFolderText.Text = $"Data Folder: {Config.DataFolder}";
         
         SEJWTTokenBox.Text = Config.Data["StreamElements"]["JWT"];
         SLTokenBox.Text = Config.Data["StreamLabs"]["SocketToken"];

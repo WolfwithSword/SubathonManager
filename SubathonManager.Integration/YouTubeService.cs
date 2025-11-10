@@ -4,6 +4,7 @@ using YTLiveChat.Contracts.Services;
 using YTLiveChat.Services; 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -19,12 +20,15 @@ public class YouTubeService : IDisposable
     private bool _disposed = false;
     private string? _ytHandle;
     public bool Running;
-    private readonly ILogger<YTLiveChat.Services.YTLiveChat> _chatLogger = NullLogger<YTLiveChat.Services.YTLiveChat>.Instance;
-    private readonly ILogger<YTHttpClient> _httpClientLogger = NullLogger<YTHttpClient>.Instance;
+    private readonly ILogger<YTLiveChat.Services.YTLiveChat> _chatLogger = AppServices.Provider.GetRequiredService<ILogger<YTLiveChat.Services.YTLiveChat>>();
+    //NullLogger<YTLiveChat.Services.YTLiveChat>.Instance;
+    private readonly ILogger<YTHttpClient> _httpClientLogger = AppServices.Provider.GetRequiredService<ILogger<YTHttpClient>>();
+    //NullLogger<YTHttpClient>.Instance;
     
     private CancellationTokenSource? _reconnectCts;
     private Task? _reconnectTask;
     private int _reconnectDelay = 5000;
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<YouTubeService>>();
     
     public YouTubeService()
     {
@@ -54,11 +58,9 @@ public class YouTubeService : IDisposable
         {
             _ytLiveChat.Stop();
         }
-        catch (Exception ex)
-        {
-            //
-        }
-        Console.WriteLine("Begin YouTube Service");
+        catch (Exception ex) { /**/ }
+        
+        _logger?.LogDebug("YouTube service started");
         Running = false;
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, "None");
         
@@ -66,7 +68,7 @@ public class YouTubeService : IDisposable
         if (string.IsNullOrEmpty(_ytHandle))
             return Running;
         if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
-        Console.WriteLine("Youtube Starting for " + _ytHandle);
+        _logger?.LogInformation("Youtube Starting for " + _ytHandle);
         _ytLiveChat.Start(handle: _ytHandle);
         return true;
     }
@@ -75,14 +77,14 @@ public class YouTubeService : IDisposable
     {
         Running = true;
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
-        Console.WriteLine($"Successfully loaded YouTube Live ID: {e.LiveId}");
+        _logger?.LogInformation($"Successfully loaded YouTube Live ID: {e.LiveId}");
         _reconnectCts?.Cancel();
         _reconnectDelay = 5000;
     }
     private void OnChatStopped(object? sender, ChatStoppedEventArgs e)
     {
         Running = false;
-        Console.WriteLine("YT Chat stopped");
+        _logger?.LogWarning("YT Chat stopped");
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
         TryReconnectLoop();
     }
@@ -90,7 +92,7 @@ public class YouTubeService : IDisposable
     private void OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
     {
         Running = false;
-        Console.WriteLine("YT Error Occurred");
+        _logger?.LogWarning(e.GetException(), "YT Error Occurred");
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
         _reconnectDelay = 60 * 1000;
     }
@@ -118,7 +120,7 @@ public class YouTubeService : IDisposable
                 string message = $"Unknown currency detected: From: {user},  {item.Superchat.AmountString}";
                 ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventType.YouTubeSuperChat), 
                     message, item.Timestamp.DateTime.ToLocalTime());
-                Console.WriteLine(message);
+                _logger?.LogWarning(message);
             }
             
             SubathonEvent subathonEvent = new();
@@ -207,7 +209,7 @@ public class YouTubeService : IDisposable
             {
                 try
                 {
-                    Console.WriteLine($"[YT] Attempting reconnect in {_reconnectDelay / 1000}s...");
+                    _logger?.LogDebug($"[YT] Attempting reconnect in {_reconnectDelay / 1000}s...");
                     await Task.Delay(_reconnectDelay, token);
 
                     if (string.IsNullOrEmpty(_ytHandle))
@@ -222,11 +224,11 @@ public class YouTubeService : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Reconnect attempt failed: {ex.Message}");
+                    _logger?.LogWarning($"Reconnect attempt failed: {ex.Message}");
                 }
             }
 
-            Console.WriteLine("Reconnect loop ended.");
+            _logger?.LogDebug("Reconnect loop ended.");
         }, token);
     }
     
@@ -260,10 +262,7 @@ public class YouTubeService : IDisposable
     public static void SimulateSuperChat(string value = "10.00", string currency = "USD")
     {
         if (!double.TryParse(value, out var val))
-        {
-            Console.WriteLine($"Invalid value for simulated tip. {value}");
             return;
-        }
 
         SubathonEvent subathonEvent = new SubathonEvent
         {

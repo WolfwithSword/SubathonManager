@@ -1,4 +1,6 @@
 ﻿using StreamElementsNET;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -13,6 +15,8 @@ public class StreamElementsService
     public bool Connected { get; private set; } = false;
     private string _jwtToken = "";
     private bool _hasAuthError = false;
+    
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamElementsService>>();
     
     public bool InitClient()
     {
@@ -57,12 +61,11 @@ public class StreamElementsService
 
     private void _OnConnected(object? sender, EventArgs e)
     {
-        Console.WriteLine($"StreamElementsService Connected");
-        // StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
+        _logger?.LogInformation("StreamElementsService Connected");
     }
     private void _OnDisconnected(object? sender, EventArgs e)
     {
-        Console.WriteLine($"StreamElementsService Disconnected");
+        _logger?.LogWarning($"StreamElementsService Disconnected");
         Connected = false;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
         if (!_hasAuthError)
@@ -80,7 +83,7 @@ public class StreamElementsService
 
     private void _OnAuthenticated(object? sender,  StreamElementsNET.Models.Internal.Authenticated e)
     {
-        Console.WriteLine($"StreamElementsService Authenticated");
+        _logger?.LogDebug($"StreamElementsService Authenticated");
         Connected = true;
         _hasAuthError = false;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
@@ -88,7 +91,7 @@ public class StreamElementsService
 
     private void _OnAuthenticateError(object? sender, EventArgs e)
     {
-        Console.WriteLine($"StreamElementsService Authentication Error");
+        _logger?.LogError($"StreamElementsService Authentication Error");
         Connected = false;
         _hasAuthError = true;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
@@ -106,7 +109,6 @@ public class StreamElementsService
             subathonEvent.Id = tipGuid;
         
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-        // Console.WriteLine($"SE Tip: {e.Amount} {e.Currency} {e.Username} {e.TipId}");
     }
 
     public void Disconnect()
@@ -124,17 +126,14 @@ public class StreamElementsService
         }
         catch (Exception ex)
         {
-            //
+            _logger?.LogWarning(ex, "StreamElementsService Disconnection Error");
         }
     }
 
     public static void SimulateTip(string value = "10.00", string currency = "USD")
     {
         if (!double.TryParse(value, out var val))
-        {
-            Console.WriteLine($"Invalid value for simulated tip. {value}");
             return;
-        }
 
         SubathonEvent subathonEvent = new();
         subathonEvent.User = "SYSTEM";

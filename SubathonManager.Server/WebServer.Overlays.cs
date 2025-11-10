@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 
@@ -17,7 +18,7 @@ public partial class WebServer
             if (!_servedFolders.Contains(folder))
             {
                 _servedFolders.Add(folder);
-                Console.WriteLine($"Registered static folder: {folder}");
+                _logger?.LogInformation($"Registered static folder: {folder}");
             }
         }
     }
@@ -105,7 +106,7 @@ public partial class WebServer
                         
                     var query = ctx.Request.Url!.Query.TrimStart('?');
                     var queryString = System.Web.HttpUtility.ParseQueryString(query);
-                    bool isEditor = queryString["edit"] != null && queryString["edit"].Equals("true");
+                    bool isEditor = queryString["edit"] != null && queryString["edit"]!.Equals("true");
             
                     string html = GenerateMergedPage(route, isEditor);
                     ctx.Response.ContentType = "text/html";

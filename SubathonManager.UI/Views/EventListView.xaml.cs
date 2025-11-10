@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
+using SubathonManager.Core;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
@@ -18,7 +19,7 @@ namespace SubathonManager.UI.Views
 
         public EventListView()
         {
-            _factory = App.AppServices!.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            _factory = AppServices.Provider!.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             EventListPanel.ItemsSource = EventItems;
             LoadRecentEvents();
@@ -97,7 +98,7 @@ namespace SubathonManager.UI.Views
                     };
                     
                     using var db = _factory.CreateDbContext();
-                    App.AppEventService.DeleteSubathonEvent(db, ev);
+                    App.AppEventService?.DeleteSubathonEvent(db, ev);
                     SubathonEvents.RaiseSubathonEventCreated(newEv);
                 });;
             }
@@ -111,7 +112,7 @@ namespace SubathonManager.UI.Views
                 {
                     
                     using var db = _factory.CreateDbContext();
-                    App.AppEventService.DeleteSubathonEvent(db, ev);
+                    App.AppEventService?.DeleteSubathonEvent(db, ev);
                 });
             }
         }

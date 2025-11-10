@@ -1,4 +1,6 @@
 ﻿using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 
 namespace SubathonManager.Services;
@@ -18,6 +20,8 @@ public class CurrencyService
         , "data/currency"));
 
     private string _currencyFile;
+    
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<CurrencyService>>();
 
     public CurrencyService()
     {
@@ -38,7 +42,7 @@ public class CurrencyService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to load cached rates: {ex.Message}");
+                _logger?.LogError(ex, "Failed to load cached rates from file");
             }
         }
         if (IsExpired())
@@ -49,7 +53,7 @@ public class CurrencyService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to fetch new rates: {ex.Message}");
+                _logger?.LogError(ex, "Failed to fetch new rates");
             }
         }
         
@@ -140,7 +144,7 @@ public class CurrencyService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"failed to refresh rates ({ex.Message}), using cached data.");
+                _logger?.LogWarning(ex, "Failed to refresh rates, using cached data");
             }
         }
 

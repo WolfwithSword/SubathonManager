@@ -4,8 +4,10 @@ using System.Windows;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Core;
 using SubathonManager.Data;
 using Wpf.Ui.Controls;
 
@@ -20,10 +22,11 @@ public partial class EditRouteWindow
     private Widget? _selectedWidget;
     private ObservableCollection<CssVariable> _editingCssVars = new();
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     
     public EditRouteWindow(Guid routeId)
     {
-        _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         _routeId = routeId;
         WidgetsList.ItemsSource = _widgets;
@@ -96,7 +99,7 @@ public partial class EditRouteWindow
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"WebView2 failed: {ex.Message}");
+            _logger?.LogError(ex, $"WebView 2 failed to load: {ex.Message}");
         }
         UpdateWebViewScale();
     }
@@ -482,6 +485,4 @@ public partial class EditRouteWindow
         Loaded -= EditRouteWindow_Loaded;
         base.OnClosed(e);
     }
-
-
 }

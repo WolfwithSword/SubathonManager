@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -21,6 +23,27 @@ namespace SubathonManager.UI.Views
             SimulateSLCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
             SimulateSCCurrencyBox.ItemsSource = currencies;
             SimulateSCCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
+        }
+        
+        
+        private async void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Config.DataFolder,
+                    UseShellExecute = true,
+                    Verb = "open"
+                });
+            } catch {/**/}
+        }
+        
+        
+        private async void ExportEvents_Click(object sender, RoutedEventArgs e)
+        {
+            await using var db = await _factory.CreateDbContextAsync();
+            await AppDbContext.ActiveEventsToCsv(db);
         }
         
         private void InitCommandSettings()
@@ -289,15 +312,15 @@ namespace SubathonManager.UI.Views
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex); //
+                    _logger?.LogError(ex, "Error in Twitch connection");
                 }
 
                 await App.AppTwitchService!.InitializeAsync();
-                Console.WriteLine("Twitch connection established");
+                _logger?.LogInformation("Twitch connection established");
             }
-            catch
+            catch (Exception ex)
             {
-                Console.WriteLine("Failed to initialize twitch service.");
+                _logger?.LogError(ex, "Failed to initialize TwitchService");
             }
         }
 
@@ -318,9 +341,9 @@ namespace SubathonManager.UI.Views
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                Console.WriteLine("Failed to initialize streamelements service."); 
+                _logger?.LogError(ex, "Failed to initialize StreamElements Service");
             }
         }
         
@@ -341,9 +364,9 @@ namespace SubathonManager.UI.Views
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                Console.WriteLine("Failed to initialize streamelements service."); 
+                _logger?.LogError(ex, "Failed to initialize StreamLabs Service");
             }
         }
         
@@ -451,10 +474,6 @@ namespace SubathonManager.UI.Views
         {
             using var db = _factory.CreateDbContext();
 
-            // one minor possible issue
-            // TODO UI will show these values even if not saved, so maybe have a textblock *after* each for "Current Value"?
-            // reduce confusion for which values are active
-            // also TODO: Add a "simulate" button next to each, which will simulate textbox value and type Simulated Event
 
             var values = db.SubathonValues.ToList();
             foreach (var val in values)

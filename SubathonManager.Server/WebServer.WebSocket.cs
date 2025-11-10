@@ -2,7 +2,8 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore; 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
@@ -177,7 +178,7 @@ public partial class WebServer
         lock (_lock)
             _clients.Add(socket);
         
-        Console.WriteLine("[WebSocket] Client connected.");
+        _logger?.LogDebug("New WebSocket Client Connected");
         await InitConnection(socket);
         
         try
@@ -189,7 +190,7 @@ public partial class WebServer
             lock (_lock)
                 _clients.Remove(socket);
 
-            Console.WriteLine("[WebSocket] Client disconnected.");
+            _logger?.LogDebug("WebSocket Client Disconnected");
         }
 
         return true;
@@ -228,15 +229,14 @@ public partial class WebServer
                             }
                             break;
                         case "hello":
-                            Console.WriteLine(
-                                $"[WebSocket] Hello from {json.RootElement.GetProperty("origin").GetString()}");
+                            _logger?.LogDebug($"[WebSocket] Hello from {json.RootElement.GetProperty("origin").GetString()}");
                             break;
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                _logger?.LogError(ex, ex.Message);
             }
         }
     }
