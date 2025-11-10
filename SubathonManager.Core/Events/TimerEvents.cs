@@ -1,6 +1,6 @@
 ﻿namespace SubathonManager.Core.Events;
 
-public class TimerEvents
+public static class TimerEvents
 {
     public static event Action<TimeSpan>? TimerTickEvent;
     

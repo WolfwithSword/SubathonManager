@@ -29,6 +29,7 @@ public class DiscordWebhookService : IDisposable
         LoadFromConfig();
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
+        ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
         _backgroundTask = Task.Run(ProcessQueueAsync);
     }
 
@@ -95,7 +96,7 @@ public class DiscordWebhookService : IDisposable
             };
 
             Task.Run(() =>
-                SendWebhookAsync(payload)
+                SendWebhookAsync(payload, _eventWebhookUrl)
             );
         }
     }
@@ -126,7 +127,7 @@ public class DiscordWebhookService : IDisposable
         if (_eventQueue.IsEmpty) return;
         var sb = new StringBuilder();
         var events = new List<SubathonEvent>();
-        while (_eventQueue.TryDequeue(out var subathonEvent) && events.Count < (_maxMsgPerMinute * 10) )
+        while (events.Count < (_maxMsgPerMinute * 10) && _eventQueue.TryDequeue(out var subathonEvent) )
         {
             events.Add(subathonEvent);
         }
@@ -154,7 +155,7 @@ public class DiscordWebhookService : IDisposable
                 embeds
             };
 
-            await SendWebhookAsync(payload);
+            await SendWebhookAsync(payload, _eventWebhookUrl);
             await Task.Delay(1500, _cts.Token);
         }
     }
@@ -199,15 +200,16 @@ public class DiscordWebhookService : IDisposable
         return sb.ToString();
     }
     
-    private async Task SendWebhookAsync(object payload)
+    private async Task SendWebhookAsync(object payload, string? url)
     {
+        if (string.IsNullOrEmpty(url)) return;
         try
         {
             using var http = new HttpClient();
             var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await http.PostAsync(_eventWebhookUrl, content, _cts.Token);
+            var response = await http.PostAsync(url, content, _cts.Token);
             if (!response.IsSuccessStatusCode)
             {
                 Console.WriteLine($"[DiscordWebhookService] Webhook failed: {response.StatusCode}");
@@ -233,6 +235,34 @@ public class DiscordWebhookService : IDisposable
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
         _cts.Dispose();
     }
+
+    public void SendErrorEvent(string level, string source, string message, DateTime time)
+    {
+        if (string.IsNullOrEmpty(_webhookUrl)) return;
+        try
+        {
+            var payload = new
+            {
+                username = "Subathon Manager",
+                embeds = new[]
+                {
+                    new
+                    {
+                        title = $"{level}",
+                        description = $"**{source}**\n{message}",
+                        color = level == "WARN" ? 0xFF7B00 : (level == "ERROR" ? 0xDE360D : 0xE3E3E3 ),
+                        timestamp = time.ToString("o")
+                    }
+                }
+            };
+
+            Task.Run(async () => { await SendWebhookAsync(payload, _webhookUrl); });
+        }
+        catch (Exception sendEx)
+        {
+            Console.WriteLine($"[DiscordWebhookService] Failed to send error log: {sendEx.Message}");
+        }
+    }
     
     public async Task SendErrorLogAsync(string message, Exception? ex = null)
     {
@@ -254,7 +284,7 @@ public class DiscordWebhookService : IDisposable
                 }
             };
 
-            await SendWebhookAsync(payload);
+            await SendWebhookAsync(payload, _webhookUrl);
         }
         catch (Exception sendEx)
         {

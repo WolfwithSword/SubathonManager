@@ -1,6 +1,6 @@
 ﻿namespace SubathonManager.Core.Events;
 
-public class WebServerEvents
+public static class WebServerEvents
 {
     public static event Action<bool>? WebServerStatusChanged;
     
