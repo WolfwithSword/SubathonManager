@@ -7,7 +7,6 @@
     --text-color: #8C46ED;
     --event-glow: rgba(180,50,240,0.45);
     --glow-color: #494475;
-    --tem4: 2;
 }
 
 .event-card {
@@ -88,6 +87,7 @@
   width: 80%;
   max-width: 80%;
   line-height: 1.2;
+  max-height: 42px; /*62px*/
   overflow: hidden;
 }
 
