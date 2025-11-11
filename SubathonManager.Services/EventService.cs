@@ -278,9 +278,9 @@ public class EventService: IDisposable
         if (affected > 0)
         {
             ev.ProcessedToSubathon = true;
-            await CheckForGoalChange(db, subathon.Points, initialPoints);
             await db.Entry(subathon.Multiplier).ReloadAsync();
             await db.Entry(subathon).ReloadAsync();
+            await CheckForGoalChange(db, subathon.Points, initialPoints);
             db.Entry(subathon).State = EntityState.Detached;
             db.Entry(subathon.Multiplier).State = EntityState.Detached;
             Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon!, DateTime.Now);
@@ -311,7 +311,7 @@ public class EventService: IDisposable
                 SubathonGoal? prevCompletedGoal2 = goalSet.Goals
                     .OrderByDescending(g => g.Points)
                     .FirstOrDefault(g => g.Points <= newPoints);
-
+                
                 if (prevCompletedGoal2 != null &&
                     prevCompletedGoal1?.Id != prevCompletedGoal2.Id)
                 {

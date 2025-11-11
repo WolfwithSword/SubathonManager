@@ -35,11 +35,11 @@
                 <TextBlock Text="Name" FontSize="12" />
                 <TextBox x:Name="RouteNameBox" Margin="0,4,0,8"/>
                 <StackPanel Orientation="Horizontal">
-                    <StackPanel>
+                    <StackPanel Margin="0 2 2 2">
                         <TextBlock Text="Width" FontSize="12"/>
                         <TextBox x:Name="RouteWidthBox" Width="120" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                     </StackPanel>
-                    <StackPanel>
+                    <StackPanel Margin="2 2 0 2">
                         <TextBlock Text="Height" FontSize="12"/>
                         <TextBox x:Name="RouteHeightBox" Width="120" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                     </StackPanel>

@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using SubathonManager.Core.Events;
 using SubathonManager.Data;
 
 namespace SubathonManager.Server;
@@ -9,8 +10,24 @@ public partial class WebServer
 {
     private async Task<bool> HandleApiReqeustAsync(HttpListenerContext ctx, string path)
     {
-        // todo, double click send event to set new widget in editor ui if in edit mode
-        if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
+        if (path.StartsWith("/api/select/", StringComparison.OrdinalIgnoreCase))
+        {                    
+            ctx.Response.StatusCode = 200;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("OK"));
+            ctx.Response.Close(); // fast close request, just a GET
+            var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 3)
+            {
+                string widgetId = parts[2];
+                if (Guid.TryParse(widgetId, out var widgetGuid))
+                {
+                    WidgetEvents.RaiseSelectEditorWidget(widgetGuid);
+                    return true;
+                }
+            }
+            return false;
+        }
+        else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
         {
             var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
@@ -50,6 +67,9 @@ public partial class WebServer
             ctx.Response.Close();
             return true;
         }
+        ctx.Response.StatusCode = 400;
+        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid API Request"));
+        ctx.Response.Close();
         return false;
     }
 }

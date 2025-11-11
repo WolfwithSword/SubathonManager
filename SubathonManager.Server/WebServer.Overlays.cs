@@ -154,6 +154,10 @@ public partial class WebServer
                     position: absolute;
                     pointer-events: auto; 
                     background: rgba(0,0,0,0); 
+                    user-select: none; 
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
                 }}
 
                 .widget-wrapper iframe {{
@@ -258,14 +262,18 @@ public partial class WebServer
                 let isDragging = false;
                 let offsetX = 0, offsetY = 0;
 
-                wrapper.addEventListener('mousedown', e => {
+                wrapper.addEventListener('mousedown', async e => {
                     isDragging = true;
                     offsetX = e.clientX - wrapper.offsetLeft;
                     offsetY = e.clientY - wrapper.offsetTop;
 
                     const maxZ = Math.max(...[...document.querySelectorAll('.widget-wrapper')]
                         .map(w => parseInt(w.style.zIndex) || 0));
-                    //wrapper.style.zIndex = maxZ + 1;
+
+                    const id = wrapper.dataset.id;
+                    await fetch(`/api/select/${id}`, {
+                        method: 'GET'
+                    });
                     e.preventDefault();
                 });
 

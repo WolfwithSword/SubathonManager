@@ -46,71 +46,80 @@ public partial class SettingsView
         InitCurrencySelects();
     }
 
+    private async void GoToHelp_Click(object sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://github.com/WolfwithSword/SubathonManager/wiki",
+            UseShellExecute = true
+        });
+    }
+
     private async void Updater_Click(object sender, RoutedEventArgs e)
     {
-            (bool hasUpdate, string? newVersion, string? url) = await AppServices.CheckForUpdate(_logger);
-            if (hasUpdate && !string.IsNullOrEmpty(newVersion))
+        (bool hasUpdate, string? newVersion, string? url) = await AppServices.CheckForUpdate(_logger);
+        if (hasUpdate && !string.IsNullOrEmpty(newVersion))
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox();
+            msgBox.Title = "Updater";
+            
+            var textBlock = new System.Windows.Controls.TextBlock
             {
-                var msgBox = new Wpf.Ui.Controls.MessageBox();
-                msgBox.Title = "Updater";
-                
-                var textBlock = new System.Windows.Controls.TextBlock
+                TextWrapping = TextWrapping.Wrap,
+                Width = 320
+            };
+
+            textBlock.Inlines.Add("Update available!");
+            textBlock.Inlines.Add(newVersion);
+
+            if (!string.IsNullOrEmpty(url))
+            {
+                var link = new Hyperlink(new Run("Latest Version"))
                 {
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = 320
+                    NavigateUri = new Uri(url)
                 };
 
-                textBlock.Inlines.Add("Update available!");
-                textBlock.Inlines.Add(newVersion);
-
-                if (!string.IsNullOrEmpty(url))
+                link.RequestNavigate += (_, e) =>
                 {
-                    var link = new Hyperlink(new Run("Latest Version"))
+                    Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
                     {
-                        NavigateUri = new Uri(url)
-                    };
+                        UseShellExecute = true
+                    });
+                    e.Handled = true;
+                };
 
-                    link.RequestNavigate += (_, e) =>
-                    {
-                        Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
-                        {
-                            UseShellExecute = true
-                        });
-                        e.Handled = true;
-                    };
-
-                    textBlock.Inlines.Add(link);
-                }
-
-                textBlock.Inlines.Add("Download and install now?");
-
-                msgBox.Content = textBlock;
-                msgBox.CloseButtonText = "Cancel";
-                msgBox.Owner = Application.Current.Windows
-                    .OfType<Window>()
-                    .FirstOrDefault(w => w.IsActive);
-                msgBox.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-                msgBox.PrimaryButtonText = "Update";
-                var result = await msgBox.ShowDialogAsync();
-                bool confirm = result == Wpf.Ui.Controls.MessageBoxResult.Primary;
-                if (!confirm) return;
-                
-                await AppServices.DownloadAndInstall(_logger);
+                textBlock.Inlines.Add(link);
             }
-            else
-            {
-                await Dispatcher.InvokeAsync(() => 
-                    { 
-                        UpdateBtn.Content = "No Updates Found";
-                    } 
-                );
-                await Task.Delay(5000);
-                await Dispatcher.InvokeAsync(() => 
-                    { 
-                        UpdateBtn.Content = "Check for Updates";
-                    } 
-                );
-                
-            }
+
+            textBlock.Inlines.Add("Download and install now?");
+
+            msgBox.Content = textBlock;
+            msgBox.CloseButtonText = "Cancel";
+            msgBox.Owner = Application.Current.Windows
+                .OfType<Window>()
+                .FirstOrDefault(w => w.IsActive);
+            msgBox.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            msgBox.PrimaryButtonText = "Update";
+            var result = await msgBox.ShowDialogAsync();
+            bool confirm = result == Wpf.Ui.Controls.MessageBoxResult.Primary;
+            if (!confirm) return;
+            
+            await AppServices.DownloadAndInstall(_logger);
+        }
+        else
+        {
+            await Dispatcher.InvokeAsync(() => 
+                { 
+                    UpdateBtn.Content = "No Updates Found";
+                } 
+            );
+            await Task.Delay(5000);
+            await Dispatcher.InvokeAsync(() => 
+                { 
+                    UpdateBtn.Content = "Check for Updates";
+                } 
+            );
+            
+        }
     }
 }

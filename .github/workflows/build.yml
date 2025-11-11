@@ -146,7 +146,7 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v5
         with:
-          name: SubathonManager-${{steps.vars.outputs.version}}
+          name: SubathonManager-${{env.RUNTIME}}-${{steps.vars.outputs.version}}
           path: build/
 
       - name: Zip release files
