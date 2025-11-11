@@ -15,7 +15,6 @@ namespace SubathonManager.UI;
 
 public partial class EditRouteWindow
 {
-    // todo unpopulate widget on delete. fix ui in general
     private readonly Guid _routeId;
     private Route? _route;
     private ObservableCollection<Widget> _widgets = new();
@@ -40,6 +39,7 @@ public partial class EditRouteWindow
         PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
         await LoadRouteAsync();
         WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
+        WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
     }
     
     private void OnWidgetPositionUpdated(Widget updatedWidget)
@@ -166,6 +166,8 @@ public partial class EditRouteWindow
         await RefreshWidgetZIndicesAsync();
         RefreshWebView();
         OverlayEvents.RaiseOverlayRefreshRequested(routeId);
+        if (wi.Id == _selectedWidget?.Id)
+            PopulateWidgetEditor(null);
     }
 
     private async void CopyWidget_Click(object sender, RoutedEventArgs e)
@@ -238,6 +240,18 @@ public partial class EditRouteWindow
         _widgets.Move(idx, idx + 1);
     }
 
+    private void SelectWidgetFromEvent(Guid widgetId)
+    {
+        if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
+        using var db = _factory.CreateDbContext();
+        var widget = db.Widgets.FirstOrDefault(wX => wX.Id == widgetId);
+        
+        Dispatcher.Invoke(() =>
+        {
+            PopulateWidgetEditor(widget);
+        });
+    }
+
     private void EditWidget_Click(object sender, RoutedEventArgs e)
     {    
         var widget = GetWidgetFromSender(sender);
@@ -254,8 +268,16 @@ public partial class EditRouteWindow
     }
     
     
-    private void PopulateWidgetEditor(Widget widget)
+    private void PopulateWidgetEditor(Widget? widget)
     {
+        if (widget == null)
+        {
+            WidgetEditPanel.Visibility = Visibility.Collapsed;
+            EmptyEditorPanel.Visibility = Visibility.Visible;
+            _editingCssVars = new ObservableCollection<CssVariable>();
+            _selectedWidget = null;
+            return;
+        }
         
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
         using var db = _factory.CreateDbContext();
@@ -481,6 +503,7 @@ public partial class EditRouteWindow
             PreviewWebView.Dispose();
         }
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
+        WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
         WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
         Loaded -= EditRouteWindow_Loaded;
         base.OnClosed(e);
