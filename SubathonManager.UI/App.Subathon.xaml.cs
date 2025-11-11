@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
+using SubathonManager.Core;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI;
@@ -10,7 +11,7 @@ public partial class App
     
     public static async void InitSubathonTimer()
     {
-        var factory = AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         await using var db =  await factory.CreateDbContextAsync();
         var subathon = await db.SubathonDatas.AsNoTracking().SingleOrDefaultAsync(x => x.IsActive);
         if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
@@ -18,7 +19,7 @@ public partial class App
 
     private async void SetPowerHour(double value, TimeSpan? duration, bool applySeconds, bool applyPoints)
     {
-        await AppDbContext.ResetPowerHour(await _factory.CreateDbContextAsync());
+        await AppDbContext.ResetPowerHour(await _factory!.CreateDbContextAsync());
         
         await using var db =  await _factory.CreateDbContextAsync();
         
@@ -38,7 +39,7 @@ public partial class App
     
     private async void UpdateSubathonTimers(TimeSpan time)
     {
-        await using var db = await _factory.CreateDbContextAsync();
+        await using var db = await _factory!.CreateDbContextAsync();
         await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed > 0", 
             time.TotalMilliseconds);
         

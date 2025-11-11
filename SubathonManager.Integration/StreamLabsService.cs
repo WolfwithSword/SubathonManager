@@ -1,7 +1,8 @@
 ﻿using Streamlabs.SocketClient;
 using Streamlabs.SocketClient.Messages;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -11,10 +12,11 @@ namespace SubathonManager.Integration;
 
 public class StreamLabsService
 {
-    // TODO logger
     private StreamlabsClient? _client;
     private string _secretToken = "";
     public bool Connected { get; private set; } = false;
+    
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamLabsService>>();
     
     public async Task<bool> InitClientAsync()
     {   
@@ -29,7 +31,7 @@ public class StreamLabsService
         
         if (_client != null) await DisconnectAsync();
         
-        _client = new StreamlabsClient(NullLogger<StreamlabsClient>.Instance, options);
+        _client = new StreamlabsClient(AppServices.Provider.GetRequiredService<ILogger<StreamlabsClient>>(), options);
         _client.OnDonation += OnDonation;
         await _client.ConnectAsync();
         Connected = true;
@@ -62,7 +64,6 @@ public class StreamLabsService
         subathonEvent.Value = $"{message.Amount}";
         subathonEvent.Source = SubathonEventSource.StreamLabs;
         subathonEvent.EventType = SubathonEventType.StreamLabsDonation;
-        // Console.WriteLine(message.MessageId);
         if (Guid.TryParse(message.MessageId, out var tipGuid))
             subathonEvent.Id = tipGuid;
         
@@ -72,18 +73,16 @@ public class StreamLabsService
     public static void SimulateTip(string value = "10.00", string currency = "USD")
     {
         if (!double.TryParse(value, out var val))
-        {
-            Console.WriteLine($"Invalid value for simulated tip. {value}");
             return;
-        }
 
-        SubathonEvent subathonEvent = new();
-        subathonEvent.User = "SYSTEM";
-        subathonEvent.Currency = currency;
-        
-        subathonEvent.Value = value; // TODO verify format, must be parsable as a double
-        subathonEvent.Source = SubathonEventSource.Simulated;
-        subathonEvent.EventType = SubathonEventType.StreamLabsDonation;
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            User = "SYSTEM",
+            Currency = currency,
+            Value = value,
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.StreamLabsDonation
+        };
         
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
@@ -96,5 +95,6 @@ public class StreamLabsService
         _client.OnDonation -= OnDonation;
         await _client.DisconnectAsync();
         StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
+        _logger?.LogInformation("StreamLabsService Disconnected");
     }
 }

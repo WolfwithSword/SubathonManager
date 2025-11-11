@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Core;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
@@ -15,7 +16,7 @@ namespace SubathonManager.UI.Views
 
         public GoalsEditor()
         {
-            _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             LoadActiveGoalSet();
             SubathonEvents.SubathonDataUpdate += UpdatePointsCount;

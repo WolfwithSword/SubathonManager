@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -21,6 +23,8 @@ public class DiscordWebhookService : IDisposable
 
     private List<SubathonEventType> _auditEventTypes = new();
     private bool _doSimulatedEvents = false;
+    
+    private readonly ILogger? _logger =  AppServices.Provider.GetRequiredService<ILogger<DiscordWebhookService>>();
 
     // todo handle rate limite and retry_after
     // todo listener for errors
@@ -113,12 +117,11 @@ public class DiscordWebhookService : IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            //
+            _logger?.LogError(ex, ex.Message);
         }
         catch (Exception ex)
         {
-            //
-            Console.WriteLine(ex);
+            _logger?.LogError(ex, ex.Message);
         }
     }
 
@@ -212,12 +215,12 @@ public class DiscordWebhookService : IDisposable
             var response = await http.PostAsync(url, content, _cts.Token);
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"[DiscordWebhookService] Webhook failed: {response.StatusCode}");
+                _logger?.LogError($"Webhook failed: {response.StatusCode}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DiscordWebhookService] Exception: {ex.Message}");
+            _logger?.LogError(ex, ex.Message);
         }
     }
 
@@ -258,9 +261,9 @@ public class DiscordWebhookService : IDisposable
 
             Task.Run(async () => { await SendWebhookAsync(payload, _webhookUrl); });
         }
-        catch (Exception sendEx)
+        catch (Exception ex)
         {
-            Console.WriteLine($"[DiscordWebhookService] Failed to send error log: {sendEx.Message}");
+            _logger?.LogError(ex, $"Failed to send webhook log: {ex.Message}");
         }
     }
     
@@ -286,9 +289,9 @@ public class DiscordWebhookService : IDisposable
 
             await SendWebhookAsync(payload, _webhookUrl);
         }
-        catch (Exception sendEx)
+        catch (Exception ex2)
         {
-            Console.WriteLine($"[DiscordWebhookService] Failed to send error log: {sendEx.Message}");
+            _logger?.LogError(ex2, $"Failed to send webhook log: {ex2.Message}");
         }
     }
     

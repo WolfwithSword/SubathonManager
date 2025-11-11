@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
+using SubathonManager.Core;
 
 namespace SubathonManager.UI
 {
@@ -17,7 +18,7 @@ namespace SubathonManager.UI
         public ObservableCollection<Route> Overlays { get; set; } = new();
         public MainWindow()
         {
-            _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             ApplicationThemeManager.Apply(this);
 

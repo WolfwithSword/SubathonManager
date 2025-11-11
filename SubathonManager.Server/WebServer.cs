@@ -1,8 +1,10 @@
 ﻿using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Data;
+using SubathonManager.Core;
 using SubathonManager.Core.Events;
 
 namespace SubathonManager.Server;
@@ -15,6 +17,7 @@ public partial class WebServer
     public bool Running { get; private set; }
     
     private readonly HashSet<string> _servedFolders = new();
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
     
     public WebServer(IDbContextFactory<AppDbContext> factory ,int port = 14040)
     {
@@ -24,7 +27,7 @@ public partial class WebServer
             var routes = db.Routes.ToList();
             if (routes.Count == 0)
             {
-                Console.WriteLine("No routes found.");
+                _logger?.LogDebug("No routes found");
             }
             else {
                 foreach (var route in routes)
@@ -44,7 +47,7 @@ public partial class WebServer
     {
         Running = true;
         _listener.Start();
-        Console.WriteLine($"WebServer running at http://localhost:{Port}/");
+        _logger?.LogInformation($"WebServer running at http://localhost:{Port}/");
         WebServerEvents.RaiseWebServerStatusChange(Running);
         while (Running)
         {
@@ -53,13 +56,14 @@ public partial class WebServer
                 var context = await _listener.GetContextAsync();
                 _ = Task.Run(() => HandleRequestAsync(context));
             }
-            catch (HttpListenerException)
+            catch (HttpListenerException ex)
             {
+                _logger?.LogError(ex, $"WebServer Error: {ex.Message}");
                 break;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Server Error] {ex.Message}");
+                _logger?.LogError(ex, $"WebServer Error: {ex.Message}");
             }
         }
     }
@@ -72,9 +76,9 @@ public partial class WebServer
             _listener.Stop();
             StopWebsocketServer();
         }
-        catch
+        catch (Exception ex)
         {
-            //
+            _logger?.LogWarning(ex, "WebServer Error on Stopping");
         }
         finally
         {
@@ -86,7 +90,7 @@ public partial class WebServer
     {
         string path = ctx.Request.Url?.AbsolutePath ?? "/";
         if (path != "/ws")
-            Console.WriteLine($"Request: {path}");
+            _logger?.LogDebug($"Request: {path}");
 
         if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
         {

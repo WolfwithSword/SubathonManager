@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
+using SubathonManager.Core;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Views;
@@ -18,7 +19,7 @@ public partial class GoalsView
 
     public GoalsView()
     {
-        _factory = App.AppServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         LoadGoals();
         SubathonEvents.SubathonDataUpdate += OnSubathonUpdate;

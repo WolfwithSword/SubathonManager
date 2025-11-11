@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Core;
@@ -15,6 +17,7 @@ public class EventService: IDisposable
     private readonly object _lock = new();
     private Task? _processingTask;
     private CurrencyService _currencyService = new();
+    private readonly ILogger<EventService> _logger = AppServices.Provider.GetRequiredService<ILogger<EventService>>();
 
     public EventService(IDbContextFactory<AppDbContext> factory)
     {
@@ -22,9 +25,10 @@ public class EventService: IDisposable
         Core.Events.SubathonEvents.SubathonEventCreated += AddSubathonEvent;
         _processingTask = Task.Run(LoopAsync);
         _processingTask.ContinueWith(t => 
-                Console.WriteLine($"Event loop crashed: {t.Exception}"), 
+                _logger?.LogError($"Event loop crashed: {t.Exception}", t.Exception), 
             TaskContinuationOptions.OnlyOnFaulted);
         Task.Run(() =>_currencyService.StartAsync());
+        _logger?.LogInformation("EventService started");
     }
 
     public List<string> ValidEventCurrencies()
@@ -72,8 +76,7 @@ public class EventService: IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            Console.WriteLine(ex.Message);
-            // TODO
+            _logger.LogError($"Error in Event Loop: {ex.Message}", ex);
         }
     }
     
@@ -378,7 +381,6 @@ public class EventService: IDisposable
                     if (prevCompletedGoal1 != null && prevCompletedGoal2 != null &&
                         prevCompletedGoal1.Id != prevCompletedGoal2.Id)
                     {
-                        // TODO test if goalcompleted works separately
                         // the else is for if we undid stuff
                         if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
                             Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);
@@ -455,7 +457,7 @@ public class EventService: IDisposable
                     if (prevCompletedGoal1 != null && prevCompletedGoal2 != null &&
                         prevCompletedGoal1.Id != prevCompletedGoal2.Id)
                     {
-                        // TODO test if goalcompleted works separately
+
                         // the else is for if we undid stuff
                         if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
                             Core.Events.SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, subathon.Points);

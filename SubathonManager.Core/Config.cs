@@ -22,7 +22,6 @@ namespace SubathonManager.Core
                 "data"));
             Directory.CreateDirectory(folder);
             
-            // TODO impl logger
             Console.WriteLine($"[Config] Checking config at {ConfigPath}");
             var dir = Path.GetDirectoryName(ConfigPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))

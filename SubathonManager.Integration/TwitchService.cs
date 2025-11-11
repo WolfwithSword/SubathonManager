@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
 using TwitchLib.Client;
@@ -21,10 +23,11 @@ public class TwitchService
     private TwitchAPI? _api = null!;
     private TwitchClient? _chat = null!;
     private EventSubWebsocketClient? _eventSub = null!;
+    
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<TwitchService>>();
 
     private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
         , "data/twitch_token.json"));
-    // Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "twitch_token.json");
 
     public string? AccessToken { get; private set; }
     public string? UserName { get; private set; } = string.Empty;
@@ -32,8 +35,6 @@ public class TwitchService
 
     public TwitchService()
     {
-        //int port = int.Parse(Config.Data["Server"]["Port"]);
-        //port += 1;
         int port = 14041; // hardcode cause of app callback url
         _callbackUrl = $"http://localhost:{port}/auth/twitch/callback/";
     }
@@ -67,11 +68,12 @@ public class TwitchService
                 return false;
             }
 
-            Console.WriteLine($"Twitch Token Valid for Scopes: {string.Join(',', validation.Scopes)}");
+            _logger?.LogInformation($"Twitch Token Valid for Scopes: {string.Join(',', validation.Scopes)}");
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogError(ex, "Twitch Token Validation Error");
             return false;
         }
     }
@@ -93,16 +95,16 @@ public class TwitchService
         try
         {
             await InitializeApiAsync();
-            Console.WriteLine("Twitch Initialized API");
+            _logger?.LogDebug("Twitch Initialized API");
             await InitializeChatAsync();
-            Console.WriteLine("Twitch Initialized Chat");
+            _logger?.LogDebug("Twitch Initialized Chat");
             await InitializeEventSubAsync();
-            Console.WriteLine("Twitch Initialized EventSub");
+            _logger?.LogDebug("Twitch Initialized EventSub");
             TwitchEvents.RaiseTwitchConnected();
         }
-        catch
+        catch (Exception ex)
         {
-            // 
+            _logger?.LogError(ex, "TwitchService Initialization Error");
         }
     }
 
@@ -126,7 +128,7 @@ public class TwitchService
                        $"&response_type=token" +
                        $"&scope={scopes}";
 
-        Console.WriteLine("Opening Twitch OAuth...");
+        _logger?.LogDebug("Opening Twitch OAuth...");
         Process.Start(new ProcessStartInfo
         {
             FileName = oauthUrl,
@@ -139,7 +141,7 @@ public class TwitchService
         var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
         listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
         listener.Start();
-        Console.WriteLine("Waiting for Twitch auth...");
+        _logger?.LogDebug("Waiting for Twitch auth...");
 
         var context = await listener.GetContextAsync();
         var response = context.Response;
@@ -174,9 +176,9 @@ public class TwitchService
         {
             listener.Stop();
         }
-        catch
+        catch (Exception ex)
         {
-            //
+            _logger?.LogError(ex, "TwitchService Authentication Listener Error");
         }
 
         if (!string.IsNullOrEmpty(AccessToken))
@@ -197,7 +199,7 @@ public class TwitchService
         {
             UserName = user.DisplayName;
             UserId = user.Id;
-            Console.WriteLine($"Authenticated as {UserName}");
+            _logger?.LogDebug($"Authenticated as {UserName}");
         }
     }
 
@@ -211,7 +213,7 @@ public class TwitchService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception: {ex}, {ex.Message}");
+            _logger?.LogError(ex, ex.Message);
         }
 
         _chat.OnMessageReceived += (s, e) =>
@@ -240,7 +242,7 @@ public class TwitchService
                     // regex yay
                 }
 
-                Console.WriteLine(message);
+                // Console.WriteLine(message);
             }
         };
         await Task.Run(() => _chat.Connect());
@@ -257,7 +259,7 @@ public class TwitchService
 
         _eventSub.WebsocketConnected += async (s, e) =>
         {
-            Console.WriteLine("Connected to EventSub WebSocket, session ID: " + _eventSub.SessionId);
+            _logger?.LogInformation("Connected to EventSub WebSocket, session ID: " + _eventSub.SessionId);
             if (!e.IsRequestedReconnect)
             {
                 // TODO listen to community gift sub, but do not add time as counts as channel.subscribe
@@ -293,7 +295,7 @@ public class TwitchService
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Failed to subscribe to {type}: {ex.Message}");
+                        _logger?.LogError(ex, $"Failed to subscribe to {type}: {ex.Message}");
                     }
                 }
             }
@@ -301,14 +303,14 @@ public class TwitchService
 
         _eventSub.WebsocketReconnected += (s, e) =>
         {
-            Console.WriteLine("Reconnected EventSub WebSocket.");
+            _logger?.LogInformation("Reconnected EventSub WebSocket.");
             return Task.CompletedTask;
         };
 
         _eventSub.WebsocketDisconnected += (s, e) =>
         {
             // todo try ReconnectAsync and exponential backoff task delay
-            Console.WriteLine("Disconnected EventSub WebSocket.");
+            _logger?.LogWarning("Disconnected EventSub WebSocket.");
             return Task.CompletedTask;
         };
 
@@ -388,7 +390,7 @@ public class TwitchService
         
         _eventSub.ChannelFollow += (s, e) =>
         {
-            Console.WriteLine($"New follow from {e.Payload.Event.UserName}");
+            // Console.WriteLine($"New follow from {e.Payload.Event.UserName}");
 
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta!.MessageId, out var mId);
@@ -425,8 +427,8 @@ public class TwitchService
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
-            Console.WriteLine(
-                $"GiftSubs from {e.Payload.Event.UserName} {e.Payload.Event.Total} {e.Payload.Event.Tier}");
+            // Console.WriteLine(
+            //     $"GiftSubs from {e.Payload.Event.UserName} {e.Payload.Event.Total} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -463,7 +465,7 @@ public class TwitchService
             // TODO There is where we fetch currentTime and Multiplier and set SecondsToAdd based on data
 
 
-            Console.WriteLine($"Sub from {e.Payload.Event.UserName} {e.Payload.Event.IsGift} {e.Payload.Event.Tier}");
+            // Console.WriteLine($"Sub from {e.Payload.Event.UserName} {e.Payload.Event.IsGift} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -489,7 +491,7 @@ public class TwitchService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             // TODO
 
-            Console.WriteLine($"ReSub from {e.Payload.Event.UserName} {e.Payload.Event.Tier}");
+            // Console.WriteLine($"ReSub from {e.Payload.Event.UserName} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -511,7 +513,7 @@ public class TwitchService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             // TODO
 
-            Console.WriteLine($"Bits from {e.Payload.Event.UserName}: {e.Payload.Event.Bits}");
+            // Console.WriteLine($"Bits from {e.Payload.Event.UserName}: {e.Payload.Event.Bits}");
             return Task.CompletedTask;
         };
 
@@ -531,8 +533,8 @@ public class TwitchService
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
-            Console.WriteLine(
-                $"Raid from {e.Payload.Event.FromBroadcasterUserName} ({e.Payload.Event.Viewers})");
+            // Console.WriteLine(
+            //     $"Raid from {e.Payload.Event.FromBroadcasterUserName} ({e.Payload.Event.Viewers})");
             return Task.CompletedTask;
         };
 

@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
+using System.Text;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core;
@@ -123,6 +125,54 @@ namespace SubathonManager.Data
                     }
                 }
             }
+        }
+
+        public static async Task ActiveEventsToCsv(AppDbContext db)
+        {
+            SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+            if (subathon == null) return;
+            List<SubathonEvent> events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id)
+                    .ToListAsync();
+
+            string exportDir = Path.Combine(Config.DataFolder, "exports");
+            Directory.CreateDirectory(exportDir);
+            string filepath = $"{exportDir}/subathon-{subathon.Id}.csv";
+            
+            var sb = new StringBuilder();
+            sb.AppendLine("Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp");
+            foreach (var e in events)
+            {
+                sb.AppendLine(string.Join(",",
+                    e.Id,
+                    Utils.EscapeCsv(e.Source.ToString()),
+                    Utils.EscapeCsv(e.EventType.ToString()),
+                    Utils.EscapeCsv(e.Command.ToString()),
+                    Utils.EscapeCsv(e.User),
+                    e.SecondsValue,
+                    e.PointsValue,
+                    Utils.EscapeCsv(e.Value),
+                    Utils.EscapeCsv(e.Currency),
+                    e.Amount,
+                    e.MultiplierSeconds,
+                    e.MultiplierPoints,
+                    e.ProcessedToSubathon,
+                    e.GetFinalSecondsValue(),
+                    e.GetFinalPointsValue(),
+                    e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss")
+                ));
+            }
+            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
+            
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exportDir,
+                    UseShellExecute = true,
+                    Verb = "open"
+                });
+            }
+            catch {/**/}
         }
 
         public static async Task PauseAllTimers(AppDbContext db)

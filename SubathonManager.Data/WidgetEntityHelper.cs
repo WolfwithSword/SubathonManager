@@ -1,12 +1,17 @@
 ﻿using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Core;
 
 namespace SubathonManager.Data;
 
 public class WidgetEntityHelper
 {
+    
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WidgetEntityHelper>>();
     public void SyncCssVariables(Widget widget)
     {
         using var db = new AppDbContext();
@@ -20,7 +25,7 @@ public class WidgetEntityHelper
             if (!exists)
             {
                 db.CssVariables.Add(variable);
-                Console.WriteLine($"[Widget {widget.Name}] Added new CSS variable: {variable.Name}");
+                _logger?.LogDebug($"[Widget {widget.Name}] Added new CSS variable: {variable.Name}");
             }
         }
         db.SaveChanges();
