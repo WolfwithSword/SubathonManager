@@ -16,6 +16,7 @@
                             <TextBlock Text="App Settings" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
                             <ui:Button Content="Open Data Folder" Width="140" VerticalAlignment="Center" Click="OpenDataFolder_Click" FontSize="12" Margin="48,0,0,10"/>
                             <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="24,0,0,10"/>
+                            <ui:Button x:Name="UpdateBtn" Content="Check for Updates" Width="178" VerticalAlignment="Center" Click="Updater_Click" FontSize="12" Margin="102,0,0,10"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                             <TextBlock Text="Port:" Width="50" VerticalAlignment="Center"/>
