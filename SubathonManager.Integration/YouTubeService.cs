@@ -54,12 +54,6 @@ public class YouTubeService : IDisposable
 
     public bool Start(string? handle)
     {
-        try
-        {
-            _ytLiveChat.Stop();
-        }
-        catch (Exception ex) { /**/ }
-        
         _logger?.LogDebug("YouTube service started");
         Running = false;
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, "None");
@@ -69,7 +63,8 @@ public class YouTubeService : IDisposable
             return Running;
         if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
         _logger?.LogInformation("Youtube Starting for " + _ytHandle);
-        _ytLiveChat.Start(handle: _ytHandle);
+        
+        _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
         return true;
     }
 
