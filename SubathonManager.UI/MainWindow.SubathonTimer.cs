@@ -15,14 +15,11 @@ namespace SubathonManager.UI
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
-                // TODO perhaps we need to better bind this instead of invoking updates every second? if perf issues
                 Dispatcher.Invoke(() =>
                 {
                     TimerValue.Text = subathon.TimeRemainingRounded().ToString();
                     _lastUpdatedTimerAt = time;
-                    // PauseText.Text = subathon.IsPaused ? "Resume" : "Pause";
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
-                    // LockText.Text = subathon.IsLocked ? "Unlock" : "Lock";
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
                     PointsValue.Text = $"{subathon.Points.ToString()} Pts";
                     LockStatus.Visibility = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
@@ -146,7 +143,7 @@ namespace SubathonManager.UI
         {
             if (!int.TryParse(AdjustSubathonPoints.Text, out var parsedInt))
                 return;
-            if (parsedInt < 0) return;
+            if (parsedInt <= 0) return;
             SubathonCommandType cmd =
                 direction > 0 ? SubathonCommandType.AddPoints : SubathonCommandType.SubtractPoints;
             SubathonEvent subathonEvent = new SubathonEvent

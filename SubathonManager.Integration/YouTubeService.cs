@@ -3,12 +3,12 @@ using YTLiveChat.Contracts.Models;
 using YTLiveChat.Contracts.Services;
 using YTLiveChat.Services; 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Services;
 
 namespace SubathonManager.Integration;
 
@@ -54,15 +54,14 @@ public class YouTubeService : IDisposable
 
     public bool Start(string? handle)
     {
-        _logger?.LogDebug("YouTube service started");
         Running = false;
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, "None");
         
         _ytHandle = handle ?? Config.Data["YouTube"]["Handle"] ?? "";
-        if (string.IsNullOrEmpty(_ytHandle))
+        if (string.IsNullOrEmpty(_ytHandle) || _ytHandle.Trim() == "@")
             return Running;
         if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
-        _logger?.LogInformation("Youtube Starting for " + _ytHandle);
+        _logger?.LogInformation("Youtube Service Starting for " + _ytHandle);
         
         _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
         return true;
@@ -94,6 +93,8 @@ public class YouTubeService : IDisposable
     
     private void OnChatReceived(object? sender, ChatReceivedEventArgs e)
     {
+        if (!Running)
+            YouTubeEvents.RaiseYouTubeConnectionUpdate(true, _ytHandle!);
         Running = true;
         ChatItem item = e.ChatItem;
 
@@ -180,18 +181,17 @@ public class YouTubeService : IDisposable
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return;
         }
-        
-        // else - check if command and has perms
-        // TODO Command parsing
-        // string messagePreview = string.Join("", item.Message.Select(p => p.ToString()));
-        // if (messagePreview.StartsWith("!"))
-        //     Console.WriteLine($"{item.Author.Name} - {messagePreview} - {item.IsOwner} - {item.IsModerator} - {item.Timestamp.DateTime.ToLocalTime()}");
+
+        string messagePreview = string.Join("", item.Message.Select(p => p.ToString()));
+        if (messagePreview.StartsWith('!'))
+            CommandService.ChatCommandRequest(SubathonEventSource.YouTube, messagePreview, user,
+                item.IsOwner, item.IsModerator, false,
+                item.Timestamp.DateTime.ToLocalTime());
     }
-    
     
     private void TryReconnectLoop()
     {
-        if (string.IsNullOrEmpty(_ytHandle))
+        if (string.IsNullOrEmpty(_ytHandle) || _ytHandle.Trim() == "@")
             return;
 
         _reconnectCts?.Cancel();

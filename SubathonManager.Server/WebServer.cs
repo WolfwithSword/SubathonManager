@@ -143,8 +143,7 @@ public partial class WebServer
         {
             // TODO: More contentTypes, such as webm or webp or gif or mp4 or mp3 or wav etc?
             // need to test more too
-            ".html" => "text/html",
-            ".htm" => "text/html",
+            ".html" or ".htm" => "text/html",
             ".css" => "text/css",
             ".js" => "application/javascript",
             ".png" => "image/png",

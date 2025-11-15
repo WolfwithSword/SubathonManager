@@ -59,7 +59,7 @@ public partial class MainWindow
             
             TimeSpan duration = Utils.ParseDurationString(MultiplierDurationInput.Text);
             
-            if (!double.TryParse(MultiplierAmtInput.Text, out var parsedAmt))
+            if (!double.TryParse(MultiplierAmtInput.Text, out var parsedAmt) || parsedAmt <= 0)
                 return;
             
             string durationStr = duration == TimeSpan.Zero ? "x" : ((int) duration.TotalSeconds).ToString();

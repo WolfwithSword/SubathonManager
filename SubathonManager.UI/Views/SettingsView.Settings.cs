@@ -163,10 +163,6 @@ namespace SubathonManager.UI.Views
                     }
             }
             Config.Save();
-            if (updated)
-            {
-                TwitchEvents.RaiseCommandSettingsUpdated();
-            }
         }
 
         
@@ -293,7 +289,7 @@ namespace SubathonManager.UI.Views
         private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)
         {
             string user = YTUserHandle.Text.Trim();
-            if (!user.StartsWith("@"))
+            if (!user.StartsWith("@") && !string.IsNullOrEmpty(user))
                 user = "@" + user;
             Config.Data["YouTube"]["Handle"] = user;
             Config.Save();

@@ -17,7 +17,6 @@ public class SubathonEvent
 
     public DateTime EventTimestamp { get; set; } = DateTime.Now;
 
-    // TODO get current time of timer before adding/subtracting seconds
     public int CurrentTime { get; set; } = 0;
 
     public int CurrentPoints { get; set; } = 0;

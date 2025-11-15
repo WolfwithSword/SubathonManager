@@ -37,7 +37,7 @@ namespace SubathonManager.UI.Views
         {
             if (subathonEvent.PointsValue < 1 
                 && subathonEvent.SecondsValue < 1 
-                && subathonEvent.Source != SubathonEventSource.Command) return;
+                && subathonEvent.EventType != SubathonEventType.Command) return;
             
             await Dispatcher.InvokeAsync(() =>
             {
@@ -75,8 +75,6 @@ namespace SubathonManager.UI.Views
 
         private void ReprocessBtn_Click(object sender, RoutedEventArgs e)
         {
-            // basically only meant to be run if something breaks, doesn't even show normally
-            // TODO think about behaviour for showing it. 
             if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is SubathonEvent ev)
             {
                 Task.Run(() =>

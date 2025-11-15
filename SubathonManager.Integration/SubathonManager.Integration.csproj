@@ -18,6 +18,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
+      <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
     </ItemGroup>
 
 </Project>

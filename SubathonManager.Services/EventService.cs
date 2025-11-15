@@ -5,6 +5,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 namespace SubathonManager.Services;
 
 // We don't need one of these for Subathon updates, because those fire every second anyways
@@ -69,7 +70,6 @@ public class EventService: IDisposable
 
                 if (next == null) continue;
                 (bool wasEffective, bool dupeUneeded) = await ProcessSubathonEvent(next);
-                
                 if (!dupeUneeded)
                     Core.Events.SubathonEvents.RaiseSubathonEventProcessed(next, wasEffective);
             }
@@ -90,23 +90,26 @@ public class EventService: IDisposable
         if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return (false, true);
 
         int initialPoints = subathon?.Points ?? 0;
-        if (subathon != null && ev.Source == SubathonEventSource.Command && ev.Command != SubathonCommandType.None)
+        if (subathon != null && ev.EventType == SubathonEventType.Command && ev.Command != SubathonCommandType.None)
         {
             // we allow commands to add even if locked
             int ranCmd = int.MinValue;
             switch (ev.Command)
             {
                 case SubathonCommandType.SetPoints:
+                    if (ev.PointsValue < 0) return (false, false);
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
                         "UPDATE SubathonDatas SET Points = {1} WHERE IsActive = 1 AND Id = {0}", 
                         subathon.Id, ev.PointsValue!);
                     break;
                 case SubathonCommandType.AddPoints:
+                    if (ev.PointsValue < 1) return (false, false);
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
                         "UPDATE SubathonDatas SET Points = Points + {1} WHERE IsActive = 1 AND Id = {0}", 
                         subathon.Id, ev.PointsValue!);
                     break;
                 case SubathonCommandType.SubtractPoints:
+                    if (ev.PointsValue < 1) return (false, false);
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
                         "UPDATE SubathonDatas SET Points = Points - {1} WHERE IsActive = 1 AND Id = {0}", 
                         subathon.Id, ev.PointsValue!);
@@ -215,7 +218,7 @@ public class EventService: IDisposable
         ev.CurrentPoints = subathon.Points;
         
         SubathonValue? subathonValue = null;
-        if (ev.Source != SubathonEventSource.Command)
+        if (ev.EventType != SubathonEventType.Command)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
                 v.EventType == ev.EventType && (v.Meta == ev.Value || v.Meta == string.Empty));
@@ -225,7 +228,7 @@ public class EventService: IDisposable
             
         }
 
-        if (ev.Source != SubathonEventSource.Command)
+        if (ev.EventType != SubathonEventType.Command)
         {
             ev.PointsValue = subathonValue!.Points;
             if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && ev.Currency != "member"
@@ -340,6 +343,21 @@ public class EventService: IDisposable
         
         long msToRemove = (long) ev.GetFinalSecondsValue() * 1000; 
         int pointsToRemove = (int) ev.GetFinalPointsValue();
+
+        if (ev.Command == SubathonCommandType.SubtractPoints)
+            pointsToRemove = -pointsToRemove;
+
+        if (ev.Command == SubathonCommandType.SubtractTime)
+            msToRemove = -msToRemove;
+
+        if (ev.Command == SubathonCommandType.SetPoints || ev.Command == SubathonCommandType.SetTime)
+        {
+            string msg = "Cannot delete SetTime or SetPoints events. Retaining event...";
+            ErrorMessageEvents.RaiseErrorEvent("WARN", $"Delete {ev.Command} Event", 
+                msg, DateTime.Now);
+            _logger.LogWarning(msg);
+            return;
+        }
         
         int affected = 0;
         if (msToRemove != 0)
@@ -403,7 +421,7 @@ public class EventService: IDisposable
         SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
         if (subathon == null) return;
         
-        int initialPoints = subathon.Points; // TODO (think done, needs test) if we go under a completed goal, invoke list updated instead
+        int initialPoints = subathon.Points; 
         
         if (doAll)
         {

@@ -18,3 +18,22 @@ public enum SubathonCommandType
     Unknown,
     RefreshOverlays
 }
+
+public static class SubathonCommandTypeHelper
+{
+    private static readonly SubathonCommandType[] ParamRequiredCommands = new[]
+    {
+        SubathonCommandType.AddPoints,
+        SubathonCommandType.SubtractPoints,
+        SubathonCommandType.SetPoints,
+        SubathonCommandType.AddTime,
+        SubathonCommandType.SubtractTime,
+        SubathonCommandType.SetTime,
+        SubathonCommandType.SetMultiplier
+    };
+    
+   
+    public static bool IsParametersRequired(this SubathonCommandType command) => 
+        ParamRequiredCommands.Contains(command);
+    
+}

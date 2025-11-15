@@ -26,8 +26,7 @@ public class DiscordWebhookService : IDisposable
     
     private readonly ILogger? _logger =  AppServices.Provider.GetRequiredService<ILogger<DiscordWebhookService>>();
 
-    // todo handle rate limite and retry_after
-    // todo listener for errors
+    // todo handle rate limit and retry_after
     public DiscordWebhookService()
     {
         LoadFromConfig();
@@ -70,7 +69,7 @@ public class DiscordWebhookService : IDisposable
             if (string.IsNullOrEmpty(_eventWebhookUrl)) return;
             if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
             if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
-            // todo other logic?
+
 
             subathonEvent.Value += " [DELETED]";
             _eventQueue.Enqueue(subathonEvent);

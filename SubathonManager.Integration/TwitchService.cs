@@ -13,6 +13,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Services;
 
 namespace SubathonManager.Integration;
 
@@ -222,27 +223,11 @@ public class TwitchService
             bool isMod = e.ChatMessage.IsModerator;
             bool isBroadcaster = e.ChatMessage.IsBroadcaster;
             bool isVip = e.ChatMessage.IsVip;
-            // todo whitelist usernames ignore case
-
-            if (!string.IsNullOrWhiteSpace(message) && message.StartsWith("!"))
+            
+            if (!string.IsNullOrWhiteSpace(message) && message.StartsWith('!'))
             {
-                var parts = message.Substring(1).Split(' '); // remove ! and split
-                var command = parts[0].ToLower();
-                var args = parts.Skip(1).ToArray();
-
-                switch (command)
-                {
-                    case "addtime":
-                        break;
-                    case "pause":
-                        break;
-                    // TODO SubathonEvent for Command, Value will be the msg,
-                    // if addTime and all that or subtract time, also do secondstoadd (+-)
-                    // add more commands and param reading
-                    // regex yay
-                }
-
-                // Console.WriteLine(message);
+                CommandService.ChatCommandRequest(SubathonEventSource.Twitch, message, e.ChatMessage.Username, // DisplayName
+                    isBroadcaster, isMod, isVip, DateTime.Now);
             }
         };
         await Task.Run(() => _chat.Connect());
@@ -250,11 +235,6 @@ public class TwitchService
 
     private async Task InitializeEventSubAsync()
     {
-        // todo store message id's so we know we dont get dupes
-        // do same for command messages above
-        // probably want a prune button for it too.
-        // will also add an export for logs purposes, and also use as base for webhook logging
-
         _eventSub = new EventSubWebsocketClient();
 
         _eventSub.WebsocketConnected += async (s, e) =>
@@ -262,8 +242,6 @@ public class TwitchService
             _logger?.LogInformation("Connected to EventSub WebSocket, session ID: " + _eventSub.SessionId);
             if (!e.IsRequestedReconnect)
             {
-                // TODO listen to community gift sub, but do not add time as counts as channel.subscribe
-                // but handy for showing "X gifted 50x subs" ? or not needed? 
                 var eventTypes = new[]
                 {
                     "stream.offline",
@@ -404,7 +382,6 @@ public class TwitchService
                 EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-            // TODO 
 
             return Task.CompletedTask;
         };
@@ -460,12 +437,6 @@ public class TwitchService
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
-            // TODO VERY IMPORTANT
-            // TODO Fire Event with _event, have it save to DB, and add to time.
-            // TODO There is where we fetch currentTime and Multiplier and set SecondsToAdd based on data
-
-
-            // Console.WriteLine($"Sub from {e.Payload.Event.UserName} {e.Payload.Event.IsGift} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -489,9 +460,6 @@ public class TwitchService
                 EventTimestamp = eventMeta.MessageTimestamp
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-            // TODO
-
-            // Console.WriteLine($"ReSub from {e.Payload.Event.UserName} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -511,9 +479,6 @@ public class TwitchService
                 EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-            // TODO
-
-            // Console.WriteLine($"Bits from {e.Payload.Event.UserName}: {e.Payload.Event.Bits}");
             return Task.CompletedTask;
         };
 
