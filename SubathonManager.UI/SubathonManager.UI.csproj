@@ -11,8 +11,23 @@
         <FileVersion>1.0.0.0</FileVersion>
         <InformationalVersion>dev</InformationalVersion>
         <AssemblyName>SubathonManager</AssemblyName>
+        <ApplicationIcon>..\assets\icon.ico</ApplicationIcon>
     </PropertyGroup>
 
+    <ItemGroup>
+        <Resource Include="..\assets\icon.png" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Configuration)' != 'Release'">
+        <Content Include="..\assets\**\*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    
+    <ItemGroup>
+        <ApplicationIcon Include="..\assets\icon.ico" />
+    </ItemGroup>
+    
     <ItemGroup>
       <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
       <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
@@ -53,6 +68,10 @@
       </Compile>
       <Compile Update="MainWindow.Multiplier.cs">
         <DependentUpon>MainWindow.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="..\SubathonManager.Data\Migrations\*.cs">
+        <NoWarn>IDE1006</NoWarn>
+        <NoWarn>CS8981</NoWarn>
       </Compile>
     </ItemGroup>
 

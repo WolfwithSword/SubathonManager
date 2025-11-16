@@ -18,5 +18,12 @@
       </PackageReference>
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.9" />
     </ItemGroup>
-
+    
+    <ItemGroup>
+        <Compile Update="Migrations\*.cs">
+            <NoWarn>IDE1006</NoWarn>
+            <NoWarn>CS8981</NoWarn>
+        </Compile>
+    </ItemGroup>
+    
 </Project>

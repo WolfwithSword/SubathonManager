@@ -141,13 +141,46 @@ public partial class WebServer
         string ext = Path.GetExtension(fullPath).ToLower();
         string contentType = ext switch
         {
-            // TODO: More contentTypes, such as webm or webp or gif or mp4 or mp3 or wav etc?
-            // need to test more too
+            // web standard
             ".html" or ".htm" => "text/html",
             ".css" => "text/css",
             ".js" => "application/javascript",
+            ".json" => "application/json",
+            
+            // img
             ".png" => "image/png",
             ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".avif" => "image/avif",
+            ".bmp"  => "image/bmp",
+            ".svg"  => "image/svg+xml",
+            ".ico"  => "image/x-icon",
+            
+            // video
+            ".mp4" => "video/mp4",
+            ".m4v" => "video/x-m4v",
+            ".webm" => "video/webm",
+            ".ogv" => "video/ogg",
+            
+            // audio
+            ".mp3" => "audio/mpeg",
+            ".wav" => "audio/wav",
+            ".ogg" or ".oga" => "audio/ogg",
+            ".opus" => "audio/opus",
+            ".m4a" => "audio/mp4",
+            
+            // local fonts
+            ".woff" => "font/woff",
+            ".woff2" => "font/woff2",
+            ".ttf" => "font/ttf",
+            ".otf" => "font/otf",
+            
+            // idk but other files 
+            ".txt" => "text/plain",
+            ".csv" => "text/csv",
+            ".xml" => "application/xml",
+            
             _ => "application/octet-stream"
         };
         ctx.Response.ContentType = contentType;

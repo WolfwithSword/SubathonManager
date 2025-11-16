@@ -42,3 +42,11 @@ overlays, settings, and more all locally!
 - Built in overlay editor and host server for local html widgets
 - Goals list tracking
 - Multiplier modes for time and/or points
+
+## License
+
+We use a [modified MIT License](LICENSE) that only prohibits the software from being sold or redistributed commercially, or offered as or part of a commercial service.
+
+You are fully permitted to *use* the software for commercial purposes such as streaming, or developing widget assets for sale. Modifications are allowed, provided they retain this license, though contributions back are preferred!
+
+In private, you can do whatever you want. This software is as open-source as possible with that single restriction, as its sole purpose is to prevent users from being taken advantage of from commercial distributions/derivatives of this otherwise open and free software.

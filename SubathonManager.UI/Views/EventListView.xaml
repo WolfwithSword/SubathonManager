@@ -11,6 +11,7 @@
         <conv:BoolToProcessedTextConverter x:Key="BoolToProcessedTextConverter"/>
         <conv:BoolToProcessedColorConverter x:Key="BoolToProcessedColorConverter"/>
         <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <conv:CommandDeletableToBoolVisibilityConverter x:Key="CommandDeletableToBoolVisibilityConverter"/>
         <conv:EventTypeValueConverter x:Key="EventTypeValueConverter"/>
         <conv:IsNotMetaCommandConverter x:Key="IsNotMetaCommandConverter"/>
         <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter"/>
@@ -136,6 +137,7 @@
                                         <ui:SymbolIcon Symbol="Recycle20" />
                                     </ui:Button>
                                     <ui:Button x:Name="DeleteBtn" ToolTip="Delete" Click="DeleteBtn_Click" Padding="2" Appearance="Danger" 
+                                               Visibility="{Binding Command, Converter={StaticResource CommandDeletableToBoolVisibilityConverter}}"
                                                 Width="32" Height="32" Margin="4,0" Foreground="White">
                                         <ui:SymbolIcon Symbol="Delete24" />
                                     </ui:Button>

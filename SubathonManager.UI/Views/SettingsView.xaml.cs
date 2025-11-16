@@ -17,7 +17,7 @@ public partial class SettingsView
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SettingsView>>();
     public SettingsView()
     {
-        _factory = AppServices.Provider!.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
         YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
@@ -46,7 +46,7 @@ public partial class SettingsView
         InitCurrencySelects();
     }
 
-    private async void GoToHelp_Click(object sender, RoutedEventArgs e)
+    private void GoToHelp_Click(object sender, RoutedEventArgs e)
     {
         Process.Start(new ProcessStartInfo
         {
@@ -79,13 +79,13 @@ public partial class SettingsView
                     NavigateUri = new Uri(url)
                 };
 
-                link.RequestNavigate += (_, e) =>
+                link.RequestNavigate += (_, ea) =>
                 {
-                    Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
+                    Process.Start(new ProcessStartInfo(ea.Uri.AbsoluteUri)
                     {
                         UseShellExecute = true
                     });
-                    e.Handled = true;
+                    ea.Handled = true;
                 };
 
                 textBlock.Inlines.Add(link);

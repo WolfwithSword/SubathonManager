@@ -10,7 +10,10 @@ namespace SubathonManager.UI.Converters
     public class BoolToProcessedTextConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => (bool)value ? "Processed" : "Not Processed";
+        {
+            bool b = value as bool? ?? false;
+            return b ? "Processed" : "Not Processed";
+        }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
@@ -19,7 +22,25 @@ namespace SubathonManager.UI.Converters
     public class BoolToProcessedColorConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => (bool)value ? Brushes.LimeGreen : Brushes.OrangeRed;
+        {
+            bool b = value as bool? ?? false;
+            return b ? Brushes.LimeGreen : Brushes.OrangeRed;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    public class CommandDeletableToBoolVisibilityConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is SubathonCommandType type)
+            {
+                return type.IsControlTypeCommand() ? Visibility.Hidden : Visibility.Visible;
+            }
+            return Visibility.Visible;
+        }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
@@ -28,7 +49,10 @@ namespace SubathonManager.UI.Converters
     public class InverseBoolToVisibilityConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => (bool)value ? Visibility.Collapsed : Visibility.Visible;
+        {
+            bool b = value as bool? ?? false;
+            return b ?  Visibility.Collapsed : Visibility.Visible;
+        }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
@@ -77,7 +101,7 @@ namespace SubathonManager.UI.Converters
 
     public class EventTypeValueConverter : IMultiValueConverter
     {
-        public object Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+        public object? Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
         {
             if (values.Length == 0) return null;
             if (values.Length < 3) return values[0];
@@ -85,9 +109,9 @@ namespace SubathonManager.UI.Converters
             var val = values[0]?.ToString();
             var type = "";
             var curr = values[2]?.ToString() ?? "";
-            if (values[1] is Core.Enums.SubathonEventType eventType)
+            if (values[1] is SubathonEventType eventType)
             {
-                if (eventType == Core.Enums.SubathonEventType.TwitchRaid)
+                if (eventType == SubathonEventType.TwitchRaid)
                 {
                     type = "viewers";
                 }
@@ -115,7 +139,7 @@ namespace SubathonManager.UI.Converters
             }
 
             if (string.IsNullOrEmpty(type.Trim()))
-                return val;
+                return val!;
             return $"{val} {type}";
         }
         public object[] ConvertBack(object value, Type[] targetType, object? parameter, CultureInfo culture)

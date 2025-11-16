@@ -45,14 +45,14 @@ public partial class App
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
-            builder.AddProvider(new RotatingFileLoggerProvider("data/logs", 30));
+            builder.AddProvider(new RotatingFileLoggerProvider("data/logs"));
             builder.AddSimpleConsole(options =>
             {
                 options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
                 options.SingleLine = true;
                 options.IncludeScopes = false;
             });
-            builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);;
+            builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
             builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
         });
         
@@ -132,7 +132,7 @@ public partial class App
     protected override void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("======== Subathon Manager exiting ========");
-        Task.Run(() => AppServices.Provider?.GetRequiredService<EventService>().StopAsync());
+        Task.Run(() => AppServices.Provider.GetRequiredService<EventService>().StopAsync());
         AppTimerService.Stop();
         AppWebServer?.Stop();
         AppStreamElementsService?.Disconnect();
@@ -166,7 +166,7 @@ public partial class App
         _logger?.LogInformation("======== Subathon Manager exit ========");
     }
     
-    public void WatchConfig()
+    private void WatchConfig()
     {
         string configFile = Path.GetFullPath(Path.Combine(string.Empty
             , "data/config.ini"));

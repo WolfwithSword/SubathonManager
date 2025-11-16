@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using Wpf.Ui.Appearance;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging; 
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
@@ -16,6 +17,7 @@ namespace SubathonManager.UI
         
         private DateTime? _lastUpdatedTimerAt;
         public ObservableCollection<Route> Overlays { get; set; } = new();
+        private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<MainWindow>>();
         public MainWindow()
         {
             _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();

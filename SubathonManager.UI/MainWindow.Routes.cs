@@ -1,9 +1,11 @@
 ﻿using System.Windows;
 using System.Windows.Input;
+using System.IO;
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
-using SubathonManager.Data;
 
 namespace SubathonManager.UI
 {
@@ -19,6 +21,24 @@ namespace SubathonManager.UI
                 Overlays.Add(route);
 
             OverlaysList.ItemsSource = Overlays;
+        }
+
+        private void OpenPresets_Click(object sender, RoutedEventArgs e)
+        {
+            string path = Path.GetFullPath("./presets");
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = path,
+                    UseShellExecute = true,
+                    Verb = "open"
+                });
+            }
+            catch
+            {
+                _logger?.LogWarning($"Unable to locate presets folder: {path}");
+            }
         }
 
         private void SendRefreshRequest_Click(object sender, RoutedEventArgs e)

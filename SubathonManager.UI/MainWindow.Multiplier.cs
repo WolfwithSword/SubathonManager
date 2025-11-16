@@ -3,16 +3,13 @@ using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
-using SubathonManager.Data;
 using SubathonManager.Core.Events;
 
 namespace SubathonManager.UI;
 
 public partial class MainWindow
 {
-    
-    
-    public void TogglePowerMultiplier_Click(object sender, EventArgs e)
+    private void TogglePowerMultiplier_Click(object sender, EventArgs e)
     {
         using var db = _factory.CreateDbContext();
         SubathonData? subathon = db.SubathonDatas
@@ -107,7 +104,5 @@ public partial class MainWindow
             string multiplierRemainingText = !isMultiplierSet || newDuration == null ? "" : $"Remaining: {newDuration}";
             if (MultiplierRemainingTime.Text != multiplierRemainingText) MultiplierRemainingTime.Text = multiplierRemainingText;
         });
-        
-        // color of btn?
     }
 }

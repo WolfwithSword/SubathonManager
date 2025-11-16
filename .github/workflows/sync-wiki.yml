@@ -1,9 +1,10 @@
 ﻿name: Sync Wiki
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+on: []
+#on:
+#  push:
+#    branches: [ main ]
+#  workflow_dispatch:
 
 jobs:
   sync_wiki:
