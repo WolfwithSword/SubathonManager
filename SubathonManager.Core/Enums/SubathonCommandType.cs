@@ -31,9 +31,25 @@ public static class SubathonCommandTypeHelper
         SubathonCommandType.SetTime,
         SubathonCommandType.SetMultiplier
     };
+
+    private static readonly SubathonCommandType[] ControlTypeCommands = new[] // can't "undo"
+    {
+        SubathonCommandType.Resume,
+        SubathonCommandType.Pause,
+        SubathonCommandType.StopMultiplier,
+        SubathonCommandType.Lock,
+        SubathonCommandType.Unlock,
+        SubathonCommandType.SetMultiplier,
+        SubathonCommandType.RefreshOverlays,
+        SubathonCommandType.SetPoints,
+        SubathonCommandType.SetTime
+    };
     
    
     public static bool IsParametersRequired(this SubathonCommandType command) => 
         ParamRequiredCommands.Contains(command);
+    
+    public static bool IsControlTypeCommand(this SubathonCommandType command) =>
+        ControlTypeCommands.Contains(command);
     
 }

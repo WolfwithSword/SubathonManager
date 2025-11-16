@@ -60,7 +60,8 @@ namespace SubathonManager.UI.Views
             {
                 events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id 
                                                              && (ev.SecondsValue >= 1 || ev.PointsValue >= 1 
-                                                                 || ev.Command != SubathonCommandType.None))
+                                                                 || ev.Command != SubathonCommandType.None
+                                                                 || ev.EventType == SubathonEventType.Command))
                     .OrderByDescending(e => e.EventTimestamp)
                     .Take(_maxItems)
                     .ToListAsync();
@@ -106,9 +107,9 @@ namespace SubathonManager.UI.Views
         {
             if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is SubathonEvent ev)
             {
+                if (ev.Command.IsControlTypeCommand()) return;
                 Task.Run(() =>
                 {
-                    
                     using var db = _factory.CreateDbContext();
                     App.AppEventService?.DeleteSubathonEvent(db, ev);
                 });

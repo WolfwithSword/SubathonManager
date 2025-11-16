@@ -379,7 +379,7 @@ public class TwitchService
                 Source = SubathonEventSource.Twitch,
                 EventType = SubathonEventType.TwitchFollow,
                 User = e.Payload.Event.UserName,
-                EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime() // or e.Payload.Event.FollowedAt and change type
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
@@ -400,7 +400,7 @@ public class TwitchService
                 Value = e.Payload.Event.Tier,
                 User = e.Payload.Event.UserName,
                 Amount = e.Payload.Event.Total,
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
@@ -433,7 +433,7 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchSub,
                 Value = e.Payload.Event.Tier,
                 User = e.Payload.Event.UserName,
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
@@ -457,7 +457,7 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchSub,
                 Value = e.Payload.Event.Tier,
                 User = e.Payload.Event.UserName,
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return Task.CompletedTask;
@@ -476,7 +476,7 @@ public class TwitchService
                 User = e.Payload.Event.UserName,
                 Currency = "bits",
                 Value = e.Payload.Event.Bits.ToString(),
-                EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime() // or e.Payload.Event.FollowedAt and change type
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return Task.CompletedTask;
@@ -494,7 +494,7 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchRaid,
                 User = e.Payload.Event.FromBroadcasterUserName,
                 Value = e.Payload.Event.Viewers.ToString(),
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
