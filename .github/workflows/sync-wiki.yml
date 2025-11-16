@@ -1,40 +1,40 @@
-﻿#name: Sync Wiki
-#
-#on:
+﻿name: Sync Wiki
+
+on:
 #  push:
 #    branches: [ main ]
-#  workflow_dispatch:
-#
-#jobs:
-#  sync_wiki:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v5
-#        with:
-#          fetch-depth: 0
-#      - name: Check if wiki exists # is repo public yet?
-#        id: check
-#        run: |
-#          WIKI_URL="https://github.com/${{ github.repository }}.wiki.git"
-#          echo "Checking wiki repo: $WIKI_URL"
-#          if git ls-remote "$WIKI_URL" &>/dev/null; then
-#            echo "exists=true" >> $GITHUB_OUTPUT
-#          else
-#            echo "exists=false" >> $GITHUB_OUTPUT
-#          fi
-#      - name: Mirror wiki folder
-#        if: steps.check.outputs.exists == 'true'
-#        run: |
-#          WIKI_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git"
-#          git clone "$WIKI_URL" wiki-sync
-#          rsync -av --delete wiki/ wiki-sync/
-#          cd wiki-sync
-#          git add .
-#          if git diff --quiet --cached; then
-#            echo "No wiki changes to push."
-#          else
-#            git config user.name "github-actions[bot]"
-#            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-#            git commit -m "Sync from main repo wiki folder"
-#            git push "$WIKI_URL" main || git push "$WIKI_URL" master || true
-#          fi
+  workflow_dispatch:
+
+jobs:
+  sync_wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check if wiki exists # is repo public yet?
+        id: check
+        run: |
+          WIKI_URL="https://github.com/${{ github.repository }}.wiki.git"
+          echo "Checking wiki repo: $WIKI_URL"
+          if git ls-remote "$WIKI_URL" &>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Mirror wiki folder
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          WIKI_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.wiki.git"
+          git clone "$WIKI_URL" wiki-sync
+          rsync -av --delete wiki/ wiki-sync/
+          cd wiki-sync
+          git add .
+          if git diff --quiet --cached; then
+            echo "No wiki changes to push."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Sync from main repo wiki folder"
+            git push "$WIKI_URL" main || git push "$WIKI_URL" master || true
+          fi
