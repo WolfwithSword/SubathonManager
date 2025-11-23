@@ -72,6 +72,9 @@ lock/unlock status, pause/resume status, and multiplier values.
   "is_locked":  bool,
   "multiplier_points":  float, // 1 = multiplier inactive for points
   "multiplier_time":  float, // 1 = multiplier inactive for time
+  "multiplier_start_time": timestamp or null,
+  "multiplier_seconds_total": int, // 0 if inactive or no duration set 
+  "multiplier_seconds_remaining": int, // 0 if inactive or no duration set or duration ended
   "total_seconds_elapsed": int, // total seconds ever elapsed when unpaused
   "total_seconds_added":  int // total seconds ever added to timer
 }
