@@ -92,7 +92,7 @@ function handleSubathonEvent(data) {
     if (data && data.type == "event") {
         if (!eventTypesToDisplay.includes(data.event_type)) return;
         
-        if (data.type == "TwitchRaid") {
+        if (data.event_type == "TwitchRaid") {
             data.currency = "viewers";
         }
         if (data.currency == "sub") {
@@ -162,7 +162,11 @@ function showEventCard({ user, amount, currency, value, source, type }) {
   valueDiv.className = "event-value";
   
   if (type == "TwitchGiftSub" || type == "YouTubeGiftMembership") {
-    valueDiv.textContent = `x${amount} ${value}`;
+      let valContent = `x${amount} ${value}`;
+    if (type == "YouTubeGiftMembership") {
+        valContent = `x${amount} ${value} members`;
+    }
+      valueDiv.textContent = valContent;
   }
   else if (currency != 'sub' && currency != "") {
     valueDiv.textContent = `${value} ${currency}`;

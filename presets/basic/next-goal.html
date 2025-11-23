@@ -1,0 +1,45 @@
+﻿<link href='https://fonts.googleapis.com/css?family=Quantico' rel='stylesheet'>
+<link rel="stylesheet" type="text/css" href="./next-goal.styles.css" />
+
+<div class="goal" id="goalContainer">
+    <div class="num" id="goalNode"></div>
+</div>
+
+<script>
+    let goalsList = [];
+    let currentGoalIndex = 0;
+
+    const goalNode = document.getElementById("goalNode");
+    const goalContainer = document.getElementById("goalContainer");
+
+    function updateGoalDisplay() {
+        const nextGoal = goalsList.find(g => !g.completed);
+
+        if (!nextGoal) {
+            goalContainer.style.display = "none"; 
+            return;
+        }
+
+        goalNode.textContent = `${nextGoal.points} | ${nextGoal.text}`;
+        goalContainer.style.display = "flex";
+    }
+
+    function handleGoalsUpdate(data) {
+        if (data.type !== "goals_list") return;
+        goalsList = data.goals || [];
+        updateGoalDisplay();
+    }
+
+    function handleGoalCompleted(data) {
+        if (data.type !== "goal_completed") return;
+
+        const index = goalsList.findIndex(g => g.text === data.goal_text);
+        if (index >= 0) {
+            for (let i = 0; i <= index; i++) {
+                goalsList[i].completed = true;
+            }
+        }
+        updateGoalDisplay();
+    }
+
+</script>

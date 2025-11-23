@@ -1,0 +1,40 @@
+﻿<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href='https://fonts.googleapis.com/css?family=Quantico' rel='stylesheet'>
+
+<link rel="stylesheet" type="text/css" href="./multiplier.styles.css" />
+
+<div class="multiplier" id="multiplierContainer">
+    <div class="num" id="multiplierNode"></div>
+</div>
+
+<script>
+    const multiplierNode = document.getElementById("multiplierNode");
+    const multiplierContainer = document.getElementById("multiplierContainer");
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+
+        const timeMul = data.multiplier_time;
+        const pointsMul = data.multiplier_points;
+
+        if (timeMul === 1 && pointsMul === 1) {
+            multiplierContainer.style.display = "none";
+            return;
+        }
+
+        let parts = [];
+        if (timeMul !== 1) parts.push(`${timeMul}x time`);
+        let pointsTxt = getComputedStyle(document.documentElement)
+            .getPropertyValue('--points-suffix').trim();
+        if (pointsTxt == "") {pontsTxt = "points"}
+        if (pointsMul !== 1) parts.push(`${pointsMul}x ${pointsTxt}`);
+
+        multiplierNode.textContent = parts.join(' ');
+
+        multiplierContainer.style.display = "flex";
+    }
+
+    function handleSubathonDisconnect() {
+        multiplierContainer.style.display = "none";
+    }
+</script>

@@ -1,0 +1,59 @@
+﻿:root {
+    --font: "Quantico", monospace;
+    --text-color: white;
+    --font-size: 26px;
+    --outline-color: black;
+    --outline-width: 1px;
+    --icon-outline-width: 2px;
+    --alignment: left; /* left, center, right */
+    --gap: 0.5em;
+    --icon-size: 32px;
+}
+.events {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: var(--alignment);
+    font-family: var(--font);
+    color: var(--text-color);
+    font-size: var(--font-size);
+    gap: var(--gap);
+}
+
+.event-user,
+.event-value {
+    -webkit-text-stroke: var(--outline-width) var(--outline-color);
+    -webkit-text-fill-color: var(--text-color);
+    font-family: var(--font);
+}
+
+.event-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.event-user {
+    font-weight: 300;
+}
+
+.event-value {
+    font-weight: 300;
+    opacity: 0.85;
+    font-size: 0.8em;
+}
+
+.event-icon {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    display: inline-block;
+    vertical-align: middle;
+    fill: currentColor;
+    filter:
+            drop-shadow(calc(var(--icon-outline-width)/2) 0 var(--outline-color))
+            drop-shadow(calc(-1 * var(--icon-outline-width)/2) 0 var(--outline-color))
+            drop-shadow(0 calc(var(--icon-outline-width)/2) var(--outline-color))
+            drop-shadow(0 calc(-1 * var(--icon-outline-width)/2) var(--outline-color));
+}
