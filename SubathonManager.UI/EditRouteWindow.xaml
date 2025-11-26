@@ -179,11 +179,11 @@
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="X" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetXBox" Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetXBox" Margin="4 0" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Y" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetYBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetYBox"  Margin="4 0" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
                         </StackPanel>
                     </UniformGrid>
 

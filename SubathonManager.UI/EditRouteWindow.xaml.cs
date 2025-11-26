@@ -148,6 +148,16 @@ public partial class EditRouteWindow
             _logger?.LogError(ex, "Failed to save overlay");
         }
     }
+
+    private void NumberOrNegativeOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text == "-")
+        {
+            e.Handled = false;
+            return;
+        }
+        e.Handled = !int.TryParse(e.Text, out _);
+    }
     
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {

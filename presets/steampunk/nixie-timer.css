@@ -1,0 +1,39 @@
+﻿:root {
+    --colon-color: #ffb36d;
+    --colon-glow-color: rgba(255, 150, 80, 0.7);
+    --gap-colon: 0.05em;
+}
+
+.nixie+.nixie-sep {
+    margin-left: 0;
+    margin-right: calc(var(--gap-colon) / 2);
+}
+
+.nixie+.nixie-sep,
+.nixie-sep {
+    margin-left: calc(var(--gap-colon) / 2);
+}
+
+.nixie:has(+ .nixie-sep) {
+    margin-right: 0 !important;
+}
+
+
+.nixie-sep {
+    width: auto;
+    padding: 0 0.1em;
+    width: 0.6em;
+    font-size: var(--digit-size);
+    font-family: "Courier New", monospace;
+    line-height: 1;
+    color: var(--colon-color);
+    text-shadow: 0 0 6px var(--colon-glow-color), 0 0 12px var(--colon-glow-color);
+    background: none;
+    border: none;
+    box-shadow: none;
+    display: inline-block;
+    margin-left: var(--gap-colon);
+    margin-right: var(--gap-colon);
+    margin-top: calc((var(--tube-height) - var(--digit-size)) / 2);
+    transition: color 0.5s ease, text-shadow 0.5s ease;
+}

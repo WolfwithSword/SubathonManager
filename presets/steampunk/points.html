@@ -1,0 +1,106 @@
+﻿<link rel="stylesheet" href="nixie-tube.css">
+
+<div class="nixie-container" id="pointsContainer">
+</div>
+
+<script>
+    var displayedPoints = 0;
+    let tweenActive = false;
+    let tweenCancel = null;
+    const tubeElements = [];
+    function tweenValue(start, end, duration, onUpdate, onComplete) {
+        let cancelled = false;
+        tweenCancel = () => cancelled = true;
+        const startTime = performance.now();
+
+        function animate(now) {
+            if (cancelled) return;
+
+            const t = Math.min(1, (now - startTime) / duration);
+            const eased = t * (2 - t);
+            const value = start + (end - start) * eased;
+
+            onUpdate(value);
+
+            if (t < 1) requestAnimationFrame(animate);
+            else if (onComplete) onComplete();
+        }
+        requestAnimationFrame(animate);
+    }
+    function updateDisplay(points, isPaused = false, isLocked = false) {
+        const container = document.getElementById("pointsContainer");
+        if (isPaused) container.classList.add("off");
+        else container.classList.remove("off");
+
+        const displayDigits = points.toString().split("");
+
+        while (tubeElements.length < displayDigits.length) {
+            const el = document.createElement("div");
+            el.className = "nixie";
+            container.appendChild(el);
+            tubeElements.push(el);
+        }
+
+        displayDigits.forEach((digit, i) => {
+            let el = tubeElements[i];
+
+            if (el.textContent !== digit) {
+                el.textContent = digit;
+
+                el.classList.remove("flicker");
+                void el.offsetWidth;
+                el.classList.add("flicker");
+            }
+
+            if (isLocked) el.classList.add("locked");
+            else el.classList.remove("locked");
+
+            el.style.display = "flex";
+        });
+
+        for (let i = displayDigits.length; i < tubeElements.length; i++) {
+            tubeElements[i].style.display = "none";
+        }
+    }
+
+
+    function smoothSetPoints(newPoints, isPaused, isLocked) {
+        if (tweenActive && tweenCancel) tweenCancel();
+
+        const start = displayedPoints;
+        const end = newPoints;
+
+        if (start === end) {
+            updateDisplay(displayedPoints, isPaused, isLocked);
+            return;
+        }
+
+        tweenActive = true;
+
+        tweenValue(start, end, 500, (v) => {
+            displayedPoints = Math.round(v);
+            updateDisplay(displayedPoints, isPaused, isLocked);
+        }, () => {
+            tweenActive = false;
+            displayedPoints = newPoints;
+            updateDisplay(displayedPoints, isPaused, isLocked);
+        });
+    }
+
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+
+        smoothSetPoints(data.total_points, data.is_paused, data.is_locked);
+    }
+
+    function handleSubathonDisconnect() {
+        const container = document.getElementById("pointsContainer");
+        container.classList.add("off");
+        for (var tube of tubeElements) {
+            if (tube.classList.contains("nixie")) {
+                if (isLocked) tube.classList.add("locked");
+            }
+        }
+    }
+</script>

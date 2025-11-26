@@ -1,0 +1,117 @@
+﻿:root {
+    --background-color: #40342d;
+    --border-color: #734d26;
+    --border-thickness: 4px;
+    --font-size: 1rem;
+    --small-font-size: 0.8rem;
+    --font-family: "Courier New", monospace;
+    --text-color: #eee;
+    --event-width: 200px;
+}
+
+.event-card {
+    display: flex;
+    align-items: center;
+    min-width: var(--event-width);
+    max-width: var(--event-width);
+    justify-content: space-between;
+    width: var(--event-width);
+
+    background: var(--background-color);
+    border: var(--border-thickness) outset var(--border-color);
+
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+    padding: 8px 12px;
+
+    color: var(--text-color);
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+}
+
+.event-content {
+    display: flex;
+    min-width: var(--event-width);
+    max-width: var(--event-width);
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.event-content.animating {
+    animation: popFade 0.35s ease forwards;
+}
+
+@keyframes popFade {
+    0% {
+        /*opacity: 0.9;*/
+        transform: scale(1.02);
+    }
+    100% {
+        /*opacity: 1;*/
+        transform: scale(1);
+    }
+}
+
+.event-card.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.event-card.hide {
+    opacity: 0;
+    transform: translateX(28px);
+}
+
+.event-icon {
+    width: 28px;
+    height: 28px;
+    color: rgba(34, 34, 34, 0.75);
+    filter:
+            drop-shadow(-1px -1px 1px rgba(30,30,30,0.6))    
+            drop-shadow(1px 1px 1px rgba(255,255,255,0.5)); 
+
+    flex-shrink: 0;
+    display: block;
+    z-index: 99;
+    overflow:visible;
+    vertical-align: middle;
+}
+
+.event-text {
+    display: flex;
+    flex-direction: column;
+    width: 90%;
+    max-width: 90%;
+    line-height: 1.2;
+    max-height: 42px; /*62px*/
+    overflow: hidden;
+}
+
+.event-user {
+    font-weight: 100;
+    max-width: 95%;
+    min-width: 95%;
+    width: 95%;
+    overflow: hidden;
+    padding-left: 4px;
+    padding-bottom: 2px;
+
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    text-shadow: 0 0 3px rgba(10, 10, 10, 0.8), 0 0 6px rgba(10, 10, 10, 0.6);
+
+    box-shadow: inset 0 2px 2px rgba(255,255,255,0.2),
+    inset 0 -2px 2px rgba(0,0,0,0.4),
+    0 2px 2px rgba(0,0,0,0.2);
+    border: 2px inset #333;
+    background: linear-gradient(145deg, #666 0%, #999 50%, #666 100%);
+}
+
+.event-value {
+    font-size: 0.9rem;
+    opacity: 0.85;
+    min-height: 1.2rem;
+    padding-top: 4px;
+    padding-left: 2px;
+}
