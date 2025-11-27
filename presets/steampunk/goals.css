@@ -80,8 +80,8 @@
 
 .goal-item.completed {
     text-decoration: line-through;
-    filter: brightness(0.85);
-    opacity: 0.25;
+    filter: brightness(0.95);
+    opacity: 0.30;
     transition: opacity 0.5s ease;
 }
 

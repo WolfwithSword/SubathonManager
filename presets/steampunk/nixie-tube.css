@@ -44,6 +44,7 @@ body {
     background: var(--tube-bg);
     border: 2px solid var(--tube-border);
     border-radius: 10px;
+    mix-blend-mode: screen;
     box-shadow: 
             inset 0 0 calc(var(--tube-outer-glow-max-size) * 0.6) var(--tube-inner-glow),
             inset 0 0 calc(var(--tube-outer-glow-max-size) * 0.86) var(--tube-inner-glow-strong), 
