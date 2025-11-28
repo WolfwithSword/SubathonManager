@@ -10,4 +10,4 @@ jobs:
     steps:
       - uses: stefanluptak/delete-old-pr-artifacts@v1
         with:
-          workflow_filename: build.yaml
+          workflow_filename: build.yml
