@@ -30,6 +30,9 @@ public class Widget
 
     public int Width { get; set; } = 400;
     public int Height { get; set; } = 400;
+    
+    public float ScaleX { get; set; } = 1;
+    public float ScaleY { get; set; } = 1;
 
     public List<CssVariable> CssVariables { get; set; } = new();
  

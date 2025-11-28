@@ -50,6 +50,7 @@ public partial class EditRouteWindow
         finally
         {
             WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
+            WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
         }
     }
@@ -67,6 +68,20 @@ public partial class EditRouteWindow
             });
         }
 
+    } 
+    
+    private void OnWidgetScaleUpdated(Widget updatedWidget)
+    {
+        if (_selectedWidget != null && _selectedWidget.Id == updatedWidget.Id)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _selectedWidget.ScaleX = updatedWidget.ScaleX;
+                _selectedWidget.ScaleY = updatedWidget.ScaleY;
+                if (WidgetScaleXBox.Text != $"{updatedWidget.ScaleX}") WidgetScaleXBox.Text = $"{updatedWidget.ScaleX}";
+                if (WidgetScaleYBox.Text != $"{updatedWidget.ScaleY}") WidgetScaleYBox.Text = $"{updatedWidget.ScaleY}";
+            });
+        }
     }
     
     private async Task LoadRouteAsync()
@@ -152,6 +167,16 @@ public partial class EditRouteWindow
     private void NumberOrNegativeOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
         if (e.Text == "-")
+        {
+            e.Handled = false;
+            return;
+        }
+        e.Handled = !int.TryParse(e.Text, out _);
+    }
+    
+    private void NumberOrDecimalOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text == ".")
         {
             e.Handled = false;
             return;
@@ -339,6 +364,11 @@ public partial class EditRouteWindow
         if (WidgetHeightBox.Text != widget.Height.ToString()) WidgetHeightBox.Text = widget.Height.ToString();
         if (WidgetXBox.Text != $"{widget.X}") WidgetXBox.Text = $"{widget.X}";
         if (WidgetYBox.Text != $"{widget.Y}") WidgetYBox.Text = $"{widget.Y}";
+        if (widget.ScaleX == 0) widget.ScaleX = 1;
+        if (widget.ScaleY == 0) widget.ScaleY = 1;
+        if (WidgetScaleXBox.Text != $"{widget.ScaleX}") WidgetScaleXBox.Text = $"{widget.ScaleX}";
+        if (WidgetScaleYBox.Text != $"{widget.ScaleY}") WidgetScaleYBox.Text = $"{widget.ScaleY}";
+        
 
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
@@ -408,6 +438,8 @@ public partial class EditRouteWindow
             widget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
             widget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
             widget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
+            widget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx : (_selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX);
+            widget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy : (_selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY);
             widget.CssVariables = _editingCssVars.ToList();
 
             db.Widgets.Update(widget);
@@ -563,6 +595,7 @@ public partial class EditRouteWindow
         PreviewWebView?.Dispose();
         
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
+        WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
         WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
         WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
         Loaded -= EditRouteWindow_Loaded;

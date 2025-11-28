@@ -171,27 +171,35 @@
                     <UniformGrid Columns="2" Rows="2" Margin="0,8">
                         <StackPanel>
                             <TextBlock Text="Width" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetWidthBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Height" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetHeightBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="X" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetXBox" Margin="4 0" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
                         </StackPanel>
                         <StackPanel>
                             <TextBlock Text="Y" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetYBox"  Margin="4 0" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                            <TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="ScaleX" FontWeight="SemiBold"/>
+                            <TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="ScaleY" FontWeight="SemiBold"/>
+                            <TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
                         </StackPanel>
                     </UniformGrid>
 
-                    <Separator Margin="0,10"/>
+                    <Separator Margin="0 32 0 8"/>
 
                     <!-- CSS Variables -->
                     <TextBlock Text="CSS Variables" FontWeight="Bold" Margin="0,0,0,6"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="480" MaxHeight="480">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="450" MaxHeight="450">
                         <ItemsControl x:Name="CssVarsList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>

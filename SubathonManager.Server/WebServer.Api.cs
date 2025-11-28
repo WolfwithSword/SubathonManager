@@ -27,10 +27,9 @@ public partial class WebServer
             }
             return false;
         }
-        else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
+        else if (path.StartsWith("/api/update-", StringComparison.OrdinalIgnoreCase))
         {
             var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
             if (parts.Length >= 3)
             {
                 string widgetId = parts[2];
@@ -49,7 +48,12 @@ public partial class WebServer
                 }
                     
                 var widgetHelper = new WidgetEntityHelper();
-                bool success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+                bool success = false;
+                if (path.StartsWith("/api/update-size/", StringComparison.OrdinalIgnoreCase))
+                    success = await widgetHelper.UpdateWidgetScale(widgetId, data);
+                else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
+                    success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+                
                 if (success)
                 {
                     ctx.Response.StatusCode = 200;
