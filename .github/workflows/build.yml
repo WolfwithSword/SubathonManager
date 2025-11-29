@@ -85,7 +85,7 @@ jobs:
           retention-days: 3
           
       - name: Upload build artifact (Nextcloud)
-        if: (!(github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') && github.ref_name != 'main')
+        if: ((!(github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') && github.ref_name != 'main') || github.event_name == 'workflow_dispatch')
         uses: trympet/nextcloud-artifacts-action@v2
         with:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
