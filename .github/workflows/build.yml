@@ -77,11 +77,23 @@ jobs:
           copy LICENSE build\
           
       - name: Upload build artifact
+        if: ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main')
         uses: actions/upload-artifact@v4
         with:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
-
+          retention-days: 3
+          
+      - name: Upload build artifact (Nextcloud)
+        if: (!(github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') && github.ref_name != 'main')
+        uses: trympet/nextcloud-artifacts-action@v2
+        with:
+          name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
+          path: build
+          nextcloud-url: ${{ secrets.NEXTCLOUD_URL }}
+          nextcloud-username: ${{ secrets.NEXTCLOUD_USERNAME }}
+          nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
+        
   release:
     env:
       RUNTIME: win-x64
