@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -504,6 +505,38 @@ public partial class EditRouteWindow
     {
         PreviewWebView.CoreWebView2?.Reload();
     }
+    
+    private async Task<Dictionary<string, string>> ExtractWidgetMetadata(string htmlpath)
+    {
+        var html = await File.ReadAllTextAsync(htmlpath);
+
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var pattern = @"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->";
+        var match  = Regex.Match(html, pattern, RegexOptions.Singleline);
+
+        if (!match.Success)
+            return result;
+
+        var block = match.Groups[1].Value;
+
+        var lines = block.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            var index = trimmed.IndexOf(':');
+            if (index <= 0 || index == trimmed.Length - 1)
+                continue;
+
+            var key = trimmed.Substring(0, index).Trim();
+            var value = trimmed.Substring(index + 1).Trim();
+
+            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                result[key] = value;
+        }
+        return result;
+    }
 
     private async void ImportWidgetButton_Click(object sender, RoutedEventArgs e)
     {
@@ -527,12 +560,20 @@ public partial class EditRouteWindow
                 _lastFolder = Path.GetDirectoryName(path)!;
                 await using var db = await _factory.CreateDbContextAsync();
                 var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
+
+                var metadata = await ExtractWidgetMetadata(path);
+                
                 newWidget.RouteId = _route!.Id;
                 newWidget.X = 0;
                 newWidget.Y = 0;
                 newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
-                newWidget.Width = 400;
-                newWidget.Height = 200;
+                newWidget.Width = metadata.TryGetValue("Width", out var w) && int.TryParse(w, out var parsedW)
+                    ? parsedW
+                    : 400;
+                newWidget.Height = metadata.TryGetValue("Height", out var h) && int.TryParse(h, out var parsedH)
+                    ? parsedH
+                    : 200;
+                
                 db.Widgets.Add(newWidget);
                 await db.SaveChangesAsync();
                 newWidget.ScanCssVariables();
