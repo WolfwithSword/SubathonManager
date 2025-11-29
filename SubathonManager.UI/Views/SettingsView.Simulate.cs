@@ -1,10 +1,19 @@
 ﻿using System.Windows;
 using SubathonManager.Integration;
+using SubathonManager.Core.Events;
 
 namespace SubathonManager.UI.Views
 {
     public partial class SettingsView
     {
+
+        private void TestWebhook_Click(object sender, RoutedEventArgs e)
+        {
+            ErrorMessageEvents.RaiseErrorEvent("INFO", "Test", 
+                "This is a test of the Error Webhook", DateTime.Now);
+            ErrorMessageEvents.RaiseCustomEvent("This is a test of the Event Webhook");
+        }
+        
         private void TestSETip_Click(object sender, RoutedEventArgs e)
         {
             var value = SimulateSETipAmountBox.Text;

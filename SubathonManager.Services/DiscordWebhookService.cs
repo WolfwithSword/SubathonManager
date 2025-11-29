@@ -33,6 +33,7 @@ public class DiscordWebhookService : IDisposable
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
+        ErrorMessageEvents.SendCustomEvent += OnCustomEvent;
         _backgroundTask = Task.Run(ProcessQueueAsync);
     }
 
@@ -59,6 +60,26 @@ public class DiscordWebhookService : IDisposable
         // only queue events we care about based on settings
         // so not-logged ones don't clog the queue downstream
         _eventQueue.Enqueue(subathonEvent);
+    }
+
+    private void OnCustomEvent(string message)
+    {
+        if (string.IsNullOrEmpty(_eventWebhookUrl) ) return;
+        var payload = new
+        {
+            username = "Subathon Manager",
+            embeds = new[]
+            {
+                new
+                {
+                    title = $"INFO",
+                    description = $"**Test**\n{message}",
+                    color = 0xE3E3E3 ,
+                    timestamp = DateTime.Now.ToString("o")
+                }
+            }
+        };
+        Task.Run(async () => { await SendWebhookAsync(payload, _eventWebhookUrl); });
     }
 
     private void OnSubathonEventDeleted(List<SubathonEvent>? subathonEvents)
@@ -235,6 +256,9 @@ public class DiscordWebhookService : IDisposable
     {
         _cts.Cancel();
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
+        SubathonEvents.SubathonEventsDeleted -= OnSubathonEventDeleted;
+        ErrorMessageEvents.ErrorEventOccured -= SendErrorEvent;
+        ErrorMessageEvents.SendCustomEvent -= OnCustomEvent;
         _cts.Dispose();
     }
 
