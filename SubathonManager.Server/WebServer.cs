@@ -94,7 +94,7 @@ public partial class WebServer
 
         if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
         {
-            if (await HandleApiReqeustAsync(ctx, path)) return;
+            if (await HandleApiRequestAsync(ctx, path)) return;
         }
         else if (path.StartsWith("/route/", StringComparison.OrdinalIgnoreCase))
         {

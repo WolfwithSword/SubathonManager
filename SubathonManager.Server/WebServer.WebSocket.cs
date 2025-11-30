@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
-using SubathonManager.Data;
 
 namespace SubathonManager.Server;
 

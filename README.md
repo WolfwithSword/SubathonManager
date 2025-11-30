@@ -14,7 +14,7 @@ overlays, settings, and more all locally!
 
 ## [Download Latest](https://github.com/WolfwithSword/SubathonManager/releases/latest)
 
-[Check the Wiki](https://github.com/WolfwithSword/SubathonManager/wiki)
+### [Check the Wiki](https://github.com/WolfwithSword/SubathonManager/wiki)
 
 
 ## Supported Integrations 
@@ -42,6 +42,7 @@ overlays, settings, and more all locally!
 - Built in overlay editor and host server for local html widgets
 - Goals list tracking
 - Multiplier modes for time and/or points
+- And more!
 
 ## License
 
@@ -50,3 +51,14 @@ We use a [modified MIT License](LICENSE) that only prohibits the software from b
 You are fully permitted to *use* the software for commercial purposes such as streaming, or developing widget assets for sale. Modifications are allowed, provided they retain this license, though contributions back are preferred!
 
 In private, you can do whatever you want. This software is as open-source as possible with that single restriction, as its sole purpose is to prevent users from being taken advantage of from commercial distributions/derivatives of this otherwise open and free software.
+
+## Contact
+
+For questions, issues, or other, you can leave an issue or discussion here in the repo.
+
+Alternatively, you can contact me through Discord.
+
+
+![](https://dcbadge.limes.pink/api/shield/153961246910185472?theme=discord-inverted)
+[![](https://dcbadge.limes.pink/api/server/r8FUvUdCpP)](https://discord.gg/r8FUvUdCpP)
+

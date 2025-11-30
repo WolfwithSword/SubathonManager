@@ -12,13 +12,27 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <Grid>
                 <StackPanel Margin="10 10 10 56">
-                        <StackPanel Orientation="Horizontal">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal" Grid.Column="0">
                             <TextBlock Text="App Settings" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
                             <ui:Button Content="Open Data Folder" Width="140" VerticalAlignment="Center" Click="OpenDataFolder_Click" FontSize="12" Margin="48,0,0,10"/>
-                            <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="24,0,0,10"/>
-                            <ui:Button x:Name="UpdateBtn" Content="Check for Updates" Width="178" VerticalAlignment="Center" Click="Updater_Click" FontSize="12" Margin="102,0,0,10"/>
+                            <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="8,0,0,10"/>
+                            <ui:Button Content="View Summary" Width="120" VerticalAlignment="Center" Click="EventsSummary_Click" FontSize="12" Margin="8,0,0,10"/>
+                        </StackPanel>
+                        
+                        <StackPanel Orientation="Horizontal"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Right">
+                            <ui:Button x:Name="UpdateBtn" Content="Check for Updates" Width="178" VerticalAlignment="Center" Click="Updater_Click" FontSize="12" Margin="8,0,0,10"/>
                             <ui:Button Content="Help?" Width="60" VerticalAlignment="Center" Click="GoToHelp_Click" FontSize="12" Margin="48,0,0,10"/>
                         </StackPanel>
+                    </Grid>
+
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
                             <TextBlock Text="Port:" Width="50" VerticalAlignment="Center"/>
                             <ui:TextBox x:Name="ServerPortTextBox" Width="100"/>
@@ -35,7 +49,7 @@
                             <TextBlock Text="WebServer: " VerticalAlignment="Center" FontSize="12" Margin="14 0 2 0"/>
                             <TextBlock x:Name="ServerStatusText" VerticalAlignment="Center" FontSize="12" Margin="0 0 0 0"/>
                         </StackPanel>
-                        <StackPanel HorizontalAlignment="Right" Margin="12 -76 12 4">
+                        <StackPanel HorizontalAlignment="Right" Margin="12 -70 12 4">
                             <TextBlock x:Name="TimerValueSettings" Text="" VerticalAlignment="Center"
                                        HorizontalAlignment="Right" FontSize="40" Margin="6 0 6 0"/>
                             <TextBlock x:Name="PointsValueSettings" Text="" VerticalAlignment="Center" 

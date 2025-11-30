@@ -39,6 +39,14 @@ namespace SubathonManager.UI.Views
             } catch {/**/}
         }
         
+        private void EventsSummary_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"http://localhost:{Config.Data["Server"]["Port"]}/api/data/amounts",
+                UseShellExecute = true
+            });
+        }
         
         private async void ExportEvents_Click(object sender, RoutedEventArgs e)
         {
