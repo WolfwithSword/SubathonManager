@@ -141,6 +141,13 @@ public class TwitchService
             UseShellExecute = true
         });
 
+
+        if (!HttpListener.IsSupported)
+        {
+            _logger?.LogError("HTTP Listener not supported. Cannot start Twitch OAuth flow.");
+            return;
+        }
+        
         // temp listener for callback
         var listener = new HttpListener();
 

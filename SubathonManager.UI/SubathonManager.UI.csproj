@@ -12,6 +12,7 @@
         <InformationalVersion>dev</InformationalVersion>
         <AssemblyName>SubathonManager</AssemblyName>
         <ApplicationIcon>..\assets\icon.ico</ApplicationIcon>
+        <ForceManagedImplementation>true</ForceManagedImplementation>
     </PropertyGroup>
 
     <ItemGroup>
