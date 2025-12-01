@@ -1,0 +1,60 @@
+﻿<!--
+WIDGET_META
+Width:230
+Height:70
+END_WIDGET_META
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href='https://fonts.googleapis.com/css?family=Quantico' rel='stylesheet'>
+<link rel="stylesheet" type="text/css" href="./points.styles.css" />
+
+<div class="points">
+    <div class="num"><span id="pointsNode">0</span></div>
+    <div class="suffix" id="pointsSuffix"></div>
+</div>
+
+<script>
+    const pointsState = {
+        value: 0
+    };
+
+    const pointsNode = document.getElementById("pointsNode");
+
+    function animatePoints(newValue) {
+        const oldValue = pointsState.value;
+        if (oldValue === newValue) return;
+
+        const tweenObj = { n: oldValue };
+        gsap.to(tweenObj, {
+            n: newValue,
+            duration: 0.5,
+            ease: "power2.out",
+            onUpdate() {
+                pointsNode.textContent = Math.floor(tweenObj.n);
+            },
+            onComplete() {
+                pointsState.value = newValue;
+                pointsNode.textContent = newValue;
+            }
+        });
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+        
+        animatePoints(data.total_points);
+
+        const pointsEl = document.querySelector(".points");
+        if (data.is_locked) pointsEl.classList.add("locked");
+        else pointsEl.classList.remove("locked");
+    }
+
+    function handleSubathonDisconnect() {
+        const pointsEl = document.querySelector(".points");
+        pointsEl.classList.add("locked");
+    }
+    
+    const pointsSuffixEl = document.querySelector(".suffix");
+    pointsSuffixEl.textContent = getComputedStyle(document.documentElement)
+        .getPropertyValue('--suffix').trim();
+</script>

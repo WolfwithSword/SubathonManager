@@ -26,14 +26,14 @@ public class DiscordWebhookService : IDisposable
     
     private readonly ILogger? _logger =  AppServices.Provider.GetRequiredService<ILogger<DiscordWebhookService>>();
 
-    // todo handle rate limite and retry_after
-    // todo listener for errors
+    // todo handle rate limit and retry_after
     public DiscordWebhookService()
     {
         LoadFromConfig();
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
+        ErrorMessageEvents.SendCustomEvent += OnCustomEvent;
         _backgroundTask = Task.Run(ProcessQueueAsync);
     }
 
@@ -62,6 +62,26 @@ public class DiscordWebhookService : IDisposable
         _eventQueue.Enqueue(subathonEvent);
     }
 
+    private void OnCustomEvent(string message)
+    {
+        if (string.IsNullOrEmpty(_eventWebhookUrl) ) return;
+        var payload = new
+        {
+            username = "Subathon Manager",
+            embeds = new[]
+            {
+                new
+                {
+                    title = $"INFO",
+                    description = $"**Test**\n{message}",
+                    color = 0xE3E3E3 ,
+                    timestamp = DateTime.Now.ToString("o")
+                }
+            }
+        };
+        Task.Run(async () => { await SendWebhookAsync(payload, _eventWebhookUrl); });
+    }
+
     private void OnSubathonEventDeleted(List<SubathonEvent>? subathonEvents)
     {
         if (subathonEvents?.Count == 1)
@@ -70,7 +90,7 @@ public class DiscordWebhookService : IDisposable
             if (string.IsNullOrEmpty(_eventWebhookUrl)) return;
             if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
             if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
-            // todo other logic?
+
 
             subathonEvent.Value += " [DELETED]";
             _eventQueue.Enqueue(subathonEvent);
@@ -236,6 +256,9 @@ public class DiscordWebhookService : IDisposable
     {
         _cts.Cancel();
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
+        SubathonEvents.SubathonEventsDeleted -= OnSubathonEventDeleted;
+        ErrorMessageEvents.ErrorEventOccured -= SendErrorEvent;
+        ErrorMessageEvents.SendCustomEvent -= OnCustomEvent;
         _cts.Dispose();
     }
 

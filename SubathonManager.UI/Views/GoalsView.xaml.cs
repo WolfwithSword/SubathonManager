@@ -65,7 +65,6 @@ public partial class GoalsView
         Goals.Clear();
         foreach (var goal in activeGoalSet.Goals)
         {
-            // TODO remove this, and make the BringIntoView more reliable?
             if (currentPoints >= goal.Points)
                 Goals.Clear(); // just remove previous completed
             

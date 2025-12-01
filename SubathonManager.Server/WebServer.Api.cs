@@ -1,15 +1,22 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 
 namespace SubathonManager.Server;
 
 public partial class WebServer
 {
-    private async Task<bool> HandleApiReqeustAsync(HttpListenerContext ctx, string path)
+    private async Task<bool> HandleApiRequestAsync(HttpListenerContext ctx, string path)
     {
+        if (path.StartsWith("/api/data/"))
+        {
+            return await HandleDataRequestAsync(ctx, path.Replace("/api/data/", ""));
+        }
         if (path.StartsWith("/api/select/", StringComparison.OrdinalIgnoreCase))
         {                    
             ctx.Response.StatusCode = 200;
@@ -27,10 +34,9 @@ public partial class WebServer
             }
             return false;
         }
-        else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
+        if (path.StartsWith("/api/update-", StringComparison.OrdinalIgnoreCase))
         {
             var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
             if (parts.Length >= 3)
             {
                 string widgetId = parts[2];
@@ -49,7 +55,12 @@ public partial class WebServer
                 }
                     
                 var widgetHelper = new WidgetEntityHelper();
-                bool success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+                bool success = false;
+                if (path.StartsWith("/api/update-size/", StringComparison.OrdinalIgnoreCase))
+                    success = await widgetHelper.UpdateWidgetScale(widgetId, data);
+                else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
+                    success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+                
                 if (success)
                 {
                     ctx.Response.StatusCode = 200;
@@ -72,4 +83,118 @@ public partial class WebServer
         ctx.Response.Close();
         return false;
     }
+
+    private async Task<bool> HandleDataRequestAsync(HttpListenerContext ctx, string path)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        SubathonData? subathon = await db.SubathonDatas
+            .FirstOrDefaultAsync(s => s.IsActive);
+        
+        if (subathon != null && path.StartsWith("amounts"))
+        {
+            var events = await db.SubathonEvents
+                .Where(e => e.SubathonId == subathon.Id && e.ProcessedToSubathon)
+                .Where(e => e.EventType != SubathonEventType.Command &&
+                            e.EventType != SubathonEventType.Unknown)
+                .ToListAsync();
+            
+            var simulated = events.Where(e => e.User == "SYSTEM").ToList();
+            var real = events.Where(e => e.User != "SYSTEM").ToList();
+            
+            object response = new
+            {
+                simulated = BuildDataSummary(simulated),
+                real = BuildDataSummary(real)
+            };
+
+            string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            ctx.Response.StatusCode = 200;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(json));
+            ctx.Response.Close();
+            return true;
+        }
+
+        ctx.Response.StatusCode = 500;
+        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid API Request"));
+        ctx.Response.Close();
+        return false;
+    }
+    
+    private object BuildDataSummary(List<SubathonEvent> events)
+    {
+        var result = new Dictionary<string, object>();
+        
+        static string NormalizeTier(string meta)
+        {
+            return meta switch
+            {
+                "1000" => "T1",
+                "2000" => "T2",
+                "3000" => "T3",
+                _ => meta
+            };
+        }
+
+        var groups = events.GroupBy(e => e.EventType);
+
+        foreach (var g in groups)
+        {
+            string? key = g.Key!.ToString();
+            if (key == null) continue;
+
+            if (g.Key.IsCurrencyDonation())
+            {
+                result[key] = g
+                    .Where(e => !string.IsNullOrWhiteSpace(e.Currency))  
+                    .GroupBy(e => e.Currency ?? "")
+                    .ToDictionary(
+                        t => t.Key,
+                        t =>
+                        {
+                            double sum = t.Sum(e =>
+                                double.TryParse(e.Value, out var amount)
+                                    ? amount
+                                    : 0
+                            );
+                            return Math.Round(sum, 2);
+                        }
+                    );
+            }
+            else if (g.Key.IsSubOrMembershipType())
+            {
+                result[key] = g.GroupBy(e => NormalizeTier(e.Value))
+                    .ToDictionary(
+                        t => t.Key,
+                        t => t.Sum(x => x.Amount)
+                    );
+            }
+            else
+            {
+                switch (g.Key)
+                {
+                    case SubathonEventType.TwitchCheer:
+                        result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
+                        break;
+
+                    case SubathonEventType.TwitchFollow:
+                        result[key] = g.Count();
+                        break;
+
+                    case SubathonEventType.TwitchRaid:
+                        result[key] = new
+                        {
+                            count = g.Count(),
+                            total_viewers = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0)
+                        };
+                        break;
+                }
+            }
+        }
+        return result;
+    }
+    
 }

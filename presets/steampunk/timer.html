@@ -1,0 +1,166 @@
+﻿<!--
+WIDGET_META
+Width:950
+Height:180
+END_WIDGET_META
+-->
+<link rel="stylesheet" href="nixie-tube.css">
+<link rel="stylesheet" href="nixie-timer.css">
+
+<div class="nixie-container" id="timerContainer"></div>
+
+<script>
+    var displayedSeconds = 0;
+    let tweenActive = false;
+    let tweenCancel = null;
+    const tubeElements = [];
+
+    function tweenValue(start, end, duration, onUpdate, onComplete) {
+        let cancelled = false;
+        tweenCancel = () => cancelled = true;
+        const startTime = performance.now();
+
+        function animate(now) {
+            if (cancelled) return;
+
+            const t = Math.min(1, (now - startTime) / duration);
+            const eased = t * (2 - t);
+            const value = start + (end - start) * eased;
+
+            onUpdate(value);
+
+            if (t < 1) requestAnimationFrame(animate);
+            else if (onComplete) onComplete();
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function pad2(n) {
+        return n.toString().padStart(2, "0");
+    }
+
+    function createSeparator(isLocked) {
+        if (isLocked) {
+            const ns = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(ns, "svg");
+            svg.setAttribute("viewBox", "0 0 24 24");
+            svg.classList.add("nixie-sep", "locked-lock");
+            svg.style.width = "0.6em";
+            svg.style.height = "1em";
+            const path = document.createElementNS(ns, "path");
+            path.setAttribute("fill", "currentColor");
+            path.setAttribute("d", "M12 2a4 4 0 0 0-4 4v4H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4zM10 6a2 2 0 1 1 4 0v4h-4V6z");
+            svg.appendChild(path);
+            return svg;
+        } else {
+            const div = document.createElement("div");
+            div.className = "nixie-sep";
+            div.textContent = ":";
+            return div;
+        }
+    }
+
+    function updateTimerDisplay(totalSeconds, isPaused=false, isLocked=false, isTween=false) {
+        const container = document.getElementById("timerContainer");
+
+        if (isPaused) container.classList.add("off");
+        else container.classList.remove("off");
+
+        const hrs = Math.floor(totalSeconds / 3600);
+        const mins = Math.floor((totalSeconds % 3600) / 60);
+        const secs = totalSeconds % 60;
+
+        const mm = pad2(mins);
+        const ss = pad2(secs);
+
+        const displayDigits = [];
+        if (hrs > 0) displayDigits.push(...hrs.toString().split(""), ":");
+        displayDigits.push(mm[0], mm[1], ":", ss[0], ss[1]);
+
+        displayDigits.forEach((digit, i) => {
+            let el = tubeElements[i];
+
+            if (!el) {
+                if (digit === ":") el = createSeparator(isLocked);
+                else {
+                    el = document.createElement("div");
+                    el.className = "nixie";
+                }
+                tubeElements[i] = el;
+                container.appendChild(el);
+            }
+
+            if (digit === ":") {
+                const shouldBeLock = isLocked;
+                const isLockNow = el.classList.contains("locked-lock");
+                if (!el.classList.contains("nixie-sep") || (shouldBeLock && !isLockNow) || (!shouldBeLock && isLockNow)) {
+                    const sep = createSeparator(isLocked);
+                    el.replaceWith(sep);
+                    el = sep;
+                    tubeElements[i] = sep;
+                }
+            } else {
+                if (!el.classList.contains("nixie")) {
+                    const tube = document.createElement("div");
+                    tube.className = "nixie";
+                    el.replaceWith(tube);
+                    el = tube;
+                    tubeElements[i] = tube;
+                }
+
+                if (el.textContent !== digit) {
+                    el.textContent = digit;
+                    el.classList.remove("flicker");
+                    void el.offsetWidth;
+                    el.classList.add("flicker");
+                }
+            }
+
+            if (digit !== ":" && isLocked) el.classList.add("locked");
+            else if (digit !== ":") el.classList.remove("locked");
+
+            el.style.display = "flex";
+        });
+
+        for (let i = displayDigits.length; i < tubeElements.length; i++) {
+            tubeElements[i].style.display = "none";
+        }
+    }
+
+    function smoothSetSeconds(newSeconds, isPaused, isLocked) {
+        if (tweenActive && tweenCancel) tweenCancel();
+
+        const start = displayedSeconds;
+        const end = newSeconds;
+
+        if (start === end) {
+            updateTimerDisplay(displayedSeconds, isPaused, isLocked);
+            return;
+        }
+
+        tweenActive = true;
+
+        tweenValue(start, end, 200, (v) => {
+            const rounded = Math.round(v);
+            displayedSeconds = rounded;
+            updateTimerDisplay(rounded, isPaused, isLocked, true);
+        }, () => {
+            tweenActive = false;
+            displayedSeconds = newSeconds;
+            updateTimerDisplay(displayedSeconds, isPaused, isLocked, false);
+        });
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+        smoothSetSeconds(data.total_seconds, data.is_paused, data.is_locked);
+    }
+
+    function handleSubathonDisconnect() {
+        const container = document.getElementById("timerContainer");
+        container.classList.add("off");
+        for (const tube of tubeElements) {
+            if (tube.classList.contains("nixie")) tube.classList.add("locked");
+        }
+    }
+</script>

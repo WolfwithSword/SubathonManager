@@ -10,7 +10,42 @@
                  ResizeMode="NoResize"
                  WindowStartupLocation="CenterOwner"
                  Title="EditRouteWindow" Height="900" Width="1740">
+    <ui:FluentWindow.Resources>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#363636"/>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundBorder" Color="#2f2f2f"/>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#424242"/>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#484848"/>
     
+        <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Appearance" Value="Secondary"/>
+            <Setter Property="Background" Value="{StaticResource OpaqueSecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundBorder}"/>
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ui:Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource OpaqueSecondaryBackgroundHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource OpaqueSecondaryBackgroundPressed}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ui:FluentWindow.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="370"/>
@@ -28,8 +63,14 @@
                      DockPanel.Dock="Top"/>
         
         <!-- LEFT - widget list and route settings -->
-        <StackPanel Grid.Column="0" Margin="12 44 12 12" >
-
+        <Grid Grid.Column="0" Margin="12 44 12 12" >
+            
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
             <StackPanel Orientation="Vertical" Background="{DynamicResource UiBrushControlBackground}">
                 <TextBlock Text="Overlay" FontWeight="SemiBold" Margin="0,12,0,8"/>
                 <TextBlock Text="Name" FontSize="12" />
@@ -62,15 +103,17 @@
                 </StackPanel>
             </StackPanel>
 
-            <Separator Margin="0,12"/>
+            <StackPanel Grid.Row="1">
+                <Separator Margin="0,12"/>
 
-            <!-- Widgets -->
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
-                <TextBlock Text="Widgets" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
-                <ui:Button x:Name="ImportWidgetButton" Padding="2" Icon="Add20" Content="Import Widget" Margin="8,0,0,0" Click="ImportWidgetButton_Click"/>
+                <!-- Widgets -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,8">
+                    <TextBlock Text="Widgets" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                    <ui:Button x:Name="ImportWidgetButton" Padding="2" Icon="Add20" Content="Import Widget" Margin="8,0,0,0" Click="ImportWidgetButton_Click"/>
+                </StackPanel>
             </StackPanel>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="WidgetsList" >
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -96,19 +139,27 @@
                                     </EventTrigger>
                                 </ui:Card.Triggers>
                                 <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"/>
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch">
+                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         <TextBlock Text="{Binding Z, StringFormat=Z: {0}}" FontSize="11" Foreground="{DynamicResource UiBrushTextTertiary}"/>
                                     </StackPanel>
 
-                                    <StackPanel x:Name="WidgetActions" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Opacity="0">
-                                        <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Toggle Visibility" Click="ToggleVisibility_Click" Width="30" Height="30" Appearance="Secondary">
-                                            <ui:SymbolIcon Symbol="Eye20"/>
+                                    <StackPanel x:Name="WidgetActions" Orientation="Horizontal" VerticalAlignment="Top" 
+                                                Panel.ZIndex="1" Opacity="0" HorizontalAlignment="Right">
+                                        <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Toggle Visibility" Click="ToggleVisibility_Click" 
+                                                   Width="30" Height="30" Style="{StaticResource OpaqueSecondaryButton}" >
+                                            <ui:SymbolIcon>
+                                                <ui:SymbolIcon.Style>
+                                                    <Style TargetType="ui:SymbolIcon">
+                                                        <Setter Property="Symbol" Value="Eye20"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Visibility}" Value="False">
+                                                                <Setter Property="Symbol" Value="EyeOff20"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </ui:SymbolIcon.Style>
+                                            </ui:SymbolIcon>
                                         </ui:Button>
                                         <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Move Up" Click="MoveUp_Click" Width="30" Height="30" Appearance="Primary">
                                             <ui:SymbolIcon Symbol="ChevronUp20"/>
@@ -116,10 +167,13 @@
                                         <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Move Down" Click="MoveDown_Click" Width="30" Height="30" Appearance="Primary">
                                             <ui:SymbolIcon Symbol="ChevronDown20"/>
                                         </ui:Button>
-                                        <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Edit" Click="EditWidget_Click" Width="30" Height="30" Appearance="Secondary">
+                                        <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Edit" Click="EditWidget_Click" Width="30" Height="30" 
+                                                   Style="{StaticResource OpaqueSecondaryButton}">
                                             <ui:SymbolIcon Symbol="Edit20"/>
                                         </ui:Button>
-                                        <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Copy" Click="CopyWidget_Click" Width="30" Height="30" Appearance="Secondary">
+                                        <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Copy" Click="CopyWidget_Click" 
+                                                   Style="{StaticResource OpaqueSecondaryButton}" 
+                                                   Width="30" Height="30">
                                             <ui:SymbolIcon Symbol="Copy20"/>
                                         </ui:Button>
                                         <ui:Button Padding="2" Margin="2 0 2 0" ToolTip="Delete" Click="DeleteWidget_Click" Width="30" Height="30" Appearance="Danger">
@@ -132,7 +186,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-        </StackPanel>
+        </Grid>
         
         <!-- MIDDLE - webview editor -->
         <Grid Grid.Column="1" Margin="12 40 12 12"> 
@@ -152,46 +206,63 @@
         
         <!-- RIGHT - widget editor -->
         <Border Grid.Column="2" Background="{DynamicResource UiBrushPrimary}" Padding="0 12 12 12">
-            <StackPanel x:Name="WidgetEditorPanel" VerticalAlignment="Stretch">
+            <Grid x:Name="WidgetEditorPanel">
 
                 <StackPanel x:Name="EmptyEditorPanel">
                     <TextBlock Text="Widget Editor" FontWeight="SemiBold" Margin="0,44,0,8"/>
-                    <TextBlock Text="Please select a widget to edit in the left column." 
-                               Foreground="Gray" FontSize="13"/>
+                    <TextBlock Text="Please select a widget to edit in the left column.&#10;When editing, hold shift to resize while preserving aspect ratio." 
+                               Foreground="Gray" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
 
-                <StackPanel x:Name="WidgetEditPanel" Visibility="Collapsed" VerticalAlignment="Stretch">
-                    <TextBlock Text="Widget Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
-                    
-                    <StackPanel Margin="0,8">
-                        <TextBlock Text="Name" FontWeight="SemiBold"/>
-                        <TextBox x:Name="WidgetNameBox"/>
+                <Grid x:Name="WidgetEditPanel" Visibility="Collapsed">
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                
+                    <StackPanel>
+                        <TextBlock Text="Widget Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+                        
+                        <StackPanel Margin="0,8">
+                            <TextBlock Text="Name" FontWeight="SemiBold" Margin="2 2"/>
+                            <TextBox x:Name="WidgetNameBox"/>
+                        </StackPanel>
+
+                        <UniformGrid Columns="2" Rows="2" Margin="0,8">
+                            <StackPanel>
+                                <TextBlock Text="Width" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Height" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="X" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Y" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="ScaleX" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="ScaleY" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                            </StackPanel>
+                        </UniformGrid>
+
+                        <Separator Margin="0 32 0 8"/>
+                        <TextBlock Text="CSS Variables" FontWeight="Bold" Margin="0,0,0,6"/>
                     </StackPanel>
-
-                    <UniformGrid Columns="2" Rows="2" Margin="0,8">
-                        <StackPanel>
-                            <TextBlock Text="Width" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetWidthBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Height" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetHeightBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="X" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetXBox" Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                        </StackPanel>
-                        <StackPanel>
-                            <TextBlock Text="Y" FontWeight="SemiBold"/>
-                            <TextBox x:Name="WidgetYBox"  Margin="4 0" PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                        </StackPanel>
-                    </UniformGrid>
-
-                    <Separator Margin="0,10"/>
-
+                    
                     <!-- CSS Variables -->
-                    <TextBlock Text="CSS Variables" FontWeight="Bold" Margin="0,0,0,6"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Height="480" MaxHeight="480">
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="CssVarsList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -206,11 +277,14 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <Button Content="Reload CSS Vars" Width="150" Margin="0,8,0,4" Click="ReloadCSS_Click"/>
-                    <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="0,8,0,0"
-                            Click="SaveWidgetButton_Click"/>
-                </StackPanel>
-            </StackPanel>
+                    
+                    <StackPanel Grid.Row="2" VerticalAlignment="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 4">
+                        <Button Content="Reload CSS Vars" Width="150" Margin="4,8,4,4" Click="ReloadCSS_Click" HorizontalAlignment="Left"/>
+                        <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="4,8,4,4"
+                                Click="SaveWidgetButton_Click" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
         </Border>
 
     </Grid>

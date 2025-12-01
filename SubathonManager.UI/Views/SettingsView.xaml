@@ -12,749 +12,803 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <Grid>
                 <StackPanel Margin="10 10 10 56">
-                        <StackPanel Orientation="Horizontal">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Orientation="Horizontal" Grid.Column="0">
                             <TextBlock Text="App Settings" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
                             <ui:Button Content="Open Data Folder" Width="140" VerticalAlignment="Center" Click="OpenDataFolder_Click" FontSize="12" Margin="48,0,0,10"/>
-                            <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="24,0,0,10"/>
-                            <ui:Button x:Name="UpdateBtn" Content="Check for Updates" Width="178" VerticalAlignment="Center" Click="Updater_Click" FontSize="12" Margin="102,0,0,10"/>
-                            <ui:Button Content="Help?" Width="60" VerticalAlignment="Center" Click="GoToHelp_Click" FontSize="12" Margin="48,0,0,10"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                            <TextBlock Text="Port:" Width="50" VerticalAlignment="Center"/>
-                            <ui:TextBox x:Name="ServerPortTextBox" Width="100"/>
-                            <TextBlock Text="Default Currency:" Width="120" Margin="24 0 4 0"
-                                       VerticalAlignment="Center"/>
-                            <ComboBox Text="Default Currency" Width="80" IsEditable="True" IsTextSearchEnabled="True" 
-                                      x:Name="DefaultCurrencyBox" StaysOpenOnEdit="True"
-                                      Margin="4 0 4 0">
-                            </ComboBox>
-                        
+                            <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="8,0,0,10"/>
+                            <ui:Button Content="View Summary" Width="120" VerticalAlignment="Center" Click="EventsSummary_Click" FontSize="12" Margin="8,0,0,10"/>
                         </StackPanel>
                         
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="WebServer: " VerticalAlignment="Center" FontSize="12" Margin="14 0 2 0"/>
-                            <TextBlock x:Name="ServerStatusText" VerticalAlignment="Center" FontSize="12" Margin="0 0 0 0"/>
+                        <StackPanel Orientation="Horizontal"
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Right">
+                            <ui:Button x:Name="UpdateBtn" Content="Check for Updates" Width="178" VerticalAlignment="Center" Click="Updater_Click" FontSize="12" Margin="8,0,0,10"/>
+                            <ui:Button Content="Help?" Width="60" VerticalAlignment="Center" Click="GoToHelp_Click" FontSize="12" Margin="48,0,20,10"/>
                         </StackPanel>
-                        <StackPanel HorizontalAlignment="Right" Margin="12 -76 12 4">
-                            <TextBlock x:Name="TimerValueSettings" Text="" VerticalAlignment="Center"
-                                       HorizontalAlignment="Right" FontSize="40" Margin="6 0 6 0"/>
-                            <TextBlock x:Name="PointsValueSettings" Text="" VerticalAlignment="Center" 
-                                       HorizontalAlignment="Right" FontSize="30" Margin="6 0 6 0"/>
+                    </Grid>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <ui:Button x:Name="TogglePauseTimerBtnSettings"
-                                           Click="TogglePauseSubathon_Click"
-                                           Width="160" Height="30" Margin="0,10,6,5">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <ui:SymbolIcon x:Name="PauseIcon2" Symbol="Pause16" Width="20" Height="20" Margin="0,0,6,0"/>
-                                        <TextBlock x:Name="PauseText2" Text="Pause Timer" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </ui:Button>
-                                <ui:Button x:Name="ToggleLockTimerBtnSettings"
-                                           Click="ToggleLockSubathon_Click"
-                                           Width="160" Height="30" Margin="0,10,6,5">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <ui:SymbolIcon x:Name="LockIcon2" Symbol="LockClosed16" Width="20" Height="20" Margin="0,0,6,0"/>
-                                        <TextBlock x:Name="LockText2" Text="Lock Subathon" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </ui:Button>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                <ui:Button x:Name="RemoveAllSimulatedEventsBtn"
-                                           Click="RemoveSimEvents_Click"
-                                           Content="Undo Simulated Events"
-                                           Width="324" Height="30" Margin="2,10,2,5"/>
-                            </StackPanel>
-                        </StackPanel>
-                        
-                         <!-- Subathon Values -->
-                        
-                        <Separator Margin="0,10"/>
-                        <TextBlock Text="Values and Connections" FontWeight="Bold" FontSize="16" Margin="0,20,0,10"/>
-                        
-                        <!-- Twitch --> 
-                        <Expander Header="Twitch" IsExpanded="False">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:Button x:Name="ConnectTwitchBtn"
-                                               Content="Connect"
-                                               Width="120"
-                                               Height="35"
-                                               Margin="0,5,0,10"
-                                               Click="ConnectTwitchButton_Click"/>
-                                    <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 48 10"/>
-                                    <CheckBox x:Name="TwitchPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="4 4 4 4"/>
-                                    <CheckBox x:Name="TwitchLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="4 4 4 4"/>
-                                    <CheckBox x:Name="TwitchResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="4 4 4 4"/>
-                                    <CheckBox x:Name="TwitchUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="4 4 4 4"/>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5" HorizontalAlignment="Left">
+                                <TextBlock Text="Port:" Width="120" 
+                                           Margin="0 0 4 0" VerticalAlignment="Center"/>
+                                <ui:TextBox x:Name="ServerPortTextBox" Width="100"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                    <TextBlock Text="WebServer: " VerticalAlignment="Center" FontSize="12" Margin="14 0 2 0"/>
+                                    <TextBlock x:Name="ServerStatusText" VerticalAlignment="Center" FontSize="12" Margin="0 0 0 0"/>
                                 </StackPanel>
                                 
-                                <StackPanel Margin="10,5,0,5">
-                                    
-                                    <!-- Cheer / Bits -->
-                                    <Grid Margin="0,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="300"/>
-                                        </Grid.ColumnDefinitions>
 
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
-                                            <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="CheerTextBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
-                                            
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="Cheer2TextBox"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="100"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        PlaceholderText="100"
-                                                        Height="30"
-                                                        FontSize="12"
-                                                        PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateCheerAmt"/>
-                                            <ui:Button Icon="Add24" Foreground="White"
-                                                       Content="Test"
-                                                       Click="TestTwitchCheer_Click"
-                                                       Width="60" Padding="2"
-                                                       Height="30"
-                                                       Margin="4,0,0,0"></ui:Button>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- Raid -->
-                                    <Grid Margin="0,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="300"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                                            <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="RaidTextBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="Raid2TextBox"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                                                                
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="25"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        PlaceholderText="25"
-                                                        Height="30"
-                                                        FontSize="12"
-                                                        PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateRaidAmt"/>
-                                            <ui:Button Icon="Add24" Foreground="White"
-                                                       Content="Test"
-                                                       Click="TestTwitchRaid_Click"
-                                                       Width="60" Padding="2"
-                                                       Height="30"
-                                                       Margin="4,0,0,0"></ui:Button>
-                                        </StackPanel>
-                                    </Grid>
-                                    
-                                    
-                                    <Grid Margin="0,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="300"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                                            <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="FollowTextBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="Follow2TextBox"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                                                                
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <ui:Button Icon="Add24" Foreground="White"
-                                                       Content="Test"
-                                                       Click="TestTwitchFollow_Click"
-                                                       Width="60" Padding="2"
-                                                       Height="30"
-                                                       Margin="4,0,0,0"></ui:Button>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- Subs -->
-                                    <Expander Header="Subs" IsExpanded="True" Margin="0,5,0,0">
-                                        <StackPanel Margin="10,5,0,5">
-                                            <Grid Margin="0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="300"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                    <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="SubT1TextBox"/>
-                                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="SubT1TextBox2"/>
-                                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <ComboBox Text="Tier" Width="120" 
-                                                              x:Name="SimSubTierSelection"
-                                                              SelectedIndex="0" Margin="4 0 4 0">
-                                                        <ComboBoxItem Content="Tier 1"/>
-                                                        <ComboBoxItem Content="Tier 2"/>
-                                                        <ComboBoxItem Content="Tier 3"/>
-                                                    </ComboBox>
-                                                    <ui:Button Icon="Add24" Foreground="White"
-                                                               Content="Test"
-                                                               Click="TestTwitchSub_Click"
-                                                               Width="60" Padding="2"
-                                                               Height="30"
-                                                               Margin="4,0,0,0"></ui:Button>
-                                                </StackPanel>
-                                                
-                                            </Grid>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="SubT2TextBox"/>
-                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="SubT2TextBox2"/>
-                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="SubT3TextBox"/>
-                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="SubT3TextBox2"/>
-                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            
-                                            <Separator Margin="0,8"/>
-                                            
-                                            <Grid Margin="0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="300"/>
-                                                </Grid.ColumnDefinitions>
-                                              <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                    <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="GiftSubT1TextBox"/>
-                                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="GiftSubT1TextBox2"/>
-                                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                                                             
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                Text="1" PlaceholderText="1" Height="35" FontSize="14"
-                                                                x:Name="SimGiftSubAmtInput"/>
-                                                    <ComboBox Text="Tier" Width="120" 
-                                                              x:Name="SimGiftSubTierSelection"
-                                                              SelectedIndex="0" Margin="4 0 4 0">
-                                                        <ComboBoxItem Content="Tier 1"/>
-                                                        <ComboBoxItem Content="Tier 2"/>
-                                                        <ComboBoxItem Content="Tier 3"/>
-                                                    </ComboBox>
-                                                    <ui:Button Icon="Add24" Foreground="White"
-                                                               Content="Test"
-                                                               Click="TestTwitchGiftSub_Click"
-                                                               Width="60" Padding="2"
-                                                               Height="30"
-                                                               Margin="4,0,0,0"></ui:Button>
-                                                </StackPanel>
-                                                
-                                            </Grid>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="GiftSubT2TextBox"/>
-                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="GiftSubT2TextBox2"/>
-                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="GiftSubT3TextBox"/>
-                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                            x:Name="GiftSubT3TextBox2"/>
-                                                <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <!-- so the twitchlib for some reason doesnt have a tier for prime?? need to investigate -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="Prime Sub (seconds):" Width="200" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--              " x:Name="SubPrimeTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                        </StackPanel>
-                                    </Expander>
-                                </StackPanel>
                             </StackPanel>
-                        </Expander>
-
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
+                                <TextBlock Text="Default Currency:" Width="120"
+                                           Margin="0 0 4 0" VerticalAlignment="Center"/>
+                                <ComboBox Text="Default Currency" Width="100" IsEditable="True" IsTextSearchEnabled="True" 
+                                          x:Name="DefaultCurrencyBox" StaysOpenOnEdit="True"
+                                          Margin="0 0 4 0">
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
                         
-                        <!-- YouTube --> 
-                        <Expander Header="YouTube" IsExpanded="False">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:Button x:Name="ConnectYTBtn"
-                                               Content="Connect"
-                                               Width="120" VerticalAlignment="Center"
-                                               Height="35"
-                                               Margin="0,5,0,10"
-                                               Click="ConnectYouTubeButton_Click"/>
-                                    <ui:TextBox x:Name="YTUserHandle" PlaceholderText="@handle"
-                                                VerticalAlignment="Center" FontSize="12" Width="250" Margin="14 5 12 10"/>
-                                    <TextBlock x:Name="YTStatusText" VerticalAlignment="Center" FontSize="12" Margin="4 0 0 10"/>
-                                    <!-- <CheckBox x:Name="YTPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="4 4 4 4"/> -->
-                                    <!-- <CheckBox x:Name="YTLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="4 4 4 4"/> -->
-                                    <!-- <CheckBox x:Name="YTResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="4 4 4 4"/> -->
-                                    <!-- <CheckBox x:Name="YTUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="4 4 4 4"/> -->
-                                </StackPanel>
+                        <Grid Grid.Column="1">
+                            <Grid>
                                 
-                                <StackPanel Margin="10,5,0,5">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                
+                                
+                                <TextBlock Grid.Row="0" x:Name="TimerValueSettings" Text="" VerticalAlignment="Center"
+                                           HorizontalAlignment="Right" FontSize="40" Margin="6 0 6 0"/>
+                                <TextBlock Grid.Row="1" x:Name="PointsValueSettings" Text="" VerticalAlignment="Center" 
+                                           HorizontalAlignment="Right" FontSize="30" Margin="6 0 6 0"/>
+                                <Grid Grid.Row="2" HorizontalAlignment="Right">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
                                     
-                                    <Grid Margin="0,2">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="300"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                            <TextBlock Text="SuperChats:" Width="100" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="YTDonoBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="YTDonoBox2"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        PlaceholderText="100"  Height="34"
-                                                        FontSize="12"
-                                                        PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateSCAmt"/>
-                                            
-                                            <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
-                                                      x:Name="SimulateSCCurrencyBox" StaysOpenOnEdit="True"   Height="34"
-                                                      Margin="4 0 4 0">
-                                            </ComboBox>
-                                            <ui:Button Icon="Add24" Foreground="White"
-                                                       Content="Test"
-                                                       Click="TestYTSuperChat_Click"
-                                                       Width="60" Padding="2"  Height="34"
-                                                       Margin="4,0,0,0"></ui:Button>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    
-                                    
-                                    <!-- Memberships -->
-                                    <Expander Header="Memberships" IsExpanded="True" Margin="0,5,0,0" ToolTip="Multiple Levels are not currently supported" >
-                                        <StackPanel Margin="10,5,0,5">
-                                            <Grid Margin="0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="300"/>
-                                                </Grid.ColumnDefinitions>
-                                                <!-- Up to six can be defined, with custom names -->
-                                                <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                    <TextBlock Text="T1:" Width="100" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="MemberT1TextBox"/>
-                                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="MemberT1TextBox2"/>
-                                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                                    <!-- -->
-                                                    <!-- <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                                    <!-- <ui:TextBox Width="160" x:Name="MemberT1NameTextBox"/> -->
-                                                </StackPanel>
-                                                
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <!-- <ComboBox Text="Tier" Width="120"  -->
-                                                    <!--           x:Name="SimMemberTierSelection" -->
-                                                    <!--           SelectedIndex="0" Margin="4 0 4 0"> -->
-                                                    <!--     <ComboBoxItem Content="Tier 1"/> -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 2"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 3"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 4"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 5"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 6"/> @1@ -->
-                                                    <!-- </ComboBox> -->
-                                                    <ui:Button Icon="Add24" Foreground="White"
-                                                               Content="Test"
-                                                               Click="TestYTMembership_Click"
-                                                               Width="60" Padding="2"
-                                                               Height="30"
-                                                               Margin="4,0,0,0"></ui:Button>
-                                                </StackPanel>
-                                                
-                                            </Grid>
-                                            
-                                            <!-- -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T2:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT2TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT2TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="MemberT2NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- -->
-                                            <!-- -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T3:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT3TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT3TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="MemberT3NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- -->
-                                            <!-- -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T4:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT4TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT4TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="MemberT4NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T5:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT5TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT5TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="MemberT5NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- -->
-                                            <!-- -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T6:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT6TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="MemberT6TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="MemberT6NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            
-                                            <Separator Margin="0,8"/>
-                                            
-                                            <Grid Margin="0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="300"/>
-                                                </Grid.ColumnDefinitions>
-                                              <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                    <TextBlock Text="T1 Gift:" Width="100" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="GiftMemberT1TextBox"/>
-                                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                x:Name="GiftMemberT1TextBox2"/>
-                                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
-                                                    
-                                                    <!-- <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                                    <!-- <ui:TextBox Width="160" x:Name="GiftMemberT1NameTextBox"/> -->
-                                                </StackPanel>
-                                                                                             
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                                    <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                                Text="1" PlaceholderText="1" Height="35" FontSize="14"
-                                                                x:Name="SimGiftMembershipAmtInput"/>
-                                                    <!-- <ComboBox Text="Tier" Width="120"  -->
-                                                    <!--           x:Name="SimGiftMembershipTierSelection" -->
-                                                    <!--           SelectedIndex="0" Margin="4 0 4 0"> -->
-                                                    <!--     <ComboBoxItem Content="Tier 1"/> -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 2"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 3"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 4"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 5"/> @1@ -->
-                                                    <!--     ~1~ <ComboBoxItem Content="Tier 6"/> @1@ -->
-                                                    <!-- </ComboBox> -->
-                                                    <ui:Button Icon="Add24" Foreground="White"
-                                                               Content="Test"
-                                                               Click="TestYTGiftMembership_Click"
-                                                               Width="60" Padding="2"
-                                                               Height="30"
-                                                               Margin="4,0,0,0"></ui:Button>
-                                                </StackPanel>
-                                                
-                                            </Grid>
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T2 Gift:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT2TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT2TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="GiftMemberT2NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T3 Gift:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT3TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT3TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="GiftMemberT3NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T4 Gift:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT4TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT4TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="GiftMemberT4NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T5 Gift:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT5TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT5TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="GiftMemberT5NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
-                                            <!--     <TextBlock Text="T6 Gift:" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT6TextBox"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
-                                            <!--                 x:Name="GiftMemberT6TextBox2"/> -->
-                                            <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
-                                            <!--          -->
-                                            <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
-                                            <!--     <ui:TextBox Width="160" x:Name="GiftMemberT6NameTextBox"/> -->
-                                            <!-- </StackPanel> -->
-                                            
-                                            
-                                        </StackPanel>
-                                    </Expander>
-                                </StackPanel>
-                            </StackPanel>
-                        </Expander>
-
-                        
-                        <!-- StreamElements --> 
-                        <Expander Header="StreamElements" IsExpanded="False">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:Button x:Name="ConnectSEBtn"
-                                               Content="Connect"
-                                               Width="120"
-                                               Height="35"
-                                               Margin="0,5,0,10"
-                                               Click="ConnectSEButton_Click"/>
-                                    <ui:PasswordBox x:Name="SEJWTTokenBox" Width="200" Height="35"  PlaceholderText="JWT Token"
-                                                    Margin="14 5 0 10"/>
-                                    <TextBlock x:Name="SEStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
-                                </StackPanel>
-                                <StackPanel Margin="10,5,0,5">
-                                    
-                                    <Grid Margin="0,2">
-                                        
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="300"/>
-                                        </Grid.ColumnDefinitions>
-                                        
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                            <TextBlock Text="Tips:" Width="100" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="SETipBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                                            
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="SETipBox2"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
-                                                        PlaceholderText="1.00"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        FontSize="12"  Height="34"
-                                                        PreviewTextInput="DecimalOnly_PreviewTextInput" x:Name="SimulateSETipAmountBox"/>
-                                            
-                                            <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
-                                                      x:Name="SimulateSECurrencyBox" StaysOpenOnEdit="True"   Height="34"
-                                                      Margin="4 0 4 0">
-                                            </ComboBox>
-                                            <ui:Button Icon="Add24" Foreground="White"
-                                                       Content="Test"
-                                                       Click="TestSETip_Click"
-                                                       Width="60" Padding="2"
-                                                       Height="34"
-                                                       Margin="4,0,0,0"></ui:Button>
-                                        </StackPanel>
-                                    </Grid>
-                                </StackPanel>
-                            </StackPanel>
-                        </Expander>
-                        
-                        <!-- StreamLabs --> 
-                        <Expander Header="StreamLabs" IsExpanded="False">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:Button x:Name="ConnectSLBtn"
-                                               Content="Connect"
-                                               Width="120"
-                                               Height="35"
-                                               Margin="0,5,0,10"
-                                               Click="ConnectSLButton_Click"/>
-                                    <ui:PasswordBox x:Name="SLTokenBox" Width="200" Height="35"  PlaceholderText="Socket Token"
-                                                    Margin="14 5 0 10"/>
-                                    <TextBlock x:Name="SLStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
-                                </StackPanel>
-                                <StackPanel Margin="10,5,0,5">
-                                    
-                                    <Grid Margin="0,2">
-                                        
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="300"/>
-                                        </Grid.ColumnDefinitions>
-                                        
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                            <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center"/>
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="SLTipBox"/>
-                                            <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                                            
-                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
-                                                        x:Name="SLTipBox2"/>
-                                            <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
-                                                        PlaceholderText="1.00"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        FontSize="12"
-                                                        Height="34"
-                                                        PreviewTextInput="DecimalOnly_PreviewTextInput" x:Name="SimulateSLTipAmountBox"/>
-                                            
-                                            <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
-                                                      x:Name="SimulateSLCurrencyBox" StaysOpenOnEdit="True"  Height="34"
-                                                      Margin="4 0 4 0">
-                                            </ComboBox>
-                                            <ui:Button Icon="Add24" Foreground="White"
-                                                       Content="Test"
-                                                       Click="TestSLTip_Click"
-                                                       Width="60" Padding="2"
-                                                       Height="34"
-                                                       Margin="4,0,0,0"></ui:Button>
-                                        </StackPanel>
-                                    </Grid>
-                                </StackPanel>
-                            </StackPanel>
-                        </Expander>
-                        
-                        <!-- Commands --> 
-                        <Expander Header="Chat Commands" IsExpanded="False">
-                            <StackPanel Margin="10,5,0,5">
-                                <!-- EnumName |       | TBX Name | Cbx Mods | Cbx VIPs | Tbx Whitelist  -->
-                                <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="30"/>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Command" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                    <TextBlock Grid.Column="2" Text="Name" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                    <TextBlock Grid.Column="3" Text="Mods?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                    <TextBlock Grid.Column="4" Text="VIPs?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                    <TextBlock Grid.Column="5" Text="User Whitelist" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                </Grid>
-                                <Separator Margin="4 4"/>
-                                <StackPanel x:Name="CommandListPanel" Margin="8 4">
                                     
-                                </StackPanel>
+                                    <ui:Button Grid.Row="0" Grid.Column="0" x:Name="TogglePauseTimerBtnSettings"
+                                               Click="TogglePauseSubathon_Click"
+                                               Width="160" Height="30" Margin="0,10,6,5">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <ui:SymbolIcon x:Name="PauseIcon2" Symbol="Pause16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                            <TextBlock x:Name="PauseText2" Text="Pause Timer" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </ui:Button>
+                                    <ui:Button Grid.Row="0" Grid.Column="1" x:Name="ToggleLockTimerBtnSettings"
+                                                           Click="ToggleLockSubathon_Click"
+                                                           Width="160" Height="30" Margin="0,10,6,5">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <ui:SymbolIcon x:Name="LockIcon2" Symbol="LockClosed16" Width="20" Height="20" Margin="0,0,6,0"/>
+                                            <TextBlock x:Name="LockText2" Text="Lock Subathon" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </ui:Button>
+                                    
+                                    <ui:Button Grid.Row="1" Grid.ColumnSpan="2" Grid.Column="0" x:Name="RemoveAllSimulatedEventsBtn"
+                                               Click="RemoveSimEvents_Click"
+                                               Content="Undo Simulated Events"
+                                               Width="324" Height="30" Margin="2,10,2,5"/>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                    
+                     <!-- Subathon Values -->
+                    <Separator Margin="0 5 0 5"/>
+                    <TextBlock Text="Values and Connections" FontWeight="Bold" FontSize="16" Margin="0,5,0,15"/>
+                    
+                    <!-- Twitch --> 
+                    <Expander Header="Twitch" IsExpanded="False">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Button x:Name="ConnectTwitchBtn"
+                                           Content="Connect"
+                                           Width="120"
+                                           Height="35"
+                                           Margin="0,5,0,10"
+                                           Click="ConnectTwitchButton_Click"/>
+                                <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 48 10"/>
+                                <CheckBox x:Name="TwitchPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="4 4 4 4"/>
+                                <CheckBox x:Name="TwitchLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="4 4 4 4"/>
+                                <CheckBox x:Name="TwitchResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="4 4 4 4"/>
+                                <CheckBox x:Name="TwitchUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="4 4 4 4"/>
                             </StackPanel>
-                        </Expander>
-
-                        <!-- Webhook Logging --> 
-                        <Expander Header="Discord Webhooks" IsExpanded="False">
+                            
                             <StackPanel Margin="10,5,0,5">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="4">
-                                        <TextBlock VerticalAlignment="Center" Margin="4">Error Log Webhook URL:</TextBlock>
-                                        <TextBox x:Name="ErrorWebhookUrlBx" Width="200"/>
+                                
+                                <!-- Cheer / Bits -->
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="CheerTextBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
+                                        
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="Cheer2TextBox"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="24 4 4 4">
-                                        <TextBlock VerticalAlignment="Center" Margin="4">Event Log Webhook URL:</TextBlock>
-                                        <TextBox x:Name="EventWebhookUrlBx" Width="200"/>
+                                    
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="100"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    PlaceholderText="100"
+                                                    Height="30"
+                                                    FontSize="12"
+                                                    PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateCheerAmt"/>
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestTwitchCheer_Click"
+                                                   Width="60" Padding="2"
+                                                   Height="30"
+                                                   Margin="4,0,0,0"></ui:Button>
                                     </StackPanel>
-                                    <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="24 4 4 4"/>
-                                </StackPanel>
-                                <Separator Margin="0,10"/>
-                                <TextBlock HorizontalAlignment="Left" Margin="4  0 12 4">Logged Events</TextBlock>
-                                <WrapPanel x:Name="EventWebhookListPanel" Orientation="Horizontal" HorizontalAlignment="Left"
-                                           ItemWidth="280" ItemHeight="50" Margin="0 4 0 0">
-                                </WrapPanel>
+                                </Grid>
+
+                                <!-- Raid -->
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="RaidTextBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="Raid2TextBox"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                                                            
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="25"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    PlaceholderText="25"
+                                                    Height="30"
+                                                    FontSize="12"
+                                                    PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateRaidAmt"/>
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestTwitchRaid_Click"
+                                                   Width="60" Padding="2"
+                                                   Height="30"
+                                                   Margin="4,0,0,0"></ui:Button>
+                                    </StackPanel>
+                                </Grid>
+                                
+                                
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="FollowTextBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="Follow2TextBox"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                                                            
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestTwitchFollow_Click"
+                                                   Width="60" Padding="2"
+                                                   Height="30"
+                                                   Margin="4,0,0,0"></ui:Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Subs -->
+                                <Expander Header="Subs" IsExpanded="True" Margin="0,5,0,0">
+                                    <StackPanel Margin="10,5,0,5">
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="300"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="SubT1TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="SubT1TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <ComboBox Text="Tier" Width="120" 
+                                                          x:Name="SimSubTierSelection"
+                                                          SelectedIndex="0" Margin="4 0 4 0">
+                                                    <ComboBoxItem Content="Tier 1"/>
+                                                    <ComboBoxItem Content="Tier 2"/>
+                                                    <ComboBoxItem Content="Tier 3"/>
+                                                </ComboBox>
+                                                <ui:Button Icon="Add24" Foreground="White"
+                                                           Content="Test"
+                                                           Click="TestTwitchSub_Click"
+                                                           Width="60" Padding="2"
+                                                           Height="30"
+                                                           Margin="4,0,0,0"></ui:Button>
+                                            </StackPanel>
+                                            
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SubT2TextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SubT2TextBox2"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SubT3TextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="SubT3TextBox2"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        
+                                        <Separator Margin="0,8"/>
+                                        
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="300"/>
+                                            </Grid.ColumnDefinitions>
+                                          <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftSubT1TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftSubT1TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                                                                         
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            Text="1" PlaceholderText="1" Height="35" FontSize="14"
+                                                            x:Name="SimGiftSubAmtInput"/>
+                                                <ComboBox Text="Tier" Width="120" 
+                                                          x:Name="SimGiftSubTierSelection"
+                                                          SelectedIndex="0" Margin="4 0 4 0">
+                                                    <ComboBoxItem Content="Tier 1"/>
+                                                    <ComboBoxItem Content="Tier 2"/>
+                                                    <ComboBoxItem Content="Tier 3"/>
+                                                </ComboBox>
+                                                <ui:Button Icon="Add24" Foreground="White"
+                                                           Content="Test"
+                                                           Click="TestTwitchGiftSub_Click"
+                                                           Width="60" Padding="2"
+                                                           Height="30"
+                                                           Margin="4,0,0,0"></ui:Button>
+                                            </StackPanel>
+                                            
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="GiftSubT2TextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="GiftSubT2TextBox2"/>
+                                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                            <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="GiftSubT3TextBox"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                            <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                        x:Name="GiftSubT3TextBox2"/>
+                                            <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <!-- so the twitchlib for some reason doesnt have a tier for prime?? need to investigate -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="Prime Sub (seconds):" Width="200" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--              " x:Name="SubPrimeTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
-                        </Expander>
-                    </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    
+                    <!-- YouTube --> 
+                    <Expander Header="YouTube" IsExpanded="False">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Button x:Name="ConnectYTBtn"
+                                           Content="Connect"
+                                           Width="120" VerticalAlignment="Center"
+                                           Height="35"
+                                           Margin="0,5,0,10"
+                                           Click="ConnectYouTubeButton_Click"/>
+                                <ui:TextBox x:Name="YTUserHandle" PlaceholderText="@handle"
+                                            VerticalAlignment="Center" FontSize="12" Width="250" Margin="14 5 12 10"/>
+                                <TextBlock x:Name="YTStatusText" VerticalAlignment="Center" FontSize="12" Margin="4 0 0 10"/>
+                                <!-- <CheckBox x:Name="YTPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="4 4 4 4"/> -->
+                                <!-- <CheckBox x:Name="YTLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="4 4 4 4"/> -->
+                                <!-- <CheckBox x:Name="YTResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="4 4 4 4"/> -->
+                                <!-- <CheckBox x:Name="YTUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="4 4 4 4"/> -->
+                            </StackPanel>
+                            
+                            <StackPanel Margin="10,5,0,5">
+                                
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <TextBlock Text="SuperChats:" Width="100" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="YTDonoBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="YTDonoBox2"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    PlaceholderText="100"  Height="34"
+                                                    FontSize="12"
+                                                    PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateSCAmt"/>
+                                        
+                                        <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                                                  x:Name="SimulateSCCurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                                  Margin="4 0 4 0">
+                                        </ComboBox>
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestYTSuperChat_Click"
+                                                   Width="60" Padding="2"  Height="34"
+                                                   Margin="4,0,0,0"></ui:Button>
+                                    </StackPanel>
+                                </Grid>
+
+                                
+                                
+                                <!-- Memberships -->
+                                <Expander Header="Memberships" IsExpanded="True" Margin="0,5,0,0" ToolTip="Multiple Levels are not currently supported" >
+                                    <StackPanel Margin="10,5,0,5">
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="300"/>
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Up to six can be defined, with custom names -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T1:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="MemberT1TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="MemberT1TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                                <!-- -->
+                                                <!-- <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                                <!-- <ui:TextBox Width="160" x:Name="MemberT1NameTextBox"/> -->
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <!-- <ComboBox Text="Tier" Width="120"  -->
+                                                <!--           x:Name="SimMemberTierSelection" -->
+                                                <!--           SelectedIndex="0" Margin="4 0 4 0"> -->
+                                                <!--     <ComboBoxItem Content="Tier 1"/> -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 2"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 3"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 4"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 5"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 6"/> @1@ -->
+                                                <!-- </ComboBox> -->
+                                                <ui:Button Icon="Add24" Foreground="White"
+                                                           Content="Test"
+                                                           Click="TestYTMembership_Click"
+                                                           Width="60" Padding="2"
+                                                           Height="30"
+                                                           Margin="4,0,0,0"></ui:Button>
+                                            </StackPanel>
+                                            
+                                        </Grid>
+                                        
+                                        <!-- -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T2:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT2TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT2TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="MemberT2NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- -->
+                                        <!-- -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T3:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT3TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT3TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="MemberT3NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- -->
+                                        <!-- -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T4:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT4TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT4TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="MemberT4NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T5:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT5TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT5TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="MemberT5NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- -->
+                                        <!-- -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T6:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT6TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="MemberT6TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="MemberT6NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        
+                                        <Separator Margin="0,8"/>
+                                        
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="300"/>
+                                            </Grid.ColumnDefinitions>
+                                          <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="T1 Gift:" Width="100" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftMemberT1TextBox"/>
+                                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            x:Name="GiftMemberT1TextBox2"/>
+                                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                                
+                                                <!-- <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                                <!-- <ui:TextBox Width="160" x:Name="GiftMemberT1NameTextBox"/> -->
+                                            </StackPanel>
+                                                                                         
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                            Text="1" PlaceholderText="1" Height="35" FontSize="14"
+                                                            x:Name="SimGiftMembershipAmtInput"/>
+                                                <!-- <ComboBox Text="Tier" Width="120"  -->
+                                                <!--           x:Name="SimGiftMembershipTierSelection" -->
+                                                <!--           SelectedIndex="0" Margin="4 0 4 0"> -->
+                                                <!--     <ComboBoxItem Content="Tier 1"/> -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 2"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 3"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 4"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 5"/> @1@ -->
+                                                <!--     ~1~ <ComboBoxItem Content="Tier 6"/> @1@ -->
+                                                <!-- </ComboBox> -->
+                                                <ui:Button Icon="Add24" Foreground="White"
+                                                           Content="Test"
+                                                           Click="TestYTGiftMembership_Click"
+                                                           Width="60" Padding="2"
+                                                           Height="30"
+                                                           Margin="4,0,0,0"></ui:Button>
+                                            </StackPanel>
+                                            
+                                        </Grid>
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T2 Gift:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT2TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT2TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="GiftMemberT2NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T3 Gift:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT3TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT3TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="GiftMemberT3NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T4 Gift:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT4TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT4TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="GiftMemberT4NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T5 Gift:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT5TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT5TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="GiftMemberT5NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        <!-- <StackPanel Orientation="Horizontal" Margin="0,2"> -->
+                                        <!--     <TextBlock Text="T6 Gift:" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT6TextBox"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
+                                        <!--                 x:Name="GiftMemberT6TextBox2"/> -->
+                                        <!--     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/> -->
+                                        <!--          -->
+                                        <!--     <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                        <!--     <ui:TextBox Width="160" x:Name="GiftMemberT6NameTextBox"/> -->
+                                        <!-- </StackPanel> -->
+                                        
+                                        
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    
+                    <!-- StreamElements --> 
+                    <Expander Header="StreamElements" IsExpanded="False">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Button x:Name="ConnectSEBtn"
+                                           Content="Connect"
+                                           Width="120"
+                                           Height="35"
+                                           Margin="0,5,0,10"
+                                           Click="ConnectSEButton_Click"/>
+                                <ui:PasswordBox x:Name="SEJWTTokenBox" Width="200" Height="35"  PlaceholderText="JWT Token"
+                                                Margin="14 5 0 10"/>
+                                <TextBlock x:Name="SEStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+                            </StackPanel>
+                            <StackPanel Margin="10,5,0,5">
+                                
+                                <Grid Margin="0,2">
+                                    
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <TextBlock Text="Tips:" Width="100" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="SETipBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                        
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="SETipBox2"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                                    PlaceholderText="1.00"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="12"  Height="34"
+                                                    PreviewTextInput="DecimalOnly_PreviewTextInput" x:Name="SimulateSETipAmountBox"/>
+                                        
+                                        <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                                                  x:Name="SimulateSECurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                                  Margin="4 0 4 0">
+                                        </ComboBox>
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestSETip_Click"
+                                                   Width="60" Padding="2"
+                                                   Height="34"
+                                                   Margin="4,0,0,0"></ui:Button>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+                    
+                    <!-- StreamLabs --> 
+                    <Expander Header="StreamLabs" IsExpanded="False">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:Button x:Name="ConnectSLBtn"
+                                           Content="Connect"
+                                           Width="120"
+                                           Height="35"
+                                           Margin="0,5,0,10"
+                                           Click="ConnectSLButton_Click"/>
+                                <ui:PasswordBox x:Name="SLTokenBox" Width="200" Height="35"  PlaceholderText="Socket Token"
+                                                Margin="14 5 0 10"/>
+                                <TextBlock x:Name="SLStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+                            </StackPanel>
+                            <StackPanel Margin="10,5,0,5">
+                                
+                                <Grid Margin="0,2">
+                                    
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="SLTipBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                        
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="SLTipBox2"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                                    PlaceholderText="1.00"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    FontSize="12"
+                                                    Height="34"
+                                                    PreviewTextInput="DecimalOnly_PreviewTextInput" x:Name="SimulateSLTipAmountBox"/>
+                                        
+                                        <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                                                  x:Name="SimulateSLCurrencyBox" StaysOpenOnEdit="True"  Height="34"
+                                                  Margin="4 0 4 0">
+                                        </ComboBox>
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestSLTip_Click"
+                                                   Width="60" Padding="2"
+                                                   Height="34"
+                                                   Margin="4,0,0,0"></ui:Button>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+                    
+                    <!-- Commands --> 
+                    <Expander Header="Chat Commands" IsExpanded="False">
+                        <StackPanel Margin="10,5,0,5">
+                            <!-- EnumName |       | TBX Name | Cbx Mods | Cbx VIPs | Tbx Whitelist  -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="30"/>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Command" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="Name" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="Mods?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="4" Text="VIPs?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="5" Text="User Whitelist" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            </Grid>
+                            <Separator Margin="4 4"/>
+                            <StackPanel x:Name="CommandListPanel" Margin="8 4">
+                                
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <!-- Webhook Logging --> 
+                    <Expander Header="Discord Webhooks" IsExpanded="False">
+                        <StackPanel Margin="10,5,0,5">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="4">
+                                    <TextBlock VerticalAlignment="Center" Margin="4">Error Log Webhook URL:</TextBlock>
+                                    <TextBox x:Name="ErrorWebhookUrlBx" Width="200"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="24 4 4 4">
+                                    <TextBlock VerticalAlignment="Center" Margin="4">Event Log Webhook URL:</TextBlock>
+                                    <TextBox x:Name="EventWebhookUrlBx" Width="200"/>
+                                </StackPanel>
+                                <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="24 4 4 4"/>
+                                <ui:Button Icon="Add24" Foreground="White"
+                                           Content="Test"
+                                           Click="TestWebhook_Click"
+                                           Width="60" Padding="2"
+                                           Height="34"
+                                           Margin="4,0,0,0"></ui:Button>
+                            </StackPanel>
+                            <Separator Margin="0,10"/>
+                            <TextBlock HorizontalAlignment="Left" Margin="4  0 12 4">Logged Events</TextBlock>
+                            <WrapPanel x:Name="EventWebhookListPanel" Orientation="Horizontal" HorizontalAlignment="Left"
+                                       ItemWidth="280" ItemHeight="50" Margin="0 4 0 0">
+                            </WrapPanel>
+                        </StackPanel>
+                    </Expander>
+                </StackPanel>
             </Grid>
         </ScrollViewer>
         <ui:Button x:Name="SaveAllSubathonValuesButton" Content="Save All" 

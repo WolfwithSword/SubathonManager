@@ -1,0 +1,114 @@
+﻿:root {
+    --light-color: #ffcc00;
+    --background-color: #40342d;
+    --border-color: #734d26;
+    --border-thickness: 4px;
+    --width: 150px;
+    --font-size: 1.2rem;
+    --small-font-size: 0.8rem;
+    --alignment: left;
+    --font-family: "Courier New", monospace;
+    --font-color: #eee;
+    --light-size: 20px;
+    --gauge-thickness: 8px;
+}
+
+.container {
+    justify-content: var(--alignment);
+}
+
+#multiplierBox {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    background: var(--background-color);
+    border: var(--border-thickness) outset var(--border-color);
+    border-radius: 12px;
+    padding: 6px 6px;
+    font-family: var(--font-family);
+    color: var(--font-color);
+    width: var(--width);
+    gap: 10px;
+}
+
+.multiplier-lights {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    gap: 20px;
+}
+
+.light-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.light {
+    margin-top: 4px;
+    width: var(--light-size);
+    height: var(--light-size);
+    border-radius: 50%;
+    filter: brightness(0.25);
+    background: radial-gradient(circle at 30% 30%,
+                                #eee 0%, var(--light-color) 40%,
+                                rgba(34,34,34,0.5) 60%);    
+    opacity: 0.2;
+    box-shadow: 0 0 calc(var(--light-size) / 5) #000;
+    transition: all 0.3s;
+    filter: blur(0.6px);
+    border: 2px outset rgba( 55, 55, 55, 1);
+}
+
+.light.on {
+    background: radial-gradient(circle at 30% 30%,
+                                #fff 0%, var(--light-color) 50%, #222 100%);
+    box-shadow: 0 0 calc(var(--light-size) / 2) var(--light-color), 0 0 var(--light-size) var(--light-color), 
+                inset 0 0 3px rgba(255,255,255,0.5);
+    opacity: 1;
+    filter: blur(0.4px);
+    transition: all 0.3s;
+    border: 2px groove rgba( 205, 205, 205, 0.8);
+}
+
+.label {
+    font-size: var(--small-font-size);
+}
+
+.multiplier-display {
+    font-size: var(--font-size);
+    font-weight: bold;
+    
+    background: linear-gradient(145deg, #666 0%, #999 50%, #666 100%);
+    border: 2px inset #333;
+    border-radius: 6px;
+    padding: 4px 10px;
+
+    box-shadow: inset 0 2px 2px rgba(255,255,255,0.2),
+                inset 0 -2px 2px rgba(0,0,0,0.4),
+                0 2px 2px rgba(0,0,0,0.2);
+
+    text-shadow: 0 0 3px rgba(10, 10, 10, 0.8), 0 0 6px rgba(10, 10, 10, 0.6);
+
+    transition: all 0.3s ease;
+}
+
+.multiplier-gauge {
+    width: 80%;
+    height: var(--gauge-thickness);
+    background: #444;
+    border-radius: calc(var(--gauge-thickness) / 2);
+    overflow: hidden;
+    margin-top: 4px;
+    border: calc(var(--gauge-thickness) / 4) ridge #555;
+}
+
+.gauge-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--light-color);
+    transition: width 1s linear;
+    border-radius: calc(var(--gauge-thickness) / 2) 0 0 calc(var(--gauge-thickness) / 2);
+    filter: drop-shadow(0 0 2px var(--light-color)) drop-shadow(0 0 4px var(--light-color)) drop-shadow(0 0 20px var(--light-color));
+}

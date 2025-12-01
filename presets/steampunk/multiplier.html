@@ -1,0 +1,87 @@
+﻿<!--
+WIDGET_META
+Width:186
+Height:160
+END_WIDGET_META
+-->
+<link rel="stylesheet" href="multiplier.css">
+
+<div class="container">
+    <div id="multiplierBox">
+        <div class="multiplier-lights">
+            <div class="light-container">
+                <div class="light" id="pointsLight"></div>
+                <div class="label">Points</div>
+            </div>
+            <div class="light-container">
+                <div class="light" id="timeLight"></div>
+                <div class="label">Time</div>
+            </div>
+        </div>
+        <div class="multiplier-display" id="multiplierDisplay">x1</div>
+        <div class="multiplier-gauge">
+            <div class="gauge-fill" id="gaugeFill"></div>
+        </div>
+    </div>
+</div>
+<script>
+    const multiplierBox = document.getElementById("multiplierBox");
+    const pointsLight = document.getElementById("pointsLight");
+    const timeLight = document.getElementById("timeLight");
+    const multiplierDisplay = document.getElementById("multiplierDisplay");
+    const gaugeFill = document.getElementById("gaugeFill");
+
+    function updateMultiplier(data) {
+        const pointsActive = data.multiplier_points && data.multiplier_points !== 1;
+        const timeActive = data.multiplier_time && data.multiplier_time !== 1;
+
+        if (!pointsActive && !timeActive) {
+            if (multiplierBox.style.display == "flex") {
+                pointsLight.classList.toggle("on", false);
+                timeLight.classList.toggle("on", false);
+                setTimeout( () => {
+                    multiplierBox.style.display="none";
+                }, 3000);
+            }
+            return;
+        } else {
+            if (multiplierBox.style.display != "flex") {
+                multiplierBox.style.display = "flex";
+                pointsLight.classList.toggle("on", false);
+                timeLight.classList.toggle("on", false);
+                setTimeout(() => {
+                    pointsLight.classList.toggle("on", pointsActive);
+                    timeLight.classList.toggle("on", timeActive);
+                }, 500);
+            }
+            else {
+                pointsLight.classList.toggle("on", pointsActive);
+                timeLight.classList.toggle("on", timeActive);
+            }
+        }
+
+        let multiplierText = "x";
+        if (pointsActive) multiplierText += data.multiplier_points.toFixed(1).replace(/\.0$/, "");
+        else if (timeActive) multiplierText += data.multiplier_time.toFixed(1).replace(/\.0$/, "");
+
+        multiplierDisplay.textContent = multiplierText;
+
+        if (data.multiplier_seconds_total && data.multiplier_seconds_total > 0) {
+            const percent = Math.max(0, data.multiplier_seconds_remaining / data.multiplier_seconds_total) * 100;
+            gaugeFill.style.width = percent + "%";
+        } else if(data.multiplier_seconds_total == 0) {
+            gaugeFill.style.width = "100%";
+        } 
+        else {
+            gaugeFill.style.width = "0%";
+        }
+    }
+
+    function handleSubathonUpdate(data) { updateMultiplier(data); }
+    function handleSubathonDisconnect(data) {
+        pointsLight.classList.toggle("on", false);
+        timeLight.classList.toggle("on", false);
+        multiplierBox.style.display = "none";
+    };
+
+</script>

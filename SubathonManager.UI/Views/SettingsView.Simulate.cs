@@ -1,10 +1,19 @@
 ﻿using System.Windows;
 using SubathonManager.Integration;
+using SubathonManager.Core.Events;
 
 namespace SubathonManager.UI.Views
 {
     public partial class SettingsView
     {
+
+        private void TestWebhook_Click(object sender, RoutedEventArgs e)
+        {
+            ErrorMessageEvents.RaiseErrorEvent("INFO", "Test", 
+                "This is a test of the Error Webhook", DateTime.Now);
+            ErrorMessageEvents.RaiseCustomEvent("This is a test of the Event Webhook");
+        }
+        
         private void TestSETip_Click(object sender, RoutedEventArgs e)
         {
             var value = SimulateSETipAmountBox.Text;
@@ -44,8 +53,9 @@ namespace SubathonManager.UI.Views
         private void TestTwitchSub_Click(object sender, RoutedEventArgs e)
         {
             string tier = "";
-            string selectedTier =
-                (SimSubTierSelection.SelectedItem as System.Windows.Controls.ComboBoxItem).Content?.ToString() ?? "";
+            string selectedTier = (SimSubTierSelection.SelectedItem is System.Windows.Controls.ComboBoxItem item) 
+                ? item.Content?.ToString() ?? "" 
+                : "";
             switch (selectedTier)
             {
                 case "Tier 1":
@@ -77,8 +87,9 @@ namespace SubathonManager.UI.Views
         private void TestTwitchGiftSub_Click(object sender, RoutedEventArgs e)
         {
             string tier = "";
-            string selectedTier =
-                (SimGiftSubTierSelection.SelectedItem as System.Windows.Controls.ComboBoxItem).Content?.ToString() ?? "";
+            string selectedTier = (SimGiftSubTierSelection.SelectedItem is System.Windows.Controls.ComboBoxItem item) 
+                ? item.Content?.ToString() ?? "" 
+                : "";
             int amount = int.TryParse(SimGiftSubAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
             switch (selectedTier)
             {

@@ -17,26 +17,37 @@ public class StreamLabsService
     public bool Connected { get; private set; } = false;
     
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamLabsService>>();
-    
+
     public async Task<bool> InitClientAsync()
-    {   
+    {
         Connected = false;
         GetTokenFromConfig();
         StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
         if (_secretToken.Equals(String.Empty)) return false;
-        
+
         OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
             new StreamlabsOptions { Token = _secretToken }
         );
-        
+
         if (_client != null) await DisconnectAsync();
-        
+
         _client = new StreamlabsClient(AppServices.Provider.GetRequiredService<ILogger<StreamlabsClient>>(), options);
         _client.OnDonation += OnDonation;
-        await _client.ConnectAsync();
-        Connected = true;
+        try
+        {
+            await _client.ConnectAsync();
+            Connected = true;
+        }
+        catch (Exception ex)
+        {
+            string message = $"StreamLabs Service failed to connect: {ex.Message}";
+            _logger?.LogError(message);
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                message, DateTime.Now);
+        }
+        
         StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
-        return true;
+        return Connected;
     }
     
     private void GetTokenFromConfig()

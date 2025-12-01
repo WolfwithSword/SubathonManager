@@ -1,0 +1,128 @@
+﻿<!--
+WIDGET_META
+Width:540
+Height:120
+END_WIDGET_META
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link href='https://fonts.googleapis.com/css?family=Quantico' rel='stylesheet'>
+
+<link rel="stylesheet" type="text/css" href="./timer.styles.css"  />
+
+<div class="timer">
+    <div class="time-part" id="hoursPart">
+        <div class="num"><span id="hoursNode">0</span></div>
+    </div>
+    <span class="colon" id="hoursColon"><span>:</span></span>
+
+    <div class="time-part" id="minutesPart">
+        <div class="num"><span id="minutesNode">00</span></div>
+    </div>
+    <span class="colon" id="secondsColon"><span>:</span></span>
+
+    <div class="time-part" id="secondsPart">
+        <div class="num"><span id="secondsNode">00</span></div>
+    </div>
+</div>
+
+
+<script>
+    const state = {
+        hours: 0,
+        minutes: 0,
+        seconds: 0
+    };
+
+    const nodes = {
+        hours:   document.getElementById("hoursNode"),
+        minutes: document.getElementById("minutesNode"),
+        seconds: document.getElementById("secondsNode")
+    };
+
+    function format(key, value) {
+        return key === "hours"
+            ? value.toString()
+            : value.toString().padStart(2, "0");
+    }
+
+    function animateValue(key, newValue) {
+        const oldValue = state[key];
+
+        if (key !== "hours") {
+            const wrappedDown = oldValue === 0 && newValue === 59;
+            const wrappedUp   = oldValue === 59 && newValue === 0;
+
+            if (wrappedDown || wrappedUp) {
+                state[key] = newValue;
+                nodes[key].textContent = format(key, newValue);
+                return;
+            }
+        }
+
+        if (oldValue === newValue) return;
+
+        const tweenObj = { n: oldValue };
+
+        gsap.to(tweenObj, {
+            n: newValue,
+            duration: 0.35,
+            ease: "power2.out",
+
+            onUpdate() {
+                const v = Math.floor(tweenObj.n);
+                nodes[key].textContent = format(key, v);
+            },
+
+            onComplete() {
+                state[key] = newValue;
+                nodes[key].textContent = format(key, newValue);
+            }
+        });
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+
+        animateValue("hours",   data.hours + (data.days * 24));
+        animateValue("minutes", data.minutes);
+        animateValue("seconds", data.seconds);
+
+        const hoursPart = document.getElementById("hoursPart");
+        const hoursColon = document.getElementById("hoursColon");
+        const secColon = document.getElementById("secondsColon");
+        const sec = document.getElementById("secondsNode").parentElement;
+        
+        if (data.total_seconds >= 3600) {
+            sec.style.fontSize = "var(--size-small-numbers)"
+            secColon.style.visibility = "hidden";
+            secColon.style.display = "none";
+            hoursPart.style.display = "flex";
+            hoursColon.style.display = "flex";
+        }
+        else {
+            sec.style.fontSize = "var(--size-big-numbers)";
+            secColon.style.visibility = "visible";
+            secColon.style.display = "flex";
+            hoursPart.style.display = "none";
+            hoursColon.style.display = "none";
+        }
+        
+        const timerEl = document.querySelector(".timer");
+        if (data.is_paused) {
+            timerEl.classList.add("paused");
+        } else {
+            timerEl.classList.remove("paused");
+        }
+        if (data.is_locked) {
+            timerEl.classList.add("locked");
+        } else {
+            timerEl.classList.remove("locked");
+        }
+    }
+
+    function handleSubathonDisconnect() {
+        const timerEl = document.querySelector(".timer");
+        timerEl.classList.add("paused");
+        timerEl.classList.add("locked");
+    }
+</script>

@@ -282,6 +282,12 @@ namespace SubathonManager.Data.Migrations
                     b.Property<Guid>("RouteId")
                         .HasColumnType("TEXT");
 
+                    b.Property<float>("ScaleX")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("ScaleY")
+                        .HasColumnType("REAL");
+
                     b.Property<bool>("Visibility")
                         .HasColumnType("INTEGER");
 

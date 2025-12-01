@@ -1,0 +1,79 @@
+﻿:root {
+    --font: "Quantico", monospace;
+    --text-color: white;
+    --outline-color: black;
+    --outline-width: 1px;
+    --size-big-numbers: 80px;
+    --size-small-numbers: 40px;
+    --alignment: left;  /* options: left, center, right */
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    display: flex;
+    justify-content: var(--alignment);
+    align-items: center;
+    font-family: var(--font);
+    color: var(--text-color);
+}
+
+
+.timer {
+    display: flex;
+    align-items: baseline;
+    gap: 0.12em;
+    font-family: var(--font);
+    color: var(--text-color);
+}
+
+
+.time-part {
+    display: flex;
+    font-size: var(--size-big-numbers);
+    justify-content: center;
+    align-items: baseline;
+}
+
+
+span.colon {
+    display: flex;
+    justify-content: center;
+    font-size: var(--size-big-numbers);
+    line-height: 1;
+    font-family: var(--font);
+    width: 0.4em;
+}
+
+
+.num {
+    font-weight: 500;
+    line-height: 1;
+}
+
+
+.num span, .colon span {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    line-height: 1;
+    -webkit-text-stroke: var(--outline-width) var(--outline-color);
+    -webkit-text-fill-color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+
+.timer.paused .num span,
+.timer.paused .colon span {
+    opacity: 0.4;
+    background: linear-gradient(to bottom, #888888, #cccccc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+
+.timer.locked .num span,
+.timer.locked .colon span {
+    text-decoration: line-through;
+}

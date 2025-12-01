@@ -30,7 +30,35 @@ public class WidgetEntityHelper
         }
         db.SaveChanges();
     }
-
+    
+    public async Task<bool> UpdateWidgetScale(string widgetId, Dictionary<string, JsonElement> data)
+    {
+        if (!data.Any()) return false;
+        
+        if (Guid.TryParse(widgetId, out var widgetGuid))
+        {
+            using var db = new AppDbContext();
+            var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
+            if (widget != null)
+            {
+                float origX = widget.X;
+                float origY = widget.Y;
+                if (data.TryGetValue("scaleX", out var sxElem) && sxElem.TryGetSingle(out var sx)) widget.ScaleX = sx;
+                if (data.TryGetValue("scaleY", out var syElem) && syElem.TryGetSingle(out var sy)) widget.ScaleY = sy;
+                if (data.TryGetValue("x", out var xElem) && xElem.TryGetSingle(out var x)) widget.X = x;
+                if (data.TryGetValue("y", out var yElem) && yElem.TryGetSingle(out var y)) widget.Y = y;
+                
+                await db.SaveChangesAsync();
+                WidgetEvents.RaiseScaleUpdated(widget);
+                if (!origX.Equals(widget.X) || !origY.Equals(widget.Y))
+                    WidgetEvents.RaisePositionUpdated(widget);
+                await db.Entry(widget).ReloadAsync();
+                return true;
+            }
+        }
+        return false;
+    }
+    
     public async Task<bool> UpdateWidgetPosition(string widgetId, Dictionary<string, JsonElement> data)
     {
         if (!data.Any()) return false;

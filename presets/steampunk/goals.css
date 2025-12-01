@@ -1,0 +1,99 @@
+﻿:root {
+    --goal-height: 44px;
+    --goal-gap: 6px;
+    --visible-items: 3;
+    --completed-item-state: block; /* block or none */
+    --background-color: #40342d;
+    --border-color: #734d26;
+    --border-thickness: 4px;
+    --font-size: 1rem;
+    --small-font-size: 0.8rem;
+    --font-family: "Courier New", monospace;
+    --font-color: #eee;
+}
+
+
+.goals-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 4px;
+    padding-bottom: 8px;
+    gap: 0;
+    max-height: calc( (calc(var(--goal-height) + 2*var(--goal-gap))  * var(--visible-items)) );
+    transition: all 0.4s ease;
+}
+
+.goals-container:after {
+    max-height: calc( (calc(var(--goal-height) + 2*var(--goal-gap))  * var(--visible-items)) );
+}
+
+.goal-row:first-child.completed-row {
+    display: var(--completed-item-state);
+}
+
+.goal-row {
+    margin-top: calc(var(--goal-gap)/2);
+    margin-bottom: calc(var(--goal-gap)/2);
+    margin-left: 4px;
+    margin-right: 4px;
+    transition:
+            all 0.35s ease,
+}
+
+.goal-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--goal-height);
+    min-height: var(--goal-height);
+    max-height: var(--goal-height);
+    padding: 0 12px;
+    border-radius: 8px 8px;
+
+    background-color: var(--background-color);
+    border: var(--border-thickness) outset var(--border-color);
+    font-size: var(--font-size);
+    font-family: var(--font-family);
+    color: var(--font-color);
+    font-weight: 600;
+
+    transition: all 0.35s ease,
+}
+
+.goal-points {
+    margin-left: auto;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: var(--small-font-size);
+    background: linear-gradient(145deg, #666 0%, #999 50%, #666 100%);
+    border: 2px inset #333;
+    /*filter: drop-shadow(0 0 4px rgba(0,0,0,0.1));*/
+    box-shadow: inset 0 2px 2px rgba(255,255,255,0.2),
+                inset 0 -2px 2px rgba(0,0,0,0.4),
+                0 2px 2px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    text-shadow: 0 0 3px rgba(10, 10, 10, 0.8), 0 0 6px rgba(10, 10, 10, 0.6);
+
+}
+
+.goal-item.completed {
+    text-decoration: line-through;
+    filter: brightness(0.95);
+    opacity: 0.30;
+    transition: opacity 0.5s ease;
+}
+
+.goal-row.enter {
+    opacity: 0;
+    transform: translateY(12px);
+}
+.goal-row.enter-active {
+    opacity: 1;
+    transform: translateY(0);
+}
+.goal-row.exit {
+    opacity: 0;
+    transform: translateY(-12px);
+}

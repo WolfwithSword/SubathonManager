@@ -1,0 +1,131 @@
+﻿:root {
+    --digit-color: #ff7b1f;
+    --digit-glow-color: rgba(255, 120, 40, 0.8);
+    --digit-size: 80px;
+    --gap-digit: 0.32em;
+    --tube-width: 60px;
+    --tube-height: 100px;
+    --tube-outer-glow-max-size: 30px;
+    --tube-bg: rgba(255, 120, 60, 0.06);
+    --tube-border: rgba(255, 120, 60, 0.18);
+    --tube-inner-glow: rgba(255, 140, 40, 0.45);
+    --tube-inner-glow-strong: rgba(255, 90, 10, 0.25);
+    --tube-outer-glow: rgba(255, 90, 15, 0.4);
+    --tube-outer-glow-strong: rgba(255, 60, 0, 0.55);
+    --tube-wire-light: rgba(255, 150, 80, 0.25);
+    --tube-wire-dark: rgba(255, 100, 30, 0.45);
+    --alignment: right;
+}
+
+body {
+    background: transparent;
+    display: flex;
+    justify-content: var(--alignment);
+    align-items: var(--alignment);
+    height: 100%;
+    margin: calc(var(--tube-outer-glow-max-size) + 4px);
+}
+
+.nixie-container {
+    display: flex;
+    align-items: var(--alignment);
+}
+
+.nixie {
+    position: relative;
+    width: var(--tube-width);
+    height: var(--tube-height);
+    font-size: var(--digit-size);
+    color: var(--digit-color);
+    font-family: "Courier New", monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--tube-bg);
+    border: 2px solid var(--tube-border);
+    border-radius: 10px;
+    mix-blend-mode: screen;
+    box-shadow: 
+            inset 0 0 calc(var(--tube-outer-glow-max-size) * 0.6) var(--tube-inner-glow),
+            inset 0 0 calc(var(--tube-outer-glow-max-size) * 0.86) var(--tube-inner-glow-strong), 
+            0 0 calc(var(--tube-outer-glow-max-size) * 0.6) var(--digit-glow-color),
+            0 0 calc(var(--tube-outer-glow-max-size) * 0.8) var(--tube-outer-glow), 
+            0 0 var(--tube-outer-glow-max-size) var(--tube-outer-glow-strong);
+    backdrop-filter: blur(2px);
+    transition: 0.2s ease;
+    margin-right: var(--gap-digit);
+    transition: color 0.5s ease, text-shadow 0.5s ease, box-shadow 0.5s ease, background 0.5s ease;
+    background-color 0.5s ease;
+    transform: translateZ(0);
+}
+
+.nixie:last-of-type {
+    margin-right: 0;
+}
+
+.nixie::after {
+    content: "";
+    position: absolute;
+    top: 10%;
+    bottom: 10%;
+    width: 4px;
+    background: linear-gradient(to bottom, var(--tube-wire-light), var(--tube-wire-dark), var(--tube-wire-light));
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 4px;
+    filter: blur(1px);
+}
+
+@keyframes flicker {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+@keyframes wirePulse {
+    0%   { opacity: 0.55; filter: blur(0.8px); }
+    50%  { opacity: 0.85;  filter: blur(1.2px); }
+    100% { opacity: 0.55; filter: blur(0.8px); }
+}
+
+.nixie-container:not(.off) .nixie::after {
+    animation: wirePulse 2.4s ease-in-out infinite;
+}
+
+.nixie.flicker {
+    animation: flicker 0.03s ease-in-out 1;
+}
+
+.nixie-container.off .nixie {
+    color: #222;
+    text-shadow: none;
+    box-shadow: inset 0 0 6px #111;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.nixie-container.off .nixie-sep {
+    color: grey;
+    opacity: 0.8;
+    text-shadow: none;
+}
+
+.nixie::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    background: url('cracks.png') center/cover no-repeat;
+    opacity: 0;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+    transition: opacity 0.1s linear;
+    transform: translateZ(0);
+}
+
+.nixie.locked::before {
+    opacity: 1;
+}

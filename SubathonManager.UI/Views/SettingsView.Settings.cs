@@ -26,7 +26,7 @@ namespace SubathonManager.UI.Views
         }
         
         
-        private async void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+        private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -39,6 +39,14 @@ namespace SubathonManager.UI.Views
             } catch {/**/}
         }
         
+        private void EventsSummary_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"http://localhost:{Config.Data["Server"]["Port"]}/api/data/amounts",
+                UseShellExecute = true
+            });
+        }
         
         private async void ExportEvents_Click(object sender, RoutedEventArgs e)
         {
@@ -124,7 +132,6 @@ namespace SubathonManager.UI.Views
         
         private void UpdateCommandSettings()
         {
-            bool updated = false;
             foreach (var child in CommandListPanel.Children)
             {
                 if (child is StackPanel entry)
@@ -136,37 +143,29 @@ namespace SubathonManager.UI.Views
                         if (entry.Children[1] is TextBox enumName &&
                             Config.Data["Twitch"][$"{key}.name"] != enumName.Text.Trim())
                         {
-                            updated = true;
                             Config.Data["Twitch"][$"{key}.name"] = enumName.Text.Trim();
                         }
                     
                         if (entry.Children[2] is CheckBox doMods &&
                             Config.Data["Twitch"][$"{key}.permissions.Mods"] != $"{doMods.IsChecked}")
                         {
-                            updated = true;
                             Config.Data["Twitch"][$"{key}.permissions.Mods"] = $"{doMods.IsChecked}";
                         }
 
                         if (entry.Children[3] is CheckBox doVips &&
                             Config.Data["Twitch"][$"{key}.permissions.VIPs"] != $"{doVips.IsChecked}")
                         {
-                            updated = true;
                             Config.Data["Twitch"][$"{key}.permissions.VIPs"] = $"{doVips.IsChecked}";
                         }
 
                         if (entry.Children[4] is TextBox whitelist &&
                             Config.Data["Twitch"][$"{key}.permissions.Whitelist"] != whitelist.Text.Trim())
                         {
-                            updated = true;
                             Config.Data["Twitch"][$"{key}.permissions.Whitelist"] = whitelist.Text.Trim();
                         }
                     }
             }
             Config.Save();
-            if (updated)
-            {
-                TwitchEvents.RaiseCommandSettingsUpdated();
-            }
         }
 
         
@@ -293,7 +292,7 @@ namespace SubathonManager.UI.Views
         private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)
         {
             string user = YTUserHandle.Text.Trim();
-            if (!user.StartsWith("@"))
+            if (!user.StartsWith("@") && !string.IsNullOrEmpty(user))
                 user = "@" + user;
             Config.Data["YouTube"]["Handle"] = user;
             Config.Save();

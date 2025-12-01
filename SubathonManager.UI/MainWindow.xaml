@@ -10,19 +10,70 @@
                        ResizeMode="NoResize"
                        WindowStartupLocation="CenterScreen"
                        Title="Subathon Manager" Height="800" Width="1200">
+    <ui:FluentWindow.Resources>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#363636"/>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundBorder" Color="#2f2f2f"/>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#424242"/>
+        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#484848"/>
     
+        <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Appearance" Value="Secondary"/>
+            <Setter Property="Background" Value="{StaticResource OpaqueSecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundBorder}"/>
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ui:Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource OpaqueSecondaryBackgroundHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource OpaqueSecondaryBackgroundPressed}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ui:FluentWindow.Resources>
     <Grid>
-        <ui:TitleBar Title="Subathon Manager"
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> 
+            <RowDefinition Height="*"/> 
+        </Grid.RowDefinitions>
+        <ui:TitleBar Title="Subathon Manager" Grid.Row="0"
                      x:Name="TitleBar"
-                     Icon="Assets/appicon.ico"
                      ShowMinimize="True"
+                     VerticalContentAlignment="Top"
                      Background="#101010"
                      ShowMaximize="False"
+                     FontSize="14"
                      ShowClose="True"
-                     DockPanel.Dock="Top"/>
-        <TabControl Margin="0,40,0,0">
+                     Padding="12 8 12 8"
+                     Height="32"
+                     DockPanel.Dock="Top">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon VerticalAlignment="Top">
+                    <ui:ImageIcon.Source>
+                        <BitmapImage UriSource="pack://application:,,,/icon.png" />
+                    </ui:ImageIcon.Source>
+                </ui:ImageIcon>
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+        <Border Grid.Row="1"  Background="#1c1c1c" Height="36" VerticalAlignment="Top"/>
+        <TabControl Grid.Row="1" Background="Transparent">
             <!-- Home Tab -->
-            <TabItem Header="Home">
+            <TabItem Header="Home" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="500"/>
@@ -203,7 +254,7 @@
             </TabItem>
 
             <!-- Overlays Tab -->
-            <TabItem Header="Overlays">
+            <TabItem Header="Overlays" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
                 <Grid Margin="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
@@ -240,32 +291,28 @@
                                               BorderBrush="{DynamicResource UiBrushBorder}"
                                               Background="{DynamicResource UiBrushControlBackground}">
                                         <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <StackPanel Orientation="Vertical" 
+                                            <StackPanel Orientation="Vertical"
                                                         VerticalAlignment="Center"
                                                         HorizontalAlignment="Left">
-                                                <TextBlock Text="{Binding Name}" 
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" 
                                                            FontWeight="SemiBold"
                                                            FontSize="16"/>
                                             </StackPanel>
 
                                             <StackPanel x:Name="ActionsPanel"
                                                         Orientation="Horizontal"
-                                                        Grid.Column="1"
                                                         Opacity="0"
-                                                        VerticalAlignment="Center"
+                                                        VerticalAlignment="Top"
+                                                        HorizontalAlignment="Right"
+                                                        Panel.ZIndex="1"
                                                         Margin="10,0,0,0">
-                                                <ui:Button ToolTip="Copy Link" Click="CopyRouteUrl_Click" Padding="2" Appearance="Secondary" Width="32" Height="32" Margin="4,0" Foreground="White">
+                                                <ui:Button ToolTip="Copy Link" Click="CopyRouteUrl_Click" Padding="2" Style="{StaticResource OpaqueSecondaryButton}" Width="32" Height="32" Margin="4,0" Foreground="White">
                                                     <ui:SymbolIcon Symbol="Link24" />
                                                 </ui:Button>
-                                                <ui:Button ToolTip="Edit" Click="EditRoute_Click" Padding="2" Appearance="Secondary" Width="32" Height="32" Margin="4,0" Foreground="White">
+                                                <ui:Button ToolTip="Edit" Click="EditRoute_Click" Padding="2" Style="{StaticResource OpaqueSecondaryButton}" Width="32" Height="32" Margin="4,0" Foreground="White">
                                                     <ui:SymbolIcon Symbol="Edit24" />
                                                 </ui:Button>
-                                                <ui:Button ToolTip="Copy" Click="DuplicateRoute_Click" Padding="2" Appearance="Secondary" Width="32" Height="32" Margin="4,0" Foreground="White"><ui:SymbolIcon Symbol="Copy24" /></ui:Button>
+                                                <ui:Button ToolTip="Copy" Click="DuplicateRoute_Click" Padding="2" Style="{StaticResource OpaqueSecondaryButton}" Width="32" Height="32" Margin="4,0" Foreground="White"><ui:SymbolIcon Symbol="Copy24" /></ui:Button>
                                                 <ui:Button ToolTip="Delete" Click="DeleteRoute_Click" Padding="2" Appearance="Danger" Width="32" Height="32" Margin="4,0" Foreground="White"><ui:SymbolIcon Symbol="Delete24" /></ui:Button>
                                             </StackPanel>
 
@@ -305,24 +352,28 @@
                             <LineBreak/>
                             Double click or press the edit button to configure your overlay.
                         </TextBlock>
-                        <ui:Button Click="SendRefreshRequest_Click" Width="180" Height="48" Margin="0 16 2 8">
-                           
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="0 2 0 2"/>
-                                    <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="54" Margin="2 0"/>
-                                </StackPanel>
-                        </ui:Button>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Click="SendRefreshRequest_Click" Width="180" Height="48" Margin="0 16 2 8">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="0 2 0 2"/>
+                                        <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="54" Margin="2 0"/>
+                                    </StackPanel>
+                            </ui:Button>
+                            <ui:Button Content="Open Presets Folder" Width="180" VerticalAlignment="Center"
+                                       Height="48"
+                                       Click="OpenPresets_Click" FontSize="12" Margin="8,16,2,8"/>
+                        </StackPanel>
                     </StackPanel>
                 </Grid>
             </TabItem>
             
             <!-- Goals Tab -->
-            <TabItem Header="Goals">
+            <TabItem Header="Goals" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
                 <views:GoalsEditor/>
             </TabItem>
             
             <!-- Settings Tab -->
-            <TabItem Header="Settings">
+            <TabItem Header="Settings" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
                 <views:SettingsView/>
             </TabItem>
         </TabControl>

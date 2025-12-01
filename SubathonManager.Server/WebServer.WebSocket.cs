@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
-using SubathonManager.Data;
 
 namespace SubathonManager.Server;
 
@@ -139,6 +138,14 @@ public partial class WebServer
 
     private object SubathonDataToObject(SubathonData subathon)
     {
+        TimeSpan? multiplierRemaining = TimeSpan.Zero;
+        if (subathon.Multiplier.Duration != null && subathon.Multiplier.Duration > TimeSpan.Zero
+            && subathon.Multiplier.Started != null)
+        {
+            DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
+            multiplierRemaining = multEndTime! - DateTime.Now;
+        }
+        
         object data = new
         {
             type = "subathon_timer",
@@ -152,6 +159,9 @@ public partial class WebServer
             is_locked =  subathon.IsLocked,
             multiplier_points = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1,
             multiplier_time = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1,
+            multiplier_start_time = subathon.Multiplier.Started,
+            multiplier_seconds_total = Math.Round(subathon.Multiplier.Duration?.TotalSeconds ?? 0),
+            multiplier_seconds_remaining = Math.Round(multiplierRemaining.Value.TotalSeconds), 
             total_seconds_elapsed = (int) (subathon.MillisecondsElapsed / 1000),
             total_seconds_added = (int) (subathon.MillisecondsCumulative / 1000)
         };

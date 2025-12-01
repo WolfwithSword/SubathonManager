@@ -15,15 +15,16 @@ public partial class SettingsView
     private DateTime? _lastUpdatedTimerAt;
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SettingsView>>();
+
     public SettingsView()
     {
-        _factory = AppServices.Provider!.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
         YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
         StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
-        
+
         SEJWTTokenBox.Text = Config.Data["StreamElements"]["JWT"];
         SLTokenBox.Text = Config.Data["StreamLabs"]["SocketToken"];
 
@@ -31,14 +32,14 @@ public partial class SettingsView
             UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
         if (App.AppStreamLabsService != null)
             UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
-        
+
         ServerPortTextBox.Text = Config.Data["Server"]["Port"];
         LoadValues();
         InitWebhookSettings();
         InitTwitchAutoSettings();
         InitCommandSettings();
         InitYoutubeSettings();
-        
+
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
         UpdateServerStatus(App.AppWebServer?.Running ?? false);
@@ -46,7 +47,7 @@ public partial class SettingsView
         InitCurrencySelects();
     }
 
-    private async void GoToHelp_Click(object sender, RoutedEventArgs e)
+    private void GoToHelp_Click(object sender, RoutedEventArgs e)
     {
         Process.Start(new ProcessStartInfo
         {
@@ -79,13 +80,13 @@ public partial class SettingsView
                     NavigateUri = new Uri(url)
                 };
 
-                link.RequestNavigate += (_, e) =>
+                link.RequestNavigate += (_, ea) =>
                 {
-                    Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri)
+                    Process.Start(new ProcessStartInfo(ea.Uri.AbsoluteUri)
                     {
                         UseShellExecute = true
                     });
-                    e.Handled = true;
+                    ea.Handled = true;
                 };
 
                 textBlock.Inlines.Add(link);

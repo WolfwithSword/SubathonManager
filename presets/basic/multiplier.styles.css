@@ -1,0 +1,27 @@
+﻿:root {
+    --font: "Quantico", monospace;
+    --text-color: white;
+    --outline-color: black;
+    --outline-width: 0.5px;
+    --font-size: 24px;
+    --points-suffix: pts;
+    --alignment: center; /* left, center, right */
+}
+
+.multiplier {
+    display: flex;
+    justify-content: var(--alignment);
+    align-items: center;
+    font-family: var(--font);
+    font-size: var(--font-size);
+    color: var(--text-color);
+}
+
+.num {
+    font-weight: 500;
+    -webkit-text-stroke: var(--outline-width) var(--outline-color);
+    -webkit-text-fill-color: var(--text-color);
+    font-family: var(--font);
+    color: var(--text-color);
+    font-variant-numeric: tabular-nums;
+}

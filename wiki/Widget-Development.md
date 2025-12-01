@@ -22,6 +22,21 @@ We currently do not have a way to inject variable overrides for scripts and that
 
 You can import any scripts, css, fonts, etc you want. But only local CSS files will be scanned for variables.
 
+### Metadata
+
+In your widget's HTML file, you can apply some metadata at the top to pre-define a few values.
+
+At the moment, only Width and Height are used, but you can put anything here for documentation as well.
+
+```html
+<!--
+WIDGET_META
+Width:520
+Height:130
+END_WIDGET_META
+-->
+```
+
 ### CSS
 
 It is recommended in your CSS files, you specify some variables in a `:root` tag.
@@ -72,6 +87,9 @@ lock/unlock status, pause/resume status, and multiplier values.
   "is_locked":  bool,
   "multiplier_points":  float, // 1 = multiplier inactive for points
   "multiplier_time":  float, // 1 = multiplier inactive for time
+  "multiplier_start_time": timestamp or null,
+  "multiplier_seconds_total": int, // 0 if inactive or no duration set 
+  "multiplier_seconds_remaining": int, // 0 if inactive or no duration set or duration ended
   "total_seconds_elapsed": int, // total seconds ever elapsed when unpaused
   "total_seconds_added":  int // total seconds ever added to timer
 }

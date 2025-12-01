@@ -15,6 +15,8 @@ public class StreamElementsService
     public bool Connected { get; private set; } = false;
     private string _jwtToken = "";
     private bool _hasAuthError = false;
+    private readonly object _reconnectLock = new();
+    private bool _isReconnecting = false;
     
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamElementsService>>();
     
@@ -61,6 +63,8 @@ public class StreamElementsService
 
     private void _OnConnected(object? sender, EventArgs e)
     {
+        lock (_reconnectLock)
+            _isReconnecting = false;
         _logger?.LogInformation("StreamElementsService Connected");
     }
     private void _OnDisconnected(object? sender, EventArgs e)
@@ -68,17 +72,45 @@ public class StreamElementsService
         _logger?.LogWarning($"StreamElementsService Disconnected");
         Connected = false;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
-        if (!_hasAuthError)
+        if (_hasAuthError) return;
+        
+        Task.Run(async () =>
         {
-            Task.Run(() =>
+            await Task.Delay(500);
+            lock (_reconnectLock)
             {
-                Task.Delay(200);
-                if (!_hasAuthError && !Connected && _client != null)
+                if (_isReconnecting || Connected || _hasAuthError || _client == null)
+                    return;
+
+                _isReconnecting = true;
+            }
+
+            try
+            {
+                _client.Connect();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "StreamElements Reconnection failed, retrying in 2s");
+                await Task.Delay(2000);
+                try
                 {
                     _client.Connect();
-                } 
-            });
-        }
+                }
+                catch (Exception ex2)
+                {
+                    string message = $"StreamElements Disconnected with an error. Could not auto-reconnect. {ex2.Message}";
+                    ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
+                        message, DateTime.Now.ToLocalTime());
+                    _logger?.LogError(ex2, message);
+                }
+            }
+            finally
+            {
+                lock (_reconnectLock)
+                    _isReconnecting = false;
+            }
+        });
     }
 
     private void _OnAuthenticated(object? sender,  StreamElementsNET.Models.Internal.Authenticated e)
@@ -95,6 +127,8 @@ public class StreamElementsService
         Connected = false;
         _hasAuthError = true;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
+        ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
+            "StreamElements Token could not be validated", DateTime.Now.ToLocalTime());
     }
 
     private void _OnTip(object? sender, StreamElementsNET.Models.Tip.Tip e)

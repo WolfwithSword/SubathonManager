@@ -1,5 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +24,8 @@ public partial class EditRouteWindow
     private ObservableCollection<CssVariable> _editingCssVars = new();
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
+    private string _lastFolder = string.Empty;
+    private bool _loadedWebView = false;
     
     public EditRouteWindow(Guid routeId)
     {
@@ -33,13 +37,26 @@ public partial class EditRouteWindow
     }
     private async void EditRouteWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        // we do require webview2 windows runtime to be installed. Native on win11, win10 it might not be
-        await PreviewWebView.EnsureCoreWebView2Async();
-        PreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = true; // yeah, handy for technical users
-        PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-        await LoadRouteAsync();
-        WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
-        WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
+        try
+        {
+            // we do require webview2 windows runtime to be installed. Native on win11, win10 it might not be
+            await PreviewWebView.EnsureCoreWebView2Async();
+            PreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = true; // yeah, handy for technical users
+            PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            _loadedWebView = true;
+            await LoadRouteAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to load overlay editor");
+            _loadedWebView = false;
+        }
+        finally
+        {
+            WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
+            WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
+            WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
+        }
     }
     
     private void OnWidgetPositionUpdated(Widget updatedWidget)
@@ -55,6 +72,20 @@ public partial class EditRouteWindow
             });
         }
 
+    } 
+    
+    private void OnWidgetScaleUpdated(Widget updatedWidget)
+    {
+        if (_selectedWidget != null && _selectedWidget.Id == updatedWidget.Id)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _selectedWidget.ScaleX = updatedWidget.ScaleX;
+                _selectedWidget.ScaleY = updatedWidget.ScaleY;
+                if (WidgetScaleXBox.Text != $"{updatedWidget.ScaleX}") WidgetScaleXBox.Text = $"{updatedWidget.ScaleX}";
+                if (WidgetScaleYBox.Text != $"{updatedWidget.ScaleY}") WidgetScaleYBox.Text = $"{updatedWidget.ScaleY}";
+            });
+        }
     }
     
     private async Task LoadRouteAsync()
@@ -107,34 +138,54 @@ public partial class EditRouteWindow
     private async void SaveRouteButton_Click(object sender, RoutedEventArgs e)
     {
         if (_route == null) return;
-        await using var db = await _factory.CreateDbContextAsync();
-        await db.Entry(_route).ReloadAsync();
-        // var route = await db.Routes.FirstOrDefaultAsync(r => r.Id == _route.Id);
-        // if (route == null) return;
 
-        _route.Name = RouteNameBox.Text.Trim();
-        if (int.TryParse(RouteWidthBox.Text, out var w)) _route.Width = w;
-        if (int.TryParse(RouteHeightBox.Text, out var h)) _route.Height = h;
-
-        await db.SaveChangesAsync();
-        // _route = route;
-        UpdateWebViewScale();
-        OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
-        
-        await Task.Run(async () =>
+        try
         {
-            await Dispatcher.InvokeAsync(() => 
-                { 
-                    SaveRouteButton.Content = "Saved!";
-                } 
-            );
-            await Task.Delay(1500);
-            await Dispatcher.InvokeAsync(() => 
-                { 
-                    SaveRouteButton.Content = "Save";
-                } 
-            );
-        });
+            await using var db = await _factory.CreateDbContextAsync();
+            await db.Entry(_route).ReloadAsync();
+
+            _route.Name = RouteNameBox.Text.Trim();
+            if (int.TryParse(RouteWidthBox.Text, out var w)) _route.Width = w;
+            if (int.TryParse(RouteHeightBox.Text, out var h)) _route.Height = h;
+
+            await db.SaveChangesAsync();
+            UpdateWebViewScale();
+            OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+
+            await Task.Run(async () =>
+            {
+                await Dispatcher.InvokeAsync(() => { SaveRouteButton.Content = "Saved!"; }
+                );
+                await Task.Delay(1500);
+                await Dispatcher.InvokeAsync(() => { SaveRouteButton.Content = "Save"; }
+                );
+            });
+
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to save overlay");
+        }
+    }
+
+    private void NumberOrNegativeOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text == "-")
+        {
+            e.Handled = false;
+            return;
+        }
+        e.Handled = !int.TryParse(e.Text, out _);
+    }
+    
+    private void NumberOrDecimalOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text == ".")
+        {
+            e.Handled = false;
+            return;
+        }
+        e.Handled = !int.TryParse(e.Text, out _);
     }
     
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -144,7 +195,7 @@ public partial class EditRouteWindow
     
     private Widget? GetWidgetFromSender(object? sender)
     {
-        if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is Widget wi) return wi;
+        if (sender is Wpf.Ui.Controls.Button { DataContext: Widget wi }) return wi;
         return null;
     }
     
@@ -153,91 +204,116 @@ public partial class EditRouteWindow
         var wi = GetWidgetFromSender(sender);
         if (wi == null) return;
         Guid routeId = wi.RouteId;
-        
-        await using var db = await _factory.CreateDbContextAsync();
-        var w = await db.Widgets.FirstOrDefaultAsync(x => x.Id == wi.Id);
-        if (w != null)
-        {
-            db.Widgets.Remove(w);
-            await db.SaveChangesAsync();
-        }
 
-        _widgets.Remove(wi);
-        await RefreshWidgetZIndicesAsync();
-        RefreshWebView();
-        OverlayEvents.RaiseOverlayRefreshRequested(routeId);
-        if (wi.Id == _selectedWidget?.Id)
-            PopulateWidgetEditor(null);
+        try
+        {
+            await using var db = await _factory.CreateDbContextAsync();
+            var w = await db.Widgets.FirstOrDefaultAsync(x => x.Id == wi.Id);
+            if (w != null)
+            {
+                db.Widgets.Remove(w);
+                await db.SaveChangesAsync();
+            }
+
+            _widgets.Remove(wi);
+            await RefreshWidgetZIndicesAsync();
+            RefreshWebView();
+            OverlayEvents.RaiseOverlayRefreshRequested(routeId);
+            if (wi.Id == _selectedWidget?.Id)
+                PopulateWidgetEditor(null);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to delete widget");
+        }
     }
 
     private async void CopyWidget_Click(object sender, RoutedEventArgs e)
     {
-        var w = GetWidgetFromSender(sender);
-        if (w == null) return;
+        try
+        {    
+            var w = GetWidgetFromSender(sender);
+            if (w == null) return;
+            await using var db = await _factory.CreateDbContextAsync();
+            await db.Entry(w).ReloadAsync();
+            // clone widget
+            var clone = new Widget(w.Name + " (Copy)", w.HtmlPath);
 
-        await using var db = await _factory.CreateDbContextAsync();
-        await db.Entry(w).ReloadAsync();
-        // var w = await db.Widgets.Include(x => x.CssVariables).FirstOrDefaultAsync(x => x.Id == wi.Id);
-        // if (w == null) return;
+            clone.X = w.X;
+            clone.Y = w.Y;
+            clone.Z = _widgets.Count + 1;
+            clone.Width = w.Width;
+            clone.Height = w.Height;
+            clone.RouteId = w.RouteId;
 
-        // clone widget
-        var clone = new Widget(w.Name + " (Copy)", w.HtmlPath);
-
-        clone.X = w.X;
-        clone.Y = w.Y;
-        clone.Z = _widgets.Count + 1;
-        clone.Width = w.Width;
-        clone.Height = w.Height;
-        clone.RouteId = w.RouteId;
-
-        db.Widgets.Add(clone);
-        await db.SaveChangesAsync();
-
-        // clone css vars
-        if (w.CssVariables.Any())
-        {
-            foreach (var cv in w.CssVariables)
-            {
-                var n = new CssVariable
-                {
-                    Name = cv.Name,
-                    Value = cv.Value,
-                    WidgetId = clone.Id
-                };
-                db.CssVariables.Add(n);
-            }
+            db.Widgets.Add(clone);
             await db.SaveChangesAsync();
-        }
 
-        _widgets.Insert(0, clone);
-        await RefreshWidgetZIndicesAsync();
-        RefreshWebView();
+            // clone css vars
+            if (w.CssVariables.Count > 0)
+            {
+                foreach (var cv in w.CssVariables)
+                {
+                    var n = new CssVariable
+                    {
+                        Name = cv.Name,
+                        Value = cv.Value,
+                        WidgetId = clone.Id
+                    };
+                    db.CssVariables.Add(n);
+                }
+
+                await db.SaveChangesAsync();
+            }
+
+            _widgets.Insert(0, clone);
+            await RefreshWidgetZIndicesAsync();
+            RefreshWebView();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to duplicate widget");
+        }
     }
 
     private async void MoveUp_Click(object sender, RoutedEventArgs e)
     {
-        var wi = GetWidgetFromSender(sender);
-        if (wi == null) return;
+        try
+        {
+            var wi = GetWidgetFromSender(sender);
+            if (wi == null) return;
 
-        int idx = _widgets.IndexOf(wi);
-        if (idx <= 0) return;
+            int idx = _widgets.IndexOf(wi);
+            if (idx <= 0) return;
 
-        var above = _widgets[idx - 1];
-        await SwapWidgetZAsync(wi, above);
-        _widgets.Move(idx, idx - 1);
+            var above = _widgets[idx - 1];
+            await SwapWidgetZAsync(wi, above);
+            _widgets.Move(idx, idx - 1);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to move widget Z-Index up");
+        }
     }
 
     private async void MoveDown_Click(object sender, RoutedEventArgs e)
     {
-        var wi = GetWidgetFromSender(sender);
-        if (wi == null) return;
+        try
+        {
+            var wi = GetWidgetFromSender(sender);
+            if (wi == null) return;
 
-        int idx = _widgets.IndexOf(wi);
-        if (idx < 0 || idx >= _widgets.Count - 1) return;
+            int idx = _widgets.IndexOf(wi);
+            if (idx < 0 || idx >= _widgets.Count - 1) return;
 
-        var below = _widgets[idx + 1];
-        await SwapWidgetZAsync(wi, below);
-        _widgets.Move(idx, idx + 1);
+            var below = _widgets[idx + 1];
+            await SwapWidgetZAsync(wi, below);
+            _widgets.Move(idx, idx + 1);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to move widget Z-Index down");
+        }
     }
 
     private void SelectWidgetFromEvent(Guid widgetId)
@@ -261,10 +337,8 @@ public partial class EditRouteWindow
     
     private void WidgetCard_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement fe && fe.DataContext is Widget widget)
-        {
+        if (sender is FrameworkElement { DataContext: Widget widget })
             PopulateWidgetEditor(widget);
-        }
     }
     
     
@@ -294,33 +368,47 @@ public partial class EditRouteWindow
         if (WidgetHeightBox.Text != widget.Height.ToString()) WidgetHeightBox.Text = widget.Height.ToString();
         if (WidgetXBox.Text != $"{widget.X}") WidgetXBox.Text = $"{widget.X}";
         if (WidgetYBox.Text != $"{widget.Y}") WidgetYBox.Text = $"{widget.Y}";
+        if (widget.ScaleX == 0) widget.ScaleX = 1;
+        if (widget.ScaleY == 0) widget.ScaleY = 1;
+        if (WidgetScaleXBox.Text != $"{widget.ScaleX}") WidgetScaleXBox.Text = $"{widget.ScaleX}";
+        if (WidgetScaleYBox.Text != $"{widget.ScaleY}") WidgetScaleYBox.Text = $"{widget.ScaleY}";
+        
 
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
     }
 
+
     private async void ToggleVisibility_Click(object sender, RoutedEventArgs e)
     {
-        var widget = GetWidgetFromSender(sender);
-        if (widget == null) return;
-        
-        await using var db = await _factory.CreateDbContextAsync();
-        var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == widget.Id);
-        if (wa == null) return;
-
-        widget = wa;
-        widget.Visibility = !widget.Visibility;
-
-        await db.SaveChangesAsync();
-        RefreshWebView();
-        if (sender is Wpf.Ui.Controls.Button btn && btn.Content is Wpf.Ui.Controls.SymbolIcon icon)
+        try
         {
-            Dispatcher.Invoke(() =>
+            var widget = GetWidgetFromSender(sender);
+            if (widget == null) return;
+
+            await using var db = await _factory.CreateDbContextAsync();
+            var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == widget.Id);
+            if (wa == null) return;
+
+            widget = wa;
+            widget.Visibility = !widget.Visibility;
+
+            await db.SaveChangesAsync();
+            RefreshWebView();
+            if (sender is Wpf.Ui.Controls.Button button && button.Content is SymbolIcon icon)
             {
-                icon.Symbol = widget.Visibility ? SymbolRegular.Eye20 : SymbolRegular.EyeOff20;
-            });
+                Dispatcher.Invoke(() =>
+                {
+                    icon.Symbol = widget.Visibility ? SymbolRegular.Eye20 : SymbolRegular.EyeOff20;
+                });
+            }
+
+            OverlayEvents.RaiseOverlayRefreshRequested(widget.RouteId);
         }
-        OverlayEvents.RaiseOverlayRefreshRequested(widget.RouteId);
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to update widget visibility");
+        }
     }
     
     private void ReloadCSS_Click(object sender, RoutedEventArgs e)
@@ -341,44 +429,47 @@ public partial class EditRouteWindow
     
     private async void SaveWidgetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectedWidget == null) return;
-
-        await using var db = await _factory.CreateDbContextAsync();
-        var widget = await db.Widgets.Include(wX => wX.CssVariables)
-            .FirstOrDefaultAsync(wX => wX.Id == _selectedWidget.Id);
-
-        if (widget == null) return;
-        widget.Name = WidgetNameBox.Text;
-        widget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
-        widget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
-        widget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
-        widget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
-        widget.CssVariables = _editingCssVars.ToList();
-
-        db.Widgets.Update(widget);
-        await db.SaveChangesAsync();
-        _selectedWidget = widget;
-        _selectedWidget.CssVariables = _editingCssVars.ToList();
-
-        await LoadRouteAsync();
-        RefreshWebView();
-        
-        WidgetsList.Items.Refresh();
-        OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
-        await Task.Run(async () =>
+        try
         {
-            await Dispatcher.InvokeAsync(() => 
-                { 
-                    SaveWidgetButton.Content = "Saved!";
-                } 
-            );
-            await Task.Delay(1500);
-            await Dispatcher.InvokeAsync(() => 
-                { 
-                    SaveWidgetButton.Content = "Save";
-                } 
-            );
-        });
+            if (_selectedWidget == null) return;
+            
+            await using var db = await _factory.CreateDbContextAsync();
+            var widget = await db.Widgets.Include(wX => wX.CssVariables)
+                .FirstOrDefaultAsync(wX => wX.Id == _selectedWidget.Id);
+
+            if (widget == null) return;
+            widget.Name = WidgetNameBox.Text;
+            widget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
+            widget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
+            widget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
+            widget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
+            widget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx : (_selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX);
+            widget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy : (_selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY);
+            widget.CssVariables = _editingCssVars.ToList();
+
+            db.Widgets.Update(widget);
+            await db.SaveChangesAsync();
+            _selectedWidget = widget;
+            _selectedWidget.CssVariables = _editingCssVars.ToList();
+
+            await LoadRouteAsync();
+            RefreshWebView();
+
+            WidgetsList.Items.Refresh();
+            OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
+            await Task.Run(async () =>
+            {
+                await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }
+                );
+                await Task.Delay(1500);
+                await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Save"; }
+                );
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to save widget");
+        }
 
     }
     
@@ -389,9 +480,7 @@ public partial class EditRouteWindow
         var wb = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == b.Id);
         if (wa == null || wb == null) return;
 
-        int tmp = wa.Z;
-        wa.Z = wb.Z;
-        wb.Z = tmp;
+        (wa.Z, wb.Z) = (wb.Z, wa.Z);
 
         await db.SaveChangesAsync();
 
@@ -418,40 +507,93 @@ public partial class EditRouteWindow
     
     private void RefreshWebView()
     {
-        if (PreviewWebView?.CoreWebView2 != null) PreviewWebView.CoreWebView2.Reload();
+        if (_loadedWebView) PreviewWebView.CoreWebView2?.Reload();
+    }
+    
+    private async Task<Dictionary<string, string>> ExtractWidgetMetadata(string htmlpath)
+    {
+        var html = await File.ReadAllTextAsync(htmlpath);
+
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var pattern = @"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->";
+        var match  = Regex.Match(html, pattern, RegexOptions.Singleline);
+
+        if (!match.Success)
+            return result;
+
+        var block = match.Groups[1].Value;
+
+        var lines = block.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            var index = trimmed.IndexOf(':');
+            if (index <= 0 || index == trimmed.Length - 1)
+                continue;
+
+            var key = trimmed.Substring(0, index).Trim();
+            var value = trimmed.Substring(index + 1).Trim();
+
+            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                result[key] = value;
+        }
+        return result;
     }
 
     private async void ImportWidgetButton_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog
+        string path = "";
+        try
         {
-            Title = "Select widget HTML file",
-            Filter = "HTML Files|*.html;*.htm"
-        };
-        
-        if (dlg.ShowDialog() == true)
-        {
-            string path = dlg.FileName;
-            await using var db = await _factory.CreateDbContextAsync();
-            var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
-            newWidget.RouteId = _route!.Id;
-            newWidget.X = 0;
-            newWidget.Y = 0;
-            newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
-            newWidget.Width = 400;
-            newWidget.Height = 200;
-            db.Widgets.Add(newWidget);
-            await db.SaveChangesAsync();
-            newWidget.ScanCssVariables();
-            db.CssVariables.AddRange(newWidget.CssVariables);
-            await db.SaveChangesAsync();
-            _route.Widgets.Add(newWidget);
-            
-            _widgets.Insert(0, newWidget);
-            await RefreshWidgetZIndicesAsync();
-            RefreshWebView();
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select widget HTML file",
+                Filter = "HTML Files|*.html;*.htm"
+            };
+
+            if (!string.IsNullOrEmpty(_lastFolder) && Directory.Exists(_lastFolder))
+                dlg.InitialDirectory = _lastFolder;
+            else if (Directory.Exists(Path.GetFullPath("./presets")))
+                dlg.InitialDirectory = Path.GetFullPath("./presets");
+
+            if (dlg.ShowDialog() == true)
+            {
+                path = dlg.FileName;
+                _lastFolder = Path.GetDirectoryName(path)!;
+                await using var db = await _factory.CreateDbContextAsync();
+                var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
+
+                var metadata = await ExtractWidgetMetadata(path);
+                
+                newWidget.RouteId = _route!.Id;
+                newWidget.X = 0;
+                newWidget.Y = 0;
+                newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
+                newWidget.Width = metadata.TryGetValue("Width", out var w) && int.TryParse(w, out var parsedW)
+                    ? parsedW
+                    : 400;
+                newWidget.Height = metadata.TryGetValue("Height", out var h) && int.TryParse(h, out var parsedH)
+                    ? parsedH
+                    : 200;
+                
+                db.Widgets.Add(newWidget);
+                await db.SaveChangesAsync();
+                newWidget.ScanCssVariables();
+                db.CssVariables.AddRange(newWidget.CssVariables);
+                await db.SaveChangesAsync();
+                _route.Widgets.Add(newWidget);
+
+                _widgets.Insert(0, newWidget);
+                await RefreshWidgetZIndicesAsync();
+                RefreshWebView();
+            }
         }
-        
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"Failed to import widget HTML file {path}");
+        }
     }
     
     private void UpdateWebViewScale()
@@ -491,18 +633,14 @@ public partial class EditRouteWindow
                 UseShellExecute = true
             });
         }
-        catch
-        {
-            // 
-        }
+        catch {/**/}
     }
     protected override void OnClosed(EventArgs e)
     {
-        if (PreviewWebView != null)
-        {
-            PreviewWebView.Dispose();
-        }
+        PreviewWebView?.Dispose();
+        
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
+        WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
         WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
         WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
         Loaded -= EditRouteWindow_Loaded;

@@ -13,6 +13,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Services;
 
 namespace SubathonManager.Integration;
 
@@ -74,6 +75,8 @@ public class TwitchService
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Twitch Token Validation Error");
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                "Twitch Token could not be validated", DateTime.Now.ToLocalTime());
             return false;
         }
     }
@@ -105,6 +108,9 @@ public class TwitchService
         catch (Exception ex)
         {
             _logger?.LogError(ex, "TwitchService Initialization Error");
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                $"Error initializing Twitch Service: {ex.Message}. " +
+                $"Please try reconnecting twitch or restarting the application", DateTime.Now);
         }
     }
 
@@ -137,40 +143,48 @@ public class TwitchService
 
         // temp listener for callback
         var listener = new HttpListener();
-        listener.Prefixes.Add(_callbackUrl.EndsWith("/") ? _callbackUrl : _callbackUrl + "/");
-        var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
-        listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
-        listener.Start();
-        _logger?.LogDebug("Waiting for Twitch auth...");
 
-        var context = await listener.GetContextAsync();
-        var response = context.Response;
+        try
+        {
+            listener.Prefixes.Add(_callbackUrl.EndsWith("/") ? _callbackUrl : _callbackUrl + "/");
+            var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
+            listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
+            listener.Start();
+            _logger?.LogDebug("Waiting for Twitch auth...");
 
-        string html = $"""
-                           <html>
-                               <body>
-                                   <h2>Waiting for authorization to complete...</h2>
-                                   <script>
-                                       const hash = window.location.hash.substring(1);
-                                       fetch('/token?' + hash)
-                                           .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
-                                   </script>
-                               </body>
-                           </html>
-                       """;
-        var buffer = System.Text.Encoding.UTF8.GetBytes(html);
-        await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-        response.Close();
+            var context = await listener.GetContextAsync();
+            var response = context.Response;
 
-        var tokenContext = await listener.GetContextAsync();
-        var query = tokenContext.Request.Url!.Query.TrimStart('?');
-        var parts = System.Web.HttpUtility.ParseQueryString(query);
+            string html = $"""
+                               <html>
+                                   <body>
+                                       <h2>Waiting for authorization to complete...</h2>
+                                       <script>
+                                           const hash = window.location.hash.substring(1);
+                                           fetch('/token?' + hash)
+                                               .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
+                                       </script>
+                                   </body>
+                               </html>
+                           """;
+            var buffer = System.Text.Encoding.UTF8.GetBytes(html);
+            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+            response.Close();
 
-        AccessToken = parts["access_token"];
-        var tokenResponse = tokenContext.Response;
-        tokenResponse.StatusCode = 200;
-        await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
-        tokenResponse.Close();
+            var tokenContext = await listener.GetContextAsync();
+            var query = tokenContext.Request.Url!.Query.TrimStart('?');
+            var parts = System.Web.HttpUtility.ParseQueryString(query);
+
+            AccessToken = parts["access_token"];
+            var tokenResponse = tokenContext.Response;
+            tokenResponse.StatusCode = 200;
+            await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
+            tokenResponse.Close();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"TwitchService Authentication Failure: {ex.Message}");
+        }
 
         try
         {
@@ -178,7 +192,7 @@ public class TwitchService
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "TwitchService Authentication Listener Error");
+            _logger?.LogError(ex, "TwitchService Authentication Listener Shutdown Error");
         }
 
         if (!string.IsNullOrEmpty(AccessToken))
@@ -222,27 +236,11 @@ public class TwitchService
             bool isMod = e.ChatMessage.IsModerator;
             bool isBroadcaster = e.ChatMessage.IsBroadcaster;
             bool isVip = e.ChatMessage.IsVip;
-            // todo whitelist usernames ignore case
-
-            if (!string.IsNullOrWhiteSpace(message) && message.StartsWith("!"))
+            
+            if (!string.IsNullOrWhiteSpace(message) && message.StartsWith('!'))
             {
-                var parts = message.Substring(1).Split(' '); // remove ! and split
-                var command = parts[0].ToLower();
-                var args = parts.Skip(1).ToArray();
-
-                switch (command)
-                {
-                    case "addtime":
-                        break;
-                    case "pause":
-                        break;
-                    // TODO SubathonEvent for Command, Value will be the msg,
-                    // if addTime and all that or subtract time, also do secondstoadd (+-)
-                    // add more commands and param reading
-                    // regex yay
-                }
-
-                // Console.WriteLine(message);
+                CommandService.ChatCommandRequest(SubathonEventSource.Twitch, message, e.ChatMessage.Username, // DisplayName
+                    isBroadcaster, isMod, isVip, DateTime.Now);
             }
         };
         await Task.Run(() => _chat.Connect());
@@ -250,11 +248,6 @@ public class TwitchService
 
     private async Task InitializeEventSubAsync()
     {
-        // todo store message id's so we know we dont get dupes
-        // do same for command messages above
-        // probably want a prune button for it too.
-        // will also add an export for logs purposes, and also use as base for webhook logging
-
         _eventSub = new EventSubWebsocketClient();
 
         _eventSub.WebsocketConnected += async (s, e) =>
@@ -262,8 +255,6 @@ public class TwitchService
             _logger?.LogInformation("Connected to EventSub WebSocket, session ID: " + _eventSub.SessionId);
             if (!e.IsRequestedReconnect)
             {
-                // TODO listen to community gift sub, but do not add time as counts as channel.subscribe
-                // but handy for showing "X gifted 50x subs" ? or not needed? 
                 var eventTypes = new[]
                 {
                     "stream.offline",
@@ -401,10 +392,9 @@ public class TwitchService
                 Source = SubathonEventSource.Twitch,
                 EventType = SubathonEventType.TwitchFollow,
                 User = e.Payload.Event.UserName,
-                EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime() // or e.Payload.Event.FollowedAt and change type
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-            // TODO 
 
             return Task.CompletedTask;
         };
@@ -423,7 +413,7 @@ public class TwitchService
                 Value = e.Payload.Event.Tier,
                 User = e.Payload.Event.UserName,
                 Amount = e.Payload.Event.Total,
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
@@ -456,16 +446,10 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchSub,
                 Value = e.Payload.Event.Tier,
                 User = e.Payload.Event.UserName,
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 
-            // TODO VERY IMPORTANT
-            // TODO Fire Event with _event, have it save to DB, and add to time.
-            // TODO There is where we fetch currentTime and Multiplier and set SecondsToAdd based on data
-
-
-            // Console.WriteLine($"Sub from {e.Payload.Event.UserName} {e.Payload.Event.IsGift} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -486,12 +470,9 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchSub,
                 Value = e.Payload.Event.Tier,
                 User = e.Payload.Event.UserName,
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-            // TODO
-
-            // Console.WriteLine($"ReSub from {e.Payload.Event.UserName} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
@@ -508,12 +489,9 @@ public class TwitchService
                 User = e.Payload.Event.UserName,
                 Currency = "bits",
                 Value = e.Payload.Event.Bits.ToString(),
-                EventTimestamp = eventMeta.MessageTimestamp // or e.Payload.Event.FollowedAt and change type
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime() // or e.Payload.Event.FollowedAt and change type
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-            // TODO
-
-            // Console.WriteLine($"Bits from {e.Payload.Event.UserName}: {e.Payload.Event.Bits}");
             return Task.CompletedTask;
         };
 
@@ -529,7 +507,7 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchRaid,
                 User = e.Payload.Event.FromBroadcasterUserName,
                 Value = e.Payload.Event.Viewers.ToString(),
-                EventTimestamp = eventMeta.MessageTimestamp
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
 

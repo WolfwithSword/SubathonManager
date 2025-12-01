@@ -1,8 +1,14 @@
+<!--
+WIDGET_META
+Width:300
+Height:100
+END_WIDGET_META
+-->
 <meta charset=utf-8>
 <link href="https://fonts.cdnfonts.com/css/bright-orchid" rel="stylesheet">
 <link href="https://fonts.cdnfonts.com/css/milker" rel="stylesheet">
 <link href="https://fonts.cdnfonts.com/css/beachday" rel="stylesheet">
-<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js></script>
+<!--<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js></script>-->
 
 <link rel="stylesheet" type="text/css" href="./event.styles.css"  />
 
@@ -92,7 +98,7 @@ function handleSubathonEvent(data) {
     if (data && data.type == "event") {
         if (!eventTypesToDisplay.includes(data.event_type)) return;
         
-        if (data.type == "TwitchRaid") {
+        if (data.event_type == "TwitchRaid") {
             data.currency = "viewers";
         }
         if (data.currency == "sub") {
@@ -162,7 +168,11 @@ function showEventCard({ user, amount, currency, value, source, type }) {
   valueDiv.className = "event-value";
   
   if (type == "TwitchGiftSub" || type == "YouTubeGiftMembership") {
-    valueDiv.textContent = `x${amount} ${value}`;
+      let valContent = `x${amount} ${value}`;
+    if (type == "YouTubeGiftMembership") {
+        valContent = `x${amount} ${value} members`;
+    }
+      valueDiv.textContent = valContent;
   }
   else if (currency != 'sub' && currency != "") {
     valueDiv.textContent = `${value} ${currency}`;
