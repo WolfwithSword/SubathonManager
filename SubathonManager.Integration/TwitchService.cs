@@ -143,40 +143,48 @@ public class TwitchService
 
         // temp listener for callback
         var listener = new HttpListener();
-        listener.Prefixes.Add(_callbackUrl.EndsWith("/") ? _callbackUrl : _callbackUrl + "/");
-        var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
-        listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
-        listener.Start();
-        _logger?.LogDebug("Waiting for Twitch auth...");
 
-        var context = await listener.GetContextAsync();
-        var response = context.Response;
+        try
+        {
+            listener.Prefixes.Add(_callbackUrl.EndsWith("/") ? _callbackUrl : _callbackUrl + "/");
+            var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
+            listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
+            listener.Start();
+            _logger?.LogDebug("Waiting for Twitch auth...");
 
-        string html = $"""
-                           <html>
-                               <body>
-                                   <h2>Waiting for authorization to complete...</h2>
-                                   <script>
-                                       const hash = window.location.hash.substring(1);
-                                       fetch('/token?' + hash)
-                                           .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
-                                   </script>
-                               </body>
-                           </html>
-                       """;
-        var buffer = System.Text.Encoding.UTF8.GetBytes(html);
-        await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-        response.Close();
+            var context = await listener.GetContextAsync();
+            var response = context.Response;
 
-        var tokenContext = await listener.GetContextAsync();
-        var query = tokenContext.Request.Url!.Query.TrimStart('?');
-        var parts = System.Web.HttpUtility.ParseQueryString(query);
+            string html = $"""
+                               <html>
+                                   <body>
+                                       <h2>Waiting for authorization to complete...</h2>
+                                       <script>
+                                           const hash = window.location.hash.substring(1);
+                                           fetch('/token?' + hash)
+                                               .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
+                                       </script>
+                                   </body>
+                               </html>
+                           """;
+            var buffer = System.Text.Encoding.UTF8.GetBytes(html);
+            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+            response.Close();
 
-        AccessToken = parts["access_token"];
-        var tokenResponse = tokenContext.Response;
-        tokenResponse.StatusCode = 200;
-        await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
-        tokenResponse.Close();
+            var tokenContext = await listener.GetContextAsync();
+            var query = tokenContext.Request.Url!.Query.TrimStart('?');
+            var parts = System.Web.HttpUtility.ParseQueryString(query);
+
+            AccessToken = parts["access_token"];
+            var tokenResponse = tokenContext.Response;
+            tokenResponse.StatusCode = 200;
+            await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
+            tokenResponse.Close();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"TwitchService Authentication Failure: {ex.Message}");
+        }
 
         try
         {
@@ -184,7 +192,7 @@ public class TwitchService
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "TwitchService Authentication Listener Error");
+            _logger?.LogError(ex, "TwitchService Authentication Listener Shutdown Error");
         }
 
         if (!string.IsNullOrEmpty(AccessToken))
