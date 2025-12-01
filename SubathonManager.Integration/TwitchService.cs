@@ -106,6 +106,9 @@ public class TwitchService
         catch (Exception ex)
         {
             _logger?.LogError(ex, "TwitchService Initialization Error");
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                $"Error initializing Twitch Service: {ex.Message}. " +
+                $"Please try reconnecting twitch or restarting the application", DateTime.Now);
         }
     }
 
