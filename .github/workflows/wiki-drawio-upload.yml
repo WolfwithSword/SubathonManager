@@ -31,7 +31,7 @@ jobs:
       - name: Download draw.io file from Nextcloud
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
-          curl -L "${{ secrets.NEXTCLOUD_DRAWIO_URL }}" \
+          curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "Subathon Manager.drawio"
 
       - name: Checkout Wiki Repository

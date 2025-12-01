@@ -102,7 +102,7 @@ jobs:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
           nextcloud-url: ${{ secrets.NEXTCLOUD_URL }}
-          nextcloud-username: ${{ secrets.NEXTCLOUD_USERNAME }}
+          nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
           nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
 
 
@@ -127,7 +127,6 @@ jobs:
         run: |
           echo "Downloading release zip from Nextcloud fallback..."
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
-            -u "${{ secrets.NEXTCLOUD_USERNAME }}:${{ secrets.NEXTCLOUD_PASSWORD }}" \
             -o "${{ needs.build.outputs.filename }}"
 
           
