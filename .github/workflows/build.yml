@@ -17,6 +17,7 @@ jobs:
       RUNTIME: win-x64
     name: Build Windows App
     runs-on: windows-latest
+    secrets: inherit
     outputs:
       artifact_failed: ${{ steps.artifact-upload.outcome != 'success' }}
       version: ${{ steps.vars.outputs.version }}
@@ -157,7 +158,6 @@ jobs:
           tag_name: "nightly"
           body: "Latest build from main branch."
           prerelease: true
-          overwrite: true
           files: ${{ needs.build.outputs.filename }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
