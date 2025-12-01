@@ -25,6 +25,7 @@ public partial class EditRouteWindow
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
+    private bool _loadedWebView = false;
     
     public EditRouteWindow(Guid routeId)
     {
@@ -42,11 +43,13 @@ public partial class EditRouteWindow
             await PreviewWebView.EnsureCoreWebView2Async();
             PreviewWebView.CoreWebView2.Settings.AreDevToolsEnabled = true; // yeah, handy for technical users
             PreviewWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+            _loadedWebView = true;
             await LoadRouteAsync();
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to load overlay editor");
+            _loadedWebView = false;
         }
         finally
         {
@@ -375,6 +378,7 @@ public partial class EditRouteWindow
         CssVarsList.ItemsSource = _editingCssVars;
     }
 
+
     private async void ToggleVisibility_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -391,7 +395,7 @@ public partial class EditRouteWindow
 
             await db.SaveChangesAsync();
             RefreshWebView();
-            if (sender is Wpf.Ui.Controls.Button { DataContext: SymbolIcon icon })
+            if (sender is Wpf.Ui.Controls.Button button && button.Content is SymbolIcon icon)
             {
                 Dispatcher.Invoke(() =>
                 {
@@ -503,7 +507,7 @@ public partial class EditRouteWindow
     
     private void RefreshWebView()
     {
-        PreviewWebView.CoreWebView2?.Reload();
+        if (_loadedWebView) PreviewWebView.CoreWebView2?.Reload();
     }
     
     private async Task<Dictionary<string, string>> ExtractWidgetMetadata(string htmlpath)

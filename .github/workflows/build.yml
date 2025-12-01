@@ -87,6 +87,7 @@ jobs:
       - name: Upload build artifact (Nextcloud)
         if: ((!(github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') && github.ref_name != 'main') || github.event_name == 'workflow_dispatch')
         uses: trympet/nextcloud-artifacts-action@v2
+        continue-on-error: true
         with:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
@@ -208,3 +209,57 @@ jobs:
                -H "Content-Type: application/json" \
                -d @payload.json \
                "$WEBHOOK_URL_PRJ"
+  update-wiki:
+    # experimental
+    name: Update Wiki Documentation
+    runs-on: ubuntu-latest
+    needs: release
+      if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly'
+      steps:
+        - name: Check if wiki repository exists
+          id: wiki-check
+          run: |
+            set -e
+            WIKI_URL="https://github.com/${{ github.repository }}.wiki.git"
+
+            if git ls-remote "$WIKI_URL" &>/dev/null; then
+              echo "exists=true" >> $GITHUB_OUTPUT
+            else
+              echo "exists=false" >> $GITHUB_OUTPUT
+            fi
+
+        - name: Stop if no wiki exists
+          if: steps.wiki-check.outputs.exists == 'false'
+          run: echo "Wiki does not exist — skipping update."
+
+        - name: Download draw.io file from Nextcloud
+          if: steps.wiki-check.outputs.exists == 'true'
+          run: |
+            curl -L \
+              "${{secrets.NEXTCLOUD_DRAWIO_URL}}" \
+              -o "Subathon Manager.drawio"
+
+        - name: Checkout Wiki Repository
+          if: steps.wiki-check.outputs.exists == 'true'
+          uses: actions/checkout@v5
+          with:
+            repository: ${{ github.repository }}.wiki
+            token: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Commit drawio file
+          if: steps.wiki-check.outputs.exists == 'true'
+          run: |
+            mkdir -p docs
+            cp "../Subathon Manager.drawio" "docs/Subathon Manager.drawio"
+
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+
+            git add "docs/Subathon Manager.drawio"
+
+            if git diff --cached --quiet; then
+              echo "No changes detected, skipping commit."
+            else
+              git commit -m "Update Subathon Manager.drawio for release ${{ github.ref_name }}"
+              git push
+            fi

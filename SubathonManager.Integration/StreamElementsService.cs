@@ -127,6 +127,8 @@ public class StreamElementsService
         Connected = false;
         _hasAuthError = true;
         StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
+        ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
+            "StreamElements Token could not be validated", DateTime.Now.ToLocalTime());
     }
 
     private void _OnTip(object? sender, StreamElementsNET.Models.Tip.Tip e)

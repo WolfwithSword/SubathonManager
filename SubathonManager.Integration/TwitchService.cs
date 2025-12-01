@@ -75,6 +75,8 @@ public class TwitchService
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Twitch Token Validation Error");
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                "Twitch Token could not be validated", DateTime.Now.ToLocalTime());
             return false;
         }
     }
