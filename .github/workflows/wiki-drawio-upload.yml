@@ -32,7 +32,7 @@ jobs:
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
-            -o "Subathon Manager.drawio"
+            -o "SubathonManager Design.drawio"
 
       - name: Checkout Wiki Repository
         if: steps.wiki-check.outputs.exists == 'true'
@@ -45,12 +45,12 @@ jobs:
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
           mkdir -p docs
-          cp "../Subathon Manager.drawio" "docs/Subathon Manager.drawio"
+          cp "../SubathonManager Design.drawio" "docs/SubathonManager Design.drawio"
 
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add "docs/Subathon Manager.drawio"
+          git add "docs/SubathonManager Design.drawio"
 
           if git diff --cached --quiet; then
             echo "No changes detected, skipping commit."
