@@ -16,6 +16,15 @@ updates:
       separator: "-"
     ignore:
       - dependency-name: Microsoft.Extensions.Logging
+    groups:
+      updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
         
   - package-ecosystem: "github-actions"
     directory: "/"

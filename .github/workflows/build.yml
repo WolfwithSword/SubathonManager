@@ -17,7 +17,6 @@ jobs:
       RUNTIME: win-x64
     name: Build Windows App
     runs-on: windows-latest
-    secrets: inherit
     outputs:
       artifact_failed: ${{ steps.artifact-upload.outcome != 'success' }}
       version: ${{ steps.vars.outputs.version }}
@@ -149,6 +148,21 @@ jobs:
           files: ${{ needs.build.outputs.filename }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete previous nightly asset
+        if: github.ref_name == 'main'
+        run: |
+          release_id=$(gh api repos/${{ github.repository }}/releases/tags/nightly --jq .id)
+          asset_id=$(gh api repos/${{ github.repository }}/releases/$release_id/assets --jq '.[] | select(.name=="${{ needs.build.outputs.filename }}") | .id')
+          if [ ! -z "$asset_id" ]; then
+            gh api -X DELETE repos/${{ github.repository }}/releases/assets/$asset_id
+            echo "Deleted previous nightly asset"
+          else
+            echo "No previous nightly asset found"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
       - name: Create Nightly Release
         if: github.ref_name == 'main'
