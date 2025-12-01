@@ -128,15 +128,16 @@ jobs:
           echo "Downloading release zip from Nextcloud fallback..."
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
             -u "${{ secrets.NEXTCLOUD_USERNAME }}:${{ secrets.NEXTCLOUD_PASSWORD }}" \
-            -o "fallback.zip"
+            -o "${{ needs.build.outputs.filename }}"
 
-          mkdir -p build
-          unzip fallback.zip -d build
           
       - name: Zip release files
+        if: needs.build.outputs.artifact_failed == 'false'
         run: |
           cd build
           zip -r ../${{ needs.build.outputs.filename }} .
+          echo "${{ needs.build.outputs.filename }} successfully zipped"
+          
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly'
@@ -156,6 +157,7 @@ jobs:
           tag_name: "nightly"
           body: "Latest build from main branch."
           prerelease: true
+          overwrite: true
           files: ${{ needs.build.outputs.filename }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
