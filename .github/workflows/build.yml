@@ -94,7 +94,7 @@ jobs:
           
       - name: Upload build artifact (GitHub)
         if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) || 
-            ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main')
+            ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') }}
         uses: actions/upload-artifact@v4
         id: artifact-upload
         continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}
