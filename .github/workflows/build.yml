@@ -119,7 +119,7 @@ jobs:
         with:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
-          nextcloud-url: ${{ secrets.NEXTCLOUD_URL }}
+          nextcloud-url: ${{ vars.NEXTCLOUD_URL }}
           nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
           nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
 
