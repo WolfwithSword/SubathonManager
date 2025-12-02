@@ -21,7 +21,7 @@ on:
       force_nightly:
         description: 'Force this build to create a nightly release'
         required: false
-        default: false
+        default: 'false'
         type: boolean
 jobs:
 
@@ -132,9 +132,9 @@ jobs:
     needs: build
     if: >
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly')
-      ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-      || github.event.inputs.force_nightly
+      || (github.ref_type == 'tag' && github.ref != 'refs/tags/nightly')
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      || github.event.inputs.force_nightly != 'false'
     steps:
       - name: Download build artifact (GitHub)
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
@@ -160,7 +160,7 @@ jobs:
 
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' &&  !github.event.inputs.force_nightly
+        if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && github.event.inputs.force_nightly != 'true'
         uses: softprops/action-gh-release@v2
         with:
           name: Release ${{ github.ref_name }}
@@ -170,7 +170,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete previous nightly asset
-        if: github.ref_name == 'main' || github.event.inputs.force_nightly
+        if: github.ref_name == 'main' || github.event.inputs.force_nightly != 'false'
         run: |
           release_id=$(gh api repos/${{ github.repository }}/releases/tags/nightly --jq .id)
           asset_id=$(gh api repos/${{ github.repository }}/releases/$release_id/assets --jq '.[] | select(.name=="${{ needs.build.outputs.filename }}") | .id')
@@ -185,7 +185,7 @@ jobs:
 
 
       - name: Create Nightly Release
-        if: github.ref_name == 'main' || github.event.inputs.force_nightly
+        if: github.ref_name == 'main' || github.event.inputs.force_nightly != 'false'
         uses: softprops/action-gh-release@v2
         with:
           name: "Nightly Build"
