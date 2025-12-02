@@ -73,7 +73,7 @@
         <Border Grid.Row="1"  Background="#1c1c1c" Height="36" VerticalAlignment="Top"/>
         <TabControl Grid.Row="1" Background="Transparent">
             <!-- Home Tab -->
-            <TabItem Header="Home" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
+            <TabItem Header="Home" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e" Width="140">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="500"/>
@@ -254,7 +254,7 @@
             </TabItem>
 
             <!-- Overlays Tab -->
-            <TabItem Header="Overlays" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
+            <TabItem Header="Overlays" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e" Width="140">
                 <Grid Margin="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
@@ -266,20 +266,21 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,10">
-                        <TextBlock Text="Overlays" 
-                                   FontWeight="Bold" 
+                    <DockPanel Margin="6,0,2,10">
+                        <ui:Button DockPanel.Dock="Right"
+                                   Icon="Add24"
+                                   Foreground="White"
+                                   Appearance="Secondary"
+                                   Content="Create New"
+                                   Width="130"
+                                   Padding="2"
+                                   Click="AddRoute_Click" />
+
+                        <TextBlock Text="Overlays"
+                                   FontWeight="Bold"
                                    FontSize="18"
-                                   VerticalAlignment="Center"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,0,0,0">
-                            <ui:Button Icon="Add24" Foreground="White"
-                                       Appearance="Primary"
-                                       Content="Create New"
-                                       Width="130" Padding="2"
-                                       Click="AddRoute_Click"
-                                       Margin="10,0,0,0"></ui:Button>
-                        </StackPanel>
-                    </StackPanel>
+                                   VerticalAlignment="Center" />
+                    </DockPanel>
                     
                     <!-- Routes List -->
                     <ScrollViewer Grid.Column="0" Grid.Row="1" VerticalScrollBarVisibility="Auto">
@@ -368,12 +369,12 @@
             </TabItem>
             
             <!-- Goals Tab -->
-            <TabItem Header="Goals" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
+            <TabItem Header="Goals" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e" Width="140">
                 <views:GoalsEditor/>
             </TabItem>
             
             <!-- Settings Tab -->
-            <TabItem Header="Settings" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e">
+            <TabItem Header="Settings" BorderBrush="#303030" BorderThickness="2" Background="#1e1e1e" Width="140">
                 <views:SettingsView/>
             </TabItem>
         </TabControl>
