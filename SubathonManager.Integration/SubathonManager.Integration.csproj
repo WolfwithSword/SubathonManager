@@ -10,7 +10,7 @@
     <ItemGroup>
       <PackageReference Include="Agash.YTLiveChat" Version="3.0.2" />
       <PackageReference Include="StreamElementsNET" Version="1.0.0" />
-      <PackageReference Include="Streamlabs.SocketClient" Version="1.1.1" />
+      <PackageReference Include="Streamlabs.SocketClient" Version="1.3.0" />
       <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
       <PackageReference Include="TwitchLib.Client" Version="3.4.0" />
       <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />
