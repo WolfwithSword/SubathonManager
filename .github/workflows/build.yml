@@ -7,7 +7,17 @@ on:
         - 'v.*.*.*'
   pull_request:
     branches: [ main ]
-  workflow_dispatch: 
+  workflow_dispatch:
+    inputs:
+      upload_target:
+        description: 'Artifact Storage Location'
+        required: true
+        default: default
+        type: choice
+        options:
+          - default
+          - github
+          - nextcloud
 
 jobs:
 
@@ -83,10 +93,11 @@ jobs:
           copy LICENSE build\
           
       - name: Upload build artifact (GitHub)
-        if: ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main')
+        if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) || 
+            ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main')
         uses: actions/upload-artifact@v4
         id: artifact-upload
-        continue-on-error: true
+        continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}
         with:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
@@ -94,10 +105,11 @@ jobs:
 
       - name: Upload build artifact (Nextcloud)
         id: nextcloud-fallback
-        if: (steps.artifact-upload.outcome != 'success' && ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main')) || 
-          ((!(github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') && github.ref_name != 'main') || github.event_name == 'workflow_dispatch')
+        if: ${{ github.event_name == 'pull_request'
+          || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'nextcloud')
+          || (steps.artifact-upload.outcome != 'success' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_target != 'github')) }}
         uses: trympet/nextcloud-artifacts-action@v2
-        continue-on-error: true
+        continue-on-error: false
         with:
           name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
@@ -116,14 +128,14 @@ jobs:
 
     steps:
       - name: Download build artifact (GitHub)
-        if: needs.build.outputs.artifact_failed == 'false'
+        if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
         uses: actions/download-artifact@v5
         with:
           name: ${{ needs.build.outputs.artifact_name }}
           path: build/
 
       - name: Download build artifact (Nextcloud)
-        if: needs.build.outputs.artifact_failed == 'true'
+        if: needs.build.outputs.artifact_failed == 'true' && github.event.inputs.upload_target != 'github'
         run: |
           echo "Downloading release zip from Nextcloud fallback..."
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
