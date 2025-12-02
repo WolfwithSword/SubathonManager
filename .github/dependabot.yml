@@ -16,6 +16,11 @@ updates:
       separator: "-"
     ignore:
       - dependency-name: Microsoft.Extensions.Logging
+      - dependency-name: Microsoft.Extensions.Logging.Console
+      - dependency-name: TwitchLib.Api
+      - dependency-name: TwitchLib.Client
+      - dependency-name: TwitchLib.Communication
+      - dependency-name: TwitchLib.EventSub.Websockets
     groups:
       updates:
         applies-to: version-updates
