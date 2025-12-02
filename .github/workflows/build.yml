@@ -26,7 +26,7 @@ on:
 jobs:
 
   build:
-    #if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     env:
       RUNTIME: win-x64
     name: Build Windows App
@@ -99,8 +99,8 @@ jobs:
           copy LICENSE build\
           
       - name: Upload build artifact (GitHub)
-        if: ${{ ((github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) || 
-            ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main')) && ( github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' )}}
+        if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) || 
+            ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') }}
         uses: actions/upload-artifact@v4
         id: artifact-upload
         continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}
@@ -130,7 +130,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: build
-    if: ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') || github.event.inputs.force_nightly 
+    if: ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') || github.event.inputs.force_nightly
 
     steps:
       - name: Download build artifact (GitHub)
