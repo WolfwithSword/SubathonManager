@@ -260,6 +260,7 @@ jobs:
                "$WEBHOOK_URL_PRJ"
 
   update-wiki:
+    if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && github.ref_name != 'main'
     uses: ./.github/workflows/wiki-drawio-upload.yml
     secrets: inherit
     with:
