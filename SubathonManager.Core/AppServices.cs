@@ -84,13 +84,13 @@ public static class AppServices
         
         try
         {
-            await AppUpdater.InstallUpdateAsync(asset, UpdatumManager.NoRunAfterUpgradeToken);
             Process.Start(new ProcessStartInfo
             {
                 FileName = Config.AppFolder,
                 UseShellExecute = true,
                 Verb = "open"
             });
+            await AppUpdater.InstallUpdateAsync(asset, UpdatumManager.NoRunAfterUpgradeToken);
             return true;
         }
         catch (Exception ex)
