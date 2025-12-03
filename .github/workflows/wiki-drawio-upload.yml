@@ -28,25 +28,23 @@ jobs:
         if: steps.wiki-check.outputs.exists == 'false'
         run: echo "Wiki does not exist — skipping update."
 
-      - name: Download draw.io file from Nextcloud
-        if: steps.wiki-check.outputs.exists == 'true'
-        run: |
-          curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
-            -o "SubathonManager Design.drawio"
-
       - name: Checkout Wiki Repository
         if: steps.wiki-check.outputs.exists == 'true'
         uses: actions/checkout@v5
         with:
           repository: ${{ github.repository }}.wiki
           token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Download draw.io file from Nextcloud
+        if: steps.wiki-check.outputs.exists == 'true'
+        run: |
+          mkdir -p docs
+          curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
+            -o "docs/SubathonManager Design.drawio"
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
-          mkdir -p docs
-          cp "../SubathonManager Design.drawio" "docs/SubathonManager Design.drawio"
-
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
