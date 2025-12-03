@@ -269,4 +269,3 @@ jobs:
         uses: ./.github/workflows/wiki-drawio-upload.yml
         with:
           release_tag: ${{ github.ref_name }}
-        secrets: inherit
