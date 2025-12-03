@@ -239,7 +239,7 @@ jobs:
             "avatar_url": "${ICON_URL}",
             "embeds": [
               {
-                "title": "**SubathonManager** - New Release: ${VERSION} - ${{ steps.rel.outputs.release_name }}",
+                "title": "**SubathonManager** - ${{ steps.rel.outputs.release_name }}",
                 "url": "${RELEASE_URL}",
                 "description": "A new version of SubathonManager has been released!",
                 "color": 5814783,
