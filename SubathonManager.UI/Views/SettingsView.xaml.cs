@@ -71,7 +71,9 @@ public partial class SettingsView
             };
 
             textBlock.Inlines.Add("Update available!");
+            textBlock.Inlines.Add(new LineBreak());
             textBlock.Inlines.Add(newVersion);
+            textBlock.Inlines.Add(new LineBreak());
 
             if (!string.IsNullOrEmpty(url))
             {
@@ -89,9 +91,12 @@ public partial class SettingsView
                     ea.Handled = true;
                 };
 
+                textBlock.Inlines.Add(new LineBreak());
                 textBlock.Inlines.Add(link);
             }
 
+            textBlock.Inlines.Add(new LineBreak());
+            textBlock.Inlines.Add(new LineBreak());
             textBlock.Inlines.Add("Download and install now?");
 
             msgBox.Content = textBlock;
