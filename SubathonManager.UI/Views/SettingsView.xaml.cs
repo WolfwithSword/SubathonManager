@@ -98,6 +98,8 @@ public partial class SettingsView
             textBlock.Inlines.Add(new LineBreak());
             textBlock.Inlines.Add(new LineBreak());
             textBlock.Inlines.Add("Download and install now?");
+            textBlock.Inlines.Add(new LineBreak());
+            textBlock.Inlines.Add("You will need to start up the app manually once finished.");
 
             msgBox.Content = textBlock;
             msgBox.CloseButtonText = "Cancel";
