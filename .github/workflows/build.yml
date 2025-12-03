@@ -261,6 +261,7 @@ jobs:
 
   update-wiki:
     if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && github.ref_name != 'main'
+    needs: release
     uses: ./.github/workflows/wiki-drawio-upload.yml
     secrets: inherit
     with:
