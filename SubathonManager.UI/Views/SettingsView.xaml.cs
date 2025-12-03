@@ -72,14 +72,14 @@ public partial class SettingsView
 
             textBlock.Inlines.Add("Update available!");
             textBlock.Inlines.Add(new LineBreak());
-            textBlock.Inlines.Add(newVersion);
+            textBlock.Inlines.Add("v"+newVersion);
             textBlock.Inlines.Add(new LineBreak());
 
             if (!string.IsNullOrEmpty(url))
             {
                 var link = new Hyperlink(new Run("Latest Version"))
                 {
-                    NavigateUri = new Uri(url)
+                    NavigateUri = new Uri(url.Replace("/"+newVersion, "/v"+newVersion))
                 };
 
                 link.RequestNavigate += (_, ea) =>

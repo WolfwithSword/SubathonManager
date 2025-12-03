@@ -1,5 +1,6 @@
 ﻿using Updatum;
 using System.Reflection;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 namespace SubathonManager.Core;
 
@@ -84,6 +85,12 @@ public static class AppServices
         try
         {
             await AppUpdater.InstallUpdateAsync(asset, UpdatumManager.NoRunAfterUpgradeToken);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = Config.AppFolder,
+                UseShellExecute = true,
+                Verb = "open"
+            });
             return true;
         }
         catch (Exception ex)

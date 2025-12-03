@@ -11,6 +11,8 @@ namespace SubathonManager.Core
         public static readonly string DataFolder = Path.GetFullPath(Path.Combine(string.Empty
             , "data"));
 
+        public static readonly string AppFolder = Path.GetFullPath(".");
+
         private static readonly FileIniDataParser Parser = new();
         public static IniData Data { get; private set; } = new();
 
