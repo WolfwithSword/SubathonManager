@@ -83,7 +83,7 @@ public static class AppServices
         
         try
         {
-            await AppUpdater.InstallUpdateAsync(asset);
+            await AppUpdater.InstallUpdateAsync(asset, UpdatumManager.NoRunAfterUpgradeToken);
             return true;
         }
         catch (Exception ex)

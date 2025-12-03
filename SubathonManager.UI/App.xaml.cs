@@ -30,10 +30,18 @@ public partial class App
     
     private IDbContextFactory<AppDbContext>? _factory;
     
-    public static string AppVersion =>
-        Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion ?? "dev";
+    public static string AppVersion
+    {
+        get
+        {
+            var ver = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion ?? "dev";
+
+            var plusIndex = ver.IndexOf('+');
+            return plusIndex > 0 && ver.StartsWith('v') ? ver[..plusIndex] : ver;
+        }
+    }
     
     protected override void OnStartup(StartupEventArgs e)
     {
