@@ -1,6 +1,8 @@
-﻿using StreamElementsNET;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using StreamElements.WebSocket;
+using StreamElements.WebSocket.Models.Tip;
+using StreamElements.WebSocket.Models.Internal;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -11,7 +13,7 @@ namespace SubathonManager.Integration;
 public class StreamElementsService
 {
 
-    private Client? _client;
+    private StreamElementsClient? _client;
     public bool Connected { get; private set; } = false;
     private string _jwtToken = "";
     private bool _hasAuthError = false;
@@ -32,7 +34,7 @@ public class StreamElementsService
             Disconnect();
         }
 
-        _client = new Client(_jwtToken);
+        _client = new StreamElementsClient();
         
         _client.OnConnected += _OnConnected;
         _client.OnAuthenticated += _OnAuthenticated;
@@ -40,7 +42,7 @@ public class StreamElementsService
         _client.OnDisconnected += _OnDisconnected;
         _client.OnAuthenticationFailure += _OnAuthenticateError;
         
-        _client.Connect();
+        _client.Connect(_jwtToken);
         return true;
     }
 
@@ -87,7 +89,7 @@ public class StreamElementsService
 
             try
             {
-                _client.Connect();
+                _client.Connect(_jwtToken);
             }
             catch (Exception ex)
             {
@@ -95,7 +97,7 @@ public class StreamElementsService
                 await Task.Delay(2000);
                 try
                 {
-                    _client.Connect();
+                    _client.Connect(_jwtToken);
                 }
                 catch (Exception ex2)
                 {
@@ -113,7 +115,7 @@ public class StreamElementsService
         });
     }
 
-    private void _OnAuthenticated(object? sender,  StreamElementsNET.Models.Internal.Authenticated e)
+    private void _OnAuthenticated(object? sender, Authenticated e)
     {
         _logger?.LogDebug($"StreamElementsService Authenticated");
         Connected = true;
@@ -131,7 +133,7 @@ public class StreamElementsService
             "StreamElements Token could not be validated", DateTime.Now.ToLocalTime());
     }
 
-    private void _OnTip(object? sender, StreamElementsNET.Models.Tip.Tip e)
+    private void _OnTip(object? sender, Tip e)
     {
         SubathonEvent subathonEvent = new();
         subathonEvent.User = e.Username;
