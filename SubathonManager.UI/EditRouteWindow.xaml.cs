@@ -567,7 +567,7 @@ public partial class EditRouteWindow
 
                 txtBox.TextChanged += (s, e) =>
                 {
-                    jsVar.Value = txtBox.Text;
+                    jsVar.Value = txtBox.Text!;
                 };
                 
                 itemRow.Children.Add(txtBox);
