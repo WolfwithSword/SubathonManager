@@ -53,7 +53,7 @@ public class WidgetEntityHelper
             if (key.Count(c => c == '.') != 1) continue;
             JsVariable jVar = new JsVariable();
             jVar.Name = key.Split('.')[0];
-            
+            if (string.IsNullOrEmpty(jVar.Name) || "/?<>~!@#$%^&*()_+=-{}|\\]['\";:,.".Contains(jVar.Name[0])) continue;
             if (widget.JsVariables.Any(v => v.Name == jVar.Name)) continue;
             
             jVar.Value = metadata[key];

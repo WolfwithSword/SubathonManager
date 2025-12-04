@@ -442,7 +442,7 @@ public partial class EditRouteWindow
     private void PopulateJsVars()
     {
         // call in a dispatch
-        JsVarsList.Content = null;
+        JsVarsList.Items.Clear();
         if (_selectedWidget == null) return;
 
         var containerPanel = new StackPanel { Orientation = Orientation.Vertical };
@@ -455,12 +455,12 @@ public partial class EditRouteWindow
             {
                 Text = jsVar.Name,
                 ToolTip = $"{jsVar.Name} - {jsVar.Type}",
-                Width = 180,
+                Width = 172,
                 TextAlignment = TextAlignment.Left,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = jsVar.Type == WidgetVariableType.EventTypeList ?
                     VerticalAlignment.Top : VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0)
+                Margin = new Thickness(0, 0, 8, 0)
             };
             
             itemRow.Children.Add(nameBlock);
@@ -475,11 +475,12 @@ public partial class EditRouteWindow
                     BorderBrush = Brushes.Gray,
                     BorderThickness = new Thickness(1),
                     Padding = new Thickness(4),
-                    Width = 158,
+                    Width = 282,
                     CornerRadius = new CornerRadius(4),
+                    Margin = new Thickness(0, 4, 0, 2)
                 };
                 
-                var dropdown = new StackPanel { Orientation = Orientation.Vertical };
+                var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
                 foreach (var eType in Enum.GetNames(typeof(SubathonEventType)))
                 {
                     if (eType == nameof(SubathonEventType.Command) ||
@@ -490,25 +491,26 @@ public partial class EditRouteWindow
                         {
                             Text = eType,
                             TextWrapping =  TextWrapping.Wrap,
-                            MaxWidth = 150
+                            MaxWidth = 278
                         },
                         IsChecked = panelValues.Contains(eType),
                         Margin = new Thickness(2)
                     };
-                    chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, dropdown);
-                    chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, dropdown);
-                    dropdown.Children.Add(chkBox);
+                    chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                    chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                    chkboxList.Children.Add(chkBox);
                 }
 
-                border.Child = dropdown;
-                itemRow.Children.Add(border);
+                border.Child = chkboxList;
+                outerPanel.Children.Add(itemRow);
+                outerPanel.Children.Add(border);
             }
             else
             {
                 var txtBox = new Wpf.Ui.Controls.TextBox
                 {
                     Text = jsVar.Value,
-                    Width = 160
+                    Width = 150
                 };
 
                 if (jsVar.Type == WidgetVariableType.Int)
@@ -569,15 +571,16 @@ public partial class EditRouteWindow
                 };
                 
                 itemRow.Children.Add(txtBox);
+                
+                outerPanel.Children.Add(itemRow);
             }
-            outerPanel.Children.Add(itemRow);
             outerPanel.Children.Add(new Separator
             {
                 Margin = new Thickness(16, 2, 16, 2)
             });
             containerPanel.Children.Add(outerPanel);
         }
-        JsVarsList.Content = containerPanel;
+        JsVarsList.Items.Add(containerPanel);
     }
 
     private void UpdateEventListValues(JsVariable variable, StackPanel dropdown)
