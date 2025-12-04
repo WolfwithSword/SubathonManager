@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
+using System.Text;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core.Models;
 
@@ -15,6 +17,47 @@ public class CssVariable
     [ForeignKey("Widget")]
     public Guid WidgetId { get; set; }
     public Widget Widget { get; set; } = null!;
+}
+
+public class JsVariable
+{
+    [Key]
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public WidgetVariableType Type { get; set; } =  WidgetVariableType.String;
+    
+    [ForeignKey("Widget")]
+    public Guid WidgetId { get; set; }
+    public Widget Widget { get; set; } = null!;
+
+    public string GetInjectLine()
+    {
+        StringBuilder sb = new();
+        sb.Append($"const {Name.Replace(' ', '_')} = ");
+        if (string.IsNullOrEmpty(Value) || string.IsNullOrWhiteSpace(Value))
+            sb.Append("\"\"");
+        else if (Type == WidgetVariableType.Float && float.TryParse(Value, out var f))
+            sb.Append($"{f}");
+        else if (Type == WidgetVariableType.Int && Int16.TryParse(Value, out var intValue))
+            sb.Append($"{intValue}");
+        else if (Type == WidgetVariableType.Float || Type == WidgetVariableType.Int || Type == WidgetVariableType.String)
+            sb.Append($"\"{Value}\"");
+        else if (Type == WidgetVariableType.EventTypeList || Type == WidgetVariableType.StringList)
+        {
+            string val = string.Join(",", Value.Split(',').Select(s =>
+            {
+                s = s.Trim();
+                if (!s.StartsWith("\"")) s = "\"" + s;
+                if (!s.EndsWith("\"")) s = s + "\"";
+                return s;
+            }));
+            sb.Append($"[{val}]");
+        }
+        sb.Append(";\n");
+
+        return sb.ToString();
+    }
 }
 
 public class Widget
@@ -35,6 +78,7 @@ public class Widget
     public float ScaleY { get; set; } = 1;
 
     public List<CssVariable> CssVariables { get; set; } = new();
+    public List<JsVariable> JsVariables { get; set; } = new();
  
     [ForeignKey("Route")]
     public Guid RouteId { get; set; }
@@ -98,7 +142,6 @@ public class Widget
                 }
             }
         }
-
         return extractedVars;
     }
 

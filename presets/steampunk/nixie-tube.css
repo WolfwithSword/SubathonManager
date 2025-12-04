@@ -21,14 +21,14 @@ body {
     background: transparent;
     display: flex;
     justify-content: var(--alignment);
-    align-items: var(--alignment);
+    align-items: flex-start;
     height: 100%;
     margin: calc(var(--tube-outer-glow-max-size) + 4px);
 }
 
 .nixie-container {
     display: flex;
-    align-items: var(--alignment);
+    align-items: flex-start;
 }
 
 .nixie {

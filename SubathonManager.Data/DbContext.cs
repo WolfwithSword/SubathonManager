@@ -13,6 +13,7 @@ namespace SubathonManager.Data
         public DbSet<Widget> Widgets => Set<Widget>();
 
         public DbSet<CssVariable> CssVariables => Set<CssVariable>();
+        public DbSet<JsVariable> JsVariables => Set<JsVariable>();
 
         public DbSet<SubathonEvent> SubathonEvents { get; set; }
         public DbSet<SubathonValue> SubathonValues { get; set; }
@@ -43,6 +44,12 @@ namespace SubathonManager.Data
 
             modelBuilder.Entity<Widget>()
                 .HasMany(w => w.CssVariables)
+                .WithOne(cv => cv.Widget)
+                .HasForeignKey(cv => cv.WidgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<Widget>()
+                .HasMany(w => w.JsVariables)
                 .WithOne(cv => cv.Widget)
                 .HasForeignKey(cv => cv.WidgetId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -99,7 +106,7 @@ namespace SubathonManager.Data
                 }
             }
 
-            // If a widget or cssvariable changes, update its parent route’s timestamp
+            // If a widget or cssvariable/jsvariable changes, update its parent route’s timestamp
             foreach (var entry in ChangeTracker.Entries<Widget>())
             {
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
@@ -112,6 +119,21 @@ namespace SubathonManager.Data
             }
 
             foreach (var entry in ChangeTracker.Entries<CssVariable>())
+            {
+                if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
+                    entry.State == EntityState.Deleted)
+                {
+                    var widget = Widgets.FirstOrDefault(w => w.Id == entry.Entity.WidgetId);
+                    if (widget != null)
+                    {
+                        var route = Routes.FirstOrDefault(r => r.Id == widget.RouteId);
+                        if (route != null)
+                            route.UpdatedTimestamp = now;
+                    }
+                }
+            }
+            
+            foreach (var entry in ChangeTracker.Entries<JsVariable>())
             {
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
                     entry.State == EntityState.Deleted)

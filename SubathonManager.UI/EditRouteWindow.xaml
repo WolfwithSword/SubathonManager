@@ -8,7 +8,7 @@
                  mc:Ignorable="d"
                  Background="{DynamicResource UiBrushPrimary}"
                  ResizeMode="NoResize"
-                 WindowStartupLocation="CenterOwner"
+                 WindowStartupLocation="CenterOwner" MinHeight="500" MinWidth="940"
                  Title="EditRouteWindow" Height="900" Width="1740">
     <ui:FluentWindow.Resources>
         <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#363636"/>
@@ -215,74 +215,79 @@
                 </StackPanel>
 
                 <Grid x:Name="WidgetEditPanel" Visibility="Collapsed">
+                    <DockPanel LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Top">
+                            <TextBlock Text="Widget Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+                            
+                            <StackPanel Margin="0,8">
+                                <TextBlock Text="Name" FontWeight="SemiBold" Margin="2 2"/>
+                                <TextBox x:Name="WidgetNameBox"/>
+                            </StackPanel>
 
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                
-                    <StackPanel>
-                        <TextBlock Text="Widget Editor" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
-                        
-                        <StackPanel Margin="0,8">
-                            <TextBlock Text="Name" FontWeight="SemiBold" Margin="2 2"/>
-                            <TextBox x:Name="WidgetNameBox"/>
+                            <UniformGrid Columns="2" Rows="2" Margin="0,8">
+                                <StackPanel>
+                                    <TextBlock Text="Width" FontWeight="SemiBold" Margin="2 2"/>
+                                    <TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Height" FontWeight="SemiBold" Margin="2 2"/>
+                                    <TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="X" FontWeight="SemiBold" Margin="2 2"/>
+                                    <TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Y" FontWeight="SemiBold" Margin="2 2"/>
+                                    <TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="ScaleX" FontWeight="SemiBold" Margin="2 2"/>
+                                    <TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="ScaleY" FontWeight="SemiBold" Margin="2 2"/>
+                                    <TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <Separator Margin="0 32 0 8"/>
                         </StackPanel>
+                        
+                        <StackPanel  DockPanel.Dock="Bottom" VerticalAlignment="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 4">
+                            <Button Content="Reload Vars" Width="150" Margin="4,8,4,4" Click="ReloadVars_Click" HorizontalAlignment="Left"/>
+                            <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="4,8,4,4"
+                                    Click="SaveWidgetButton_Click" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <!-- CSS Variables -->
+                                <Expander Header="CSS Variables" IsExpanded="False" Margin="0 0 4 0">
+                                        <ItemsControl x:Name="CssVarsList">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Vertical"> 
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                            <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                                            <TextBox Text="{Binding Value}" Width="150"/>
+                                                        </StackPanel>
+                                                        <Separator Margin="16 1"></Separator>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                </Expander>
 
-                        <UniformGrid Columns="2" Rows="2" Margin="0,8">
-                            <StackPanel>
-                                <TextBlock Text="Width" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="Height" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="X" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="Y" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="ScaleX" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
-                            </StackPanel>
-                            <StackPanel>
-                                <TextBlock Text="ScaleY" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
-                            </StackPanel>
-                        </UniformGrid>
+                                <!-- JS Variables -->
+                                <Expander Header="JS Variables" IsExpanded="False" Margin="0 0 4 6">
+                                    <ItemsControl x:Name="JsVarsList">
 
-                        <Separator Margin="0 32 0 8"/>
-                        <TextBlock Text="CSS Variables" FontWeight="Bold" Margin="0,0,0,6"/>
-                    </StackPanel>
-                    
-                    <!-- CSS Variables -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="CssVarsList">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Vertical"> 
-                                        <StackPanel Orientation="Horizontal" Margin="0,2">
-                                            <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
-                                            <TextBox Text="{Binding Value}" Width="160"/>
-                                        </StackPanel>
-                                        <Separator Margin="16 1"></Separator>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                    
-                    <StackPanel Grid.Row="2" VerticalAlignment="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 4">
-                        <Button Content="Reload CSS Vars" Width="150" Margin="4,8,4,4" Click="ReloadCSS_Click" HorizontalAlignment="Left"/>
-                        <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="4,8,4,4"
-                                Click="SaveWidgetButton_Click" HorizontalAlignment="Right"/>
-                    </StackPanel>
+                                    </ItemsControl>
+                                </Expander>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
                 </Grid>
             </Grid>
         </Border>

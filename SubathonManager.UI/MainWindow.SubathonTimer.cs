@@ -26,11 +26,31 @@ namespace SubathonManager.UI
                 });
             }
         }
-
-        private void StartNewSubathon_Click(object sender, RoutedEventArgs e)
+        
+        private async void StartNewSubathon_Click(object sender, RoutedEventArgs e)
         {
-            Task.Run(() => AppDbContext.DisableAllTimers(_factory.CreateDbContext()));
-            using var db = _factory.CreateDbContext();
+            var msgBox = new Wpf.Ui.Controls.MessageBox();
+            msgBox.Title = "Start New Subathon";
+            var textBlock = new System.Windows.Controls.TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Width = 320
+            };
+            textBlock.Inlines.Add("Confirm deleting the current subathon (time, points, events) and starting a new one?");
+            msgBox.Content = textBlock;
+            
+            msgBox.CloseButtonText = "Cancel";
+            msgBox.Owner = Application.Current.Windows
+                .OfType<Window>()
+                .FirstOrDefault(w => w.IsActive);
+            msgBox.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            msgBox.PrimaryButtonText = "Confirm";
+            var result = await msgBox.ShowDialogAsync();
+            bool confirm = result == Wpf.Ui.Controls.MessageBoxResult.Primary;
+            if (!confirm) return;
+            
+            await Task.Run(async () => AppDbContext.DisableAllTimers(await _factory.CreateDbContextAsync()));
+            using var db = await _factory.CreateDbContextAsync();
             SubathonData subathon = new SubathonData();
             TimeSpan initialMs = Utils.ParseDurationString(InitialSubathonTime.Text);
             if (initialMs == TimeSpan.Zero)
