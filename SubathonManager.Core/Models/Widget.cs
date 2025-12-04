@@ -35,7 +35,7 @@ public class JsVariable
     {
         StringBuilder sb = new();
         sb.Append($"const {Name.Replace(' ', '_')} = ");
-        if (Value == string.Empty)
+        if (string.IsNullOrEmpty(Value) || string.IsNullOrWhiteSpace(Value))
             sb.Append("\"\"");
         else if (Type == WidgetVariableType.Float && float.TryParse(Value, out var f))
             sb.Append($"{f}");
