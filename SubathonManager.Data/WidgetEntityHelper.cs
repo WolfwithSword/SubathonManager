@@ -2,7 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 
@@ -29,6 +31,80 @@ public class WidgetEntityHelper
             }
         }
         db.SaveChanges();
+    }
+
+    public void SyncJsVariables(Widget widget)
+    {
+        Dictionary<string, string> metadata = ExtractWidgetMetadataSync(widget.HtmlPath);
+        
+        var jsVars = LoadNewJsVariables(widget, metadata);
+        
+        using var db = new AppDbContext();
+        db.JsVariables.AddRange(jsVars);
+        _logger?.LogDebug($"[Widget {widget.Name}] Added new JS variables: {jsVars.Count}");
+        db.SaveChanges();
+    }
+    
+    public List<JsVariable> LoadNewJsVariables(Widget widget, Dictionary<string, string> metadata)
+    {
+        var extractedVars = new List<JsVariable>();
+        foreach (var key in metadata.Keys)
+        {
+            if (key.Count(c => c == '.') != 1) continue;
+            JsVariable jVar = new JsVariable();
+            jVar.Name = key.Split('.')[0];
+            
+            if (widget.JsVariables.Any(v => v.Name == jVar.Name)) continue;
+            
+            jVar.Value = metadata[key];
+            if (Enum.TryParse<WidgetVariableType>(key.Split('.')[1], ignoreCase: true, out var type))
+                jVar.Type = type;
+            jVar.WidgetId = widget.Id;
+            extractedVars.Add(jVar);
+        }
+        return extractedVars;
+    }
+
+    public Dictionary<string, string> ExtractWidgetMetadataSync(string htmlpath)
+    {
+        var html = File.ReadAllText(htmlpath);
+        return GetMetaData(html);
+    }
+
+    public async Task<Dictionary<string, string>> ExtractWidgetMetadata(string htmlpath)
+    {
+
+        var html = await File.ReadAllTextAsync(htmlpath);
+        return GetMetaData(html);
+    }
+    
+    private Dictionary<string, string> GetMetaData(string html) {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var pattern = @"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->";
+        var match  = Regex.Match(html, pattern, RegexOptions.Singleline);
+
+        if (!match.Success)
+            return result;
+
+        var block = match.Groups[1].Value;
+
+        var lines = block.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+
+            var index = trimmed.IndexOf(':');
+            if (index <= 0 || index == trimmed.Length - 1)
+                continue;
+
+            var key = trimmed.Substring(0, index).Trim();
+            var value = trimmed.Substring(index + 1).Trim();
+
+            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                result[key] = value;
+        }
+        return result;
     }
     
     public async Task<bool> UpdateWidgetScale(string widgetId, Dictionary<string, JsonElement> data)

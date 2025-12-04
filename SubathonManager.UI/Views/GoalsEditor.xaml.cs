@@ -121,9 +121,29 @@ namespace SubathonManager.UI.Views
             });
         }
 
-        private void CreateNewGoalSet_Click(object sender, RoutedEventArgs e)
+        private async void CreateNewGoalSet_Click(object sender, RoutedEventArgs e)
         {
-            using var db = _factory.CreateDbContext();
+            var msgBox = new Wpf.Ui.Controls.MessageBox();
+            msgBox.Title = "Create new Goals List";
+            
+            var textBlock = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Width = 320
+            };
+            textBlock.Inlines.Add("Create a new goals list and delete the current one?");
+            msgBox.Content = textBlock;
+            msgBox.CloseButtonText = "Cancel";
+            msgBox.Owner = Application.Current.Windows
+                .OfType<Window>()
+                .FirstOrDefault(w => w.IsActive);
+            msgBox.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            msgBox.PrimaryButtonText = "Confirm";
+            var result = await msgBox.ShowDialogAsync();
+            bool confirm = result == Wpf.Ui.Controls.MessageBoxResult.Primary;
+            if (!confirm) return;
+            
+            using var db = await _factory.CreateDbContextAsync();
             foreach (var gs in db.SubathonGoalSets)
                 gs.IsActive = false;
 
@@ -139,7 +159,7 @@ namespace SubathonManager.UI.Views
             GoalSetNameBox.Text = newGoalSet.Name;
             GoalsStack.Children.Clear();
             StatusText.Text = "";
-            SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+            SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
             SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
         }
 

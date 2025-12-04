@@ -1,8 +1,9 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Windows.Media;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 using Wpf.Ui.Controls;
 
@@ -93,7 +95,9 @@ public partial class EditRouteWindow
         await using var db = await _factory.CreateDbContextAsync();
         _route = await db.Routes
             .Include(r => r.Widgets)
-            .ThenInclude(w => w.CssVariables)
+                .ThenInclude(w => w.CssVariables)
+            .Include(r => r.Widgets)
+                .ThenInclude( w => w.JsVariables)
             .FirstOrDefaultAsync(r => r.Id == _routeId);
 
         if (_route == null)
@@ -244,6 +248,8 @@ public partial class EditRouteWindow
             clone.Z = _widgets.Count + 1;
             clone.Width = w.Width;
             clone.Height = w.Height;
+            clone.ScaleX = w.ScaleX;
+            clone.ScaleY = w.ScaleY;
             clone.RouteId = w.RouteId;
 
             db.Widgets.Add(clone);
@@ -261,6 +267,23 @@ public partial class EditRouteWindow
                         WidgetId = clone.Id
                     };
                     db.CssVariables.Add(n);
+                }
+
+                await db.SaveChangesAsync();
+            }
+            // clone js vars
+            if (w.JsVariables.Count > 0)
+            {
+                foreach (var jsv in w.JsVariables)
+                {
+                    var n = new JsVariable
+                    {
+                        Name = jsv.Name,
+                        Value = jsv.Value,
+                        Type = jsv.Type,
+                        WidgetId = clone.Id
+                    };
+                    db.JsVariables.Add(n);
                 }
 
                 await db.SaveChangesAsync();
@@ -320,7 +343,8 @@ public partial class EditRouteWindow
     {
         if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
         using var db = _factory.CreateDbContext();
-        var widget = db.Widgets.FirstOrDefault(wX => wX.Id == widgetId);
+        var widget = db.Widgets.Include(wX => wX.JsVariables)
+            .Include(wX => wX.CssVariables).FirstOrDefault(wX => wX.Id == widgetId);
         
         Dispatcher.Invoke(() =>
         {
@@ -356,7 +380,9 @@ public partial class EditRouteWindow
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
         using var db = _factory.CreateDbContext();
         widgetHelper.SyncCssVariables(widget);
+        widgetHelper.SyncJsVariables(widget);
         _selectedWidget = db.Widgets.Include(wX => wX.CssVariables)
+            .Include(wX => wX.JsVariables)
             .FirstOrDefault(wX => wX.Id == widget.Id);
         widget = _selectedWidget!;
 
@@ -373,9 +399,9 @@ public partial class EditRouteWindow
         if (WidgetScaleXBox.Text != $"{widget.ScaleX}") WidgetScaleXBox.Text = $"{widget.ScaleX}";
         if (WidgetScaleYBox.Text != $"{widget.ScaleY}") WidgetScaleYBox.Text = $"{widget.ScaleY}";
         
-
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
+        PopulateJsVars();
     }
 
 
@@ -387,7 +413,9 @@ public partial class EditRouteWindow
             if (widget == null) return;
 
             await using var db = await _factory.CreateDbContextAsync();
-            var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == widget.Id);
+            var wa = await db.Widgets.Include(w => w.CssVariables)
+                .Include(w => w.JsVariables)
+                .FirstOrDefaultAsync(w => w.Id == widget.Id);
             if (wa == null) return;
 
             widget = wa;
@@ -410,21 +438,172 @@ public partial class EditRouteWindow
             _logger?.LogError(ex, "Failed to update widget visibility");
         }
     }
+
+    private void PopulateJsVars()
+    {
+        // call in a dispatch
+        JsVarsList.Content = null;
+        if (_selectedWidget == null) return;
+
+        var containerPanel = new StackPanel { Orientation = Orientation.Vertical };
+        foreach (var jsVar in _selectedWidget.JsVariables) 
+        {
+            var outerPanel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 4, 0, 4)};
+            var itemRow = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var nameBlock = new Wpf.Ui.Controls.TextBlock
+            {
+                Text = jsVar.Name,
+                ToolTip = $"{jsVar.Name} - {jsVar.Type}",
+                Width = 180,
+                TextAlignment = TextAlignment.Left,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = jsVar.Type == WidgetVariableType.EventTypeList ?
+                    VerticalAlignment.Top : VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0)
+            };
+            
+            itemRow.Children.Add(nameBlock);
+
+            if (jsVar.Type == WidgetVariableType.EventTypeList)
+            {
+                var panelValues = (jsVar.Value ?? "").Split(',',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var border = new Border
+                {
+                    BorderBrush = Brushes.Gray,
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(4),
+                    Width = 158,
+                    CornerRadius = new CornerRadius(4),
+                };
+                
+                var dropdown = new StackPanel { Orientation = Orientation.Vertical };
+                foreach (var eType in Enum.GetNames(typeof(SubathonEventType)))
+                {
+                    if (eType == nameof(SubathonEventType.Command) ||
+                        eType == nameof(SubathonEventType.Unknown)) continue;
+                    var chkBox = new CheckBox
+                    {
+                        Content = new Wpf.Ui.Controls.TextBlock
+                        {
+                            Text = eType,
+                            TextWrapping =  TextWrapping.Wrap,
+                            MaxWidth = 150
+                        },
+                        IsChecked = panelValues.Contains(eType),
+                        Margin = new Thickness(2)
+                    };
+                    chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, dropdown);
+                    chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, dropdown);
+                    dropdown.Children.Add(chkBox);
+                }
+
+                border.Child = dropdown;
+                itemRow.Children.Add(border);
+            }
+            else
+            {
+                var txtBox = new Wpf.Ui.Controls.TextBox
+                {
+                    Text = jsVar.Value,
+                    Width = 160
+                };
+
+                if (jsVar.Type == WidgetVariableType.Int)
+                {
+                    txtBox.PreviewTextInput += (s, e) =>
+                    {
+                        var tb = (Wpf.Ui.Controls.TextBox)s;
+
+                        if (char.IsDigit(e.Text, 0))
+                        {
+                            e.Handled = false;
+                            return;
+                        }
+
+                        if (e.Text == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
+                        {
+                            e.Handled = false;
+                            return;
+                        }
+
+                        e.Handled = true;
+                    };
+                }
+                else if (jsVar.Type == WidgetVariableType.Float)
+                {
+                    txtBox.PreviewTextInput += (s, e) =>
+                    {
+                        var tb = (Wpf.Ui.Controls.TextBox)s;
+                        string incoming = e.Text;
+
+                        if (char.IsDigit(incoming, 0))
+                        {
+                            e.Handled = false;
+                            return;
+                        }
+
+                        if (incoming == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
+                        {
+                            e.Handled = false;
+                            return;
+                        }
+
+                        if (incoming == "." && !tb.Text.Contains('.'))
+                        {
+                            e.Handled = false;
+                            return;
+                        }
+
+                        e.Handled = true;
+                    };
+
+                }
+                txtBox.Text = jsVar.Value;
+
+                txtBox.TextChanged += (s, e) =>
+                {
+                    jsVar.Value = txtBox.Text;
+                };
+                
+                itemRow.Children.Add(txtBox);
+            }
+            outerPanel.Children.Add(itemRow);
+            outerPanel.Children.Add(new Separator
+            {
+                Margin = new Thickness(16, 2, 16, 2)
+            });
+            containerPanel.Children.Add(outerPanel);
+        }
+        JsVarsList.Content = containerPanel;
+    }
+
+    private void UpdateEventListValues(JsVariable variable, StackPanel dropdown)
+    {
+        var selected = dropdown.Children.OfType<CheckBox>().Where(c => c.IsChecked == true)
+            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Text).ToList();
+        variable.Value = string.Join(',', selected);
+    }
     
-    private void ReloadCSS_Click(object sender, RoutedEventArgs e)
+    private void ReloadVars_Click(object sender, RoutedEventArgs e)
     {
         // todo, button to delete vars no longer found or tie in here
         if (_selectedWidget == null) return;
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
         widgetHelper.SyncCssVariables(_selectedWidget);
+        widgetHelper.SyncJsVariables(_selectedWidget);
         
         using var db = _factory.CreateDbContext();
         var widget = db.Widgets.Include(wX => wX.CssVariables)
+            .Include(wX => wX.JsVariables)
             .FirstOrDefault(wX => wX.Id == _selectedWidget.Id);
         _selectedWidget = widget;
         
         _editingCssVars = new ObservableCollection<CssVariable>(_selectedWidget!.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
+        PopulateJsVars();
     }
     
     private async void SaveWidgetButton_Click(object sender, RoutedEventArgs e)
@@ -435,6 +614,7 @@ public partial class EditRouteWindow
             
             await using var db = await _factory.CreateDbContextAsync();
             var widget = await db.Widgets.Include(wX => wX.CssVariables)
+                .Include(wX => wX.JsVariables)
                 .FirstOrDefaultAsync(wX => wX.Id == _selectedWidget.Id);
 
             if (widget == null) return;
@@ -446,6 +626,7 @@ public partial class EditRouteWindow
             widget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx : (_selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX);
             widget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy : (_selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY);
             widget.CssVariables = _editingCssVars.ToList();
+            widget.JsVariables = _selectedWidget.JsVariables;
 
             db.Widgets.Update(widget);
             await db.SaveChangesAsync();
@@ -476,8 +657,10 @@ public partial class EditRouteWindow
     private async Task SwapWidgetZAsync(Widget a, Widget b)
     {
         await using var db = await _factory.CreateDbContextAsync();
-        var wa = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == a.Id);
-        var wb = await db.Widgets.Include(w => w.CssVariables).FirstOrDefaultAsync(w => w.Id == b.Id);
+        var wa = await db.Widgets.Include(w => w.CssVariables)
+            .Include(w => w.JsVariables).FirstOrDefaultAsync(w => w.Id == a.Id);
+        var wb = await db.Widgets.Include(w => w.CssVariables)
+            .Include(w => w.JsVariables).FirstOrDefaultAsync(w => w.Id == b.Id);
         if (wa == null || wb == null) return;
 
         (wa.Z, wb.Z) = (wb.Z, wa.Z);
@@ -509,38 +692,6 @@ public partial class EditRouteWindow
     {
         if (_loadedWebView) PreviewWebView.CoreWebView2?.Reload();
     }
-    
-    private async Task<Dictionary<string, string>> ExtractWidgetMetadata(string htmlpath)
-    {
-        var html = await File.ReadAllTextAsync(htmlpath);
-
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var pattern = @"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->";
-        var match  = Regex.Match(html, pattern, RegexOptions.Singleline);
-
-        if (!match.Success)
-            return result;
-
-        var block = match.Groups[1].Value;
-
-        var lines = block.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-
-            var index = trimmed.IndexOf(':');
-            if (index <= 0 || index == trimmed.Length - 1)
-                continue;
-
-            var key = trimmed.Substring(0, index).Trim();
-            var value = trimmed.Substring(index + 1).Trim();
-
-            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
-                result[key] = value;
-        }
-        return result;
-    }
 
     private async void ImportWidgetButton_Click(object sender, RoutedEventArgs e)
     {
@@ -564,8 +715,8 @@ public partial class EditRouteWindow
                 _lastFolder = Path.GetDirectoryName(path)!;
                 await using var db = await _factory.CreateDbContextAsync();
                 var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
-
-                var metadata = await ExtractWidgetMetadata(path);
+                WidgetEntityHelper helper = new WidgetEntityHelper();
+                var metadata = await helper.ExtractWidgetMetadata(path);
                 
                 newWidget.RouteId = _route!.Id;
                 newWidget.X = 0;
@@ -580,6 +731,15 @@ public partial class EditRouteWindow
                 
                 db.Widgets.Add(newWidget);
                 await db.SaveChangesAsync();
+                
+                List<JsVariable> jsVars = helper.LoadNewJsVariables(newWidget, metadata);
+                if (jsVars.Count > 0)
+                {
+                    newWidget.JsVariables = jsVars;
+                    db.JsVariables.AddRange(jsVars);
+                }
+                await db.SaveChangesAsync();
+                
                 newWidget.ScanCssVariables();
                 db.CssVariables.AddRange(newWidget.CssVariables);
                 await db.SaveChangesAsync();

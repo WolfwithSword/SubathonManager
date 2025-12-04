@@ -1,9 +1,9 @@
 ﻿using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
-using SubathonManager.Data;
 
 namespace SubathonManager.Server;
 
@@ -36,6 +36,7 @@ public partial class WebServer
                 await using var db = await _factory.CreateDbContextAsync();
                 var widget = await db.Widgets
                     .Include(ww => ww.CssVariables)
+                    .Include(ww => ww.JsVariables)
                     .FirstOrDefaultAsync(w => w.Id == widgetGuid);
 
                 if (widget != null)
@@ -69,6 +70,26 @@ public partial class WebServer
                                 html += cssOverrides;
                             }
                             
+                            var jsOverrides = new StringBuilder();
+                            jsOverrides.AppendLine("\n<script>\n");
+                            foreach (var v in widget.JsVariables)
+                                jsOverrides.Append(v.GetInjectLine());
+                            jsOverrides.AppendLine("</script>\n");
+                            if (html.Contains("<script>", StringComparison.OrdinalIgnoreCase))
+                            {
+                                int count = 0;
+                                html = Regex.Replace(
+                                    html,
+                                    "<script>",
+                                    m => count++ == 0 ? jsOverrides + "\n<script>" : m.Value,
+                                    RegexOptions.IgnoreCase
+                                );
+                            }
+                            else
+                            {
+                                html += jsOverrides;
+                            }
+
                             ctx.Response.ContentType = "text/html";
                             AddCorsHeaders(ctx.Response);
                             byte[] bytes = Encoding.UTF8.GetBytes(html);

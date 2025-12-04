@@ -8,7 +8,7 @@
                  mc:Ignorable="d"
                  Background="{DynamicResource UiBrushPrimary}"
                  ResizeMode="NoResize"
-                 WindowStartupLocation="CenterOwner"
+                 WindowStartupLocation="CenterOwner" MinHeight="500" MinWidth="940"
                  Title="EditRouteWindow" Height="900" Width="1740">
     <ui:FluentWindow.Resources>
         <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#363636"/>
@@ -220,6 +220,8 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                 
                     <StackPanel>
@@ -278,8 +280,17 @@
                         </ItemsControl>
                     </ScrollViewer>
                     
-                    <StackPanel Grid.Row="2" VerticalAlignment="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 4">
-                        <Button Content="Reload CSS Vars" Width="150" Margin="4,8,4,4" Click="ReloadCSS_Click" HorizontalAlignment="Left"/>
+                    <!-- JS Variables -->
+                    <StackPanel Grid.Row="2">
+                        <Separator Margin="0 8 0 8"/>
+                        <TextBlock Text="JS Variables" FontWeight="Bold" Margin="0,0,0,6"/>
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" x:Name="JsVarsList">
+
+                    </ScrollViewer>
+                    
+                    <StackPanel Grid.Row="4" VerticalAlignment="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 4">
+                        <Button Content="Reload Vars" Width="150" Margin="4,8,4,4" Click="ReloadVars_Click" HorizontalAlignment="Left"/>
                         <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="4,8,4,4"
                                 Click="SaveWidgetButton_Click" HorizontalAlignment="Right"/>
                     </StackPanel>

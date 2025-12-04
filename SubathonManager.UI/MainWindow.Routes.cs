@@ -93,7 +93,8 @@ namespace SubathonManager.UI
             {
                 using var db = _factory.CreateDbContext();
                 var dbRoute = db.Routes.Include(r => r.Widgets)
-                    .ThenInclude(w => w.CssVariables).FirstOrDefault(r => r.Id == route.Id);
+                    .ThenInclude(w => w.CssVariables).Include(r => r.Widgets)
+                    .ThenInclude(w => w.JsVariables).FirstOrDefault(r => r.Id == route.Id);
 
                 if (dbRoute == null) return;
                 var clone = new Route
@@ -104,6 +105,7 @@ namespace SubathonManager.UI
                 };
 
                 List<CssVariable> cloneCssVars = new();
+                List<JsVariable> cloneJsVars = new();
 
                 db.Routes.Add(clone);
                 db.SaveChanges();
@@ -117,6 +119,8 @@ namespace SubathonManager.UI
                     cloneWidget.X = widget.X;
                     cloneWidget.Y = widget.Y;
                     cloneWidget.Z = widget.Z;
+                    cloneWidget.ScaleX = widget.ScaleX;
+                    cloneWidget.ScaleY = widget.ScaleY;
                     db.Widgets.Add(cloneWidget);
 
                     foreach (var cssVar in widget.CssVariables)
@@ -129,10 +133,23 @@ namespace SubathonManager.UI
                         };
                         cloneCssVars.Add(cloneCssVariable);
                     }
+                    
+                    foreach (var jsVar in widget.JsVariables)
+                    {
+                        var cloneJsVariable = new JsVariable
+                        {
+                            Name = jsVar.Name,
+                            Value = jsVar.Value,
+                            WidgetId = cloneWidget.Id,
+                            Type = jsVar.Type
+                        };
+                        cloneJsVars.Add(cloneJsVariable);
+                    }
                 }
 
                 db.SaveChanges();
                 db.CssVariables.AddRange(cloneCssVars);
+                db.JsVariables.AddRange(cloneJsVars);
                 db.SaveChanges();
 
                 Overlays.Insert(0, clone);
