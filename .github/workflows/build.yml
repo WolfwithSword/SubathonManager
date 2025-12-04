@@ -175,8 +175,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && (github.event_name != 'workflow_dispatch' || github.event.inputs.force_nightly != 'true')
         uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
+          #name: Release ${{ github.ref_name }}
+          #tag_name: ${{ github.ref_name }}
           files: ${{ needs.build.outputs.filename }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
