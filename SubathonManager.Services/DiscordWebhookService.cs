@@ -26,6 +26,11 @@ public class DiscordWebhookService : IDisposable
     
     private readonly ILogger? _logger =  AppServices.Provider.GetRequiredService<ILogger<DiscordWebhookService>>();
 
+    private const string AppUsername = "Subathon Manager";
+
+    private const string AppAvatarUrl =
+        "https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.png";
+
     // todo handle rate limit and retry_after
     public DiscordWebhookService()
     {
@@ -67,12 +72,13 @@ public class DiscordWebhookService : IDisposable
         if (string.IsNullOrEmpty(_eventWebhookUrl) ) return;
         var payload = new
         {
-            username = "Subathon Manager",
+            username = AppUsername,
+            avatar_url = AppAvatarUrl,
             embeds = new[]
             {
                 new
                 {
-                    title = $"INFO",
+                    title = "INFO",
                     description = $"**Test**\n{message}",
                     color = 0xE3E3E3 ,
                     timestamp = DateTime.Now.ToString("o")
@@ -115,7 +121,8 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = "Subathon Manager",
+                username = AppUsername,
+                avatar_url = AppAvatarUrl,
                 embeds = new[] {embed}
             };
 
@@ -173,8 +180,8 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = "Subathon Manager",
-                //avatar_url = ""
+                username = AppUsername,
+                avatar_url = AppAvatarUrl,
                 embeds
             };
 
@@ -269,7 +276,8 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = "Subathon Manager",
+                username = AppUsername,
+                avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
                     new
@@ -297,7 +305,8 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = "Subathon Manager",
+                username = AppUsername,
+                avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
                     new
