@@ -2,7 +2,6 @@
     --goal-height: 44px;
     --goal-gap: 6px;
     --visible-items: 3;
-    --completed-item-state: block; /* block or none */
     --background-color: #40342d;
     --border-color: #734d26;
     --border-thickness: 4px;
@@ -12,7 +11,6 @@
     --font-color: #eee;
 }
 
-
 .goals-container {
     display: flex;
     flex-direction: column;
@@ -20,16 +18,7 @@
     padding-top: 4px;
     padding-bottom: 8px;
     gap: 0;
-    max-height: calc( (calc(var(--goal-height) + 2*var(--goal-gap))  * var(--visible-items)) );
     transition: all 0.4s ease;
-}
-
-.goals-container:after {
-    max-height: calc( (calc(var(--goal-height) + 2*var(--goal-gap))  * var(--visible-items)) );
-}
-
-.goal-row:first-child.completed-row {
-    display: var(--completed-item-state);
 }
 
 .goal-row {

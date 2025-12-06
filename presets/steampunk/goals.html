@@ -2,6 +2,8 @@
 WIDGET_META
 Width:400
 Height:600
+showLastCompleted.Boolean:True
+maxGoalsToShow.Int:3
 END_WIDGET_META
 -->
 <link rel="stylesheet" type="text/css" href="./goals.css"  />
@@ -13,11 +15,30 @@ END_WIDGET_META
 <script>
     const goalsContainer = document.getElementById("goalsContainer");
     let goalsState = [];
+    let allGoals = [];
 
-    function filterToMostRecentCompleted(goals) {
-        const last = goals.map(g => g.completed).lastIndexOf(true);
-        return last === -1 ? goals : goals.slice(last);
+    function applyGoalVisibility() {
+        const rows = Array.from(goalsContainer.children);
+        const showCount = maxGoalsToShow;
+
+        let lastCompletedIndex = rows.map(r => r.classList.contains("completed-row")).lastIndexOf(true);
+
+        let startIndex;
+        if (showLastCompleted) {
+            startIndex = lastCompletedIndex === -1 ? 0 : lastCompletedIndex;
+        } else {
+            startIndex = lastCompletedIndex + 1;
+        }
+
+        rows.forEach((row, index) => {
+            if (index >= startIndex && index < startIndex + showCount) {
+                row.style.display = "block";
+            } else {
+                row.style.display = "none";
+            }
+        });
     }
+
 
     function renderGoals(newGoals) {
         const existingRows = Array.from(goalsContainer.children);
@@ -62,6 +83,8 @@ END_WIDGET_META
                 goalsContainer.appendChild(row);
             }
         });
+        
+        applyGoalVisibility();
     }
 
     function appendGoalRow(goal) {
@@ -116,8 +139,8 @@ END_WIDGET_META
 
     function handleGoalsUpdate(data) {
         if (data && data.type == "goals_list") {
-            goalsState = filterToMostRecentCompleted(data.goals);
-            goalsState = [...goalsState].sort((a, b) => a.points - b.points);
+            allGoals = data.goals;
+            goalsState = [...allGoals].sort((a, b) => a.points - b.points);
             renderGoals(goalsState);
         }
     }
@@ -127,11 +150,9 @@ END_WIDGET_META
             const completedText = data.goal_text;
             const completedAmt = data.goal_points;
 
-            goalsState = goalsState.map(g =>
+            goalsState = allGoals.map(g =>
                 (g.text == completedText && g.points == completedAmt) ? { ...g, completed: true } : g
-            );
-            goalsState = [...goalsState].sort((a, b) => a.points - b.points);
-            goalsState = filterToMostRecentCompleted(goalsState);
+            ).sort((a, b) => a.points - b.points);
             renderGoals(goalsState);
         }
     }

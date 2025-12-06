@@ -6,5 +6,6 @@ public enum WidgetVariableType
     String,
     Float,
     StringList,
-    EventTypeList
+    EventTypeList,
+    Boolean,
 }
