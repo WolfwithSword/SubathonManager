@@ -26,6 +26,33 @@ namespace SubathonManager.UI.Views
             var currency = SimulateSCCurrencyBox.Text;
             YouTubeService.SimulateSuperChat(value, currency);
         }
+        
+        private void TestTwitchCharityDonation_Click(object sender, RoutedEventArgs e)
+        {
+            var value = SimulateTwitchCharAmt.Text;
+            var currency = SimulateTwitchCharCurrencyBox.Text;
+            TwitchService.SimulateCharityDonation(value, currency);
+        }
+
+        private void TestTwitchHypeTrain_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedEvent = (HypeTrainTestSelection.SelectedItem is System.Windows.Controls.ComboBoxItem item) 
+                ? item.Content?.ToString() ?? "" 
+                : "";
+            var level = HypeTrainLevel.Text;
+            switch (selectedEvent)
+            {
+                case "Start":
+                    TwitchService.SimulateHypeTrainStart();
+                    break;
+                case "End":
+                    TwitchService.SimulateHypeTrainEnd(string.IsNullOrWhiteSpace(level) ? 7 : int.Parse(level));
+                    break;
+                case "Progress":
+                    TwitchService.SimulateHypeTrainProgress(string.IsNullOrWhiteSpace(level) ? 3 : int.Parse(level));
+                    break;
+            }
+        }
 
         private void TestSLTip_Click(object sender, RoutedEventArgs e)
         {

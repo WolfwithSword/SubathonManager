@@ -2,7 +2,7 @@
 WIDGET_META
 Width:300
 Height:100
-applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat
+applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation
 END_WIDGET_META
 -->
 <meta charset=utf-8>
@@ -59,7 +59,8 @@ function createEventIcon(eventType) {
     case "YouTubeSuperChat":
     case "StreamElementsDonation":
     case "StreamLabsDonation":
-      // coin stack
+    case "TwitchCharityDonation":
+          // coin stack
       return makeSVG("M12 2c5 0 9 1.79 9 4s-4 4-9 4-9-1.79-9-4 4-4 9-4zm-9 7v3c0 2.21 4 4 9 4s9-1.79 9-4V9c-2 2-6 3-9 3s-7-1-9-3zm0 6v3c0 2.21 4 4 9 4s9-1.79 9-4v-3c-2 2-6 3-9 3s-7-1-9-3z");
 
     case "TwitchFollow":

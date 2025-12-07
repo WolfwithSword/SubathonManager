@@ -20,4 +20,10 @@ public class MultiplierData
     public bool ApplyToSeconds { get; set; } = true;
     public bool ApplyToPoints { get; set; } = true;
     
+    public bool FromHypeTrain { get; set; } = false;
+
+    public bool IsRunning()
+    {
+        return (ApplyToSeconds || ApplyToPoints) && !Multiplier.Equals(1);
+    }
 }

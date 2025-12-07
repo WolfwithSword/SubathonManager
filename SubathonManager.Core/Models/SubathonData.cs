@@ -42,7 +42,7 @@ public class SubathonData
         double totalSeconds = TimeRemaining().TotalSeconds;
         return TimeSpan.FromSeconds(Math.Round(totalSeconds));
     }
-    
+
     // isActive // only ever one
     
 }

@@ -234,6 +234,42 @@
                                                    Margin="4,0,0,0"></ui:Button>
                                     </StackPanel>
                                 </Grid>
+                                
+                                <Grid Margin="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="300"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <TextBlock Text="Charity Donations:" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="TwitchCharityDonoBox"/>
+                                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                        <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                    x:Name="TwitchCharityDonoBox2"/>
+                                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    PlaceholderText="100"  Height="34"
+                                                    FontSize="12"
+                                                    PreviewTextInput="NumberOnly_PreviewTextInput" x:Name="SimulateTwitchCharAmt"/>
+                                        
+                                        <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                                                  x:Name="SimulateTwitchCharCurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                                  Margin="4 0 4 0">
+                                        </ComboBox>
+                                        <ui:Button Icon="Add24" Foreground="White"
+                                                   Content="Test"
+                                                   Click="TestTwitchCharityDonation_Click"
+                                                   Width="60" Padding="2"  Height="34"
+                                                   Margin="4,0,0,0"></ui:Button>
+                                    </StackPanel>
+                                </Grid>
 
                                 <!-- Subs -->
                                 <Expander Header="Subs" IsExpanded="True" Margin="0,5,0,0">
@@ -350,6 +386,54 @@
                                         <!--     <ui:TextBox Width="100" PreviewTextInput="NumberOnly_PreviewTextInput"  -->
                                         <!--              " x:Name="SubPrimeTextBox"/> -->
                                         <!-- </StackPanel> -->
+                                    </StackPanel>
+                                </Expander>
+                                
+                                <!-- HypeTrain -->
+                                <Expander Header="Hype Trains" IsExpanded="True" Margin="0,5,0,0">
+                                    <StackPanel Margin="10,5,0,5">
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="400"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="40"/>
+                                                <RowDefinition Height="40"/>
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                <CheckBox x:Name="HypeTrainMultBox" Content="Run Multiplier during Hype Trains?" Margin="-4 4 8 4"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                                                <TextBlock Text="Multiplier" Width="74" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0 0 4 0"/>
+                                                <ui:TextBox Width="100" PreviewTextInput="DecimalOnly_PreviewTextInput" 
+                                                            x:Name="HypeTrainMultAmt"/>
+                                                <CheckBox x:Name="HypeTrainMultTimeBox" Content="Time" Margin="28 4 0 4"/>
+                                                <CheckBox x:Name="HypeTrainMultPointsBox" Content="Points" Margin="4 4 4 4"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <ui:TextBox PlaceholderText="Level" Width="100" Height="36"  Margin="8 0 4 0"
+                                                            PreviewTextInput="NumberOnly_PreviewTextInput" FontSize="14" 
+                                                            VerticalAlignment="Center"
+                                                            x:Name="HypeTrainLevel"/>
+                                                <ComboBox Text="Event" Width="120" Height="36" FontSize="12" 
+                                                          x:Name="HypeTrainTestSelection"
+                                                          VerticalAlignment="Center"
+                                                          SelectedIndex="0" Margin="4 0 4 0">
+                                                    <ComboBoxItem Content="Start"/>
+                                                    <ComboBoxItem Content="Progress"/>
+                                                    <ComboBoxItem Content="End"/>
+                                                </ComboBox>
+                                                <ui:Button Icon="Add24" Foreground="White"
+                                                           Content="Test"
+                                                           Click="TestTwitchHypeTrain_Click"
+                                                           Width="60" Padding="2"
+                                                           Height="36"
+                                                           Margin="4,0,0,0"></ui:Button>
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Expander>
                             </StackPanel>

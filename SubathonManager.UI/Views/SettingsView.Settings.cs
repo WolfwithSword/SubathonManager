@@ -23,6 +23,8 @@ namespace SubathonManager.UI.Views
             SimulateSLCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
             SimulateSCCurrencyBox.ItemsSource = currencies;
             SimulateSCCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
+            SimulateTwitchCharCurrencyBox.ItemsSource = currencies;
+            SimulateTwitchCharCurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
         }
         
         
@@ -442,6 +444,14 @@ namespace SubathonManager.UI.Views
             if (slTipValue != null && int.TryParse(SLTipBox2.Text, out var slTipPoints))
                 slTipValue.Points = slTipPoints;
             
+            var tcdTipValue =
+                db.SubathonValues.FirstOrDefault(sv =>
+                    sv.EventType == SubathonEventType.TwitchCharityDonation && sv.Meta == "");
+            if (tcdTipValue != null && double.TryParse(TwitchCharityDonoBox.Text, out var tcdTipSeconds))
+                tcdTipValue.Seconds = tcdTipSeconds;
+            if (tcdTipValue != null && int.TryParse(TwitchCharityDonoBox2.Text, out var tcdTipPoints))
+                tcdTipValue.Points = tcdTipPoints;
+            
             db.SaveChanges();
 
             Config.Data["Twitch"]["PauseOnEnd"] = TwitchPauseOnEndBx.IsChecked.ToString();
@@ -450,8 +460,8 @@ namespace SubathonManager.UI.Views
             Config.Data["Twitch"]["UnlockOnStart"] = TwitchUnlockOnStartBx.IsChecked.ToString();
             
             UpdateCommandSettings();
-            
             UpdateWebhookSettings();
+            SaveHypeTrainValues();
             
             Task.Run(async () =>
             {
@@ -469,11 +479,40 @@ namespace SubathonManager.UI.Views
             });
         }
 
+        private void LoadHypeTrainValues()
+        {
+            bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Enabled"] ?? "false", out bool enabled);
+            if (HypeTrainMultBox.IsChecked != enabled)
+                HypeTrainMultBox.IsChecked = enabled;
+            double.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Multiplier"] ?? "1",
+                out var parsedAmt);
+            
+            if (HypeTrainMultAmt.Text != parsedAmt.ToString("0.00"))
+                HypeTrainMultAmt.Text = parsedAmt.ToString("0.00");
+
+            bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Points"] ?? "false",
+                out var applyPts);
+            bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Time"] ?? "false",
+                out var applyTime);
+            
+            if (HypeTrainMultTimeBox.IsChecked != applyTime)
+                HypeTrainMultTimeBox.IsChecked = applyTime;
+            if (HypeTrainMultPointsBox.IsChecked != applyPts)
+                HypeTrainMultPointsBox.IsChecked = applyPts;
+        }
+
+        private void SaveHypeTrainValues()
+        {
+            Config.Data["Twitch"]["HypeTrainMultiplier.Enabled"] = $"{HypeTrainMultBox.IsChecked}";
+            Config.Data["Twitch"]["HypeTrainMultiplier.Points"] = $"{HypeTrainMultPointsBox.IsChecked}";
+            Config.Data["Twitch"]["HypeTrainMultiplier.Time"] = $"{HypeTrainMultTimeBox.IsChecked}";
+            Config.Data["Twitch"]["HypeTrainMultiplier.Multiplier"] = HypeTrainMultAmt.Text;
+            Config.Save();
+        }
+        
         private void LoadValues()
         {
             using var db = _factory.CreateDbContext();
-
-
             var values = db.SubathonValues.ToList();
             foreach (var val in values)
             {
@@ -495,6 +534,10 @@ namespace SubathonManager.UI.Views
                     case SubathonEventType.YouTubeSuperChat:
                         box = YTDonoBox;
                         box2 = YTDonoBox2;
+                        break;
+                    case SubathonEventType.TwitchCharityDonation:
+                        box = TwitchCharityDonoBox;
+                        box2 = TwitchCharityDonoBox2;
                         break;
                     case SubathonEventType.TwitchFollow:
                         box = FollowTextBox;
@@ -556,6 +599,8 @@ namespace SubathonManager.UI.Views
                 if (box != null && box.Text != v) box.Text = v;
                 if (box2 != null && box2.Text != p) box2.Text = p;
             }
+
+            LoadHypeTrainValues();
         }
     }
 }
