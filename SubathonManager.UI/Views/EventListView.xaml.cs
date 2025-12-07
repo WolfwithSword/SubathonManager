@@ -36,7 +36,7 @@ namespace SubathonManager.UI.Views
         private async void OnSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)
         {
             if (subathonEvent.PointsValue < 1 
-                && subathonEvent.SecondsValue < 1 
+                && subathonEvent.GetFinalSecondsValueRaw() <= 0
                 && subathonEvent.EventType != SubathonEventType.Command) return;
             
             await Dispatcher.InvokeAsync(() =>
@@ -59,7 +59,7 @@ namespace SubathonManager.UI.Views
             if (subathon != null)
             {
                 events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id 
-                                                             && (ev.SecondsValue >= 1 || ev.PointsValue >= 1 
+                                                             && (ev.SecondsValue > 0 || ev.PointsValue >= 1 
                                                                  || ev.Command != SubathonCommandType.None
                                                                  || ev.EventType == SubathonEventType.Command))
                     .OrderByDescending(e => e.EventTimestamp)

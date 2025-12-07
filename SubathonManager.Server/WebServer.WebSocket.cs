@@ -107,7 +107,7 @@ public partial class WebServer
             type = "event",
             event_type =  subathonEvent.EventType.ToString(),
             source =  subathonEvent.Source.ToString(),
-            seconds_added = subathonEvent.GetFinalSecondsValue(),
+            seconds_added = subathonEvent.GetFinalSecondsValueRaw() < 0.5 ? 0 : subathonEvent.GetFinalSecondsValue(),
             points_added = subathonEvent.GetFinalPointsValue(),
             user =  subathonEvent.User,
             value = subathonEvent.Value, // sometimes useful
