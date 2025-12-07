@@ -16,26 +16,6 @@ public partial class App
         var subathon = await db.SubathonDatas.AsNoTracking().SingleOrDefaultAsync(x => x.IsActive);
         if (subathon != null) SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
     }
-
-    private async void SetPowerHour(double value, TimeSpan? duration, bool applySeconds, bool applyPoints)
-    {
-        await AppDbContext.ResetPowerHour(await _factory!.CreateDbContextAsync());
-        
-        await using var db =  await _factory.CreateDbContextAsync();
-        
-        var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
-            .SingleOrDefaultAsync(x => x.IsActive);
-        if (subathon == null) return;
-
-        subathon.Multiplier.Multiplier = value;
-        subathon.Multiplier.Duration = duration;
-        subathon.Multiplier.Started = DateTime.Now;
-        subathon.Multiplier.ApplyToPoints = applyPoints;
-        subathon.Multiplier.ApplyToSeconds = applySeconds;
-
-        await db.SaveChangesAsync();
-        // if it is zero, we treat as a "power hour until cancelled or restarted"
-    }
     
     private async void UpdateSubathonTimers(TimeSpan time)
     {

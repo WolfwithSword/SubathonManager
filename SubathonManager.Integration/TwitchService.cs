@@ -24,6 +24,8 @@ public class TwitchService
     private TwitchAPI? _api = null!;
     private TwitchClient? _chat = null!;
     private EventSubWebsocketClient? _eventSub = null!;
+
+    private static int _hypeTrainLevel = 0;
     
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<TwitchService>>();
 
@@ -48,6 +50,7 @@ public class TwitchService
     public void RevokeTokenFile()
     {
         if (HasTokenFile()) File.Delete(_tokenFile);
+        AccessToken = string.Empty;
     }
 
     public async Task<bool> ValidateTokenAsync()
@@ -65,9 +68,7 @@ public class TwitchService
             var validation = await api.Auth.ValidateAccessTokenAsync(token);
 
             if (validation.ClientId != Config.TwitchClientId)
-            {
                 return false;
-            }
 
             _logger?.LogInformation($"Twitch Token Valid for Scopes: {string.Join(',', validation.Scopes)}");
             return true;
@@ -125,7 +126,8 @@ public class TwitchService
             "moderator:read:followers",
             "channel:read:charity",
             "chat:read",
-            "chat:edit"
+            "chat:edit",
+            "channel:read:hype_train"
         });
 
         var oauthUrl = $"https://id.twitch.tv/oauth2/authorize" +
@@ -267,12 +269,16 @@ public class TwitchService
                     "stream.offline",
                     "stream.online",
                     "channel.follow",
-                    "channel.subscribe", // This does not include resubscribes, channel.subscription.message does
+                    "channel.subscribe",
                     "channel.cheer",
                     "channel.bits.use",
                     "channel.raid",
                     "channel.subscription.gift",
-                    "channel.subscription.message" // TODO verify this does not dupe channel.subscribe. This does include duration_months for adv
+                    "channel.subscription.message",
+                    "channel.hype_train.begin",
+                    "channel.hype_train.progress",
+                    "channel.hype_train.end",
+                    "channel.charity_campaign.donate"
                 };
 
                 foreach (var type in eventTypes)
@@ -286,7 +292,7 @@ public class TwitchService
                             { "moderator_user_id", UserId! }, { "user_id", UserId! }
                         };
                         var x = await _api!.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
-                            type.Contains("follow") ? "2" : "1", condition,
+                            type.Contains("follow") || type.Contains("hype_train") ? "2" : "1", condition,
                             EventSubTransportMethod.Websocket, _eventSub.SessionId,
                             clientId: Config.TwitchClientId,
                             accessToken: AccessToken);
@@ -295,6 +301,7 @@ public class TwitchService
                     catch (Exception ex)
                     {
                         _logger?.LogError(ex, $"Failed to subscribe to {type}: {ex.Message}");
+                        RevokeTokenFile();
                     }
                 }
             }
@@ -424,24 +431,13 @@ public class TwitchService
                 EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-
-            // Console.WriteLine(
-            //     $"GiftSubs from {e.Payload.Event.UserName} {e.Payload.Event.Total} {e.Payload.Event.Tier}");
             return Task.CompletedTask;
         };
 
         _eventSub.ChannelSubscribe += (s, e) =>
         {
-            ///////////// Maybe we IGNORE if it's gifted, and rely on diff pubsub for gifts
-            ///
-            /// 
-            // this appears to only be new subs, not resubs
-
-            // value can be equiv to tier
             if (e.Payload.Event.IsGift)
-            {
                 return Task.CompletedTask;
-            }
 
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta!.MessageId, out var mId);
@@ -463,8 +459,6 @@ public class TwitchService
 
         _eventSub.ChannelSubscriptionMessage += (s, e) =>
         {
-            // resubs only it seems
-
             int duration = e.Payload.Event.DurationMonths; // TODO Do we want to take this into account and multiply?
 
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
@@ -521,6 +515,92 @@ public class TwitchService
                 EventType = SubathonEventType.TwitchRaid,
                 User = e.Payload.Event.FromBroadcasterUserName,
                 Value = e.Payload.Event.Viewers.ToString(),
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
+            };
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            return Task.CompletedTask;
+        };
+        
+        
+        _eventSub.ChannelHypeTrainBeginV2 += (s, e) =>
+        {
+            var eventMeta = e.Metadata as WebsocketEventSubMetadata;
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
+            SubathonEvent subathonEvent = new SubathonEvent
+            {
+                Id = mId,
+                Source = SubathonEventSource.Twitch,
+                EventType = SubathonEventType.TwitchHypeTrain,
+                User = e.Payload.Event.BroadcasterUserName,
+                Amount = e.Payload.Event.Level,
+                Value = "start",
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
+            };
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            _hypeTrainLevel = 1;
+            return Task.CompletedTask;
+        };
+        
+        _eventSub.ChannelHypeTrainProgressV2 += (s, e) =>
+        {
+            if (e.Payload.Event.Level <= _hypeTrainLevel) return Task.CompletedTask;
+            
+            var eventMeta = e.Metadata as WebsocketEventSubMetadata;
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
+            SubathonEvent subathonEvent = new SubathonEvent
+            {
+                Id = mId,
+                Source = SubathonEventSource.Twitch,
+                EventType = SubathonEventType.TwitchHypeTrain,
+                User = e.Payload.Event.BroadcasterUserName,
+                Amount = e.Payload.Event.Level,
+                Value = "progress",
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
+            };
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            _hypeTrainLevel = subathonEvent.Amount;
+            return Task.CompletedTask;
+        };
+        
+        _eventSub.ChannelHypeTrainEndV2 += (s, e) =>
+        {
+            var eventMeta = e.Metadata as WebsocketEventSubMetadata;
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
+            SubathonEvent subathonEvent = new SubathonEvent
+            {
+                Id = mId,
+                Source = SubathonEventSource.Twitch,
+                EventType = SubathonEventType.TwitchHypeTrain,
+                User = e.Payload.Event.BroadcasterUserName,
+                Amount = e.Payload.Event.Level,
+                Value = "end",
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
+            };
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            _hypeTrainLevel = 0;
+            return Task.CompletedTask;
+        };
+
+        _eventSub.ChannelCharityCampaignDonate += (s, e) =>
+        {
+            var eventMeta = e.Metadata as WebsocketEventSubMetadata;
+            Guid.TryParse(eventMeta!.MessageId, out var mId);
+            if (mId == Guid.Empty) mId = Guid.NewGuid();
+            SubathonEvent subathonEvent = new SubathonEvent
+            {
+                Id = mId,
+                Source = SubathonEventSource.Twitch,
+                EventType = SubathonEventType.TwitchCharityDonation,
+                User = e.Payload.Event.UserName,
+                Value = Math.Round(
+                    e.Payload.Event.Amount.Value 
+                    / (decimal)Math.Pow(10, e.Payload.Event.Amount.DecimalPlaces),
+                    2
+                ).ToString("0.00"),
+                Currency = e.Payload.Event.Amount.Currency,
                 EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
@@ -601,6 +681,61 @@ public class TwitchService
             EventType = SubathonEventType.TwitchFollow,
             User = "SYSTEM",
         };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+    public static void SimulateCharityDonation(string value = "10.00", string currency = "USD")
+    {
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.TwitchCharityDonation,
+            Value = value,
+            Currency = currency,
+            User = "SYSTEM",
+        };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+    
+    public static void SimulateHypeTrainStart()
+    {
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.TwitchHypeTrain,
+            Value = "start",
+            Amount = 1,
+            User = "SYSTEM",
+        };
+        _hypeTrainLevel = 1;
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+    
+    public static void SimulateHypeTrainProgress(int level = 7)
+    {
+        if (level <= _hypeTrainLevel) return;
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.TwitchHypeTrain,
+            Value = "progress",
+            Amount = level,
+            User = "SYSTEM",
+        };
+        _hypeTrainLevel = level;
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+    
+    public static void SimulateHypeTrainEnd(int level = 10)
+    {
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.TwitchHypeTrain,
+            Value = "end",
+            Amount = level,
+            User = "SYSTEM",
+        };
+        _hypeTrainLevel = 0;
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 }

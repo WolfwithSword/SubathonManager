@@ -13,8 +13,9 @@ public enum SubathonEventType
     StreamLabsDonation,
     YouTubeMembership,
     YouTubeGiftMembership,
-    YouTubeSuperChat
-    
+    YouTubeSuperChat,
+    TwitchHypeTrain, // value is start, progress, end. Alt type event. Amount is level.
+    TwitchCharityDonation
     //KoFiDonation,
     //KoFiSub,
     // any new must be added after the last
@@ -22,11 +23,12 @@ public enum SubathonEventType
 
 public static class SubathonEventTypeHelper
 {
-    private static readonly SubathonEventType[] CurrencyDontationEvents = new[]
+    private static readonly SubathonEventType[] CurrencyDonationEvents = new[]
     {
         SubathonEventType.YouTubeSuperChat,
         SubathonEventType.StreamElementsDonation,
-        SubathonEventType.StreamLabsDonation
+        SubathonEventType.StreamLabsDonation,
+        SubathonEventType.TwitchCharityDonation
     };
     
     private static readonly SubathonEventType[] MembershipTypes = new[]
@@ -41,7 +43,7 @@ public static class SubathonEventTypeHelper
     };
     
     public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
-        eventType.HasValue && CurrencyDontationEvents.Contains(eventType.Value);
+        eventType.HasValue && CurrencyDonationEvents.Contains(eventType.Value);
     
     public static bool IsMembershipType(this SubathonEventType? eventType) => 
         eventType.HasValue && MembershipTypes.Contains(eventType.Value);

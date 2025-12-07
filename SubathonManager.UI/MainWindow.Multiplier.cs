@@ -103,6 +103,11 @@ public partial class MainWindow
 
             string multiplierRemainingText = !isMultiplierSet || newDuration == null ? "" : $"Remaining: {newDuration}";
             if (MultiplierRemainingTime.Text != multiplierRemainingText) MultiplierRemainingTime.Text = multiplierRemainingText;
+
+            if (subathon.Multiplier.FromHypeTrain && MultiplierRemainingTime.Text != "HypeTrain")
+            {
+                MultiplierRemainingTime.Text = "HypeTrain";
+            }
         });
     }
 }

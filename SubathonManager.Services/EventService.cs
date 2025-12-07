@@ -150,8 +150,8 @@ public class EventService: IDisposable
                         subathon.Id);
                     break;
                 case SubathonCommandType.StopMultiplier:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null WHERE  SubathonId = {0}",
-                        subathon.Id);
+                    ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds = {1}, ApplyToPoints = {2}, FromHypeTrain = {3} WHERE  SubathonId = {0}",
+                        subathon.Id, false, false, false);
                     
                     if (string.IsNullOrEmpty(ev.Value)) 
                         ev.Value = $"{ev.Command}";
@@ -172,8 +172,8 @@ public class EventService: IDisposable
                         return (false, false);
 
                     ev.Value = $"{ev.Command} {ev.Value}";
-                    ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4} WHERE SubathonId = {5}",
-                        parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id);
+                    ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}, FromHypeTrain = {6} WHERE SubathonId = {5}",
+                        parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, false);
                     break;
             }
 
@@ -212,10 +212,60 @@ public class EventService: IDisposable
         }
         
         ev.SubathonId = subathon.Id;
-        ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
-        ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
         ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
         ev.CurrentPoints = subathon.Points;
+        
+        if (ev.EventType == SubathonEventType.TwitchHypeTrain)
+        {
+            if (bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Enabled"] ??
+                              "false", out var doHypeTrainMult) && doHypeTrainMult && 
+                (!subathon.Multiplier.IsRunning() || subathon.Multiplier.FromHypeTrain))
+            {
+                if (ev.Value == "start" || ev.Value == "progress")
+                {
+                    TimeSpan? duration = null;
+                    if (!(subathon.Multiplier.IsRunning()
+                          || !double.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Multiplier"] ?? "1",
+                              out var parsedAmt)
+                          || parsedAmt.Equals(1)
+                          || !bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Points"] ?? "false",
+                              out var applyPts)
+                          || !bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Time"] ?? "false",
+                              out var applyTime)))
+                    {
+                        if (applyTime || applyPts)
+                        {
+
+                            ev.Value = $"start | x{parsedAmt}" + (applyPts ? " Points" : "") +
+                                       (applyTime ? " Time" : "");
+
+                            await db.Database.ExecuteSqlRawAsync(
+                                "UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}, FromHypeTrain = {6} WHERE SubathonId = {5}",
+                                parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, true);
+                        }
+                    }
+                }
+                else if (ev.Value == "end" && subathon.Multiplier.FromHypeTrain && subathon.Multiplier.IsRunning())
+                {
+                    // do multiplier end 
+                    await db.Database.ExecuteSqlRawAsync(
+                        "UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds = {1}, ApplyToPoints = {2}, FromHypeTrain = {3} WHERE  SubathonId = {0}",
+                        subathon.Id, false, false, false);
+                    await db.Entry(subathon.Multiplier).ReloadAsync();
+                    await db.Entry(subathon).ReloadAsync();
+                    db.Entry(subathon).State = EntityState.Detached;
+                    db.Entry(subathon.Multiplier).State = EntityState.Detached;
+                    SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+                }
+            }
+            ev.ProcessedToSubathon = true;
+            db.Add(ev);
+            await db.SaveChangesAsync();
+            return (ev.ProcessedToSubathon, false);
+        }
+        
+        ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
+        ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
         
         SubathonValue? subathonValue = null;
         if (ev.EventType != SubathonEventType.Command)
