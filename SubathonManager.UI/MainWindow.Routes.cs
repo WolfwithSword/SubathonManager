@@ -147,20 +147,35 @@ namespace SubathonManager.UI
             if (_editWindow != null)
             {
                 if (_editWindow.EditorRouteId == route.Id)
+                {
+                    Dispatcher.BeginInvoke(async () =>
+                    {
+                        await Task.Delay(1);
+                        _editWindow.Activate();
+                    });
                     return;
+                }
+
                 _editWindow.Close();
             }
             
             _editWindow = new EditRouteWindow(route.Id)
             {
-                Owner = this
+                //Owner = this
             };
+            _editWindow.Left = Left + (Width - _editWindow.Width) / 2;
+            _editWindow.Top = Top + (Height - _editWindow.Height) / 2; 
             _editWindow.Closed += (s, _) =>
             {
                 LoadRoutes();
                 _editWindow = null;
             };
             _editWindow.Show();
+            Dispatcher.BeginInvoke(async () =>
+            {
+                await Task.Delay(1);
+                _editWindow.Activate();
+            });
         }
     }
 }
