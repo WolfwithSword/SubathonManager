@@ -178,7 +178,7 @@ namespace SubathonManager.Data
                     e.MultiplierSeconds,
                     e.MultiplierPoints,
                     e.ProcessedToSubathon,
-                    e.GetFinalSecondsValue(),
+                    e.GetFinalSecondsValueRaw(),
                     e.GetFinalPointsValue(),
                     e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss")
                 ));

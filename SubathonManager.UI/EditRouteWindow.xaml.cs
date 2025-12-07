@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows.Media;
 using System.IO;
 using System.Windows;
+using System.Globalization;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +20,7 @@ namespace SubathonManager.UI;
 
 public partial class EditRouteWindow
 {
-    private readonly Guid _routeId;
+    public readonly Guid EditorRouteId;
     private Route? _route;
     private ObservableCollection<Widget> _widgets = new();
     private Widget? _selectedWidget;
@@ -33,7 +34,7 @@ public partial class EditRouteWindow
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
-        _routeId = routeId;
+        EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
         Loaded += EditRouteWindow_Loaded;
     }
@@ -98,7 +99,7 @@ public partial class EditRouteWindow
                 .ThenInclude(w => w.CssVariables)
             .Include(r => r.Widgets)
                 .ThenInclude( w => w.JsVariables)
-            .FirstOrDefaultAsync(r => r.Id == _routeId);
+            .FirstOrDefaultAsync(r => r.Id == EditorRouteId);
 
         if (_route == null)
         {
@@ -115,6 +116,7 @@ public partial class EditRouteWindow
 
         int index = sorted.Count;
         bool hasUpdatedZ = false;
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
         foreach (var w in sorted)
         {
             if (w.Z != index)
@@ -124,6 +126,8 @@ public partial class EditRouteWindow
             }
             index -= 1;
             _widgets.Add(w);
+            widgetHelper.SyncCssVariables(w);
+            widgetHelper.SyncJsVariables(w);
         }
         if (hasUpdatedZ) await db.SaveChangesAsync();
 
@@ -174,22 +178,74 @@ public partial class EditRouteWindow
 
     private void NumberOrNegativeOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
-        if (e.Text == "-")
+        if (char.IsDigit(e.Text, 0))
         {
             e.Handled = false;
             return;
         }
-        e.Handled = !int.TryParse(e.Text, out _);
+
+        if (sender is Wpf.Ui.Controls.TextBox tb)
+        {
+            if (e.Text == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
+            {
+                e.Handled = false;
+                return;
+            }
+            e.Handled = !int.TryParse(
+                (tb).Text.Insert((tb).SelectionStart, e.Text), NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture,
+                out _);
+        }
+        else if (sender is  System.Windows.Controls.TextBox tb2)
+        {
+            if (e.Text == "-" && tb2.SelectionStart == 0 && !tb2.Text.Contains('-'))
+            {
+                e.Handled = false;
+                return;
+            }
+            e.Handled = !int.TryParse(
+                (tb2).Text.Insert((tb2).SelectionStart, e.Text), NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture,
+                out _);
+        }
     }
     
     private void NumberOrDecimalOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
-        if (e.Text == ".")
+        if (char.IsDigit(e.Text, 0))
         {
             e.Handled = false;
             return;
         }
-        e.Handled = !int.TryParse(e.Text, out _);
+
+        if (sender is Wpf.Ui.Controls.TextBox tb)
+        {
+            if (e.Text == "." && !tb.Text.Contains('.'))
+            {
+                e.Handled = false;
+                return;
+            }
+            
+            e.Handled = !double.TryParse(
+                (tb).Text.Insert((tb).SelectionStart, e.Text),
+                NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture,
+                out _);
+        }
+        else if (sender is System.Windows.Controls.TextBox tb2)
+        {
+            if (e.Text == "." && !tb2.Text.Contains('.'))
+            {
+                e.Handled = false;
+                return;
+            }
+            
+            e.Handled = !double.TryParse(
+                (tb2).Text.Insert((tb2).SelectionStart, e.Text),
+                NumberStyles.AllowDecimalPoint,
+                CultureInfo.InvariantCulture,
+                out _);
+        }
     }
     
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -240,55 +296,14 @@ public partial class EditRouteWindow
             if (w == null) return;
             await using var db = await _factory.CreateDbContextAsync();
             await db.Entry(w).ReloadAsync();
+            
             // clone widget
-            var clone = new Widget(w.Name + " (Copy)", w.HtmlPath);
-
-            clone.X = w.X;
-            clone.Y = w.Y;
-            clone.Z = _widgets.Count + 1;
-            clone.Width = w.Width;
-            clone.Height = w.Height;
-            clone.ScaleX = w.ScaleX;
-            clone.ScaleY = w.ScaleY;
-            clone.RouteId = w.RouteId;
-
+            var clone = w.Clone(w.RouteId, w.Name + " (Copy)", _widgets.Count + 1);
             db.Widgets.Add(clone);
+            db.CssVariables.AddRange(clone.CssVariables);
+            db.JsVariables.AddRange(clone.JsVariables);
             await db.SaveChangesAsync();
-
-            // clone css vars
-            if (w.CssVariables.Count > 0)
-            {
-                foreach (var cv in w.CssVariables)
-                {
-                    var n = new CssVariable
-                    {
-                        Name = cv.Name,
-                        Value = cv.Value,
-                        WidgetId = clone.Id
-                    };
-                    db.CssVariables.Add(n);
-                }
-
-                await db.SaveChangesAsync();
-            }
-            // clone js vars
-            if (w.JsVariables.Count > 0)
-            {
-                foreach (var jsv in w.JsVariables)
-                {
-                    var n = new JsVariable
-                    {
-                        Name = jsv.Name,
-                        Value = jsv.Value,
-                        Type = jsv.Type,
-                        WidgetId = clone.Id
-                    };
-                    db.JsVariables.Add(n);
-                }
-
-                await db.SaveChangesAsync();
-            }
-
+            
             _widgets.Insert(0, clone);
             await RefreshWidgetZIndicesAsync();
             RefreshWebView();
@@ -505,6 +520,25 @@ public partial class EditRouteWindow
                 outerPanel.Children.Add(itemRow);
                 outerPanel.Children.Add(border);
             }
+            else if (jsVar.Type == WidgetVariableType.Boolean)
+            {
+                if (bool.TryParse(jsVar.Value, out bool isChecked));
+                var chkBox = new CheckBox
+                {
+                    Content = new Wpf.Ui.Controls.TextBlock
+                    {
+                        Text = string.Empty,
+                        TextWrapping =  TextWrapping.Wrap,
+                        MaxWidth = 150
+                    },
+                    IsChecked = isChecked,
+                    Margin = new Thickness(2)
+                };
+                chkBox.Checked += (_, __) => jsVar.Value = "True";
+                chkBox.Unchecked += (_, __) => jsVar.Value = "False";
+                itemRow.Children.Add(chkBox);
+                outerPanel.Children.Add(itemRow);
+            }
             else
             {
                 var txtBox = new Wpf.Ui.Controls.TextBox
@@ -592,7 +626,6 @@ public partial class EditRouteWindow
     
     private void ReloadVars_Click(object sender, RoutedEventArgs e)
     {
-        // todo, button to delete vars no longer found or tie in here
         if (_selectedWidget == null) return;
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
         widgetHelper.SyncCssVariables(_selectedWidget);
@@ -607,6 +640,7 @@ public partial class EditRouteWindow
         _editingCssVars = new ObservableCollection<CssVariable>(_selectedWidget!.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
+        //RefreshWebView();
     }
     
     private async void SaveWidgetButton_Click(object sender, RoutedEventArgs e)
@@ -735,7 +769,7 @@ public partial class EditRouteWindow
                 db.Widgets.Add(newWidget);
                 await db.SaveChangesAsync();
                 
-                List<JsVariable> jsVars = helper.LoadNewJsVariables(newWidget, metadata);
+                (List<JsVariable> jsVars, var extractedNames )= helper.LoadNewJsVariables(newWidget, metadata);
                 if (jsVars.Count > 0)
                 {
                     newWidget.JsVariables = jsVars;

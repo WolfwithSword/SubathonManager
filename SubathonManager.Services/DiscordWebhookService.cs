@@ -108,13 +108,13 @@ public class DiscordWebhookService : IDisposable
             foreach (var subathonEvent in subathonEvents)
             {
                 totalPoints += subathonEvent.GetFinalPointsValue();
-                totalSeconds += subathonEvent.GetFinalSecondsValue();
+                totalSeconds += subathonEvent.GetFinalSecondsValueRaw();
             }
             
             var embed = new
             {
                 title=$"Deleted {subathonEvents.Count} Events",
-                description=$"**Total Seconds:** {totalSeconds}s\n**Total Points:** {totalPoints}",
+                description=$"**Total Seconds:** {Math.Round(totalSeconds, 2)}s\n**Total Points:** {totalPoints}",
                 color = 0x86ACBD,
                 timestamp = DateTime.Now.ToUniversalTime().ToString("o")
             };
@@ -217,7 +217,7 @@ public class DiscordWebhookService : IDisposable
             sb.AppendLine($"**Value:** {val} {(string.IsNullOrEmpty(e.Currency) ? "" : e.Currency)}");
             if (e.Command != SubathonCommandType.SetMultiplier && e.Command != SubathonCommandType.StopMultiplier)
             {
-                sb.AppendLine($"**Seconds:** {e.GetFinalSecondsValue()} | **Points:** {e.GetFinalPointsValue()}");
+                sb.AppendLine($"**Seconds:** {Math.Round(e.GetFinalSecondsValueRaw(), 2)} | **Points:** {e.GetFinalPointsValue()}");
                 if (e.Command == SubathonCommandType.None)
                     sb.AppendLine($"**Multipliers:** x{e.MultiplierSeconds} time | x{e.MultiplierPoints} pts");
             }

@@ -17,6 +17,16 @@ public class CssVariable
     [ForeignKey("Widget")]
     public Guid WidgetId { get; set; }
     public Widget Widget { get; set; } = null!;
+    
+    public CssVariable Clone(Guid newWidgetId)
+    {
+        return new CssVariable
+        {
+            Name = Name,
+            Value = Value,
+            WidgetId = newWidgetId
+        };
+    }
 }
 
 public class JsVariable
@@ -37,26 +47,39 @@ public class JsVariable
         sb.Append($"const {Name.Replace(' ', '_')} = ");
         if (string.IsNullOrEmpty(Value) || string.IsNullOrWhiteSpace(Value))
             sb.Append("\"\"");
+        else if (Type == WidgetVariableType.Boolean && bool.TryParse(Value, out var b))
+            sb.Append($"{b.ToString().ToLower()}");
         else if (Type == WidgetVariableType.Float && float.TryParse(Value, out var f))
             sb.Append($"{f}");
         else if (Type == WidgetVariableType.Int && Int16.TryParse(Value, out var intValue))
             sb.Append($"{intValue}");
-        else if (Type == WidgetVariableType.Float || Type == WidgetVariableType.Int || Type == WidgetVariableType.String)
-            sb.Append($"\"{Value}\"");
         else if (Type == WidgetVariableType.EventTypeList || Type == WidgetVariableType.StringList)
         {
             string val = string.Join(",", Value.Split(',').Select(s =>
             {
                 s = s.Trim();
-                if (!s.StartsWith("\"")) s = "\"" + s;
-                if (!s.EndsWith("\"")) s = s + "\"";
+                if (!s.StartsWith('"')) s = '"' + s;
+                if (!s.EndsWith('"')) s += '"';
                 return s;
             }));
             sb.Append($"[{val}]");
         }
+        else // default as always string
+            sb.Append($"\"{Value}\"");
         sb.Append(";\n");
 
         return sb.ToString();
+    }
+
+    public JsVariable Clone(Guid newWidgetId)
+    {
+        return new JsVariable
+        {
+            Name = Name,
+            Value = Value,
+            Type = Type,
+            WidgetId = newWidgetId
+        };
     }
 }
 
@@ -90,6 +113,28 @@ public class Widget
     {
         Name = name;
         HtmlPath = htmlPath;
+    }
+
+    public Widget Clone(Guid? routeId, string? newName, int? newZ)
+    {
+        Widget widget = new Widget(string.IsNullOrEmpty(newName) ? Name : newName, HtmlPath);
+
+        widget.RouteId = routeId == null ? RouteId : routeId.Value;
+        widget.Visibility = Visibility;
+        widget.X = X;
+        widget.Y = Y;
+        widget.Z = newZ == null ? Z : newZ.Value;
+        widget.Width = Width;
+        widget.Height = Height;
+        widget.ScaleX = ScaleX;
+        widget.ScaleY = ScaleY;
+        
+        foreach (var jsVariable in JsVariables)
+            widget.JsVariables.Add(jsVariable.Clone(widget.Id));
+        foreach (var cssVariable in CssVariables)
+            widget.CssVariables.Add(cssVariable.Clone(widget.Id));
+        
+        return widget;
     }
 
     public void ScanCssVariables()

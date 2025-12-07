@@ -55,12 +55,22 @@
         
         
         <ui:TitleBar Title="Overlay Editor" Grid.ColumnSpan="3"
-                     Icon="Assets/appicon.ico"
                      ShowMinimize="True"
                      Background="#101010"
+                     VerticalContentAlignment="Top"
                      ShowMaximize="True"
                      ShowClose="True"
-                     DockPanel.Dock="Top"/>
+                     FontSize="14"
+                     Padding="12 8 12 8"
+                     DockPanel.Dock="Top">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon VerticalAlignment="Top">
+                    <ui:ImageIcon.Source>
+                        <BitmapImage UriSource="pack://application:,,,/icon.png" />
+                    </ui:ImageIcon.Source>
+                </ui:ImageIcon>
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
         
         <!-- LEFT - widget list and route settings -->
         <Grid Grid.Column="0" Margin="12 44 12 12" >

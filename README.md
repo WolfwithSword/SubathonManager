@@ -20,6 +20,7 @@ overlays, settings, and more all locally!
 ## Supported Integrations 
 - **Twitch**
   - Cheers/Bits
+    - Including Combos & Powerups 
   - Follows, Raids
   - Subs & Gift Subs
   - Chat Commands

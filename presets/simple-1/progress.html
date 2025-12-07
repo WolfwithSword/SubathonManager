@@ -2,6 +2,8 @@
 WIDGET_META
 Width:350
 Height:120
+pulseOnFull.Boolean:True
+showMarkers.Boolean:True
 END_WIDGET_META
 -->
 <meta charset=utf-8>
@@ -53,7 +55,7 @@ function animate() {
 
   if (displayed >= maxGoalPoints && maxGoalPoints > 0) {
     labels.classList.add("centered");
-    bar.classList.add("glowing");
+    if (pulseOnFull) bar.classList.add("glowing");
     maxLabel.textContent = "";
   } else {
     labels.classList.remove("centered");
@@ -71,6 +73,7 @@ function animate() {
 }
   
 function updateMarkers() {
+  if (!showMarkers) return
   markersContainer.innerHTML = "";
 
   const filtered = goals.filter(g => g.points > currentPoints.target);

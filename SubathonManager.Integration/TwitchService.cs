@@ -269,6 +269,7 @@ public class TwitchService
                     "channel.follow",
                     "channel.subscribe", // This does not include resubscribes, channel.subscription.message does
                     "channel.cheer",
+                    "channel.bits.use",
                     "channel.raid",
                     "channel.subscription.gift",
                     "channel.subscription.message" // TODO verify this does not dupe channel.subscribe. This does include duration_months for adv
@@ -483,7 +484,7 @@ public class TwitchService
             return Task.CompletedTask;
         };
 
-        _eventSub.ChannelCheer += (s, e) =>
+        _eventSub.ChannelBitsUse += (s, e) =>
         {
             var eventMeta = e.Metadata as WebsocketEventSubMetadata;
             Guid.TryParse(eventMeta!.MessageId, out var mId);
@@ -496,9 +497,15 @@ public class TwitchService
                 User = e.Payload.Event.UserName,
                 Currency = "bits",
                 Value = e.Payload.Event.Bits.ToString(),
-                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime() // or e.Payload.Event.FollowedAt and change type
+                EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+            if (e.Payload.Event.Type.ToLower() != "cheer")
+            {
+                _logger?.LogInformation($"TwitchCheer Event {subathonEvent.Id} " +
+                                        $"source was: {e.Payload.Event.Type} {e.Payload.Event.PowerUp?.Type}");
+            }
+
             return Task.CompletedTask;
         };
 
@@ -517,9 +524,6 @@ public class TwitchService
                 EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
             };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-
-            // Console.WriteLine(
-            //     $"Raid from {e.Payload.Event.FromBroadcasterUserName} ({e.Payload.Event.Viewers})");
             return Task.CompletedTask;
         };
 

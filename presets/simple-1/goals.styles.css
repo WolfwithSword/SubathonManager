@@ -6,7 +6,6 @@
     --goal-height: 44px;
     --goal-gap: 6px;
     --visible-items: 3;
-    --completed-item-state: block; /* block or none */
 }
 
 

@@ -266,7 +266,7 @@ public class EventService: IDisposable
         if (ev.SecondsValue != 0)
             affected += await db.Database.ExecuteSqlRawAsync(
                 "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
-               (int) TimeSpan.FromSeconds(ev.GetFinalSecondsValue()).TotalMilliseconds, subathon.Id);
+               (int) TimeSpan.FromSeconds(ev.GetFinalSecondsValueRaw()).TotalMilliseconds, subathon.Id);
         
         if (ev.PointsValue != 0)
             affected += await db.Database.ExecuteSqlRawAsync(
@@ -341,7 +341,7 @@ public class EventService: IDisposable
         
         int initialPoints = subathon?.Points ?? 0;
         
-        long msToRemove = (long) ev.GetFinalSecondsValue() * 1000; 
+        long msToRemove = (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000); 
         int pointsToRemove = (int) ev.GetFinalPointsValue();
 
         if (ev.Command == SubathonCommandType.SubtractPoints)
@@ -435,7 +435,7 @@ public class EventService: IDisposable
         foreach (SubathonEvent ev in events)
         {
             if (ev.SubathonId != subathon.Id) continue;
-            msToRemove += (long) ev.GetFinalSecondsValue() * 1000;
+            msToRemove += (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000);
             pointsToRemove +=  (int) ev.GetFinalPointsValue();
         }
         

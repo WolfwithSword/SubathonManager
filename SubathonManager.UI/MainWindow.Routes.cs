@@ -11,6 +11,8 @@ namespace SubathonManager.UI
 {
     public partial class MainWindow
     {
+        private EditRouteWindow? _editWindow;
+        
         private void LoadRoutes()
         {
             Overlays.Clear();
@@ -61,7 +63,7 @@ namespace SubathonManager.UI
             using var db = _factory.CreateDbContext();
             var newRoute = new Route
             {
-                Name = "New Overlay",
+                Name = $"New Overlay {Overlays.Count + 1}",
                 Width = 1920,
                 Height = 1080
             };
@@ -103,54 +105,18 @@ namespace SubathonManager.UI
                     Width = dbRoute.Width,
                     Height = dbRoute.Height
                 };
-
-                List<CssVariable> cloneCssVars = new();
-                List<JsVariable> cloneJsVars = new();
-
+                
                 db.Routes.Add(clone);
                 db.SaveChanges();
 
                 foreach (var widget in dbRoute.Widgets.ToArray())
                 {
-                    var cloneWidget = new Widget(widget.Name, widget.HtmlPath);
-                    cloneWidget.Width = widget.Width;
-                    cloneWidget.Height = widget.Height;
-                    cloneWidget.RouteId = clone.Id;
-                    cloneWidget.X = widget.X;
-                    cloneWidget.Y = widget.Y;
-                    cloneWidget.Z = widget.Z;
-                    cloneWidget.ScaleX = widget.ScaleX;
-                    cloneWidget.ScaleY = widget.ScaleY;
+                    var cloneWidget = widget.Clone(clone.Id, widget.Name, widget.Z);
                     db.Widgets.Add(cloneWidget);
-
-                    foreach (var cssVar in widget.CssVariables)
-                    {
-                        var cloneCssVariable = new CssVariable
-                        {
-                            Name = cssVar.Name,
-                            Value = cssVar.Value,
-                            WidgetId = cloneWidget.Id
-                        };
-                        cloneCssVars.Add(cloneCssVariable);
-                    }
-                    
-                    foreach (var jsVar in widget.JsVariables)
-                    {
-                        var cloneJsVariable = new JsVariable
-                        {
-                            Name = jsVar.Name,
-                            Value = jsVar.Value,
-                            WidgetId = cloneWidget.Id,
-                            Type = jsVar.Type
-                        };
-                        cloneJsVars.Add(cloneJsVariable);
-                    }
+                    db.CssVariables.AddRange(cloneWidget.CssVariables);
+                    db.JsVariables.AddRange(cloneWidget.JsVariables);
+                    db.SaveChanges();
                 }
-
-                db.SaveChanges();
-                db.CssVariables.AddRange(cloneCssVars);
-                db.JsVariables.AddRange(cloneJsVars);
-                db.SaveChanges();
 
                 Overlays.Insert(0, clone);
             }
@@ -178,12 +144,38 @@ namespace SubathonManager.UI
         
         private void OpenRouteEditor(Route route)
         {
-            var editor = new EditRouteWindow(route.Id)
+            if (_editWindow != null)
             {
-                Owner = this
+                if (_editWindow.EditorRouteId == route.Id)
+                {
+                    Dispatcher.BeginInvoke(async () =>
+                    {
+                        await Task.Delay(1);
+                        _editWindow.Activate();
+                    });
+                    return;
+                }
+
+                _editWindow.Close();
+            }
+            
+            _editWindow = new EditRouteWindow(route.Id)
+            {
+                //Owner = this
             };
-            editor.Closed += (s, _) => LoadRoutes();
-            editor.ShowDialog();
+            _editWindow.Left = Left + (Width - _editWindow.Width) / 2;
+            _editWindow.Top = Top + (Height - _editWindow.Height) / 2; 
+            _editWindow.Closed += (s, _) =>
+            {
+                LoadRoutes();
+                _editWindow = null;
+            };
+            _editWindow.Show();
+            Dispatcher.BeginInvoke(async () =>
+            {
+                await Task.Delay(1);
+                _editWindow.Activate();
+            });
         }
     }
 }

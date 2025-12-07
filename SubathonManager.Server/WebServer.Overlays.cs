@@ -147,7 +147,7 @@ public partial class WebServer
     {
         StringBuilder sb = new StringBuilder();
         sb.AppendLine(
-            $"<html><head><title>overlay-{route.Id}</title><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
+            $"<html><head><title>overlay-{route.Id}</title><link rel=\"icon\" type=\"image/x-icon\" href=\"https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.ico\"><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
 
         sb.AppendLine($@"
             <style>

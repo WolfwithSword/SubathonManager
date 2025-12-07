@@ -13,6 +13,15 @@ namespace SubathonManager.UI
         
         private void DecimalOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
+            if (sender is System.Windows.Controls.TextBox tb)
+            {
+                e.Handled = !double.TryParse(
+                    (tb).Text.Insert((tb).SelectionStart, e.Text),
+                    NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
+                    CultureInfo.InvariantCulture,
+                    out _);
+                return;
+            }
             e.Handled = !double.TryParse(
                 ((TextBox)sender).Text.Insert(((TextBox)sender).SelectionStart, e.Text),
                 NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign,
