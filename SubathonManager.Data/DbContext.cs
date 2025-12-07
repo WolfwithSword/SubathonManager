@@ -204,7 +204,7 @@ namespace SubathonManager.Data
 
         public static async Task ResetPowerHour(AppDbContext db)
         {
-            await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds=false, ApplyToPoints=false ");
+            await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds=false, ApplyToPoints=false, FromHypeTrain=false ");
         }
         
         public static async Task DisableAllTimers(AppDbContext db)
