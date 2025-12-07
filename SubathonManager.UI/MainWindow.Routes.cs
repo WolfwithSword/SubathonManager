@@ -11,6 +11,8 @@ namespace SubathonManager.UI
 {
     public partial class MainWindow
     {
+        private EditRouteWindow? _editWindow;
+        
         private void LoadRoutes()
         {
             Overlays.Clear();
@@ -142,12 +144,23 @@ namespace SubathonManager.UI
         
         private void OpenRouteEditor(Route route)
         {
-            var editor = new EditRouteWindow(route.Id)
+            if (_editWindow != null)
+            {
+                if (_editWindow.EditorRouteId == route.Id)
+                    return;
+                _editWindow.Close();
+            }
+            
+            _editWindow = new EditRouteWindow(route.Id)
             {
                 Owner = this
             };
-            editor.Closed += (s, _) => LoadRoutes();
-            editor.ShowDialog();
+            _editWindow.Closed += (s, _) =>
+            {
+                LoadRoutes();
+                _editWindow = null;
+            };
+            _editWindow.Show();
         }
     }
 }

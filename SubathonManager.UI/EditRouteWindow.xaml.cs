@@ -20,7 +20,7 @@ namespace SubathonManager.UI;
 
 public partial class EditRouteWindow
 {
-    private readonly Guid _routeId;
+    public readonly Guid EditorRouteId;
     private Route? _route;
     private ObservableCollection<Widget> _widgets = new();
     private Widget? _selectedWidget;
@@ -34,7 +34,7 @@ public partial class EditRouteWindow
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
-        _routeId = routeId;
+        EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
         Loaded += EditRouteWindow_Loaded;
     }
@@ -99,7 +99,7 @@ public partial class EditRouteWindow
                 .ThenInclude(w => w.CssVariables)
             .Include(r => r.Widgets)
                 .ThenInclude( w => w.JsVariables)
-            .FirstOrDefaultAsync(r => r.Id == _routeId);
+            .FirstOrDefaultAsync(r => r.Id == EditorRouteId);
 
         if (_route == null)
         {
