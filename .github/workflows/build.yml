@@ -159,7 +159,7 @@ jobs:
         run: |
           echo "Downloading release zip from Nextcloud fallback..."
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
-            -o "${{ needs.build.outputs.filename }}"
+            -o "build/${{ needs.build.outputs.filename }}"
 
       - name: Zip release files
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
@@ -173,11 +173,19 @@ jobs:
         with:
           sparse-checkout: |
             external
-          sparse-checkout-cone-mode: false'
+          sparse-checkout-cone-mode: false
           
-      - name: Move external files 
+      - name: Move files 
         run: |
-          cp external/streamerbot/*.sb .
+          if [ -f "build/${{ needs.build.outputs.filename }}" ]; then
+            mv build/${{ needs.build.outputs.filename }} ./
+          fi
+            if [ ! -f "${{ needs.build.outputs.filename }}" ]; then
+            echo "ERROR: ZIP not found!"
+          exit 1
+          fi
+          
+          cp external/streamerbot/*.sb ./ || true
            
       - name: Create GitHub Release
         id: create_release
