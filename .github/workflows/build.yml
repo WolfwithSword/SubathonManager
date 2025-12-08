@@ -161,6 +161,7 @@ jobs:
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
             -o "${{ needs.build.outputs.filename }}"
           echo $PWD
+          ls
 
       - name: Zip release files
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
@@ -178,16 +179,17 @@ jobs:
           
       - name: Move files 
         run: |
+          echo $PWD
+          ls
           if [ -f "build/${{ needs.build.outputs.filename }}" ]; then
             mv build/${{ needs.build.outputs.filename }} ./
           fi
-            if [ ! -f "${{ needs.build.outputs.filename }}" ]; then
+          if [ ! -f "${{ needs.build.outputs.filename }}" ]; then
             echo "ERROR: ZIP not found!"
-          exit 1
+            exit 1
           fi
           
           cp external/streamerbot/*.sb ./ || true
-          echo $PWD
           
            
       - name: Create GitHub Release
