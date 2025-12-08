@@ -522,7 +522,7 @@ public partial class EditRouteWindow
             }
             else if (jsVar.Type == WidgetVariableType.Boolean)
             {
-                if (bool.TryParse(jsVar.Value, out bool isChecked));
+                bool.TryParse(jsVar.Value, out bool isChecked);
                 var chkBox = new CheckBox
                 {
                     Content = new Wpf.Ui.Controls.TextBlock

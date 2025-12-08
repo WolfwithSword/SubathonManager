@@ -159,7 +159,8 @@ jobs:
         run: |
           echo "Downloading release zip from Nextcloud fallback..."
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
-            -o "build/${{ needs.build.outputs.filename }}"
+            -o "${{ needs.build.outputs.filename }}"
+          echo $PWD
 
       - name: Zip release files
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
@@ -186,6 +187,8 @@ jobs:
           fi
           
           cp external/streamerbot/*.sb ./ || true
+          echo $PWD
+          
            
       - name: Create GitHub Release
         id: create_release
