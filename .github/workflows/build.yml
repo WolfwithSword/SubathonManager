@@ -161,7 +161,6 @@ jobs:
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
             -o "${{ needs.build.outputs.filename }}"
 
-
       - name: Zip release files
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
         run: |
@@ -174,8 +173,12 @@ jobs:
         with:
           sparse-checkout: |
             external
-          sparse-checkout-cone-mode: false
+          sparse-checkout-cone-mode: false'
           
+      - name: Move external files 
+        run: |
+          cp external/streamerbot/*.sb .
+           
       - name: Create GitHub Release
         id: create_release
         if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && (github.event_name != 'workflow_dispatch' || github.event.inputs.force_nightly != 'true')
@@ -183,7 +186,7 @@ jobs:
         with:
           files: |
             ${{ needs.build.outputs.filename }}
-            external/streamerbot/*.sb
+            *.sb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -213,7 +216,7 @@ jobs:
           prerelease: true
           files: |
             ${{ needs.build.outputs.filename }}
-            external/streamerbot/*.sb
+            *.sb
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:

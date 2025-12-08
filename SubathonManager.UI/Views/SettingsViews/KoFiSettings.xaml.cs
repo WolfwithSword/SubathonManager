@@ -265,9 +265,9 @@ public partial class KoFiSettings : UserControl
 
 public class KoFiSubRow
 {
-    public SubathonValue SubValue { get; set; }
-    public Wpf.Ui.Controls.TextBox NameBox { get; set; }
-    public Wpf.Ui.Controls.TextBox TimeBox { get; set; }
-    public Wpf.Ui.Controls.TextBox PointsBox { get; set; }
-    public Grid RowGrid { get; set; }
+    public required SubathonValue SubValue { get; set; }
+    public required Wpf.Ui.Controls.TextBox NameBox { get; set; }
+    public required Wpf.Ui.Controls.TextBox TimeBox { get; set; }
+    public required Wpf.Ui.Controls.TextBox PointsBox { get; set; }
+    public required Grid RowGrid { get; set; }
 }
