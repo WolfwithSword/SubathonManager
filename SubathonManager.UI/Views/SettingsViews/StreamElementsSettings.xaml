@@ -1,0 +1,64 @@
+﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsViews.StreamElementsSettings"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
+             xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Expander Header="StreamElements" IsExpanded="False">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <ui:Button x:Name="ConnectSEBtn"
+                           Content="Connect"
+                           Width="120"
+                           Height="35"
+                           Margin="0,5,0,10"
+                           Click="ConnectSEButton_Click"/>
+                <ui:PasswordBox x:Name="SEJWTTokenBox" Width="200" Height="35"  PlaceholderText="JWT Token"
+                                Margin="14 5 0 10"/>
+                <TextBlock x:Name="SEStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+            </StackPanel>
+            <StackPanel Margin="10,5,0,5">
+                
+                <Grid Margin="0,2">
+                    
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="Tips:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="DonoBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                        
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="DonoBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                    PlaceholderText="1.00"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"  Height="34"
+                                    validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateSETipAmountBox"/>
+                        
+                        <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                                  x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                  Margin="4 0 4 0">
+                        </ComboBox>
+                        <ui:Button Icon="Add24" Foreground="White"
+                                   Content="Test"
+                                   Click="TestSETip_Click"
+                                   Width="60" Padding="2"
+                                   Height="34"
+                                   Margin="4,0,0,0"></ui:Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </StackPanel>
+    </Expander>
+</UserControl>

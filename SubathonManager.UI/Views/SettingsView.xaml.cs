@@ -19,32 +19,25 @@ public partial class SettingsView
     public SettingsView()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        TwitchEvents.TwitchConnected += UpdateTwitchStatus;
-        YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
-        StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
-        StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
         InitializeComponent();
-
-        SEJWTTokenBox.Text = Config.Data["StreamElements"]["JWT"];
-        SLTokenBox.Text = Config.Data["StreamLabs"]["SocketToken"];
-
-        if (App.AppStreamElementsService != null)
-            UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
-        if (App.AppStreamLabsService != null)
-            UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
-
+        
+        TwitchSettingsControl.Init(this);
+        YouTubeSettingsControl.Init(this);
+        WebhookLogSettingsControl.Init(this);
+        StreamLabsSettingsControl.Init(this);
+        StreamElementsSettingsControl.Init(this);
+        KoFiSettingsControl.Init(this);
+        ExternalSettingsControl.Init(this);
+        CommandsSettingsControl.Init(this);
+        
         ServerPortTextBox.Text = Config.Data["Server"]["Port"];
         LoadValues();
-        InitWebhookSettings();
-        InitTwitchAutoSettings();
-        InitCommandSettings();
-        InitYoutubeSettings();
-
+        InitCurrencySelects();
+        
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
         UpdateServerStatus(App.AppWebServer?.Running ?? false);
 
-        InitCurrencySelects();
     }
 
     private void GoToHelp_Click(object sender, RoutedEventArgs e)

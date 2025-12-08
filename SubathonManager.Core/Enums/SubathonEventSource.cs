@@ -9,5 +9,6 @@ public enum SubathonEventSource
     Command, // can be from any chat
     Simulated, // buttons to test in UI? 
     Unknown, // default
-    StreamLabs
+    StreamLabs,
+    External
 }

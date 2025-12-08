@@ -40,7 +40,7 @@ public class SubathonData
     public TimeSpan TimeRemainingRounded()
     {
         double totalSeconds = TimeRemaining().TotalSeconds;
-        return TimeSpan.FromSeconds(Math.Round(totalSeconds));
+        return TimeSpan.FromSeconds(Math.Floor(totalSeconds));
     }
 
     // isActive // only ever one

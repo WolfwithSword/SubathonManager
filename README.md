@@ -26,15 +26,21 @@ overlays, settings, and more all locally!
   - Chat Commands
   - Auto lock/pause on stream end
   - Auto unlock/resume on stream start
+  - Hype Trains
+    - Events and optional multiplier trigger 
 - **Youtube**
   - SuperChats
   - Memberships & Gift Memberships
     - Due to limitations, we treat all memberships as a single level/tier
   - Chat Commands
+- **KoFi**
+  - Tips & Memberships (via StreamerBot)
 - **StreamElements**
   - SE Pay Tips
 - **StreamLabs**
   - Donations
+- **External**
+  - Custom commands, donations, and subscriptions via POST API 
 
 ## Features
 
@@ -43,6 +49,7 @@ overlays, settings, and more all locally!
 - Built in overlay editor and host server for local html widgets
 - Goals list tracking
 - Multiplier modes for time and/or points
+- External control API for integrating with complex setups and unsupported services
 - And more!
 
 ## License

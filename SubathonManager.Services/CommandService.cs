@@ -8,10 +8,13 @@ namespace SubathonManager.Services;
 public static class CommandService
 {
     public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
-        bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp)
+        bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp,
+        SubathonCommandType cmdOverride = SubathonCommandType.None)
     {
         timestamp ??= DateTime.Now;
-        SubathonCommandType command = ValidateCommand(message);
+        if (source == SubathonEventSource.External)
+            message = $"EXTERNAL {message}";
+        SubathonCommandType command = ValidateCommand(message, cmdOverride);
         if (command == SubathonCommandType.Unknown) return false;
         
         SubathonEvent subathonEvent = new SubathonEvent();
@@ -23,7 +26,8 @@ public static class CommandService
         bool validParams = ValidateParameters(subathonEvent, message);
         if (!validParams) return false;
 
-        bool validUser = ValidateUser(subathonEvent, user, isBroadcaster, isModerator, isVip);
+        bool validUser = source == SubathonEventSource.External || 
+                         ValidateUser(subathonEvent, user, isBroadcaster, isModerator, isVip);
         if (!validUser) return false;
 
         subathonEvent.User = user.Trim();
@@ -55,8 +59,9 @@ public static class CommandService
         return false;
     }
 
-    private static SubathonCommandType ValidateCommand(string message)
+    private static SubathonCommandType ValidateCommand(string message, SubathonCommandType cmdOverride)
     {
+        if (cmdOverride != SubathonCommandType.None && cmdOverride != SubathonCommandType.Unknown) return cmdOverride;
         string[] parts = message.Split(' ');
         string cmdName = parts[0].Substring(1, parts[0].Length -1 ).Trim();
 
@@ -64,7 +69,7 @@ public static class CommandService
         {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
             if (keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase))
-                if (SubathonCommandType.TryParse(keyData.KeyName.Split('.')[1] ?? "Unknown", 
+                if (Enum.TryParse<SubathonCommandType>(keyData.KeyName.Split('.')[1] ?? "Unknown", 
                         out SubathonCommandType command))
                     return command;
         }
@@ -84,7 +89,6 @@ public static class CommandService
         }
 
         bool isValid = false;
-
         switch (subathonEvent.Command)
         {
             case SubathonCommandType.AddPoints:

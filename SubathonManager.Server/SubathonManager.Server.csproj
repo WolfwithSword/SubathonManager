@@ -10,6 +10,7 @@
     <ItemGroup>
       <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
       <ProjectReference Include="..\SubathonManager.Data\SubathonManager.Data.csproj" />
+      <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
     </ItemGroup>
 
 </Project>
