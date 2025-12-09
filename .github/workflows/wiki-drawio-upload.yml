@@ -41,20 +41,25 @@ jobs:
           mkdir -p docs
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "docs/SubathonManager_Design.drawio"
-
-      - name: Convert digramm to png
-        uses: severgroup-tt/actions-drawio-cli@v0.0.2
+          
+      - name: Run Draw.io render for all pages
+        uses: docker://jgraph/drawio:latest
         with:
-          source: "docs/SubathonManager_Design.drawio"
-          destination: docs/design.png
+          args: >
+            -x "docs/SubathonManager_Design.drawio"
+            -f png
+            -o exported
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
+          
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
+          mv exported/*.png docs/
           mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
+          
           git add "docs/SubathonManager Design.drawio"
           git add "docs/*.png"
 
