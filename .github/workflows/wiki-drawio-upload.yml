@@ -41,17 +41,14 @@ jobs:
           mkdir -p docs
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "docs/SubathonManager_Design.drawio"
-
-      - name: Export draw.io pages to PNG
-        run: |
-          mkdir -p rendered
-          docker run --rm \
-            -v "docs:/data" \
-            jgraph/drawio-batch \
-            -x "/data/SubathonManager_Design.drawio" \
-            -o /data \
-            --format png \
-            --pages all
+          
+      - name: Render drawio to png
+          uses: rlespinasse/drawio-export-action@v2
+          with:
+            path: "docs/SubathonManager_Design.drawio"
+            format: png
+            output: docs
+            all-pages: true
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
