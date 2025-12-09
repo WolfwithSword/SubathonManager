@@ -147,6 +147,13 @@ jobs:
       || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       || github.event.inputs.force_nightly == 'true'
     steps:
+      - name: Checkout external files folder
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            external
+          sparse-checkout-cone-mode: false
+          
       - name: Download build artifact (GitHub)
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
         uses: actions/download-artifact@v5
@@ -158,8 +165,10 @@ jobs:
         if: needs.build.outputs.artifact_failed == 'true' && github.event.inputs.upload_target != 'github'
         run: |
           echo "Downloading release zip from Nextcloud fallback..."
+          mkdir build
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
-            -o "${{ needs.build.outputs.filename }}"
+            -o "build/${{ needs.build.outputs.filename }}"
+          mv build/${{ needs.build.outputs.filename }} ./
           echo $PWD
           ls
 
@@ -169,13 +178,6 @@ jobs:
           cd build
           zip -r ../${{ needs.build.outputs.filename }} .
           echo "${{ needs.build.outputs.filename }} successfully zipped"
-
-      - name: Checkout external files folder
-        uses: actions/checkout@v5
-        with:
-          sparse-checkout: |
-            external
-          sparse-checkout-cone-mode: false
           
       - name: Move files 
         run: |
@@ -188,7 +190,6 @@ jobs:
             echo "ERROR: ZIP not found!"
             exit 1
           fi
-          
           cp external/streamerbot/*.sb ./ || true
           
            
