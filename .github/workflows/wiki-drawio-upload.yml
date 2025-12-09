@@ -42,6 +42,12 @@ jobs:
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "docs/SubathonManager Design.drawio"
 
+      - name: Convert digramm to png
+        uses: Burnett01/actions-drawio@1.2
+        with:
+          src: "docs/SubathonManager Design.drawio"
+          dest: docs/design.png
+
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
@@ -49,6 +55,7 @@ jobs:
           git config user.email "github-actions@github.com"
 
           git add "docs/SubathonManager Design.drawio"
+          git add "docs/*.png"
 
           if git diff --cached --quiet; then
             echo "No changes detected, skipping commit."
