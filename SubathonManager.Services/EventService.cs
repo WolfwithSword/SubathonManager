@@ -266,19 +266,22 @@ public class EventService: IDisposable
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
-        
+
         SubathonValue? subathonValue = null;
-        if (ev.EventType != SubathonEventType.Command)
+        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
                 v.EventType == ev.EventType && (v.Meta == ev.Value || v.Meta == string.Empty));
 
+            subathonValue ??= await db.SubathonValues.FirstOrDefaultAsync(v =>
+                    v.EventType == ev.EventType && (v.Meta == "DEFAULT"));
+
             if (subathonValue == null)
                 return (false, false);
-            
+
         }
 
-        if (ev.EventType != SubathonEventType.Command)
+        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub)
         {
             ev.PointsValue = subathonValue!.Points;
             if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && ev.Currency != "member"

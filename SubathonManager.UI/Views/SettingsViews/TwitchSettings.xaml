@@ -1,0 +1,320 @@
+﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsViews.TwitchSettings"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
+             xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+<Expander Header="Twitch" IsExpanded="False">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <ui:Button x:Name="ConnectTwitchBtn"
+                       Content="Connect"
+                       Width="120"
+                       Height="35"
+                       Margin="0,5,0,10"
+                       Click="ConnectTwitchButton_Click"/>
+            <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 48 10"/>
+            <CheckBox x:Name="TwitchPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="4 4 4 4"/>
+            <CheckBox x:Name="TwitchLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="4 4 4 4"/>
+            <CheckBox x:Name="TwitchResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="4 4 4 4"/>
+            <CheckBox x:Name="TwitchUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="4 4 4 4"/>
+        </StackPanel>
+        
+        <StackPanel Margin="10,5,0,5">
+            
+            <!-- Cheer / Bits -->
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="CheerTextBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
+                    
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="Cheer2TextBox"/>
+                    <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ui:TextBox Margin="10 0 4 0" Width="80" Text="100"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                PlaceholderText="100"
+                                Height="30"
+                                FontSize="12"
+                                validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateCheerAmt"/>
+                    <ui:Button Icon="Add24" Foreground="White"
+                               Content="Test"
+                               Click="TestTwitchCheer_Click"
+                               Width="60" Padding="2"
+                               Height="30"
+                               Margin="4,0,0,0"></ui:Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Raid -->
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="RaidTextBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="Raid2TextBox"/>
+                    <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
+                </StackPanel>
+                                                        
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ui:TextBox Margin="10 0 4 0" Width="80" Text="25"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                PlaceholderText="25"
+                                Height="30"
+                                FontSize="12"
+                                validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateRaidAmt"/>
+                    <ui:Button Icon="Add24" Foreground="White"
+                               Content="Test"
+                               Click="TestTwitchRaid_Click"
+                               Width="60" Padding="2"
+                               Height="30"
+                               Margin="4,0,0,0"></ui:Button>
+                </StackPanel>
+            </Grid>
+            
+            
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="FollowTextBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="Follow2TextBox"/>
+                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
+                </StackPanel>
+                                                        
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ui:Button Icon="Add24" Foreground="White"
+                               Content="Test"
+                               Click="TestTwitchFollow_Click"
+                               Width="60" Padding="2"
+                               Height="30"
+                               Margin="4,0,0,0"></ui:Button>
+                </StackPanel>
+            </Grid>
+            
+            <Grid Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Charity Donations:" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="DonoBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                x:Name="DonoBox2"/>
+                    <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                PlaceholderText="100"  Height="34"
+                                FontSize="12"
+                                validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateTwitchCharAmt"/>
+                    
+                    <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                              x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                              Margin="4 0 4 0">
+                    </ComboBox>
+                    <ui:Button Icon="Add24" Foreground="White"
+                               Content="Test"
+                               Click="TestTwitchCharityDonation_Click"
+                               Width="60" Padding="2"  Height="34"
+                               Margin="4,0,0,0"></ui:Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Subs -->
+            <Expander Header="Subs" IsExpanded="True" Margin="0,5,0,0">
+                <StackPanel Margin="10,5,0,5">
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="300"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                        x:Name="SubT1TextBox"/>
+                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                        x:Name="SubT1TextBox2"/>
+                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <ComboBox Text="Tier" Width="120" 
+                                      x:Name="SimSubTierSelection"
+                                      SelectedIndex="0" Margin="4 0 4 0">
+                                <ComboBoxItem Content="Tier 1"/>
+                                <ComboBoxItem Content="Tier 2"/>
+                                <ComboBoxItem Content="Tier 3"/>
+                            </ComboBox>
+                            <ui:Button Icon="Add24" Foreground="White"
+                                       Content="Test"
+                                       Click="TestTwitchSub_Click"
+                                       Width="60" Padding="2"
+                                       Height="35"
+                                       Margin="4,0,0,0"></ui:Button>
+                        </StackPanel>
+                        
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="SubT2TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="SubT2TextBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="SubT3TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="SubT3TextBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <Separator Margin="0,8"/>
+                    
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="300"/>
+                        </Grid.ColumnDefinitions>
+                      <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                        x:Name="GiftSubT1TextBox"/>
+                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                        x:Name="GiftSubT1TextBox2"/>
+                            <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                        </StackPanel>
+                                                                     
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                        Text="1" PlaceholderText="1" Height="35" FontSize="14" Margin="0 0 2 0"
+                                        x:Name="SimGiftSubAmtInput"/>
+                            <ComboBox Text="Tier" Width="120" Height="35"
+                                      x:Name="SimGiftSubTierSelection"
+                                      SelectedIndex="0" Margin="4 0 4 0">
+                                <ComboBoxItem Content="Tier 1"/>
+                                <ComboBoxItem Content="Tier 2"/>
+                                <ComboBoxItem Content="Tier 3"/>
+                            </ComboBox>
+                            <ui:Button Icon="Add24" Foreground="White"
+                                       Content="Test"
+                                       Click="TestTwitchGiftSub_Click"
+                                       Width="60" Padding="2"
+                                       Height="35"
+                                       Margin="4,0,0,0"></ui:Button>
+                        </StackPanel>
+                        
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="GiftSubT2TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="GiftSubT2TextBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="GiftSubT3TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="GiftSubT3TextBox2"/>
+                        <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+            
+            <!-- HypeTrain -->
+            <Expander Header="Hype Trains" IsExpanded="True" Margin="0,5,0,0">
+                <StackPanel Margin="10,5,0,5">
+                    <Grid Margin="0,2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="400"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="40"/>
+                            <RowDefinition Height="40"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <CheckBox x:Name="HypeTrainMultBox" Content="Run Multiplier during Hype Trains?" Margin="-4 4 8 4"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Multiplier" Width="74" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0 0 4 0"/>
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                        x:Name="HypeTrainMultAmt"/>
+                            <CheckBox x:Name="HypeTrainMultTimeBox" Content="Time" Margin="28 4 0 4"/>
+                            <CheckBox x:Name="HypeTrainMultPointsBox" Content="Points" Margin="4 4 4 4"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <ui:TextBox PlaceholderText="Level" Width="100" Height="36"  Margin="8 0 2 0"
+                                        validation:InputValidationBehavior.IsNumberOnly="True" FontSize="14" 
+                                        VerticalAlignment="Center"
+                                        x:Name="HypeTrainLevel"/>
+                            <ComboBox Text="Event" Width="120" Height="36" FontSize="12" 
+                                      x:Name="HypeTrainTestSelection"
+                                      VerticalAlignment="Center"
+                                      SelectedIndex="0" Margin="4 0 4 0">
+                                <ComboBoxItem Content="Start"/>
+                                <ComboBoxItem Content="Progress"/>
+                                <ComboBoxItem Content="End"/>
+                            </ComboBox>
+                            <ui:Button Icon="Add24" Foreground="White"
+                                       Content="Test"
+                                       Click="TestTwitchHypeTrain_Click"
+                                       Width="60" Padding="2"
+                                       Height="36"
+                                       Margin="4,0,0,0"></ui:Button>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+    </StackPanel>
+</Expander>   
+</UserControl>

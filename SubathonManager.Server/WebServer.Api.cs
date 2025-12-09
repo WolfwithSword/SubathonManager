@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
+using SubathonManager.Integration;
 using SubathonManager.Data;
 
 namespace SubathonManager.Server;
@@ -13,6 +14,10 @@ public partial class WebServer
 {
     private async Task<bool> HandleApiRequestAsync(HttpListenerContext ctx, string path)
     {
+        if (path.StartsWith("/api/data/control") && ctx.Request.HasEntityBody && (ctx.Request.HttpMethod == "POST" || ctx.Request.HttpMethod == "PUT"))
+        {
+            return await HandleDataControlRequestAsync(ctx);
+        }
         if (path.StartsWith("/api/data/"))
         {
             return await HandleDataRequestAsync(ctx, path.Replace("/api/data/", ""));
@@ -84,13 +89,120 @@ public partial class WebServer
         return false;
     }
 
+    private async Task<bool> HandleDataControlRequestAsync(HttpListenerContext ctx)
+    {
+        string body;
+        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
+            body = await reader.ReadToEndAsync();
+        
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>($"{body}");
+        
+        if (data == null)
+        {
+            ctx.Response.StatusCode = 400;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid control data"));
+            ctx.Response.Close();
+            return true;
+        }
+
+        SubathonEventType type = SubathonEventType.Unknown;
+        if (!data.ContainsKey("type") || !data.TryGetValue("type", out JsonElement elem)
+            || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out type))
+        {
+            ctx.Response.StatusCode = 400;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid control data"));
+            ctx.Response.Close();
+            return true;
+        }
+
+        bool success = false;
+        if (type == SubathonEventType.Command)
+        {
+            success = ExternalEventService.ProcessExternalCommand(data);
+        }
+        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternalType())
+        {
+            success = ExternalEventService.ProcessExternalDonation(data);
+        }
+        else if (((SubathonEventType?)type).IsSubOrMembershipType() && ((SubathonEventType?)type).IsExternalType())
+        {
+            success = ExternalEventService.ProcessExternalSub(data);
+        }
+        else
+        {
+            ctx.Response.StatusCode = 400;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid control data"));
+            ctx.Response.Close();
+            return true;
+        }
+
+        if (success)
+        {
+            ctx.Response.StatusCode = 200;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("OK"));
+            ctx.Response.Close();
+            return success;
+        }
+
+        ctx.Response.StatusCode = 400;
+        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid API Request"));
+        ctx.Response.Close();
+        return false;
+    }
+
     private async Task<bool> HandleDataRequestAsync(HttpListenerContext ctx, string path)
     {
         await using var db = await _factory.CreateDbContextAsync();
-        SubathonData? subathon = await db.SubathonDatas
+        SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .FirstOrDefaultAsync(s => s.IsActive);
-        
-        if (subathon != null && path.StartsWith("amounts"))
+
+        if (subathon != null && path.StartsWith("status"))
+        {
+            TimeSpan? multiplierRemaining = TimeSpan.Zero;
+            if (subathon.Multiplier.Duration != null && subathon.Multiplier.Duration > TimeSpan.Zero
+                                                     && subathon.Multiplier.Started != null)
+            {
+                DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
+                multiplierRemaining = multEndTime! - DateTime.Now;
+            }
+  
+            object response = new
+            {
+                millis_cumulated = subathon.MillisecondsCumulative,
+                millis_elapsed = subathon.MillisecondsElapsed,
+                millis_remaining = subathon.MillisecondsRemaining(),
+                total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
+                days = subathon.TimeRemainingRounded().Days,
+                hours = subathon.TimeRemainingRounded().Hours,
+                minutes = subathon.TimeRemainingRounded().Minutes,
+                seconds = subathon.TimeRemainingRounded().Seconds,
+                points = subathon.Points,
+                is_paused = subathon.IsPaused,
+                is_locked = subathon.IsLocked,
+                multiplier = new 
+                {
+                    running = subathon.Multiplier.IsRunning(),
+                    apply_points = subathon.Multiplier.ApplyToPoints,
+                    apply_time = subathon.Multiplier.ApplyToSeconds,
+                    is_from_hypetrain = subathon.Multiplier.FromHypeTrain,
+                    started_at = subathon.Multiplier.Started,
+                    duration_seconds = Math.Round(subathon.Multiplier.Duration?.TotalSeconds ?? 0),
+                    duration_remaining_seconds = Math.Round(multiplierRemaining.Value.TotalSeconds),
+                }
+            };
+            
+            string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            ctx.Response.StatusCode = 200;
+            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(json));
+            ctx.Response.Close();
+            return true;
+            
+        }
+        else if (subathon != null && path.StartsWith("amounts"))
         {
             var events = await db.SubathonEvents
                 .Where(e => e.SubathonId == subathon.Id && e.ProcessedToSubathon)
@@ -98,8 +210,8 @@ public partial class WebServer
                             e.EventType != SubathonEventType.Unknown)
                 .ToListAsync();
             
-            var simulated = events.Where(e => e.User == "SYSTEM").ToList();
-            var real = events.Where(e => e.User != "SYSTEM").ToList();
+            var simulated = events.Where(e => e.User == "SYSTEM" || e.User == "SIMULATED").ToList();
+            var real = events.Where(e => e.User != "SYSTEM" && e.User != "SIMULATED").ToList();
             
             object response = new
             {

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Data;
@@ -20,8 +21,14 @@ public partial class App
     private async void UpdateSubathonTimers(TimeSpan time)
     {
         await using var db = await _factory!.CreateDbContextAsync();
-        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+        int ran = await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed > 0", 
             time.TotalMilliseconds);
+        if (ran == 0)
+        {
+            // try to set to equal 0 if it would go negative
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsCumulative WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed - 1000 <= 0");
+        }
         
         var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
             .SingleOrDefaultAsync(x => x.IsActive &&(!x.IsPaused ||

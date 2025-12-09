@@ -147,6 +147,13 @@ jobs:
       || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       || github.event.inputs.force_nightly == 'true'
     steps:
+      - name: Checkout external files folder
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            external
+          sparse-checkout-cone-mode: false
+          
       - name: Download build artifact (GitHub)
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
         uses: actions/download-artifact@v5
@@ -158,9 +165,10 @@ jobs:
         if: needs.build.outputs.artifact_failed == 'true' && github.event.inputs.upload_target != 'github'
         run: |
           echo "Downloading release zip from Nextcloud fallback..."
+          mkdir build
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
-            -o "${{ needs.build.outputs.filename }}"
-
+            -o "build/${{ needs.build.outputs.filename }}"
+          mv build/${{ needs.build.outputs.filename }} ./
 
       - name: Zip release files
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
@@ -168,16 +176,27 @@ jobs:
           cd build
           zip -r ../${{ needs.build.outputs.filename }} .
           echo "${{ needs.build.outputs.filename }} successfully zipped"
-
-
+          
+      - name: Move files 
+        run: |
+          if [ -f "build/${{ needs.build.outputs.filename }}" ]; then
+            mv build/${{ needs.build.outputs.filename }} ./
+          fi
+          if [ ! -f "${{ needs.build.outputs.filename }}" ]; then
+            echo "ERROR: ZIP not found!"
+            exit 1
+          fi
+          cp external/streamerbot/*.sb ./ || true
+          
+           
       - name: Create GitHub Release
         id: create_release
         if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && (github.event_name != 'workflow_dispatch' || github.event.inputs.force_nightly != 'true')
         uses: softprops/action-gh-release@v2
         with:
-          #name: Release ${{ github.ref_name }}
-          #tag_name: ${{ github.ref_name }}
-          files: ${{ needs.build.outputs.filename }}
+          files: |
+            ${{ needs.build.outputs.filename }}
+            *.sb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -185,16 +204,17 @@ jobs:
         if: github.ref_name == 'main' || github.event.inputs.force_nightly == 'true'
         run: |
           release_id=$(gh api repos/${{ github.repository }}/releases/tags/nightly --jq .id)
-          asset_id=$(gh api repos/${{ github.repository }}/releases/$release_id/assets --jq '.[] | select(.name=="${{ needs.build.outputs.filename }}") | .id')
-          if [ ! -z "$asset_id" ]; then
-            gh api -X DELETE repos/${{ github.repository }}/releases/assets/$asset_id
-            echo "Deleted previous nightly asset"
+          asset_ids=$(gh api repos/${{ github.repository }}/releases/$release_id/assets --jq '.[].id')
+          if [ -n "$asset_ids" ]; then
+            for id in $asset_ids; do
+              gh api -X DELETE repos/${{ github.repository }}/releases/assets/$id
+              echo "Deleted asset $id"
+            done
           else
-            echo "No previous nightly asset found"
+            echo "No previous nightly assets found"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
       - name: Create Nightly Release
         if: github.ref_name == 'main' || github.event.inputs.force_nightly == 'true'
@@ -204,7 +224,9 @@ jobs:
           tag_name: "nightly"
           body: "Latest build from main branch."
           prerelease: true
-          files: ${{ needs.build.outputs.filename }}
+          files: |
+            ${{ needs.build.outputs.filename }}
+            *.sb
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:

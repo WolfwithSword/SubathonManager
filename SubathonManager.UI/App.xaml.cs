@@ -23,7 +23,7 @@ public partial class App
     public static TwitchService? AppTwitchService { get; } = new();
     public static YouTubeService? AppYouTubeService { get; } = new();
     public static StreamElementsService? AppStreamElementsService { get; } = new();
-    public static StreamLabsService? AppStreamLabsService { get;} = new();
+    public static StreamLabsService? AppStreamLabsService { get; } = new();
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
     
     private ILogger? _logger;

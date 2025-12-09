@@ -204,7 +204,7 @@ namespace SubathonManager.Data
 
         public static async Task ResetPowerHour(AppDbContext db)
         {
-            await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds=false, ApplyToPoints=false ");
+            await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds=false, ApplyToPoints=false, FromHypeTrain=false ");
         }
         
         public static async Task DisableAllTimers(AppDbContext db)
@@ -226,12 +226,15 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
                 new SubathonValue { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
-                new SubathonValue { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12}, // per 1 unit/dollar of given currency
-                new SubathonValue { EventType = SubathonEventType.StreamLabsDonation, Seconds = 12}, // per 1 unit/dollar of given currency
-                new SubathonValue { EventType = SubathonEventType.YouTubeSuperChat, Seconds = 12}, // per 1 unit/dollar of given currency
+                new SubathonValue { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.StreamLabsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.YouTubeSuperChat, Seconds = 12}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.YouTubeMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
                 new SubathonValue { EventType = SubathonEventType.YouTubeGiftMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new SubathonValue { EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12}, // per 1 unit/dollar of given currency
+                new SubathonValue { EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.ExternalDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.KoFiDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1}, // per 1 unit/dollar of default currency
             };
 
             foreach (var def in defaults)

@@ -53,13 +53,7 @@
       <Compile Update="Views\SettingsView.Settings.cs">
         <DependentUpon>SettingsView.xaml</DependentUpon>
       </Compile>
-      <Compile Update="Views\SettingsView.Simulate.cs">
-        <DependentUpon>SettingsView.xaml</DependentUpon>
-      </Compile>
       <Compile Update="Views\SettingsView.SubathonTimer.cs">
-        <DependentUpon>SettingsView.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="Views\SettingsView.Validation.xaml.cs">
         <DependentUpon>SettingsView.xaml</DependentUpon>
       </Compile>
       <Compile Update="MainWindow.Validation.xaml.cs">
@@ -74,6 +68,12 @@
       <Compile Update="..\SubathonManager.Data\Migrations\*.cs">
         <NoWarn>IDE1006</NoWarn>
         <NoWarn>CS8981</NoWarn>
+      </Compile>
+      <Compile Update="Views\SettingsViews\TwitchSettings.Simulate.cs">
+        <DependentUpon>TwitchSettings.xaml</DependentUpon>
+      </Compile>
+      <Compile Update="Views\SettingsViews\YouTubeSettings.Simulate.cs">
+        <DependentUpon>YouTubeSettings.xaml</DependentUpon>
       </Compile>
     </ItemGroup>
 

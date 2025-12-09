@@ -1,0 +1,135 @@
+﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsViews.YouTubeSettings"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
+             xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <Expander Header="YouTube" IsExpanded="False">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <ui:Button x:Name="ConnectYTBtn"
+                           Content="Connect"
+                           Width="120" VerticalAlignment="Center"
+                           Height="35"
+                           Margin="0,5,0,10"
+                           Click="ConnectYouTubeButton_Click"/>
+                <ui:TextBox x:Name="YTUserHandle" PlaceholderText="@handle"
+                            VerticalAlignment="Center" FontSize="12" Width="250" Margin="14 5 12 10"/>
+                <TextBlock x:Name="YTStatusText" VerticalAlignment="Center" FontSize="12" Margin="4 0 0 10"/>
+            </StackPanel>
+            
+            <StackPanel Margin="10,5,0,5">
+                
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="SuperChats:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="DonoBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    x:Name="DonoBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    PlaceholderText="100"  Height="34"
+                                    FontSize="12"
+                                    validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateSCAmt"/>
+                        
+                        <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                                  x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                  Margin="4 0 4 0">
+                        </ComboBox>
+                        <ui:Button Icon="Add24" Foreground="White"
+                                   Content="Test"
+                                   Click="TestYTSuperChat_Click"
+                                   Width="60" Padding="2"  Height="34"
+                                   Margin="4,0,0,0"></ui:Button>
+                    </StackPanel>
+                </Grid>
+
+                
+                
+                <!-- Memberships -->
+                <Expander Header="Memberships" IsExpanded="True" Margin="0,5,0,0" ToolTip="Multiple Levels are not currently supported" >
+                    <StackPanel Margin="10,5,0,5">
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="300"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- Up to six can be defined, with custom names -->
+                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="T1:" Width="100" VerticalAlignment="Center"/>
+                                <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                            x:Name="MemberT1TextBox"/>
+                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                            x:Name="MemberT1TextBox2"/>
+                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                <!-- -->
+                                <!-- <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                <!-- <ui:TextBox Width="160" x:Name="MemberT1NameTextBox"/> -->
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ui:Button Icon="Add24" Foreground="White"
+                                           Content="Test"
+                                           Click="TestYTMembership_Click"
+                                           Width="60" Padding="2"
+                                           Height="30"
+                                           Margin="4,0,0,0"></ui:Button>
+                            </StackPanel>
+                            
+                        </Grid>
+                        
+                        <Separator Margin="0,8"/>
+                        
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="300"/>
+                            </Grid.ColumnDefinitions>
+                          <StackPanel Orientation="Horizontal" Margin="0,2">
+                                <TextBlock Text="T1 Gift:" Width="100" VerticalAlignment="Center"/>
+                                <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                            x:Name="GiftMemberT1TextBox"/>
+                                <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                            x:Name="GiftMemberT1TextBox2"/>
+                                <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                
+                                <!-- <TextBlock Margin="16 0 0 0" Text="Name" Width="60" VerticalAlignment="Center"/> -->
+                                <!-- <ui:TextBox Width="160" x:Name="GiftMemberT1NameTextBox"/> -->
+                            </StackPanel>
+                                                                         
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                            Text="1" PlaceholderText="1" Height="35" FontSize="14"
+                                            x:Name="SimGiftMembershipAmtInput"/>
+                                <ui:Button Icon="Add24" Foreground="White"
+                                           Content="Test"
+                                           Click="TestYTGiftMembership_Click"
+                                           Width="60" Padding="2"
+                                           Height="35"
+                                           Margin="4,0,0,0"></ui:Button>
+                            </StackPanel>
+                            
+                        </Grid>
+                        
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </StackPanel>
+    </Expander>
+</UserControl>

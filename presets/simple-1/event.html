@@ -2,7 +2,7 @@
 WIDGET_META
 Width:300
 Height:100
-applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation
+applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation,ExternalDonation,ExternalSub,KoFiSub,KoFiDonation
 END_WIDGET_META
 -->
 <meta charset=utf-8>
@@ -49,6 +49,8 @@ function createEventIcon(eventType) {
       
     case "YouTubeMembership":
     case "TwitchSub":
+    case "ExternalSub":    
+    case "KoFiSub":    
       // star
       return makeSVG("M12 17.3l6.18 3.7-1.64-7.03 5.46-4.73-7.19-.61L12 2 9.19 8.63l-7.19.61 5.46 4.73L5.82 21z");
       
@@ -60,6 +62,8 @@ function createEventIcon(eventType) {
     case "StreamElementsDonation":
     case "StreamLabsDonation":
     case "TwitchCharityDonation":
+    case "ExternalDonation":    
+    case "KoFiDonation":    
           // coin stack
       return makeSVG("M12 2c5 0 9 1.79 9 4s-4 4-9 4-9-1.79-9-4 4-4 9-4zm-9 7v3c0 2.21 4 4 9 4s9-1.79 9-4V9c-2 2-6 3-9 3s-7-1-9-3zm0 6v3c0 2.21 4 4 9 4s9-1.79 9-4v-3c-2 2-6 3-9 3s-7-1-9-3z");
 
@@ -94,7 +98,7 @@ function handleSubathonEvent(data) {
             else if (data.value == "2000") data.value = "T2";
             else if (data.value == "3000") data.value = "T3";
         }
-        if (data.currency == "member") {
+        if (data.currency == "member" && data.value == "DEFAULT") {
             data.value = "";
         }
         

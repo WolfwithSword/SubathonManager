@@ -15,9 +15,11 @@ public enum SubathonEventType
     YouTubeGiftMembership,
     YouTubeSuperChat,
     TwitchHypeTrain, // value is start, progress, end. Alt type event. Amount is level.
-    TwitchCharityDonation
-    //KoFiDonation,
-    //KoFiSub,
+    TwitchCharityDonation,
+    ExternalDonation,
+    ExternalSub,
+    KoFiDonation,
+    KoFiSub
     // any new must be added after the last
 }
 
@@ -28,18 +30,31 @@ public static class SubathonEventTypeHelper
         SubathonEventType.YouTubeSuperChat,
         SubathonEventType.StreamElementsDonation,
         SubathonEventType.StreamLabsDonation,
-        SubathonEventType.TwitchCharityDonation
+        SubathonEventType.TwitchCharityDonation,
+        SubathonEventType.ExternalDonation,
+        SubathonEventType.KoFiDonation,
     };
     
     private static readonly SubathonEventType[] MembershipTypes = new[]
     {
         SubathonEventType.YouTubeMembership,
-        SubathonEventType.YouTubeGiftMembership
+        SubathonEventType.YouTubeGiftMembership,
+        SubathonEventType.KoFiSub
     };
+    
     private static readonly SubathonEventType[] SubscriptionTypes = new[]
     {
         SubathonEventType.TwitchSub,
-        SubathonEventType.TwitchGiftSub
+        SubathonEventType.TwitchGiftSub,
+        SubathonEventType.ExternalSub
+    };
+
+    private static readonly SubathonEventType[] ExternalTypes = new[]
+    {
+        SubathonEventType.ExternalDonation,
+        SubathonEventType.ExternalSub,
+        SubathonEventType.KoFiSub,
+        SubathonEventType.KoFiDonation,
     };
     
     public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
@@ -53,4 +68,40 @@ public static class SubathonEventTypeHelper
 
     public static bool IsSubOrMembershipType(this SubathonEventType? eventType) =>
         eventType.IsMembershipType() || eventType.IsSubscriptionType();
+    
+    public static bool IsExternalType(this SubathonEventType? eventType) =>
+        eventType.HasValue && ExternalTypes.Contains(eventType.Value);
+    
+    public static SubathonEventSource GetSource(this SubathonEventType? eventType) {
+        if (!eventType.HasValue) return SubathonEventSource.Unknown;
+
+        return eventType.Value switch
+        {
+            SubathonEventType.TwitchHypeTrain => SubathonEventSource.Twitch,
+            SubathonEventType.TwitchCharityDonation => SubathonEventSource.Twitch,
+            SubathonEventType.TwitchGiftSub => SubathonEventSource.Twitch,
+            SubathonEventType.TwitchRaid => SubathonEventSource.Twitch,
+            SubathonEventType.TwitchFollow => SubathonEventSource.Twitch,
+            SubathonEventType.TwitchSub => SubathonEventSource.Twitch,
+            SubathonEventType.TwitchCheer => SubathonEventSource.Twitch,
+            
+            SubathonEventType.StreamElementsDonation => SubathonEventSource.StreamElements,
+            SubathonEventType.StreamLabsDonation => SubathonEventSource.StreamLabs,
+            
+            SubathonEventType.ExternalDonation => SubathonEventSource.External,
+            SubathonEventType.ExternalSub => SubathonEventSource.External,
+            
+            SubathonEventType.KoFiSub => SubathonEventSource.KoFi,
+            SubathonEventType.KoFiDonation => SubathonEventSource.KoFi,
+            
+            SubathonEventType.Command => SubathonEventSource.Command,
+            
+            SubathonEventType.YouTubeGiftMembership => SubathonEventSource.YouTube,
+            SubathonEventType.YouTubeMembership => SubathonEventSource.YouTube,
+            SubathonEventType.YouTubeSuperChat => SubathonEventSource.YouTube,
+            
+            _ => SubathonEventSource.Unknown
+        };
+    }
+    
 }
