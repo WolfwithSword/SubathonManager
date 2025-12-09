@@ -59,9 +59,12 @@ jobs:
           git config user.email "github-actions@github.com"
           
           mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
-          mv "docs/docs/*" "docs/"
           
-          if [ -d "docs/docs" ]; then rm -rf "docs/docs" ; fi
+          ls
+          echo "docs files"
+          ls docs
+          
+          if [ -d "docs/docs" ]; then mv "docs/docs/*" "docs/"; rm -rf "docs/docs" ; fi
           
           git add "docs/SubathonManager Design.drawio"
           git add "docs/*.png"
