@@ -27,7 +27,7 @@ jobs:
       - name: Stop if no wiki exists
         if: steps.wiki-check.outputs.exists == 'false'
         run: echo "Wiki does not exist — skipping update."
-
+          
       - name: Checkout Wiki Repository
         if: steps.wiki-check.outputs.exists == 'true'
         uses: actions/checkout@v5
@@ -41,14 +41,18 @@ jobs:
           mkdir -p docs
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "docs/SubathonManager_Design.drawio"
+
+      - name: Install Draw.io CLI
+        run: |
+          npm install -g @drawio/cli
           
-      - name: Run Draw.io render for all pages
-        uses: docker://jgraph/drawio:latest
-        with:
-          args: >
-            -x "docs/SubathonManager_Design.drawio"
-            -f png
-            -o exported
+      - name: Render diagrams
+        run: |
+          mkdir -p exported
+          npx drawio-cli \
+            -x "docs/SubathonManager_Design.drawio" \
+            -f png \
+            --output-dir exported
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
