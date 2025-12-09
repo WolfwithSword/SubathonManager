@@ -57,7 +57,6 @@ public partial class KoFiSettings : UserControl
             {
                 box1 = KFSubDTextBox;
                 box2 = KFSubDTextBox2;
-                Console.WriteLine(p);
             }
             else if (value.EventType == SubathonEventType.KoFiSub)
             {

@@ -37,7 +37,27 @@ public partial class SettingsView
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
         UpdateServerStatus(App.AppWebServer?.Running ?? false);
+        Task.Run(() => CheckForUpdateOnBoot());
 
+    }
+
+    private async void CheckForUpdateOnBoot()
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(15));
+            _logger?.LogDebug("Checking for updates on boot...");
+            (bool hasUpdate, string? newVersion, string? url) = await AppServices.CheckForUpdate(_logger);
+            if (hasUpdate && !string.IsNullOrEmpty(newVersion))
+            {
+                await Dispatcher.InvokeAsync(() => { UpdateBtn.Content = "Update Available!"; }
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Error checking for updates on boot");
+        }
     }
 
     private void GoToHelp_Click(object sender, RoutedEventArgs e)
