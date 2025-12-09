@@ -1,6 +1,8 @@
 ﻿using System.Windows.Controls;
 using System.Windows;
 using System.Text.Json;
+using System.Diagnostics;
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Integration;
@@ -142,7 +144,8 @@ public partial class KoFiSettings : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
         
         var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-        var nameBox = new Wpf.Ui.Controls.TextBox { Width = 154, Text = subathonValue.Meta ?? "",
+        var nameBox = new Wpf.Ui.Controls.TextBox { Width = 154, Text = subathonValue.Meta ?? "", 
+            ToolTip = "Tier Name", PlaceholderText = "Tier Name",
             Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
         var secondsBox = new Wpf.Ui.Controls.TextBox { Width = 100, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)};
@@ -177,21 +180,26 @@ public partial class KoFiSettings : UserControl
 
         deleteBtn.Click += (s, e) =>
         {
-            using var db = _factory.CreateDbContext();
-
-            var dbRow = db.SubathonValues
-                .FirstOrDefault(x => x.Meta == subathonValue.Meta && x.EventType == subathonValue.EventType);
-
-            if (dbRow != null)
-            {
-                db.SubathonValues.Remove(dbRow);
-                db.SaveChanges();
-            }
-
-            _dynamicSubRows.Remove(subRow);
-            MembershipsPanel.Children.Remove(row);
+            DeleteRow(subathonValue, subRow);
         };
         return subRow;
+    }
+
+    private void DeleteRow(SubathonValue subathonValue, KoFiSubRow subRow)
+    {
+        using var db = _factory.CreateDbContext();
+
+        var dbRow = db.SubathonValues
+            .FirstOrDefault(x => x.Meta == subathonValue.Meta && x.EventType == subathonValue.EventType);
+
+        if (dbRow != null)
+        {
+            db.SubathonValues.Remove(dbRow);
+            db.SaveChanges();
+        }
+
+        _dynamicSubRows.Remove(subRow);
+        MembershipsPanel.Children.Remove(subRow.RowGrid);
     }
     
     private void AddMembership_Click(object sender, RoutedEventArgs e)
@@ -210,7 +218,24 @@ public partial class KoFiSettings : UserControl
         };
         AddMembershipRow(value);
     }
+    
+    private void EnsureUniqueName(List<KoFiSubRow> rows)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        foreach (var row in rows)
+        {
+            string original = row.NameBox.Text.Trim();
+            string current = original;
+
+            while (!seen.Add(current))
+            {
+                current = "New " + current;
+            }
+            row.NameBox.Text = current;
+        }
+    }
+    
     public void UpdateValueSettings(AppDbContext db)
     {
         var defaultSubValue =
@@ -229,11 +254,24 @@ public partial class KoFiSettings : UserControl
             tipValue.Seconds = tipSeconds;
         if (tipValue != null && int.TryParse(DonoBox2.Text, out var tipPoints))
             tipValue.Points = tipPoints;
+
+        var removeRows = _dynamicSubRows
+            .Where(row =>string.IsNullOrWhiteSpace(row.NameBox.Text))
+            .ToList();
+        foreach (var row in removeRows)
+            DeleteRow(row.SubValue, row);
+        
+        EnsureUniqueName(_dynamicSubRows);
         
         foreach (var subRow in _dynamicSubRows)
         {
             string meta = subRow.NameBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(meta) || meta=="DEFAULT" )
+            if (string.IsNullOrWhiteSpace(meta))
+            {
+                DeleteRow(subRow.SubValue, subRow);
+                continue;
+            }
+            if (meta == "DEFAULT" )
                 continue;
 
             if (!double.TryParse(subRow.TimeBox.Text, out double seconds))
@@ -259,6 +297,54 @@ public partial class KoFiSettings : UserControl
                 subRow.SubValue.Points = points;
                 db.SubathonValues.Add(subRow.SubValue);
             }
+        }
+    }
+
+    private void OpenKoFiSetup_Click(object sender, RoutedEventArgs e)
+    {
+        OpenDiscussion();
+    }
+
+    private void OpenDiscussion()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/WolfwithSword/SubathonManager/discussions/108",
+                UseShellExecute = true
+            });
+        }
+        catch {/**/}
+    }
+    
+    private async void CopyImportString_Click(object sender, RoutedEventArgs e)
+    {
+        string version = AppServices.AppVersion;
+        if (!version.StartsWith('v') || version.Length > 16) version = "nightly";
+        string url =
+            $"https://github.com/WolfwithSword/SubathonManager/releases/download/{version}/SubathonManager_KoFi.sb";
+        try
+        {
+            using var http = new HttpClient();
+            string content = await http.GetStringAsync(url);
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                OpenDiscussion();
+                return;
+            }
+
+            Clipboard.SetText(content);
+            var button = sender as Button;
+            var originalContent = button!.Content;
+            button!.Content = "Copied!";
+            await Task.Delay(1500);
+            button!.Content = originalContent;
+        }
+        catch
+        {
+            OpenDiscussion();
         }
     }
 }

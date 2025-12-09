@@ -8,7 +8,21 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 <Expander Header="KoFi" IsExpanded="False">
     <StackPanel>
-        
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <ui:Button Foreground="White"
+                       Content="Setup"
+                       Click="OpenKoFiSetup_Click"
+                       Width="60" Padding="2"
+                       Height="34"
+                       Margin="0,0,6,0"></ui:Button>
+            <ui:Button Foreground="White"
+                       Content="Copy StreamerBot Import String"
+                       Click="CopyImportString_Click"
+                       Width="240" Padding="2"
+                       Height="34"
+                       Cursor = "Hand"
+                       Margin="6,0,0,0"></ui:Button>
+        </StackPanel>
         <StackPanel Margin="10,5,0,5">
             <Grid Margin="0,2">
                 
@@ -40,7 +54,7 @@
                               x:Name="CurrencyBox" StaysOpenOnEdit="True"  Height="34"
                               Margin="4 0 4 0">
                     </ComboBox>
-                    <ui:Button Icon="Add24" Foreground="White"
+                    <ui:Button Foreground="White"
                                Content="Test"
                                Click="TestKoFiTip_Click"
                                Width="60" Padding="2"

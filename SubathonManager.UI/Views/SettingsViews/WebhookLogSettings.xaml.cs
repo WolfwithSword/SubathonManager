@@ -21,7 +21,9 @@ public partial class WebhookLogSettings : UserControl
     }
     private void InitWebhookSettings()
     {
-        foreach (SubathonEventType eventType in Enum.GetValues(typeof(SubathonEventType)))
+        foreach (SubathonEventType eventType in Enum.GetValues(typeof(SubathonEventType))
+                     .Cast<SubathonEventType>().OrderBy(x => x.ToString(), 
+                         StringComparer.OrdinalIgnoreCase))
         {
             bool.TryParse(Config.Data["Discord"][$"Events.Log.{eventType}"] ?? "false", out var check);
             CheckBox typeCheckBox = new()

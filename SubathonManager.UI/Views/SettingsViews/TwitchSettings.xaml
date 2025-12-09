@@ -185,7 +185,7 @@
                                        Content="Test"
                                        Click="TestTwitchSub_Click"
                                        Width="60" Padding="2"
-                                       Height="30"
+                                       Height="35"
                                        Margin="4,0,0,0"></ui:Button>
                         </StackPanel>
                         
@@ -228,9 +228,9 @@
                                                                      
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                             <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                        Text="1" PlaceholderText="1" Height="35" FontSize="14"
+                                        Text="1" PlaceholderText="1" Height="35" FontSize="14" Margin="0 0 2 0"
                                         x:Name="SimGiftSubAmtInput"/>
-                            <ComboBox Text="Tier" Width="120" 
+                            <ComboBox Text="Tier" Width="120" Height="35"
                                       x:Name="SimGiftSubTierSelection"
                                       SelectedIndex="0" Margin="4 0 4 0">
                                 <ComboBoxItem Content="Tier 1"/>
@@ -241,7 +241,7 @@
                                        Content="Test"
                                        Click="TestTwitchGiftSub_Click"
                                        Width="60" Padding="2"
-                                       Height="30"
+                                       Height="35"
                                        Margin="4,0,0,0"></ui:Button>
                         </StackPanel>
                         
@@ -292,7 +292,7 @@
                         </StackPanel>
                         
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <ui:TextBox PlaceholderText="Level" Width="100" Height="36"  Margin="8 0 4 0"
+                            <ui:TextBox PlaceholderText="Level" Width="100" Height="36"  Margin="8 0 2 0"
                                         validation:InputValidationBehavior.IsNumberOnly="True" FontSize="14" 
                                         VerticalAlignment="Center"
                                         x:Name="HypeTrainLevel"/>

@@ -121,7 +121,7 @@
                                            Content="Test"
                                            Click="TestYTGiftMembership_Click"
                                            Width="60" Padding="2"
-                                           Height="30"
+                                           Height="35"
                                            Margin="4,0,0,0"></ui:Button>
                             </StackPanel>
                             

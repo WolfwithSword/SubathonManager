@@ -496,7 +496,7 @@ public partial class EditRouteWindow
                 };
                 
                 var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-                foreach (var eType in Enum.GetNames(typeof(SubathonEventType)))
+                foreach (var eType in Enum.GetNames(typeof(SubathonEventType)).OrderBy(x => x))
                 {
                     if (eType == nameof(SubathonEventType.Command) ||
                         eType == nameof(SubathonEventType.Unknown)) continue;

@@ -169,8 +169,6 @@ jobs:
           curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
             -o "build/${{ needs.build.outputs.filename }}"
           mv build/${{ needs.build.outputs.filename }} ./
-          echo $PWD
-          ls
 
       - name: Zip release files
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
@@ -181,8 +179,6 @@ jobs:
           
       - name: Move files 
         run: |
-          echo $PWD
-          ls
           if [ -f "build/${{ needs.build.outputs.filename }}" ]; then
             mv build/${{ needs.build.outputs.filename }} ./
           fi
