@@ -23,11 +23,12 @@ overlays, settings, and more all locally!
     - Including Combos & Powerups 
   - Follows, Raids
   - Subs & Gift Subs
+  - Charity Donations
   - Chat Commands
   - Auto lock/pause on stream end
   - Auto unlock/resume on stream start
   - Hype Trains
-    - Events and optional multiplier trigger 
+    - Events and optional multiplier trigger
 - **Youtube**
   - SuperChats
   - Memberships & Gift Memberships
