@@ -43,12 +43,12 @@ jobs:
             -o "docs/SubathonManager_Design.drawio"
           
       - name: Render drawio to png
-          uses: rlespinasse/drawio-export-action@v2
-          with:
-            path: "docs/SubathonManager_Design.drawio"
-            format: png
-            output: docs
-            all-pages: true
+        uses: rlespinasse/drawio-export-action@v2
+        with:
+          path: "docs/SubathonManager_Design.drawio"
+          format: png
+          output: docs
+          all-pages: true
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
