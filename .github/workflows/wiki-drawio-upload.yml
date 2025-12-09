@@ -42,11 +42,11 @@ jobs:
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "docs/SubathonManager_Design.drawio"
           
-      - name: Render drawio to png
+      - name: Render drawio to svg
         uses: rlespinasse/drawio-export-action@v2
         with:
           path: "docs/SubathonManager_Design.drawio"
-          format: png
+          format: svg
           output: ./
           all-pages: true
           action-mode: all
@@ -60,8 +60,12 @@ jobs:
           
           mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
 
+          echo "===Listing docs files==="
+          ls docs
+          echo "========================"
+          
           git add "docs/SubathonManager Design.drawio"
-          git add "docs/*.png"
+          git add "docs/*.svg"
 
           if git diff --cached --quiet; then
             echo "No changes detected, skipping commit."
