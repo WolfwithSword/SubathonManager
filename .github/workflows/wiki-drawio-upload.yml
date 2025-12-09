@@ -49,6 +49,7 @@ jobs:
           format: png
           output: docs
           all-pages: true
+          action-mode: all
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
