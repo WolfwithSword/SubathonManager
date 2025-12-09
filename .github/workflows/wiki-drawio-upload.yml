@@ -40,12 +40,12 @@ jobs:
         run: |
           mkdir -p docs
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
-            -o "docs/SubathonManager Design.drawio"
+            -o "docs/SubathonManager_Design.drawio"
 
       - name: Convert digramm to png
         uses: Burnett01/actions-drawio@1.2
         with:
-          src: "docs/SubathonManager Design.drawio"
+          src: "docs/SubathonManager_Design.drawio"
           dest: docs/design.png
 
       - name: Commit drawio file
@@ -53,7 +53,8 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
+          
+          mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
           git add "docs/SubathonManager Design.drawio"
           git add "docs/*.png"
 
