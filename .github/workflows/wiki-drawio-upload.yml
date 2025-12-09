@@ -49,6 +49,8 @@ jobs:
           format: svg
           output: ./
           all-pages: true
+          transparent: false
+          svg-theme: dark
           action-mode: all
 
       - name: Commit drawio file
