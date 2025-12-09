@@ -64,7 +64,7 @@ jobs:
           echo "docs files"
           ls docs
           
-          if [ -d "docs/docs" ]; then mv "docs/docs/*" "docs/"; rm -rf "docs/docs" ; fi
+          if [ -d "docs/docs" ]; then cp "docs/docs/*" "docs/"; rm -rf "docs/docs" ; fi
           
           git add "docs/SubathonManager Design.drawio"
           git add "docs/*.png"
