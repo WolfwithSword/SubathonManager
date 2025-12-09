@@ -42,17 +42,16 @@ jobs:
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
             -o "docs/SubathonManager_Design.drawio"
 
-      - name: Install Draw.io CLI
+      - name: Export draw.io pages to PNG
         run: |
-          npm install -g @drawio/cli
-          
-      - name: Render diagrams
-        run: |
-          mkdir -p exported
-          npx drawio-cli \
-            -x "docs/SubathonManager_Design.drawio" \
-            -f png \
-            --output-dir exported
+          mkdir -p rendered
+          docker run --rm \
+            -v "docs:/data" \
+            jgraph/drawio-batch \
+            -x "/data/SubathonManager_Design.drawio" \
+            -o /data \
+            --format png \
+            --pages all
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
@@ -61,7 +60,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
-          mv exported/*.png docs/
           mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
           
           git add "docs/SubathonManager Design.drawio"
