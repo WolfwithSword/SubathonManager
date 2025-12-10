@@ -7,11 +7,20 @@ namespace SubathonManager.Core;
 public static class AppServices
 {
     public static IServiceProvider Provider { get; set; } = default!;
-    
-    public static readonly string AppVersion = Assembly.GetExecutingAssembly()
-        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-        .InformationalVersion ?? "dev";
 
+    public static string AppVersion
+    {
+        get
+        {
+            var ver = Assembly.GetExecutingAssembly()
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+                .InformationalVersion ?? "dev";
+
+            var plusIndex = ver.IndexOf('+');
+            return plusIndex > 0 && ver.StartsWith('v') ? ver[..plusIndex] : ver;
+        }
+    }
+    
     private static readonly UpdatumManager AppUpdater = new("WolfwithSword", "SubathonManager")
     {
         AssetExtensionFilter = "zip",
@@ -44,8 +53,7 @@ public static class AppServices
         try
         {
             bool updateFound = await AppUpdater.CheckForUpdatesAsync();
-            if (AppUpdater.LatestReleaseTagVersionStr == AppVersion.Replace("v","")
-                || AppUpdater.LatestReleaseTagVersionStr == AppVersion) updateFound = false;
+            if (AppUpdater.LatestReleaseTagVersionStr == AppVersion) updateFound = false;
             if (updateFound)
                 logger?.LogInformation($"SubathonManager found an update ({AppUpdater.LatestReleaseTagVersionStr}) from current {AppVersion}." +
                                        $" Changelog: {AppUpdater.GetChangelog()}");
