@@ -44,6 +44,7 @@ public static class AppServices
         try
         {
             bool updateFound = await AppUpdater.CheckForUpdatesAsync();
+            if (AppUpdater.LatestReleaseTagVersionStr == AppVersion) updateFound = false;
             if (updateFound)
                 logger?.LogInformation($"SubathonManager found an update ({AppUpdater.LatestReleaseTagVersionStr})." +
                                        $" Changelog: {AppUpdater.GetChangelog()}");
