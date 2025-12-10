@@ -5,8 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SubathonManager.UI.Views"
              mc:Ignorable="d"
-             Background="{DynamicResource UiBrushPrimary}"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             Background="{DynamicResource UiBrushPrimary}"
              xmlns:views="clr-namespace:SubathonManager.UI.Views.SettingsViews"
              d:DesignHeight="800" d:DesignWidth="1200">
     <Grid>
@@ -44,6 +44,7 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5" HorizontalAlignment="Left">
@@ -63,6 +64,15 @@
                                 <ComboBox Text="Default Currency" Width="100" IsEditable="True" IsTextSearchEnabled="True" 
                                           x:Name="DefaultCurrencyBox" StaysOpenOnEdit="True"
                                           Margin="0 0 4 0">
+                                </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
+                                <TextBlock Text="App Theme:" Width="120"
+                                           Margin="0 0 4 0" VerticalAlignment="Center"/>
+                                <ComboBox Text="Theme" Width="100"  x:Name="ThemeBox"  
+                                          Margin="0 0 4 0">
+                                    <ComboBoxItem Content="Dark"/>
+                                    <ComboBoxItem Content="Light"/>
                                 </ComboBox>
                             </StackPanel>
                         </Grid>
@@ -152,8 +162,10 @@
         <ui:Button x:Name="SaveAllSubathonValuesButton" Content="Save All" 
                    HorizontalAlignment="Right"
                    VerticalAlignment="Bottom"
-                   Appearance="Primary"
+                   Background="{DynamicResource SolidOverlayButtonColor}"
+                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                    Width="120" Height="36" Margin="8,12,16,12" 
+                   Style="{DynamicResource NoHoverOverlayButton}"
                    Click="SaveAllSubathonValuesButton_Click"/>
     </Grid>
 </UserControl>

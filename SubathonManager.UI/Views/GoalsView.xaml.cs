@@ -1,6 +1,5 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
@@ -99,8 +98,10 @@ public partial class GoalsView
         public string PointsText { get; set; } = "";
         public bool Completed { get; set; } = false;
 
-        public Brush TextColor => Completed ? Brushes.Gray : Brushes.White;
-        public Brush PointsColor => Completed ? Brushes.DarkGray : Brushes.LightBlue;
+        public Brush TextColor => Completed ? Brushes.Gray : 
+            "Dark".Equals(Config.Data["App"]["Theme"] ?? "Dark", StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
+        public Brush PointsColor => Completed ? Brushes.DarkGray : 
+            "Dark".Equals(Config.Data["App"]["Theme"] ?? "Dark", StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
         public double OpacityValue => Completed ? 0.6 : 1.0;
         public TextDecorationCollection? PointsDecoration =>
             Completed ? TextDecorations.Strikethrough : null;

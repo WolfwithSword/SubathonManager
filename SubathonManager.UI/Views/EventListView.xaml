@@ -29,7 +29,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border CornerRadius="10" BorderBrush="#333" BorderThickness="1"
-                                Padding="10" Margin="4,6" Background="#1A1A1A">
+                                Padding="10" Margin="4,6" Background="{DynamicResource AppHeaderBackground}">
                             <Grid>
                                 <Grid.Triggers>
                                     <EventTrigger RoutedEvent="MouseEnter">
@@ -63,7 +63,7 @@
                                                    HorizontalAlignment="Left"
                                                    FontSize="16" FontWeight="Bold"/>
                                         <TextBlock Text="{Binding EventTimestamp, StringFormat='{}{0:G}'}" 
-                                                   HorizontalAlignment="Right" Foreground="#CCC"
+                                                   HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
                                                    FontSize="12"/>
                                     </Grid>
                                     <Grid Margin="0,0,0,0">
@@ -71,7 +71,7 @@
                                             <ColumnDefinition Width="200"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding EventType}" FontSize="14" Foreground="#CCC"
+                                        <TextBlock Grid.Column="0" Text="{Binding EventType}" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
                                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1" Text="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedTextConverter}}"
                                                    Foreground="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedColorConverter}}"
@@ -138,7 +138,7 @@
                                     </ui:Button>
                                     <ui:Button x:Name="DeleteBtn" ToolTip="Delete" Click="DeleteBtn_Click" Padding="2" Appearance="Danger" 
                                                Visibility="{Binding Command, Converter={StaticResource CommandDeletableToBoolVisibilityConverter}}"
-                                                Width="32" Height="32" Margin="4,0" Foreground="White">
+                                                Width="32" Height="32" Margin="4,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                                         <ui:SymbolIcon Symbol="Delete24" />
                                     </ui:Button>
                                 </StackPanel>

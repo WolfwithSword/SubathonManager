@@ -9,13 +9,13 @@
 <Expander Header="KoFi" IsExpanded="False">
     <StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
-            <ui:Button Foreground="White"
+            <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                        Content="Setup"
                        Click="OpenKoFiSetup_Click"
                        Width="60" Padding="2"
                        Height="34"
                        Margin="0,0,6,0"></ui:Button>
-            <ui:Button Foreground="White"
+            <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                        Content="Copy StreamerBot Import String"
                        Click="CopyImportString_Click"
                        Width="240" Padding="2"
@@ -54,7 +54,7 @@
                               x:Name="CurrencyBox" StaysOpenOnEdit="True"  Height="34"
                               Margin="4 0 4 0">
                     </ComboBox>
-                    <ui:Button Foreground="White"
+                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Content="Test"
                                Click="TestKoFiTip_Click"
                                Width="60" Padding="2"
@@ -82,7 +82,7 @@
                         </StackPanel>
                         
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <ui:Button Icon="Add24" Foreground="White" Height="36"
+                            <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36"
                                        Content="Add Membership Tier" x:Name="AddBtn"
                                        Click="AddMembership_Click"
                                        Width="160" Margin="4,5,4,5"/>
@@ -91,7 +91,7 @@
                                       SelectedIndex="0" Margin="4 0 4 0">
                                 <ComboBoxItem Content="DEFAULT"/> <!-- Will populate from subathon values -->
                             </ComboBox>
-                            <ui:Button Icon="Add24" Foreground="White"
+                            <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                 Content="Test"
                                 Click="TestKoFiSub_Click"
                                 Width="60" Padding="2"

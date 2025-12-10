@@ -1,7 +1,9 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Reflection;
+using System.Windows.Media;
 using Microsoft.Extensions.DependencyInjection;
+using Wpf.Ui.Appearance;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Server;
@@ -10,6 +12,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.Services;
+using Wpf.Ui.Markup;
 
 namespace SubathonManager.UI;
 
@@ -25,7 +28,7 @@ public partial class App
     public static StreamElementsService? AppStreamElementsService { get; } = new();
     public static StreamLabsService? AppStreamLabsService { get; } = new();
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
-    
+    private ResourceDictionary? _themeDictionary;
     private ILogger? _logger;
     
     private IDbContextFactory<AppDbContext>? _factory;
@@ -45,8 +48,6 @@ public partial class App
     
     protected override void OnStartup(StartupEventArgs e)
     {
-        base.OnStartup(e);
-        
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var services = new ServiceCollection();
@@ -70,6 +71,23 @@ public partial class App
         
         Config.LoadOrCreateDefault();
 
+        string theme = (Config.Data["App"]["Theme"] ?? "Dark").Trim();
+        _themeDictionary = new ResourceDictionary
+        {
+            Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
+        };
+            
+        var oldCustom = Resources.MergedDictionaries
+            .FirstOrDefault(d => d.Source != null && d.Source.OriginalString.StartsWith("Themes/") && !d.Source.OriginalString.Contains("Fluent"));
+        if (oldCustom != null)
+            Resources.MergedDictionaries.Remove(oldCustom);
+        Resources.MergedDictionaries.Add(_themeDictionary);
+        if (Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
+            fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
+                ? ApplicationTheme.Dark
+                : ApplicationTheme.Light;
+        base.OnStartup(e);
+        
         services.AddDbContextFactory<AppDbContext>();
         services.AddSingleton<EventService>();
         
@@ -201,10 +219,46 @@ public partial class App
                 Task.Run(async() => await AppWebServer.StartAsync());
             }
             AppDiscordWebhookService?.LoadFromConfig();
+            SetThemeFromConfig();
         }
         catch (Exception ex)
         {
             _logger?.LogWarning($"Error reloading config: {ex}");
         }
     }
+
+    private void SetThemeFromConfig()
+    {
+        Current.Dispatcher.InvokeAsync(() =>
+        {
+            string theme = Config.Data["App"]["Theme"] ?? "Dark";
+            theme = theme.Trim();
+
+            if (_themeDictionary == null)
+            {
+                _themeDictionary = new ResourceDictionary
+                {
+                    Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
+                };
+                Application.Current.Resources.MergedDictionaries.Add(_themeDictionary);
+            }
+            else
+            {
+                _themeDictionary.Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative);
+            }
+
+            if (Application.Current.Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
+            {
+                fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
+                    ? ApplicationTheme.Dark
+                    : ApplicationTheme.Light;
+            }
+
+            // foreach (Window w in Application.Current.Windows)
+            // {
+            //     w.InvalidateVisual();
+            // }
+        }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
 }

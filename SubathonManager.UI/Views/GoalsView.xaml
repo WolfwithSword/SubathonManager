@@ -7,28 +7,53 @@
              xmlns:local="clr-namespace:SubathonManager.UI.Views"
              mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="600">
+
     <Grid Height="300" MaxHeight="300">
-        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" MaxHeight="300" Height="300" Width="600" Padding="4" HorizontalAlignment="Right"
+        <ScrollViewer x:Name="Scroller" 
+                      VerticalScrollBarVisibility="Auto" 
+                      MaxHeight="300" Height="300" Width="600" 
+                      Padding="4" HorizontalAlignment="Right"
                       Margin="4 8 16 4">
+
             <ItemsControl x:Name="GoalsList">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <ui:Card Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="{Binding Text}" 
-                                           FontWeight="SemiBold" 
-                                           TextWrapping="Wrap" 
+                                <TextBlock Text="{Binding Text}"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
                                            FontSize="16"
                                            TextTrimming="CharacterEllipsis"
-                                           Foreground="{Binding TextColor}"
-                                           Opacity="{Binding OpacityValue}"/>
+                                           Opacity="{Binding OpacityValue}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource TextColorBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Completed}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource CompletedTextColorBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
                                 <TextBlock Text="{Binding PointsText}"
                                            FontSize="14"
                                            TextDecorations="{Binding PointsDecoration}"
-                                           Foreground="{Binding PointsColor}"
-                                           Opacity="{Binding OpacityValue}"
-                                           Margin="0,4,0,0"/>
+                                           Margin="0,4,0,0"
+                                           Opacity="{Binding OpacityValue}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource PointsColorBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Completed}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource CompletedPointsColorBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </ui:Card>
                     </DataTemplate>
