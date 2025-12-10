@@ -82,6 +82,15 @@ namespace SubathonManager.UI.Views
                 Config.Data["Server"]["Port"] = port.ToString();
                 Config.Save();
             }
+            
+            string selectedTheme = (ThemeBox.SelectedItem is ComboBoxItem item) 
+                ? item.Content?.ToString() ?? "" 
+                : "";
+            if (!string.IsNullOrEmpty(selectedTheme))
+            {
+                Config.Data["App"]["Theme"] = selectedTheme;
+                Config.Save();
+            }
         }
 
         public void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
@@ -244,6 +253,15 @@ namespace SubathonManager.UI.Views
                 }
                 if (box != null && box2 != null)
                     UpdateTimePointsBoxes(box, box2, v, p);
+            }
+            var theme = Config.Data["App"]["Theme"] ?? "Dark";
+            foreach (ComboBoxItem item in ThemeBox.Items)
+            {
+                if (theme.Equals((string)item.Content, StringComparison.OrdinalIgnoreCase))
+                {
+                    ThemeBox.SelectedItem = item;
+                    break;
+                }
             }
             KoFiSettingsControl.LoadValues(db);
         }

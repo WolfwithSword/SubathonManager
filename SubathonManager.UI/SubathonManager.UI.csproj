@@ -13,6 +13,9 @@
         <AssemblyName>SubathonManager</AssemblyName>
         <ApplicationIcon>..\assets\icon.ico</ApplicationIcon>
         <ForceManagedImplementation>true</ForceManagedImplementation>
+        <NoWarn>$(NoWarn);WPF0001</NoWarn>
+        <NoWarn>$(NoWarn);NU1701</NoWarn>
+        <NoWarn>$(NoWarn);CS8981</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -83,6 +86,16 @@
         <XamlRuntime>Wpf</XamlRuntime>
         <SubType>Designer</SubType>
       </Page>
+        <Page Update="Themes\DARK.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Themes\LIGHT.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <XamlRuntime>Wpf</XamlRuntime>
+            <SubType>Designer</SubType>
+        </Page>
     </ItemGroup>
 
 </Project>

@@ -27,7 +27,7 @@ jobs:
       - name: Stop if no wiki exists
         if: steps.wiki-check.outputs.exists == 'false'
         run: echo "Wiki does not exist — skipping update."
-
+          
       - name: Checkout Wiki Repository
         if: steps.wiki-check.outputs.exists == 'true'
         uses: actions/checkout@v5
@@ -40,15 +40,34 @@ jobs:
         run: |
           mkdir -p docs
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
-            -o "docs/SubathonManager Design.drawio"
+            -o "docs/SubathonManager_Design.drawio"
+          
+      - name: Render drawio to svg
+        uses: rlespinasse/drawio-export-action@v2
+        with:
+          path: "docs/SubathonManager_Design.drawio"
+          format: svg
+          output: ./
+          all-pages: true
+          transparent: false
+          svg-theme: dark
+          action-mode: all
 
       - name: Commit drawio file
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
+          
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          
+          mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
 
+          echo "===Listing docs files==="
+          ls docs
+          echo "========================"
+          
           git add "docs/SubathonManager Design.drawio"
+          git add "docs/*.svg"
 
           if git diff --cached --quiet; then
             echo "No changes detected, skipping commit."

@@ -6,20 +6,15 @@
                  xmlns:local="clr-namespace:SubathonManager.UI"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  mc:Ignorable="d"
-                 Background="{DynamicResource UiBrushPrimary}"
+                 Background="{DynamicResource AppGeneralBackground}"
                  ResizeMode="NoResize"
                  WindowStartupLocation="CenterOwner" MinHeight="500" MinWidth="940"
                  Title="EditRouteWindow" Height="900" Width="1740">
     <ui:FluentWindow.Resources>
-        <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#363636"/>
-        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundBorder" Color="#2f2f2f"/>
-        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#424242"/>
-        <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#484848"/>
-    
         <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Appearance" Value="Secondary"/>
-            <Setter Property="Background" Value="{StaticResource OpaqueSecondaryBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundBorder}"/>
             <Setter Property="Opacity" Value="1"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -33,12 +28,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource OpaqueSecondaryBackgroundHover}"/>
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="{StaticResource OpaqueSecondaryBackgroundPressed}"/>
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource OpaqueSecondaryBackgroundPressed}"/>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundPressed}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundPressed}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -46,7 +41,8 @@
             </Setter>
         </Style>
     </ui:FluentWindow.Resources>
-    <Grid>
+    <Grid
+        Background="{DynamicResource AppGeneralBackground}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="370"/>
             <ColumnDefinition Width="*"/>
@@ -56,7 +52,8 @@
         
         <ui:TitleBar Title="Overlay Editor" Grid.ColumnSpan="3"
                      ShowMinimize="True"
-                     Background="#101010"
+                     Background="{DynamicResource AppTitleBackground}"
+                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                      VerticalContentAlignment="Top"
                      ShowMaximize="True"
                      ShowClose="True"

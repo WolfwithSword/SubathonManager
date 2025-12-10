@@ -17,7 +17,7 @@
                     <TextBox x:Name="EventWebhookUrlBx" Width="200"/>
                 </StackPanel>
                 <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="24 4 4 4"/>
-                <ui:Button Icon="Add24" Foreground="White"
+                <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                            Content="Test"
                            Click="TestWebhook_Click"
                            Width="60" Padding="2"

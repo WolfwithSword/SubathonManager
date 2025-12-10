@@ -88,7 +88,6 @@ namespace SubathonManager.UI.Views
                     Height = 35,
                     HorizontalAlignment = HorizontalAlignment.Right,
                     ToolTip = "Remove",
-                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 40, 40)),
                     Foreground = System.Windows.Media.Brushes.Red,
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Margin = new Thickness(4, 0, 0, 0)

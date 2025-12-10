@@ -50,7 +50,7 @@
                                 Height="30"
                                 FontSize="12"
                                 validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateCheerAmt"/>
-                    <ui:Button Icon="Add24" Foreground="White"
+                    <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Content="Test"
                                Click="TestTwitchCheer_Click"
                                Width="60" Padding="2"
@@ -84,7 +84,7 @@
                                 Height="30"
                                 FontSize="12"
                                 validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateRaidAmt"/>
-                    <ui:Button Icon="Add24" Foreground="White"
+                    <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Content="Test"
                                Click="TestTwitchRaid_Click"
                                Width="60" Padding="2"
@@ -110,7 +110,7 @@
                 </StackPanel>
                                                         
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <ui:Button Icon="Add24" Foreground="White"
+                    <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Content="Test"
                                Click="TestTwitchFollow_Click"
                                Width="60" Padding="2"
@@ -147,7 +147,7 @@
                               x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
                               Margin="4 0 4 0">
                     </ComboBox>
-                    <ui:Button Icon="Add24" Foreground="White"
+                    <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Content="Test"
                                Click="TestTwitchCharityDonation_Click"
                                Width="60" Padding="2"  Height="34"
@@ -181,7 +181,7 @@
                                 <ComboBoxItem Content="Tier 2"/>
                                 <ComboBoxItem Content="Tier 3"/>
                             </ComboBox>
-                            <ui:Button Icon="Add24" Foreground="White"
+                            <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        Content="Test"
                                        Click="TestTwitchSub_Click"
                                        Width="60" Padding="2"
@@ -237,7 +237,7 @@
                                 <ComboBoxItem Content="Tier 2"/>
                                 <ComboBoxItem Content="Tier 3"/>
                             </ComboBox>
-                            <ui:Button Icon="Add24" Foreground="White"
+                            <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        Content="Test"
                                        Click="TestTwitchGiftSub_Click"
                                        Width="60" Padding="2"
@@ -304,7 +304,7 @@
                                 <ComboBoxItem Content="Progress"/>
                                 <ComboBoxItem Content="End"/>
                             </ComboBox>
-                            <ui:Button Icon="Add24" Foreground="White"
+                            <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                        Content="Test"
                                        Click="TestTwitchHypeTrain_Click"
                                        Width="60" Padding="2"
