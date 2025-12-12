@@ -1,8 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Models;
 
+[ExcludeFromCodeCoverage]
 public class SubathonData
 {
     [Key, Column(Order = 0)] public Guid Id { get; set; } = Guid.NewGuid();
