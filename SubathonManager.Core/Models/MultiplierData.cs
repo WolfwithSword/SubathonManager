@@ -1,11 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Models;
 
 public class MultiplierData
 {
-    
+    [ExcludeFromCodeCoverage]
     [Key, Column(Order = 0)] public Guid Id { get; set; } = Guid.NewGuid();
     
     public double Multiplier { get; set; } = 1;
