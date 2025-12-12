@@ -58,7 +58,7 @@ jobs:
         run: dotnet restore SubathonManager.sln
         
       - name: Run unit tests
-        run: dotnet test SubathonManager.sln --logger "console;verbosity=detailed" --no-build
+        run: dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj --logger "console;verbosity=detailed"
 
       - name: Determine version and filename
         id: vars
