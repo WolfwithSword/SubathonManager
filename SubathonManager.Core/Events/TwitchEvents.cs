@@ -1,5 +1,7 @@
-﻿namespace SubathonManager.Core.Events;
+﻿using System.Diagnostics.CodeAnalysis;
+namespace SubathonManager.Core.Events;
 
+[ExcludeFromCodeCoverage]
 public static class TwitchEvents
 {
     public static event Action? TwitchConnected;

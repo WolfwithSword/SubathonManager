@@ -1,7 +1,6 @@
 ﻿using System.Windows.Controls;
 using System.Windows;
 using SubathonManager.Core.Enums;
-using SubathonManager.Core;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
@@ -26,10 +25,10 @@ public partial class CommandsSettings : UserControl
             if (commandType == SubathonCommandType.None || commandType == SubathonCommandType.Unknown) continue;
             // 200 | 30 blank | 200 | 120 | 120 | remain
             // enum / blank / name / mods / vips / whitelist 
-            bool.TryParse(Config.Data["Twitch"][$"Commands.{commandType}.permissions.Mods"] ?? "false", out var checkMods);
-            bool.TryParse(Config.Data["Twitch"][$"Commands.{commandType}.permissions.VIPs"] ?? "false", out var checkVips);
-            string name = Config.Data["Twitch"][$"Commands.{commandType}.name"] ?? commandType.ToString().ToLower();
-            string whitelist = (Config.Data["Twitch"][$"Commands.{commandType}.permissions.Whitelist"] ?? "");
+            bool.TryParse(App.AppConfig!.Get("Twitch", $"Commands.{commandType}.permissions.Mods", "false")!, out var checkMods);
+            bool.TryParse(App.AppConfig!.Get("Twitch",$"Commands.{commandType}.permissions.VIPs", "false")!, out var checkVips);
+            string name = App.AppConfig!.Get("Twitch",$"Commands.{commandType}.name", commandType.ToString().ToLower())!;
+            string whitelist = App.AppConfig!.Get("Twitch", $"Commands.{commandType}.permissions.Whitelist", string.Empty)!;
 
             StackPanel entryPanel = new StackPanel
             {
@@ -101,30 +100,30 @@ public partial class CommandsSettings : UserControl
                     string key = $"Commands.{enumType.Text}";
                         
                     if (entry.Children[1] is TextBox enumName &&
-                        Config.Data["Twitch"][$"{key}.name"] != enumName.Text.Trim())
+                        App.AppConfig!.Get("Twitch", $"{key}.name") != enumName.Text.Trim())
                     {
-                        Config.Data["Twitch"][$"{key}.name"] = enumName.Text.Trim();
+                        App.AppConfig!.Set("Twitch", $"{key}.name", enumName.Text.Trim());
                     }
                     
                     if (entry.Children[2] is CheckBox doMods &&
-                        Config.Data["Twitch"][$"{key}.permissions.Mods"] != $"{doMods.IsChecked}")
+                        App.AppConfig!.Get("Twitch", $"{key}.permissions.Mods") != $"{doMods.IsChecked}")
                     {
-                        Config.Data["Twitch"][$"{key}.permissions.Mods"] = $"{doMods.IsChecked}";
+                        App.AppConfig!.Set("Twitch", $"{key}.permissions.Mods",  $"{doMods.IsChecked}");
                     }
 
                     if (entry.Children[3] is CheckBox doVips &&
-                        Config.Data["Twitch"][$"{key}.permissions.VIPs"] != $"{doVips.IsChecked}")
+                        App.AppConfig!.Get("Twitch", $"{key}.permissions.VIPs") != $"{doVips.IsChecked}")
                     {
-                        Config.Data["Twitch"][$"{key}.permissions.VIPs"] = $"{doVips.IsChecked}";
+                        App.AppConfig!.Set("Twitch", $"{key}.permissions.VIPs", $"{doVips.IsChecked}");
                     }
 
                     if (entry.Children[4] is TextBox whitelist &&
-                        Config.Data["Twitch"][$"{key}.permissions.Whitelist"] != whitelist.Text.Trim())
+                        App.AppConfig!.Get("Twitch", $"{key}.permissions.Whitelist") != whitelist.Text.Trim())
                     {
-                        Config.Data["Twitch"][$"{key}.permissions.Whitelist"] = whitelist.Text.Trim();
+                        App.AppConfig!.Set("Twitch", $"{key}.permissions.Whitelist", whitelist.Text.Trim());
                     }
                 }
         }
-        Config.Save();
+        App.AppConfig!.Save();
     }
 }

@@ -143,7 +143,6 @@ public class Utils
                 else if (amountString.StartsWith("₸")) currency = "KZT";
                 else if (amountString.StartsWith("₭")) currency = "LAK";
                 else if (amountString.StartsWith("₾")) currency = "GEL";
-                else if (amountString.StartsWith("₸")) currency = "KZT";
                 else if (amountString.StartsWith("₮")) currency = "MNT";
                 else if (amountString.StartsWith("₹")) currency = "INR";
                 else if (amountString.StartsWith("₣")) currency = "CHF";

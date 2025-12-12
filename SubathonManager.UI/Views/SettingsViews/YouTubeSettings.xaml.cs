@@ -19,7 +19,7 @@ public partial class YouTubeSettings : UserControl
     {
         Host = host;
         YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
-        YTUserHandle.Text = Config.Data["YouTube"]["Handle"] ?? "";
+        YTUserHandle.Text = App.AppConfig!.Get("YouTube", "Handle", string.Empty)!;
     }
     
     private void UpdateYoutubeStatus(bool status,  string name)
@@ -50,8 +50,8 @@ public partial class YouTubeSettings : UserControl
         string user = YTUserHandle.Text.Trim();
         if (!user.StartsWith("@") && !string.IsNullOrEmpty(user))
             user = "@" + user;
-        Config.Data["YouTube"]["Handle"] = user;
-        Config.Save();
+        App.AppConfig!.Set("YouTube", "Handle", user);
+        App.AppConfig!.Save();
 
         App.AppYouTubeService!.Start(user);
     }

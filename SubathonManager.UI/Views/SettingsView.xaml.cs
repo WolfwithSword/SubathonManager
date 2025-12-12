@@ -15,6 +15,7 @@ public partial class SettingsView
     private DateTime? _lastUpdatedTimerAt;
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SettingsView>>();
+    
 
     public SettingsView()
     {
@@ -30,7 +31,7 @@ public partial class SettingsView
         ExternalSettingsControl.Init(this);
         CommandsSettingsControl.Init(this);
         
-        ServerPortTextBox.Text = Config.Data["Server"]["Port"];
+        ServerPortTextBox.Text = App.AppConfig!.Get("Server", "Port", string.Empty)!;
         LoadValues();
         InitCurrencySelects();
         

@@ -26,7 +26,7 @@ public partial class StreamLabsSettings : UserControl
     {
         Host = host;
         StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
-        SLTokenBox.Text = Config.Data["StreamLabs"]["SocketToken"];
+        SLTokenBox.Text = App.AppConfig!.Get("StreamLabs", "SocketToken", string.Empty)!;
 
         if (App.AppStreamLabsService != null)
             Host!.UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);

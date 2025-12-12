@@ -1,8 +1,10 @@
 ﻿using System.Text;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core
 {
+    [ExcludeFromCodeCoverage]
     public class RotatingFileLoggerProvider : ILoggerProvider
     {
         private readonly string _logDir;
@@ -101,6 +103,7 @@ namespace SubathonManager.Core
         }
     }
 
+    [ExcludeFromCodeCoverage]
     internal class RotatingFileLogger : ILogger
     {
         private readonly string _category;

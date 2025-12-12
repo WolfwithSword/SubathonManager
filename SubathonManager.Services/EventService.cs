@@ -17,12 +17,18 @@ public class EventService: IDisposable
     private readonly SemaphoreSlim _signal = new(0);
     private readonly Lock _lock = new();
     private Task? _processingTask;
-    private readonly CurrencyService _currencyService = new();
-    private readonly ILogger<EventService> _logger = AppServices.Provider.GetRequiredService<ILogger<EventService>>();
+    private readonly CurrencyService _currencyService;
+    private readonly ILogger<EventService>? _logger;
+    private readonly IConfig _config;
 
-    public EventService(IDbContextFactory<AppDbContext> factory)
+    public EventService(IDbContextFactory<AppDbContext> factory, ILogger<EventService>? logger, IConfig config,
+        CurrencyService currencyService)
     {
         _factory = factory;
+        _logger = logger;
+        _config = config;
+        _currencyService = currencyService;
+        
         Core.Events.SubathonEvents.SubathonEventCreated += AddSubathonEvent;
         _processingTask = Task.Run(LoopAsync);
         _processingTask.ContinueWith(t => 
@@ -76,7 +82,7 @@ public class EventService: IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger.LogError($"Error in Event Loop: {ex.Message}", ex);
+            _logger?.LogError($"Error in Event Loop: {ex.Message}", ex);
         }
     }
     
@@ -217,20 +223,20 @@ public class EventService: IDisposable
         
         if (ev.EventType == SubathonEventType.TwitchHypeTrain)
         {
-            if (bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Enabled"] ??
-                              "false", out var doHypeTrainMult) && doHypeTrainMult && 
+            if (bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
+                    out var doHypeTrainMult) && doHypeTrainMult && 
                 (!subathon.Multiplier.IsRunning() || subathon.Multiplier.FromHypeTrain))
             {
                 if (ev.Value == "start" || ev.Value == "progress")
                 {
                     TimeSpan? duration = null;
                     if (!(subathon.Multiplier.IsRunning()
-                          || !double.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Multiplier"] ?? "1",
+                          || !double.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
                               out var parsedAmt)
                           || parsedAmt.Equals(1)
-                          || !bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Points"] ?? "false",
+                          || !bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
                               out var applyPts)
-                          || !bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Time"] ?? "false",
+                          || !bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
                               out var applyTime)))
                     {
                         if (applyTime || applyPts)
@@ -408,7 +414,7 @@ public class EventService: IDisposable
             string msg = "Cannot delete SetTime or SetPoints events. Retaining event...";
             ErrorMessageEvents.RaiseErrorEvent("WARN", $"Delete {ev.Command} Event", 
                 msg, DateTime.Now);
-            _logger.LogWarning(msg);
+            _logger?.LogWarning(msg);
             return;
         }
         

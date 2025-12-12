@@ -1,5 +1,7 @@
-﻿namespace SubathonManager.Core.Events;
+﻿using System.Diagnostics.CodeAnalysis;
+namespace SubathonManager.Core.Events;
 
+[ExcludeFromCodeCoverage]
 public static class ErrorMessageEvents
 {
     public static event Action<string, string, string, DateTime>? ErrorEventOccured;

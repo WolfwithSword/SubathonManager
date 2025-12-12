@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Text;
 using SubathonManager.Core.Models;
@@ -23,12 +24,13 @@ namespace SubathonManager.Data
         
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
+        private readonly IConfig _config = AppServices.Provider.GetRequiredService<IConfig>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
             {
-                var dbPath = Config.GetDatabasePath();
+                var dbPath = _config.GetDatabasePath();
                 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
                 optionsBuilder.UseSqlite($"Data Source={dbPath}");
             }

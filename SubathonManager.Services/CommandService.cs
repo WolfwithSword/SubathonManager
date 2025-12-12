@@ -1,4 +1,5 @@
-﻿using SubathonManager.Core.Enums;
+﻿using Microsoft.Extensions.DependencyInjection;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
@@ -7,6 +8,8 @@ namespace SubathonManager.Services;
 
 public static class CommandService
 {
+    private static readonly IConfig AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
+    
     public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
         bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp,
         SubathonCommandType cmdOverride = SubathonCommandType.None)
@@ -46,13 +49,13 @@ public static class CommandService
 
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
         if (isModerator && bool.TryParse(
-                Config.Data["Twitch"][$"{configKey}.Mods"], out var modPerms) && modPerms)
+                AppConfig.Get("Twitch", $"{configKey}.Mods"), out var modPerms) && modPerms)
             return true;
         if (isVip && bool.TryParse(
-                Config.Data["Twitch"][$"{configKey}.VIPs"], out var vipPerms) && vipPerms)
+                AppConfig.Get("Twitch", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
             return true;
         
-        string[] whitelist = Config.Data["Twitch"][$"{configKey}.Whitelist"].ToLower().Split(',');
+        string[] whitelist = AppConfig.Get("Twitch", $"{configKey}.Whitelist")!.ToLower().Split(',');
 
         if (whitelist.Contains(user.ToLower().Trim())) return true;
         
@@ -65,7 +68,7 @@ public static class CommandService
         string[] parts = message.Split(' ');
         string cmdName = parts[0].Substring(1, parts[0].Length -1 ).Trim();
 
-        foreach (var keyData in Config.Data["Twitch"])
+        foreach (var keyData in AppConfig.GetSection("Twitch"))
         {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
             if (keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase))

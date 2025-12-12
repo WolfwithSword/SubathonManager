@@ -1,11 +1,13 @@
-﻿using System.Text.RegularExpressions;
-using System.Text;
+﻿using SubathonManager.Core.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using SubathonManager.Core.Enums;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace SubathonManager.Core.Models;
 
+[ExcludeFromCodeCoverage]
 public class CssVariable
 {
     [Key]
@@ -29,6 +31,7 @@ public class CssVariable
     }
 }
 
+[ExcludeFromCodeCoverage]
 public class JsVariable
 {
     [Key]
@@ -83,6 +86,7 @@ public class JsVariable
     }
 }
 
+[ExcludeFromCodeCoverage]
 public class Widget
 {
     [Key]

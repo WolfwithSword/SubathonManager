@@ -1,4 +1,5 @@
-﻿namespace SubathonManager.Core.Enums;
+﻿using System.Diagnostics.CodeAnalysis;
+namespace SubathonManager.Core.Enums;
 
 public enum SubathonCommandType
 {
@@ -19,6 +20,7 @@ public enum SubathonCommandType
     RefreshOverlays
 }
 
+[ExcludeFromCodeCoverage]
 public static class SubathonCommandTypeHelper
 {
     private static readonly SubathonCommandType[] ParamRequiredCommands = new[]

@@ -1,9 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SubathonManager.Core.Enums;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using SubathonManager.Core.Enums;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Models;
 
+[ExcludeFromCodeCoverage]
 public class SubathonValue
 {
     [Key, Column(Order = 0)] public SubathonEventType EventType { get; set; }

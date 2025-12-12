@@ -13,6 +13,9 @@ namespace SubathonManager.Integration;
 public class StreamElementsService
 {
 
+    public Func<StreamElementsClient> ClientFactory { get; set; } 
+        = () => new StreamElementsClient();
+    
     private StreamElementsClient? _client;
     public bool Connected { get; private set; } = false;
     private string _jwtToken = "";
@@ -20,14 +23,22 @@ public class StreamElementsService
     private readonly object _reconnectLock = new();
     private bool _isReconnecting = false;
     
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamElementsService>>();
+    private readonly ILogger? _logger;
+    private readonly IConfig _config;
+
+    public StreamElementsService(ILogger<StreamElementsService>? logger, IConfig config)
+    {
+        _logger = logger;
+        _config = config;
+    }
     
     public bool InitClient()
     {
+        _client = ClientFactory();
         _hasAuthError = false;
         Connected = false;
         GetJwtFromConfig();
-        if (_jwtToken.Equals(String.Empty)) return false;
+        if (_jwtToken.Equals(string.Empty)) return false;
         
         if (_client != null)
         {
@@ -54,13 +65,13 @@ public class StreamElementsService
     public void SetJwtToken(string token)
     {
         _jwtToken = token;
-        Config.Data["StreamElements"]["JWT"] = token;
-        Config.Save();
+        _config.Set("StreamElements", "JWT", token);
+        _config.Save();
     }
 
     private void GetJwtFromConfig()
     {
-        _jwtToken = Config.Data["StreamElements"]["JWT"] ?? "";
+        _jwtToken = _config.Get("StreamElements", "JWT", "")!;
     }
 
     private void _OnConnected(object? sender, EventArgs e)

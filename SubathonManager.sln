@@ -1,5 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11304.174 d18.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.UI", "SubathonManager.UI\SubathonManager.UI.csproj", "{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Server", "SubathonManager.Server\SubathonManager.Server.csproj", "{6B4F72B2-4DB9-4BE4-9BEF-31AD453C1F20}"
@@ -11,6 +14,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Integration", "SubathonManager.Integration\SubathonManager.Integration.csproj", "{9ABC3C19-E9C5-4D37-BAC2-0F0B202D4ECC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Services", "SubathonManager.Services\SubathonManager.Services.csproj", "{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Tests", "SubathonManager.Tests\SubathonManager.Tests.csproj", "{B2B12A03-3D8A-42AF-BA7B-26F30235B635}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,5 +47,15 @@ Global
 		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{736A0E78-9758-4E3B-AEE2-85BE7BC114A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2B12A03-3D8A-42AF-BA7B-26F30235B635}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2B12A03-3D8A-42AF-BA7B-26F30235B635}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2B12A03-3D8A-42AF-BA7B-26F30235B635}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2B12A03-3D8A-42AF-BA7B-26F30235B635}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B239A960-D763-4469-BCA8-73002A57A8A5}
 	EndGlobalSection
 EndGlobal

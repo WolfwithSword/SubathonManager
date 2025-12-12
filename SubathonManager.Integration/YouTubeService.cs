@@ -20,18 +20,22 @@ public class YouTubeService : IDisposable
     private bool _disposed = false;
     private string? _ytHandle;
     public bool Running;
-    private readonly ILogger<YTLiveChat.Services.YTLiveChat> _chatLogger = AppServices.Provider.GetRequiredService<ILogger<YTLiveChat.Services.YTLiveChat>>();
+
+    // private readonly ILogger<YTLiveChat.Services.YTLiveChat> _chatLogger;
     //NullLogger<YTLiveChat.Services.YTLiveChat>.Instance;
-    private readonly ILogger<YTHttpClient> _httpClientLogger = AppServices.Provider.GetRequiredService<ILogger<YTHttpClient>>();
+    // private readonly ILogger<YTHttpClient> _httpClientLogger;
     //NullLogger<YTHttpClient>.Instance;
     
     private CancellationTokenSource? _reconnectCts;
     private Task? _reconnectTask;
     private int _reconnectDelay = 5000;
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<YouTubeService>>();
+    private readonly ILogger? _logger;
+    private readonly IConfig _config;
     
-    public YouTubeService()
+    public YouTubeService(ILogger<YouTubeService>? logger, IConfig config, ILogger<YTHttpClient>? httpClientLogger, ILogger<YTLiveChat.Services.YTLiveChat>? chatLogger)
     {
+        _logger = logger;
+        _config = config;
         var options = new YTLiveChatOptions
         {
             RequestFrequency = _pollTime,
@@ -43,8 +47,8 @@ public class YouTubeService : IDisposable
                 BaseAddress = new Uri(options.YoutubeBaseUrl)
             };
         
-        var ytHttpClient = new YTHttpClient(_httpClient, _httpClientLogger);
-        _ytLiveChat = new YTLiveChat.Services.YTLiveChat(options, ytHttpClient, _chatLogger);
+        var ytHttpClient = new YTHttpClient(_httpClient, httpClientLogger);
+        _ytLiveChat = new YTLiveChat.Services.YTLiveChat(options, ytHttpClient, chatLogger);
         
         _ytLiveChat.InitialPageLoaded += OnInitialPageLoaded;
         _ytLiveChat.ChatReceived += OnChatReceived;
@@ -56,8 +60,8 @@ public class YouTubeService : IDisposable
     {
         Running = false;
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, "None");
-        
-        _ytHandle = handle ?? Config.Data["YouTube"]["Handle"] ?? "";
+
+        _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
         if (string.IsNullOrEmpty(_ytHandle) || _ytHandle.Trim() == "@")
             return Running;
         if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
@@ -99,10 +103,13 @@ public class YouTubeService : IDisposable
         ChatItem item = e.ChatItem;
 
         if (item.Timestamp.DateTime.ToLocalTime() <
-            DateTime.Now - TimeSpan.FromMinutes(3)) // only if it's not older than 3 min,
-                                                    // to avoid reparsing old events that had new id's
+            DateTime.Now - TimeSpan.FromMinutes(3))
+        {
+            // only if it's not older than 3 min,
+            // to avoid reparsing old events that had new id's
             return;
-        
+        }
+
         string user = item.Author.Name.Replace("@", "");
         if (item.Superchat != null)
         {
