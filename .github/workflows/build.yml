@@ -51,7 +51,6 @@ jobs:
         
       - name: Run tests
         run: dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
-            --configuration Release \
             --verbosity minimal \
             --logger "console;verbosity=minimal" \
             --collect:"XPlat Code Coverage" \
@@ -74,7 +73,8 @@ jobs:
     env:
       RUNTIME: win-x64
     name: Build Windows App
-    runs-on: windows-latest
+    runs-on: windows-latest  
+    needs: ${{ github.event_name == 'pull_request' && 'test' || '' }}
     outputs:
       artifact_failed: ${{ steps.artifact-upload.outcome != 'success' }}
       version: ${{ steps.vars.outputs.version }}
