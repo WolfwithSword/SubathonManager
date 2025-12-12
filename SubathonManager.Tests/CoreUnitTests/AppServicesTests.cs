@@ -1,11 +1,5 @@
-﻿using Castle.Core.Logging;
-using Microsoft.Extensions.Logging;
-using Moq;
-using SubathonManager.Core;
-using System;
+﻿using Moq;
 using System.Reflection;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace SubathonManager.Tests.CoreUnitTests
 {

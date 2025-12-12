@@ -1,8 +1,10 @@
 ﻿using IniParser;
 using IniParser.Model;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core
 {
+    [ExcludeFromCodeCoverage]
     public static class Config
     {        
         private static readonly string ConfigPath = Path.GetFullPath(Path.Combine(string.Empty

@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Models;
 
+[ExcludeFromCodeCoverage]
 public class MultiplierData
 {
-    [ExcludeFromCodeCoverage]
     [Key, Column(Order = 0)] public Guid Id { get; set; } = Guid.NewGuid();
     
     public double Multiplier { get; set; } = 1;

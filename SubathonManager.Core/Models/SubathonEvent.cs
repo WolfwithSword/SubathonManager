@@ -55,6 +55,7 @@ public class SubathonEvent
     }
 }
 
+[ExcludeFromCodeCoverage]
 public class CurrencyValidationAttribute : ValidationAttribute
 {
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)

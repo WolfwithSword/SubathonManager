@@ -31,6 +31,7 @@ public class CssVariable
     }
 }
 
+[ExcludeFromCodeCoverage]
 public class JsVariable
 {
     [Key]
@@ -85,6 +86,7 @@ public class JsVariable
     }
 }
 
+[ExcludeFromCodeCoverage]
 public class Widget
 {
     [Key]

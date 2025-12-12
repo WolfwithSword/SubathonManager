@@ -56,6 +56,9 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore SubathonManager.sln
+        
+      - name: Run unit tests
+        run: dotnet test SubathonManager.sln --logger "console;verbosity=detailed" --no-build
 
       - name: Determine version and filename
         id: vars

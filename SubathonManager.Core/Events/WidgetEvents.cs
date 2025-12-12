@@ -1,7 +1,8 @@
 ﻿using SubathonManager.Core.Models;
-
+using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Core.Events;
 
+[ExcludeFromCodeCoverage]
 public static class WidgetEvents
 {
     public static event Action<Widget>? WidgetPositionUpdated;
