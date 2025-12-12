@@ -74,7 +74,7 @@ jobs:
       RUNTIME: win-x64
     name: Build Windows App
     runs-on: windows-latest  
-    needs: ${{ github.event_name == 'pull_request' && 'test' || '' }}
+    needs: test
     outputs:
       artifact_failed: ${{ steps.artifact-upload.outcome != 'success' }}
       version: ${{ steps.vars.outputs.version }}
