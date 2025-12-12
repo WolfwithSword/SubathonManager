@@ -52,9 +52,10 @@ jobs:
       - name: Run tests
         run: dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
           --configuration Release \
-          --verbosity minimal --logger "console;verbosity=minimal"
+          --verbosity minimal --logger "console;verbosity=minimal" \
           --collect:"XPlat Code Coverage" \
-          --results-directory ./coverage
+          --results-directory ./coverage \
+          -p:EnableWindowsTargeting=true
                
       - name: Code Coverage Summary Report
         uses: irongut/CodeCoverageSummary@v1.3.0

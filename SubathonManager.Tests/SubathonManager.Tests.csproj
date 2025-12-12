@@ -26,7 +26,6 @@
     <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
     <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
     <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
-    <ProjectReference Include="..\SubathonManager.UI\SubathonManager.UI.csproj" />
   </ItemGroup>
 
 </Project>
