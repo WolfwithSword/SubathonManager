@@ -20,19 +20,22 @@ public class CurrencyService
         , "data/currency"));
 
     private string _currencyFile;
-    
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<CurrencyService>>();
 
-    public CurrencyService()
+    private readonly ILogger? _logger;
+    private readonly IConfig _config;
+
+    public CurrencyService(ILogger<CurrencyService>? logger, IConfig config)
     {
-        DefaultCurrency = Config.Data["Currency"]["Primary"] ?? "USD";
+        _logger = logger;
+        _config = config;
+        DefaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
         Directory.CreateDirectory(_dataDirectory);
         _currencyFile = Path.Combine(_dataDirectory, $"{DefaultCurrency.ToLowerInvariant().Trim()}.json");
     }
 
     public async Task StartAsync()
     {
-        DefaultCurrency = Config.Data["Currency"]["Primary"]?.ToUpperInvariant().Trim() ?? "USD";
+        DefaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
         _currencyFile = Path.Combine(_dataDirectory, $"{DefaultCurrency.ToLowerInvariant().Trim()}.json");
         if (File.Exists(_currencyFile))
         {

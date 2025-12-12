@@ -14,7 +14,7 @@ namespace SubathonManager.UI.Views
         {
             var currencies = App.AppEventService!.ValidEventCurrencies().OrderBy(x => x).ToList();
             DefaultCurrencyBox.ItemsSource = currencies;
-            DefaultCurrencyBox.SelectedItem = Config.Data["Currency"]["Primary"]?.Trim().ToUpperInvariant() ?? "USD";
+            DefaultCurrencyBox.SelectedItem = App.AppConfig!.Get("Currency", "Primary")?.Trim().ToUpperInvariant() ?? "USD";
             
             StreamElementsSettingsControl.CurrencyBox.ItemsSource = currencies;
             StreamElementsSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
@@ -47,7 +47,7 @@ namespace SubathonManager.UI.Views
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = $"http://localhost:{Config.Data["Server"]["Port"]}/api/data/amounts",
+                FileName = $"http://localhost:{App.AppConfig!.Get("Server", "Port", "14040")}/api/data/amounts",
                 UseShellExecute = true
             });
         }
@@ -73,14 +73,14 @@ namespace SubathonManager.UI.Views
             string selectedCurrency = DefaultCurrencyBox.Text;
             if (selectedCurrency.Length >= 3)
             {
-                Config.Data["Currency"]["Primary"] = selectedCurrency;
-                Config.Save();
+                App.AppConfig!.Set("Currency", "Primary", selectedCurrency);
+                App.AppConfig!.Save();
                 App.AppEventService!.ReInitCurrencyService();
             }
             if (int.TryParse(ServerPortTextBox.Text, out var port))
             {
-                Config.Data["Server"]["Port"] = port.ToString();
-                Config.Save();
+                App.AppConfig!.Set("Server", "Port", port.ToString());
+                App.AppConfig!.Save();
             }
             
             string selectedTheme = (ThemeBox.SelectedItem is ComboBoxItem item) 
@@ -88,8 +88,8 @@ namespace SubathonManager.UI.Views
                 : "";
             if (!string.IsNullOrEmpty(selectedTheme))
             {
-                Config.Data["App"]["Theme"] = selectedTheme;
-                Config.Save();
+                App.AppConfig!.Set("App", "Theme", selectedTheme);
+                App.AppConfig!.Save();
             }
         }
 
@@ -134,7 +134,7 @@ namespace SubathonManager.UI.Views
             CommandsSettingsControl.UpdateValueSettings();
             WebhookLogSettingsControl.UpdateValueSettings();
             
-            Config.Save();
+            App.AppConfig!.Save();
             
             Task.Run(async () =>
             {
@@ -254,7 +254,7 @@ namespace SubathonManager.UI.Views
                 if (box != null && box2 != null)
                     UpdateTimePointsBoxes(box, box2, v, p);
             }
-            var theme = Config.Data["App"]["Theme"] ?? "Dark";
+            var theme = App.AppConfig!.Get("App", "Theme", "Dark")!;
             foreach (ComboBoxItem item in ThemeBox.Items)
             {
                 if (theme.Equals((string)item.Content, StringComparison.OrdinalIgnoreCase))

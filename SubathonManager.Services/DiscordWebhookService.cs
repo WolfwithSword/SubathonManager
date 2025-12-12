@@ -24,7 +24,8 @@ public class DiscordWebhookService : IDisposable
     private List<SubathonEventType> _auditEventTypes = new();
     private bool _doSimulatedEvents = false;
     
-    private readonly ILogger? _logger =  AppServices.Provider.GetRequiredService<ILogger<DiscordWebhookService>>();
+    private readonly ILogger? _logger;
+    private readonly IConfig _config;
 
     private const string AppUsername = "Subathon Manager";
 
@@ -32,8 +33,10 @@ public class DiscordWebhookService : IDisposable
         "https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.png";
 
     // todo handle rate limit and retry_after
-    public DiscordWebhookService()
+    public DiscordWebhookService(ILogger<DiscordWebhookService>? logger, IConfig config)
     {
+        _logger = logger;
+        _config = config;
         LoadFromConfig();
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
@@ -44,17 +47,17 @@ public class DiscordWebhookService : IDisposable
 
     public void LoadFromConfig()
     {
-        _eventWebhookUrl = Config.Data["Discord"]["Events.WebhookUrl"] ?? "";
-        _webhookUrl = Config.Data["Discord"]["WebhookUrl"] ?? "";
+        _eventWebhookUrl = _config.Get("Discord", "Events.WebhookUrl");
+        _webhookUrl = _config.Get("Discord", "WebhookUrl");
         
         _auditEventTypes.Clear();
         foreach (SubathonEventType type in Enum.GetValues(typeof(SubathonEventType)))
         {
-            bool.TryParse(Config.Data["Discord"][$"Events.Log.{type}"] ?? "false", out bool result);
+            bool.TryParse(_config.Get("Discord", $"Events.Log.{type}", "false"), out bool result);
             if (result)
                 _auditEventTypes.Add(type);
         }
-        bool.TryParse(Config.Data["Discord"]["Events.Log.Simulated"] ?? "false", out _doSimulatedEvents);
+        bool.TryParse(_config.Get("Discord", "Events.Log.Simulated", "false"), out _doSimulatedEvents);
     }
 
     private void OnSubathonEventProcessed(SubathonEvent? subathonEvent, bool effective)

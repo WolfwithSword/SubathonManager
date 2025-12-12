@@ -75,15 +75,15 @@ public partial class TwitchSettings : UserControl
         Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2);
         Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2);
         
-        Config.Data["Twitch"]["PauseOnEnd"] = TwitchPauseOnEndBx.IsChecked.ToString();
-        Config.Data["Twitch"]["LockOnEnd"] = TwitchLockOnEndBx.IsChecked.ToString();
-        Config.Data["Twitch"]["ResumeOnStart"] = TwitchResumeOnStartBx.IsChecked.ToString();
-        Config.Data["Twitch"]["UnlockOnStart"] = TwitchUnlockOnStartBx.IsChecked.ToString();
-        Config.Data["Twitch"]["HypeTrainMultiplier.Enabled"] = $"{HypeTrainMultBox.IsChecked}";
-        Config.Data["Twitch"]["HypeTrainMultiplier.Points"] = $"{HypeTrainMultPointsBox.IsChecked}";
-        Config.Data["Twitch"]["HypeTrainMultiplier.Time"] = $"{HypeTrainMultTimeBox.IsChecked}";
-        Config.Data["Twitch"]["HypeTrainMultiplier.Multiplier"] = HypeTrainMultAmt.Text;
-        Config.Save();
+        App.AppConfig!.Set("Twitch", "PauseOnEnd", TwitchPauseOnEndBx.IsChecked.ToString());
+        App.AppConfig!.Set("Twitch", "LockOnEnd",  TwitchLockOnEndBx.IsChecked.ToString());
+        App.AppConfig!.Set("Twitch", "ResumeOnStart",  TwitchResumeOnStartBx.IsChecked.ToString());
+        App.AppConfig!.Set("Twitch", "UnlockOnStart",  TwitchUnlockOnStartBx.IsChecked.ToString());
+        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Enabled",  $"{HypeTrainMultBox.IsChecked}");
+        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Points",  $"{HypeTrainMultPointsBox.IsChecked}");
+        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Time",  $"{HypeTrainMultTimeBox.IsChecked}");
+        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
+        App.AppConfig!.Save();
     }
     
     private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
@@ -111,33 +111,34 @@ public partial class TwitchSettings : UserControl
     
     private void InitTwitchAutoSettings()
     {
-        bool.TryParse(Config.Data["Twitch"]["PauseOnEnd"] ?? "false", out var pauseOnEnd);
+        bool.TryParse(App.AppConfig!.Get("Twitch", "PauseOnEnd", "false"), out var pauseOnEnd);
         if (TwitchPauseOnEndBx.IsChecked != pauseOnEnd) TwitchPauseOnEndBx.IsChecked = pauseOnEnd;
             
-        bool.TryParse(Config.Data["Twitch"]["LockOnEnd"] ?? "false", out var lockOnEnd);
+        bool.TryParse(App.AppConfig!.Get("Twitch", "LockOnEnd", "false"), out var lockOnEnd);
         if (TwitchLockOnEndBx.IsChecked != lockOnEnd) TwitchLockOnEndBx.IsChecked = lockOnEnd;
             
-        bool.TryParse(Config.Data["Twitch"]["ResumeOnStart"] ?? "false", out var resumeOnStart);
+        bool.TryParse(App.AppConfig!.Get("Twitch", "ResumeOnStart", "false"), out var resumeOnStart);
         if (TwitchResumeOnStartBx.IsChecked != resumeOnStart) TwitchResumeOnStartBx.IsChecked = resumeOnStart;
             
-        bool.TryParse(Config.Data["Twitch"]["UnlockOnStart"] ?? "false", out var unlockOnStart);
+        bool.TryParse(App.AppConfig!.Get("Twitch", "UnlockOnStart", "false"), out var unlockOnStart);
         if (TwitchUnlockOnStartBx.IsChecked != unlockOnStart) TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
     }
     
     private void LoadHypeTrainValues()
     {
-        bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Enabled"] ?? "false", out bool enabled);
+        bool.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
+            out bool enabled);
         if (HypeTrainMultBox.IsChecked != enabled)
             HypeTrainMultBox.IsChecked = enabled;
-        double.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Multiplier"] ?? "1",
+        double.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
             out var parsedAmt);
             
         if (HypeTrainMultAmt.Text != parsedAmt.ToString("0.00"))
             HypeTrainMultAmt.Text = parsedAmt.ToString("0.00");
 
-        bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Points"] ?? "false",
+        bool.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
             out var applyPts);
-        bool.TryParse(Config.Data["Twitch"]["HypeTrainMultiplier.Time"] ?? "false",
+        bool.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
             out var applyTime);
             
         if (HypeTrainMultTimeBox.IsChecked != applyTime)

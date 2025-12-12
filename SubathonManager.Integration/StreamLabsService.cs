@@ -15,15 +15,22 @@ public class StreamLabsService
     private StreamlabsClient? _client;
     private string _secretToken = "";
     public bool Connected { get; private set; } = false;
-    
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamLabsService>>();
 
+    private readonly ILogger? _logger;
+    private readonly IConfig _config;
+
+    public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config)
+    {
+        _logger = logger;
+        _config = config;
+    }
+    
     public async Task<bool> InitClientAsync()
     {
         Connected = false;
         GetTokenFromConfig();
         StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
-        if (_secretToken.Equals(String.Empty)) return false;
+        if (_secretToken.Equals(string.Empty)) return false;
 
         OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
             new StreamlabsOptions { Token = _secretToken }
@@ -52,7 +59,7 @@ public class StreamLabsService
     
     private void GetTokenFromConfig()
     {
-        _secretToken = Config.Data["StreamLabs"]["SocketToken"] ?? "";
+        _secretToken = _config.Get("StreamLabs", "SocketToken")!;
     }  
     
     public bool IsTokenEmpty()
@@ -63,8 +70,8 @@ public class StreamLabsService
     public void SetSocketToken(string token)
     {
         _secretToken = token;
-        Config.Data["StreamLabs"]["SocketToken"] = token;
-        Config.Save();
+        _config.Set("StreamLabs", "SocketToken", token);
+        _config.Save();
     }
     
     private void OnDonation(object? o, DonationMessage message)

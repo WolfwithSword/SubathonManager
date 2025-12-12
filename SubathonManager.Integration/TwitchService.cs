@@ -24,22 +24,23 @@ public class TwitchService
     private TwitchAPI? _api = null!;
     private TwitchClient? _chat = null!;
     private EventSubWebsocketClient? _eventSub = null!;
-
     private static int _hypeTrainLevel = 0;
-    
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<TwitchService>>();
 
+    private readonly ILogger? _logger;
+    private readonly IConfig _config;
     private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
         , "data/twitch_token.json"));
 
-    public string? AccessToken { get; private set; }
+    private string? AccessToken { get; set; }
     public string? UserName { get; private set; } = string.Empty;
-    public string? UserId { get; private set; }
-
-    public TwitchService()
+    private string? UserId { get; set; }
+    
+    public TwitchService(ILogger<TwitchService>? logger, IConfig config)
     {
         int port = 14041; // hardcode cause of app callback url
         _callbackUrl = $"http://localhost:{port}/auth/twitch/callback/";
+        _logger = logger;
+        _config = config;
     }
 
     public bool HasTokenFile()
@@ -323,7 +324,8 @@ public class TwitchService
         _eventSub.StreamOnline += (s, e) =>
         {
 
-            if (bool.TryParse(Config.Data["Twitch"]["ResumeOnStart"] ?? "false", out var resumeOnStart) && resumeOnStart)
+            if (bool.TryParse(_config.Get("Twitch", "ResumeOnStart", "false"),
+                    out var resumeOnStart) && resumeOnStart)
             {
                 SubathonEvent subathonEvent = new SubathonEvent
                 {
@@ -339,7 +341,8 @@ public class TwitchService
                 SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             }
 
-            if (bool.TryParse(Config.Data["Twitch"]["UnlockOnStart"] ?? "false", out var unlockOnStart) && unlockOnStart)
+            if (bool.TryParse(_config.Get("Twitch", "UnlockOnStart", "false"),
+                    out var unlockOnStart) && unlockOnStart)
             {
                 SubathonEvent subathonEvent = new SubathonEvent
                 {
@@ -360,7 +363,8 @@ public class TwitchService
         _eventSub.StreamOffline += (s, e) =>
         {
 
-            if (bool.TryParse(Config.Data["Twitch"]["PauseOnEnd"] ?? "false", out var pauseOnEnd) && pauseOnEnd)
+            if (bool.TryParse(_config.Get("Twitch", "PauseOnEnd", "false"),
+                    out var pauseOnEnd) && pauseOnEnd)
             {
                 SubathonEvent subathonEvent = new SubathonEvent
                 {
@@ -376,7 +380,8 @@ public class TwitchService
                 SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             }
 
-            if (bool.TryParse(Config.Data["Twitch"]["LockOnEnd"] ?? "false", out var lockOnEnd) && lockOnEnd)
+            if (bool.TryParse(_config.Get("Twitch", "LockOnEnd", "false"),
+                    out var lockOnEnd) && lockOnEnd)
             {
                 SubathonEvent subathonEvent = new SubathonEvent
                 {
