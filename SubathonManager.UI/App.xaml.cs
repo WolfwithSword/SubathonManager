@@ -1,7 +1,6 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Reflection;
-using System.Windows.Media;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Appearance;
 using Microsoft.EntityFrameworkCore;
@@ -23,10 +22,12 @@ public partial class App
     private static TimerService AppTimerService { get; } = new();
     public static EventService? AppEventService { get; private set; }
     
-    public static TwitchService? AppTwitchService { get; } = new();
-    public static YouTubeService? AppYouTubeService { get; } = new();
-    public static StreamElementsService? AppStreamElementsService { get; } = new();
-    public static StreamLabsService? AppStreamLabsService { get; } = new();
+    public static TwitchService? AppTwitchService { get; set; }
+    public static YouTubeService? AppYouTubeService { get; set; }
+    public static StreamElementsService? AppStreamElementsService { get; set; }
+    public static StreamLabsService? AppStreamLabsService { get; set; }
+    
+    public static IConfig? AppConfig;
     private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
     private ResourceDictionary? _themeDictionary;
     private ILogger? _logger;
@@ -69,9 +70,21 @@ public partial class App
             "data"));
         Directory.CreateDirectory(folder);
         
-        Config.LoadOrCreateDefault();
+        services.AddSingleton<IConfig, Config>();
+        services.AddSingleton<CurrencyService>();
+        services.AddSingleton<TwitchService>();
+        services.AddSingleton<YouTubeService>();
+        services.AddSingleton<StreamElementsService>();
+        services.AddSingleton<StreamLabsService>();
+        services.AddDbContextFactory<AppDbContext>();
+        services.AddSingleton<EventService>();
+        
+        AppServices.Provider = services.BuildServiceProvider();
+        
+        AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
+        AppConfig.LoadOrCreateDefault();
 
-        string theme = (Config.Data["App"]["Theme"] ?? "Dark").Trim();
+        string theme = (AppConfig.Get("App", "Theme") ?? "Dark").Trim();
         _themeDictionary = new ResourceDictionary
         {
             Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
@@ -88,10 +101,6 @@ public partial class App
                 : ApplicationTheme.Light;
         base.OnStartup(e);
         
-        services.AddDbContextFactory<AppDbContext>();
-        services.AddSingleton<EventService>();
-        
-        AppServices.Provider = services.BuildServiceProvider();
         _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
         _logger.LogInformation("======== Subathon Manager started ========");
         _logger.LogInformation($"== Data folder: {Config.DataFolder} ==");
@@ -100,6 +109,10 @@ public partial class App
         _factory = factory;
         
         AppEventService = AppServices.Provider.GetRequiredService<EventService>();
+        AppTwitchService = AppServices.Provider.GetRequiredService<TwitchService>();
+        AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
+        AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
+        AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
         
         using var db =  _factory.CreateDbContext();
         db.Database.Migrate();
@@ -114,7 +127,7 @@ public partial class App
             }
         );
 
-        AppWebServer = new WebServer(_factory, int.Parse(Config.Data["Server"]["Port"]));
+        AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port") ?? "14040"));
 
         Task.Run(async () =>
         {
@@ -152,7 +165,7 @@ public partial class App
         
         WatchConfig();
 
-        AppDiscordWebhookService = new DiscordWebhookService();
+        AppDiscordWebhookService = new DiscordWebhookService(null, AppConfig);
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -210,7 +223,7 @@ public partial class App
     {
         try
         {
-            int newPort = int.Parse(Config.Data["Server"]["Port"]);
+            int newPort = int.Parse(AppConfig!.Get("Server", "Port") ?? "14040");
             if (AppWebServer?.Port != newPort)
             {
                 _logger?.LogDebug($"Config reloaded! New server port: {newPort}");
@@ -231,7 +244,7 @@ public partial class App
     {
         Current.Dispatcher.InvokeAsync(() =>
         {
-            string theme = Config.Data["App"]["Theme"] ?? "Dark";
+            string theme = AppConfig!.Get("App", "Theme", "Dark")!;
             theme = theme.Trim();
 
             if (_themeDictionary == null)

@@ -1,9 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using SubathonManager.Core.Enums;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using SubathonManager.Core.Enums;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Models;
 
+[ExcludeFromCodeCoverage]
 public class SubathonEvent
 {
     [Key, Column(Order = 0)] public Guid Id { get; set; } = Guid.NewGuid();
@@ -53,6 +55,7 @@ public class SubathonEvent
     }
 }
 
+[ExcludeFromCodeCoverage]
 public class CurrencyValidationAttribute : ValidationAttribute
 {
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)

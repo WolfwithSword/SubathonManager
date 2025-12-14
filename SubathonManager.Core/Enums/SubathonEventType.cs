@@ -1,4 +1,5 @@
-﻿namespace SubathonManager.Core.Enums;
+﻿using System.Diagnostics.CodeAnalysis;
+namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventType
 {
@@ -23,6 +24,7 @@ public enum SubathonEventType
     // any new must be added after the last
 }
 
+[ExcludeFromCodeCoverage]
 public static class SubathonEventTypeHelper
 {
     private static readonly SubathonEventType[] CurrencyDonationEvents = new[]

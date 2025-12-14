@@ -15,7 +15,7 @@ public partial class GoalsView
     public ObservableCollection<GoalViewModel> Goals { get; set; } = new();
     private int _subathonLastPoints = -1;
     private readonly IDbContextFactory<AppDbContext> _factory;
-
+    
     public GoalsView()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -99,9 +99,9 @@ public partial class GoalsView
         public bool Completed { get; set; } = false;
 
         public Brush TextColor => Completed ? Brushes.Gray : 
-            "Dark".Equals(Config.Data["App"]["Theme"] ?? "Dark", StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
+            "Dark".Equals(App.AppConfig!.Get("App", "Theme", "Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
         public Brush PointsColor => Completed ? Brushes.DarkGray : 
-            "Dark".Equals(Config.Data["App"]["Theme"] ?? "Dark", StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
+            "Dark".Equals(App.AppConfig!.Get("App", "Theme","Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
         public double OpacityValue => Completed ? 0.6 : 1.0;
         public TextDecorationCollection? PointsDecoration =>
             Completed ? TextDecorations.Strikethrough : null;

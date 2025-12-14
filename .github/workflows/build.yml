@@ -25,12 +25,57 @@ on:
         type: boolean
 jobs:
 
+  test:
+    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' # reconsider when more tests
+    name: Run Tests & Generate Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+          
+      - name: Restore dependencies
+        run: dotnet restore SubathonManager.Tests/SubathonManager.Tests.csproj -p:EnableWindowsTargeting=true
+        
+      - name: Run tests
+        run: |
+            dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
+            --configuration Release \
+            --logger "console;verbosity=detailed" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./coverage
+               
+      - name: Code Coverage Summary Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage/**/coverage.cobertura.xml
+          fail_below_min: false
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: false
+          format: markdown
+          output: both
+          thresholds: '60 80'
+    
   build:
     if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
     env:
       RUNTIME: win-x64
     name: Build Windows App
-    runs-on: windows-latest
+    runs-on: windows-latest  
+    needs: test
     outputs:
       artifact_failed: ${{ steps.artifact-upload.outcome != 'success' }}
       version: ${{ steps.vars.outputs.version }}

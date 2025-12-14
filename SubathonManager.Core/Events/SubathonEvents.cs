@@ -1,6 +1,8 @@
 ﻿using SubathonManager.Core.Models;
+using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Core.Events;
 
+[ExcludeFromCodeCoverage]
 public static class SubathonEvents
 {
     public static event Action<SubathonEvent>? SubathonEventCreated;

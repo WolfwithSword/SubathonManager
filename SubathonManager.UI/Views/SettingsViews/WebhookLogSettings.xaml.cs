@@ -25,7 +25,7 @@ public partial class WebhookLogSettings : UserControl
                      .Cast<SubathonEventType>().OrderBy(x => x.ToString(), 
                          StringComparer.OrdinalIgnoreCase))
         {
-            bool.TryParse(Config.Data["Discord"][$"Events.Log.{eventType}"] ?? "false", out var check);
+            bool.TryParse(App.AppConfig!.Get("Discord", $"Events.Log.{eventType}", "false"), out var check);
             CheckBox typeCheckBox = new()
             {
                 Content = eventType.ToString(),
@@ -36,10 +36,10 @@ public partial class WebhookLogSettings : UserControl
             EventWebhookListPanel.Children.Add(typeCheckBox);
         }
             
-        bool.TryParse(Config.Data["Discord"][$"Events.Log.Simulated"] ?? "false", out var logSim);
+        bool.TryParse(App.AppConfig!.Get("Discord", $"Events.Log.Simulated", "false"), out var logSim);
         LogSimEventsCbx.IsChecked = logSim;
-        ErrorWebhookUrlBx.Text = Config.Data["Discord"]["WebhookUrl"] ?? "";
-        EventWebhookUrlBx.Text = Config.Data["Discord"]["Events.WebhookUrl"] ?? "";
+        ErrorWebhookUrlBx.Text = App.AppConfig!.Get("Discord", "WebhookUrl", string.Empty)!;
+        EventWebhookUrlBx.Text = App.AppConfig!.Get("Discord", "Events.WebhookUrl", string.Empty)!;
     }
     
     public void UpdateValueSettings()
@@ -47,13 +47,13 @@ public partial class WebhookLogSettings : UserControl
         foreach (var child in EventWebhookListPanel.Children)
         {
             if (child is CheckBox checkbox)
-                Config.Data["Discord"][$"Events.Log.{checkbox.Content}"] = checkbox.IsChecked.ToString();
+                App.AppConfig!.Set("Discord", $"Events.Log.{checkbox.Content}", $"{checkbox.IsChecked}");
         }
 
-        Config.Data["Discord"]["WebhookUrl"] = ErrorWebhookUrlBx.Text;
-        Config.Data["Discord"]["Events.WebhookUrl"] = EventWebhookUrlBx.Text;
-        Config.Data["Discord"][$"Events.Log.Simulated"] = LogSimEventsCbx.IsChecked.ToString();
-        Config.Save();
+        App.AppConfig!.Set("Discord", "WebhookUrl", ErrorWebhookUrlBx.Text);
+        App.AppConfig!.Set("Discord", "Events.WebhookUrl", EventWebhookUrlBx.Text);
+        App.AppConfig!.Set("Discord", $"Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
+        App.AppConfig!.Save();
     }  
     
     private void TestWebhook_Click(object sender, RoutedEventArgs e)

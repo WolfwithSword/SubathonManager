@@ -26,7 +26,7 @@ public partial class StreamElementsSettings : UserControl
         Host = host;
         
         StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
-        SEJWTTokenBox.Text = Config.Data["StreamElements"]["JWT"];    
+        SEJWTTokenBox.Text = App.AppConfig!.Get("StreamElements", "JWT", string.Empty)!;    
         if (App.AppStreamElementsService != null)
             Host!.UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
     }
