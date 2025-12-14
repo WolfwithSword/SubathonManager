@@ -9,7 +9,7 @@
                  Background="{DynamicResource AppGeneralBackground}"
                  ResizeMode="NoResize"
                  WindowStartupLocation="CenterOwner" MinHeight="500" MinWidth="940"
-                 Title="EditRouteWindow" Height="900" Width="1740">
+                 Title="Overlay Editor" Height="900" Width="1740">
     <ui:FluentWindow.Resources>
         <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Appearance" Value="Secondary"/>
