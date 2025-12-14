@@ -102,7 +102,7 @@
         <Border Grid.Row="1"  Background="{DynamicResource AppHeaderBackground}" Height="36" VerticalAlignment="Top"/>
         <TabControl Grid.Row="1" Background="Transparent">
             <!-- Home Tab -->
-            <TabItem Header="Home" BorderBrush="{DynamicResource BorderFillColorDefaultBrush}" BorderThickness="2" Background="{DynamicResource ControlFillColorDefaultBrush}" Width="140">
+            <TabItem Header="Home" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="500"/>
@@ -283,7 +283,7 @@
             </TabItem>
 
             <!-- Overlays Tab -->
-            <TabItem Header="Overlays" BorderBrush="{DynamicResource BorderFillColorDefaultBrush}" BorderThickness="2" Background="{DynamicResource ControlFillColorDefaultBrush}" Width="140">
+            <TabItem Header="Overlays" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4"  Width="140">
                 <Grid Margin="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
@@ -398,12 +398,12 @@
             </TabItem>
             
             <!-- Goals Tab -->
-            <TabItem Header="Goals" BorderBrush="{DynamicResource BorderFillColorDefaultBrush}" BorderThickness="2" Background="{DynamicResource ControlFillColorDefaultBrush}" Width="140">
+            <TabItem Header="Goals" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <views:GoalsEditor/>
             </TabItem>
             
             <!-- Settings Tab -->
-            <TabItem Header="Settings" BorderBrush="{DynamicResource BorderFillColorDefaultBrush}" BorderThickness="2" Background="{DynamicResource ControlFillColorDefaultBrush}" Width="140">
+            <TabItem Header="Settings" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <views:SettingsView/>
             </TabItem>
         </TabControl>
