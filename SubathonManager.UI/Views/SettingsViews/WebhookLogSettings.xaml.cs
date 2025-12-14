@@ -47,12 +47,12 @@ public partial class WebhookLogSettings : UserControl
         foreach (var child in EventWebhookListPanel.Children)
         {
             if (child is CheckBox checkbox)
-                App.AppConfig!.Set("Discord", $"Events.Log.{checkbox.Content}", checkbox.IsChecked.ToString());
+                App.AppConfig!.Set("Discord", $"Events.Log.{checkbox.Content}", $"{checkbox.IsChecked}");
         }
 
         App.AppConfig!.Set("Discord", "WebhookUrl", ErrorWebhookUrlBx.Text);
         App.AppConfig!.Set("Discord", "Events.WebhookUrl", EventWebhookUrlBx.Text);
-        App.AppConfig!.Set("Discord", $"Events.Log.Simulated", LogSimEventsCbx.IsChecked.ToString());
+        App.AppConfig!.Set("Discord", $"Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
         App.AppConfig!.Save();
     }  
     

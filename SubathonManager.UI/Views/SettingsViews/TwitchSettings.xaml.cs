@@ -75,10 +75,10 @@ public partial class TwitchSettings : UserControl
         Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2);
         Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2);
         
-        App.AppConfig!.Set("Twitch", "PauseOnEnd", TwitchPauseOnEndBx.IsChecked.ToString());
-        App.AppConfig!.Set("Twitch", "LockOnEnd",  TwitchLockOnEndBx.IsChecked.ToString());
-        App.AppConfig!.Set("Twitch", "ResumeOnStart",  TwitchResumeOnStartBx.IsChecked.ToString());
-        App.AppConfig!.Set("Twitch", "UnlockOnStart",  TwitchUnlockOnStartBx.IsChecked.ToString());
+        App.AppConfig!.Set("Twitch", "PauseOnEnd", $"{TwitchPauseOnEndBx.IsChecked}");
+        App.AppConfig!.Set("Twitch", "LockOnEnd",  $"{TwitchLockOnEndBx.IsChecked}");
+        App.AppConfig!.Set("Twitch", "ResumeOnStart",  $"{TwitchResumeOnStartBx.IsChecked}");
+        App.AppConfig!.Set("Twitch", "UnlockOnStart",  $"{TwitchUnlockOnStartBx.IsChecked}");
         App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Enabled",  $"{HypeTrainMultBox.IsChecked}");
         App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Points",  $"{HypeTrainMultPointsBox.IsChecked}");
         App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Time",  $"{HypeTrainMultTimeBox.IsChecked}");
