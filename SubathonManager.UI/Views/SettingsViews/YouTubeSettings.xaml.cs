@@ -41,8 +41,8 @@ public partial class YouTubeSettings : UserControl
         if (superchatValue != null && int.TryParse(DonoBox2.Text, out var scPoints))
             superchatValue.Points = scPoints;
             
-        Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberT1TextBox, MemberT1TextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberT1TextBox, GiftMemberT1TextBox2);
+        Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberRenameTextBox2);
+        Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
     }
     
     private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)

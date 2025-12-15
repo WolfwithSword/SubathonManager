@@ -117,7 +117,13 @@ namespace SubathonManager.Core
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             => null;
-        public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
+        
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            if (_category.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.OrdinalIgnoreCase))
+                return logLevel >= LogLevel.Warning;
+            return logLevel != LogLevel.None;
+        }
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
                                 Exception? exception, Func<TState, Exception?, string> formatter)

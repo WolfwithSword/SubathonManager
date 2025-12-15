@@ -14,9 +14,16 @@ public class WidgetEntityHelper
 {
     
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WidgetEntityHelper>>();
+    private readonly IDbContextFactory<AppDbContext> _factory;
+
+    public WidgetEntityHelper()
+    {
+        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+    }
+    
     public void SyncCssVariables(Widget widget)
     {
-        using var db = new AppDbContext();
+        using var db = _factory.CreateDbContext();
         var extracted = widget.ExtractCssVariablesFromFiles();
         List<string> extractedNames = new List<string>();
 
@@ -48,7 +55,7 @@ public class WidgetEntityHelper
         
         (var jsVars, var extractedNames) = LoadNewJsVariables(widget, metadata);
         
-        using var db = new AppDbContext();
+        using var db = _factory.CreateDbContext();
         db.JsVariables.AddRange(jsVars);
         _logger?.LogDebug($"[Widget {widget.Name}] Added new JS variables: {jsVars.Count}");
         
@@ -132,7 +139,7 @@ public class WidgetEntityHelper
         
         if (Guid.TryParse(widgetId, out var widgetGuid))
         {
-            using var db = new AppDbContext();
+            await using var db = await _factory.CreateDbContextAsync();
             var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
             if (widget != null)
             {
@@ -160,7 +167,7 @@ public class WidgetEntityHelper
         
         if (Guid.TryParse(widgetId, out var widgetGuid))
         {
-            using var db = new AppDbContext();
+            await using var db = await _factory.CreateDbContextAsync();
             var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
             if (widget != null)
             {

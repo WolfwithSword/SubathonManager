@@ -58,7 +58,8 @@ namespace SubathonManager.UI
                 initialMs = TimeSpan.FromSeconds(1);
             }
             subathon.MillisecondsCumulative += (int) initialMs.TotalMilliseconds;
-            subathon.IsPaused = true; 
+            subathon.IsPaused = true;
+            subathon.Currency = App.AppConfig!.Get("Currency", "Primary", "USD")!;
             db.SubathonDatas.Add(subathon);
             db.SaveChanges();
             db.Entry(subathon).State = EntityState.Detached;

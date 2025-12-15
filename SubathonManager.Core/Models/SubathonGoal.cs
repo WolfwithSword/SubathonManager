@@ -16,4 +16,6 @@ public class SubathonGoal
     public Guid? GoalSetId { get; set; }
     public SubathonGoalSet? LinkedGoalSet  { get; set; }
     
+    public double? Money { get; set; } = 0;
+    
 }

@@ -93,31 +93,36 @@ public class DiscordWebhookService : IDisposable
 
     private void OnSubathonEventDeleted(List<SubathonEvent>? subathonEvents)
     {
-        if (subathonEvents?.Count == 1)
-        {
-            SubathonEvent subathonEvent = subathonEvents.Single().ShallowClone();
-            if (string.IsNullOrEmpty(_eventWebhookUrl)) return;
-            if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
-            if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
-
-
-            subathonEvent.Value += " [DELETED]";
-            _eventQueue.Enqueue(subathonEvent);
-        }
-        else if (subathonEvents?.Count > 1)
+        if (subathonEvents?.Count > 1 || (subathonEvents?.Count == 1 && 
+                                          subathonEvents[0].Source == SubathonEventSource.Simulated))
         {
             double totalPoints = 0;
             double totalSeconds = 0;
+            double totalMoney = 0;
+            
+            var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
+            var currency = _config.Get("Currency", "Primary", "USD");
             foreach (var subathonEvent in subathonEvents)
             {
                 totalPoints += subathonEvent.GetFinalPointsValue();
                 totalSeconds += subathonEvent.GetFinalSecondsValueRaw();
+                if (subathonEvent.EventType.IsCurrencyDonation() &&
+                    currencyService.IsValidCurrency(subathonEvent.Currency))
+                {
+                    double result = Task.Run(async () =>
+                    {
+                        return await currencyService.ConvertAsync(
+                            double.Parse(subathonEvent.Value),
+                            subathonEvent.Currency!, currency);
+                    }).GetAwaiter().GetResult();
+                    totalMoney += result;
+                }
             }
             
             var embed = new
             {
                 title=$"Deleted {subathonEvents.Count} Events",
-                description=$"**Total Seconds:** {Math.Round(totalSeconds, 2)}s\n**Total Points:** {totalPoints}",
+                description=$"**Total Seconds:** {Math.Round(totalSeconds, 2)}s\n**Total Points:** {totalPoints}\n**Total {currency}:** {Math.Round(totalMoney, 2)}",
                 color = 0x86ACBD,
                 timestamp = DateTime.Now.ToUniversalTime().ToString("o")
             };
@@ -132,6 +137,18 @@ public class DiscordWebhookService : IDisposable
             Task.Run(() =>
                 SendWebhookAsync(payload, _eventWebhookUrl)
             );
+        }
+        
+        if (subathonEvents?.Count == 1)
+        {
+            SubathonEvent subathonEvent = subathonEvents.Single().ShallowClone();
+            if (string.IsNullOrEmpty(_eventWebhookUrl)) return;
+            if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
+            if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
+
+
+            subathonEvent.Value += " [DELETED]";
+            _eventQueue.Enqueue(subathonEvent);
         }
     }
 
