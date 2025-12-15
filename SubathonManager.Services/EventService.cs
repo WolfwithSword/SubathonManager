@@ -410,6 +410,7 @@ public class EventService: IDisposable
         
         long msToRemove = (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000); 
         int pointsToRemove = (int) ev.GetFinalPointsValue();
+        double moneyToRemove = 0;
 
         if (ev.Command == SubathonCommandType.SubtractPoints)
             pointsToRemove = -pointsToRemove;
@@ -425,6 +426,19 @@ public class EventService: IDisposable
             _logger?.LogWarning(msg);
             return;
         }
+
+        if (ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency) && ev.ProcessedToSubathon)
+        {
+            moneyToRemove += await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!,
+                _config.Get("Currency", "Primary", "USD"));
+        }
+
+        if (!ev.ProcessedToSubathon)
+        {
+            msToRemove = 0;
+            pointsToRemove = 0;
+            moneyToRemove = 0;
+        }
         
         int affected = 0;
         if (msToRemove != 0)
@@ -436,6 +450,11 @@ public class EventService: IDisposable
             affected += await db.Database.ExecuteSqlRawAsync(
                 "UPDATE SubathonDatas SET Points = Points - {0} WHERE IsActive = 1 AND Id = {1} ", 
                 pointsToRemove, ev.SubathonId);
+        
+        if (moneyToRemove != 0)
+            affected += await db.Database.ExecuteSqlRawAsync(
+                "UPDATE SubathonDatas SET MoneySum = MoneySum - {0} WHERE IsActive = 1 AND Id = {1} ", 
+                moneyToRemove, ev.SubathonId);
 
         await db.Entry(ev).ReloadAsync();
         db.Remove(ev);
