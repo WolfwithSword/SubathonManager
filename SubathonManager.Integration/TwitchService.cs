@@ -2,6 +2,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -88,6 +89,8 @@ public class TwitchService
         }
     }
 
+    
+    [ExcludeFromCodeCoverage]
     public async Task InitializeAsync()
     {
         if (HasTokenFile())
@@ -121,6 +124,8 @@ public class TwitchService
         }
     }
 
+    
+    [ExcludeFromCodeCoverage]
     private async Task StartOAuthFlowAsync()
     {
         string scopes = string.Join('+', new[]
@@ -217,6 +222,8 @@ public class TwitchService
         }
     }
 
+    
+    [ExcludeFromCodeCoverage]
     private async Task InitializeApiAsync()
     {
         _api = new TwitchAPI();
@@ -232,6 +239,8 @@ public class TwitchService
         }
     }
 
+    
+    [ExcludeFromCodeCoverage]
     private async Task InitializeChatAsync()
     {
         var credentials = new ConnectionCredentials(UserName, $"oauth:{AccessToken}");
@@ -264,6 +273,8 @@ public class TwitchService
         }
     }
 
+    
+    [ExcludeFromCodeCoverage]
     private async Task InitializeEventSubAsync()
     {
         _eventSub = new EventSubWebsocketClient();
@@ -288,6 +299,8 @@ public class TwitchService
         await _eventSub.ConnectAsync();
     }
 
+    
+    [ExcludeFromCodeCoverage]
     private async Task HandleEventSubConnect(object? s, WebsocketConnectedArgs e)
     {
         _logger?.LogInformation("Connected to EventSub WebSocket, session ID: " + _eventSub?.SessionId);

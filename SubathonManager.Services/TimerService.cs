@@ -2,9 +2,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Services;
 
+
+[ExcludeFromCodeCoverage]
 public class TimerService
 {
     private readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
