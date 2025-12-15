@@ -68,6 +68,9 @@ public class StreamElementsServiceTests
     [Fact]
     public void SimulateTip_ShouldRaiseSubathonEvent()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? capturedEvent = null;
         Action<SubathonEvent> handler = ev => capturedEvent = ev;
         SubathonEvents.SubathonEventCreated += handler;

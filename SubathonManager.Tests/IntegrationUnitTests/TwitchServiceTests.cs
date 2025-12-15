@@ -71,6 +71,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateRaid_RaisesRaidEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() => TwitchService.SimulateRaid(123));
 
             Assert.Equal(SubathonEventSource.Simulated, ev.Source);
@@ -83,6 +86,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateCheer_RaisesCheerEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() => TwitchService.SimulateCheer(500));
 
             Assert.Equal(SubathonEventType.TwitchCheer, ev.EventType);
@@ -93,6 +99,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateSubscription_InvalidTier_DoesNotRaise()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? captured = null;
             void Handler(SubathonEvent e) => captured = e;
 
@@ -115,6 +124,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [InlineData("3000")]
         public void SimulateSubscription_ShouldRaiseSubEvent(string tier)
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateSubscription(tier));
             TwitchService.SimulateSubscription(tier);
 
@@ -130,6 +142,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateGiftSubscriptions_ShouldRaiseGiftSubEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateGiftSubscriptions("1000", 5));
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventType.TwitchGiftSub, ev!.EventType);
@@ -142,6 +157,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateFollow_ShouldRaiseFollowEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateFollow());
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventType.TwitchFollow, ev!.EventType);
@@ -151,6 +169,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateCharityDonation_ShouldRaiseDonationEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateCharityDonation("25.50", "CAD"));
 
             Assert.NotNull(ev);
@@ -163,6 +184,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateHypeTrainStart_ShouldRaiseStartEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainStart());
 
             Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
@@ -175,6 +199,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateHypeTrainProgress_ShouldOnlyRaiseIfLevelIncreases()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainStart());
             SubathonEvent? ev2 = CaptureEvent(() => TwitchService.SimulateHypeTrainProgress(5));
             Assert.Equal(SubathonEventSource.Simulated, ev2!.Source);
@@ -187,6 +214,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateHypeTrainEnd_ShouldRun()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainEnd(10));
             Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
             Assert.Equal(SubathonEventType.TwitchHypeTrain, ev!.EventType);
@@ -208,6 +238,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
@@ -231,6 +264,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             var service = new TwitchService(null, config);
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
@@ -253,6 +289,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             var service = new TwitchService(null, config);
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
@@ -275,6 +314,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             var service = new TwitchService(null, config);
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
@@ -310,6 +352,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 }
             };
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
@@ -327,6 +372,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             TwitchService.SimulateHypeTrainStart();
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? captured = null;
             void Handler(SubathonEvent e) => captured = e;
 
@@ -402,6 +450,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             {
                 ChatMessage = chatMsg
             };
+            
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             
             var ev = CaptureEvent(() =>
                 service

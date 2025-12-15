@@ -63,6 +63,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateTip_ShouldRaiseSubathonEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? capturedEvent = null;
             void Handler(SubathonEvent ev) => capturedEvent = ev;
 
@@ -90,6 +93,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var config = new Mock<Config>();
             var service = new StreamLabsService(logger.Object, config.Object);
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+            
             SubathonEvent? capturedEvent = null;
             Action<SubathonEvent> handler = ev => capturedEvent = ev;
             SubathonEvents.SubathonEventCreated += handler;
