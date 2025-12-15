@@ -11,6 +11,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests;
 
 public class StreamElementsServiceTests
 {
+    
+    public StreamElementsServiceTests()
+    {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+    }
+    
     [Fact]
     public void InitClient_ShouldReturnFalse_WhenJwtIsEmpty()
     {

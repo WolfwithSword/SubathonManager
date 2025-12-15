@@ -12,6 +12,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 {
     public class YouTubeServiceTests
     {
+        public YouTubeServiceTests()
+        {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+        }
         [Fact]
         public void SimulateSuperChat_ShouldRaiseEvent()
         {

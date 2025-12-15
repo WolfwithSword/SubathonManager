@@ -12,6 +12,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 {
     public class StreamLabsServiceTests
     {
+        public StreamLabsServiceTests()
+        {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+        }
+        
         [Fact]
         public void IsTokenEmpty_ShouldReturnTrue_WhenTokenNotSet()
         {
@@ -57,19 +64,25 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public void SimulateTip_ShouldRaiseSubathonEvent()
         {
             SubathonEvent? capturedEvent = null;
-            Action<SubathonEvent> handler = ev => capturedEvent = ev;
-            SubathonEvents.SubathonEventCreated += handler;
+            void Handler(SubathonEvent ev) => capturedEvent = ev;
 
-            StreamLabsService.SimulateTip("25.5", "USD");
+            SubathonEvents.SubathonEventCreated += Handler;
+            try
+            {
+                StreamLabsService.SimulateTip("25.5", "USD");
 
-            Assert.NotNull(capturedEvent);
-            Assert.Equal("25.5", capturedEvent!.Value);
-            Assert.Equal("USD", capturedEvent.Currency);
-            Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
-            Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
-            SubathonEvents.SubathonEventCreated -= handler;
+                Assert.NotNull(capturedEvent);
+                Assert.Equal("25.5", capturedEvent!.Value);
+                Assert.Equal("USD", capturedEvent.Currency);
+                Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
+                Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
+            }
+            finally
+            {
+                SubathonEvents.SubathonEventCreated -= Handler;
+            }
         }
-
+        
         [Fact]
         public void OnDonation_ShouldRaiseSubathonEvent()
         {
