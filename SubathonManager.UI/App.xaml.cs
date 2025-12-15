@@ -52,6 +52,11 @@ public partial class App
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var services = new ServiceCollection();
+        
+        string folder = Path.GetFullPath(Path.Combine(string.Empty, 
+            "data"));
+        Directory.CreateDirectory(folder);
+        
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
@@ -65,111 +70,117 @@ public partial class App
             builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
             builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
         });
-        
-        string folder = Path.GetFullPath(Path.Combine(string.Empty, 
-            "data"));
-        Directory.CreateDirectory(folder);
-        
-        services.AddSingleton<IConfig, Config>();
-        services.AddSingleton<CurrencyService>();
-        services.AddSingleton<TwitchService>();
-        services.AddSingleton<YouTubeService>();
-        services.AddSingleton<StreamElementsService>();
-        services.AddSingleton<StreamLabsService>();
-        
-        services.AddDbContextFactory<AppDbContext>();
-        
-        services.AddSingleton<EventService>();
-        
-        AppServices.Provider = services.BuildServiceProvider();
-        
-        AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
-        AppConfig.LoadOrCreateDefault();
 
-        string theme = (AppConfig.Get("App", "Theme") ?? "Dark").Trim();
-        _themeDictionary = new ResourceDictionary
+        try
         {
-            Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
-        };
-            
-        var oldCustom = Resources.MergedDictionaries
-            .FirstOrDefault(d => d.Source != null && d.Source.OriginalString.StartsWith("Themes/") && !d.Source.OriginalString.Contains("Fluent"));
-        if (oldCustom != null)
-            Resources.MergedDictionaries.Remove(oldCustom);
-        Resources.MergedDictionaries.Add(_themeDictionary);
-        if (Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
-            fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
-                ? ApplicationTheme.Dark
-                : ApplicationTheme.Light;
-        base.OnStartup(e);
-        
-        _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
-        _logger.LogInformation("======== Subathon Manager started ========");
-        _logger.LogInformation($"== Data folder: {Config.DataFolder} ==");
-        
-        var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        _factory = factory;
-        
-        AppEventService = AppServices.Provider.GetRequiredService<EventService>();
-        AppTwitchService = AppServices.Provider.GetRequiredService<TwitchService>();
-        AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
-        AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
-        AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
-        
-        using var db =  _factory.CreateDbContext();
-        db.Database.Migrate();
-        AppDbContext.SeedDefaultValues(db);
-        
-        Task.Run(async () =>
+            services.AddSingleton<IConfig, Config>();
+            services.AddSingleton<CurrencyService>();
+            services.AddSingleton<TwitchService>();
+            services.AddSingleton<YouTubeService>();
+            services.AddSingleton<StreamElementsService>();
+            services.AddSingleton<StreamLabsService>();
+
+            services.AddDbContextFactory<AppDbContext>();
+
+            services.AddSingleton<EventService>();
+
+            AppServices.Provider = services.BuildServiceProvider();
+
+            AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
+            AppConfig.LoadOrCreateDefault();
+
+            string theme = (AppConfig.Get("App", "Theme") ?? "Dark").Trim();
+            _themeDictionary = new ResourceDictionary
             {
-                await using var context1 = await _factory.CreateDbContextAsync();
-                await AppDbContext.PauseAllTimers(context1);
-                await using var context2 = await _factory.CreateDbContextAsync();
-                await AppDbContext.ResetPowerHour(context2);
-            }
-        );
+                Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
+            };
 
-        Task.Run(async () => { await SetupSubathonCurrencyData(); });
-        
-        AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port") ?? "14040"));
+            var oldCustom = Resources.MergedDictionaries
+                .FirstOrDefault(d =>
+                    d.Source != null && d.Source.OriginalString.StartsWith("Themes/") &&
+                    !d.Source.OriginalString.Contains("Fluent"));
+            if (oldCustom != null)
+                Resources.MergedDictionaries.Remove(oldCustom);
+            Resources.MergedDictionaries.Add(_themeDictionary);
+            if (Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
+                fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
+                    ? ApplicationTheme.Dark
+                    : ApplicationTheme.Light;
+            base.OnStartup(e);
 
-        Task.Run(async () =>
-        {
-            if (AppTwitchService!.HasTokenFile())
+            _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
+            _logger.LogInformation("======== Subathon Manager started ========");
+            _logger.LogInformation($"== Data folder: {Config.DataFolder} ==");
+
+            var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            _factory = factory;
+
+            AppEventService = AppServices.Provider.GetRequiredService<EventService>();
+            AppTwitchService = AppServices.Provider.GetRequiredService<TwitchService>();
+            AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
+            AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
+            AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
+
+            using var db = _factory.CreateDbContext();
+            db.Database.Migrate();
+            AppDbContext.SeedDefaultValues(db);
+
+            Task.Run(async () =>
+                {
+                    await using var context1 = await _factory.CreateDbContextAsync();
+                    await AppDbContext.PauseAllTimers(context1);
+                    await using var context2 = await _factory.CreateDbContextAsync();
+                    await AppDbContext.ResetPowerHour(context2);
+                }
+            );
+
+            Task.Run(async () => { await SetupSubathonCurrencyData(); });
+
+            AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port") ?? "14040"));
+
+            Task.Run(async () =>
             {
-                var tokenValid = await AppTwitchService.ValidateTokenAsync();
-                if (!tokenValid)
+                if (AppTwitchService!.HasTokenFile())
                 {
-                    AppTwitchService.RevokeTokenFile();
-                    _logger.LogWarning("Twitch token expired - deleting token file");
+                    var tokenValid = await AppTwitchService.ValidateTokenAsync();
+                    if (!tokenValid)
+                    {
+                        AppTwitchService.RevokeTokenFile();
+                        _logger.LogWarning("Twitch token expired - deleting token file");
+                    }
+                    else
+                    {
+                        await AppTwitchService.InitializeAsync();
+                    }
                 }
-                else
-                {
-                    await AppTwitchService.InitializeAsync();
-                }
-            }
-        });
+            });
 
-        AppYouTubeService!.Start(null);
-        
-        Task.Run(() => AppWebServer.StartAsync());
-        Task.Run(() => AppTimerService.StartAsync());
-        TimerEvents.TimerTickEvent += UpdateSubathonTimers;
-        Task.Run(() =>
-        {
-            Task.Delay(200);
-            AppStreamElementsService!.InitClient();
-            return Task.CompletedTask;
-        });
-        Task.Run(() =>
-        {
-            Task.Delay(200);
-            return AppStreamLabsService!.InitClientAsync();
-        });
-        
-        WatchConfig();
+            AppYouTubeService!.Start(null);
 
-        AppDiscordWebhookService = new DiscordWebhookService(null, AppConfig);
+            Task.Run(() => AppWebServer.StartAsync());
+            Task.Run(() => AppTimerService.StartAsync());
+            TimerEvents.TimerTickEvent += UpdateSubathonTimers;
+            Task.Run(() =>
+            {
+                Task.Delay(200);
+                AppStreamElementsService!.InitClient();
+                return Task.CompletedTask;
+            });
+            Task.Run(() =>
+            {
+                Task.Delay(200);
+                return AppStreamLabsService!.InitClientAsync();
+            });
+
+            WatchConfig();
+
+            AppDiscordWebhookService = new DiscordWebhookService(null, AppConfig);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error occurred when starting Subathon Manager");
+            Current.Shutdown();
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
