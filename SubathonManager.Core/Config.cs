@@ -62,7 +62,6 @@ namespace SubathonManager.Core
         {
             Data = new IniData();
             Data["Server"]["Port"] = "14040";
-            Data["Database"]["Path"] = GetDatabasePath();
             Data["StreamElements"]["JWT"] = "";
 
             Data["Discord"]["Events.WebhookUrl"] = "";
@@ -82,28 +81,15 @@ namespace SubathonManager.Core
 
         public virtual string GetDatabasePath()
         {
-            if (Data["Database"]["Path"] == null)
-            {
-                string folder = Path.GetFullPath(Path.Combine(string.Empty, 
-                    "data"));
-                Directory.CreateDirectory(folder);
-                return Path.Combine(folder, "subathonmanager.db");
-            }
-
-            return Data["Database"]["Path"];
+            return GetDatabasePathStatic();
         }
 
         public static string GetDatabasePathStatic()
         {
-            if (Data["Database"]["Path"] == null)
-            {
-                string folder = Path.GetFullPath(Path.Combine(string.Empty, 
-                    "data"));
-                Directory.CreateDirectory(folder);
-                return Path.Combine(folder, "subathonmanager.db");
-            }
-
-            return Data["Database"]["Path"];
+            string folder = Path.GetFullPath(Path.Combine(string.Empty,
+                "data"));
+            Directory.CreateDirectory(folder);
+            return Path.Combine(folder, "subathonmanager.db");
         }
 
         public virtual string? Get(string section, string key, string? defaultValue = "")
