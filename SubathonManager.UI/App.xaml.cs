@@ -53,7 +53,7 @@ public partial class App
         
         AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
         {
-            File.WriteAllText("error.log", $"DB:{Config.GetDatabasePathStatic()}\r\n{ex.ExceptionObject}");
+            File.WriteAllText("error_load.log", $"{ex.ExceptionObject}");
         };
         
         var services = new ServiceCollection();
@@ -82,7 +82,7 @@ public partial class App
             services.AddSingleton<IConfig, Config>();
             services.AddDbContextFactory<AppDbContext>(options =>
             {
-                var dbPath = Config.GetDatabasePathStatic();
+                var dbPath = Config.DatabasePath;
                 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
                 options.UseSqlite($"Data Source={dbPath}");
             });
@@ -99,7 +99,7 @@ public partial class App
             AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
             AppConfig.LoadOrCreateDefault();
 
-            string theme = (AppConfig.Get("App", "Theme") ?? "Dark").Trim();
+            string theme = (AppConfig.Get("App", "Theme", "Dark"))!.Trim();
             _themeDictionary = new ResourceDictionary
             {
                 Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
@@ -148,7 +148,7 @@ public partial class App
                 }
             );
 
-            AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port") ?? "14040"));
+            AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port", "14040")!));
 
             Task.Run(async () =>
             {
@@ -190,10 +190,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex);
-            Console.WriteLine(ex.ToString());
-            Console.WriteLine(ex.StackTrace);
-            
+            File.WriteAllText("error_startup.log", $"{ex}\r\n{ex.StackTrace}");
             _logger?.LogError(ex, "Error occurred when starting Subathon Manager");
             Current.Shutdown();
         }
@@ -254,7 +251,7 @@ public partial class App
     {
         try
         {
-            int newPort = int.Parse(AppConfig!.Get("Server", "Port") ?? "14040");
+            int newPort = int.Parse(AppConfig!.Get("Server", "Port", "14040")!);
             if (AppWebServer?.Port != newPort)
             {
                 _logger?.LogDebug($"Config reloaded! New server port: {newPort}");

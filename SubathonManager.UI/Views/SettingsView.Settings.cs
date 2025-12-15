@@ -14,7 +14,7 @@ namespace SubathonManager.UI.Views
         {
             var currencies = App.AppEventService!.ValidEventCurrencies().OrderBy(x => x).ToList();
             DefaultCurrencyBox.ItemsSource = currencies;
-            DefaultCurrencyBox.SelectedItem = App.AppConfig!.Get("Currency", "Primary")?.Trim().ToUpperInvariant() ?? "USD";
+            DefaultCurrencyBox.SelectedItem = App.AppConfig!.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
             
             StreamElementsSettingsControl.CurrencyBox.ItemsSource = currencies;
             StreamElementsSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;

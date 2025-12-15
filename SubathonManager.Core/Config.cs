@@ -12,6 +12,9 @@ namespace SubathonManager.Core
         
         public static readonly string DataFolder = Path.GetFullPath(Path.Combine(string.Empty
             , "data"));
+        
+        public static readonly string DatabasePath = Path.Combine(Path.GetFullPath(Path.Combine(string.Empty,
+                "data")), "subathonmanager.db");
 
         public static readonly string AppFolder = Path.GetFullPath(".");
 
@@ -56,6 +59,12 @@ namespace SubathonManager.Core
                     Save();
                 }
             }
+
+            if (string.IsNullOrWhiteSpace(Get("Currency", "Primary")))
+            {
+                Set("Currency", "Primary", "USD");
+                Save();
+            }
         }
 
         private void CreateDefault()
@@ -72,6 +81,7 @@ namespace SubathonManager.Core
                 Data["Discord"][$"Events.Log.{type}"] = $"{false}";
             }
             Data["Discord"]["Events.Log.Simulated"] = $"{false}";
+            Data["Currency"]["Primary"] = "USD";
         }
 
         public virtual void Save()
@@ -81,15 +91,7 @@ namespace SubathonManager.Core
 
         public virtual string GetDatabasePath()
         {
-            return GetDatabasePathStatic();
-        }
-
-        public static string GetDatabasePathStatic()
-        {
-            string folder = Path.GetFullPath(Path.Combine(string.Empty,
-                "data"));
-            Directory.CreateDirectory(folder);
-            return Path.Combine(folder, "subathonmanager.db");
+            return DatabasePath;
         }
 
         public virtual string? Get(string section, string key, string? defaultValue = "")
