@@ -30,6 +30,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommand()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -57,6 +60,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -84,6 +90,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam2()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -111,6 +120,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_ShouldNotRaiseEvent_InvalidCommand()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -133,6 +145,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_ShouldRaiseEvent_WithDefaults()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -169,6 +184,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessKoFiSub_ShouldRaiseEvent_WithDefaults()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -200,6 +218,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalDonation_ShouldRaiseEvent_WithValidData()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
@@ -231,6 +252,9 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessKoFiDonation_ShouldRaiseEvent_WithValidData()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = null;
         Action<SubathonEvent> handler = e => ev = e;
         SubathonEvents.SubathonEventCreated += handler;
