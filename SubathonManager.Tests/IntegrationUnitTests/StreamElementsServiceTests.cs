@@ -89,6 +89,10 @@ public class StreamElementsServiceTests
         var logger = new Mock<ILogger<StreamElementsService>>();
         var config = new Mock<Config>();
         var service = new StreamElementsService(logger.Object, config.Object);
+        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
 
         SubathonEvent? capturedEvent = null;
         Action<SubathonEvent> handler = ev => capturedEvent = ev;

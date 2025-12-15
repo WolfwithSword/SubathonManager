@@ -204,6 +204,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             });
 
             var service = new TwitchService(null, config);
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
 
             var ev = CaptureEvent(() =>
                 service
@@ -212,6 +215,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     .Invoke(service, new object?[] { null, new StreamOnlineArgs() })
             );
 
+            Assert.NotNull(ev);
             Assert.Equal(SubathonCommandType.Resume, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);

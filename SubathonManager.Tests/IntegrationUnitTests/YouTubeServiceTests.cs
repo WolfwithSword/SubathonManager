@@ -37,6 +37,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateMembership_ShouldRaiseEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+
             SubathonEvent? captured = null;
             Action<SubathonEvent> handler = ev => captured = ev;
             SubathonEvents.SubathonEventCreated += handler;
