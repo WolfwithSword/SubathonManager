@@ -133,35 +133,18 @@ jobs:
           fi
 
       - name: Build project
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            dotnet publish SubathonManager.UI/SubathonManager.UI.csproj \
-              -c Release \
-              -r ${{ env.RUNTIME }} \
-              --self-contained true \
-              -p:PublishSingleFile=true \
-              -p:IncludeAllContentForSelfExtract=true \
-              -p:PublishTrimmed=false \
-              -p:FileVersion=${{ steps.vars.outputs.file_version }} \
-              -p:AssemblyVersion=${{ steps.vars.outputs.file_version }} \
-              -p:InformationalVersion=${{ steps.vars.outputs.version }} \
-              -p:OutputType=Exe \
-              -p:UseWpf=true \
-              -o build
-          else
-            dotnet publish SubathonManager.UI/SubathonManager.UI.csproj \
-              -c Release \
-              -r ${{ env.RUNTIME }} \
-              --self-contained true \
-              -p:PublishSingleFile=true \
-              -p:IncludeAllContentForSelfExtract=true \
-              -p:PublishTrimmed=false \
-              -p:FileVersion=${{ steps.vars.outputs.file_version }} \
-              -p:AssemblyVersion=${{ steps.vars.outputs.file_version }} \
-              -p:InformationalVersion=${{ steps.vars.outputs.version }} \
-              -o build
-          fi
+        run: >
+          dotnet publish SubathonManager.UI/SubathonManager.UI.csproj 
+          -c Release 
+          -r ${{ env.RUNTIME }}
+          --self-contained true 
+          -p:PublishSingleFile=true 
+          -p:IncludeAllContentForSelfExtract=true 
+          -p:PublishTrimmed=false 
+          -p:FileVersion=${{ steps.vars.outputs.file_version }}
+          -p:AssemblyVersion=${{ steps.vars.outputs.file_version }}
+          -p:InformationalVersion=${{ steps.vars.outputs.version }} 
+          -o build
 
       - name: Copy presets folder and license into build output
         run: |
