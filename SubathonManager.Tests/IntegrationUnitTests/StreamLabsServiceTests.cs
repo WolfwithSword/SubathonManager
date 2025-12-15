@@ -57,7 +57,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public void SimulateTip_ShouldRaiseSubathonEvent()
         {
             SubathonEvent? capturedEvent = null;
-            SubathonEvents.SubathonEventCreated += ev => capturedEvent = ev;
+            Action<SubathonEvent> handler = ev => capturedEvent = ev;
+            SubathonEvents.SubathonEventCreated += handler;
 
             StreamLabsService.SimulateTip("25.5", "USD");
 
@@ -66,6 +67,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("USD", capturedEvent.Currency);
             Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
             Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
+            SubathonEvents.SubathonEventCreated -= handler;
         }
 
         [Fact]
@@ -76,7 +78,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new StreamLabsService(logger.Object, config.Object);
 
             SubathonEvent? capturedEvent = null;
-            SubathonEvents.SubathonEventCreated += ev => capturedEvent = ev;
+            Action<SubathonEvent> handler = ev => capturedEvent = ev;
+            SubathonEvents.SubathonEventCreated += handler;
 
             var donation = new DonationMessage
             {
@@ -108,6 +111,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.StreamLabs, capturedEvent.Source);
             Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
             Assert.Equal(Guid.Parse(donation.MessageId), capturedEvent.Id);
+            
+            SubathonEvents.SubathonEventCreated -= handler;
         }
     }
 }
