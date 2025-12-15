@@ -18,6 +18,7 @@ using UserType = TwitchLib.Client.Enums.UserType;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
+    [Collection("IntegrationEventTests")]
     public class TwitchServiceTests
     {
         public TwitchServiceTests()

@@ -10,6 +10,7 @@ using Streamlabs.SocketClient.Messages.DataTypes;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
+    [Collection("IntegrationEventTests")]
     public class StreamLabsServiceTests
     {
         public StreamLabsServiceTests()

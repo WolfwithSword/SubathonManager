@@ -10,6 +10,7 @@ using System.Reflection;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
+    [Collection("IntegrationEventTests")]
     public class YouTubeServiceTests
     {
         public YouTubeServiceTests()

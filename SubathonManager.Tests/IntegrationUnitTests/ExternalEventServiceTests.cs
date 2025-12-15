@@ -8,6 +8,7 @@ using Moq;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
+[Collection("IntegrationEventTests")]
 public class ExternalEventServiceTests
 {
     public ExternalEventServiceTests()

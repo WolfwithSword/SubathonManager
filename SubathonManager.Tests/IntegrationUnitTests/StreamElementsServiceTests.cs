@@ -9,6 +9,7 @@ using StreamElements.WebSocket.Models.Internal;
 using Microsoft.Extensions.Logging;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
+[Collection("IntegrationEventTests")]
 public class StreamElementsServiceTests
 {
     
