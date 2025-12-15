@@ -149,15 +149,10 @@ namespace SubathonManager.Data
                 }
             }
         }
-
-        public static async Task<SubathonData?> GetActiveSubathon(AppDbContext db)
-        {
-            return await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-        }
         
         public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db)
         {
-            SubathonData? subathon = await GetActiveSubathon(db);
+            SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
             if (subathon == null) return new List<SubathonEvent>();
             
             List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => !string.IsNullOrWhiteSpace(e.Currency)

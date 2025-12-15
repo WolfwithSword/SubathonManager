@@ -79,14 +79,13 @@ public partial class App
         try
         {
             services.AddSingleton<IConfig, Config>();
+            services.AddDbContextFactory<AppDbContext>();
+            
             services.AddSingleton<CurrencyService>();
             services.AddSingleton<TwitchService>();
             services.AddSingleton<YouTubeService>();
             services.AddSingleton<StreamElementsService>();
             services.AddSingleton<StreamLabsService>();
-
-            services.AddDbContextFactory<AppDbContext>();
-
             services.AddSingleton<EventService>();
 
             AppServices.Provider = services.BuildServiceProvider();
@@ -111,24 +110,26 @@ public partial class App
                 fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
                     ? ApplicationTheme.Dark
                     : ApplicationTheme.Light;
-            base.OnStartup(e);
 
             _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
             _logger.LogInformation("======== Subathon Manager started ========");
             _logger.LogInformation($"== Data folder: {Config.DataFolder} ==");
 
             var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-            _factory = factory;
+            _factory = factory;      
+            using (var db = _factory.CreateDbContext()) {
+                db.Database.Migrate();
+                AppDbContext.SeedDefaultValues(db);
+            }
+
+            base.OnStartup(e);
 
             AppEventService = AppServices.Provider.GetRequiredService<EventService>();
             AppTwitchService = AppServices.Provider.GetRequiredService<TwitchService>();
             AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
             AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
             AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
-
-            using var db = _factory.CreateDbContext();
-            db.Database.Migrate();
-            AppDbContext.SeedDefaultValues(db);
+            
 
             Task.Run(async () =>
                 {
@@ -302,7 +303,7 @@ public partial class App
     {
         // Setup first time or convert currency
         string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
-        var subathon = await AppDbContext.GetActiveSubathon(db);
+        var subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
         if (subathon == null || currency.Equals(subathon.Currency, StringComparison.OrdinalIgnoreCase)) return;
 
         string? oldCurrency = subathon.Currency;
