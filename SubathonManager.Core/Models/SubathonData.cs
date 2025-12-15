@@ -23,6 +23,9 @@ public class SubathonData
     
     // proper power hour value is here
     public MultiplierData Multiplier { get; set; } = new();
+    
+    public string? Currency { get; set; } = ""; // load from default if not set
+    public double? MoneySum { get; set; } = 0; 
 
     public DateTime PredictedEndTime()
     {

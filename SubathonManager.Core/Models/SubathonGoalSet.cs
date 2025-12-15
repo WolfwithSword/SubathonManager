@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core.Models;
 
@@ -12,4 +13,6 @@ public class SubathonGoalSet
     public bool IsActive { get; set; } = true;
     
     public List<SubathonGoal> Goals { get; set; } = new();
+
+    public GoalsType? Type { get; set; } = GoalsType.Points;
 }

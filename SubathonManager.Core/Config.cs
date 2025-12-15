@@ -93,6 +93,19 @@ namespace SubathonManager.Core
             return Data["Database"]["Path"];
         }
 
+        public static string GetDatabasePathStatic()
+        {
+            if (Data["Database"]["Path"] == null)
+            {
+                string folder = Path.GetFullPath(Path.Combine(string.Empty, 
+                    "data"));
+                Directory.CreateDirectory(folder);
+                return Path.Combine(folder, "subathonmanager.db");
+            }
+
+            return Data["Database"]["Path"];
+        }
+
         public virtual string? Get(string section, string key, string? defaultValue = "")
         {
             return Data[section][key] ?? defaultValue;

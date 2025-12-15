@@ -180,12 +180,12 @@ namespace SubathonManager.UI.Views
                         box2 = KoFiSettingsControl.DonoBox2;
                         break;
                     case SubathonEventType.YouTubeMembership:
-                        box = YouTubeSettingsControl.MemberT1TextBox;
-                        box2 = YouTubeSettingsControl.MemberT1TextBox2;
+                        box = YouTubeSettingsControl.MemberDefaultTextBox;
+                        box2 = YouTubeSettingsControl.MemberRenameTextBox2;
                         break;
                     case SubathonEventType.YouTubeGiftMembership:
-                        box = YouTubeSettingsControl.GiftMemberT1TextBox;
-                        box2 = YouTubeSettingsControl.GiftMemberT1TextBox2;
+                        box = YouTubeSettingsControl.GiftMemberDefaultTextBox;
+                        box2 = YouTubeSettingsControl.GiftMemberDefaultTextBox2;
                         break;
                     case SubathonEventType.YouTubeSuperChat:
                         box = YouTubeSettingsControl.DonoBox;

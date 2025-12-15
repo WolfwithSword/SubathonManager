@@ -24,13 +24,12 @@ namespace SubathonManager.Data
         
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
-        private readonly IConfig _config = AppServices.Provider.GetRequiredService<IConfig>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
             {
-                var dbPath = _config.GetDatabasePath();
+                var dbPath = Config.GetDatabasePathStatic();
                 Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
                 optionsBuilder.UseSqlite($"Data Source={dbPath}");
             }
@@ -151,6 +150,23 @@ namespace SubathonManager.Data
             }
         }
 
+        public static async Task<SubathonData?> GetActiveSubathon(AppDbContext db)
+        {
+            return await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+        }
+        
+        public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db)
+        {
+            SubathonData? subathon = await GetActiveSubathon(db);
+            if (subathon == null) return new List<SubathonEvent>();
+            
+            List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => !string.IsNullOrWhiteSpace(e.Currency)
+                && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
+                .ToListAsync();
+            events = events.Where(e => e.EventType.IsCurrencyDonation()).ToList();
+            return events;
+        }
+        
         public static async Task ActiveEventsToCsv(AppDbContext db)
         {
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
@@ -214,6 +230,17 @@ namespace SubathonManager.Data
             await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsActive = 0");
             await PauseAllTimers(db);
         }
+
+        public static async Task UpdateSubathonCurrency(AppDbContext db, string currency)
+        {
+            await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET Currency = {0} WHERE IsActive = 1", currency);
+        }
+        
+        public static async Task UpdateSubathonMoney(AppDbContext db, double money, Guid subathonId)
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE SubathonDatas SET MoneySum = {0} WHERE IsActive = 1 and Id = {1}", money, subathonId);
+        }
         
         public static void SeedDefaultValues(AppDbContext db)
         {
@@ -263,6 +290,19 @@ namespace SubathonManager.Data
                 db.SubathonGoalSets.Add(goalSet);
             }
 
+            if (db.SubathonGoalSets.Any(s => s.Type == null))
+            {
+                db.SubathonGoalSets.Where(s => s.Type == null)
+                    .ExecuteUpdate(s =>
+                        s.SetProperty(x => x.Type, GoalsType.Points));
+            }
+            
+            if (db.SubathonGoals.Any(s => s.Money == null))
+            {
+                db.SubathonGoals.Where(s => s.Money == null)
+                    .ExecuteUpdate(s =>
+                        s.SetProperty(x => x.Money, 0));
+            }
             db.SaveChanges();
         }
     }

@@ -32,7 +32,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
-                    <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center"/>
+                    <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center" ToolTip="Includes Combos and PowerUps"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
                                 x:Name="CheerTextBox"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>

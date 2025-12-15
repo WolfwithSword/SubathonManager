@@ -76,7 +76,9 @@ public partial class App
         services.AddSingleton<YouTubeService>();
         services.AddSingleton<StreamElementsService>();
         services.AddSingleton<StreamLabsService>();
+        
         services.AddDbContextFactory<AppDbContext>();
+        
         services.AddSingleton<EventService>();
         
         AppServices.Provider = services.BuildServiceProvider();
@@ -127,6 +129,8 @@ public partial class App
             }
         );
 
+        Task.Run(async () => { await SetupSubathonCurrencyData(); });
+        
         AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port") ?? "14040"));
 
         Task.Run(async () =>
@@ -233,6 +237,10 @@ public partial class App
             }
             AppDiscordWebhookService?.LoadFromConfig();
             SetThemeFromConfig();
+            Task.Run(async () =>
+            {
+                await SetupSubathonCurrencyData();
+            });
         }
         catch (Exception ex)
         {
@@ -266,12 +274,38 @@ public partial class App
                     ? ApplicationTheme.Dark
                     : ApplicationTheme.Light;
             }
-
-            // foreach (Window w in Application.Current.Windows)
-            // {
-            //     w.InvalidateVisual();
-            // }
         }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private async Task SetupSubathonCurrencyData()
+    {
+        // Setup first time or convert currency
+        string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
+        await using var db = await _factory!.CreateDbContextAsync();
+        var subathon = await AppDbContext.GetActiveSubathon(db);
+        if (subathon == null || currency.Equals(subathon.Currency, StringComparison.OrdinalIgnoreCase)) return;
+
+        string? oldCurrency = subathon.Currency;
+        await AppDbContext.UpdateSubathonCurrency(db, currency);
+        
+        var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
+        if (subathon.MoneySum != null && !subathon.MoneySum.Equals((double)0) && !string.IsNullOrWhiteSpace(oldCurrency))
+        {
+            var amt = await currencyService.ConvertAsync((double)subathon.MoneySum, oldCurrency, currency);
+            await AppDbContext.UpdateSubathonMoney(db, amt, subathon.Id);
+            return;
+        }
+        
+        var events = await AppDbContext.GetSubathonCurrencyEvents(db);
+        
+        double sum = 0;
+        foreach (var e in events)
+        {
+            if (string.IsNullOrWhiteSpace(e.Currency)) continue;
+            var amt = await currencyService.ConvertAsync(double.Parse(e.Value), e.Currency, currency.ToUpper());
+            sum += amt;
+        }
+        await AppDbContext.UpdateSubathonMoney(db, sum, subathon.Id);
     }
 
 }
