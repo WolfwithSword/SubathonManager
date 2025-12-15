@@ -9,8 +9,17 @@ using StreamElements.WebSocket.Models.Internal;
 using Microsoft.Extensions.Logging;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
+[Collection("IntegrationEventTests")]
 public class StreamElementsServiceTests
 {
+    
+    public StreamElementsServiceTests()
+    {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+    }
+    
     [Fact]
     public void InitClient_ShouldReturnFalse_WhenJwtIsEmpty()
     {
@@ -60,8 +69,12 @@ public class StreamElementsServiceTests
     [Fact]
     public void SimulateTip_ShouldRaiseSubathonEvent()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? capturedEvent = null;
-        SubathonEvents.SubathonEventCreated += ev => capturedEvent = ev;
+        Action<SubathonEvent> handler = ev => capturedEvent = ev;
+        SubathonEvents.SubathonEventCreated += handler;
 
         StreamElementsService.SimulateTip("15.5", "USD");
 
@@ -70,6 +83,8 @@ public class StreamElementsServiceTests
         Assert.Equal("USD", capturedEvent.Currency);
         Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
         Assert.Equal(SubathonEventType.StreamElementsDonation, capturedEvent.EventType);
+
+        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]
@@ -78,9 +93,14 @@ public class StreamElementsServiceTests
         var logger = new Mock<ILogger<StreamElementsService>>();
         var config = new Mock<Config>();
         var service = new StreamElementsService(logger.Object, config.Object);
+        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
 
         SubathonEvent? capturedEvent = null;
-        SubathonEvents.SubathonEventCreated += ev => capturedEvent = ev;
+        Action<SubathonEvent> handler = ev => capturedEvent = ev;
+        SubathonEvents.SubathonEventCreated += handler;
 
         var tip = new Tip(
             tipId: Guid.NewGuid().ToString(),
@@ -104,6 +124,7 @@ public class StreamElementsServiceTests
         Assert.Equal(SubathonEventType.StreamElementsDonation, capturedEvent.EventType);
 
         Assert.Equal(Guid.Parse(tip.TipId), capturedEvent.Id);
+        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]
@@ -135,6 +156,7 @@ public class StreamElementsServiceTests
         var service = new StreamElementsService(logger.Object, config.Object);
 
         bool eventRaised = false;
+        
         StreamElementsEvents.StreamElementsConnectionChanged += connected =>
         {
             eventRaised = true;

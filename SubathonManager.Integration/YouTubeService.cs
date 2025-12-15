@@ -4,6 +4,7 @@ using YTLiveChat.Contracts.Services;
 using YTLiveChat.Services; 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -234,12 +235,14 @@ public class YouTubeService : IDisposable
         }, token);
     }
     
+    [ExcludeFromCodeCoverage]
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
     
+    [ExcludeFromCodeCoverage]
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed)

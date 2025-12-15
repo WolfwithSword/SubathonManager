@@ -8,7 +8,14 @@ namespace SubathonManager.Services;
 
 public static class CommandService
 {
-    private static readonly IConfig AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
+    internal static IConfig? AppConfig { get; private set; }
+    
+    static CommandService()
+    {
+        if (AppConfig == null)
+            AppConfig = AppServices.Provider?.GetRequiredService<IConfig>()!;
+    }
+
     
     public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
         bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp,
@@ -42,6 +49,11 @@ public static class CommandService
         return true;
     }
 
+    internal static void SetConfig(IConfig config)
+    {
+        AppConfig = config;
+    }
+
     private static bool ValidateUser(SubathonEvent subathonEvent, string user, bool isBroadcaster,
         bool isModerator, bool isVip)
     {
@@ -49,13 +61,13 @@ public static class CommandService
 
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
         if (isModerator && bool.TryParse(
-                AppConfig.Get("Twitch", $"{configKey}.Mods"), out var modPerms) && modPerms)
+                AppConfig!.Get("Twitch", $"{configKey}.Mods"), out var modPerms) && modPerms)
             return true;
         if (isVip && bool.TryParse(
-                AppConfig.Get("Twitch", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
+                AppConfig!.Get("Twitch", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
             return true;
         
-        string[] whitelist = AppConfig.Get("Twitch", $"{configKey}.Whitelist")!.ToLower().Split(',');
+        string[] whitelist = AppConfig!.Get("Twitch", $"{configKey}.Whitelist")!.ToLower().Split(',');
 
         if (whitelist.Contains(user.ToLower().Trim())) return true;
         
@@ -67,8 +79,8 @@ public static class CommandService
         if (cmdOverride != SubathonCommandType.None && cmdOverride != SubathonCommandType.Unknown) return cmdOverride;
         string[] parts = message.Split(' ');
         string cmdName = parts[0].Substring(1, parts[0].Length -1 ).Trim();
-
-        foreach (var keyData in AppConfig.GetSection("Twitch"))
+        
+        foreach (var keyData in AppConfig!.GetSection("Twitch"))
         {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
             if (keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase))

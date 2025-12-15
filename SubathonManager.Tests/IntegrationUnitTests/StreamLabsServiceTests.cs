@@ -10,8 +10,16 @@ using Streamlabs.SocketClient.Messages.DataTypes;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
+    [Collection("IntegrationEventTests")]
     public class StreamLabsServiceTests
     {
+        public StreamLabsServiceTests()
+        {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+        }
+        
         [Fact]
         public void IsTokenEmpty_ShouldReturnTrue_WhenTokenNotSet()
         {
@@ -56,18 +64,29 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void SimulateTip_ShouldRaiseSubathonEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
             SubathonEvent? capturedEvent = null;
-            SubathonEvents.SubathonEventCreated += ev => capturedEvent = ev;
+            void Handler(SubathonEvent ev) => capturedEvent = ev;
 
-            StreamLabsService.SimulateTip("25.5", "USD");
+            SubathonEvents.SubathonEventCreated += Handler;
+            try
+            {
+                StreamLabsService.SimulateTip("25.5", "USD");
 
-            Assert.NotNull(capturedEvent);
-            Assert.Equal("25.5", capturedEvent!.Value);
-            Assert.Equal("USD", capturedEvent.Currency);
-            Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
-            Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
+                Assert.NotNull(capturedEvent);
+                Assert.Equal("25.5", capturedEvent!.Value);
+                Assert.Equal("USD", capturedEvent.Currency);
+                Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
+                Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
+            }
+            finally
+            {
+                SubathonEvents.SubathonEventCreated -= Handler;
+            }
         }
-
+        
         [Fact]
         public void OnDonation_ShouldRaiseSubathonEvent()
         {
@@ -75,8 +94,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var config = new Mock<Config>();
             var service = new StreamLabsService(logger.Object, config.Object);
 
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+            
             SubathonEvent? capturedEvent = null;
-            SubathonEvents.SubathonEventCreated += ev => capturedEvent = ev;
+            Action<SubathonEvent> handler = ev => capturedEvent = ev;
+            SubathonEvents.SubathonEventCreated += handler;
 
             var donation = new DonationMessage
             {
@@ -108,6 +132,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.StreamLabs, capturedEvent.Source);
             Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
             Assert.Equal(Guid.Parse(donation.MessageId), capturedEvent.Id);
+            
+            SubathonEvents.SubathonEventCreated -= handler;
         }
     }
 }

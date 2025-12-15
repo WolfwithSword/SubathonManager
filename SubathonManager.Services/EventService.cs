@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
@@ -9,6 +10,8 @@ using SubathonManager.Core.Events;
 namespace SubathonManager.Services;
 
 // We don't need one of these for Subathon updates, because those fire every second anyways
+
+[ExcludeFromCodeCoverage]
 public class EventService: IDisposable
 {
     private readonly IDbContextFactory<AppDbContext> _factory;

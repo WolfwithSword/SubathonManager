@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -371,6 +372,8 @@ public class DiscordWebhookService : IDisposable
     
 }
 
+
+[ExcludeFromCodeCoverage]
 internal static class LinqExtensions
 {
     public static IEnumerable<List<T>> Chunk<T>(this IEnumerable<T> source, int size)

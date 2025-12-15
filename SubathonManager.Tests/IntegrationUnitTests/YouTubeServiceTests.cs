@@ -10,14 +10,21 @@ using System.Reflection;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
+    [Collection("IntegrationEventTests")]
     public class YouTubeServiceTests
     {
+        public YouTubeServiceTests()
+        {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+        }
         [Fact]
         public void SimulateSuperChat_ShouldRaiseEvent()
         {
             SubathonEvent? captured = null;
-            SubathonEvents.SubathonEventCreated += e => captured = e;
-
+            Action<SubathonEvent> handler = ev => captured = ev;
+            SubathonEvents.SubathonEventCreated += handler;
             YouTubeService.SimulateSuperChat("12.5", "USD");
 
             Assert.NotNull(captured);
@@ -25,13 +32,19 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("USD", captured.Currency);
             Assert.Equal(SubathonEventSource.Simulated, captured.Source);
             Assert.Equal(SubathonEventType.YouTubeSuperChat, captured.EventType);
+            SubathonEvents.SubathonEventCreated -= handler;
         }
 
         [Fact]
         public void SimulateMembership_ShouldRaiseEvent()
         {
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+
             SubathonEvent? captured = null;
-            SubathonEvents.SubathonEventCreated += e => captured = e;
+            Action<SubathonEvent> handler = ev => captured = ev;
+            SubathonEvents.SubathonEventCreated += handler;
 
             YouTubeService.SimulateMembership("Gold");
 
@@ -40,13 +53,15 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("member", captured.Currency);
             Assert.Equal(SubathonEventSource.Simulated, captured.Source);
             Assert.Equal(SubathonEventType.YouTubeMembership, captured.EventType);
+            SubathonEvents.SubathonEventCreated -= handler;
         }
 
         [Fact]
         public void SimulateGiftMemberships_ShouldRaiseEvent()
         {
             SubathonEvent? captured = null;
-            SubathonEvents.SubathonEventCreated += e => captured = e;
+            Action<SubathonEvent> handler = ev => captured = ev;
+            SubathonEvents.SubathonEventCreated += handler;
 
             YouTubeService.SimulateGiftMemberships(3);
 
@@ -55,6 +70,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Simulated, captured.Source);
             Assert.Equal(SubathonEventType.YouTubeGiftMembership, captured.EventType);
             Assert.Equal(3, captured.Amount);
+            SubathonEvents.SubathonEventCreated -= handler;
         }
 
         [Fact]
