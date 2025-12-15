@@ -178,6 +178,10 @@ public partial class App
         }
         catch (Exception ex)
         {
+            Console.WriteLine(ex);
+            Console.WriteLine(ex.ToString());
+            Console.WriteLine(ex.StackTrace);
+            
             _logger?.LogError(ex, "Error occurred when starting Subathon Manager");
             Current.Shutdown();
         }
