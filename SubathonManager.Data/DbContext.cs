@@ -24,17 +24,12 @@ namespace SubathonManager.Data
         
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
         {
-            if (!optionsBuilder.IsConfigured)
-            {
-                var dbPath = Config.GetDatabasePathStatic();
-                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-                optionsBuilder.UseSqlite($"Data Source={dbPath}");
-            }
         }
-
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Route>()

@@ -53,7 +53,7 @@ public partial class App
         
         AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
         {
-            File.WriteAllText("error.log", ex.ExceptionObject.ToString());
+            File.WriteAllText("error.log", $"DB:{Config.GetDatabasePathStatic()}\r\n{ex.ExceptionObject}");
         };
         
         var services = new ServiceCollection();
@@ -72,6 +72,7 @@ public partial class App
                 options.SingleLine = true;
                 options.IncludeScopes = false;
             });
+            builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
             builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
             builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
         });
@@ -79,7 +80,12 @@ public partial class App
         try
         {
             services.AddSingleton<IConfig, Config>();
-            services.AddDbContextFactory<AppDbContext>();
+            services.AddDbContextFactory<AppDbContext>(options =>
+            {
+                var dbPath = Config.GetDatabasePathStatic();
+                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+                options.UseSqlite($"Data Source={dbPath}");
+            });
             
             services.AddSingleton<CurrencyService>();
             services.AddSingleton<TwitchService>();
