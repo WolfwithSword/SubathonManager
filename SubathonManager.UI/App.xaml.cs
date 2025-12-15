@@ -50,7 +50,12 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
-
+        
+        AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
+        {
+            File.WriteAllText("error.log", ex.ExceptionObject.ToString());
+        };
+        
         var services = new ServiceCollection();
         
         string folder = Path.GetFullPath(Path.Combine(string.Empty, 
