@@ -136,10 +136,10 @@ public partial class App
                     await AppDbContext.PauseAllTimers(context1);
                     await using var context2 = await _factory.CreateDbContextAsync();
                     await AppDbContext.ResetPowerHour(context2);
+                    await using var context3 = await _factory.CreateDbContextAsync();
+                    await SetupSubathonCurrencyData(context3);
                 }
             );
-
-            Task.Run(async () => { await SetupSubathonCurrencyData(); });
 
             AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port") ?? "14040"));
 
@@ -259,7 +259,8 @@ public partial class App
             SetThemeFromConfig();
             Task.Run(async () =>
             {
-                await SetupSubathonCurrencyData();
+                await using var db = await _factory!.CreateDbContextAsync();
+                await SetupSubathonCurrencyData(db);
             });
         }
         catch (Exception ex)
@@ -297,11 +298,10 @@ public partial class App
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private async Task SetupSubathonCurrencyData()
+    private async Task SetupSubathonCurrencyData(AppDbContext db)
     {
         // Setup first time or convert currency
         string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
-        await using var db = await _factory!.CreateDbContextAsync();
         var subathon = await AppDbContext.GetActiveSubathon(db);
         if (subathon == null || currency.Equals(subathon.Currency, StringComparison.OrdinalIgnoreCase)) return;
 
