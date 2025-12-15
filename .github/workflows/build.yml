@@ -26,7 +26,7 @@ on:
 jobs:
 
   test:
-    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' # reconsider when more tests
+    # if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' # reconsider when more tests
     name: Run Tests & Generate Coverage
     runs-on: ubuntu-latest
     steps:
