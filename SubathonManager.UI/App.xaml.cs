@@ -108,6 +108,7 @@ public partial class App
 
             AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
             AppConfig.LoadOrCreateDefault();
+            AppConfig.MigrateConfig();
 
             string theme = (AppConfig.Get("App", "Theme", "Dark"))!.Trim();
             _themeDictionary = new ResourceDictionary

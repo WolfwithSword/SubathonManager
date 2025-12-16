@@ -62,13 +62,13 @@ public static class CommandService
         // All Commands are under twitch section at the moment, despite being cross platform chat commands
         // Should update eventually, or is it too late
         if (isModerator && bool.TryParse(
-                AppConfig!.Get("Twitch", $"{configKey}.Mods"), out var modPerms) && modPerms)
+                AppConfig!.Get("Chat", $"{configKey}.Mods"), out var modPerms) && modPerms)
             return true;
         if (isVip && bool.TryParse(
-                AppConfig!.Get("Twitch", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
+                AppConfig!.Get("Chat", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
             return true;
         
-        string[] whitelist = AppConfig!.Get("Twitch", $"{configKey}.Whitelist")!.ToLower().Split(',');
+        string[] whitelist = AppConfig!.Get("Chat", $"{configKey}.Whitelist")!.ToLower().Split(',');
 
         if (whitelist.Contains(user.ToLower().Trim())) return true;
         
@@ -81,7 +81,7 @@ public static class CommandService
         string[] parts = message.Split(' ');
         string cmdName = parts[0].Substring(1, parts[0].Length -1 ).Trim();
         
-        foreach (var keyData in AppConfig!.GetSection("Twitch"))
+        foreach (var keyData in AppConfig!.GetSection("Chat")!)
         {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
             if (keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase))
