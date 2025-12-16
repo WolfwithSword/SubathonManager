@@ -15,7 +15,6 @@ public static class CommandService
         if (AppConfig == null)
             AppConfig = AppServices.Provider?.GetRequiredService<IConfig>()!;
     }
-
     
     public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
         bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp,
@@ -60,6 +59,8 @@ public static class CommandService
         if (isBroadcaster) return true;
 
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
+        // All Commands are under twitch section at the moment, despite being cross platform chat commands
+        // Should update eventually, or is it too late
         if (isModerator && bool.TryParse(
                 AppConfig!.Get("Twitch", $"{configKey}.Mods"), out var modPerms) && modPerms)
             return true;
@@ -142,7 +143,11 @@ public static class CommandService
                     if (part.ToLower().Contains('x') && multiplier <= double.MinValue + 5)
                     {
                         if (!double.TryParse(part.ToLower().Split('x')[0].Trim(), out multiplier))
-                            return false;
+                        {
+                            multiplier = double.MinValue;
+                            continue;
+                        }
+
                         if (part.ToLower().Contains('p'))
                             applyPoints = true;
                         if (part.ToLower().Contains('t'))
@@ -155,7 +160,7 @@ public static class CommandService
                     }
                 }
 
-                if ((!applyPoints && !applyTime) || (multiplier <= 1.001 && multiplier >= 0.999) || !(multiplier > 0))
+                if ((!applyPoints && !applyTime) || (multiplier.Equals(1) || !(multiplier > 0)))
                 {
                     subathonEvent.Value = $"{SubathonCommandType.SetMultiplier} Failed";
                     subathonEvent.Command = SubathonCommandType.StopMultiplier;

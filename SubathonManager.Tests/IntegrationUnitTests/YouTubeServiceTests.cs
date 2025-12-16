@@ -4,8 +4,10 @@ using SubathonManager.Integration;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
+using SubathonManager.Services;
 using YTLiveChat.Contracts.Models;
 using YTLiveChat.Contracts.Services;
+using IniParser.Model;
 using System.Reflection;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
@@ -13,6 +15,25 @@ namespace SubathonManager.Tests.IntegrationUnitTests
     [Collection("IntegrationEventTests")]
     public class YouTubeServiceTests
     {
+        private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
+        {
+            var mock = new Mock<IConfig>();
+            mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns((string s, string k, string d) =>
+                    values != null && values.TryGetValue((s, k), out var v) ? v : d);
+            
+            var kd = new KeyData("Commands.Pause");
+            kd.Value = "pause";
+            mock.Setup(c => c.GetSection("Twitch")).Returns(() =>
+            {
+                var kdc = new KeyDataCollection();
+                kdc.AddKey(kd);
+                return kdc;
+            });
+            
+            return mock.Object;
+        }
+        
         public YouTubeServiceTests()
         {
             typeof(SubathonEvents)
@@ -200,7 +221,183 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 SubathonEvents.SubathonEventCreated -= handler;
             }
         }
+        
+        [Fact]
+        public void OnChatReceived_Membership_New_RaisesEvent()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
+            SubathonEvent? captured = null;
+            Action<SubathonEvent> handler = e => captured = e;
+            SubathonEvents.SubathonEventCreated += handler;
 
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Message = Array.Empty<MessagePart>(),
+                Timestamp = DateTimeOffset.UtcNow,
+                Author = new Author { Name = "MemberUser", ChannelId = "MemberChannelId" },
+                MembershipDetails = new MembershipDetails
+                {
+                    EventType = MembershipEventType.New,
+                    HeaderSubtext = "New Member",
+                    LevelName = "DEFAULT"
+                }
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, new object?[] { null, args });
+
+            Assert.NotNull(captured);
+            Assert.Equal(SubathonEventSource.YouTube, captured!.Source);
+            Assert.Equal(SubathonEventType.YouTubeMembership, captured!.EventType);
+            Assert.Equal("MemberUser", captured.User);
+
+            SubathonEvents.SubathonEventCreated -= handler;
+        }
+        
+        [Fact]
+        public void OnChatReceived_Membership_Gift_RaisesEvent()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
+            SubathonEvent? captured = null;
+            Action<SubathonEvent> handler = e => captured = e;
+            SubathonEvents.SubathonEventCreated += handler;
+            
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Message = Array.Empty<MessagePart>(),
+                Timestamp = DateTimeOffset.UtcNow,
+                Author = new Author { Name = "MemberUser", ChannelId = "MemberChannelId" },
+                MembershipDetails = new MembershipDetails
+                {
+                    EventType = MembershipEventType.GiftPurchase,
+                    GifterUsername = "Gifter",
+                    GiftCount = 3
+                }
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, new object?[] { null, args });
+
+            Assert.NotNull(captured);
+            Assert.Equal(SubathonEventSource.YouTube, captured!.Source);
+            Assert.Equal(SubathonEventType.YouTubeGiftMembership, captured!.EventType);
+            Assert.Equal("Gifter", captured.User);
+            Assert.Equal(3, captured.Amount);
+
+            SubathonEvents.SubathonEventCreated -= handler;
+        }
+        
+        [Fact]
+        public void OnChatReceived_Membership_GiftRedemption_DoesNotRaiseEvent()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object); 
+            bool eventRaised = false;
+            Action<SubathonEvent> handler = e => eventRaised = true;
+            SubathonEvents.SubathonEventCreated += handler;
+
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Message = Array.Empty<MessagePart>(),
+                Timestamp = DateTimeOffset.UtcNow,
+                Author = new Author { Name = "Gifter",  ChannelId = "MemberChannelId" },
+                MembershipDetails = new MembershipDetails
+                {
+                    EventType = MembershipEventType.GiftRedemption
+                }
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, new object?[] { null, args });
+
+            Assert.False(eventRaised);
+            SubathonEvents.SubathonEventCreated -= handler;
+        }
+        
+        [Fact]
+        public void OnChatReceived_ChatCommand_InvokesCommandService()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
+            SubathonEvent? captured = null;
+            Action<SubathonEvent> handler = e => captured = e;
+            SubathonEvents.SubathonEventCreated += handler;
+            
+            var configCs = MockConfig(new()
+            {
+                { ("Twitch", "Commands.Pause"), "pause" },
+                { ("Twitch", "Commands.Pause.permissions.Mods"), "true" },
+                { ("Twitch", "Commands.Pause.permissions.VIPs"), "false" },
+                { ("Twitch", "Commands.Pause.permissions.Whitelist"), "specialguy" }
+            });
+            CommandService.SetConfig(configCs);
+            
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            MessagePart parts = new TextPart{Text="!pause"}; 
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Timestamp = DateTimeOffset.UtcNow,
+                IsModerator = true,
+                Author = new Author { Name = "User", ChannelId = "12345"},
+                Message = new[] { parts }
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, new object?[] { null, args });
+            
+            Assert.NotNull(captured);
+            Assert.Equal(SubathonEventSource.YouTube, captured!.Source);
+            Assert.Equal(SubathonEventType.Command, captured!.EventType);
+            Assert.Equal(SubathonCommandType.Pause, captured!.Command);
+            Assert.Equal("User", captured.User);
+            SubathonEvents.SubathonEventCreated -= handler;
+        }
+        
         [Fact]
         public void OnChatStopped_ShouldSetRunningFalseAndRaiseEvent()
         {

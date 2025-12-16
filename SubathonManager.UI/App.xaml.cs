@@ -74,6 +74,8 @@ public partial class App
             });
             builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
             builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
+            builder.AddFilter("Microsoft.Extensions.Http", LogLevel.Warning);
+             builder.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
             builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
         });
 
@@ -87,7 +89,15 @@ public partial class App
                 options.UseSqlite($"Data Source={dbPath}");
             });
             
-            services.AddSingleton<CurrencyService>();
+            services.AddHttpClient<CurrencyService>()
+                .SetHandlerLifetime(Timeout.InfiniteTimeSpan); 
+            services.AddSingleton<CurrencyService>(sp =>
+            {
+                var httpClient = sp.GetRequiredService<System.Net.Http.HttpClient>();
+                var logger = sp.GetRequiredService<ILogger<CurrencyService>>();
+                var config = sp.GetRequiredService<IConfig>();
+                return new CurrencyService(logger, config, httpClient);
+            });
             services.AddSingleton<TwitchService>();
             services.AddSingleton<YouTubeService>();
             services.AddSingleton<StreamElementsService>();

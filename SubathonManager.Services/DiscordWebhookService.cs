@@ -48,8 +48,8 @@ public class DiscordWebhookService : IDisposable
 
     public void LoadFromConfig()
     {
-        _eventWebhookUrl = _config.Get("Discord", "Events.WebhookUrl");
-        _webhookUrl = _config.Get("Discord", "WebhookUrl");
+        _eventWebhookUrl = _config.Get("Discord", "Events.WebhookUrl", "");
+        _webhookUrl = _config.Get("Discord", "WebhookUrl", "");
         
         _auditEventTypes.Clear();
         foreach (SubathonEventType type in Enum.GetValues(typeof(SubathonEventType)))
