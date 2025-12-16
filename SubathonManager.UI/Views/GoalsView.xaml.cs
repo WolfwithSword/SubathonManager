@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Views;
@@ -13,7 +14,9 @@ namespace SubathonManager.UI.Views;
 public partial class GoalsView
 {
     public ObservableCollection<GoalViewModel> Goals { get; set; } = new();
-    private int _subathonLastPoints = -1;
+    private long _subathonLastPoints = -1;
+    private GoalsType _type = GoalsType.Points;
+    private string _currency = "";
     private readonly IDbContextFactory<AppDbContext> _factory;
     
     public GoalsView()
@@ -25,26 +28,41 @@ public partial class GoalsView
         SubathonEvents.SubathonGoalListUpdated += OnGoalsUpdate;
     }
 
-    private void OnGoalsUpdate(List<SubathonGoal> goals, int points)
+    private void OnGoalsUpdate(List<SubathonGoal> goals, long points, GoalsType type)
     {
         Dispatcher.InvokeAsync(() => { LoadGoals() ;});
     }
 
     private void OnSubathonUpdate(SubathonData subathon, DateTime timestamp)
     {
-        if (_subathonLastPoints != subathon.Points)
+        if (string.IsNullOrWhiteSpace(_currency)) _currency = subathon.Currency ?? "";
+            
+        if (_currency != subathon.Currency ||
+            (_subathonLastPoints != subathon.Points && _type == GoalsType.Points) || 
+            (_subathonLastPoints != subathon.GetRoundedMoneySum() && _type == GoalsType.Money))
         {
             Dispatcher.InvokeAsync(() =>
             {
                 foreach (var goal in Goals)
                 {
-                    if (!goal.Completed && subathon.Points >= goal.Points || subathon.Points == 0)
+                    if (_type == GoalsType.Points && 
+                        (!goal.Completed && subathon.Points >= goal.Points || subathon.Points == 0))
                     {
+                        _currency = subathon.Currency ?? "";
+                        LoadGoals();
+                        break;
+                    }
+                    if (_type == GoalsType.Money && 
+                        (!goal.Completed && subathon.GetRoundedMoneySum() >= goal.Points
+                         || subathon.GetRoundedMoneySum() == 0 || _currency != subathon.Currency))
+                    {
+                        _currency = subathon.Currency ?? "";
                         LoadGoals();
                         break;
                     }
                 }
-                _subathonLastPoints = subathon.Points;
+                _subathonLastPoints = _type == GoalsType.Money ? subathon.GetRoundedMoneySum() :
+                    subathon.Points;
             });
         }
     }
@@ -57,9 +75,17 @@ public partial class GoalsView
             .Include(gs => gs.Goals.OrderBy(g => g.Points))
             .FirstOrDefault(gs => gs.IsActive);
         if (activeGoalSet == null) return;
+        _type = activeGoalSet.Type ?? GoalsType.Points;
         
         var activeSubathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
-        int currentPoints = activeSubathon?.Points ?? 0;
+        long currentPoints = activeSubathon?.Points ?? 0;
+
+        string suffix = "pts";
+        if (activeGoalSet.Type == GoalsType.Money)
+        {
+            currentPoints = activeSubathon?.GetRoundedMoneySum() ?? 0;
+            suffix = $"{activeSubathon?.Currency ?? "?"}";
+        }
 
         Goals.Clear();
         foreach (var goal in activeGoalSet.Goals)
@@ -70,7 +96,7 @@ public partial class GoalsView
             Goals.Add(new GoalViewModel
             {
                 Text = goal.Text,
-                PointsText = $"{goal.Points:N0} pts",
+                PointsText = $"{goal.Points:N0} {suffix}",
                 Points = goal.Points,
                 Completed =  currentPoints >= goal.Points
             });
@@ -94,7 +120,7 @@ public partial class GoalsView
     public class GoalViewModel
     {
         public string Text { get; set; } = "";
-        public int Points { get; set; } = 0;
+        public long Points { get; set; } = 0;
         public string PointsText { get; set; } = "";
         public bool Completed { get; set; } = false;
 

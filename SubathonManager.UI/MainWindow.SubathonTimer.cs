@@ -21,7 +21,8 @@ namespace SubathonManager.UI
                     _lastUpdatedTimerAt = time;
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
-                    PointsValue.Text = $"{subathon.Points.ToString()} Pts";
+                    PointsValue.Text = $"{subathon.Points:N0} Pts";
+                    MoneyValue.Text = $"{subathon.Currency} {subathon.GetRoundedMoneySumWithCents():N2}".Trim();
                     LockStatus.Visibility = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
                 });
             }

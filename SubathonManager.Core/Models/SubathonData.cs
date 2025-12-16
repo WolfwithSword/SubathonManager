@@ -48,6 +48,16 @@ public class SubathonData
         return TimeSpan.FromSeconds(Math.Floor(totalSeconds));
     }
 
+    public long GetRoundedMoneySum()
+    {
+        return (long)Math.Floor(MoneySum ?? 0);
+    }
+    
+    public double GetRoundedMoneySumWithCents()
+    {
+        return Math.Round(MoneySum ?? 0, 2);
+    }
+
     // isActive // only ever one
     
 }

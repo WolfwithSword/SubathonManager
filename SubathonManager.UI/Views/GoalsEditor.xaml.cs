@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views
@@ -18,13 +19,18 @@ namespace SubathonManager.UI.Views
         {
             _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
+            GoalSetType.ItemsSource = Enum.GetNames<GoalsType>().ToList();
             LoadActiveGoalSet();
             SubathonEvents.SubathonDataUpdate += UpdatePointsCount;
         }
 
         private void UpdatePointsCount(SubathonData subathon, DateTime time)
         {
-            Dispatcher.InvokeAsync(() => { PointsValue.Text = $"{subathon.Points.ToString()} Pts"; });
+            Dispatcher.InvokeAsync(() =>
+            {
+                PointsValue.Text = $"{subathon.Points:N0} Pts";
+                MoneyValue.Text = $"{subathon.Currency} {subathon.GetRoundedMoneySumWithCents():N2}".Trim();
+            });
         }
         private void LoadActiveGoalSet()
         {
@@ -40,6 +46,8 @@ namespace SubathonManager.UI.Views
             StatusText.Text = "";
 
             GoalSetNameBox.Text = _activeGoalSet.Name;
+            GoalSetType.SelectedValue = $"{_activeGoalSet.Type ?? GoalsType.Points}";
+            
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
@@ -113,10 +121,12 @@ namespace SubathonManager.UI.Views
             db.SaveChanges();
             db.Entry(_activeGoalSet!).Reload();
             SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+            long pts = subathon?.Points ?? 0;
+            if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon?.GetRoundedMoneySum() ?? 0;
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
             });
         }
 
@@ -156,10 +166,13 @@ namespace SubathonManager.UI.Views
 
             _activeGoalSet = newGoalSet;
             GoalSetNameBox.Text = newGoalSet.Name;
+            GoalSetType.SelectedValue = $"{newGoalSet.Type ?? GoalsType.Points}";
             GoalsStack.Children.Clear();
             StatusText.Text = "";
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-            SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
+            long pts = subathon?.Points ?? 0;
+            if (_activeGoalSet.Type == GoalsType.Money) pts = subathon?.GetRoundedMoneySum() ?? 0;
+            SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
         }
 
         private void AddGoal_Click(object sender, RoutedEventArgs e)
@@ -169,7 +182,7 @@ namespace SubathonManager.UI.Views
 
             using var db = _factory.CreateDbContext();
 
-            int maxPoints = 0;
+            long maxPoints = 0;
             if (_activeGoalSet.Goals.Count > 0)
                 maxPoints = _activeGoalSet.Goals.Max(g => g.Points);
 
@@ -186,7 +199,9 @@ namespace SubathonManager.UI.Views
             Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
+                long pts = subathon?.Points ?? 0;
+                if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon?.GetRoundedMoneySum() ?? 0;
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
             });
             
             // do we want to push event update here? probably
@@ -197,6 +212,8 @@ namespace SubathonManager.UI.Views
             if (_activeGoalSet == null) return;
 
             _activeGoalSet.Name = GoalSetNameBox.Text;
+            _activeGoalSet.Type = Enum.TryParse($"{GoalSetType.SelectedValue}", out GoalsType type) ? 
+                type : _activeGoalSet.Type;
 
             using var db = _factory.CreateDbContext();
             db.Update(_activeGoalSet);
@@ -208,7 +225,7 @@ namespace SubathonManager.UI.Views
                     var pointsBox = panel.Children[1] as TextBox;
 
                     goal.Text = textBox?.Text ?? "";
-                    if (int.TryParse(pointsBox?.Text, out int points))
+                    if (long.TryParse(pointsBox?.Text, out long points))
                         goal.Points = points;
                     db.Update(goal);
                 }
@@ -218,8 +235,10 @@ namespace SubathonManager.UI.Views
             if (sender != null && e != null)
             {
                 Dispatcher.InvokeAsync(() => { LoadGoals(); });
-                SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, subathon?.Points ?? 0);
+                SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive); 
+                long pts = subathon?.Points ?? 0;
+                if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon?.GetRoundedMoneySum() ?? 0;
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
             }
             
             Task.Run(async () =>

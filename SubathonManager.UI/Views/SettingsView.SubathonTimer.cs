@@ -40,6 +40,8 @@ public partial class SettingsView
                     
                     string pts = $"{subathon.Points} Pts";
                     if (PointsValueSettings.Text != pts) PointsValueSettings.Text = pts;
+                    string money = $"{subathon.Currency} {subathon.GetRoundedMoneySumWithCents():N2}".Trim();
+                    if (MoneyValueSettings.Text != money) MoneyValueSettings.Text = money;
                 });
             }
         }

@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Text;
 using SubathonManager.Core.Models;
@@ -28,6 +27,16 @@ namespace SubathonManager.Data
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
+        }
+        
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured) // allows migrations to be added still in dev
+            {
+                var dbPath = Config.DatabasePath;
+                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+                optionsBuilder.UseSqlite($"Data Source={dbPath}");
+            }
         }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -230,6 +239,17 @@ namespace SubathonManager.Data
         {
             await db.Database.ExecuteSqlRawAsync(
                 "UPDATE SubathonDatas SET MoneySum = {0} WHERE IsActive = 1 and Id = {1}", money, subathonId);
+            
+            var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
+                .AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+            if (subathon != null)
+                SubathonManager.Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon!, DateTime.Now);
+
+            var goalSet = await db.SubathonGoalSets.AsNoTracking()
+                .Include(x => x.Goals).Where(x => x.IsActive)
+                .FirstOrDefaultAsync();
+            if (subathon != null && goalSet != null && goalSet.Goals.Any() && goalSet.Type == GoalsType.Money)
+                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.GetRoundedMoneySum());
         }
         
         public static void SeedDefaultValues(AppDbContext db)
@@ -287,12 +307,6 @@ namespace SubathonManager.Data
                         s.SetProperty(x => x.Type, GoalsType.Points));
             }
             
-            if (db.SubathonGoals.Any(s => s.Money == null))
-            {
-                db.SubathonGoals.Where(s => s.Money == null)
-                    .ExecuteUpdate(s =>
-                        s.SetProperty(x => x.Money, 0));
-            }
             db.SaveChanges();
         }
     }

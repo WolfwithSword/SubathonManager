@@ -2,6 +2,7 @@
 WIDGET_META
 Width:520
 Height:170
+useForMoney.Boolean:False
 END_WIDGET_META
 -->
 <link rel="stylesheet" href="nixie-tube.css">
@@ -97,7 +98,11 @@ END_WIDGET_META
     function handleSubathonUpdate(data) {
         if (data.type !== "subathon_timer") return;
 
-        smoothSetPoints(data.total_points, data.is_paused, data.is_locked);
+        if (!useForMoney)
+            smoothSetPoints(data.total_points, data.is_paused, data.is_locked);
+        else {
+            smoothSetPoints(data.rounded_money, data.is_paused, data.is_locked);            
+        }
     }
 
     function handleSubathonDisconnect() {

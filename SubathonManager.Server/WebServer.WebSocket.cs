@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 
@@ -33,7 +34,7 @@ public partial class WebServer
         SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
     }
 
-    private void SendGoalsUpdated(List<SubathonGoal> goals, int currentPoints)
+    private void SendGoalsUpdated(List<SubathonGoal> goals, long currentPoints, GoalsType type)
     {
         List<object> objGoals = new List<object>();
         foreach (var goal in goals)
@@ -44,12 +45,13 @@ public partial class WebServer
         {
             type = "goals_list",
             points = currentPoints,
-            goals = objGoals.ToArray()
+            goals = objGoals.ToArray(),
+            goals_type = $"{type}"
         };
         Task.Run(() => BroadcastAsync(data));
     }
 
-    private object GoalToObject(SubathonGoal goal, int currentPoints)
+    private object GoalToObject(SubathonGoal goal, long currentPoints)
     {
         return new
         {
@@ -59,7 +61,7 @@ public partial class WebServer
         };
     }
 
-    private void SendGoalCompleted(SubathonGoal goal, int currentPoints)
+    private void SendGoalCompleted(SubathonGoal goal, long currentPoints)
     {
         object data = new
         {
@@ -80,19 +82,23 @@ public partial class WebServer
         
         await SelectSendAsync(socket, SubathonDataToObject(subathon));
         
-        SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(g=> g.Goals).FirstOrDefaultAsync(g => g.IsActive);
+        SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking().
+            Include(g=> g.Goals).FirstOrDefaultAsync(g => g.IsActive);
         if (goalSet != null)
         {
+            long val = subathon.Points;
+            if (goalSet.Type == GoalsType.Money)
+                val = (long) Math.Floor(subathon.MoneySum ?? 0);
             List<object> objGoals = new List<object>();
             foreach (var goal in goalSet!.Goals)
             {
-                objGoals.Add(GoalToObject(goal, subathon.Points));
+                objGoals.Add(GoalToObject(goal, val));
             }
         
             object data = new
             {
                 type = "goals_list",
-                points = subathon.Points,
+                points = val,
                 goals = objGoals.ToArray()
             };
             await SelectSendAsync(socket, data);
@@ -155,6 +161,9 @@ public partial class WebServer
             minutes = subathon.TimeRemainingRounded().Minutes,
             seconds = subathon.TimeRemainingRounded().Seconds,
             total_points = subathon.Points,
+            rounded_money = subathon.GetRoundedMoneySum(),
+            fractional_money = subathon.GetRoundedMoneySumWithCents(),
+            currency = subathon.Currency,
             is_paused = subathon.IsPaused,
             is_locked =  subathon.IsLocked,
             multiplier_points = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1,

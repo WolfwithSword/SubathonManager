@@ -4,6 +4,7 @@ Width:350
 Height:120
 pulseOnFull.Boolean:True
 showMarkers.Boolean:True
+useForMoney.Boolean:False
 END_WIDGET_META
 -->
 <meta charset=utf-8>
@@ -88,10 +89,13 @@ function updateMarkers() {
 
 function handleSubathonUpdate(data) {
     if (data.type != "subathon_timer") return;
-    currentPoints.target = data.total_points;
+    if (useForMoney)
+        currentPoints.target = data.rounded_money;
+    else
+        currentPoints.target = data.total_points;
     updateMarkers();
     
-    if (data.multiplier_points && data.multiplier_points != 1) {
+    if (data.multiplier_points && data.multiplier_points != 1 && !useForMoney) {
         multiplierTag.textContent = `x${data.multiplier_points}`;
         multiplierTag.classList.remove("hidden");
         multiplierTag.classList.add("show");

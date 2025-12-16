@@ -244,9 +244,18 @@
                            <Grid Grid.Row="1">
                                <StackPanel>
                                    <Separator Margin="51 4 13 4"/>
-                                   <TextBlock x:Name="PointsValue" HorizontalAlignment="Right" 
-                                              Text="" VerticalAlignment="Center" FontSize="34" Margin="0 2 24 6"/>
                                    
+                                   <Grid>
+                                       <Grid.ColumnDefinitions>
+                                           <ColumnDefinition Width="*"/>
+                                           <ColumnDefinition Width="*"/>
+                                       </Grid.ColumnDefinitions>
+                                       <TextBlock x:Name="MoneyValue" HorizontalAlignment="Left" 
+                                                  Text="" VerticalAlignment="Center" FontSize="24" Margin="112 2 8 6"/>
+
+                                       <TextBlock Grid.Column="1" x:Name="PointsValue" HorizontalAlignment="Right" 
+                                                  Text="" VerticalAlignment="Center" FontSize="34" Margin="0 2 24 6"/>
+                                   </Grid>
                                    <StackPanel Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,24,5">
                                        
                                        <!-- <TextBlock Text="Points:" VerticalAlignment="Center" FontSize="18" Margin="2 10 4 5"/> -->
