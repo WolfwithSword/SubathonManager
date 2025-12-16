@@ -244,34 +244,68 @@
                            <Grid Grid.Row="1">
                                <StackPanel>
                                    <Separator Margin="51 4 13 4"/>
-                                   <TextBlock x:Name="PointsValue" HorizontalAlignment="Right" 
-                                              Text="" VerticalAlignment="Center" FontSize="34" Margin="0 2 24 6"/>
                                    
-                                   <StackPanel Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,24,5">
-                                       
-                                       <!-- <TextBlock Text="Points:" VerticalAlignment="Center" FontSize="18" Margin="2 10 4 5"/> -->
-                                       <ui:Button x:Name="AddPointsBtn"
-                                                  Click="AddPoints_Click"
-                                                  ToolTip="Add Points"
-                                                  Width="38" Height="34" Margin="3,10,3,5">
-                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
-                                       </ui:Button>
-                                       <ui:Button x:Name="SubtractPointsBtn"
-                                                  Click="SubtractPoints_Click"
-                                                  ToolTip="Subtract Points"
-                                                  Width="38" Height="34" Margin="3,10,3,5">
-                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
-                                       </ui:Button>
-                                       <ui:Button x:Name="SetPointsBtn"
-                                                  Click="SetPoints_Click"
-                                                  ToolTip="Set Points"
-                                                  Width="38" Height="34" Margin="3,10,3,5">
-                                           <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Pen20" Width="20" Height="20" Margin="0,0,0,0"/>
-                                       </ui:Button>
-                                       <ui:TextBox x:Name="AdjustSubathonPoints" Margin="5,10,0,5" 
-                                                   Text="1" Height="34" Width="140" VerticalAlignment="Center"
-                                                   PreviewTextInput="NumberOnly_PreviewTextInput" />
-                                   </StackPanel>
+                                   <Grid>
+                                       <Grid.ColumnDefinitions>
+                                           <ColumnDefinition Width="*"/>
+                                           <ColumnDefinition Width="*"/>
+                                       </Grid.ColumnDefinitions>
+                                       <TextBlock x:Name="MoneyValue" HorizontalAlignment="Left" 
+                                                  Text="" VerticalAlignment="Center" FontSize="24" Margin="112 2 8 6"/>
+
+                                       <TextBlock Grid.Column="1" x:Name="PointsValue" HorizontalAlignment="Right" 
+                                                  Text="" VerticalAlignment="Center" FontSize="34" Margin="0 2 24 6"/>
+                                   </Grid>
+                                   <Grid>
+                                       <Grid.ColumnDefinitions>
+                                           <ColumnDefinition Width="*"/>
+                                           <ColumnDefinition Width="*"/>
+                                       </Grid.ColumnDefinitions>
+                                       <StackPanel Grid.Column="0" Orientation="Horizontal"  
+                                                   HorizontalAlignment="Left" Margin="42,0,12,5">
+                                           <ui:Button x:Name="AddMoneyBtn"
+                                                      Click="AddMoney_Click"
+                                                      ToolTip="Add Money (does not affect timer)"
+                                                      Width="38" Height="34" Margin="3,10,3,5">
+                                               <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                           </ui:Button>
+                                           <ui:Button x:Name="SubtractMoneyBtn"
+                                                      Click="SubtractMoney_Click"
+                                                      ToolTip="Subtract Money (does not affect timer)"
+                                                      Width="38" Height="34" Margin="3,10,3,5">
+                                               <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                           </ui:Button>
+                                           <ui:TextBox x:Name="AdjustSubathonMoney" Margin="5,10,0,5" 
+                                                       Text="5.00" Height="34" Width="84" VerticalAlignment="Center"
+                                                       PreviewTextInput="DecimalOnly_PreviewTextInput" />
+                                           <ComboBox Text="Currency" Width="84" IsEditable="True" IsTextSearchEnabled="True" 
+                                                     StaysOpenOnEdit="True" Height="34"
+                                                     x:Name="AdjustCurrencyBox" Margin="5,10,0,5" />
+                                       </StackPanel>
+                                       <StackPanel Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,24,5">
+                                           <ui:Button x:Name="AddPointsBtn"
+                                                      Click="AddPoints_Click"
+                                                      ToolTip="Add Points"
+                                                      Width="38" Height="34" Margin="3,10,3,5">
+                                               <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Add20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                           </ui:Button>
+                                           <ui:Button x:Name="SubtractPointsBtn"
+                                                      Click="SubtractPoints_Click"
+                                                      ToolTip="Subtract Points"
+                                                      Width="38" Height="34" Margin="3,10,3,5">
+                                               <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Subtract20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                           </ui:Button>
+                                           <ui:Button x:Name="SetPointsBtn"
+                                                      Click="SetPoints_Click"
+                                                      ToolTip="Set Points"
+                                                      Width="38" Height="34" Margin="3,10,3,5">
+                                               <ui:SymbolIcon HorizontalAlignment="Center" Symbol="Pen20" Width="20" Height="20" Margin="0,0,0,0"/>
+                                           </ui:Button>
+                                           <ui:TextBox x:Name="AdjustSubathonPoints" Margin="5,10,0,5" 
+                                                       Text="1" Height="34" Width="140" VerticalAlignment="Center"
+                                                       PreviewTextInput="NumberOnly_PreviewTextInput" />
+                                       </StackPanel>
+                                   </Grid>
                                    <views:GoalsView/>
                                </StackPanel>
                            </Grid>

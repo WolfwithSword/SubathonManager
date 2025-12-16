@@ -31,9 +31,9 @@
                              VerticalAlignment="Center"
                              PlaceholderText="100"  Height="34"
                              FontSize="12"
-                             validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateExternalAmt"/>
+                             validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateExternalAmt"/>
 
-                 <ComboBox Width="80" IsEditable="True" IsTextSearchEnabled="True" 
+                 <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
                            x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
                            Margin="4 0 4 0">
                  </ComboBox>

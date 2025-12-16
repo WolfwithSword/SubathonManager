@@ -28,6 +28,23 @@ namespace SubathonManager.Core
             return Data[section];
         }
         
+        public bool MigrateConfig()
+        {
+            bool migrated = false;
+            if (GetSection("Twitch").Any(k => k.KeyName.StartsWith("Commands.")))
+            {
+                foreach (var keyData in GetSection("Twitch").Where(k => k.KeyName.StartsWith("Commands.")))
+                {
+                    Set("Chat", keyData.KeyName, keyData.Value);
+                    GetSection("Twitch").RemoveKey(keyData.KeyName);
+                    migrated = true;
+                }
+            }
+
+            if (migrated) Save();
+            return migrated;
+        }
+        
         public virtual void LoadOrCreateDefault()
         {
             string folder = Path.GetFullPath(Path.Combine(string.Empty, 

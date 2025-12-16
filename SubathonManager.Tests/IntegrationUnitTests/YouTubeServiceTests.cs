@@ -24,7 +24,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             
             var kd = new KeyData("Commands.Pause");
             kd.Value = "pause";
-            mock.Setup(c => c.GetSection("Twitch")).Returns(() =>
+            mock.Setup(c => c.GetSection("Chat")).Returns(() =>
             {
                 var kdc = new KeyDataCollection();
                 kdc.AddKey(kd);
@@ -363,10 +363,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             
             var configCs = MockConfig(new()
             {
-                { ("Twitch", "Commands.Pause"), "pause" },
-                { ("Twitch", "Commands.Pause.permissions.Mods"), "true" },
-                { ("Twitch", "Commands.Pause.permissions.VIPs"), "false" },
-                { ("Twitch", "Commands.Pause.permissions.Whitelist"), "specialguy" }
+                { ("Chat", "Commands.Pause"), "pause" },
+                { ("Chat", "Commands.Pause.permissions.Mods"), "true" },
+                { ("Chat", "Commands.Pause.permissions.VIPs"), "false" },
+                { ("Chat", "Commands.Pause.permissions.Whitelist"), "specialguy" }
             });
             CommandService.SetConfig(configCs);
             

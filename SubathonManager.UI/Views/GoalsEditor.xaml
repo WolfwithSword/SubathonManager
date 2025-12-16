@@ -38,10 +38,21 @@
 
             <StackPanel Orientation="Horizontal" Margin="0 6 0 0 ">
                 <TextBlock Text="Name:" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0 6 8 6"/>
-                <TextBox x:Name="GoalSetNameBox" Width="260" Height="34"/>
+                <TextBox x:Name="GoalSetNameBox" Width="260" Height="36" Margin="0 0 12 0"/>
+                <ComboBox Text="Type" ToolTip="Points will be based off points. Money is based on total donations."
+                          x:Name="GoalSetType" Width="120" Height="36" FontSize="24" VerticalAlignment="Center"/>
+                
             </StackPanel>
-            <TextBlock x:Name="PointsValue" HorizontalAlignment="Right" 
-                       Text="" VerticalAlignment="Center" FontSize="24" Margin="0 2 16 6"/>
+            <Grid Margin="0 16 0 8 ">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="MoneyValue" HorizontalAlignment="Left" 
+                           Text="" VerticalAlignment="Center" FontSize="24" Margin="16 2 8 6"/>
+                <TextBlock Grid.Column="1" x:Name="PointsValue" HorizontalAlignment="Right" 
+                           Text="" VerticalAlignment="Center" FontSize="24" Margin="0 2 16 6"/>
+            </Grid>
             <StackPanel Orientation="Horizontal">
                 <ui:Button Content="Create New List" Click="CreateNewGoalSet_Click" Width="160" Height="30"/>
             </StackPanel>

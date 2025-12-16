@@ -2,6 +2,8 @@
 WIDGET_META
 Width:230
 Height:70
+useForMoney.Boolean:False
+suffix.String:pts
 END_WIDGET_META
 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
@@ -41,8 +43,10 @@ END_WIDGET_META
 
     function handleSubathonUpdate(data) {
         if (data.type !== "subathon_timer") return;
-        
-        animatePoints(data.total_points);
+        if(useForMoney)
+            animatePoints(data.rounded_money);
+        else
+            animatePoints(data.total_points);
 
         const pointsEl = document.querySelector(".points");
         if (data.is_locked) pointsEl.classList.add("locked");
@@ -55,6 +59,5 @@ END_WIDGET_META
     }
     
     const pointsSuffixEl = document.querySelector(".suffix");
-    pointsSuffixEl.textContent = getComputedStyle(document.documentElement)
-        .getPropertyValue('--suffix').trim();
+    pointsSuffixEl.textContent = suffix.trim();
 </script>

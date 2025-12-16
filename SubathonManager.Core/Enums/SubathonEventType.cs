@@ -20,7 +20,8 @@ public enum SubathonEventType
     ExternalDonation,
     ExternalSub,
     KoFiDonation,
-    KoFiSub
+    KoFiSub,
+    DonationAdjustment
     // any new must be added after the last
 }
 
@@ -35,6 +36,7 @@ public static class SubathonEventTypeHelper
         SubathonEventType.TwitchCharityDonation,
         SubathonEventType.ExternalDonation,
         SubathonEventType.KoFiDonation,
+        SubathonEventType.DonationAdjustment
     };
     
     private static readonly SubathonEventType[] MembershipTypes = new[]
@@ -101,6 +103,8 @@ public static class SubathonEventTypeHelper
             SubathonEventType.YouTubeGiftMembership => SubathonEventSource.YouTube,
             SubathonEventType.YouTubeMembership => SubathonEventSource.YouTube,
             SubathonEventType.YouTubeSuperChat => SubathonEventSource.YouTube,
+            
+            SubathonEventType.DonationAdjustment => SubathonEventSource.Command,
             
             _ => SubathonEventSource.Unknown
         };

@@ -20,15 +20,26 @@ public partial class CommandsSettings : UserControl
     
     private void InitCommandSettings()
     {
+        bool hasNewCommands = false;
         foreach (SubathonCommandType commandType in Enum.GetValues(typeof(SubathonCommandType)))
         {
             if (commandType == SubathonCommandType.None || commandType == SubathonCommandType.Unknown) continue;
             // 200 | 30 blank | 200 | 120 | 120 | remain
             // enum / blank / name / mods / vips / whitelist 
-            bool.TryParse(App.AppConfig!.Get("Twitch", $"Commands.{commandType}.permissions.Mods", "false")!, out var checkMods);
-            bool.TryParse(App.AppConfig!.Get("Twitch",$"Commands.{commandType}.permissions.VIPs", "false")!, out var checkVips);
-            string name = App.AppConfig!.Get("Twitch",$"Commands.{commandType}.name", commandType.ToString().ToLower())!;
-            string whitelist = App.AppConfig!.Get("Twitch", $"Commands.{commandType}.permissions.Whitelist", string.Empty)!;
+            bool.TryParse(App.AppConfig!.Get("Chat", $"Commands.{commandType}.permissions.Mods", "false")!, out var checkMods);
+            bool.TryParse(App.AppConfig!.Get("Chat",$"Commands.{commandType}.permissions.VIPs", "false")!, out var checkVips);
+            string name = App.AppConfig!.Get("Chat",$"Commands.{commandType}.name", commandType.ToString().ToLower())!;
+            string whitelist = App.AppConfig!.Get("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty)!;
+            
+            if (App.AppConfig!.Get("Chat",$"Commands.{commandType}.name") == string.Empty
+                && !checkMods && !checkVips && whitelist == string.Empty)
+            {
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.name", name);
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.Mods", "False");
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.VIPs", "False");
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty);
+                hasNewCommands = true;
+            }
 
             StackPanel entryPanel = new StackPanel
             {
@@ -86,7 +97,10 @@ public partial class CommandsSettings : UserControl
             entryPanel.Children.Add(enumWhitelist);
 
             CommandListPanel.Children.Add(entryPanel);
-        }   
+        }
+
+        if (hasNewCommands)
+            App.AppConfig!.Save();
     }
     
     public void UpdateValueSettings()
@@ -100,27 +114,27 @@ public partial class CommandsSettings : UserControl
                     string key = $"Commands.{enumType.Text}";
                         
                     if (entry.Children[1] is TextBox enumName &&
-                        App.AppConfig!.Get("Twitch", $"{key}.name") != enumName.Text.Trim())
+                        App.AppConfig!.Get("Chat", $"{key}.name") != enumName.Text.Trim())
                     {
-                        App.AppConfig!.Set("Twitch", $"{key}.name", enumName.Text.Trim());
+                        App.AppConfig!.Set("Chat", $"{key}.name", enumName.Text.Trim());
                     }
                     
                     if (entry.Children[2] is CheckBox doMods &&
-                        App.AppConfig!.Get("Twitch", $"{key}.permissions.Mods") != $"{doMods.IsChecked}")
+                        App.AppConfig!.Get("Chat", $"{key}.permissions.Mods") != $"{doMods.IsChecked}")
                     {
-                        App.AppConfig!.Set("Twitch", $"{key}.permissions.Mods",  $"{doMods.IsChecked}");
+                        App.AppConfig!.Set("Chat", $"{key}.permissions.Mods",  $"{doMods.IsChecked}");
                     }
 
                     if (entry.Children[3] is CheckBox doVips &&
-                        App.AppConfig!.Get("Twitch", $"{key}.permissions.VIPs") != $"{doVips.IsChecked}")
+                        App.AppConfig!.Get("Chat", $"{key}.permissions.VIPs") != $"{doVips.IsChecked}")
                     {
-                        App.AppConfig!.Set("Twitch", $"{key}.permissions.VIPs", $"{doVips.IsChecked}");
+                        App.AppConfig!.Set("Chat", $"{key}.permissions.VIPs", $"{doVips.IsChecked}");
                     }
 
                     if (entry.Children[4] is TextBox whitelist &&
-                        App.AppConfig!.Get("Twitch", $"{key}.permissions.Whitelist") != whitelist.Text.Trim())
+                        App.AppConfig!.Get("Chat", $"{key}.permissions.Whitelist") != whitelist.Text.Trim())
                     {
-                        App.AppConfig!.Set("Twitch", $"{key}.permissions.Whitelist", whitelist.Text.Trim());
+                        App.AppConfig!.Set("Chat", $"{key}.permissions.Whitelist", whitelist.Text.Trim());
                     }
                 }
         }

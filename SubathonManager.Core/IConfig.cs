@@ -6,7 +6,9 @@ public interface IConfig
     void Save();
     void LoadOrCreateDefault();
     
-    IniParser.Model.KeyDataCollection GetSection(string sectionName);
+    bool MigrateConfig();
+    
+    IniParser.Model.KeyDataCollection? GetSection(string sectionName);
 
     string? Get(string section, string key, string? defaultValue = "");
     void Set(string section, string key, string value);

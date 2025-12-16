@@ -23,7 +23,6 @@ public partial class KoFiSettings : UserControl
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
     }
-    // todo streamerbot link to repo, copy to clipboard contents and open discussion page for it
     public void Init(SettingsView host)
     {
         Host = host;

@@ -38,6 +38,7 @@ namespace SubathonManager.UI.Views
             if (subathonEvent.PointsValue < 1 
                 && subathonEvent.GetFinalSecondsValueRaw() <= 0
                 && subathonEvent.EventType != SubathonEventType.Command
+                && subathonEvent.EventType != SubathonEventType.DonationAdjustment
                 && subathonEvent.EventType != SubathonEventType.TwitchHypeTrain) return;
             
             await Dispatcher.InvokeAsync(() =>
@@ -63,6 +64,7 @@ namespace SubathonManager.UI.Views
                                                              && (ev.SecondsValue > 0 || ev.PointsValue >= 1 
                                                                  || ev.Command != SubathonCommandType.None
                                                                  || ev.EventType == SubathonEventType.TwitchHypeTrain
+                                                                 || ev.EventType == SubathonEventType.DonationAdjustment
                                                                  || ev.EventType == SubathonEventType.Command))
                     .OrderByDescending(e => e.EventTimestamp)
                     .Take(_maxItems)

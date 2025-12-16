@@ -21,7 +21,8 @@ namespace SubathonManager.UI
                     _lastUpdatedTimerAt = time;
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
-                    PointsValue.Text = $"{subathon.Points.ToString()} Pts";
+                    PointsValue.Text = $"{subathon.Points:N0} Pts";
+                    MoneyValue.Text = $"{subathon.Currency} {subathon.GetRoundedMoneySumWithCents():N2}".Trim();
                     LockStatus.Visibility = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
                 });
             }
@@ -123,7 +124,40 @@ namespace SubathonManager.UI
             _lastUpdatedTimerAt = null;
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
+
+        private void AddMoney_Click(object sender, RoutedEventArgs e)
+        {
+            AdjustSubathonMoneyBy(1);
+        }
+
+        private void SubtractMoney_Click(object sender, RoutedEventArgs e)
+        {
+            AdjustSubathonMoneyBy(-1);
+        }
         
+        
+        private void AdjustSubathonMoneyBy(int direction)
+        {
+            if (!double.TryParse(AdjustSubathonMoney.Text, out var parsedVal))
+                return;
+            if (parsedVal <= 0) return;
+            SubathonCommandType cmd =
+                direction > 0 ? SubathonCommandType.AddMoney : SubathonCommandType.SubtractMoney;
+            SubathonEvent subathonEvent = new SubathonEvent
+            {
+                EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
+                Command = cmd,
+                Value = AdjustSubathonMoney.Text,
+                Currency = $"{AdjustCurrencyBox.SelectedValue}",
+                SecondsValue = 0,
+                PointsValue = 0,
+                Source = SubathonEventSource.Command,
+                EventType = SubathonEventType.Command, // eventservice updates to donation adjustment
+                User = "SYSTEM"
+            };
+            _lastUpdatedTimerAt = null;
+            SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+        }
         
         private void AddPoints_Click(object sender, RoutedEventArgs e)
         {
