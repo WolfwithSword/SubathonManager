@@ -58,7 +58,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             
             var kd = new KeyData("Commands.Pause");
             kd.Value = "pause";
-            mock.Setup(c => c.GetSection("Twitch")).Returns(() =>
+            mock.Setup(c => c.GetSection("Chat")).Returns(() =>
             {
                 var kdc = new KeyDataCollection();
                 kdc.AddKey(kd);
