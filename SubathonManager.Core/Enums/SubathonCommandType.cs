@@ -17,7 +17,9 @@ public enum SubathonCommandType
     StopMultiplier,
     None,
     Unknown,
-    RefreshOverlays
+    RefreshOverlays,
+    AddMoney,
+    SubtractMoney
 }
 
 [ExcludeFromCodeCoverage]
@@ -31,7 +33,9 @@ public static class SubathonCommandTypeHelper
         SubathonCommandType.AddTime,
         SubathonCommandType.SubtractTime,
         SubathonCommandType.SetTime,
-        SubathonCommandType.SetMultiplier
+        SubathonCommandType.SetMultiplier,
+        SubathonCommandType.AddMoney,
+        SubathonCommandType.SubtractMoney
     };
 
     private static readonly SubathonCommandType[] ControlTypeCommands = new[] // can't "undo"

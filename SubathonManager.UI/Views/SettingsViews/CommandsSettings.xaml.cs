@@ -20,6 +20,7 @@ public partial class CommandsSettings : UserControl
     
     private void InitCommandSettings()
     {
+        bool hasNewCommands = false;
         foreach (SubathonCommandType commandType in Enum.GetValues(typeof(SubathonCommandType)))
         {
             if (commandType == SubathonCommandType.None || commandType == SubathonCommandType.Unknown) continue;
@@ -29,6 +30,16 @@ public partial class CommandsSettings : UserControl
             bool.TryParse(App.AppConfig!.Get("Chat",$"Commands.{commandType}.permissions.VIPs", "false")!, out var checkVips);
             string name = App.AppConfig!.Get("Chat",$"Commands.{commandType}.name", commandType.ToString().ToLower())!;
             string whitelist = App.AppConfig!.Get("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty)!;
+            
+            if (App.AppConfig!.Get("Chat",$"Commands.{commandType}.name") == string.Empty
+                && !checkMods && !checkVips && whitelist == string.Empty)
+            {
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.name", name);
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.Mods", "False");
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.VIPs", "False");
+                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty);
+                hasNewCommands = true;
+            }
 
             StackPanel entryPanel = new StackPanel
             {
@@ -86,7 +97,10 @@ public partial class CommandsSettings : UserControl
             entryPanel.Children.Add(enumWhitelist);
 
             CommandListPanel.Children.Add(entryPanel);
-        }   
+        }
+
+        if (hasNewCommands)
+            App.AppConfig!.Save();
     }
     
     public void UpdateValueSettings()

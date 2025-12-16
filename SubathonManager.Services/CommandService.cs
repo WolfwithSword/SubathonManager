@@ -84,6 +84,7 @@ public static class CommandService
         foreach (var keyData in AppConfig!.GetSection("Chat")!)
         {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
+            
             if (keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase))
                 if (Enum.TryParse<SubathonCommandType>(keyData.KeyName.Split('.')[1] ?? "Unknown", 
                         out SubathonCommandType command))
@@ -107,10 +108,24 @@ public static class CommandService
         bool isValid = false;
         switch (subathonEvent.Command)
         {
+            case SubathonCommandType.AddMoney:
+            case SubathonCommandType.SubtractMoney:
+                if (parts.Length >= 3 && double.TryParse(parts[1], out double value))
+                {
+                    if (value <= 0) break;
+                    var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
+                    string currency = parts[2];
+                    if (!currencyService.IsValidCurrency(currency)) break;
+                    subathonEvent.Value = $"{value:N2}";
+                    subathonEvent.Currency = currency.ToUpper().Trim();
+                    // event service sets it from command to donation adjustment
+                    isValid = true;
+                }
+                break;
             case SubathonCommandType.AddPoints:
             case SubathonCommandType.SubtractPoints:
             case SubathonCommandType.SetPoints:
-                if (int.TryParse(parts[1], out var parsedInt1))
+                if (parts.Length >= 2 && int.TryParse(parts[1], out var parsedInt1))
                 {
                     subathonEvent.Value = $"{subathonEvent.Command} {parsedInt1}";
                     subathonEvent.PointsValue = parsedInt1;

@@ -109,6 +109,15 @@ public class EventService: IDisposable
             int ranCmd = int.MinValue;
             switch (ev.Command)
             {
+                case SubathonCommandType.AddMoney:
+                    ev.EventType = SubathonEventType.DonationAdjustment;
+                    break;
+                case SubathonCommandType.SubtractMoney:
+                    ev.EventType = SubathonEventType.DonationAdjustment;
+                    double.TryParse(ev.Value, out double moneyVal);
+                    if (moneyVal > 0) moneyVal *= -1;
+                    ev.Value = $"{moneyVal:N2}";
+                    break;
                 case SubathonCommandType.SetPoints:
                     if (ev.PointsValue < 0) return (false, false);
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
@@ -189,7 +198,7 @@ public class EventService: IDisposable
                         parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, false);
                     break;
             }
-
+            
             if (ranCmd >= 0)
             {
                 await db.Entry(subathon.Multiplier).ReloadAsync();
@@ -281,9 +290,10 @@ public class EventService: IDisposable
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
-
+    
         SubathonValue? subathonValue = null;
-        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub)
+        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
+            ev.EventType != SubathonEventType.DonationAdjustment)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
                 v.EventType == ev.EventType && (v.Meta == ev.Value || v.Meta == string.Empty));
@@ -296,7 +306,8 @@ public class EventService: IDisposable
 
         }
 
-        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub)
+        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
+            ev.EventType != SubathonEventType.DonationAdjustment)
         {
             ev.PointsValue = subathonValue!.Points;
             if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && ev.Currency != "member"
@@ -329,6 +340,12 @@ public class EventService: IDisposable
             else
                 ev.SecondsValue = subathonValue.Seconds;
         }
+
+        if (ev.EventType == SubathonEventType.DonationAdjustment)
+        {
+            ev.PointsValue = 0;
+            ev.SecondsValue = 0;
+        }
         
         int affected = 0;
         if (ev.SecondsValue != 0)
@@ -346,7 +363,7 @@ public class EventService: IDisposable
             ev.ProcessedToSubathon = true;
         }
         
-        if (affected > 0)
+        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment)
         {
             ev.ProcessedToSubathon = true;
             if (ev.EventType.IsCurrencyDonation() && ev.Currency != "???" &&

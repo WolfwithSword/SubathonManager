@@ -40,6 +40,11 @@ namespace SubathonManager.UI
                 Task.Delay(500);
                 OverlayEvents.RaiseOverlayRefreshAllRequested();
             });
+            var currencies = App.AppEventService!.ValidEventCurrencies().OrderBy(x => x).ToList();
+            AdjustCurrencyBox.ItemsSource = currencies;
+            AdjustCurrencyBox.SelectedItem = App.AppConfig!.Get("Currency", "Primary", "USD")?
+                .Trim().ToUpperInvariant() ?? "USD";
+
         }
     }
 }
