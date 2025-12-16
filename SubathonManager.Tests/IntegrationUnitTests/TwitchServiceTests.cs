@@ -68,7 +68,6 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             return mock.Object;
         }
         
-        
         [Fact]
         public void SimulateRaid_RaisesRaidEvent()
         {

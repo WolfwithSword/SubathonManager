@@ -59,6 +59,8 @@ public static class CommandService
         if (isBroadcaster) return true;
 
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
+        // All Commands are under twitch section at the moment, despite being cross platform chat commands
+        // Should update eventually, or is it too late
         if (isModerator && bool.TryParse(
                 AppConfig!.Get("Twitch", $"{configKey}.Mods"), out var modPerms) && modPerms)
             return true;
