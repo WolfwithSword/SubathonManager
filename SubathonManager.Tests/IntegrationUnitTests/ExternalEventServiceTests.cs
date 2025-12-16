@@ -117,6 +117,36 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventType.Command, ev.EventType);
         SubathonEvents.SubathonEventCreated -= handler;
     }
+        
+    [Fact]
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam3()
+    {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+        SubathonEvent? ev = null;
+        Action<SubathonEvent> handler = e => ev = e;
+        SubathonEvents.SubathonEventCreated += handler;
+
+        var json = @"{
+            ""command"": ""SetMultiplier"",
+            ""user"": ""Tester"",
+            ""message"": ""2.3xpt 1h""
+        }";
+
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = ExternalEventService.ProcessExternalCommand(data);
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("Tester", ev!.User);
+        Assert.Equal("2.3|3600s|True|True", ev.Value);
+        Assert.Equal(SubathonEventSource.External, ev.Source);
+        Assert.Equal(SubathonCommandType.SetMultiplier, ev.Command);
+        Assert.Equal(SubathonEventType.Command, ev.EventType);
+        SubathonEvents.SubathonEventCreated -= handler;
+    }
     
     [Fact]
     public void ProcessExternalCommand_ShouldNotRaiseEvent_InvalidCommand()
@@ -140,6 +170,37 @@ public class ExternalEventServiceTests
 
         Assert.False(result);
         Assert.Null(ev);
+        SubathonEvents.SubathonEventCreated -= handler;
+    }
+    
+         
+    [Fact]
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenInvalidCommandWithParam2()
+    {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+        SubathonEvent? ev = null;
+        Action<SubathonEvent> handler = e => ev = e;
+        SubathonEvents.SubathonEventCreated += handler;
+
+        var json = @"{
+            ""command"": ""SetMultiplier"",
+            ""user"": ""Tester"",
+            ""message"": ""2.3x 1h""
+        }";
+
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = ExternalEventService.ProcessExternalCommand(data);
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("Tester", ev!.User);
+        Assert.Equal("SetMultiplier Failed", ev.Value);
+        Assert.Equal(SubathonEventSource.External, ev.Source);
+        Assert.Equal(SubathonCommandType.StopMultiplier, ev.Command);
+        Assert.Equal(SubathonEventType.Command, ev.EventType);
         SubathonEvents.SubathonEventCreated -= handler;
     }
 

@@ -8,36 +8,39 @@ namespace SubathonManager.Services;
 public class CurrencyService
 {
     private string _baseUrl = "http://www.floatrates.com/daily/";
-    private string DefaultCurrency { get; set; }
-    
-    private readonly HttpClient _httpClient = new();
+
+    private readonly HttpClient _httpClient;
     private readonly TimeSpan _refreshInterval = TimeSpan.FromHours(24);
 
-    private Dictionary<string, double> _rates = new();
-    private DateTime _lastUpdated = DateTime.MinValue;
+    internal Dictionary<string, double> Rates = new();
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     private string _dataDirectory = Path.GetFullPath(Path.Combine(string.Empty
         , "data/currency"));
 
-    private string _currencyFile;
-
     private readonly ILogger? _logger;
     private readonly IConfig _config;
 
-    public CurrencyService(ILogger<CurrencyService>? logger, IConfig config)
+    public CurrencyService(ILogger<CurrencyService>? logger, IConfig config, 
+        HttpClient? httpClient = null)
     {
         _logger = logger;
         _config = config;
-        DefaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
+        _httpClient = httpClient ?? new HttpClient();
         Directory.CreateDirectory(_dataDirectory);
-        _currencyFile = Path.Combine(_dataDirectory, $"{DefaultCurrency.ToLowerInvariant().Trim()}.json");
+    }
+
+    private string CurrencyFilePath()
+    {
+        var defaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
+        string currencyFile = Path.Combine(_dataDirectory, $"{defaultCurrency.ToLowerInvariant().Trim()}.json");
+        return currencyFile;
     }
 
     public async Task StartAsync()
     {
-        DefaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
-        _currencyFile = Path.Combine(_dataDirectory, $"{DefaultCurrency.ToLowerInvariant().Trim()}.json");
-        if (File.Exists(_currencyFile))
+        var currencyFilePath = CurrencyFilePath();
+        if (File.Exists(currencyFilePath))
         {
             try
             {
@@ -60,17 +63,17 @@ public class CurrencyService
             }
         }
         
-        if (_rates.Count == 0)
+        if (Rates.Count == 0)
             throw new InvalidOperationException("No exchange rates available (failed to load or fetch).");
     }
     
     public async Task<List<string>> GetValidCurrenciesAsync()
     {
-        if (_rates.Count == 0)
+        if (Rates.Count == 0)
             await FetchBaseAsync();
-        
-        var currencies = _rates.Keys.ToList();
-        currencies.Add(DefaultCurrency);
+        var defaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
+        var currencies = Rates.Keys.ToList();
+        currencies.Add(defaultCurrency);
         return currencies;
     }
     
@@ -81,23 +84,48 @@ public class CurrencyService
 
         currency = currency.ToUpperInvariant().Trim();
 
-        return currency == DefaultCurrency || _rates.ContainsKey(currency);
+        var defaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
+        return currency == defaultCurrency || Rates.ContainsKey(currency);
     }
     
-    private bool IsExpired() => DateTime.UtcNow - _lastUpdated > _refreshInterval;
+    private bool IsExpired() {
+        var currencyFilePath = CurrencyFilePath();
+        if (!File.Exists(currencyFilePath)) return true;
+        var lastUpdated = File.GetLastWriteTimeUtc(currencyFilePath);
+        return lastUpdated < DateTime.UtcNow - _refreshInterval;
+    }
     
     private async Task FetchBaseAsync()
     {
-        string url = _baseUrl + $"{DefaultCurrency.ToLowerInvariant().Trim()}.json";
-        string json = await _httpClient.GetStringAsync(url);
-        await File.WriteAllTextAsync(_currencyFile, json);
-        ParseRatesAsync(json);
-        
+        await _refreshLock.WaitAsync();
+        try
+        {
+            if (!IsExpired())
+                return;
+            var defaultCurrency = _config
+                .Get("Currency", "Primary", "USD")!
+                .ToUpperInvariant()
+                .Trim();
+
+            string url = _baseUrl + $"{defaultCurrency.ToLowerInvariant()}.json";
+            string json = await _httpClient.GetStringAsync(url);
+
+            var path = CurrencyFilePath();
+            await File.WriteAllTextAsync(path, json);
+
+            ParseRatesAsync(json);
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
     }
+
 
     private async Task LoadFromFileAsync()
     {
-        string json = await File.ReadAllTextAsync(_currencyFile);
+        var currencyFilePath = CurrencyFilePath();
+        string json = await File.ReadAllTextAsync(currencyFilePath);
         ParseRatesAsync(json);
     }
     
@@ -106,7 +134,7 @@ public class CurrencyService
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        _rates.Clear();
+        Rates.Clear();
 
         foreach (var kvp in root.EnumerateObject())
         {
@@ -116,52 +144,44 @@ public class CurrencyService
             {
                 string code = codeProp.GetString()!.ToUpperInvariant();
                 double rate = rateProp.GetDouble();
-                _rates[code] = rate;
+                Rates[code] = rate;
             }
-        }
-
-        if (root.EnumerateObject().Any())
-        {
-            _lastUpdated = File.Exists(_currencyFile)
-                ? File.GetLastWriteTimeUtc(_currencyFile)
-                : DateTime.UtcNow;
-        }
-        else
-        {
-            _lastUpdated = DateTime.UtcNow;
         }
     }
     
     public async Task<double> ConvertAsync(double amount, string fromCurrency, string? toCurrency = null)
     {
         fromCurrency = fromCurrency.ToUpperInvariant().Trim();
-        toCurrency ??= DefaultCurrency;
+        var defaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
+        toCurrency ??=  defaultCurrency;
         if (fromCurrency == toCurrency)
             return amount;
-        
-        if (IsExpired())
+
+        try
         {
-            try
-            {
-                await FetchBaseAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to refresh rates, using cached data");
-            }
+            await FetchBaseAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to refresh rates, using cached data");
         }
 
-        if (!_rates.TryGetValue(fromCurrency, out var fromRate))
+        if (!Rates.TryGetValue(fromCurrency, out var fromRate))
             throw new InvalidOperationException($"Rate for {fromCurrency} not found.");
 
         double baseAmount = amount / fromRate;
 
-        if (toCurrency == DefaultCurrency)
+        if (toCurrency == defaultCurrency)
             return baseAmount;
 
-        if (!_rates.TryGetValue(toCurrency, out var toRate))
+        if (!Rates.TryGetValue(toCurrency, out var toRate))
             throw new InvalidOperationException($"Rate for {toCurrency} not found.");
 
         return baseAmount * toRate;
+    }
+    
+    internal void SetRates(Dictionary<string, double> rates)
+    {
+        Rates = rates;
     }
 }
