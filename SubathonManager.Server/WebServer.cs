@@ -136,9 +136,9 @@ public partial class WebServer
         response.AddHeader("Access-Control-Allow-Headers", "Content-Type");
     }
 
-    private async Task ServeFile(HttpListenerContext ctx, string fullPath)
+    internal static string GetContentType(string filePath)
     {
-        string ext = Path.GetExtension(fullPath).ToLower();
+        string ext = Path.GetExtension(filePath).ToLower();
         string contentType = ext switch
         {
             // web standard
@@ -183,7 +183,12 @@ public partial class WebServer
             
             _ => "application/octet-stream"
         };
-        ctx.Response.ContentType = contentType;
+        return contentType;
+    }
+
+    private async Task ServeFile(HttpListenerContext ctx, string fullPath)
+    {
+        ctx.Response.ContentType = GetContentType(fullPath);
         AddCorsHeaders(ctx.Response);  
         byte[] bytes = await File.ReadAllBytesAsync(fullPath);
         await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
