@@ -13,7 +13,7 @@ namespace SubathonManager.UI.Views;
 
 public partial class GoalsView
 {
-    public ObservableCollection<GoalViewModel> Goals { get; set; } = new();
+    private ObservableCollection<GoalViewModel> Goals { get; set; } = new();
     private long _subathonLastPoints = -1;
     private GoalsType _type = GoalsType.Points;
     private string _currency = "";
@@ -36,35 +36,37 @@ public partial class GoalsView
     private void OnSubathonUpdate(SubathonData subathon, DateTime timestamp)
     {
         if (string.IsNullOrWhiteSpace(_currency)) _currency = subathon.Currency ?? "";
-            
-        if (_currency != subathon.Currency ||
-            (_subathonLastPoints != subathon.Points && _type == GoalsType.Points) || 
-            (_subathonLastPoints != subathon.GetRoundedMoneySum() && _type == GoalsType.Money))
+        
+        Dispatcher.InvokeAsync(() =>
         {
-            Dispatcher.InvokeAsync(() =>
+            long moneySum = subathon.GetRoundedMoneySum();
+            if (_currency != subathon.Currency ||
+                (_subathonLastPoints != subathon.Points && _type == GoalsType.Points) ||
+                (_subathonLastPoints != moneySum && _type == GoalsType.Money))
             {
                 foreach (var goal in Goals)
                 {
-                    if (_type == GoalsType.Points && 
+                    if (_type == GoalsType.Points &&
                         (!goal.Completed && subathon.Points >= goal.Points || subathon.Points == 0))
                     {
                         _currency = subathon.Currency ?? "";
                         LoadGoals();
                         break;
                     }
-                    if (_type == GoalsType.Money && 
-                        (!goal.Completed && subathon.GetRoundedMoneySum() >= goal.Points
-                         || subathon.GetRoundedMoneySum() == 0 || _currency != subathon.Currency))
+
+                    if (_type == GoalsType.Money &&
+                        (!goal.Completed && moneySum >= goal.Points
+                         || moneySum == 0 || _currency != subathon.Currency))
                     {
                         _currency = subathon.Currency ?? "";
                         LoadGoals();
                         break;
                     }
                 }
-                _subathonLastPoints = _type == GoalsType.Money ? subathon.GetRoundedMoneySum() :
-                    subathon.Points;
-            });
-        }
+
+                _subathonLastPoints = _type == GoalsType.Money ? moneySum : subathon.Points;
+            }
+        });
     }
     
     private void LoadGoals()
@@ -83,7 +85,8 @@ public partial class GoalsView
         string suffix = "pts";
         if (activeGoalSet.Type == GoalsType.Money)
         {
-            currentPoints = activeSubathon?.GetRoundedMoneySum() ?? 0;
+            long moneySum = activeSubathon!.GetRoundedMoneySum();
+            currentPoints = moneySum;
             suffix = $"{activeSubathon?.Currency ?? "?"}";
         }
 
@@ -101,10 +104,9 @@ public partial class GoalsView
                 Completed =  currentPoints >= goal.Points
             });
         }
-
-        GoalsList.ItemsSource = Goals;
         Dispatcher.InvokeAsync(() =>
         {
+            GoalsList.ItemsSource = Goals;
             var lastCompleted = Goals
                 .Select((g, i) => new { g, i })
                 .LastOrDefault(x => x.g.Completed);

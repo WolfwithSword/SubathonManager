@@ -79,7 +79,6 @@ END_WIDGET_META
 
     function handleSubathonEvent(data) {
         if (data && data.type == "event") {
-            console.log(data);
             if (!applicableEvents.includes(data.event_type)) return;
 
             if (data.event_type == "TwitchRaid") {

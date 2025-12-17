@@ -154,15 +154,18 @@ namespace SubathonManager.Data
             }
         }
         
-        public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db)
+        public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db, bool includeBits = false)
         {
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
             if (subathon == null) return new List<SubathonEvent>();
             
-            List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => !string.IsNullOrWhiteSpace(e.Currency)
+            List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => 
+                    e.SubathonId == subathon.Id &&
+                    !string.IsNullOrWhiteSpace(e.Currency)
                 && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
                 .ToListAsync();
-            events = events.Where(e => e.EventType.IsCurrencyDonation()).ToList();
+            events = events.Where(e => e.EventType.IsCurrencyDonation() ||
+                                       (includeBits && e.EventType == SubathonEventType.TwitchCheer)).ToList();
             return events;
         }
         
@@ -235,21 +238,24 @@ namespace SubathonManager.Data
             await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET Currency = {0} WHERE IsActive = 1", currency);
         }
         
-        public static async Task UpdateSubathonMoney(AppDbContext db, double money, Guid subathonId)
+        public async Task UpdateSubathonMoney(double money, Guid subathonId)
         {
-            await db.Database.ExecuteSqlRawAsync(
+            await Database.ExecuteSqlRawAsync(
                 "UPDATE SubathonDatas SET MoneySum = {0} WHERE IsActive = 1 and Id = {1}", money, subathonId);
-            
-            var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
+            var subathon = await SubathonDatas.Include(s=> s.Multiplier)
                 .AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-            if (subathon != null)
-                SubathonManager.Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon!, DateTime.Now);
+            if (subathon == null) return;
+            Entry(subathon).State = EntityState.Detached;
+            Entry(subathon.Multiplier).State = EntityState.Detached;
+            Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
 
-            var goalSet = await db.SubathonGoalSets.AsNoTracking()
+            var goalSet = await SubathonGoalSets.AsNoTracking()
                 .Include(x => x.Goals).Where(x => x.IsActive)
                 .FirstOrDefaultAsync();
-            if (subathon != null && goalSet != null && goalSet.Goals.Any() && goalSet.Type == GoalsType.Money)
+            if (goalSet != null && goalSet.Goals.Any() && goalSet.Type == GoalsType.Money)
+            {
                 Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.GetRoundedMoneySum());
+            }
         }
         
         public static void SeedDefaultValues(AppDbContext db)

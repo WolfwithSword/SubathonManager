@@ -18,10 +18,12 @@ public partial class WebServer
     
     private readonly HashSet<string> _servedFolders = new();
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
+    private readonly IConfig _config;
     
-    public WebServer(IDbContextFactory<AppDbContext> factory ,int port = 14040)
+    public WebServer(IDbContextFactory<AppDbContext> factory, IConfig config, int port = 14040)
     {
         _factory = factory;
+        _config = config; // unused but handy to have for future
         using (var db = _factory.CreateDbContext())
         {
             var routes = db.Routes.ToList();

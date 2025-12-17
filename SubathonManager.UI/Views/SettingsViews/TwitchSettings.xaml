@@ -40,6 +40,8 @@
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
                                 x:Name="Cheer2TextBox"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
+                    <CheckBox x:Name="BitsAsCurrencyBox" Margin="4 0 4 0" ToolTip="Count 1 bit as 0.01 USD for total money?"
+                              Content="Use as Donation?"/>
                 </StackPanel>
                 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
