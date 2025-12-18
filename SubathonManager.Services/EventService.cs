@@ -484,6 +484,17 @@ public class EventService: IDisposable
                 _config.Get("Currency", "Primary", "USD"));
         }
 
+        // edge case will happen if cheers as dono state was different than when this runs.
+        // this is acceptable for now, as it can resync properly on toggle
+        if (ev.EventType == SubathonEventType.TwitchCheer &&
+            bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"), out bool bitsDono)
+            && bitsDono)
+        {
+            moneyToRemove += await _currencyService.ConvertAsync(Math.Round(double.Parse(ev.Value)/100, 2), "USD",
+                _config.Get("Currency", "Primary", "USD"));
+        }
+        
+
         if (!ev.ProcessedToSubathon)
         {
             msToRemove = 0;
@@ -549,6 +560,7 @@ public class EventService: IDisposable
                 .ToListAsync();
         }
 
+        long bits = 0;
         foreach (SubathonEvent ev in events)
         {
             if (ev.SubathonId != subathon.Id) continue;
@@ -559,9 +571,21 @@ public class EventService: IDisposable
                 moneyToRemove +=
                     await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
             }
-            
+
+            if (ev.EventType == SubathonEventType.TwitchCheer &&
+                bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"),
+                    out bool bitsDono) && bitsDono)
+            {
+                bits += int.Parse(ev.Value);
+            }
         }
         
+        if (bits > 0)
+        {
+            double val = (double) bits / 100;
+            moneyToRemove +=
+                await _currencyService.ConvertAsync(Math.Round(val, 2), "USD", subathon.Currency!);
+        }
         int affected = 0;
         if (msToRemove != 0)
         {
