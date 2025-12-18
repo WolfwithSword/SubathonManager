@@ -44,6 +44,8 @@ public class SubathonEvent
     public double MultiplierPoints { get; set; } = 1;
     public double MultiplierSeconds { get; set; } = 1;
     
+    public bool WasReversed { get; set; } = false;
+    
     // do we want to later finetune power hour to be for selectable events?
     public double GetFinalSecondsValue() => Math.Ceiling(GetFinalSecondsValueRaw()); 
     public double GetFinalSecondsValueRaw() => Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : MultiplierSeconds) ?? 0; 

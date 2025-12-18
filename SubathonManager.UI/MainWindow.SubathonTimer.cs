@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
 using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
@@ -16,10 +17,11 @@ namespace SubathonManager.UI
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
+                bool.TryParse(App.AppConfig!.Get("App", "ReverseSubathon", "False"), out bool isReverse);
                 Dispatcher.InvokeAsync(() =>
                 {
                     double moneySum =  subathon.GetRoundedMoneySumWithCents();
-                    TimerValue.Text = subathon.TimeRemainingRounded().ToString();
+                    TimerValue.Text = subathon.TimeRemainingRounded(isReverse).ToString();
                     _lastUpdatedTimerAt = time;
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
@@ -29,7 +31,7 @@ namespace SubathonManager.UI
                 });
             }
         }
-        
+
         private async void StartNewSubathon_Click(object sender, RoutedEventArgs e)
         {
             var msgBox = new Wpf.Ui.Controls.MessageBox();
@@ -37,10 +39,10 @@ namespace SubathonManager.UI
             var textBlock = new System.Windows.Controls.TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Width = 320
+                Width = 320,
+                Margin = new Thickness(4,4,4,12)
             };
             textBlock.Inlines.Add("Confirm deleting the current subathon (time, points, events) and starting a new one?");
-            msgBox.Content = textBlock;
             
             msgBox.CloseButtonText = "Cancel";
             msgBox.Owner = Application.Current.Windows
@@ -48,6 +50,46 @@ namespace SubathonManager.UI
                 .FirstOrDefault(w => w.IsActive);
             msgBox.WindowStartupLocation = WindowStartupLocation.CenterOwner;
             msgBox.PrimaryButtonText = "Confirm";
+            
+            var checkBox = new CheckBox
+            {
+                Content = "Reverse Subathon?",
+                ToolTip = "When enabled, time will tick up, and event reduce the timer",
+                IsChecked = false,
+                Margin = new Thickness(4, 12, 4, 8)
+            };
+
+            var initialTimeLabel = new Wpf.Ui.Controls.TextBlock
+            {
+                Text = "Initial Time:",
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(16, 4, 8, 0)
+            };
+            var initialTimeBox = new Wpf.Ui.Controls.TextBox
+            {
+                Text = "8h",
+                Width = 140,
+                Margin = new Thickness(2, 4, 0, 0)
+            };
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            var panel2 = new StackPanel
+            {
+                Orientation = Orientation.Horizontal
+            };
+            
+            panel2.Children.Add(initialTimeLabel);
+            panel2.Children.Add(initialTimeBox);
+
+            panel.Children.Add(textBlock);
+            panel.Children.Add(panel2);
+            panel.Children.Add(checkBox);
+            
+            msgBox.Content = panel;
+            
             var result = await msgBox.ShowDialogAsync();
             bool confirm = result == Wpf.Ui.Controls.MessageBoxResult.Primary;
             if (!confirm) return;
@@ -55,7 +97,7 @@ namespace SubathonManager.UI
             await Task.Run(async () => AppDbContext.DisableAllTimers(await _factory.CreateDbContextAsync()));
             using var db = await _factory.CreateDbContextAsync();
             SubathonData subathon = new SubathonData();
-            TimeSpan initialMs = Utils.ParseDurationString(InitialSubathonTime.Text);
+            TimeSpan initialMs = Utils.ParseDurationString(initialTimeBox.Text);
             if (initialMs == TimeSpan.Zero)
             {
                 initialMs = TimeSpan.FromSeconds(1);
@@ -66,6 +108,14 @@ namespace SubathonManager.UI
             db.SubathonDatas.Add(subathon);
             await db.SaveChangesAsync();
             db.Entry(subathon).State = EntityState.Detached;
+
+            if (!App.AppConfig!.Get("App", "ReverseSubathon", "False")!
+                    .Equals($"{checkBox.IsChecked}", StringComparison.OrdinalIgnoreCase))
+            {
+                App.AppConfig!.Set("App", "ReverseSubathon", $"{checkBox.IsChecked}");
+                App.AppConfig!.Save();
+            }
+            
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
             SubathonEvents.RaiseSubathonEventsDeleted(new List<SubathonEvent>());
         }

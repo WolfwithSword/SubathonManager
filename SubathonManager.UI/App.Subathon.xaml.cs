@@ -21,13 +21,36 @@ public partial class App
     private async void UpdateSubathonTimers(TimeSpan time)
     {
         await using var db = await _factory!.CreateDbContextAsync();
-        int ran = await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed > 0", 
-            time.TotalMilliseconds);
+        bool.TryParse(AppConfig!.Get("App", "ReverseSubathon", "False"), out bool isReverse);
+
+        int ran = -1;
+        if (isReverse)
+        {
+            ran = await db.Database.ExecuteSqlRawAsync(
+                "UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsElapsed + MillisecondsCumulative > 0",
+                time.TotalMilliseconds);   
+        }
+        else
+        {
+            ran = await db.Database.ExecuteSqlRawAsync(
+                "UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsElapsed + {0} WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed > 0",
+                time.TotalMilliseconds);
+        }
+
         if (ran == 0)
         {
+            if (isReverse)
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsElapsed = -MillisecondsCumulative WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsElapsed + MillisecondsCumulative + 1000 <= 0");
+            }
+
             // try to set to equal 0 if it would go negative
-            await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsCumulative WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed - 1000 <= 0");
+            else
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsElapsed = MillisecondsCumulative WHERE IsActive = 1 AND IsPaused = 0 AND MillisecondsCumulative - MillisecondsElapsed - 1000 <= 0");
+            }
         }
         
         var subathon = await db.SubathonDatas.Include(s=> s.Multiplier)
@@ -36,7 +59,7 @@ public partial class App
         
         if (subathon != null)
         {
-            if (subathon.TimeRemainingRounded().TotalSeconds <= 0 && !subathon.IsPaused)
+            if (subathon.TimeRemainingRounded(isReverse).TotalSeconds <= 0 && !subathon.IsPaused)
             {
                 await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND IsPaused = 0 AND Id = {0}", 
                     subathon.Id);

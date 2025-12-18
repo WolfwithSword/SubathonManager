@@ -159,14 +159,15 @@ public partial class WebServer
         long roundedMoney = subathon.GetRoundedMoneySum();
         double fractionalMoney = subathon.GetRoundedMoneySumWithCents();
         
+        bool.TryParse(_config.Get("App", "ReverseSubathon", "False"), out bool isReverse);
         object data = new
         {
             type = "subathon_timer",
-            total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
-            days = subathon.TimeRemainingRounded().Days,
-            hours = subathon.TimeRemainingRounded().Hours,
-            minutes = subathon.TimeRemainingRounded().Minutes,
-            seconds = subathon.TimeRemainingRounded().Seconds,
+            total_seconds = subathon.TimeRemainingRounded(isReverse).TotalSeconds,
+            days = subathon.TimeRemainingRounded(isReverse).Days,
+            hours = subathon.TimeRemainingRounded(isReverse).Hours,
+            minutes = subathon.TimeRemainingRounded(isReverse).Minutes,
+            seconds = subathon.TimeRemainingRounded(isReverse).Seconds,
             total_points = subathon.Points,
             rounded_money = roundedMoney,
             fractional_money = fractionalMoney,

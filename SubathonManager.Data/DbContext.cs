@@ -24,6 +24,7 @@ namespace SubathonManager.Data
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
         
+        // when running migrations add from cmd line, comment out this constructor
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
@@ -160,7 +161,7 @@ namespace SubathonManager.Data
             if (subathon == null) return new List<SubathonEvent>();
             
             List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => 
-                    e.SubathonId == subathon.Id &&
+                    e.SubathonId == subathon.Id && e.ProcessedToSubathon && 
                     !string.IsNullOrWhiteSpace(e.Currency)
                 && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
                 .ToListAsync();

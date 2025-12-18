@@ -166,16 +166,17 @@ public partial class WebServer
                 multiplierRemaining = multEndTime! - DateTime.Now;
             }
   
+            bool.TryParse(_config.Get("App", "ReverseSubathon", "False"), out bool isReverse);
             object response = new
             {
                 millis_cumulated = subathon.MillisecondsCumulative,
                 millis_elapsed = subathon.MillisecondsElapsed,
-                millis_remaining = subathon.MillisecondsRemaining(),
-                total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
-                days = subathon.TimeRemainingRounded().Days,
-                hours = subathon.TimeRemainingRounded().Hours,
-                minutes = subathon.TimeRemainingRounded().Minutes,
-                seconds = subathon.TimeRemainingRounded().Seconds,
+                millis_remaining = subathon.MillisecondsRemaining(isReverse),
+                total_seconds = subathon.TimeRemainingRounded(isReverse).TotalSeconds,
+                days = subathon.TimeRemainingRounded(isReverse).Days,
+                hours = subathon.TimeRemainingRounded(isReverse).Hours,
+                minutes = subathon.TimeRemainingRounded(isReverse).Minutes,
+                seconds = subathon.TimeRemainingRounded(isReverse).Seconds,
                 points = subathon.Points,
                 is_paused = subathon.IsPaused,
                 is_locked = subathon.IsLocked,

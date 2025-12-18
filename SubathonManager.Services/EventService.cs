@@ -99,9 +99,10 @@ public class EventService: IDisposable
         if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return (false, true);
 
         SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(s => s.Goals).AsNoTracking().SingleOrDefaultAsync(s => s.IsActive);
-
+        
         double initialMoney = subathon!.GetRoundedMoneySumWithCents();
         long initialPoints = subathon?.Points ?? 0;
+        bool.TryParse(_config.Get("App", "ReverseSubathon", "False"), out bool isReverse);
         if (goalSet?.Type == GoalsType.Money) initialPoints = (long) Math.Floor(initialMoney);
         if (subathon != null && ev.EventType == SubathonEventType.Command && ev.Command != SubathonCommandType.None)
         {
@@ -137,9 +138,19 @@ public class EventService: IDisposable
                         subathon.Id, ev.PointsValue!);
                     break;
                 case SubathonCommandType.SetTime:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsElapsed + {1} WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id, ev.SecondsValue! * 1000);
+                    if (isReverse)
+                    {
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET MillisecondsElapsed = {1} - MillisecondsCumulative WHERE IsActive = 1 AND Id = {0}",
+                            subathon.Id, ev.SecondsValue! * 1000);
+                    }
+                    else
+                    {
+                        ranCmd = await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsElapsed + {1} WHERE IsActive = 1 AND Id = {0}",
+                            subathon.Id, ev.SecondsValue! * 1000);
+                    }
+
                     break;
                 case SubathonCommandType.AddTime:
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
@@ -153,22 +164,22 @@ public class EventService: IDisposable
                     break;
                 case SubathonCommandType.Unlock:
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsLocked = 0 WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0 AND Id = {0}", 
+                        "UPDATE SubathonDatas SET IsLocked = 0 WHERE IsActive = 1 AND Id = {0}", 
                         subathon.Id);
                     break;
                 case SubathonCommandType.Lock:
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0 AND Id = {0}", 
+                        "UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND Id = {0}", 
                         subathon.Id);
                     break;
                 case SubathonCommandType.Resume:
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsPaused = 0 WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0 AND Id = {0}", 
+                        "UPDATE SubathonDatas SET IsPaused = 0 WHERE IsActive = 1  AND Id = {0}", 
                         subathon.Id);
                     break;
                 case SubathonCommandType.Pause:
                     ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsPaused = 1 WHERE IsActive = 1 AND MillisecondsCumulative - MillisecondsElapsed > 0 AND Id = {0}", 
+                        "UPDATE SubathonDatas SET IsPaused = 1 WHERE IsActive = 1  AND Id = {0}", 
                         subathon.Id);
                     break;
                 case SubathonCommandType.StopMultiplier:
@@ -208,7 +219,7 @@ public class EventService: IDisposable
                 SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
                 ev.ProcessedToSubathon = true;
                 ev.SubathonId = subathon.Id;   
-                ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+                ev.CurrentTime = (int)subathon.TimeRemaining(isReverse).TotalSeconds;
                 ev.CurrentPoints = subathon.Points;
 
                 db.Add(ev);
@@ -226,7 +237,7 @@ public class EventService: IDisposable
             if (subathon != null)
             {
                 ev.SubathonId = subathon.Id;
-                ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+                ev.CurrentTime = (int)subathon.TimeRemaining(isReverse).TotalSeconds;
                 ev.CurrentPoints = subathon.Points;
             }
             db.Add(ev);
@@ -236,7 +247,7 @@ public class EventService: IDisposable
         }
         
         ev.SubathonId = subathon.Id;
-        ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+        ev.CurrentTime = (int)subathon.TimeRemaining(isReverse).TotalSeconds;
         ev.CurrentPoints = subathon.Points;
         
         if (ev.EventType == SubathonEventType.TwitchHypeTrain)
@@ -290,7 +301,8 @@ public class EventService: IDisposable
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
-    
+        ev.WasReversed = isReverse;
+        
         SubathonValue? subathonValue = null;
         if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
             ev.EventType != SubathonEventType.DonationAdjustment)
@@ -349,14 +361,26 @@ public class EventService: IDisposable
         
         int affected = 0;
         if (ev.SecondsValue != 0)
-            affected += await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
-               (long) TimeSpan.FromSeconds(ev.GetFinalSecondsValueRaw()).TotalMilliseconds, subathon.Id);
-        
+        {
+            if (ev.WasReversed)
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
+                    (long)TimeSpan.FromSeconds(ev.GetFinalSecondsValueRaw()).TotalMilliseconds, subathon.Id);
+            else
+            {
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
+                    (long)TimeSpan.FromSeconds(ev.GetFinalSecondsValueRaw()).TotalMilliseconds, subathon.Id);
+            }
+        }
+
         if (ev.PointsValue != 0)
+        {
             affected += await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET Points = Points + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
-                (int) ev.GetFinalPointsValue(), subathon.Id);
+                "UPDATE SubathonDatas SET Points = Points + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
+                (int)ev.GetFinalPointsValue(), subathon.Id);
+        
+        }
 
         if (ev.PointsValue == 0 && ev.SecondsValue == 0 && ev.Currency != "???")
         {
@@ -371,8 +395,11 @@ public class EventService: IDisposable
             {
                 double added = await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency,
                         _config.Get("Currency", "Primary", "USD"));
-                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
                     added, subathon.Id);
+
             }
             else if (ev.EventType == SubathonEventType.TwitchCheer &&
                      bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"), out bool bitsAsDono)
@@ -380,8 +407,10 @@ public class EventService: IDisposable
             {
                 double added = await _currencyService.ConvertAsync(double.Parse(ev.Value) / 100, "USD",
                     _config.Get("Currency", "Primary", "USD"));
-                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
                     added, subathon.Id);
+                
             }
             await db.Entry(subathon.Multiplier).ReloadAsync();
             await db.Entry(subathon).ReloadAsync();
@@ -501,6 +530,11 @@ public class EventService: IDisposable
             pointsToRemove = 0;
             moneyToRemove = 0;
         }
+
+        if (ev.WasReversed && ev.Command == SubathonCommandType.None)
+        {
+            msToRemove *= -1;
+        }
         
         int affected = 0;
         if (msToRemove != 0)
@@ -564,7 +598,11 @@ public class EventService: IDisposable
         foreach (SubathonEvent ev in events)
         {
             if (ev.SubathonId != subathon.Id) continue;
-            msToRemove += (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000);
+            if (!ev.ProcessedToSubathon) continue;
+            long ms = (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000);
+            if (ev.WasReversed && ev.Command == SubathonCommandType.None)
+                ms *= -1;
+            msToRemove += ms;
             pointsToRemove +=  (int) ev.GetFinalPointsValue();
             if (ev.EventType.IsCurrencyDonation())
             {
