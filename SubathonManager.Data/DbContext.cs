@@ -160,7 +160,7 @@ namespace SubathonManager.Data
             if (subathon == null) return new List<SubathonEvent>();
             
             List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => 
-                    e.SubathonId == subathon.Id &&
+                    e.SubathonId == subathon.Id && e.ProcessedToSubathon && 
                     !string.IsNullOrWhiteSpace(e.Currency)
                 && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
                 .ToListAsync();
@@ -306,6 +306,13 @@ namespace SubathonManager.Data
                 db.SubathonGoalSets.Add(goalSet);
             }
 
+            MigrateLegacyData(db);
+            db.SaveChanges();
+        }
+
+        private static void MigrateLegacyData(AppDbContext db)
+        {
+            
             if (db.SubathonGoalSets.Any(s => s.Type == null))
             {
                 db.SubathonGoalSets.Where(s => s.Type == null)
@@ -313,7 +320,12 @@ namespace SubathonManager.Data
                         s.SetProperty(x => x.Type, GoalsType.Points));
             }
             
-            db.SaveChanges();
+            if (db.SubathonDatas.Any(s => s.ReversedTime == null))
+            {
+                db.SubathonDatas.Where(s => s.ReversedTime == null)
+                    .ExecuteUpdate(s =>
+                        s.SetProperty(x => x.ReversedTime, false));
+            }
         }
     }
 }

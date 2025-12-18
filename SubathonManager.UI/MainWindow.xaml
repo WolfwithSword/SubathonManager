@@ -129,9 +129,7 @@
                                    <ui:Button x:Name="StartSubathonBtn" 
                                                       Click="StartNewSubathon_Click"
                                                       Content="Start New Subathon"
-                                                      Width="220" Height="30" Margin="0,2,20,5"/>
-                                   <TextBlock Text="Initial Time:" Width="80" VerticalAlignment="Center" Margin="18 2 6 5"/>
-                                   <ui:TextBox x:Name="InitialSubathonTime" Text="8h" Width="140" VerticalAlignment="Center" Margin="0 2 0 5"/>
+                                                      Width="220" Height="30" Margin="0,2,0,5"/>
                                </StackPanel>
                                
                                <Grid Margin="124 0 0 0 ">

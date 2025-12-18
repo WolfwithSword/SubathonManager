@@ -154,6 +154,7 @@ public partial class WebServer
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.IsActive);
 
         if (subathon != null && path.StartsWith("status"))
@@ -179,6 +180,7 @@ public partial class WebServer
                 points = subathon.Points,
                 is_paused = subathon.IsPaused,
                 is_locked = subathon.IsLocked,
+                is_reversed = subathon.IsSubathonReversed(),
                 multiplier = new 
                 {
                     running = subathon.Multiplier.IsRunning(),

@@ -26,14 +26,18 @@ public class SubathonData
     
     public string? Currency { get; set; } = ""; // load from default if not set
     public double? MoneySum { get; set; } = 0; 
+    
+    public bool? ReversedTime { get; set; } = false;
 
-    public DateTime PredictedEndTime()
+    public bool IsSubathonReversed()
     {
-        return DateTime.Now.AddMilliseconds(MillisecondsRemaining());
+        return ReversedTime ?? false;
     }
 
     public long MillisecondsRemaining()
     {
+        if (IsSubathonReversed())
+            return MillisecondsCumulative + MillisecondsElapsed;
         return MillisecondsCumulative - MillisecondsElapsed;
     }
 
@@ -57,7 +61,4 @@ public class SubathonData
     {
         return Math.Round(MoneySum ?? 0, 2);
     }
-
-    // isActive // only ever one
-    
 }

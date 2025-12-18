@@ -124,7 +124,8 @@ public partial class WebServer
             amount = subathonEvent.Amount, // sometimes useful
             currency = subathonEvent.Currency, // sometimes useful
             command =  subathonEvent.Command.ToString(), // only useful if eventType is command
-            event_timestamp = subathonEvent.EventTimestamp
+            event_timestamp = subathonEvent.EventTimestamp,
+            reversed = subathonEvent.WasReversed
         };
         return data;
     }
@@ -173,6 +174,7 @@ public partial class WebServer
             currency = subathon.Currency,
             is_paused = subathon.IsPaused,
             is_locked =  subathon.IsLocked,
+            is_reversed = subathon.IsSubathonReversed(),
             multiplier_points = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1,
             multiplier_time = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1,
             multiplier_start_time = subathon.Multiplier.Started,
