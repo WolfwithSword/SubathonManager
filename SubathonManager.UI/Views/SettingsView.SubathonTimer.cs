@@ -18,10 +18,8 @@ public partial class SettingsView
                 {
                     _lastUpdatedTimerAt = time;
                     
-                    
-                    bool.TryParse(App.AppConfig!.Get("App", "ReverseSubathon", "False"), out bool isReverse);
                     // doing comparisons first to avoid too much UI updating
-                    string timerVal = subathon.TimeRemainingRounded(isReverse).ToString();
+                    string timerVal = subathon.TimeRemainingRounded().ToString();
                     if (TimerValueSettings.Text != timerVal) TimerValueSettings.Text = timerVal;
 
                     if (subathon.IsPaused && PauseText2.Text != "Resume Timer") PauseText2.Text = "Resume Timer";

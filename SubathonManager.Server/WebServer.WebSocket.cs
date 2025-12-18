@@ -124,7 +124,8 @@ public partial class WebServer
             amount = subathonEvent.Amount, // sometimes useful
             currency = subathonEvent.Currency, // sometimes useful
             command =  subathonEvent.Command.ToString(), // only useful if eventType is command
-            event_timestamp = subathonEvent.EventTimestamp
+            event_timestamp = subathonEvent.EventTimestamp,
+            reversed = subathonEvent.WasReversed
         };
         return data;
     }
@@ -159,21 +160,21 @@ public partial class WebServer
         long roundedMoney = subathon.GetRoundedMoneySum();
         double fractionalMoney = subathon.GetRoundedMoneySumWithCents();
         
-        bool.TryParse(_config.Get("App", "ReverseSubathon", "False"), out bool isReverse);
         object data = new
         {
             type = "subathon_timer",
-            total_seconds = subathon.TimeRemainingRounded(isReverse).TotalSeconds,
-            days = subathon.TimeRemainingRounded(isReverse).Days,
-            hours = subathon.TimeRemainingRounded(isReverse).Hours,
-            minutes = subathon.TimeRemainingRounded(isReverse).Minutes,
-            seconds = subathon.TimeRemainingRounded(isReverse).Seconds,
+            total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
+            days = subathon.TimeRemainingRounded().Days,
+            hours = subathon.TimeRemainingRounded().Hours,
+            minutes = subathon.TimeRemainingRounded().Minutes,
+            seconds = subathon.TimeRemainingRounded().Seconds,
             total_points = subathon.Points,
             rounded_money = roundedMoney,
             fractional_money = fractionalMoney,
             currency = subathon.Currency,
             is_paused = subathon.IsPaused,
             is_locked =  subathon.IsLocked,
+            is_reversed = subathon.IsSubathonReversed(),
             multiplier_points = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1,
             multiplier_time = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1,
             multiplier_start_time = subathon.Multiplier.Started,

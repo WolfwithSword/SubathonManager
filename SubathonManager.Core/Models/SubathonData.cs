@@ -26,27 +26,29 @@ public class SubathonData
     
     public string? Currency { get; set; } = ""; // load from default if not set
     public double? MoneySum { get; set; } = 0; 
+    
+    public bool? ReversedTime { get; set; } = false;
 
-    // public DateTime PredictedEndTime()
-    // {
-    //     return DateTime.Now.AddMilliseconds(MillisecondsRemaining());
-    // }
-
-    public long MillisecondsRemaining(bool isReverse = false)
+    public bool IsSubathonReversed()
     {
-        if (isReverse)
+        return ReversedTime ?? false;
+    }
+
+    public long MillisecondsRemaining()
+    {
+        if (IsSubathonReversed())
             return MillisecondsCumulative + MillisecondsElapsed;
         return MillisecondsCumulative - MillisecondsElapsed;
     }
 
-    public TimeSpan TimeRemaining(bool isReverse = false)
+    public TimeSpan TimeRemaining()
     {
-        return TimeSpan.FromMilliseconds(MillisecondsRemaining(isReverse));
+        return TimeSpan.FromMilliseconds(MillisecondsRemaining());
     }
 
-    public TimeSpan TimeRemainingRounded(bool isReverse = false)
+    public TimeSpan TimeRemainingRounded()
     {
-        double totalSeconds = TimeRemaining(isReverse).TotalSeconds;
+        double totalSeconds = TimeRemaining().TotalSeconds;
         return TimeSpan.FromSeconds(Math.Floor(totalSeconds));
     }
 
@@ -59,7 +61,4 @@ public class SubathonData
     {
         return Math.Round(MoneySum ?? 0, 2);
     }
-
-    // isActive // only ever one
-    
 }

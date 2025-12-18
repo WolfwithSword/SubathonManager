@@ -154,6 +154,7 @@ public partial class WebServer
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.IsActive);
 
         if (subathon != null && path.StartsWith("status"))
@@ -166,20 +167,20 @@ public partial class WebServer
                 multiplierRemaining = multEndTime! - DateTime.Now;
             }
   
-            bool.TryParse(_config.Get("App", "ReverseSubathon", "False"), out bool isReverse);
             object response = new
             {
                 millis_cumulated = subathon.MillisecondsCumulative,
                 millis_elapsed = subathon.MillisecondsElapsed,
-                millis_remaining = subathon.MillisecondsRemaining(isReverse),
-                total_seconds = subathon.TimeRemainingRounded(isReverse).TotalSeconds,
-                days = subathon.TimeRemainingRounded(isReverse).Days,
-                hours = subathon.TimeRemainingRounded(isReverse).Hours,
-                minutes = subathon.TimeRemainingRounded(isReverse).Minutes,
-                seconds = subathon.TimeRemainingRounded(isReverse).Seconds,
+                millis_remaining = subathon.MillisecondsRemaining(),
+                total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
+                days = subathon.TimeRemainingRounded().Days,
+                hours = subathon.TimeRemainingRounded().Hours,
+                minutes = subathon.TimeRemainingRounded().Minutes,
+                seconds = subathon.TimeRemainingRounded().Seconds,
                 points = subathon.Points,
                 is_paused = subathon.IsPaused,
                 is_locked = subathon.IsLocked,
+                is_reversed = subathon.IsSubathonReversed(),
                 multiplier = new 
                 {
                     running = subathon.Multiplier.IsRunning(),

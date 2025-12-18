@@ -17,11 +17,10 @@ namespace SubathonManager.UI
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
-                bool.TryParse(App.AppConfig!.Get("App", "ReverseSubathon", "False"), out bool isReverse);
                 Dispatcher.InvokeAsync(() =>
                 {
                     double moneySum =  subathon.GetRoundedMoneySumWithCents();
-                    TimerValue.Text = subathon.TimeRemainingRounded(isReverse).ToString();
+                    TimerValue.Text = subathon.TimeRemainingRounded().ToString();
                     _lastUpdatedTimerAt = time;
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
@@ -104,17 +103,11 @@ namespace SubathonManager.UI
             }
             subathon.MillisecondsCumulative += (int) initialMs.TotalMilliseconds;
             subathon.IsPaused = true;
+            subathon.ReversedTime = checkBox.IsChecked;
             subathon.Currency = App.AppConfig!.Get("Currency", "Primary", "USD")!;
             db.SubathonDatas.Add(subathon);
             await db.SaveChangesAsync();
             db.Entry(subathon).State = EntityState.Detached;
-
-            if (!App.AppConfig!.Get("App", "ReverseSubathon", "False")!
-                    .Equals($"{checkBox.IsChecked}", StringComparison.OrdinalIgnoreCase))
-            {
-                App.AppConfig!.Set("App", "ReverseSubathon", $"{checkBox.IsChecked}");
-                App.AppConfig!.Save();
-            }
             
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
             SubathonEvents.RaiseSubathonEventsDeleted(new List<SubathonEvent>());

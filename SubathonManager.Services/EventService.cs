@@ -102,7 +102,6 @@ public class EventService: IDisposable
         
         double initialMoney = subathon!.GetRoundedMoneySumWithCents();
         long initialPoints = subathon?.Points ?? 0;
-        bool.TryParse(_config.Get("App", "ReverseSubathon", "False"), out bool isReverse);
         if (goalSet?.Type == GoalsType.Money) initialPoints = (long) Math.Floor(initialMoney);
         if (subathon != null && ev.EventType == SubathonEventType.Command && ev.Command != SubathonCommandType.None)
         {
@@ -138,7 +137,7 @@ public class EventService: IDisposable
                         subathon.Id, ev.PointsValue!);
                     break;
                 case SubathonCommandType.SetTime:
-                    if (isReverse)
+                    if (subathon.IsSubathonReversed())
                     {
                         ranCmd = await db.Database.ExecuteSqlRawAsync(
                             "UPDATE SubathonDatas SET MillisecondsElapsed = {1} - MillisecondsCumulative WHERE IsActive = 1 AND Id = {0}",
@@ -219,7 +218,7 @@ public class EventService: IDisposable
                 SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
                 ev.ProcessedToSubathon = true;
                 ev.SubathonId = subathon.Id;   
-                ev.CurrentTime = (int)subathon.TimeRemaining(isReverse).TotalSeconds;
+                ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
                 ev.CurrentPoints = subathon.Points;
 
                 db.Add(ev);
@@ -237,7 +236,7 @@ public class EventService: IDisposable
             if (subathon != null)
             {
                 ev.SubathonId = subathon.Id;
-                ev.CurrentTime = (int)subathon.TimeRemaining(isReverse).TotalSeconds;
+                ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
                 ev.CurrentPoints = subathon.Points;
             }
             db.Add(ev);
@@ -247,7 +246,7 @@ public class EventService: IDisposable
         }
         
         ev.SubathonId = subathon.Id;
-        ev.CurrentTime = (int)subathon.TimeRemaining(isReverse).TotalSeconds;
+        ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
         ev.CurrentPoints = subathon.Points;
         
         if (ev.EventType == SubathonEventType.TwitchHypeTrain)
@@ -301,7 +300,7 @@ public class EventService: IDisposable
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
-        ev.WasReversed = isReverse;
+        ev.WasReversed = subathon.IsSubathonReversed();
         
         SubathonValue? subathonValue = null;
         if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 

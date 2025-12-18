@@ -307,6 +307,13 @@ namespace SubathonManager.Data
                 db.SubathonGoalSets.Add(goalSet);
             }
 
+            MigrateLegacyData(db);
+            db.SaveChanges();
+        }
+
+        private static void MigrateLegacyData(AppDbContext db)
+        {
+            
             if (db.SubathonGoalSets.Any(s => s.Type == null))
             {
                 db.SubathonGoalSets.Where(s => s.Type == null)
@@ -314,7 +321,12 @@ namespace SubathonManager.Data
                         s.SetProperty(x => x.Type, GoalsType.Points));
             }
             
-            db.SaveChanges();
+            if (db.SubathonDatas.Any(s => s.ReversedTime == null))
+            {
+                db.SubathonDatas.Where(s => s.ReversedTime == null)
+                    .ExecuteUpdate(s =>
+                        s.SetProperty(x => x.ReversedTime, false));
+            }
         }
     }
 }
