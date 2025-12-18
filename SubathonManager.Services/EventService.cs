@@ -480,7 +480,7 @@ public class EventService: IDisposable
     {
         if (ev.SubathonId == null) return;
         
-        SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
+        SubathonData? subathon = await db.SubathonDatas.Include(x => x.Multiplier).FirstOrDefaultAsync(s => s.IsActive);
         if (ev.SubathonId != subathon?.Id) return;
         SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking().Include(g=> g.Goals).FirstOrDefaultAsync(g => g.IsActive);
 
@@ -577,7 +577,8 @@ public class EventService: IDisposable
         long msToRemove = 0;
         double moneyToRemove = 0;
 
-        SubathonData? subathon = await db.SubathonDatas.FirstOrDefaultAsync(s => s.IsActive);
+        SubathonData? subathon = await db.SubathonDatas.Include(x => x.Multiplier)
+            .FirstOrDefaultAsync(s => s.IsActive);
         if (subathon == null) return;
         
         SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking()
@@ -660,7 +661,9 @@ public class EventService: IDisposable
         long initialPoints)
     {
         await db.Entry(subathon).ReloadAsync();
+        await db.Entry(subathon.Multiplier).ReloadAsync();
         db.Entry(subathon).State = EntityState.Detached;
+        db.Entry(subathon.Multiplier).State = EntityState.Detached;
         SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
         long pts = goalSet?.Type == GoalsType.Money ? subathon.GetRoundedMoneySum() : subathon.Points; 
         if (pts != initialPoints)
