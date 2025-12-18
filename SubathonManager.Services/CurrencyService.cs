@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
+using SubathonManager.Core.Events;
+using SubathonManager.Core.Enums;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 
@@ -166,18 +167,40 @@ public class CurrencyService
             _logger?.LogWarning(ex, "Failed to refresh rates, using cached data");
         }
 
-        if (!Rates.TryGetValue(fromCurrency, out var fromRate))
-            throw new InvalidOperationException($"Rate for {fromCurrency} not found.");
+        if (!IsValidCurrency(fromCurrency))
+        {
+            var message = fromCurrency + " is not a valid currency. Cannot convert";
+            _logger?.LogError(message);
+            
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                message, DateTime.Now);
+            return 0;
+        }
 
-        double baseAmount = amount / fromRate;
+        try
+        {
+            if (!Rates.TryGetValue(fromCurrency, out var fromRate))
+                throw new InvalidOperationException($"Rate for {fromCurrency} not found.");
 
-        if (toCurrency == defaultCurrency)
-            return baseAmount;
+            double baseAmount = amount / fromRate;
 
-        if (!Rates.TryGetValue(toCurrency, out var toRate))
-            throw new InvalidOperationException($"Rate for {toCurrency} not found.");
+            if (toCurrency == defaultCurrency)
+                return baseAmount;
 
-        return baseAmount * toRate;
+            if (!Rates.TryGetValue(toCurrency, out var toRate))
+                throw new InvalidOperationException($"Rate for {toCurrency} not found.");
+
+            return baseAmount * toRate;
+        }
+        catch (Exception ex)
+        {
+            var message = $"Failed to convert {amount} {fromCurrency} to {toCurrency}";
+            _logger?.LogError(ex, message);
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+                message, DateTime.Now);
+        }
+
+        return 0;
     }
     
     internal void SetRates(Dictionary<string, double> rates)

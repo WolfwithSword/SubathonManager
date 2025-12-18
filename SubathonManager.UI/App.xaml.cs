@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Server;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Integration;
@@ -33,6 +34,8 @@ public partial class App
     private ILogger? _logger;
     
     private IDbContextFactory<AppDbContext>? _factory;
+    private bool _bitsAsDonationVal = false;
+    private string _currencyVal = string.Empty;
     
     public static string AppVersion
     {
@@ -75,7 +78,7 @@ public partial class App
             builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
             builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
             builder.AddFilter("Microsoft.Extensions.Http", LogLevel.Warning);
-             builder.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+            builder.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
             builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
         });
 
@@ -109,6 +112,10 @@ public partial class App
             AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
             AppConfig.LoadOrCreateDefault();
             AppConfig.MigrateConfig();
+            
+            bool.TryParse(AppConfig.Get("Twitch", "BitsAsDonation", "False"), out bool bitsAsDonationCheck);
+            _bitsAsDonationVal = bitsAsDonationCheck;
+            _currencyVal = AppConfig!.Get("Currency", "Primary", "USD")!;
 
             string theme = (AppConfig.Get("App", "Theme", "Dark"))!.Trim();
             _themeDictionary = new ResourceDictionary
@@ -155,11 +162,12 @@ public partial class App
                     await using var context2 = await _factory.CreateDbContextAsync();
                     await AppDbContext.ResetPowerHour(context2);
                     await using var context3 = await _factory.CreateDbContextAsync();
-                    await SetupSubathonCurrencyData(context3);
+                    await SetupSubathonCurrencyData(context3, _bitsAsDonationVal);
                 }
             );
 
-            AppWebServer = new WebServer(_factory, int.Parse(AppConfig.Get("Server", "Port", "14040")!));
+            AppWebServer = new WebServer(_factory, AppConfig,
+                int.Parse(AppConfig.Get("Server", "Port", "14040")!));
 
             Task.Run(async () =>
             {
@@ -267,16 +275,26 @@ public partial class App
             {
                 _logger?.LogDebug($"Config reloaded! New server port: {newPort}");
                 AppWebServer?.Stop();
-                AppWebServer = new WebServer(_factory!, newPort);
+                AppWebServer = new WebServer(_factory!, AppConfig!, newPort);
                 Task.Run(async() => await AppWebServer.StartAsync());
             }
             AppDiscordWebhookService?.LoadFromConfig();
             SetThemeFromConfig();
-            Task.Run(async () =>
+            bool.TryParse(AppConfig.Get("Twitch", "BitsAsDonation", "False"),
+                out bool bitsAsDonationCheck);
+            string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
+            
+            if (_bitsAsDonationVal != bitsAsDonationCheck || _currencyVal != currency)
             {
-                await using var db = await _factory!.CreateDbContextAsync();
-                await SetupSubathonCurrencyData(db);
-            });
+                _currencyVal = currency; 
+                _bitsAsDonationVal = bitsAsDonationCheck;
+                bool wasOnlyBitsChange = _bitsAsDonationVal != bitsAsDonationCheck;
+                Task.Run(async () =>
+                {
+                    await using var db = await _factory!.CreateDbContextAsync();
+                    await SetupSubathonCurrencyData(db, wasOnlyBitsChange ? !_bitsAsDonationVal :  _bitsAsDonationVal);
+                });
+            }
         }
         catch (Exception ex)
         {
@@ -297,14 +315,14 @@ public partial class App
                 {
                     Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
                 };
-                Application.Current.Resources.MergedDictionaries.Add(_themeDictionary);
+                Current.Resources.MergedDictionaries.Add(_themeDictionary);
             }
             else
             {
                 _themeDictionary.Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative);
             }
 
-            if (Application.Current.Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
+            if (Current.Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
             {
                 fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
                     ? ApplicationTheme.Dark
@@ -313,34 +331,60 @@ public partial class App
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private async Task SetupSubathonCurrencyData(AppDbContext db)
+    private async Task SetupSubathonCurrencyData(AppDbContext db, bool? oldBitsDonoValue)
     {
         // Setup first time or convert currency
         string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
+        bool.TryParse(AppConfig.Get("Twitch", "BitsAsDonation", "False"),
+            out bool bitsAsDonationCheck);
+        
         var subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-        if (subathon == null || currency.Equals(subathon.Currency, StringComparison.OrdinalIgnoreCase)) return;
+        _currencyVal = currency; 
+        if (subathon == null) return;
 
         string? oldCurrency = subathon.Currency;
-        await AppDbContext.UpdateSubathonCurrency(db, currency);
-        
+        if (oldCurrency != currency)
+        {
+            await AppDbContext.UpdateSubathonCurrency(db, currency);
+            await db.Entry(subathon).ReloadAsync();
+            db.Entry(subathon).State = EntityState.Detached;
+        }
+
         var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
-        if (subathon.MoneySum != null && !subathon.MoneySum.Equals((double)0) && !string.IsNullOrWhiteSpace(oldCurrency))
+        if ( subathon.MoneySum != null && 
+            !subathon.MoneySum.Equals((double)0) && !string.IsNullOrWhiteSpace(oldCurrency))
         {
             var amt = await currencyService.ConvertAsync((double)subathon.MoneySum, oldCurrency, currency);
-            await AppDbContext.UpdateSubathonMoney(db, amt, subathon.Id);
-            return;
+            await db.UpdateSubathonMoney(amt, subathon.Id);
+            if (oldBitsDonoValue != bitsAsDonationCheck) return;
         }
-        
-        var events = await AppDbContext.GetSubathonCurrencyEvents(db);
+
+        // reconvert everything, rarely called, unless toggling bits as donations
+        // alternate was to add bits always when sending out, but that got messy code-wise
+        // this way has downside of recalculating conversions historically, but, only if toggling often.
+        // and this is estimated to be low usage to change currency or bit dono toggle.
+        var events = await AppDbContext.GetSubathonCurrencyEvents(db, bitsAsDonationCheck);
         
         double sum = 0;
+        long bits = 0;
         foreach (var e in events)
         {
+            if (e.EventType == SubathonEventType.TwitchCheer)
+            {
+                bits += int.Parse(e.Value);
+                continue;
+            }
             if (string.IsNullOrWhiteSpace(e.Currency)) continue;
             var amt = await currencyService.ConvertAsync(double.Parse(e.Value), e.Currency, currency.ToUpper());
             sum += amt;
         }
-        await AppDbContext.UpdateSubathonMoney(db, sum, subathon.Id);
+
+        if (bitsAsDonationCheck)
+        {
+            double val = await currencyService.ConvertAsync(((double)bits) / 100, "USD", subathon.Currency);
+            sum += val;
+        }
+        await db.UpdateSubathonMoney(sum, subathon.Id);
     }
 
 }

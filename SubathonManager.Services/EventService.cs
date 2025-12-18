@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Core;
@@ -100,9 +99,10 @@ public class EventService: IDisposable
         if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return (false, true);
 
         SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(s => s.Goals).AsNoTracking().SingleOrDefaultAsync(s => s.IsActive);
-        
+
+        double initialMoney = subathon!.GetRoundedMoneySumWithCents();
         long initialPoints = subathon?.Points ?? 0;
-        if (goalSet?.Type == GoalsType.Money) initialPoints = subathon?.GetRoundedMoneySum() ?? 0;
+        if (goalSet?.Type == GoalsType.Money) initialPoints = (long) Math.Floor(initialMoney);
         if (subathon != null && ev.EventType == SubathonEventType.Command && ev.Command != SubathonCommandType.None)
         {
             // we allow commands to add even if locked
@@ -374,6 +374,15 @@ public class EventService: IDisposable
                 await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
                     added, subathon.Id);
             }
+            else if (ev.EventType == SubathonEventType.TwitchCheer &&
+                     bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"), out bool bitsAsDono)
+                     && bitsAsDono)
+            {
+                double added = await _currencyService.ConvertAsync(double.Parse(ev.Value) / 100, "USD",
+                    _config.Get("Currency", "Primary", "USD"));
+                await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1} AND MillisecondsCumulative - MillisecondsElapsed > 0", 
+                    added, subathon.Id);
+            }
             await db.Entry(subathon.Multiplier).ReloadAsync();
             await db.Entry(subathon).ReloadAsync();
             
@@ -391,6 +400,17 @@ public class EventService: IDisposable
             db.Add(ev);
         
         await db.SaveChangesAsync();
+        
+        await db.Entry(subathon).ReloadAsync();
+        double newMoney = subathon.GetRoundedMoneySumWithCents();
+        if (newMoney < initialMoney || initialMoney < newMoney)
+        {
+            long pts = subathon.Points;
+            if (goalSet?.Type == GoalsType.Money) pts = subathon.GetRoundedMoneySum();
+            await CheckForGoalChange(db,  pts, initialPoints);
+            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+        }
+        db.Entry(subathon).State = EntityState.Detached;
         return (affected > 0 || (ev.ProcessedToSubathon), false);
     }
     
@@ -464,6 +484,17 @@ public class EventService: IDisposable
                 _config.Get("Currency", "Primary", "USD"));
         }
 
+        // edge case will happen if cheers as dono state was different than when this runs.
+        // this is acceptable for now, as it can resync properly on toggle
+        if (ev.EventType == SubathonEventType.TwitchCheer &&
+            bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"), out bool bitsDono)
+            && bitsDono)
+        {
+            moneyToRemove += await _currencyService.ConvertAsync(Math.Round(double.Parse(ev.Value)/100, 2), "USD",
+                _config.Get("Currency", "Primary", "USD"));
+        }
+        
+
         if (!ev.ProcessedToSubathon)
         {
             msToRemove = 0;
@@ -529,6 +560,7 @@ public class EventService: IDisposable
                 .ToListAsync();
         }
 
+        long bits = 0;
         foreach (SubathonEvent ev in events)
         {
             if (ev.SubathonId != subathon.Id) continue;
@@ -539,9 +571,21 @@ public class EventService: IDisposable
                 moneyToRemove +=
                     await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
             }
-            
+
+            if (ev.EventType == SubathonEventType.TwitchCheer &&
+                bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"),
+                    out bool bitsDono) && bitsDono)
+            {
+                bits += int.Parse(ev.Value);
+            }
         }
         
+        if (bits > 0)
+        {
+            double val = (double) bits / 100;
+            moneyToRemove +=
+                await _currencyService.ConvertAsync(Math.Round(val, 2), "USD", subathon.Currency!);
+        }
         int affected = 0;
         if (msToRemove != 0)
         {
@@ -575,7 +619,7 @@ public class EventService: IDisposable
         db.Entry(subathon).State = EntityState.Detached;
     }
 
-    private static async Task DetectGoalStateChange(AppDbContext db, SubathonData subathon, SubathonGoalSet? goalSet,
+    private async Task DetectGoalStateChange(AppDbContext db, SubathonData subathon, SubathonGoalSet? goalSet,
         long initialPoints)
     {
         await db.Entry(subathon).ReloadAsync();

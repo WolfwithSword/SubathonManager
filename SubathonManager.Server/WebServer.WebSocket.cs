@@ -4,9 +4,13 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
+using SubathonManager.Core;
+using SubathonManager.Services;
+using SubathonManager.Data.Extensions;
 
 namespace SubathonManager.Server;
 
@@ -151,6 +155,9 @@ public partial class WebServer
             DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
             multiplierRemaining = multEndTime! - DateTime.Now;
         }
+
+        long roundedMoney = subathon.GetRoundedMoneySum();
+        double fractionalMoney = subathon.GetRoundedMoneySumWithCents();
         
         object data = new
         {
@@ -161,8 +168,8 @@ public partial class WebServer
             minutes = subathon.TimeRemainingRounded().Minutes,
             seconds = subathon.TimeRemainingRounded().Seconds,
             total_points = subathon.Points,
-            rounded_money = subathon.GetRoundedMoneySum(),
-            fractional_money = subathon.GetRoundedMoneySumWithCents(),
+            rounded_money = roundedMoney,
+            fractional_money = fractionalMoney,
             currency = subathon.Currency,
             is_paused = subathon.IsPaused,
             is_locked =  subathon.IsLocked,

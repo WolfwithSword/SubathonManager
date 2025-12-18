@@ -131,6 +131,23 @@ namespace SubathonManager.Core
             if (!IsEnabled(logLevel)) return;
 
             var message = formatter(state, exception);
+            
+            if (_category.StartsWith("Streamlabs.SocketClient", StringComparison.OrdinalIgnoreCase))
+            {
+                // ignore many StreamLabs errors as we only use it for tips, but it still ingests all events??
+                // won't ignore logging for dev/console, but will for file output at least
+                var text = (message + " " + exception?.Message);
+
+                if (text.Contains("JSON property 'type' could not be mapped", StringComparison.OrdinalIgnoreCase))
+                    logLevel = LogLevel.Debug;
+
+                if (text.Contains("deserializing event", StringComparison.OrdinalIgnoreCase) &&
+                    !text.Contains("\"type\":\"donation\"", StringComparison.OrdinalIgnoreCase))
+                    logLevel = LogLevel.Debug;
+                
+                if (!IsEnabled(logLevel)) return;
+            }
+            
             _ = _provider.WriteAsync(_category, logLevel, message, exception);
         }
     }

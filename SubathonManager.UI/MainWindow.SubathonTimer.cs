@@ -7,6 +7,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 using SubathonManager.Core.Events;
 
+
 namespace SubathonManager.UI
 {
     public partial class MainWindow
@@ -15,14 +16,15 @@ namespace SubathonManager.UI
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.InvokeAsync(() =>
                 {
+                    double moneySum =  subathon.GetRoundedMoneySumWithCents();
                     TimerValue.Text = subathon.TimeRemainingRounded().ToString();
                     _lastUpdatedTimerAt = time;
                     PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
                     LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
                     PointsValue.Text = $"{subathon.Points:N0} Pts";
-                    MoneyValue.Text = $"{subathon.Currency} {subathon.GetRoundedMoneySumWithCents():N2}".Trim();
+                    MoneyValue.Text = $"{subathon.Currency} {moneySum:N2}".Trim();
                     LockStatus.Visibility = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
                 });
             }
@@ -62,7 +64,7 @@ namespace SubathonManager.UI
             subathon.IsPaused = true;
             subathon.Currency = App.AppConfig!.Get("Currency", "Primary", "USD")!;
             db.SubathonDatas.Add(subathon);
-            db.SaveChanges();
+            await db.SaveChangesAsync();
             db.Entry(subathon).State = EntityState.Detached;
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
             SubathonEvents.RaiseSubathonEventsDeleted(new List<SubathonEvent>());

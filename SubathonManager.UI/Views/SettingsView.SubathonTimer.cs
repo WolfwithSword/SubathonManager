@@ -14,7 +14,7 @@ public partial class SettingsView
         {
             if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
             {
-                Dispatcher.Invoke(() =>
+                Dispatcher.InvokeAsync(() =>
                 {
                     _lastUpdatedTimerAt = time;
                     
@@ -40,7 +40,9 @@ public partial class SettingsView
                     
                     string pts = $"{subathon.Points} Pts";
                     if (PointsValueSettings.Text != pts) PointsValueSettings.Text = pts;
-                    string money = $"{subathon.Currency} {subathon.GetRoundedMoneySumWithCents():N2}".Trim();
+                    
+                    double moneySum =  subathon.GetRoundedMoneySumWithCents();
+                    string money = $"{subathon.Currency} {moneySum:N2}".Trim();
                     if (MoneyValueSettings.Text != money) MoneyValueSettings.Text = money;
                 });
             }

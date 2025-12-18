@@ -18,10 +18,12 @@ public partial class WebServer
     
     private readonly HashSet<string> _servedFolders = new();
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
+    private readonly IConfig _config;
     
-    public WebServer(IDbContextFactory<AppDbContext> factory ,int port = 14040)
+    public WebServer(IDbContextFactory<AppDbContext> factory, IConfig config, int port = 14040)
     {
         _factory = factory;
+        _config = config; // unused but handy to have for future
         using (var db = _factory.CreateDbContext())
         {
             var routes = db.Routes.ToList();
@@ -136,9 +138,9 @@ public partial class WebServer
         response.AddHeader("Access-Control-Allow-Headers", "Content-Type");
     }
 
-    private async Task ServeFile(HttpListenerContext ctx, string fullPath)
+    internal static string GetContentType(string filePath)
     {
-        string ext = Path.GetExtension(fullPath).ToLower();
+        string ext = Path.GetExtension(filePath).ToLower();
         string contentType = ext switch
         {
             // web standard
@@ -183,7 +185,12 @@ public partial class WebServer
             
             _ => "application/octet-stream"
         };
-        ctx.Response.ContentType = contentType;
+        return contentType;
+    }
+
+    private async Task ServeFile(HttpListenerContext ctx, string fullPath)
+    {
+        ctx.Response.ContentType = GetContentType(fullPath);
         AddCorsHeaders(ctx.Response);  
         byte[] bytes = await File.ReadAllBytesAsync(fullPath);
         await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);

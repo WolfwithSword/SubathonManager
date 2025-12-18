@@ -46,6 +46,7 @@ overlays, settings, and more all locally!
 ## Features
 
 - Currency conversions for donations/tips/superchats using daily floating rates
+- Points or Donation (Donothon-style) based goals
 - Audit & Event logging to file and Discord webhooks
 - Built in overlay editor and host server for local html widgets
 - Goals list tracking

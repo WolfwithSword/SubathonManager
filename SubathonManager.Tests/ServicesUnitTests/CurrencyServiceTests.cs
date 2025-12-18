@@ -180,11 +180,10 @@ public class CurrencyServiceTests
     }
     
     [Fact]
-    public async Task ConvertAsync_Throws_ForUnknownCurrency()
+    public async Task ConvertAsync_Fails_ForUnknownCurrency()
     {
         var service = CreateService("{}");
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ConvertAsync(10, "ABC", "USD"));
+        Assert.Equal(0, await service.ConvertAsync(10, "ABC", "USD"));
     }
     
     [Fact]

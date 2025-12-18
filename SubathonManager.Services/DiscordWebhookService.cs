@@ -319,6 +319,7 @@ public class DiscordWebhookService : IDisposable
         }
     }
     
+    [ExcludeFromCodeCoverage]
     public async Task SendErrorLogAsync(string message, Exception? ex = null)
     {
         if (string.IsNullOrEmpty(_webhookUrl)) return;
