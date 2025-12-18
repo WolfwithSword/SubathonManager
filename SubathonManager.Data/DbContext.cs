@@ -24,7 +24,6 @@ namespace SubathonManager.Data
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
         
-        // when running migrations add from cmd line, comment out this constructor
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {

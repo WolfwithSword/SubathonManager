@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace SubathonManager.Data
 {
+    // to allow migrations add cmdline to work
     public class AppDbContextFactory
         : IDesignTimeDbContextFactory<AppDbContext>
     {
