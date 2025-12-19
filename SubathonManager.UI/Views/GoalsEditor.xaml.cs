@@ -128,7 +128,7 @@ namespace SubathonManager.UI.Views
             await Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
             });
         }
         
@@ -174,7 +174,7 @@ namespace SubathonManager.UI.Views
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
             long pts = subathon?.Points ?? 0;
             if (_activeGoalSet.Type == GoalsType.Money) pts = subathon?.GetRoundedMoneySum() ?? 0;
-            SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
+            SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
         }
 
         private void AddGoal_Click(object sender, RoutedEventArgs e)
@@ -203,7 +203,7 @@ namespace SubathonManager.UI.Views
                 LoadGoals();
                 long pts = subathon?.Points ?? 0;
                 if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon!.GetRoundedMoneySum();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
             });
             
             // do we want to push event update here? probably
@@ -240,7 +240,7 @@ namespace SubathonManager.UI.Views
                 SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive); 
                 long pts = subathon?.Points ?? 0;
                 if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon!.GetRoundedMoneySum();
-                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts);
+                SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
             }
            
             await Dispatcher.InvokeAsync(() => 

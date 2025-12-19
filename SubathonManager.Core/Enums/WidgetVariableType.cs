@@ -8,4 +8,6 @@ public enum WidgetVariableType
     StringList,
     EventTypeList,
     Boolean,
+    StringSelect,
+    Percent
 }

@@ -1,0 +1,101 @@
+﻿:root {
+    --background: #0a0a0a;
+    --timebox-background: #121212;
+    --text-color: #eaeaea;
+    --border-color: #3cff8f;
+    
+    --pixel-border: 3px;
+    --font: 'Press Start 2P', monospace;
+
+    --time-font-size: 32px;
+    --label-font-size: 10px;
+}
+
+body {
+    font-family: var(--font);
+    color: var(--text-color);
+    display: grid;
+    align-items: start;
+}
+
+.timer-root.left {
+    justify-self: left;
+}
+
+.timer-root.right {
+    justify-self: right;
+}
+
+.timer-root.center {
+    justify-self: center;
+}
+.timer-root {
+    justify-self: center;
+    background: var(--background);
+    padding: 12px;
+    border: var(--pixel-border) solid var(--border-color);
+    clip-path: polygon(
+            0px calc(100% - 8px),
+            4px calc(100% - 8px),
+            4px calc(100% - 4px),
+            8px calc(100% - 4px),
+            8px 100%,
+            calc(100% - 8px) 100%,
+            calc(100% - 8px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 8px),
+            100% calc(100% - 8px),
+            100% 8px,
+            calc(100% - 4px) 8px,
+            calc(100% - 4px) 4px,
+            calc(100% - 8px) 4px,
+            calc(100% - 8px) 0px,
+            8px 0px,
+            8px 4px,
+            4px 4px,
+            4px 8px,
+            0px 8px
+    );
+    width: fit-content;
+    transition: width 0.2s ease-in-out;
+}
+
+.time-display {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.time-block {
+    background: var(--timebox-background);
+    padding: 8px 6px;
+    border: var(--pixel-border) solid var(--text-color);
+    text-align: center;
+    min-width: 60px;
+    clip-path: polygon(
+            0px calc(100% - 4px),
+            4px calc(100% - 4px),
+            4px 100%,
+            calc(100% - 4px) 100%,
+            calc(100% - 4px) calc(100% - 4px),
+            100% calc(100% - 4px),
+            100% 4px,
+            calc(100% - 4px) 4px,
+            calc(100% - 4px) 0px,
+            4px 0px,
+            4px 4px,
+            0px 4px
+    );
+}
+
+.time-block span {
+    display: block;
+    font-size: var(--time-font-size);
+    line-height: 1;
+    padding: 1px;
+}
+
+.time-block label {
+    font-size: var(--label-font-size);
+    opacity: 0.7;
+}

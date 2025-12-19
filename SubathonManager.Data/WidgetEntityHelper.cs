@@ -40,6 +40,7 @@ public class WidgetEntityHelper
             extractedNames.Add(variable.Name);
         }
 
+        db.SaveChanges();
         foreach (var variable in db.CssVariables
                      .Where(v => v.WidgetId == widget.Id && !extractedNames.Contains(v.Name))
                      .ToList())
@@ -53,10 +54,13 @@ public class WidgetEntityHelper
     {
         Dictionary<string, string> metadata = ExtractWidgetMetadataSync(widget.HtmlPath);
         
-        (var jsVars, var extractedNames) = LoadNewJsVariables(widget, metadata);
+        (var jsVars, var extractedNames, var updatedVars) = LoadNewJsVariables(widget, metadata);
         
         using var db = _factory.CreateDbContext();
         db.JsVariables.AddRange(jsVars);
+        db.JsVariables.UpdateRange(updatedVars);
+        db.SaveChanges();
+
         _logger?.LogDebug($"[Widget {widget.Name}] Added new JS variables: {jsVars.Count}");
         
         foreach (var variable in db.JsVariables
@@ -66,29 +70,61 @@ public class WidgetEntityHelper
             db.JsVariables.Remove(variable);
         }
         
+        var seenNames = new HashSet<string>();
+        foreach (var variable in db.JsVariables
+                     .Where(v => v.WidgetId == widget.Id)
+                     .ToList())
+        {
+            if (!seenNames.Add(variable.Name))
+            {
+                db.JsVariables.Remove(variable);
+            }
+        }
+
         db.SaveChanges();
     }
     
-    public (List<JsVariable>, List<string>) LoadNewJsVariables(Widget widget, Dictionary<string, string> metadata)
+    public (List<JsVariable>, List<string>, List<JsVariable>) LoadNewJsVariables(Widget widget, Dictionary<string, string> metadata)
     {
         var extractedVars = new List<JsVariable>();
         var extractedNames = new List<string>();
+        var updatedVars = new List<JsVariable>();
         foreach (var key in metadata.Keys)
         {
             if (key.Count(c => c == '.') != 1) continue;
             JsVariable jVar = new JsVariable();
             jVar.Name = key.Split('.')[0];
             if (string.IsNullOrEmpty(jVar.Name) || "/?<>~!@#$%^&*()_+=-{}|\\]['\";:,.".Contains(jVar.Name[0])) continue;
+            if (extractedNames.Contains(jVar.Name)) continue;
             extractedNames.Add(jVar.Name);
-            if (widget.JsVariables.Any(v => v.Name == jVar.Name)) continue;
+            if (widget.JsVariables.Any(v => v.Name == jVar.Name 
+                                            && v.Type != WidgetVariableType.StringSelect)) continue;
             
             jVar.Value = metadata[key];
             if (Enum.TryParse<WidgetVariableType>(key.Split('.')[1], ignoreCase: true, out var type))
                 jVar.Type = type;
+            if (jVar.Type == WidgetVariableType.StringSelect && widget.JsVariables.Any(v => v.Name == jVar.Name))
+            {
+                var oldJVar = widget.JsVariables.Find(v => v.Name == jVar.Name);
+                if (oldJVar != null)
+                {
+                    var oldVals = oldJVar.Value.Split(',').ToList();
+                    var newVals = jVar.Value.Split(',').ToList();
+                    foreach (var v in newVals)
+                    {
+                        if (!oldVals.Contains(v)) oldVals.Add(v);
+                    }
+
+                    oldVals.RemoveAll(v => !newVals.Contains(v));
+                    oldJVar.Value = string.Join(",", oldVals);
+                    updatedVars.Add(oldJVar);
+                    continue;
+                }
+            }
             jVar.WidgetId = widget.Id;
             extractedVars.Add(jVar);
         }
-        return (extractedVars, extractedNames);
+        return (extractedVars, extractedNames, updatedVars);
     }
 
     public Dictionary<string, string> ExtractWidgetMetadataSync(string htmlpath)

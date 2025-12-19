@@ -54,8 +54,15 @@ public class JsVariable
             sb.Append($"{b.ToString().ToLower()}");
         else if (Type == WidgetVariableType.Float && float.TryParse(Value, out var f))
             sb.Append($"{f}");
-        else if (Type == WidgetVariableType.Int && Int16.TryParse(Value, out var intValue))
+        else if (Type == WidgetVariableType.Int && Int32.TryParse(Value, out var intValue))
             sb.Append($"{intValue}");
+        else if (Type == WidgetVariableType.Percent && Int16.TryParse(Value, out var pctValue))
+            sb.Append($"{Math.Clamp((int)pctValue, 0, 100)}");
+        else if (Type == WidgetVariableType.StringSelect)
+        {
+            string val = Value.Split(',')[0].Trim();
+            sb.Append($"\"{val}\"");
+        }
         else if (Type == WidgetVariableType.EventTypeList || Type == WidgetVariableType.StringList)
         {
             string val = string.Join(",", Value.Split(',').Select(s =>

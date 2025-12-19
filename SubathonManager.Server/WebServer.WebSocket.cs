@@ -103,7 +103,8 @@ public partial class WebServer
             {
                 type = "goals_list",
                 points = val,
-                goals = objGoals.ToArray()
+                goals = objGoals.ToArray(),
+                goals_type = $"{goalSet.Type}"
             };
             await SelectSendAsync(socket, data);
         }

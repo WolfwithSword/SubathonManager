@@ -254,7 +254,8 @@ namespace SubathonManager.Data
                 .FirstOrDefaultAsync();
             if (goalSet != null && goalSet.Goals.Any() && goalSet.Type == GoalsType.Money)
             {
-                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, subathon.GetRoundedMoneySum());
+                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, 
+                    subathon.GetRoundedMoneySum(), GoalsType.Money);
             }
         }
         

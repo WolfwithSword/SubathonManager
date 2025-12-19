@@ -39,6 +39,18 @@ public static class SubathonEventTypeHelper
         SubathonEventType.DonationAdjustment
     };
     
+    private static readonly SubathonEventType[] CheerTypes = new[]
+    {
+        SubathonEventType.TwitchCheer
+    };
+
+    private static readonly SubathonEventType[] GiftTypes = new[]
+    {
+
+        SubathonEventType.YouTubeGiftMembership,
+        SubathonEventType.TwitchGiftSub,
+    };
+    
     private static readonly SubathonEventType[] MembershipTypes = new[]
     {
         SubathonEventType.YouTubeMembership,
@@ -64,6 +76,9 @@ public static class SubathonEventTypeHelper
     public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
         eventType.HasValue && CurrencyDonationEvents.Contains(eventType.Value);
     
+    public static bool IsGiftType(this SubathonEventType? eventType) => 
+        eventType.HasValue && GiftTypes.Contains(eventType.Value);
+    
     public static bool IsMembershipType(this SubathonEventType? eventType) => 
         eventType.HasValue && MembershipTypes.Contains(eventType.Value);
     
@@ -75,6 +90,9 @@ public static class SubathonEventTypeHelper
     
     public static bool IsExternalType(this SubathonEventType? eventType) =>
         eventType.HasValue && ExternalTypes.Contains(eventType.Value);
+    
+    public static bool IsCheerType(this SubathonEventType? eventType) =>
+        eventType.HasValue && CheerTypes.Contains(eventType.Value);
     
     public static SubathonEventSource GetSource(this SubathonEventType? eventType) {
         if (!eventType.HasValue) return SubathonEventSource.Unknown;
