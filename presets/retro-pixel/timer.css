@@ -5,20 +5,32 @@
     --border-color: #3cff8f;
     
     --pixel-border: 3px;
-    --pixel-font: 'Press Start 2P', monospace;
+    --font: 'Press Start 2P', monospace;
 
     --time-font-size: 32px;
     --label-font-size: 10px;
-    --alignment: center; /* left, center, right */
 }
 
 body {
-    font-family: var(--pixel-font);
+    font-family: var(--font);
     color: var(--text-color);
+    display: grid;
+    align-items: start;
 }
 
+.timer-root.left {
+    justify-self: left;
+}
+
+.timer-root.right {
+    justify-self: right;
+}
+
+.timer-root.center {
+    justify-self: center;
+}
 .timer-root {
-    justify-self: var(--alignment);
+    justify-self: center;
     background: var(--background);
     padding: 12px;
     border: var(--pixel-border) solid var(--border-color);
@@ -80,6 +92,7 @@ body {
     display: block;
     font-size: var(--time-font-size);
     line-height: 1;
+    padding: 1px;
 }
 
 .time-block label {

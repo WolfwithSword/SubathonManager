@@ -1,0 +1,126 @@
+﻿:root {
+    --background: #0a0a0a;
+    --border-color: #3cff8f;
+    --text-color: #eaeaea;
+    --pixel-border: 3px;
+    --font: 'Press Start 2P', monospace;
+}
+
+body {
+    font-family: var(--font);
+    color: var(--text-color);
+    display: grid;
+    align-items: start;
+}
+
+.event-root {
+    background: var(--background);
+    border: var(--pixel-border) solid var(--border-color);
+    padding: 10px 12px;
+    width: fit-content;
+    min-width: 380px;
+    clip-path: polygon(
+            0px calc(100% - 8px),
+            4px calc(100% - 8px),
+            4px calc(100% - 4px),
+            8px calc(100% - 4px),
+            8px 100%,
+            calc(100% - 8px) 100%,
+            calc(100% - 8px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 8px),
+            100% calc(100% - 8px),
+            100% 8px,
+            calc(100% - 4px) 8px,
+            calc(100% - 4px) 4px,
+            calc(100% - 8px) 4px,
+            calc(100% - 8px) 0px,
+            8px 0px,
+            8px 4px,
+            4px 4px,
+            4px 8px,
+            0px 8px
+    );
+}
+
+.hidden {
+    display: none;
+}
+
+.event-content {
+    display: grid;
+    grid-template-columns: 1fr 48px;
+    gap: 12px;
+    align-items: center;
+}
+
+.event-text {
+    overflow: visible;
+    opacity: 0;
+    transform: translateX(-6px);
+    animation: pop-in 0.12s steps(2) forwards;
+}
+
+.event-user,
+.event-value,
+.event-currency {
+    white-space: nowrap;
+    overflow: hidden;
+    /*max-width: 0;*/
+    padding: 1px;
+    padding-right: 2px;
+}
+
+.event-user {
+    font-size: 12px;
+    margin-bottom: 6px;
+    overflow: hidden;
+}
+
+.event-value {
+    font-size: 11px;
+    padding-right: 4px;
+    padding-left: 1px;
+}
+
+.event-currency {
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+    padding-left: 6px;
+    padding-right: 4px;
+}
+
+.event-value-currency {
+    display: inline-flex;
+    gap: 6px;
+    align-items: baseline;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+@keyframes pop-in {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.event-icon-wrap {
+    width: 40px;
+    height: 40px;
+    color: var(--border-color);
+    image-rendering: pixelated;
+}
+
+.event-icon {
+    width: 100%;
+    height: 100%;
+    filter: url(#pixelate);
+    shape-rendering: crispEdges;
+}
+
+.event-value.typing,
+.event-currency.typing {
+    display: inline-block;
+}

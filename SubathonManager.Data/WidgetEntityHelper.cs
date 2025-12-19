@@ -40,6 +40,7 @@ public class WidgetEntityHelper
             extractedNames.Add(variable.Name);
         }
 
+        db.SaveChanges();
         foreach (var variable in db.CssVariables
                      .Where(v => v.WidgetId == widget.Id && !extractedNames.Contains(v.Name))
                      .ToList())
@@ -58,6 +59,8 @@ public class WidgetEntityHelper
         using var db = _factory.CreateDbContext();
         db.JsVariables.AddRange(jsVars);
         db.JsVariables.UpdateRange(updatedVars);
+        db.SaveChanges();
+
         _logger?.LogDebug($"[Widget {widget.Name}] Added new JS variables: {jsVars.Count}");
         
         foreach (var variable in db.JsVariables

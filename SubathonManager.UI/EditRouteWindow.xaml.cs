@@ -696,33 +696,40 @@ public partial class EditRouteWindow
         try
         {
             if (_selectedWidget == null) return;
+            WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+            widgetHelper.SyncCssVariables(_selectedWidget);
+            widgetHelper.SyncJsVariables(_selectedWidget);
             
             await using var db = await _factory.CreateDbContextAsync();
-            var widget = await db.Widgets.Include(wX => wX.CssVariables)
-                .Include(wX => wX.JsVariables)
-                .FirstOrDefaultAsync(wX => wX.Id == _selectedWidget.Id);
+            _selectedWidget.Name = WidgetNameBox.Text;
+            _selectedWidget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
+            _selectedWidget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
+            _selectedWidget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
+            _selectedWidget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
+            _selectedWidget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx : (_selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX);
+            _selectedWidget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy : (_selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY);
 
-            if (widget == null) return;
-            widget.Name = WidgetNameBox.Text;
-            widget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
-            widget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
-            widget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
-            widget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
-            widget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx : (_selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX);
-            widget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy : (_selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY);
-            widget.CssVariables = _editingCssVars.ToList();
-            widget.JsVariables = _selectedWidget.JsVariables;
-
-            db.Widgets.Update(widget);
+            foreach (var cssVar in _editingCssVars)
+            {
+                var cssVarToUpdate = _selectedWidget.CssVariables.Find(csv => csv.Name == cssVar.Name);
+                if (cssVarToUpdate != null)
+                    cssVarToUpdate.Value = cssVar.Value;
+            }
+            
+            db.Entry(_selectedWidget).State = EntityState.Modified;
+            db.Widgets.Update(_selectedWidget);
             await db.SaveChangesAsync();
-            _selectedWidget = widget;
-            _selectedWidget.CssVariables = _editingCssVars.ToList();
+            _editingCssVars.Clear();
+            foreach(var cssVar in _selectedWidget.CssVariables)
+                _editingCssVars.Add(cssVar);
 
             await LoadRouteAsync();
             RefreshWebView();
 
             WidgetsList.Items.Refresh();
             OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
+            
+            PopulateWidgetEditor(_selectedWidget);
             await Task.Run(async () =>
             {
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }

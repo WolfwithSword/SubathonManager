@@ -13,22 +13,31 @@
     --paused-color: #ffc14d;
 
     --pixel-border: 3px;
-    --pixel-font: 'Press Start 2P', monospace;
-
-    --time-font-size: 32px;
-    --label-font-size: 10px;
-
-    --alignment: right; /* left, center, right */
+    --font: 'Press Start 2P', monospace;
     --min-width: 200px;
 }
 
 body {
-    font-family: var(--pixel-font);
+    font-family: var(--font);
     color: var(--text-color);
+    display: grid;
+    align-items: start;
+}
+
+.stats-root.left {
+    justify-self: left;
+}
+
+.stats-root.right {
+    justify-self: right;
+}
+
+.stats-root.center {
+    justify-self: center;
 }
 
 .stats-root {
-    justify-self: var(--alignment);
+    justify-self: center;
     background: var(--background);
     padding: 12px;
     border: var(--pixel-border) solid var(--border-color);

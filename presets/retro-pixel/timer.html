@@ -4,11 +4,12 @@ Width:400
 Height:180
 showLeadingEmptyTime.Boolean:True
 minimumTimeUnitsShown.Int:2
+alignment.StringSelect:Center,Left,Right
 END_WIDGET_META
 -->
 <link href='https://fonts.googleapis.com/css?family=Press Start 2P' rel='stylesheet'>
 <link rel="stylesheet" href="timer.css">
-<div class="timer-root" data-state="running">
+<div class="timer-root" data-state="running" id="timer-row">
     <div class="time-display">
         <div class="time-block" data-unit="days">
             <span id="days">00</span>
@@ -92,5 +93,9 @@ END_WIDGET_META
     function handleSubathonUpdate(data) {
         if (data.type !== "subathon_timer") return;
         updateTimer(data);
+    }
+
+    if (typeof alignment !== "undefined") {
+        document.getElementById("timer-row").classList.add(`${alignment}`.toLowerCase());
     }
 </script>

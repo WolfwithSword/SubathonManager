@@ -7,6 +7,8 @@ showPoints.Boolean:True
 showMoney.Boolean:True
 showTimeMultiplier.Boolean:True
 showHypeTrains.Boolean:True
+pointsName.String:Points
+alignment.StringSelect:Center,Left,Right
 END_WIDGET_META
 -->
 <link href='https://fonts.googleapis.com/css?family=Press Start 2P' rel='stylesheet'>
@@ -15,7 +17,7 @@ END_WIDGET_META
     <div class="stats-column">
 
         <div class="stat-row points-row hidden" id="points-row">
-            <span class="label " data-icon="★">Points</span>
+            <span class="label " data-icon="★" id="pointsLabel">Points</span>
             <div class="value-stack">
                 <span class="value points" id="points">0</span>
                 <span class="sub-value points hidden" id="pointsBoost">
@@ -54,6 +56,8 @@ END_WIDGET_META
 <script>
     const root = document.querySelector(".stats-root");
     const pointsElem = document.getElementById("points");
+    const pointsLabel = document.getElementById("pointsLabel");
+    pointsLabel.textContent = pointsName;
     const pointsMultElem = document.getElementById("multiplierValuePoints");
     const timeMultElem = document.getElementById("multiplierValueTime");
     const currencyElem = document.getElementById("currency");
@@ -149,5 +153,8 @@ END_WIDGET_META
     }
 
     root.classList.toggle("icon-mode", iconMode);
+    if (typeof alignment !== "undefined") {
+        root.classList.add(`${alignment}`.toLowerCase());
+    }
 
 </script>

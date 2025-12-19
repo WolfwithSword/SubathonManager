@@ -12,6 +12,8 @@
 body {
     font-family: var(--font);
     color: var(--text-color);
+    display: grid;
+    align-items: start;
 }
 
 .goal-root {
