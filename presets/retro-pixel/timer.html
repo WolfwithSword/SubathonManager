@@ -1,0 +1,96 @@
+﻿<!--
+WIDGET_META
+Width:400
+Height:180
+showLeadingEmptyTime.Boolean:True
+minimumTimeUnitsShown.Int:2
+END_WIDGET_META
+-->
+<link href='https://fonts.googleapis.com/css?family=Press Start 2P' rel='stylesheet'>
+<link rel="stylesheet" href="timer.css">
+<div class="timer-root" data-state="running">
+    <div class="time-display">
+        <div class="time-block" data-unit="days">
+            <span id="days">00</span>
+            <label>D</label>
+        </div>
+        <div class="time-block" data-unit="hours">
+            <span id="hours">00</span>
+            <label>H</label>
+        </div>
+        <div class="time-block" data-unit="minutes">
+            <span id="minutes">00</span>
+            <label>M</label>
+        </div>
+        <div class="time-block" data-unit="seconds">
+            <span id="seconds">00</span>
+            <label>S</label>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    function pad(n) {
+        return String(n).padStart(2, "0");
+    }
+    
+    function animateValue(el) {
+    }
+    
+    function updateUnitVisibility(data) {
+        if (showLeadingEmptyTime) return;
+
+        const order = ["days", "hours", "minutes", "seconds"];
+
+        const values = {
+            days: data.days,
+            hours: data.hours,
+            minutes: data.minutes,
+            seconds: data.seconds
+        };
+
+        let firstVisibleIndex = order.findIndex(u => values[u] > 0);
+
+        if (firstVisibleIndex === -1) {
+            firstVisibleIndex = order.length - minimumTimeUnitsShown;
+        }
+        
+        firstVisibleIndex = Math.min(
+            firstVisibleIndex,
+            order.length - minimumTimeUnitsShown
+        );
+
+        order.forEach((unit, index) => {
+            const block = document.querySelector(
+                `.time-block[data-unit="${unit}"]`
+            );
+            block.style.display = index >= firstVisibleIndex ? "block" : "none";
+        });
+    }
+
+    function updateTimer(data) {
+        if (document.getElementById("days").textContent != pad(data.days)) {
+            animateValue(document.getElementById("days"));
+            document.getElementById("days").textContent = pad(data.days);
+        }
+        if (document.getElementById("hours").textContent != pad(data.hours)) {
+            animateValue(document.getElementById("hours"));
+            document.getElementById("hours").textContent = pad(data.hours);
+        }
+        if (document.getElementById("minutes").textContent != pad(data.minutes)) {
+            animateValue(document.getElementById("minutes"));
+            document.getElementById("minutes").textContent = pad(data.minutes);
+        }
+        if (document.getElementById("seconds").textContent != pad(data.seconds)) {
+            animateValue(document.getElementById("seconds"));
+            document.getElementById("seconds").textContent = pad(data.seconds);
+        }
+        updateUnitVisibility(data);
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+        updateTimer(data);
+    }
+</script>

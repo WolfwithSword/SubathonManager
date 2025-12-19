@@ -230,7 +230,7 @@ public class EventService: IDisposable
             }
         }
         
-        if (subathon == null || subathon.IsLocked) // we only do math if it's unlocked, otherwise, only link
+        if (subathon == null || (subathon.IsLocked && ev.EventType != SubathonEventType.TwitchHypeTrain)) // we only do math if it's unlocked, otherwise, only link
         {
             ev.ProcessedToSubathon = false;
             if (subathon != null)
@@ -258,14 +258,16 @@ public class EventService: IDisposable
                 if (ev.Value == "start" || ev.Value == "progress")
                 {
                     TimeSpan? duration = null;
+                    bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
+                        out var applyPts);
+                    bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
+                        out var applyTime);
+                    double.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
+                        out var parsedAmt);
                     if (!(subathon.Multiplier.IsRunning()
-                          || !double.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
-                              out var parsedAmt)
-                          || parsedAmt.Equals(1)
-                          || !bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
-                              out var applyPts)
-                          || !bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
-                              out var applyTime)))
+                          && !parsedAmt.Equals(1)
+                          && (applyPts
+                             || applyTime)))
                     {
                         if (applyTime || applyPts)
                         {
@@ -297,6 +299,7 @@ public class EventService: IDisposable
             await db.SaveChangesAsync();
             return (ev.ProcessedToSubathon, false);
         }
+        
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
@@ -465,11 +468,11 @@ public class EventService: IDisposable
                     if (prevCompletedGoal1 == null || prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
                         SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, newPoints);
                     else
-                        SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints);
+                        SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints, (GoalsType) goalSet.Type!);
                 }
                 else if (prevCompletedGoal2 == null && prevCompletedGoal1 == null || newPoints < initialPoints)
                 {
-                    SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints);
+                    SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints, (GoalsType) goalSet.Type!);
                 }
             }
         }
@@ -686,7 +689,7 @@ public class EventService: IDisposable
                     if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
                         SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, pts);
                     else
-                        SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, pts);
+                        SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, pts, (GoalsType) goalSet.Type!);
                 }
             }
         }

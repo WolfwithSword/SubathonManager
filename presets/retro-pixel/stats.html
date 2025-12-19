@@ -1,0 +1,153 @@
+﻿<!--
+WIDGET_META
+Width:300
+Height:320
+iconMode.Boolean:False
+showPoints.Boolean:True
+showMoney.Boolean:True
+showTimeMultiplier.Boolean:True
+showHypeTrains.Boolean:True
+END_WIDGET_META
+-->
+<link href='https://fonts.googleapis.com/css?family=Press Start 2P' rel='stylesheet'>
+<link rel="stylesheet" href="stats.css">
+<div class="stats-root">
+    <div class="stats-column">
+
+        <div class="stat-row points-row hidden" id="points-row">
+            <span class="label " data-icon="★">Points</span>
+            <div class="value-stack">
+                <span class="value points" id="points">0</span>
+                <span class="sub-value points hidden" id="pointsBoost">
+                  x<span class="sub-value points" id="multiplierValuePoints">1.0</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="stat-row money-row hidden" id="money-row">
+            <span class="label" id="currency" data-icon="$">$</span>
+            <span class="value money" id="money">0.00</span>
+        </div>
+
+        <div class="stat-row hidden time-mult-row" id="timeBoostRow">
+            <span class="label" data-icon="⏱">Time</span>
+            <span class="value time-mult">x<span class="value time-mult" id="multiplierValueTime">1.0</span></span>
+        </div>
+        
+        <div class="stat-row hidden train-row" id="trainRow">
+            <span class="label" data-icon="⚡">H.Train</span>
+            <span class="value train">lvl <span class="value train" id="trainValue">1</span></span>
+        </div>
+
+        <div class="state-row hidden locked" id="lockedRow">
+            LOCKED
+        </div>
+
+        <div class="state-row hidden paused" id="pausedRow">
+            PAUSED
+        </div>
+
+    </div>
+</div>
+
+
+<script>
+    const root = document.querySelector(".stats-root");
+    const pointsElem = document.getElementById("points");
+    const pointsMultElem = document.getElementById("multiplierValuePoints");
+    const timeMultElem = document.getElementById("multiplierValueTime");
+    const currencyElem = document.getElementById("currency");
+    const moneyElem = document.getElementById("money");
+    const trainElem = document.getElementById("trainValue");
+    
+    function animateValue(el) {
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 400);
+    } 
+    function updateStats(data) {
+
+
+        toggleHidden("points-row", !showPoints);
+        toggleHidden("money-row", !showMoney);
+        
+        if (showPoints) {
+            if (pointsElem.textContent != data.total_points) {
+                animateValue(pointsElem);
+                pointsElem.textContent = data.total_points;
+            }
+            const pointsBoostActive = data.multiplier_points !== 1;
+            toggleHidden("pointsBoost", !pointsBoostActive);
+            if (pointsMultElem.textContent != data.multiplier_points.toFixed(1)) {
+                animateValue(pointsMultElem);
+                pointsMultElem.textContent =
+                    data.multiplier_points.toFixed(1);         
+            }
+        }
+
+        if (showTimeMultiplier) {
+            const timeBoostActive = data.multiplier_time !== 1;
+            toggleHidden("timeBoostRow", !timeBoostActive);
+            if (timeMultElem.textContent != data.multiplier_time.toFixed(1)) {
+                animateValue(timeMultElem);
+                timeMultElem.textContent =
+                    data.multiplier_time.toFixed(1);
+            }
+        }
+        
+        if (showMoney) {
+            if (currencyElem.textContent != data.currency) {
+                animateValue(currencyElem);
+                currencyElem.textContent = data.currency;                
+            }
+            if (moneyElem.textContent != data.rounded_money) {
+                animateValue(moneyElem);
+                moneyElem.textContent =
+                    data.rounded_money;
+            }
+        }
+
+        toggleHidden("lockedRow", !data.is_locked);
+        toggleHidden("pausedRow", !data.is_paused);
+    }
+
+
+    function toggleHidden(id, hidden) {
+        document.getElementById(id).classList.toggle("hidden", hidden);
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+        updateStats(data);
+    }
+    
+    function handleSubathonEvent(data) {
+        if (data.type !== "event") return;
+        
+        if (data.event_type != "TwitchHypeTrain" || !showHypeTrains) return;
+        
+        if (data.value.startsWith("start") || data.value.startsWith("progress")) {
+            toggleHidden("trainRow", false);
+            if (trainElem.textContent != data.amount) {
+                animateValue(trainElem);
+                trainElem.textContent = data.amount;
+            }
+        }
+        else if (data.value.startsWith("end")) {
+            toggleHidden("trainRow", false);
+            if (trainElem.textContent != data.amount) {
+                animateValue(trainElem);
+                trainElem.textContent = data.amount;
+            }
+            
+            setTimeout(() => {
+                animateValue(trainElem);
+                toggleHidden("trainRow", true);
+                trainElem.textContent = "0";
+            }, 1000 * 30 * 1);
+            // timeout after 30s
+        }
+    }
+
+    root.classList.toggle("icon-mode", iconMode);
+
+</script>

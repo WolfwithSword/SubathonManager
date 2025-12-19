@@ -1,0 +1,159 @@
+﻿<!--
+WIDGET_META
+Width:400
+Height:90
+playSoundOnCompletedGoal.Boolean:True
+soundVolume.Percent:30
+END_WIDGET_META
+-->
+
+<link href="https://fonts.googleapis.com/css?family=Press Start 2P" rel="stylesheet">
+<link rel="stylesheet" href="goal-bar.css">
+
+<div class="goal-root">
+    <div class="goal-text" id="goalText">Waiting for goals…</div>
+
+    <div class="bar-outer">
+        <div class="bar-inner" id="barFill"></div>
+    </div>
+
+    <div class="goal-progress" id="goalProgress">0 / 0</div>
+</div>
+
+<script>
+    let goals = [];
+    let goalsType = "Points";
+    let currentPoints = 0;
+    let currentMoney = 0;
+
+    const barFill = document.getElementById("barFill");
+    const goalText = document.getElementById("goalText");
+    const goalProgress = document.getElementById("goalProgress");
+    
+    let cachedActiveIndex = -1;
+    
+    const goalCompleteSound = new Audio("complete.mp3");
+    
+    function clamp(n, min = 0, max = 1) {
+        return Math.min(max, Math.max(min, n));
+    }
+
+    function getProgressValue() {
+        const v = goalsType == "Money"
+            ? currentMoney
+            : currentPoints;
+
+        return Number(v) || 0;
+    }
+
+    function getActiveGoal() {
+        const sorted = getSortedGoals();
+        const idx = getActiveGoalIndex();
+        return idx === -1 ? null : sorted[idx];
+    }
+
+    function getPreviousGoal() {
+        const sorted = getSortedGoals();
+        const idx = getActiveGoalIndex();
+        if (idx <= 0) return null;
+        return sorted[idx - 1];
+    }
+
+    function render() {
+        if (!goals.length) {
+            barFill.style.width = "0%";
+            goalText.textContent = "Waiting for goals…";
+            goalProgress.textContent = "";
+            return;
+        }
+
+        cachedActiveIndex = computeActiveGoalIndex();
+        const sorted = getSortedGoals();
+        const value = getProgressValue();
+
+        if (cachedActiveIndex === -1) {
+            barFill.style.width = "100%";
+            goalText.textContent = "100% COMPLETE";
+            goalProgress.textContent = `${value}`;
+            return;
+        }
+
+        const goal = sorted[cachedActiveIndex];
+        const prev = sorted[cachedActiveIndex - 1] ?? null;
+
+        const start = Number(prev?.points) || 0;
+        const end = Number(goal.points);
+
+        const progress = clamp((value - start) / (end - start));
+        barFill.style.width = `${progress * 100}%`;
+
+        goalText.textContent = goal.text;
+        goalProgress.textContent = `${value} / ${end} (${(progress * 100).toFixed(1)}%)`;
+    }
+
+    function computeActiveGoalIndex() {
+        const value = getProgressValue();
+        const sorted = getSortedGoals();
+
+        for (let i = 0; i < sorted.length; i++) {
+            if (value < Number(sorted[i].points)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function getSortedGoals() {
+        return [...goals].sort(
+            (a, b) => Number(a.points) - Number(b.points)
+        );
+    }
+
+    function getActiveGoalIndex() {
+        const value = getProgressValue();
+        const sorted = getSortedGoals();
+
+        for (let i = 0; i < sorted.length; i++) {
+            const goalValue = Number(sorted[i].points);
+            if (value < goalValue) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function handleGoalsUpdate(data) {
+        if (data.type != "goals_list") return;
+        goalsType = data.goals_type;
+        goals = data.goals ?? [];
+        
+        const incomingValue = Number(data.points) || 0;
+        if (goalsType == "Points") {
+            currentPoints = incomingValue;
+        } else {
+            currentMoney = incomingValue;
+        }
+        
+        render();
+    }
+
+    function handleGoalCompleted(data) {
+        if (data.type != "goal_completed") return;
+        if (playSoundOnCompletedGoal) {
+            goalCompleteSound.currentTime = 0;
+            goalCompleteSound.volume = soundVolume / 100;
+            goalCompleteSound.play().catch(() => {});
+        }
+        render();
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type != "subathon_timer") return;
+
+        currentPoints = data.total_points;
+        currentMoney = data.rounded_money;
+
+        render();
+    }
+
+</script>

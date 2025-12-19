@@ -1,0 +1,86 @@
+﻿:root {
+    --background: #0a0a0a;
+    --bar-background: #121212;
+    --border-color: #3cff8f;
+    --bar-color: #3cff8f;
+    --text-color: #eaeaea;
+
+    --pixel-border: 3px;
+    --font: 'Press Start 2P', monospace;
+}
+
+body {
+    font-family: var(--font);
+    color: var(--text-color);
+}
+
+.goal-root {
+    background: var(--background);
+    border: var(--pixel-border) solid var(--border-color);
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    clip-path: polygon(
+            0px calc(100% - 8px),
+            4px calc(100% - 8px),
+            4px calc(100% - 4px),
+            8px calc(100% - 4px),
+            8px 100%,
+            calc(100% - 8px) 100%,
+            calc(100% - 8px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 8px),
+            100% calc(100% - 8px),
+            100% 8px,
+            calc(100% - 4px) 8px,
+            calc(100% - 4px) 4px,
+            calc(100% - 8px) 4px,
+            calc(100% - 8px) 0px,
+            8px 0px,
+            8px 4px,
+            4px 4px,
+            4px 8px,
+            0px 8px
+    );
+}
+
+.goal-text {
+    font-size: 10px;
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.bar-outer {
+    height: 14px;
+    background: var(--bar-background);
+    border: var(--pixel-border) solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+    clip-path: polygon(
+            0px calc(100% - 4px),
+            4px calc(100% - 4px),
+            4px 100%,
+            calc(100% - 4px) 100%,
+            calc(100% - 4px) calc(100% - 4px),
+            100% calc(100% - 4px),
+            100% 4px,
+            calc(100% - 4px) 4px,
+            calc(100% - 4px) 0px,
+            4px 0px,
+            4px 4px,
+            0px 4px
+    );
+}
+
+.bar-inner {
+    height: 100%;
+    width: 0%;
+    background: var(--bar-color);
+    transition: width 0.25s steps(6);
+}
+
+.goal-progress {
+    margin-top: 6px;
+    font-size: 9px;
+    text-align: center;
+}

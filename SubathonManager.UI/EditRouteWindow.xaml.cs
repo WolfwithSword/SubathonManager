@@ -32,6 +32,7 @@ public partial class EditRouteWindow
     
     public EditRouteWindow(Guid routeId)
     {
+        Environment.SetEnvironmentVariable("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required");
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         EditorRouteId = routeId;
@@ -539,6 +540,36 @@ public partial class EditRouteWindow
                 itemRow.Children.Add(chkBox);
                 outerPanel.Children.Add(itemRow);
             }
+            else if (jsVar.Type == WidgetVariableType.StringSelect)
+            {
+                var values = jsVar.Value.Trim().Split(',');
+                var selected = values.Length > 0 ? values[0] : string.Empty;
+                var stringList = new ComboBox
+                {
+                    Margin = new Thickness(2)
+                };
+                foreach (var val in values)
+                    stringList.Items.Add(val);
+                stringList.SelectedValue = selected;
+                stringList.SelectionChanged += (_, __) =>
+                {
+                    if (!jsVar.Value.Contains(',')) return;
+                    if (jsVar.Value.Contains(',') && jsVar.Value.StartsWith($"{stringList.SelectedValue},")) return;
+                    var newVal = new List<string>
+                    {
+                        $"{stringList.SelectedValue}"
+                    };
+                    foreach (var v in values)
+                    {
+                        if (newVal.Contains(v)) continue;
+                        newVal.Add(v);
+                    }
+                    jsVar.Value = string.Join(',', newVal);
+
+                };
+                itemRow.Children.Add(stringList);
+                outerPanel.Children.Add(itemRow);
+            }
             else
             {
                 var txtBox = new Wpf.Ui.Controls.TextBox
@@ -566,6 +597,21 @@ public partial class EditRouteWindow
                         }
 
                         e.Handled = true;
+                    };
+                }
+                else if (jsVar.Type == WidgetVariableType.Percent)
+                {
+                    txtBox.PreviewTextInput += (s, e) =>
+                    {
+                        var tb = (Wpf.Ui.Controls.TextBox)s;
+
+                        var newText = tb.Text.Remove(tb.SelectionStart, tb.SelectionLength)
+                            .Insert(tb.SelectionStart, e.Text);
+
+                        if (!int.TryParse(newText, out var value) || value < 0 || value > 100)
+                        {
+                            e.Handled = true;
+                        }
                     };
                 }
                 else if (jsVar.Type == WidgetVariableType.Float)
@@ -601,6 +647,8 @@ public partial class EditRouteWindow
 
                 txtBox.TextChanged += (s, e) =>
                 {
+                    if (jsVar.Type == WidgetVariableType.Percent && string.IsNullOrWhiteSpace(txtBox.Text))
+                        txtBox.Text = "0";
                     jsVar.Value = txtBox.Text!;
                 };
                 
@@ -769,7 +817,8 @@ public partial class EditRouteWindow
                 db.Widgets.Add(newWidget);
                 await db.SaveChangesAsync();
                 
-                (List<JsVariable> jsVars, var extractedNames )= helper.LoadNewJsVariables(newWidget, metadata);
+                (List<JsVariable> jsVars, var extractedNames, var updatedVars ) 
+                    = helper.LoadNewJsVariables(newWidget, metadata);
                 if (jsVars.Count > 0)
                 {
                     newWidget.JsVariables = jsVars;
