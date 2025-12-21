@@ -31,18 +31,31 @@ public partial class YouTubeSettings : UserControl
         });
     }
 
-    public void UpdateValueSettings(AppDbContext db)
+    public bool UpdateValueSettings(AppDbContext db)
     {
+        bool hasUpdated = false;
         var superchatValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.YouTubeSuperChat
             && sv.Meta == "");
-        if (superchatValue != null && double.TryParse(DonoBox.Text, out var scSeconds))
+        if (superchatValue != null && double.TryParse(DonoBox.Text, out var scSeconds)
+            && !scSeconds.Equals(superchatValue.Seconds))
+        {
             superchatValue.Seconds = scSeconds;
-        if (superchatValue != null && int.TryParse(DonoBox2.Text, out var scPoints))
+            hasUpdated = true;
+        }
+
+        if (superchatValue != null && int.TryParse(DonoBox2.Text, out var scPoints)
+            && !scPoints.Equals(superchatValue.Points))
+        {
             superchatValue.Points = scPoints;
-            
-        Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberRenameTextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
+            hasUpdated = true;
+        }
+
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberRenameTextBox2)
+            ? true : hasUpdated;
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2)
+            ? true : hasUpdated;
+        return hasUpdated;
     }
     
     private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)

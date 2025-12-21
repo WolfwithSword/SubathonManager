@@ -1,0 +1,59 @@
+﻿<!--
+WIDGET_META
+Width:200
+Height:200
+eventType.EventTypeSelect:NONE
+optionalTier.String:NONE
+valueType.StringSelect:Seconds,Points
+showSuffix.Boolean:True
+alignment.StringSelect:Center,Left,Right
+END_WIDGET_META
+-->
+<link href='https://fonts.googleapis.com/css?family=Press Start 2P' rel='stylesheet'>
+<link rel="stylesheet" href="event-value.css">
+<div class="value-root">
+    <div class="value-column">
+        <div class="value-row" id="value-row">
+            <span class="value" id="value-val">???</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const el = document.getElementById("value-row");
+    var configValues = {};
+    
+    function handleValueConfig(data){
+        configValues = data.data;
+        var value = null;
+        if (typeof(valueType) === "undefined") return;
+
+        if (typeof(eventType) === "undefined") return;
+
+        for (var item of configValues) {
+            if (item.eventType != undefined && item.eventType == eventType) {
+                if (typeof(optionalTier) != "undefined" && item.meta == optionalTier){
+                    if (valueType == "Seconds") value = item.seconds;
+                    else if (valueType == "Points") value = item.points;
+                    break;
+                }
+            }
+        }
+        let suffix = typeof(showSuffix) != "undefined" && showSuffix ? (valueType == "Seconds" ? "s" : "pts") : "";
+        
+        if (value != null) {
+            animateValue(el);
+            el.textContent = value + suffix;
+        }
+    }
+
+    function animateValue(el) {
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 400);
+    }
+    
+    if (typeof alignment !== "undefined") {
+        el.classList.add(`${alignment}`.toLowerCase());
+    }
+    
+</script>

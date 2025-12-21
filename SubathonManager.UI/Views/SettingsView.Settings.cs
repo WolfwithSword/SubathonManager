@@ -4,6 +4,10 @@ using System.Diagnostics;
 using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
+using Button = System.Windows.Controls.Button;
+using TextBlock = System.Windows.Controls.TextBlock;
+using TextBox = System.Windows.Controls.TextBox;
 
 namespace SubathonManager.UI.Views
 {
@@ -106,29 +110,56 @@ namespace SubathonManager.UI.Views
             });
         }
         
-        public void SaveSubTier(AppDbContext db, SubathonEventType type, string meta, Wpf.Ui.Controls.TextBox tb,
+        public bool SaveSubTier(AppDbContext db, SubathonEventType type, string meta, Wpf.Ui.Controls.TextBox tb,
             Wpf.Ui.Controls.TextBox tb2)
         {
+            bool hasUpdated = false;
             var val = db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == meta);
-            if (val != null && double.TryParse(tb.Text, out var seconds))
+            if (val != null && double.TryParse(tb.Text, out var seconds) && !seconds.Equals(val.Seconds))
+            {
                 val.Seconds = seconds;
-            if (val != null && int.TryParse(tb2.Text, out var points))
+                hasUpdated = true;
+            }
+
+            if (val != null && int.TryParse(tb2.Text, out var points) && !points.Equals(val.Points))
+            {
                 val.Points = points;
+                hasUpdated = true;
+            }
+
+            return hasUpdated;
+        }
+
+        private void UpdateSubathonValues()
+        {
+            using var db = _factory.CreateDbContext();
+
+            bool hasUpdated = false;
+            hasUpdated = ExternalSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+            hasUpdated = YouTubeSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+            hasUpdated = TwitchSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+            hasUpdated = StreamElementsSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+            hasUpdated = StreamLabsSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+            hasUpdated = KoFiSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+
+            db.SaveChanges();
+
+            if (hasUpdated)
+            {
+                SubathonValueConfigHelper helper = new SubathonValueConfigHelper();
+                var newData = helper.GetAllAsJson();
+                Console.WriteLine(newData);
+                SubathonEvents.RaiseSubathonValueConfigRequested(newData);
+            }
         }
         
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
             SaveTopAppSettings();
-            using var db = _factory.CreateDbContext();
+
+            UpdateSubathonValues();
             
-            ExternalSettingsControl.UpdateValueSettings(db);
-            YouTubeSettingsControl.UpdateValueSettings(db);
-            TwitchSettingsControl.UpdateValueSettings(db);
-            StreamElementsSettingsControl.UpdateValueSettings(db);
-            StreamLabsSettingsControl.UpdateValueSettings(db);
-            KoFiSettingsControl.UpdateValueSettings(db);
-            
-            db.SaveChanges();
+            TwitchSettingsControl.UpdateConfigValueSettings();
             KoFiSettingsControl.RefreshKoFiTierCombo();
             
             CommandsSettingsControl.UpdateValueSettings();
@@ -158,7 +189,12 @@ namespace SubathonManager.UI.Views
             if (boxPoints != null && boxPoints.Text != points) boxPoints.Text = points;
         }
 
-        private void LoadValues()
+        private void RefreshSubathonValues()
+        {
+            Dispatcher.Invoke(() =>LoadValues(false));
+        }
+
+        private void LoadValues(bool doConfigLoad = true)
         {
             using var db = _factory.CreateDbContext();
             var values = db.SubathonValues.ToList();
@@ -254,15 +290,20 @@ namespace SubathonManager.UI.Views
                 if (box != null && box2 != null)
                     UpdateTimePointsBoxes(box, box2, v, p);
             }
-            var theme = App.AppConfig!.Get("App", "Theme", "Dark")!;
-            foreach (ComboBoxItem item in ThemeBox.Items)
+
+            if (doConfigLoad)
             {
-                if (theme.Equals((string)item.Content, StringComparison.OrdinalIgnoreCase))
+                var theme = App.AppConfig!.Get("App", "Theme", "Dark")!;
+                foreach (ComboBoxItem item in ThemeBox.Items)
                 {
-                    ThemeBox.SelectedItem = item;
-                    break;
+                    if (theme.Equals((string)item.Content, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ThemeBox.SelectedItem = item;
+                        break;
+                    }
                 }
             }
+
             KoFiSettingsControl.LoadValues(db);
         }
     }

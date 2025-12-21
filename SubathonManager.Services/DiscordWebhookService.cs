@@ -14,16 +14,20 @@ namespace SubathonManager.Services;
 public class DiscordWebhookService : IDisposable
 {
     private readonly ConcurrentQueue<SubathonEvent> _eventQueue = new();
+    private readonly ConcurrentQueue<SubathonValueDto> _configQueue = new();
     private readonly CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _ctsConfig = new();
 
     private string? _eventWebhookUrl; // from config
     private string? _webhookUrl; // from config
     private readonly TimeSpan _flushInterval = TimeSpan.FromMinutes(1);
     private readonly int _maxMsgPerMinute = 15;
     private Task? _backgroundTask;
+    private Task? _backgroundConfigTask;
 
     private List<SubathonEventType> _auditEventTypes = new();
     private bool _doSimulatedEvents = false;
+    private bool _doRemoteValuePatches = false;
     
     private readonly ILogger? _logger;
     private readonly IConfig _config;
@@ -43,7 +47,9 @@ public class DiscordWebhookService : IDisposable
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
         ErrorMessageEvents.SendCustomEvent += OnCustomEvent;
+        SubathonEvents.SubathonValuesPatched += OnSubathonConfigValuesPatched;
         _backgroundTask = Task.Run(ProcessQueueAsync);
+        _backgroundConfigTask = Task.Run(ProcessValueQueueAsync);
     }
 
     public void LoadFromConfig()
@@ -59,6 +65,7 @@ public class DiscordWebhookService : IDisposable
                 _auditEventTypes.Add(type);
         }
         bool.TryParse(_config.Get("Discord", "Events.Log.Simulated", "false"), out _doSimulatedEvents);
+        bool.TryParse(_config.Get("Discord", "Events.Log.RemoteConfig", "false"), out _doRemoteValuePatches);
     }
 
     private void OnSubathonEventProcessed(SubathonEvent? subathonEvent, bool effective)
@@ -69,6 +76,13 @@ public class DiscordWebhookService : IDisposable
         // only queue events we care about based on settings
         // so not-logged ones don't clog the queue downstream
         _eventQueue.Enqueue(subathonEvent);
+    }
+
+    private void OnSubathonConfigValuesPatched(List<SubathonValueDto> patched)
+    {
+        if (!_doRemoteValuePatches) return;
+        foreach(var v in patched)
+            _configQueue.Enqueue(v);
     }
 
     private void OnCustomEvent(string message)
@@ -153,6 +167,59 @@ public class DiscordWebhookService : IDisposable
         }
     }
 
+    private async Task ProcessValueQueueAsync()
+    {
+        try
+        {
+            while (!_ctsConfig.IsCancellationRequested)
+            {
+                await Task.Delay(_flushInterval, _ctsConfig.Token);
+                await FlushConfigQueueAsync();
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger?.LogError(ex, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, ex.Message);
+        }  
+    }
+    
+    private async Task FlushConfigQueueAsync()
+    {
+        if (_configQueue.IsEmpty) return;
+        var sb = new StringBuilder();
+        var events = new List<SubathonValueDto>();
+        // we will hard limit this to 5msg per min. 10 embeds per msg
+        while (events.Count < (5 * 10) && _configQueue.TryDequeue(out var sValue) )
+        {
+            events.Add(sValue);
+        }
+        if (events.Count == 0) return;
+        
+        foreach (var batch in events.Chunk(10))
+        {
+            var embeds = batch.Select(e => new
+            {
+                title=$"{e.Source} - {e.EventType}" + (string.IsNullOrWhiteSpace(e.Meta) ? "" : $" [{e.Meta}]"),
+                description=$"Config Updated Remotely: {e.ToValueString()}",
+                color = 0xffaa55
+            });
+
+            var payload = new
+            {
+                username = AppUsername,
+                avatar_url = AppAvatarUrl,
+                embeds
+            };
+
+            await SendWebhookAsync(payload, _webhookUrl);
+            await Task.Delay(1500, _ctsConfig.Token);
+        }
+    }
+    
     private async Task ProcessQueueAsync()
     {
         try
@@ -274,20 +341,27 @@ public class DiscordWebhookService : IDisposable
 
     public async Task StopAsync()
     {
-        _cts.Cancel();
+        await _cts.CancelAsync();
         if (_backgroundTask != null)
             await _backgroundTask;
+        await _ctsConfig.CancelAsync();
+        if (_backgroundConfigTask != null)
+            await _backgroundConfigTask;
         await FlushQueueAsync();
+        await FlushConfigQueueAsync();
     }
 
     public void Dispose()
     {
         _cts.Cancel();
+        _ctsConfig.Cancel();
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted -= OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured -= SendErrorEvent;
         ErrorMessageEvents.SendCustomEvent -= OnCustomEvent;
+        SubathonEvents.SubathonValuesPatched -= OnSubathonConfigValuesPatched;
         _cts.Dispose();
+        _ctsConfig.Dispose();
     }
 
     public void SendErrorEvent(string level, string source, string message, DateTime time)
@@ -318,7 +392,7 @@ public class DiscordWebhookService : IDisposable
             _logger?.LogError(ex, $"Failed to send webhook log: {ex.Message}");
         }
     }
-    
+
     [ExcludeFromCodeCoverage]
     public async Task SendErrorLogAsync(string message, Exception? ex = null)
     {

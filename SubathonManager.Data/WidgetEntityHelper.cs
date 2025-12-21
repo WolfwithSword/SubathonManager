@@ -103,7 +103,16 @@ public class WidgetEntityHelper
             jVar.Value = metadata[key];
             if (Enum.TryParse<WidgetVariableType>(key.Split('.')[1], ignoreCase: true, out var type))
                 jVar.Type = type;
-            if (jVar.Type == WidgetVariableType.StringSelect && widget.JsVariables.Any(v => v.Name == jVar.Name))
+            if (jVar.Value == "NONE") jVar.Value = string.Empty;
+            if (jVar.Type == WidgetVariableType.EventTypeSelect)
+            {
+                if (!string.IsNullOrWhiteSpace(jVar.Value) &&
+                    !Enum.TryParse(jVar.Value, out SubathonEventType setValue))
+                {
+                    jVar.Value = string.Empty;
+                }
+            }
+            else if (jVar.Type == WidgetVariableType.StringSelect && widget.JsVariables.Any(v => v.Name == jVar.Name))
             {
                 var oldJVar = widget.JsVariables.Find(v => v.Name == jVar.Name);
                 if (oldJVar != null)

@@ -540,13 +540,40 @@ public partial class EditRouteWindow
                 itemRow.Children.Add(chkBox);
                 outerPanel.Children.Add(itemRow);
             }
+            else if (jsVar.Type == WidgetVariableType.EventTypeSelect)
+            {
+                var values = Enum.GetValues<SubathonEventType>()
+                    .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
+                    .Select(x=>x.ToString()).ToList().OrderBy(x => x);
+                var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
+                var typeList = new ComboBox
+                {
+                    Margin = new Thickness(2),
+                    IsEditable=true, IsTextSearchEnabled=true, 
+                    StaysOpenOnEdit=true,
+                    MaxWidth = 146,
+                    Width = 146
+                };
+                typeList.Items.Add(string.Empty);
+                foreach (var val in values)
+                    typeList.Items.Add(val);
+                typeList.SelectedValue = selected;
+                typeList.SelectionChanged += (_, __) =>
+                {
+                    jsVar.Value = $"{typeList.SelectedValue}";
+                };
+                itemRow.Children.Add(typeList);
+                outerPanel.Children.Add(itemRow);
+            }
             else if (jsVar.Type == WidgetVariableType.StringSelect)
             {
-                var values = jsVar.Value.Trim().Split(',');
+                var values = jsVar.Value!.Trim().Split(',');
                 var selected = values.Length > 0 ? values[0] : string.Empty;
                 var stringList = new ComboBox
                 {
-                    Margin = new Thickness(2)
+                    Margin = new Thickness(2),
+                    MaxWidth = 146,
+                    Width = 146
                 };
                 foreach (var val in values)
                     stringList.Items.Add(val);
@@ -697,6 +724,8 @@ public partial class EditRouteWindow
         {
             if (_selectedWidget == null) return;
             WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+            
+            
             widgetHelper.SyncCssVariables(_selectedWidget);
             widgetHelper.SyncJsVariables(_selectedWidget);
             
@@ -718,6 +747,8 @@ public partial class EditRouteWindow
             
             db.Entry(_selectedWidget).State = EntityState.Modified;
             db.Widgets.Update(_selectedWidget);
+            db.CssVariables.UpdateRange(_selectedWidget.CssVariables);
+            db.JsVariables.UpdateRange(_selectedWidget.JsVariables);
             await db.SaveChangesAsync();
             _editingCssVars.Clear();
             foreach(var cssVar in _selectedWidget.CssVariables)

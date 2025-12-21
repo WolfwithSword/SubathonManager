@@ -72,6 +72,15 @@ public static class SubathonEventTypeHelper
         SubathonEventType.KoFiSub,
         SubathonEventType.KoFiDonation,
     };
+
+    private static readonly SubathonEventType[] NoValueConfigTypes = new[]
+    {
+        SubathonEventType.Command,
+        SubathonEventType.DonationAdjustment,
+        SubathonEventType.ExternalSub,
+        SubathonEventType.Unknown,
+        SubathonEventType.TwitchHypeTrain
+    };
     
     public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
         eventType.HasValue && CurrencyDonationEvents.Contains(eventType.Value);
@@ -93,6 +102,9 @@ public static class SubathonEventTypeHelper
     
     public static bool IsCheerType(this SubathonEventType? eventType) =>
         eventType.HasValue && CheerTypes.Contains(eventType.Value);
+    
+    public static bool HasNoValueConfig(this SubathonEventType? eventType) =>
+        eventType.HasValue && !NoValueConfigTypes.Contains(eventType.Value);
     
     public static SubathonEventSource GetSource(this SubathonEventType? eventType) {
         if (!eventType.HasValue) return SubathonEventSource.Unknown;

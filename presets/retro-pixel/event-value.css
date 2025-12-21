@@ -1,14 +1,14 @@
 ﻿:root {
     --background: #0a0a0a;
-    --timebox-background: #121212;
+    --box-background: #121212;
     --text-color: #eaeaea;
     --border-color: #3cff8f;
     
     --pixel-border: 3px;
     --font: 'Press Start 2P', monospace;
-
-    --time-font-size: 32px;
-    --label-font-size: 10px;
+    --min-width: 80px;
+    --min-height: 60px;
+    --font-size: 24px;
 }
 
 body {
@@ -18,18 +18,19 @@ body {
     align-items: start;
 }
 
-.timer-root.left {
+.value-root.left {
     justify-self: left;
 }
 
-.timer-root.right {
+.value-root.right {
     justify-self: right;
 }
 
-.timer-root.center {
+.value-root.center {
     justify-self: center;
 }
-.timer-root {
+
+.value-root {
     justify-self: center;
     background: var(--background);
     padding: 12px;
@@ -57,21 +58,27 @@ body {
             0px 8px
     );
     width: fit-content;
-    transition: width 0.2s ease-in-out;
+    min-width: var(--min-width) !important;
+    min-height: var(--min-height) !important;
 }
 
-.time-display {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-}
-
-.time-block {
-    background: var(--timebox-background);
-    padding: 8px 8px;
-    border: var(--pixel-border) solid var(--text-color);
+.value-column {
     text-align: center;
-    min-width: 60px;
+    display: flex;
+    flex-direction: column;
+}
+
+.value-row {
+    text-align: center;
+    display: grid;
+    grid-template-columns: minmax(80px, 1fr) auto;
+    column-gap: 2px;
+    min-height: var(--min-height);
+    align-items: center;
+    padding: 4px;
+    background: var(--box-background);
+    border: var(--pixel-border) solid var(--border-color);
+    font-size: var(--font-size);
     clip-path: polygon(
             0px calc(100% - 4px),
             4px calc(100% - 4px),
@@ -88,14 +95,19 @@ body {
     );
 }
 
-.time-block span {
-    display: block;
-    font-size: var(--time-font-size);
-    line-height: 1;
-    padding: 1px;
+.value {
+    text-align: center;
 }
 
-.time-block label {
-    font-size: var(--label-font-size);
-    opacity: 0.7;
+.hidden {
+    display: none;
+}
+
+@keyframes flash {
+    0%, 100% {  }
+    50% { color: #fff; }
+}
+
+.flash {
+    animation: flash 0.4s ease-in-out;
 }

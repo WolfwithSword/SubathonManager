@@ -19,15 +19,27 @@ public partial class ExternalServiceSettings : UserControl
     {
         Host = host;
     }
-    public void UpdateValueSettings(AppDbContext db)
+    public bool UpdateValueSettings(AppDbContext db)
     {
+        bool hasUpdated = false;
         var externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.ExternalDonation
             && sv.Meta == "");
-        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out var exSeconds))
+        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out var exSeconds) &&
+            !exSeconds.Equals(externalDonoValue.Seconds))
+        {
             externalDonoValue.Seconds = exSeconds;
-        if (externalDonoValue != null && int.TryParse(DonoBox2.Text, out var exPoints))
+            hasUpdated = true;
+        }
+
+        if (externalDonoValue != null && int.TryParse(DonoBox2.Text, out var exPoints)
+            && !exPoints.Equals(externalDonoValue.Points))
+        {
             externalDonoValue.Points = exPoints;
+            hasUpdated = true;
+        }
+
+        return hasUpdated;
     }
     
     private void TestExternalDonation_Click(object sender, RoutedEventArgs e)

@@ -15,16 +15,16 @@ public partial class WebServer
         foreach (var widget in route.Widgets)
         {
             string folder = Path.GetDirectoryName(widget.HtmlPath)!;
-            if (!_servedFolders.Contains(folder))
+            if (!_servedFolders.Add(folder))
             {
-                _servedFolders.Add(folder);
                 _logger?.LogInformation($"Registered static folder: {folder}");
             }
         }
     }
 
-    private async Task<bool> HandleWidgetRequest(HttpListenerContext ctx, string path)
+    private async Task HandleWidgetRequest(HttpListenerContext ctx)
     {
+        var path = ctx.Request.Url!.AbsolutePath;
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
         if (parts.Length >= 2)
@@ -92,25 +92,21 @@ public partial class WebServer
 
                             ctx.Response.ContentType = "text/html";
                             AddCorsHeaders(ctx.Response);
-                            byte[] bytes = Encoding.UTF8.GetBytes(html);
-                            await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
-                            ctx.Response.Close();
-                            return true;
+                            await MakeApiResponse(ctx, 200, html);
+                            return;
                         }
-                        else
-                        {
-                            await ServeFile(ctx, filePath);
-                            return true;
-                        }
+                        await ServeFile(ctx, filePath);
+                        return;
                     }
                 }
             }
         }
-        return false;
+        await MakeApiResponse(ctx, 404, "Widget not found");
     }
 
-    private async Task<bool> HandleRouteRequest(HttpListenerContext ctx, string path)
+    private async Task HandleRouteRequest(HttpListenerContext ctx)
     {
+        var path = ctx.Request.Url!.AbsolutePath;
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 2)
         {
@@ -132,15 +128,12 @@ public partial class WebServer
                     string html = GenerateMergedPage(route, isEditor);
                     ctx.Response.ContentType = "text/html";
                     AddCorsHeaders(ctx.Response);
-                    byte[] bytes = Encoding.UTF8.GetBytes(html);
-                    await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
-                    ctx.Response.Close();
-                    return true; 
+                    await MakeApiResponse(ctx, 200, html);
+                    return;
                 }
             }
         }
-
-        return false;
+        await MakeApiResponse(ctx, 404, "Route not found");
     }
 
     private string GenerateMergedPage(Route route, bool isEditor = false)

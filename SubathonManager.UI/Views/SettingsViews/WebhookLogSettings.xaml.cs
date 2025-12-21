@@ -36,8 +36,10 @@ public partial class WebhookLogSettings : UserControl
             EventWebhookListPanel.Children.Add(typeCheckBox);
         }
             
-        bool.TryParse(App.AppConfig!.Get("Discord", $"Events.Log.Simulated", "false"), out var logSim);
+        bool.TryParse(App.AppConfig!.Get("Discord", "Events.Log.Simulated", "false"), out var logSim);
         LogSimEventsCbx.IsChecked = logSim;
+        bool.TryParse(App.AppConfig!.Get("Discord", "Events.Log.RemoteConfig", "false"), out var logRemote);
+        LogRemoteConfigCbx.IsChecked = logRemote; 
         ErrorWebhookUrlBx.Text = App.AppConfig!.Get("Discord", "WebhookUrl", string.Empty)!;
         EventWebhookUrlBx.Text = App.AppConfig!.Get("Discord", "Events.WebhookUrl", string.Empty)!;
     }
@@ -52,7 +54,8 @@ public partial class WebhookLogSettings : UserControl
 
         App.AppConfig!.Set("Discord", "WebhookUrl", ErrorWebhookUrlBx.Text);
         App.AppConfig!.Set("Discord", "Events.WebhookUrl", EventWebhookUrlBx.Text);
-        App.AppConfig!.Set("Discord", $"Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
+        App.AppConfig!.Set("Discord", "Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
+        App.AppConfig!.Set("Discord", "Events.Log.RemoteConfig", $"{LogRemoteConfigCbx.IsChecked}");
         App.AppConfig!.Save();
     }  
     
