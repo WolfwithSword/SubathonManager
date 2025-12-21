@@ -1,0 +1,128 @@
+﻿:root {
+    --positive-time-color: #bf77f6;
+    --negative-time-color: #ff4d4d;
+    --points-color: #3cff8f;
+    --money-color: #4da6ff;
+    --font: 'Press Start 2P', monospace;
+    --font-size: 16px;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: var(--font);
+}
+
+.popup-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.event-popup {
+    position: absolute;
+    bottom: 20%;
+    font-size: var(--font-size);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 10;
+    text-shadow:
+            0 0 6px currentColor,
+            0 0 12px currentColor;
+}
+
+.event-popup.float-up {
+    animation: float-up 1.6s ease-out forwards;
+}
+
+.event-popup.float-down {
+    animation: float-down 1.6s ease-out forwards;
+}
+.event-popup.popup {
+     animation: popup 1.6s ease-out forwards;
+ }
+
+.event-popup.positive.seconds {
+    color: var(--positive-time-color);
+}
+.event-popup.positive.points {
+    color: var(--points-color);
+}
+.event-popup.positive.money {
+    color: var(--money-color);
+}
+.event-popup.negative.seconds {
+    color: var(--negative-time-color);
+}
+
+@keyframes float-up {
+    0% {
+        transform: translateY(0) scale(0.9);
+        opacity: 0;
+    }
+    15% {
+        opacity: 1;
+        transform: translateY(-10px) scale(1);
+    }
+    100% {
+        transform: translateY(-90px) scale(1.05);
+        opacity: 0;
+    }
+}
+
+@keyframes float-down {
+    0% {
+        transform: translateY(-90px) scale(0.9);
+        opacity: 0;
+    }
+    15% {
+        opacity: 1;
+        transform: translateY(-80px) scale(1);
+    }
+    100% {
+        transform: translateY(0) scale(1.05);
+        opacity: 0;
+    }
+}
+
+@keyframes popup {
+    0% {
+        opacity: 0;
+        transform:
+                translateY(6px)
+                rotateY(-55deg)
+                scale(0.92);
+    }
+    
+    20% {
+        opacity: 1;
+        transform:
+                translateY(0)
+                rotateY(-10deg)
+                scale(1);
+    }
+
+    45% {
+        transform:
+                translateY(-4px)
+                rotateY(0deg)
+                scale(1.02);
+    }
+    
+    75% {
+        opacity: 0.9;
+        transform:
+                translateY(-10px)
+                rotateY(18deg)
+                scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform:
+                translateY(-16px)
+                rotateY(45deg)
+                scale(0.96);
+    }
+}

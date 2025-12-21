@@ -9,14 +9,16 @@
         <StackPanel Margin="10,5,0,5">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="4">
-                    <TextBlock VerticalAlignment="Center" Margin="4">Error Log Webhook URL:</TextBlock>
-                    <TextBox x:Name="ErrorWebhookUrlBx" Width="200"/>
+                    <TextBlock VerticalAlignment="Center" Margin="4 4 6 4">Error Log Webhook URL:</TextBlock>
+                    <TextBox x:Name="ErrorWebhookUrlBx" Width="170"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="24 4 4 4">
-                    <TextBlock VerticalAlignment="Center" Margin="4">Event Log Webhook URL:</TextBlock>
-                    <TextBox x:Name="EventWebhookUrlBx" Width="200"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="16 4 2 4">
+                    <TextBlock VerticalAlignment="Center" Margin="0 4 6 4">Event Log Webhook URL:</TextBlock>
+                    <TextBox x:Name="EventWebhookUrlBx" Width="170"/>
                 </StackPanel>
-                <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="24 4 4 4"/>
+                <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="16 4 2 4"/>
+                <CheckBox x:Name="LogRemoteConfigCbx" ToolTip = "Log remote config value patches"
+                          Content="Log Patches?" Margin="12 4 4 4"/>
                 <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                            Content="Test"
                            Click="TestWebhook_Click"

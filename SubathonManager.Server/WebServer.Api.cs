@@ -12,84 +12,92 @@ namespace SubathonManager.Server;
 
 public partial class WebServer
 {
-    private async Task<bool> HandleApiRequestAsync(HttpListenerContext ctx, string path)
+    private void SetupApiRoutes()
     {
-        if (path.StartsWith("/api/data/control") && ctx.Request.HasEntityBody && (ctx.Request.HttpMethod == "POST" || ctx.Request.HttpMethod == "PUT"))
+        _routes.Add((new RouteKey("POST", "/api/data/control"),HandleDataControlRequestAsync ));
+        _routes.Add((new RouteKey("PUT", "/api/data/control"),HandleDataControlRequestAsync ));
+        
+        _routes.Add((new RouteKey("GET", "/api/data/status"),HandleStatusRequestAsync));
+        
+        _routes.Add((new RouteKey("GET", "/api/data/amounts"),HandleAmountsRequestAsync ));
+        
+        _routes.Add((new RouteKey("GET", "/api/data/values"),HandleValuesRequestAsync ));
+        
+        _routes.Add((new RouteKey("PUT", "/api/data/values"),HandleValuesPatchRequestAsync));
+        _routes.Add((new RouteKey("POST", "/api/data/values"),HandleValuesPatchRequestAsync ));
+        _routes.Add((new RouteKey("PATCH", "/api/data/values"),HandleValuesPatchRequestAsync ));
+        
+        _routes.Add((new RouteKey("GET", "/api/select"),HandleSelectAsync));
+        
+        _routes.Add((new RouteKey("POST", "/api/update-position/"),HandleWidgetUpdateAsync ));
+        
+        _routes.Add((new RouteKey("POST", "/api/update-size/"),HandleWidgetUpdateAsync));
+    }
+    
+    private async Task HandleSelectAsync(HttpListenerContext ctx)
+    {
+        var path = ctx.Request.Url!.AbsolutePath;
+        
+        // Fast Close
+        await MakeApiResponse(ctx, 200, "OK");
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3)
         {
-            return await HandleDataControlRequestAsync(ctx);
-        }
-        if (path.StartsWith("/api/data/"))
-        {
-            return await HandleDataRequestAsync(ctx, path.Replace("/api/data/", ""));
-        }
-        if (path.StartsWith("/api/select/", StringComparison.OrdinalIgnoreCase))
-        {                    
-            ctx.Response.StatusCode = 200;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("OK"));
-            ctx.Response.Close(); // fast close request, just a GET
-            var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 3)
+            string widgetId = parts[2];
+            if (Guid.TryParse(widgetId, out var widgetGuid))
             {
-                string widgetId = parts[2];
-                if (Guid.TryParse(widgetId, out var widgetGuid))
-                {
-                    WidgetEvents.RaiseSelectEditorWidget(widgetGuid);
-                    return true;
-                }
+                WidgetEvents.RaiseSelectEditorWidget(widgetGuid);
             }
-            return false;
         }
-        if (path.StartsWith("/api/update-", StringComparison.OrdinalIgnoreCase))
-        {
-            var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 3)
-            {
-                string widgetId = parts[2];
-                    
-                string body;
-                using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
-                    body = await reader.ReadToEndAsync();
-                var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body);
-                    
-                if (data == null)
-                {
-                    ctx.Response.StatusCode = 400;
-                    await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid update data"));
-                    ctx.Response.Close();
-                    return true;
-                }
-                    
-                var widgetHelper = new WidgetEntityHelper();
-                bool success = false;
-                if (path.StartsWith("/api/update-size/", StringComparison.OrdinalIgnoreCase))
-                    success = await widgetHelper.UpdateWidgetScale(widgetId, data);
-                else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
-                    success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
-                
-                if (success)
-                {
-                    ctx.Response.StatusCode = 200;
-                    await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("OK"));
-                    ctx.Response.Close();
-                    return true;
-                }
-                ctx.Response.StatusCode = 404;
-                await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Widget Not Found"));
-                ctx.Response.Close();
-                return true;
-            }
-            ctx.Response.StatusCode = 400;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid Widget ID"));
-            ctx.Response.Close();
-            return true;
-        }
-        ctx.Response.StatusCode = 400;
-        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid API Request"));
-        ctx.Response.Close();
-        return false;
     }
 
-    private async Task<bool> HandleDataControlRequestAsync(HttpListenerContext ctx)
+    private async Task MakeApiResponse(HttpListenerContext ctx, int code, string response)
+    {
+        ctx.Response.StatusCode = code;
+        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(response));
+        ctx.Response.Close(); 
+    }
+    
+    private async Task HandleWidgetUpdateAsync(HttpListenerContext ctx)
+    {;
+        var path = ctx.Request.Url!.AbsolutePath;
+
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3)
+        {
+            string widgetId = parts[2];
+
+            string body;
+            using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
+                body = await reader.ReadToEndAsync();
+            var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body);
+
+            if (data == null)
+            {
+                await MakeApiResponse(ctx, 400, "Invalid update data");
+                return;
+            }
+
+            var widgetHelper = new WidgetEntityHelper();
+            bool success = false;
+            if (path.StartsWith("/api/update-size/", StringComparison.OrdinalIgnoreCase))
+                success = await widgetHelper.UpdateWidgetScale(widgetId, data);
+            else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
+                success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+
+            if (success)
+            {
+                await MakeApiResponse(ctx, 200, "OK");
+                return;
+            }
+
+            await MakeApiResponse(ctx, 404, "Widget Not Found");
+            return;
+        }
+        await MakeApiResponse(ctx, 400, "Invalid Widget ID");
+    }
+
+    private async Task HandleDataControlRequestAsync(HttpListenerContext ctx)
     {
         string body;
         using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
@@ -99,20 +107,18 @@ public partial class WebServer
         
         if (data == null)
         {
-            ctx.Response.StatusCode = 400;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid control data"));
-            ctx.Response.Close();
-            return true;
+            
+            await MakeApiResponse(ctx, 400, "Invalid control data");
+            return;
         }
 
         SubathonEventType type = SubathonEventType.Unknown;
         if (!data.ContainsKey("type") || !data.TryGetValue("type", out JsonElement elem)
             || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out type))
         {
-            ctx.Response.StatusCode = 400;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid control data"));
-            ctx.Response.Close();
-            return true;
+            
+            await MakeApiResponse(ctx, 400, "Invalid control data");
+            return;// true;
         }
 
         bool success = false;
@@ -130,114 +136,136 @@ public partial class WebServer
         }
         else
         {
-            ctx.Response.StatusCode = 400;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid control data"));
-            ctx.Response.Close();
-            return true;
+            await MakeApiResponse(ctx, 400, "Invalid control data");
+            return;
         }
 
         if (success)
         {
-            ctx.Response.StatusCode = 200;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("OK"));
-            ctx.Response.Close();
-            return success;
+            await MakeApiResponse(ctx, 200, "OK");
+            return;
         }
-
-        ctx.Response.StatusCode = 400;
-        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid API Request"));
-        ctx.Response.Close();
-        return false;
+        await MakeApiResponse(ctx, 400, "Invalid API Request");
     }
 
-    private async Task<bool> HandleDataRequestAsync(HttpListenerContext ctx, string path)
+
+    private async Task HandleStatusRequestAsync(HttpListenerContext ctx)
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.IsActive);
-
-        if (subathon != null && path.StartsWith("status"))
+        TimeSpan? multiplierRemaining = TimeSpan.Zero;
+        if (subathon == null)
         {
-            TimeSpan? multiplierRemaining = TimeSpan.Zero;
-            if (subathon.Multiplier.Duration != null && subathon.Multiplier.Duration > TimeSpan.Zero
-                                                     && subathon.Multiplier.Started != null)
+            await MakeApiResponse(ctx, 400, "Invalid status request");
+            return;
+        }
+        if (subathon.Multiplier.Duration != null && subathon.Multiplier.Duration > TimeSpan.Zero
+                                                 && subathon.Multiplier.Started != null)
+        {
+            DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
+            multiplierRemaining = multEndTime! - DateTime.Now;
+        }
+
+        object response = new
+        {
+            millis_cumulated = subathon.MillisecondsCumulative,
+            millis_elapsed = subathon.MillisecondsElapsed,
+            millis_remaining = subathon.MillisecondsRemaining(),
+            total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
+            days = subathon.TimeRemainingRounded().Days,
+            hours = subathon.TimeRemainingRounded().Hours,
+            minutes = subathon.TimeRemainingRounded().Minutes,
+            seconds = subathon.TimeRemainingRounded().Seconds,
+            points = subathon.Points,
+            is_paused = subathon.IsPaused,
+            is_locked = subathon.IsLocked,
+            is_reversed = subathon.IsSubathonReversed(),
+            multiplier = new
             {
-                DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
-                multiplierRemaining = multEndTime! - DateTime.Now;
+                running = subathon.Multiplier.IsRunning(),
+                apply_points = subathon.Multiplier.ApplyToPoints,
+                apply_time = subathon.Multiplier.ApplyToSeconds,
+                is_from_hypetrain = subathon.Multiplier.FromHypeTrain,
+                started_at = subathon.Multiplier.Started,
+                duration_seconds = Math.Round(subathon.Multiplier.Duration?.TotalSeconds ?? 0),
+                duration_remaining_seconds = Math.Round(multiplierRemaining.Value.TotalSeconds),
             }
-  
-            object response = new
-            {
-                millis_cumulated = subathon.MillisecondsCumulative,
-                millis_elapsed = subathon.MillisecondsElapsed,
-                millis_remaining = subathon.MillisecondsRemaining(),
-                total_seconds = subathon.TimeRemainingRounded().TotalSeconds,
-                days = subathon.TimeRemainingRounded().Days,
-                hours = subathon.TimeRemainingRounded().Hours,
-                minutes = subathon.TimeRemainingRounded().Minutes,
-                seconds = subathon.TimeRemainingRounded().Seconds,
-                points = subathon.Points,
-                is_paused = subathon.IsPaused,
-                is_locked = subathon.IsLocked,
-                is_reversed = subathon.IsSubathonReversed(),
-                multiplier = new 
-                {
-                    running = subathon.Multiplier.IsRunning(),
-                    apply_points = subathon.Multiplier.ApplyToPoints,
-                    apply_time = subathon.Multiplier.ApplyToSeconds,
-                    is_from_hypetrain = subathon.Multiplier.FromHypeTrain,
-                    started_at = subathon.Multiplier.Started,
-                    duration_seconds = Math.Round(subathon.Multiplier.Duration?.TotalSeconds ?? 0),
-                    duration_remaining_seconds = Math.Round(multiplierRemaining.Value.TotalSeconds),
-                }
-            };
-            
-            string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+        };
 
-            ctx.Response.StatusCode = 200;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(json));
-            ctx.Response.Close();
-            return true;
-            
-        }
-        else if (subathon != null && path.StartsWith("amounts"))
+        string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {
-            var events = await db.SubathonEvents
-                .Where(e => e.SubathonId == subathon.Id && e.ProcessedToSubathon)
-                .Where(e => e.EventType != SubathonEventType.Command &&
-                            e.EventType != SubathonEventType.Unknown)
-                .ToListAsync();
-            
-            var simulated = events.Where(e => e.User == "SYSTEM" || e.User == "SIMULATED").ToList();
-            var real = events.Where(e => e.User != "SYSTEM" && e.User != "SIMULATED").ToList();
-            
-            object response = new
-            {
-                simulated = BuildDataSummary(simulated),
-                real = BuildDataSummary(real)
-            };
+            WriteIndented = true
+        });
+        await MakeApiResponse(ctx, 200, json);
+    }
 
-            string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            ctx.Response.StatusCode = 200;
-            await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(json));
-            ctx.Response.Close();
-            return true;
+    private async Task HandleAmountsRequestAsync(HttpListenerContext ctx)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.IsActive);
+        if (subathon == null)
+        {
+            await MakeApiResponse(ctx, 400, "Invalid status request");
+            return;
         }
+        var events = await db.SubathonEvents
+            .Where(e => e.SubathonId == subathon.Id && e.ProcessedToSubathon)
+            .Where(e => e.EventType != SubathonEventType.Command &&
+                        e.EventType != SubathonEventType.Unknown)
+            .ToListAsync();
+            
+        var simulated = events.Where(e => e.User == "SYSTEM" || e.User == "SIMULATED").ToList();
+        var real = events.Where(e => e.User != "SYSTEM" && e.User != "SIMULATED").ToList();
+            
+        object response = new
+        {
+            simulated = BuildDataSummary(simulated),
+            real = BuildDataSummary(real)
+        };
 
-        ctx.Response.StatusCode = 500;
-        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("Invalid API Request"));
-        ctx.Response.Close();
-        return false;
+        string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+        await MakeApiResponse(ctx, 200, json);
     }
     
+    private async Task HandleValuesRequestAsync(HttpListenerContext ctx)
+    {
+        var json = await _valueHelper.GetAllAsJsonAsync();
+        await MakeApiResponse(ctx, 200, json);
+    }
+
+    private async Task HandleValuesPatchRequestAsync(HttpListenerContext ctx)
+    {
+        string body;
+        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
+            body = await reader.ReadToEndAsync();
+        int patched = await _valueHelper.PatchFromJsonAsync(body);
+        int code;
+        string msg;
+        if (patched == -1)
+        {
+            code = 400;
+            msg = "Error patching values";
+        }
+        else if (patched == 0)
+        {
+            code = 201;
+            msg = "No patches needed";
+        }
+        else
+        {
+            code = 200;
+            msg = $"Patched {patched} Values";
+        }
+        await MakeApiResponse(ctx, code, msg);
+    }
+
     private object BuildDataSummary(List<SubathonEvent> events)
     {
         var result = new Dictionary<string, object>();

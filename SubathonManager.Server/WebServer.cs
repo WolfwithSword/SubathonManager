@@ -19,6 +19,11 @@ public partial class WebServer
     private readonly HashSet<string> _servedFolders = new();
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
     private readonly IConfig _config;
+    private SubathonValueConfigHelper _valueHelper = new ();
+    
+    record RouteKey(string Method, string Pattern);
+    private readonly List<(RouteKey key, Func<HttpListenerContext, Task> handler)> _routes
+        = new();
     
     public WebServer(IDbContextFactory<AppDbContext> factory, IConfig config, int port = 14040)
     {
@@ -36,13 +41,23 @@ public partial class WebServer
                 {
                     AddRoute(route);
                 }
-                
             }
         }
+
+        _routes.Clear();
+        SetupApiRoutes();
+        SetupOverlayRoutes();
         SetupWebsocketListeners();
         Port = port;
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{Port}/");
+    }
+
+    private void SetupOverlayRoutes()
+    {
+        _routes.Add((new RouteKey("GET", "/ws"),HandleWebSocketRequestAsync));
+        _routes.Add((new RouteKey("GET", "/widget/"),HandleWidgetRequest ));
+        _routes.Add((new RouteKey("GET", "/route/"),HandleRouteRequest ));
     }
 
     public async Task StartAsync()
@@ -91,26 +106,27 @@ public partial class WebServer
     private async Task HandleRequestAsync(HttpListenerContext ctx)
     {
         string path = ctx.Request.Url?.AbsolutePath ?? "/";
+        var method = ctx.Request.HttpMethod;
+
         if (path != "/ws")
-            _logger?.LogDebug($"Request: {path}");
-
-        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+            _logger?.LogDebug($"Request:[{method}] {path}");
+        else
+            _logger?.LogTrace($"Request: [{method}] {path}");
+        
+        
+        bool handled = false;
+        foreach (var (key, handler) in _routes)
         {
-            if (await HandleApiRequestAsync(ctx, path)) return;
-        }
-        else if (path.StartsWith("/route/", StringComparison.OrdinalIgnoreCase))
-        {
-            if (await HandleRouteRequest(ctx, path)) return;
-        }
-        else if (path.StartsWith("/widget/", StringComparison.OrdinalIgnoreCase))
-        {
-            if (await HandleWidgetRequest(ctx, path)) return;
-        }
-        else if (path.StartsWith("/ws", StringComparison.OrdinalIgnoreCase))
-        {
-            if (await HandleWebSocketRequestAsync(ctx, path)) return;
+            if (method == key.Method && path.StartsWith(key.Pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                await handler(ctx);
+                handled = true;
+                break;
+            }
         }
 
+        if (handled) return;
+        
         // Check if request is for a local file in a *known* widget folder
         // so we can load properly resources the html desires
         foreach (var folder in _servedFolders)
@@ -121,14 +137,17 @@ public partial class WebServer
                 await ServeFile(ctx, path.TrimStart('/'));
                 return;
             }
-
         }
 
-        // Not found
-        ctx.Response.StatusCode = 404;
-        byte[] notFound = Encoding.UTF8.GetBytes("404 Not Found");
-        await ctx.Response.OutputStream.WriteAsync(notFound, 0, notFound.Length);
-        ctx.Response.Close();
+        int code = 404;
+        string msg = "404 Not Found";
+        if (path.StartsWith("/api"))
+        {
+            code = 400;
+            msg = "Invalid API Request";
+        }
+
+        await MakeApiResponse(ctx, code, msg);
     }
     
     private static void AddCorsHeaders(HttpListenerResponse response)
@@ -192,8 +211,9 @@ public partial class WebServer
     {
         ctx.Response.ContentType = GetContentType(fullPath);
         AddCorsHeaders(ctx.Response);  
-        byte[] bytes = await File.ReadAllBytesAsync(fullPath);
-        await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
+        await using var fs = File.OpenRead(fullPath);
+        ctx.Response.ContentLength64 = fs.Length;
+        await fs.CopyToAsync(ctx.Response.OutputStream);
         ctx.Response.Close();
     }
 

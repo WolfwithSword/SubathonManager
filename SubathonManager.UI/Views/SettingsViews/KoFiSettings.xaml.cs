@@ -18,6 +18,7 @@ public partial class KoFiSettings : UserControl
     public required SettingsView Host { get; set; }
     private readonly IDbContextFactory<AppDbContext> _factory;
     private List<KoFiSubRow> _dynamicSubRows = new();
+
     public KoFiSettings()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -60,8 +61,6 @@ public partial class KoFiSettings : UserControl
             else if (value.EventType == SubathonEventType.KoFiSub)
             {
                 KoFiSubRow row = AddMembershipRow(value);
-                // box1 = row.TimeBox;
-                // box2 = row.PointsBox;
             }
 
             if (!string.IsNullOrWhiteSpace(v) && !string.IsNullOrWhiteSpace(p) && box1 != null && box2 != null)
@@ -234,28 +233,46 @@ public partial class KoFiSettings : UserControl
         }
     }
     
-    public void UpdateValueSettings(AppDbContext db)
+    public bool UpdateValueSettings(AppDbContext db)
     {
+        bool hasUpdated = false;
         var defaultSubValue =
             db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.KoFiSub && sv.Meta == "DEFAULT");
-        if (defaultSubValue != null && double.TryParse(KFSubDTextBox.Text, out var defaultSeconds))
+        if (defaultSubValue != null && double.TryParse(KFSubDTextBox.Text, out var defaultSeconds) &&
+            !defaultSeconds.Equals(defaultSubValue.Seconds))
+        {
             defaultSubValue.Seconds = defaultSeconds;
+            hasUpdated = true;
+        }
 
-        if (defaultSubValue != null && int.TryParse(KFSubDTextBox2.Text, out var defaultPoints))
+        if (defaultSubValue != null && int.TryParse(KFSubDTextBox2.Text, out var defaultPoints) &&
+            !defaultPoints.Equals(defaultSubValue.Points))
+        {
             defaultSubValue.Points = defaultPoints;
+            hasUpdated = true;
+        }
 
         var tipValue =
             db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.KoFiDonation);
-        if (tipValue != null && double.TryParse(DonoBox.Text, out var tipSeconds))
+        if (tipValue != null && double.TryParse(DonoBox.Text, out var tipSeconds) && !tipSeconds.Equals(tipValue.Seconds))
+        {
             tipValue.Seconds = tipSeconds;
-        if (tipValue != null && int.TryParse(DonoBox2.Text, out var tipPoints))
+            hasUpdated = true;
+        }
+
+        if (tipValue != null && int.TryParse(DonoBox2.Text, out var tipPoints) && !tipPoints.Equals(tipValue.Points))
+        {
             tipValue.Points = tipPoints;
+            hasUpdated = true;
+        }
 
         var removeRows = _dynamicSubRows
             .Where(row =>string.IsNullOrWhiteSpace(row.NameBox.Text))
             .ToList();
+        if (removeRows.Any()) 
+            hasUpdated = true;
         foreach (var row in removeRows)
             DeleteRow(row.SubValue, row);
         
@@ -267,6 +284,7 @@ public partial class KoFiSettings : UserControl
             if (string.IsNullOrWhiteSpace(meta))
             {
                 DeleteRow(subRow.SubValue, subRow);
+                hasUpdated = true;
                 continue;
             }
             if (meta == "DEFAULT" )
@@ -287,6 +305,8 @@ public partial class KoFiSettings : UserControl
                 existing.Seconds = seconds;
                 existing.Points = points;
                 subRow.SubValue = existing;
+                if (!seconds.Equals(existing.Seconds) || !points.Equals(existing.Points))
+                    hasUpdated = true;
             }
             else
             {
@@ -294,8 +314,10 @@ public partial class KoFiSettings : UserControl
                 subRow.SubValue.Seconds = seconds;
                 subRow.SubValue.Points = points;
                 db.SubathonValues.Add(subRow.SubValue);
+                hasUpdated = true;
             }
         }
+        return hasUpdated;
     }
 
     private void OpenKoFiSetup_Click(object sender, RoutedEventArgs e)

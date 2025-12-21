@@ -40,45 +40,86 @@ public partial class TwitchSettings : UserControl
         });
     }
 
-    public void UpdateValueSettings(AppDbContext db)
+    public bool UpdateValueSettings(AppDbContext db)
     {
+        bool hasUpdated = false;
         var cheerValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchCheer && sv.Meta == "");
         // divide by 100 since UI shows "per 100 bits"
-        if (cheerValue != null && double.TryParse(CheerTextBox.Text, out var cheerSeconds))
+        if (cheerValue != null && double.TryParse(CheerTextBox.Text, out var cheerSeconds)
+            && !cheerValue.Seconds.Equals(cheerSeconds / 100.0))
+        {
             cheerValue.Seconds = cheerSeconds / 100.0;
-        if (cheerValue != null && int.TryParse(Cheer2TextBox.Text, out var cheerPoints))
+            hasUpdated = true;
+        }
+
+        if (cheerValue != null && int.TryParse(Cheer2TextBox.Text, out var cheerPoints) &&
+            !cheerValue.Points.Equals(cheerPoints))
+        {
             cheerValue.Points = cheerPoints;
+            hasUpdated = true;
+        }
 
         var raidValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchRaid && sv.Meta == "");
-        if (raidValue != null && double.TryParse(RaidTextBox.Text, out var raidSeconds))
+        if (raidValue != null && double.TryParse(RaidTextBox.Text, out var raidSeconds)
+            && !raidValue.Seconds.Equals(raidSeconds))
+        {
             raidValue.Seconds = raidSeconds;
-        if (raidValue != null && int.TryParse(Raid2TextBox.Text, out var raidPoints))
+            hasUpdated = true;
+        }
+
+        if (raidValue != null && int.TryParse(Raid2TextBox.Text, out var raidPoints) &&
+            !raidValue.Points.Equals(raidPoints))
+        {
             raidValue.Points = raidPoints;
+            hasUpdated = true;
+        }
 
         var followValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchFollow && sv.Meta == "");
-        if (followValue != null && double.TryParse(FollowTextBox.Text, out var followSeconds))
+        if (followValue != null && double.TryParse(FollowTextBox.Text, out var followSeconds)
+            && !followValue.Seconds.Equals(followSeconds))
+        {
             followValue.Seconds = followSeconds;
-        if (followValue != null && int.TryParse(Follow2TextBox.Text, out var followPoints))
+            hasUpdated = true;
+        }
+
+        if (followValue != null && int.TryParse(Follow2TextBox.Text, out var followPoints)
+            && !followValue.Points.Equals(followPoints))
+        {
             followValue.Points = followPoints;
-        
+            hasUpdated = true;
+        }
+
         var tcdTipValue =
             db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.TwitchCharityDonation && sv.Meta == "");
-        if (tcdTipValue != null && double.TryParse(DonoBox.Text, out var tcdTipSeconds))
+        if (tcdTipValue != null && double.TryParse(DonoBox.Text, out var tcdTipSeconds)
+            && !tcdTipValue.Seconds.Equals(tcdTipSeconds))
+        {
             tcdTipValue.Seconds = tcdTipSeconds;
-        if (tcdTipValue != null && int.TryParse(DonoBox2.Text, out var tcdTipPoints))
-            tcdTipValue.Points = tcdTipPoints;
+            hasUpdated = true;
+        }
 
-        Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "3000", SubT3TextBox, SubT3TextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "1000", GiftSubT1TextBox, GiftSubT1TextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2);
-        Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2);
+        if (tcdTipValue != null && int.TryParse(DonoBox2.Text, out var tcdTipPoints)
+            && !tcdTipPoints.Equals(tcdTipPoints))
+        {
+            tcdTipValue.Points = tcdTipPoints;
+            hasUpdated = true;
+        }
         
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2) ? true :  hasUpdated;
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2) ? true : hasUpdated;
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "3000", SubT3TextBox, SubT3TextBox2) ? true : hasUpdated;
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "1000", GiftSubT1TextBox, GiftSubT1TextBox2) ? true : hasUpdated;
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2) ? true : hasUpdated;
+        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2) ? true : hasUpdated;
+        return hasUpdated;
+    }
+
+    public void UpdateConfigValueSettings()
+    {
         App.AppConfig!.Set("Twitch", "PauseOnEnd", $"{TwitchPauseOnEndBx.IsChecked}");
         App.AppConfig!.Set("Twitch", "LockOnEnd",  $"{TwitchLockOnEndBx.IsChecked}");
         App.AppConfig!.Set("Twitch", "ResumeOnStart",  $"{TwitchResumeOnStartBx.IsChecked}");

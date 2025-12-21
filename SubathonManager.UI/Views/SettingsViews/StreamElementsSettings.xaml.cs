@@ -31,15 +31,27 @@ public partial class StreamElementsSettings : UserControl
             Host!.UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
     }
 
-    public void UpdateValueSettings(AppDbContext db)
+    public bool UpdateValueSettings(AppDbContext db)
     {
+        bool hasUpdated = false;
         var seTipValue =
             db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.StreamElementsDonation && sv.Meta == "");
-        if (seTipValue != null && double.TryParse(DonoBox.Text, out var seTipSeconds))
+        if (seTipValue != null && double.TryParse(DonoBox.Text, out var seTipSeconds) &&
+            !seTipSeconds.Equals(seTipValue.Seconds))
+        {
             seTipValue.Seconds = seTipSeconds;
-        if (seTipValue != null && int.TryParse(DonoBox2.Text, out var seTipPoints))
+            hasUpdated = true;
+        }
+
+        if (seTipValue != null && int.TryParse(DonoBox2.Text, out var seTipPoints) &&
+            !seTipPoints.Equals(seTipValue.Points))
+        {
             seTipValue.Points = seTipPoints;
+            hasUpdated = true;
+        }
+
+        return hasUpdated;
     }
     
     private void UpdateSEStatus(bool status)

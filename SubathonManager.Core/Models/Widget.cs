@@ -74,7 +74,7 @@ public class JsVariable
             }));
             sb.Append($"[{val}]");
         }
-        else // default as always string
+        else // default as always string. Incl EventTypeSelect
             sb.Append($"\"{Value}\"");
         sb.Append(";\n");
 

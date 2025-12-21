@@ -31,15 +31,27 @@ public partial class StreamLabsSettings : UserControl
         if (App.AppStreamLabsService != null)
             Host!.UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
     }
-    public void UpdateValueSettings(AppDbContext db)
+    public bool UpdateValueSettings(AppDbContext db)
     {
+        bool hasUpdated = false;
         var slTipValue =
             db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.StreamLabsDonation && sv.Meta == "");
-        if (slTipValue != null && double.TryParse(DonoBox.Text, out var slTipSeconds))
+        if (slTipValue != null && double.TryParse(DonoBox.Text, out var slTipSeconds)
+            && !slTipSeconds.Equals(slTipValue.Seconds))
+        {
             slTipValue.Seconds = slTipSeconds;
-        if (slTipValue != null && int.TryParse(DonoBox2.Text, out var slTipPoints))
+            hasUpdated = true;
+        }
+
+        if (slTipValue != null && int.TryParse(DonoBox2.Text, out var slTipPoints)
+            && !slTipPoints.Equals(slTipValue.Points))
+        {
             slTipValue.Points = slTipPoints;
+            hasUpdated = true;
+        }
+
+        return hasUpdated;
     }
     
     private void UpdateSLStatus(bool status)

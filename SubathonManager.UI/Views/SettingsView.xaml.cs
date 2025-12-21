@@ -40,6 +40,7 @@ public partial class SettingsView
         UpdateServerStatus(App.AppWebServer?.Running ?? false);
         Task.Run(() => CheckForUpdateOnBoot());
 
+        SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
     }
 
     private async void CheckForUpdateOnBoot()

@@ -15,6 +15,16 @@ public static class SubathonEvents
     public static event Action<List<SubathonGoal>, long, GoalsType>? SubathonGoalListUpdated;
     public static event Action<SubathonGoal, long>? SubathonGoalCompleted;
 
+    public static event Action<string>? SubathonValueConfigRequested;
+    public static event Action? SubathonValueConfigUpdatedRemote;
+    
+    public static event Action<List<SubathonValueDto>>? SubathonValuesPatched;
+
+    public static void RaiseSubathonValuesPatched(List<SubathonValueDto> values)
+    {
+        SubathonValuesPatched?.Invoke(values);
+    }
+    
     public static void RaiseSubathonEventsDeleted(List<SubathonEvent> subathonEvent)
     {
         SubathonEventsDeleted?.Invoke(subathonEvent);
@@ -28,6 +38,16 @@ public static class SubathonEvents
     public static void RaiseSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)
     {
         SubathonEventProcessed?.Invoke(subathonEvent, wasEffective);
+    }
+
+    public static void RaiseSubathonValueConfigRequested(string jsonData)
+    {
+        SubathonValueConfigRequested?.Invoke(jsonData);
+    }
+    
+    public static void RaiseSubathonValueConfigUpdatedRemote()
+    {
+        SubathonValueConfigUpdatedRemote?.Invoke();
     }
     
     public static void RaiseSubathonDataUpdate(SubathonData data, DateTime time)

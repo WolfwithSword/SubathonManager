@@ -4,13 +4,9 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
-using SubathonManager.Core;
-using SubathonManager.Services;
-using SubathonManager.Data.Extensions;
 
 namespace SubathonManager.Server;
 
@@ -27,6 +23,7 @@ public partial class WebServer
         SubathonEvents.SubathonGoalCompleted += SendGoalCompleted;
         SubathonEvents.SubathonGoalListUpdated += SendGoalsUpdated;
         OverlayEvents.OverlayRefreshRequested += SendRefreshRequest;
+        SubathonEvents.SubathonValueConfigRequested += SendSubathonValues;
     }
 
     private void StopWebsocketServer()
@@ -36,6 +33,13 @@ public partial class WebServer
         SubathonEvents.SubathonGoalCompleted -= SendGoalCompleted;
         OverlayEvents.OverlayRefreshRequested -= SendRefreshRequest;
         SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
+        SubathonEvents.SubathonValueConfigRequested -= SendSubathonValues;
+    }
+
+    private void SendSubathonValues(string jsonData)
+    {
+        var newData = $"{{ \"type\": \"value_config\", \"data\": {jsonData} }}";
+        Task.Run(() => BroadcastAsync(newData));
     }
 
     private void SendGoalsUpdated(List<SubathonGoal> goals, long currentPoints, GoalsType type)
@@ -52,7 +56,7 @@ public partial class WebServer
             goals = objGoals.ToArray(),
             goals_type = $"{type}"
         };
-        Task.Run(() => BroadcastAsync(data));
+        Task.Run(() => BroadcastAsyncObject(data));
     }
 
     private object GoalToObject(SubathonGoal goal, long currentPoints)
@@ -74,7 +78,7 @@ public partial class WebServer
             goal_points =  goal.Points,
             points = currentPoints
         };
-        Task.Run(() => BroadcastAsync(data));
+        Task.Run(() => BroadcastAsyncObject(data));
     }
 
     private async Task InitConnection(WebSocket socket)
@@ -83,6 +87,9 @@ public partial class WebServer
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .FirstOrDefaultAsync(s => s.IsActive);
         if (subathon is null) return;
+
+        string configValues = await _valueHelper.GetAllAsJsonAsync();
+        SendSubathonValues(configValues);
         
         await SelectSendAsync(socket, SubathonDataToObject(subathon));
         
@@ -134,13 +141,13 @@ public partial class WebServer
     private void SendSubathonEventProcessed(SubathonEvent subathonEvent, bool effective)
     {
         if (!subathonEvent.ProcessedToSubathon) return;
-        Task.Run(() => BroadcastAsync(SubathonEventToObject(subathonEvent)));
+        Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent)));
     }
 
     private void SendRefreshRequest(Guid id)
     {
         Task.Run(() =>
-            BroadcastAsync(new
+            BroadcastAsyncObject(new
             {
                 type = "refresh_request",
                 id = id.ToString()
@@ -189,16 +196,15 @@ public partial class WebServer
 
     private void SendSubathonDataUpdate(SubathonData subathon, DateTime time)
     {
-        Task.Run(() => BroadcastAsync(SubathonDataToObject(subathon)));
+        Task.Run(() => BroadcastAsyncObject(SubathonDataToObject(subathon)));
     }
     
-    public async Task<bool> HandleWebSocketRequestAsync(HttpListenerContext ctx, string path)
+    public async Task HandleWebSocketRequestAsync(HttpListenerContext ctx)
     {
         if (!ctx.Request.IsWebSocketRequest)
         {
-            ctx.Response.StatusCode = 400;
-            ctx.Response.Close();
-            return true;
+            await MakeApiResponse(ctx, 400, "Invalid Websocket Request");
+            return;
         }
 
         var wsContext = await ctx.AcceptWebSocketAsync(subProtocol: null);
@@ -221,8 +227,6 @@ public partial class WebServer
 
             _logger?.LogDebug("WebSocket Client Disconnected");
         }
-
-        return true;
     }
     
     private async Task Listen(WebSocket socket)
@@ -269,10 +273,15 @@ public partial class WebServer
             }
         }
     }
-    
-    public async Task BroadcastAsync(object data)
+
+    private async Task BroadcastAsyncObject(object data)
     {
         string json = JsonSerializer.Serialize(data);
+        await BroadcastAsync(json);
+    }
+    
+    private async Task BroadcastAsync(string json)
+    {
         byte[] bytes = Encoding.UTF8.GetBytes(json);
 
         List<WebSocket> clientsCopy;
@@ -345,6 +354,8 @@ public partial class WebServer
                                             window.handleGoalsUpdate(data);
                                         else if (typeof window.handleGoalCompleted === 'function' && data.type == 'goal_completed')
                                             window.handleGoalCompleted(data);
+                                        else if (typeof window.handleValueConfig === 'function' && data.type == 'value_config')
+                                            window.handleValueConfig(data);
                                         else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && (document.title.includes(data.id) || data.id == '{Guid.Empty}')) {{
                                             // for only the merged page
                                             window.location.reload();
