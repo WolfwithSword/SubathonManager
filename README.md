@@ -52,7 +52,8 @@ overlays, settings, and more all locally!
 - Goals list tracking
 - Multiplier modes for time and/or points
 - External control API for integrating with complex setups and unsupported services
-- Reverse Subathon - timer goes up, events reduce time! `(v0.4.0+)`
+- Reverse Subathon - timer goes up, events reduce time!
+- Remote config value management
 - And more!
 
 ## License
