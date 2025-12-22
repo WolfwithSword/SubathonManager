@@ -43,7 +43,7 @@
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
-      <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3595.46" />
+      <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3650.58" />
       <PackageReference Include="System.Net.Security" Version="4.3.2" />
       <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
       <PackageReference Include="WPF-UI" Version="4.1.0" />
