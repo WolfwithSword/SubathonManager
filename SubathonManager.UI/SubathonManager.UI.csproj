@@ -20,6 +20,7 @@
 
     <ItemGroup>
         <Resource Include="..\assets\icon.png" />
+        <Resource Include="..\assets\icon_base.png" />
         <Resource Include="..\assets\icon.ico" />
     </ItemGroup>
 

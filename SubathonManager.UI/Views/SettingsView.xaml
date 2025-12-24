@@ -77,6 +77,12 @@
                             </StackPanel>
                         </Grid>
                         
+                        <ui:Image Grid.Column="1" Source="pack://application:,,,/icon_base.png" Width="160" Height="160"
+                                  RenderOptions.BitmapScalingMode="HighQuality"
+                                  SnapsToDevicePixels="True"
+                                  UseLayoutRounding="True"
+                                  Stretch="Uniform"
+                                  Margin="0 -30 360 0"/>
                         <Grid Grid.Column="1">
                             <Grid>
                                 

@@ -61,7 +61,10 @@
                      Padding="12 8 12 8"
                      DockPanel.Dock="Top">
             <ui:TitleBar.Icon>
-                <ui:ImageIcon VerticalAlignment="Top">
+                <ui:ImageIcon VerticalAlignment="Top"
+                              RenderOptions.BitmapScalingMode="HighQuality"
+                              SnapsToDevicePixels="True"
+                              UseLayoutRounding="True">
                     <ui:ImageIcon.Source>
                         <BitmapImage UriSource="pack://application:,,,/icon.png" />
                     </ui:ImageIcon.Source>
