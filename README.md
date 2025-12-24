@@ -10,20 +10,15 @@
 ![Static Badge](https://img.shields.io/badge/NO%20AI-orange?style=flat-square)
 
 
-<table>
-  <tr>
-    <td width="200" align="center">
-      <img src="assets/icon_base.png" width="160" alt="icon" />
-    </td>
-    <td valign="middle">
-      <p style="font-size: 16px">
-        <strong>Subathon Manager</strong><br/>
-        An all-in-one Subathon Manager for Twitch and YouTube. Manage your timer, goals,
-overlays, settings, and more all locally!
-      </p>
-    </td>
-  </tr>
-</table>
+<img src="assets/icon_base.png" width="160" align="left" alt="icon" style="margin-right: 4px;"/>
+
+<br/>
+
+<p style="font-size: 14px;">
+  <strong>Subathon Manager</strong><br/>
+  An all-in-one Subathon Manager for Twitch and YouTube. Manage your timer,
+  goals, overlays, settings, and more — all locally.
+</p>
 
 <br clear="left" />
 
