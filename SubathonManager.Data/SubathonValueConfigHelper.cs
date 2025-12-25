@@ -25,7 +25,7 @@ public class SubathonValueConfigHelper
         WriteIndented = true
     };
 
-    public SubathonValueConfigHelper(IDbContextFactory<AppDbContext>? factory, ILogger<SubathonValueConfigHelper>? logger)
+    public SubathonValueConfigHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
     {
         _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         _logger = logger ?? AppServices.Provider?.GetRequiredService<ILogger<SubathonValueConfigHelper>>();

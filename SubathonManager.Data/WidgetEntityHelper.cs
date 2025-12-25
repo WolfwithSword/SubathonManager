@@ -16,7 +16,7 @@ public class WidgetEntityHelper
     private readonly ILogger? _logger;
     private readonly IDbContextFactory<AppDbContext> _factory;
 
-    public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger<WidgetEntityHelper>? logger)
+    public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
     {
         _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         _logger = logger ?? AppServices.Provider?.GetRequiredService<ILogger<WidgetEntityHelper>>();
