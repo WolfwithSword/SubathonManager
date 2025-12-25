@@ -49,7 +49,8 @@ public class WebServerTests
         Assert.Equal(expected, WebServer.GetContentType(file));
     }
     
-    private static IServiceProvider testProvider;
+    private static IServiceProvider _testProvider = AppServices.Provider;
+    
     public WebServerTests()
     { 
         var dbName = Guid.NewGuid().ToString();
@@ -57,13 +58,13 @@ public class WebServerTests
         services.AddLogging();
         services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddSingleton(MockConfig());
-        testProvider = services.BuildServiceProvider();
+        _testProvider = services.BuildServiceProvider();
     }
     
     private static WebServer CreateServer()
     {
-        var logger = testProvider.GetRequiredService<ILogger<WebServer>>();
-        var factory = testProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        var logger = _testProvider.GetRequiredService<ILogger<WebServer>>();
+        var factory = _testProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         return new WebServer(factory, MockConfig(), logger, port: 14045);
     }
     
@@ -90,7 +91,7 @@ public class WebServerTests
     [Fact]
     public void MatchRoute_Matches_By_Method_And_Prefix()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var handler = server.MatchRoute("GET", "/api/data/status");
 
@@ -101,7 +102,7 @@ public class WebServerTests
     [Fact]
     public void MatchRoute_Returns_Null_For_Wrong_Method()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var handler = server.MatchRoute("POST", "/api/data/status");
         Assert.Null(handler);
@@ -111,7 +112,7 @@ public class WebServerTests
     [Fact]
     public void MatchRoute_Does_Not_Match_Unrelated_Prefix()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var handler = server.MatchRoute("GET", "/api/data/status123");
         Assert.NotNull(handler);
@@ -121,7 +122,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleRequest_Executes_Route_Handler()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var ctx = new MockHttpContext
         {
             Method = "GET",
@@ -137,7 +138,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleRequest_Returns_404_For_Unknown_Route()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var ctx = new MockHttpContext
         {
             Method = "GET",
@@ -153,7 +154,7 @@ public class WebServerTests
     [Fact]
     public async Task Api_Unknown_Route_Returns_400()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var ctx = new MockHttpContext
         {
             Method = "GET",
@@ -168,7 +169,7 @@ public class WebServerTests
     [Fact]
     public async Task DataControl_Invalid_Body_Returns_400()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var ctx = new MockHttpContext
         {
             Method = "POST",
@@ -185,7 +186,7 @@ public class WebServerTests
     [Fact]
     public async Task DataControl_Invalid_Type_Returns_400()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var json = "{\"type\":\"NotARealType\"}";
         var ctx = new MockHttpContext
         {
@@ -203,7 +204,7 @@ public class WebServerTests
     [Fact]
     public void BuildDataSummary_Groups_Currency_Donations()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var events = new List<SubathonEvent>
         {
             new() { EventType = SubathonEventType.KoFiDonation, Currency = "USD", Value = "5.55" },
@@ -220,7 +221,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleSelectAsync_Returns_200_With_Route_Info()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var mockConfig = MockConfig();
         var route = new Route{ Name = "TestRoute" };
@@ -251,7 +252,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleWidgetUpdateAsync_Updates_Widget_Position()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var mockConfig = MockConfig();
         var route = new Route{ Name = "Route1" };
@@ -289,7 +290,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleWidgetUpdateAsync_Updates_Widget_Scale()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var mockConfig = MockConfig();
         var route = new Route{ Name = "Route1" };
@@ -327,7 +328,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleStatusRequestAsync_Returns_400_No_Subathon()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var ctx = new MockHttpContext
         {
@@ -344,7 +345,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleStatusRequestAsync_Returns_200_With_Expected_Content()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var ctx = new MockHttpContext
         {
@@ -370,7 +371,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleAmountsRequestAsync_Returns_200()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         SubathonData subathon = new  SubathonData();
         await using (var db = await server._factory.CreateDbContextAsync())
@@ -399,7 +400,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleValuesPatchRequestAsync_Updates_SubValue()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
 
         SubathonValue subathonValue = new  SubathonValue
@@ -440,7 +441,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleWidgetRequestAsync_Returns_Widget_Html_With_Overrides()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var route = new Route{ Name = "TestRoute" };
     
@@ -488,7 +489,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleWidgetRequest_Returns_404_For_Invalid_Widget()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         var ctx = new MockHttpContext
         {
@@ -505,7 +506,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleRouteRequest_Returns_200_With_Merged_Html()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
         string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
         await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>");
@@ -553,7 +554,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleRouteRequest_Returns_404_For_Invalid_Route()
     {
-        AppServices.Provider = testProvider;
+        AppServices.Provider = _testProvider;
         var server = CreateServer();
 
         var ctx = new MockHttpContext
