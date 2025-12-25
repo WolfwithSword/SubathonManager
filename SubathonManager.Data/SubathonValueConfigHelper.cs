@@ -25,10 +25,10 @@ public class SubathonValueConfigHelper
         WriteIndented = true
     };
 
-    public SubathonValueConfigHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
+    public SubathonValueConfigHelper(IDbContextFactory<AppDbContext>? factory, ILogger<SubathonValueConfigHelper>? logger)
     {
         _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        _logger = logger ?? AppServices.Provider.GetRequiredService<ILogger<SubathonValueConfigHelper>>();
+        _logger = logger ?? AppServices.Provider?.GetRequiredService<ILogger<SubathonValueConfigHelper>>();
     }
     
     public string GetAllAsJson()

@@ -16,10 +16,10 @@ public class WidgetEntityHelper
     private readonly ILogger? _logger;
     private readonly IDbContextFactory<AppDbContext> _factory;
 
-    public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
+    public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger<WidgetEntityHelper>? logger)
     {
-        _logger = logger ?? AppServices.Provider.GetRequiredService<ILogger<WidgetEntityHelper>>();
         _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _logger = logger ?? AppServices.Provider?.GetRequiredService<ILogger<WidgetEntityHelper>>();
     }
     
     public void SyncCssVariables(Widget widget)
