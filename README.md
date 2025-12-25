@@ -13,7 +13,7 @@
 <img src="assets/icon_base.png" width="160" align="left" alt="icon" style="margin-right: 4px;"/>
 
 <br/>
-
+<br/>
 <p style="font-size: 14px;">
   <strong>Subathon Manager</strong><br/>
   An all-in-one Subathon Manager for Twitch and YouTube. Manage your timer,
