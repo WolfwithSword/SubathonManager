@@ -10,7 +10,7 @@ using SubathonManager.Server;
 using SubathonManager.Data;
 namespace SubathonManager.Tests.ServerUnitTests;
 
-[Collection("WebServerTests")]
+[Collection("ProviderOverrideTests")]
 public class WebServerTests
 {
     

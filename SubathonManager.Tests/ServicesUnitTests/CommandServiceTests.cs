@@ -9,7 +9,7 @@ using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
-[Collection("ServicesTests")]
+[Collection("ProviderOverrideTests")]
 public class CommandServiceTests
 {
     public CommandServiceTests()
@@ -222,8 +222,8 @@ public class CommandServiceTests
         string name, SubathonEventSource? source,
         bool? expected)
     {
-        SetupServices();
         CommandService.SetConfig(MockConfig());
+        SetupServices();
         bool outcome = CommandService.ChatCommandRequest(source ?? SubathonEventSource.Unknown, $"!{command} {message}".Trim(), 
             name, isBroadcaster, isMod, isVip, DateTime.Now);
         Assert.Equal(expected, outcome);
