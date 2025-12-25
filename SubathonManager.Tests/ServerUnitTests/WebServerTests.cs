@@ -50,7 +50,7 @@ public class WebServerTests
     }
     
 
-    public static void SetupServices()
+    private static void SetupServices()
     { 
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
