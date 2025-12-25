@@ -14,6 +14,7 @@
         <ApplicationIcon>..\assets\icon.ico</ApplicationIcon>
         <ForceManagedImplementation>true</ForceManagedImplementation>
         <Company>WolfwithSword</Company>
+        <Copyright>© 2025-$(CopyrightYear) WolfwithSword and contributors</Copyright>
         <NoWarn>$(NoWarn);WPF0001</NoWarn>
         <NoWarn>$(NoWarn);NU1701</NoWarn>
         <NoWarn>$(NoWarn);CS8981</NoWarn>
