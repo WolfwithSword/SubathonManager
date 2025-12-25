@@ -6,6 +6,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 namespace SubathonManager.Tests.ServicesUnitTests;
 
+[Collection("ServicesTests")]
 public class DiscordWebhookServiceTests
 {
     private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)

@@ -7,6 +7,7 @@ using System.Reflection;
 using IniParser.Model;
 namespace SubathonManager.Tests.ServicesUnitTests;
 
+[Collection("ServicesTests")]
 public class CurrencyServiceTests
 {
     private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)

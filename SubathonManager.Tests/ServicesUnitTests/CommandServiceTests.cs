@@ -9,6 +9,7 @@ using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
+[Collection("ServicesTests")]
 public class CommandServiceTests
 {
     public CommandServiceTests()

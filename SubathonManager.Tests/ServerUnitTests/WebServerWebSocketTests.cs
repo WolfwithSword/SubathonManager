@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using SubathonManager.Server;
 namespace SubathonManager.Tests.ServerUnitTests;
 
+[Collection("WebServerTests")]
 public class WebServerWebSocketTests
 {
     private async Task HandleWebSocketAsync(IHttpContext ctx)
