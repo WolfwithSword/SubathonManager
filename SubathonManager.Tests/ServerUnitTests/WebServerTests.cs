@@ -49,24 +49,25 @@ public class WebServerTests
         Assert.Equal(expected, WebServer.GetContentType(file));
     }
     
+    
+    private readonly IServiceProvider _originalProvider;
+    public WebServerTests()
+    {
+        _originalProvider = AppServices.Provider;
+
+        var dbName = Guid.NewGuid().ToString();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
+        services.AddSingleton(MockConfig());
+        AppServices.Provider = services.BuildServiceProvider();
+    }
+    
     private static WebServer CreateServer()
     {
-        var dbName = Guid.NewGuid().ToString();
-
-        var services = new ServiceCollection();
-
-        services.AddLogging();
-
-        services.AddDbContextFactory<AppDbContext>(options =>
-            options.UseInMemoryDatabase(dbName));
-
-        var mockConfig = MockConfig();
-        services.AddSingleton(mockConfig);
-        var provider = services.BuildServiceProvider();
-        var logger = provider.GetRequiredService<ILogger<WebServer>>();
-        var factory = provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        AppServices.Provider = provider;
-        return new WebServer(factory, mockConfig, logger, port: 14045);
+        var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
+        var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        return new WebServer(factory, MockConfig(), logger, port: 14045);
     }
     
         private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
@@ -549,5 +550,11 @@ public class WebServerTests
         await server.HandleRouteRequest(ctx);
 
         Assert.Equal(404, ctx.StatusCode);
+    }
+    
+    [Fact]
+    public void Dispose()
+    {
+        AppServices.Provider = _originalProvider;
     }
 }
