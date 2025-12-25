@@ -135,7 +135,7 @@ public partial class EditRouteWindow
         WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
         {
-            PreviewWebView.Source = new Uri(_route.GetRouteUrl(true));
+            PreviewWebView.Source = new Uri(_route.GetRouteUrl(App.AppConfig!,true));
         }
         catch (Exception ex)
         {
@@ -902,7 +902,7 @@ public partial class EditRouteWindow
     private void CopyOverlayUrl_Click(object sender, RoutedEventArgs e)
     {
         if (_route == null) return;
-        Clipboard.SetText(_route.GetRouteUrl());
+        Clipboard.SetText(_route.GetRouteUrl(App.AppConfig!));
     }
 
     private void OpenOverlayInBrowser_Click(object sender, RoutedEventArgs e)
@@ -913,7 +913,7 @@ public partial class EditRouteWindow
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = _route.GetRouteUrl(),
+                FileName = _route.GetRouteUrl(App.AppConfig!),
                 UseShellExecute = true
             });
         }

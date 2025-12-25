@@ -225,7 +225,7 @@ public class WebServerTests
     {
         var server = CreateServer();
         var mockConfig = MockConfig();
-        var route = new Route(mockConfig){ Name = "TestRoute" };
+        var route = new Route{ Name = "TestRoute" };
         var widget = new Widget("Widget1", "test.html") { Route = route, RouteId = route.Id };
         route.Widgets.Add(widget);
 
@@ -254,7 +254,7 @@ public class WebServerTests
     {
         var server = CreateServer();
         var mockConfig = MockConfig();
-        var route = new Route(mockConfig){ Name = "Route1" };
+        var route = new Route{ Name = "Route1" };
         var widget = new Widget("Widget1", "test.html") { Route = route, RouteId = route.Id };
         route.Widgets.Add(widget);
 
@@ -290,7 +290,7 @@ public class WebServerTests
     {
         var server = CreateServer();
         var mockConfig = MockConfig();
-        var route = new Route(mockConfig){ Name = "Route1" };
+        var route = new Route{ Name = "Route1" };
         var widget = new Widget("Widget1", "test.html") { Route = route, RouteId = route.Id };
         route.Widgets.Add(widget);
 
@@ -430,7 +430,7 @@ public class WebServerTests
     public async Task HandleWidgetRequestAsync_Returns_Widget_Html_With_Overrides()
     {
         var server = CreateServer();
-        var route = new Route(MockConfig()) { Name = "TestRoute" };
+        var route = new Route{ Name = "TestRoute" };
     
         string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
         await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>");
@@ -492,12 +492,11 @@ public class WebServerTests
     public async Task HandleRouteRequest_Returns_200_With_Merged_Html()
     {
         var server = CreateServer();
-        var mockConfig = MockConfig();
 
         string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
         await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>");
 
-        var route = new Route(mockConfig) { Name = "TestRoute" };
+        var route = new Route{ Name = "TestRoute" };
         var widget = new Widget("Widget1", tempHtml)
         {
             Route = route,
