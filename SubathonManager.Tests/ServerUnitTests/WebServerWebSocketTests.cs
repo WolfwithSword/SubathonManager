@@ -5,7 +5,7 @@ namespace SubathonManager.Tests.ServerUnitTests;
 
 public class WebServerWebSocketTests
 {
-        private async Task HandleWebSocketAsync(IHttpContext ctx)
+    private async Task HandleWebSocketAsync(IHttpContext ctx)
     {
         var accept = ctx.AcceptWebSocketAsync();
 

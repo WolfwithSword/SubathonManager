@@ -49,28 +49,25 @@ public class WebServerTests
         Assert.Equal(expected, WebServer.GetContentType(file));
     }
     
-    
-    private readonly IServiceProvider _originalProvider;
+    private static IServiceProvider testProvider;
     public WebServerTests()
-    {
-        _originalProvider = AppServices.Provider;
-
+    { 
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
         services.AddSingleton(MockConfig());
-        AppServices.Provider = services.BuildServiceProvider();
+        testProvider = services.BuildServiceProvider();
     }
     
     private static WebServer CreateServer()
     {
-        var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
-        var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        var logger = testProvider.GetRequiredService<ILogger<WebServer>>();
+        var factory = testProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         return new WebServer(factory, MockConfig(), logger, port: 14045);
     }
     
-        private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
+    private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
     {
         var mock = new Mock<IConfig>();
         
@@ -93,36 +90,38 @@ public class WebServerTests
     [Fact]
     public void MatchRoute_Matches_By_Method_And_Prefix()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
-
         var handler = server.MatchRoute("GET", "/api/data/status");
 
         Assert.NotNull(handler);
+        AppServices.Provider = null!;
     }
 
     [Fact]
     public void MatchRoute_Returns_Null_For_Wrong_Method()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
-
         var handler = server.MatchRoute("POST", "/api/data/status");
-
         Assert.Null(handler);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public void MatchRoute_Does_Not_Match_Unrelated_Prefix()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
-
         var handler = server.MatchRoute("GET", "/api/data/status123");
-
         Assert.NotNull(handler);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleRequest_Executes_Route_Handler()
     {
+        AppServices.Provider = testProvider;
         var ctx = new MockHttpContext
         {
             Method = "GET",
@@ -130,15 +129,15 @@ public class WebServerTests
         };
 
         var server = CreateServer();
-
         await server.InvokeHandleRequest(ctx);
-
         Assert.NotEqual(404, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleRequest_Returns_404_For_Unknown_Route()
     {
+        AppServices.Provider = testProvider;
         var ctx = new MockHttpContext
         {
             Method = "GET",
@@ -146,31 +145,30 @@ public class WebServerTests
         };
 
         var server = CreateServer();
-
         await server.InvokeHandleRequest(ctx);
-
         Assert.Equal(404, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
 
     [Fact]
     public async Task Api_Unknown_Route_Returns_400()
     {
+        AppServices.Provider = testProvider;
         var ctx = new MockHttpContext
         {
             Method = "GET",
             Path = "/api/nope"
         };
-
         var server = CreateServer();
-
         await server.InvokeHandleRequest(ctx);
-
         Assert.Equal(400, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task DataControl_Invalid_Body_Returns_400()
     {
+        AppServices.Provider = testProvider;
         var ctx = new MockHttpContext
         {
             Method = "POST",
@@ -179,15 +177,15 @@ public class WebServerTests
         };
 
         var server = CreateServer();
-
         await server.InvokeHandleRequest(ctx);
-
         Assert.Equal(400, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task DataControl_Invalid_Type_Returns_400()
     {
+        AppServices.Provider = testProvider;
         var json = "{\"type\":\"NotARealType\"}";
         var ctx = new MockHttpContext
         {
@@ -197,26 +195,24 @@ public class WebServerTests
         };
 
         var server = CreateServer();
-
         await server.InvokeHandleRequest(ctx);
-
         Assert.Equal(400, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
 
     [Fact]
     public void BuildDataSummary_Groups_Currency_Donations()
     {
+        AppServices.Provider = testProvider;
         var events = new List<SubathonEvent>
         {
             new() { EventType = SubathonEventType.KoFiDonation, Currency = "USD", Value = "5.55" },
             new() { EventType = SubathonEventType.StreamElementsDonation, Currency = "USD", Value = "3" }
         };
-
         var server = CreateServer();
-
         var result = server.InvokeBuildDataSummary(events);
-
         Assert.NotNull(result);
+        AppServices.Provider = null!;
     }
     
     /////////////// Widget and Route tests
@@ -224,6 +220,7 @@ public class WebServerTests
     [Fact]
     public async Task HandleSelectAsync_Returns_200_With_Route_Info()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         var mockConfig = MockConfig();
         var route = new Route{ Name = "TestRoute" };
@@ -248,11 +245,13 @@ public class WebServerTests
         Assert.Equal(200, ctx.StatusCode);
         var body = ctx.GetResponseText();
         Assert.Equal("OK", body);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleWidgetUpdateAsync_Updates_Widget_Position()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         var mockConfig = MockConfig();
         var route = new Route{ Name = "Route1" };
@@ -283,12 +282,14 @@ public class WebServerTests
             Assert.Equal(162, updatedWidget!.X);
             Assert.Equal(200, updatedWidget.Y);
         }
+        AppServices.Provider = null!;
     }
     
         
     [Fact]
     public async Task HandleWidgetUpdateAsync_Updates_Widget_Scale()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         var mockConfig = MockConfig();
         var route = new Route{ Name = "Route1" };
@@ -319,12 +320,14 @@ public class WebServerTests
             Assert.Equal(2, updatedWidget!.ScaleX);
             Assert.Equal(2.5, updatedWidget.ScaleY);
         }
+        AppServices.Provider = null!;
     }
 
     
     [Fact]
     public async Task HandleStatusRequestAsync_Returns_400_No_Subathon()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         var ctx = new MockHttpContext
         {
@@ -335,11 +338,13 @@ public class WebServerTests
         await server.HandleStatusRequestAsync(ctx);
 
         Assert.Equal(400, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleStatusRequestAsync_Returns_200_With_Expected_Content()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         var ctx = new MockHttpContext
         {
@@ -359,11 +364,13 @@ public class WebServerTests
         Assert.Equal(200, ctx.StatusCode);
         var text = ctx.GetResponseText();
         Assert.Contains("millis_remaining", text, StringComparison.OrdinalIgnoreCase);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleAmountsRequestAsync_Returns_200()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         SubathonData subathon = new  SubathonData();
         await using (var db = await server._factory.CreateDbContextAsync())
@@ -385,12 +392,14 @@ public class WebServerTests
         Assert.NotNull(text);
         Assert.Contains("real", text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("simulated", text, StringComparison.OrdinalIgnoreCase);
+        AppServices.Provider = null!;
     }
 
     
     [Fact]
     public async Task HandleValuesPatchRequestAsync_Updates_SubValue()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
 
         SubathonValue subathonValue = new  SubathonValue
@@ -425,11 +434,13 @@ public class WebServerTests
                 x => x.EventType == SubathonEventType.TwitchSub && x.Meta == "1000").FirstOrDefaultAsync();
             Assert.Equal(20, updatedVal!.Seconds);
         }
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleWidgetRequestAsync_Returns_Widget_Html_With_Overrides()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
         var route = new Route{ Name = "TestRoute" };
     
@@ -471,13 +482,14 @@ public class WebServerTests
         Assert.Contains("const testVar = 42", body);
 
         File.Delete(tempHtml);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleWidgetRequest_Returns_404_For_Invalid_Widget()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
-
         var ctx = new MockHttpContext
         {
             Method = "GET",
@@ -487,13 +499,14 @@ public class WebServerTests
         await server.HandleRouteRequest(ctx);
 
         Assert.Equal(404, ctx.StatusCode);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleRouteRequest_Returns_200_With_Merged_Html()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
-
         string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
         await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>");
 
@@ -534,11 +547,13 @@ public class WebServerTests
         Assert.Contains("<html>", html, StringComparison.OrdinalIgnoreCase);
 
         File.Delete(tempHtml);
+        AppServices.Provider = null!;
     }
     
     [Fact]
     public async Task HandleRouteRequest_Returns_404_For_Invalid_Route()
     {
+        AppServices.Provider = testProvider;
         var server = CreateServer();
 
         var ctx = new MockHttpContext
@@ -550,11 +565,7 @@ public class WebServerTests
         await server.HandleRouteRequest(ctx);
 
         Assert.Equal(404, ctx.StatusCode);
-    }
-    
-    [Fact]
-    public void Dispose()
-    {
-        AppServices.Provider = _originalProvider;
+
+        AppServices.Provider = null!;
     }
 }
