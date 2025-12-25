@@ -12,13 +12,14 @@ namespace SubathonManager.Data;
 
 public class WidgetEntityHelper
 {
-    
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WidgetEntityHelper>>();
+
+    private readonly ILogger? _logger;
     private readonly IDbContextFactory<AppDbContext> _factory;
 
-    public WidgetEntityHelper()
+    public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
     {
-        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _logger = logger ?? AppServices.Provider.GetRequiredService<ILogger<WidgetEntityHelper>>();
+        _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     }
     
     public void SyncCssVariables(Widget widget)

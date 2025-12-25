@@ -1,7 +1,6 @@
-﻿using System.Net;
-using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
@@ -34,12 +33,12 @@ public partial class WebServer
         _routes.Add((new RouteKey("POST", "/api/update-size/"),HandleWidgetUpdateAsync));
     }
     
-    private async Task HandleSelectAsync(HttpListenerContext ctx)
+    internal async Task HandleSelectAsync(IHttpContext ctx)
     {
-        var path = ctx.Request.Url!.AbsolutePath;
+        var path = ctx.Path;
         
         // Fast Close
-        await MakeApiResponse(ctx, 200, "OK");
+        await ctx.WriteResponse(200, "OK");
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 3)
         {
@@ -50,17 +49,10 @@ public partial class WebServer
             }
         }
     }
-
-    private async Task MakeApiResponse(HttpListenerContext ctx, int code, string response)
-    {
-        ctx.Response.StatusCode = code;
-        await ctx.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(response));
-        ctx.Response.Close(); 
-    }
     
-    private async Task HandleWidgetUpdateAsync(HttpListenerContext ctx)
+    internal async Task HandleWidgetUpdateAsync(IHttpContext ctx)
     {;
-        var path = ctx.Request.Url!.AbsolutePath;
+        var path = ctx.Path;
 
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 3)
@@ -68,17 +60,17 @@ public partial class WebServer
             string widgetId = parts[2];
 
             string body;
-            using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
+            using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
                 body = await reader.ReadToEndAsync();
             var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body);
 
             if (data == null)
             {
-                await MakeApiResponse(ctx, 400, "Invalid update data");
+                await ctx.WriteResponse(400, "Invalid update data");
                 return;
             }
 
-            var widgetHelper = new WidgetEntityHelper();
+            var widgetHelper = new WidgetEntityHelper(_factory, null);
             bool success = false;
             if (path.StartsWith("/api/update-size/", StringComparison.OrdinalIgnoreCase))
                 success = await widgetHelper.UpdateWidgetScale(widgetId, data);
@@ -87,28 +79,37 @@ public partial class WebServer
 
             if (success)
             {
-                await MakeApiResponse(ctx, 200, "OK");
+                await ctx.WriteResponse(200, "OK");
                 return;
             }
-
-            await MakeApiResponse(ctx, 404, "Widget Not Found");
+            
+            await ctx.WriteResponse(404, "Widget Not Found");
             return;
         }
-        await MakeApiResponse(ctx, 400, "Invalid Widget ID");
+        await ctx.WriteResponse(400, "Invalid Widget ID");
     }
 
-    private async Task HandleDataControlRequestAsync(HttpListenerContext ctx)
+    private async Task HandleDataControlRequestAsync(IHttpContext ctx)
     {
         string body;
-        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
             body = await reader.ReadToEndAsync();
-        
-        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>($"{body}");
-        
-        if (data == null)
+
+        var data = new Dictionary<string, JsonElement>();
+        try
         {
-            
-            await MakeApiResponse(ctx, 400, "Invalid control data");
+            data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>($"{body}");
+        }
+        catch (JsonException ex)
+        {
+            _logger?.LogError(ex, "Invalid control data");
+            await ctx.WriteResponse(400, "Invalid control data");
+            return;
+        }
+
+        if (data == null || data.Count == 0)
+        {
+            await ctx.WriteResponse(400, "Invalid control data");
             return;
         }
 
@@ -117,8 +118,8 @@ public partial class WebServer
             || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out type))
         {
             
-            await MakeApiResponse(ctx, 400, "Invalid control data");
-            return;// true;
+            await ctx.WriteResponse(400, "Invalid control data");
+            return;
         }
 
         bool success = false;
@@ -136,20 +137,20 @@ public partial class WebServer
         }
         else
         {
-            await MakeApiResponse(ctx, 400, "Invalid control data");
+            await ctx.WriteResponse(400, "Invalid control data");
             return;
         }
 
         if (success)
         {
-            await MakeApiResponse(ctx, 200, "OK");
+            await ctx.WriteResponse(200, "OK");
             return;
         }
-        await MakeApiResponse(ctx, 400, "Invalid API Request");
+        await ctx.WriteResponse(400, "Invalid API Request");
     }
 
 
-    private async Task HandleStatusRequestAsync(HttpListenerContext ctx)
+    internal async Task HandleStatusRequestAsync(IHttpContext ctx)
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
@@ -158,7 +159,7 @@ public partial class WebServer
         TimeSpan? multiplierRemaining = TimeSpan.Zero;
         if (subathon == null)
         {
-            await MakeApiResponse(ctx, 400, "Invalid status request");
+            await ctx.WriteResponse(400, "Invalid status request");
             return;
         }
         if (subathon.Multiplier.Duration != null && subathon.Multiplier.Duration > TimeSpan.Zero
@@ -198,10 +199,10 @@ public partial class WebServer
         {
             WriteIndented = true
         });
-        await MakeApiResponse(ctx, 200, json);
+        await ctx.WriteResponse(200, json);
     }
 
-    private async Task HandleAmountsRequestAsync(HttpListenerContext ctx)
+    internal async Task HandleAmountsRequestAsync(IHttpContext ctx)
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
@@ -209,7 +210,7 @@ public partial class WebServer
             .FirstOrDefaultAsync(s => s.IsActive);
         if (subathon == null)
         {
-            await MakeApiResponse(ctx, 400, "Invalid status request");
+            await ctx.WriteResponse(400, "Invalid status request");
             return;
         }
         var events = await db.SubathonEvents
@@ -231,19 +232,19 @@ public partial class WebServer
         {
             WriteIndented = true
         });
-        await MakeApiResponse(ctx, 200, json);
+        await ctx.WriteResponse(200, json);
     }
     
-    private async Task HandleValuesRequestAsync(HttpListenerContext ctx)
+    private async Task HandleValuesRequestAsync(IHttpContext ctx)
     {
         var json = await _valueHelper.GetAllAsJsonAsync();
-        await MakeApiResponse(ctx, 200, json);
+        await ctx.WriteResponse(200, json);
     }
 
-    private async Task HandleValuesPatchRequestAsync(HttpListenerContext ctx)
+    internal async Task HandleValuesPatchRequestAsync(IHttpContext ctx)
     {
         string body;
-        using (var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding))
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
             body = await reader.ReadToEndAsync();
         int patched = await _valueHelper.PatchFromJsonAsync(body);
         int code;
@@ -263,7 +264,7 @@ public partial class WebServer
             code = 200;
             msg = $"Patched {patched} Values";
         }
-        await MakeApiResponse(ctx, code, msg);
+        await ctx.WriteResponse(code, msg);
     }
 
     private object BuildDataSummary(List<SubathonEvent> events)

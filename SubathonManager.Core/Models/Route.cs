@@ -6,7 +6,15 @@ using Microsoft.Extensions.DependencyInjection;
 [ExcludeFromCodeCoverage]
 public class Route
 {
-    private readonly IConfig _config = AppServices.Provider.GetRequiredService<IConfig>();
+    private readonly IConfig _config;
+    
+    
+    public Route() : this(null) { }
+    
+    public Route(IConfig? config = null)
+    {
+        _config = config ?? AppServices.Provider.GetRequiredService<IConfig>();
+    }
     
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -24,7 +32,4 @@ public class Route
         string qString = editMode ? "?edit=true" : "";
         return $"http://localhost:{_config.Get("Server", "Port", "14040")}/route/{Id}{qString}";
     }
-    
-    
-    
 }

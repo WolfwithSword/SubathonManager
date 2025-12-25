@@ -11,7 +11,7 @@ namespace SubathonManager.Data;
 
 public class SubathonValueConfigHelper
 {
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SubathonValueConfigHelper>>();
+    private readonly ILogger? _logger;
     private readonly IDbContextFactory<AppDbContext> _factory;
     
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -25,9 +25,10 @@ public class SubathonValueConfigHelper
         WriteIndented = true
     };
 
-    public SubathonValueConfigHelper()
+    public SubathonValueConfigHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
     {
-        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        _logger = logger ?? AppServices.Provider.GetRequiredService<ILogger<SubathonValueConfigHelper>>();
     }
     
     public string GetAllAsJson()

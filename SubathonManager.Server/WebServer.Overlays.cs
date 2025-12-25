@@ -22,9 +22,9 @@ public partial class WebServer
         }
     }
 
-    private async Task HandleWidgetRequest(HttpListenerContext ctx)
+    internal async Task HandleWidgetRequest(IHttpContext ctx)
     {
-        var path = ctx.Request.Url!.AbsolutePath;
+        var path = ctx.Path;
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
         if (parts.Length >= 2)
@@ -90,27 +90,25 @@ public partial class WebServer
                                 html += jsOverrides;
                             }
 
-                            ctx.Response.ContentType = "text/html";
-                            AddCorsHeaders(ctx.Response);
-                            await MakeApiResponse(ctx, 200, html);
+                            await ctx.WriteResponse(200, html, true, "text/html");
                             return;
                         }
-                        await ServeFile(ctx, filePath);
+                        await ctx.ServeFile(filePath, GetContentType(filePath));
                         return;
                     }
                 }
             }
         }
-        await MakeApiResponse(ctx, 404, "Widget not found");
+        await ctx.WriteResponse(404, "Widget not found");
     }
 
-    private async Task HandleRouteRequest(HttpListenerContext ctx)
+    internal async Task HandleRouteRequest(IHttpContext ctx)
     {
-        var path = ctx.Request.Url!.AbsolutePath;
+        var path = ctx.Path;
         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length >= 2)
         {
-            string routeId = parts[1];
+            string routeId = parts[1].Split('?')[0];
             if (Guid.TryParse(routeId, out var routeGuid))
             {
                 await using var db = await _factory.CreateDbContextAsync();
@@ -120,20 +118,16 @@ public partial class WebServer
                     .FirstOrDefaultAsync(r => r.Id == routeGuid);
                 if (route != null)
                 {
-                        
-                    var query = ctx.Request.Url!.Query.TrimStart('?');
-                    var queryString = System.Web.HttpUtility.ParseQueryString(query);
+                    var queryString = System.Web.HttpUtility.ParseQueryString(ctx.QueryString);
                     bool isEditor = queryString["edit"] != null && queryString["edit"]!.Equals("true");
             
                     string html = GenerateMergedPage(route, isEditor);
-                    ctx.Response.ContentType = "text/html";
-                    AddCorsHeaders(ctx.Response);
-                    await MakeApiResponse(ctx, 200, html);
+                    await ctx.WriteResponse(200, html, true, "text/html");
                     return;
                 }
             }
         }
-        await MakeApiResponse(ctx, 404, "Route not found");
+        await ctx.WriteResponse(404, "Route not found");
     }
 
     private string GenerateMergedPage(Route route, bool isEditor = false)

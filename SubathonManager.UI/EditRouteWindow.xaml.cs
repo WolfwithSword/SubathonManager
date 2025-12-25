@@ -117,7 +117,7 @@ public partial class EditRouteWindow
 
         int index = sorted.Count;
         bool hasUpdatedZ = false;
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         foreach (var w in sorted)
         {
             if (w.Z != index)
@@ -393,7 +393,7 @@ public partial class EditRouteWindow
             return;
         }
         
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         using var db = _factory.CreateDbContext();
         widgetHelper.SyncCssVariables(widget);
         widgetHelper.SyncJsVariables(widget);
@@ -702,7 +702,7 @@ public partial class EditRouteWindow
     private void ReloadVars_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWidget == null) return;
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         widgetHelper.SyncCssVariables(_selectedWidget);
         widgetHelper.SyncJsVariables(_selectedWidget);
         
@@ -723,7 +723,7 @@ public partial class EditRouteWindow
         try
         {
             if (_selectedWidget == null) return;
-            WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+            WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
             
             
             widgetHelper.SyncCssVariables(_selectedWidget);
@@ -838,7 +838,7 @@ public partial class EditRouteWindow
                 _lastFolder = Path.GetDirectoryName(path)!;
                 await using var db = await _factory.CreateDbContextAsync();
                 var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
-                WidgetEntityHelper helper = new WidgetEntityHelper();
+                WidgetEntityHelper helper = new WidgetEntityHelper(_factory, null);
                 var metadata = await helper.ExtractWidgetMetadata(path);
                 
                 newWidget.RouteId = _route!.Id;

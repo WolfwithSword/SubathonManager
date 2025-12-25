@@ -199,16 +199,23 @@ public partial class WebServer
         Task.Run(() => BroadcastAsyncObject(SubathonDataToObject(subathon)));
     }
     
-    public async Task HandleWebSocketRequestAsync(HttpListenerContext ctx)
+    public async Task HandleWebSocketRequestAsync(IHttpContext ctx)
     {
-        if (!ctx.Request.IsWebSocketRequest)
+        if (!ctx.IsWebSocket)
         {
-            await MakeApiResponse(ctx, 400, "Invalid Websocket Request");
+            await ctx.WriteResponse(400, "Invalid Websocket Request");
             return;
         }
 
-        var wsContext = await ctx.AcceptWebSocketAsync(subProtocol: null);
-        var socket = wsContext.WebSocket;
+        var accept = ctx.AcceptWebSocketAsync();
+
+        if (accept is null)
+        {
+            await ctx.WriteResponse(400, "Not a WebSocket request");
+            return;
+        }
+
+        using WebSocket socket = await accept;
 
         lock (_lock)
             _clients.Add(socket);

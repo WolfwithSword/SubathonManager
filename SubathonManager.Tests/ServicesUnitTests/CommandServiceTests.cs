@@ -3,7 +3,6 @@ using Moq;
 using Moq.Protected;
 using SubathonManager.Services;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using IniParser.Model;
 using SubathonManager.Core.Enums;
