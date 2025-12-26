@@ -86,7 +86,6 @@ public class WebServerTests
         });
         return mock.Object;
     }
-
     
     [Fact]
     public void MatchRoute_Matches_By_Method_And_Prefix()
@@ -395,7 +394,7 @@ public class WebServerTests
 
     
     [Fact]
-    public async Task HandleValuesPatchRequestAsync_Updates_SubValue()
+    public async Task HandleValuesPatchRequestAsync_AllPaths()
     {
         var server = CreateServer();
         SetupServices();
@@ -431,6 +430,26 @@ public class WebServerTests
                 x => x.EventType == SubathonEventType.TwitchSub && x.Meta == "1000").FirstOrDefaultAsync();
             Assert.Equal(20, updatedVal!.Seconds);
         }
+        
+        ctx = new MockHttpContext
+        {
+            Method = "PATCH",
+            Path = "/api/data/values",
+            Body = new MemoryStream(Encoding.UTF8.GetBytes(patchJson))
+        };
+        await server.HandleValuesPatchRequestAsync(ctx);
+        Assert.Equal(201, ctx.StatusCode);
+        
+        patchJson = "[{\"EventType\":\"FakeSub\", \"Source\":\"BadData\", \"Seconds\": 20, \"Meta\": \"\"}]";
+        ctx = new MockHttpContext
+        {
+            Method = "PATCH",
+            Path = "/api/data/values",
+            Body = new MemoryStream(Encoding.UTF8.GetBytes(patchJson))
+        };
+        await server.HandleValuesPatchRequestAsync(ctx);
+        Assert.Equal(400, ctx.StatusCode);
+        
         AppServices.Provider = null!;
     }
     

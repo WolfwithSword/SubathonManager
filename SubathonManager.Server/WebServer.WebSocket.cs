@@ -36,13 +36,13 @@ public partial class WebServer
         SubathonEvents.SubathonValueConfigRequested -= SendSubathonValues;
     }
 
-    private void SendSubathonValues(string jsonData)
+    internal void SendSubathonValues(string jsonData)
     {
         var newData = $"{{ \"type\": \"value_config\", \"data\": {jsonData} }}";
         Task.Run(() => BroadcastAsync(newData));
     }
 
-    private void SendGoalsUpdated(List<SubathonGoal> goals, long currentPoints, GoalsType type)
+    internal void SendGoalsUpdated(List<SubathonGoal> goals, long currentPoints, GoalsType type)
     {
         List<object> objGoals = new List<object>();
         foreach (var goal in goals)
@@ -69,7 +69,7 @@ public partial class WebServer
         };
     }
 
-    private void SendGoalCompleted(SubathonGoal goal, long currentPoints)
+    internal void SendGoalCompleted(SubathonGoal goal, long currentPoints)
     {
         object data = new
         {
@@ -138,13 +138,13 @@ public partial class WebServer
         return data;
     }
 
-    private void SendSubathonEventProcessed(SubathonEvent subathonEvent, bool effective)
+    internal void SendSubathonEventProcessed(SubathonEvent subathonEvent, bool effective)
     {
         if (!subathonEvent.ProcessedToSubathon) return;
         Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent)));
     }
 
-    private void SendRefreshRequest(Guid id)
+    internal void SendRefreshRequest(Guid id)
     {
         Task.Run(() =>
             BroadcastAsyncObject(new
@@ -194,9 +194,15 @@ public partial class WebServer
         return data;
     }
 
-    private void SendSubathonDataUpdate(SubathonData subathon, DateTime time)
+    internal void SendSubathonDataUpdate(SubathonData subathon, DateTime time)
     {
         Task.Run(() => BroadcastAsyncObject(SubathonDataToObject(subathon)));
+    }
+
+    internal void AddSocketClient(WebSocket socket)
+    {
+        lock (_lock)
+            _clients.Add(socket);
     }
     
     public async Task HandleWebSocketRequestAsync(IHttpContext ctx)
@@ -217,8 +223,7 @@ public partial class WebServer
 
         using WebSocket socket = await accept;
 
-        lock (_lock)
-            _clients.Add(socket);
+        AddSocketClient(socket);
         
         _logger?.LogDebug("New WebSocket Client Connected");
         await InitConnection(socket);
@@ -312,7 +317,7 @@ public partial class WebServer
         }
     }
 
-    public async Task SelectSendAsync(WebSocket client, object data)
+    internal async Task SelectSendAsync(WebSocket client, object data)
     {
         string json = JsonSerializer.Serialize(data);
         byte[] bytes = Encoding.UTF8.GetBytes(json);

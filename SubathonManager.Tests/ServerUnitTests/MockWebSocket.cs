@@ -11,7 +11,13 @@ public sealed class MockWebSocket : WebSocket
     public override string? SubProtocol => null;
     public bool Disposed { get; private set; }
     
-
+    private readonly Queue<WebSocketReceiveResult> _receiveQueue = new();
+    
+    public void EnqueueReceive(WebSocketReceiveResult result)
+    {
+        _receiveQueue.Enqueue(result);
+    }
+    
     public override Task CloseAsync(
         WebSocketCloseStatus closeStatus,
         string? statusDescription,
@@ -41,7 +47,15 @@ public sealed class MockWebSocket : WebSocket
     public override Task<WebSocketReceiveResult> ReceiveAsync(
         ArraySegment<byte> buffer,
         CancellationToken cancellationToken)
-        => throw new NotSupportedException();
+    {
+        if (_receiveQueue.Count > 0)
+        {
+            var result = _receiveQueue.Dequeue();
+            return Task.FromResult(result);
+        }
+        
+        return Task.FromResult(new WebSocketReceiveResult(0, WebSocketMessageType.Close, true));
+    }
 
     public override void Dispose()
     {
