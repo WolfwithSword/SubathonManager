@@ -30,6 +30,7 @@ public partial class SettingsView
         KoFiSettingsControl.Init(this);
         ExternalSettingsControl.Init(this);
         CommandsSettingsControl.Init(this);
+        ChatExtSettingsControl.Init(this);
         
         ServerPortTextBox.Text = App.AppConfig!.Get("Server", "Port", string.Empty)!;
         LoadValues();

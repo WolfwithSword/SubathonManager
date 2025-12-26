@@ -10,5 +10,6 @@ public enum SubathonEventSource
     Simulated, // buttons to test in UI? 
     Unknown, // default
     StreamLabs,
-    External
+    External,
+    Blerp
 }

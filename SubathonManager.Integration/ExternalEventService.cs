@@ -75,6 +75,8 @@ public static class ExternalEventService
     public static bool ProcessExternalDonation(Dictionary<string, JsonElement> data)
     {
         data.TryGetValue("type", out JsonElement elemType);
+        if (elemType.ValueKind != JsonValueKind.String) return false;
+
         string typeStr = elemType.GetString()!;
         Enum.TryParse<SubathonEventType>(typeStr, ignoreCase: true, out var type);
         

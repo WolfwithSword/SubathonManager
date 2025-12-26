@@ -885,7 +885,75 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             await service.StopAsync(CancellationToken.None);
             await service.StopAsync(CancellationToken.None);
         }
+        
+        [Fact]
+        public void HandleChatMessage_BlerpNotification()
+        {
+            var config = MockConfig();
+            var service = new TwitchService(null, config);
 
+            ChatMessage MakeMessage(string message, bool isVip, bool isMod, bool isBroadcaster, string userName,
+                string displayName)
+            {
+                TwitchLib.Client.Enums.UserType type = UserType.Viewer;
+                if (isMod) type = UserType.Moderator;
+                if (isBroadcaster) type = UserType.Broadcaster;
+                
+                return new ChatMessage(
+                    botUsername: "",
+                    userId: "123456789",
+                    userName: userName,
+                    displayName: displayName,
+                    colorHex: "#ffffff",
+                    color: Color.Black,
+                    emoteSet: new("", ""),
+                    message: message,
+                    userType: type,
+                    channel: "teststreamer",
+                    id: Guid.NewGuid().ToString(),
+                    isSubscriber: true,
+                    subscribedMonthCount: 4,
+                    roomId: "098765432",
+                    isTurbo: false,
+                    isModerator: isMod,
+                    isMe: false,
+                    isBroadcaster: isBroadcaster,
+                    isVip: isVip,
+                    isPartner: false,
+                    isStaff: false,
+                    noisy: Noisy.NotSet,
+                    rawIrcMessage: "",
+                    emoteReplacedMessage: "",
+                    badges: new List<KeyValuePair<string, string>>(),
+                    cheerBadge: new CheerBadge(0),
+                    bits: 0,
+                    bitsInDollars: 0
+                );
+
+            }
+
+            var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false, 
+                true, "blerp", "blerp");
+            var args = new OnMessageReceivedArgs
+            {
+                ChatMessage = chatMsg
+            };
+            
+            typeof(SubathonEvents)
+                .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+                ?.SetValue(null, null);
+            
+            var ev = CaptureEvent(() =>
+                service
+                    .GetType()
+                    .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .Invoke(service, new object?[] { null, args })
+            );
+
+            Assert.NotNull(ev);
+            Assert.Equal(SubathonEventType.BlerpBits, ev.EventType);
+            Assert.Equal(SubathonEventSource.Blerp, ev.Source);
+            Assert.Equal("SomeGuy", ev.User);
+        }
     }
-    
 }

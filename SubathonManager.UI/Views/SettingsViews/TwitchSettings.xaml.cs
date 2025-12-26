@@ -23,10 +23,6 @@ public partial class TwitchSettings : UserControl
         InitTwitchAutoSettings();
         LoadHypeTrainValues();
         TwitchEvents.TwitchConnected += UpdateTwitchStatus;
-        
-        bool.TryParse(App.AppConfig!.Get("Twitch", "BitsAsDonation", "False"), out bool  bitsAsDonation);
-        BitsAsCurrencyBox.IsChecked = bitsAsDonation;
-        App.AppConfig!.Set("Twitch", "BitsAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
     }
     
     private void UpdateTwitchStatus()
@@ -128,7 +124,6 @@ public partial class TwitchSettings : UserControl
         App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Points",  $"{HypeTrainMultPointsBox.IsChecked}");
         App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Time",  $"{HypeTrainMultTimeBox.IsChecked}");
         App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
-        App.AppConfig!.Set("Twitch", "BitsAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
         App.AppConfig!.Save();
     }
     

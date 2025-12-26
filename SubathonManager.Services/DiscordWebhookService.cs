@@ -90,7 +90,7 @@ public class DiscordWebhookService : IDisposable
         if (string.IsNullOrEmpty(_eventWebhookUrl) ) return;
         var payload = new
         {
-            username = AppUsername,
+            username = $"{AppUsername} - {AppServices.AppVersion}",
             avatar_url = AppAvatarUrl,
             embeds = new[]
             {
@@ -144,7 +144,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = AppUsername,
+                username = $"{AppUsername} - v{AppServices.AppVersion}",
                 avatar_url = AppAvatarUrl,
                 embeds = new[] {embed}
             };
@@ -210,7 +210,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = AppUsername,
+                username = $"{AppUsername} - v{AppServices.AppVersion}",
                 avatar_url = AppAvatarUrl,
                 embeds
             };
@@ -268,7 +268,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = AppUsername,
+                username = $"{AppUsername} - v{AppServices.AppVersion}",
                 avatar_url = AppAvatarUrl,
                 embeds
             };
@@ -371,7 +371,7 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = AppUsername,
+                username = $"{AppUsername} - v{AppServices.AppVersion}",
                 avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
@@ -401,7 +401,7 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = AppUsername,
+                username = $"{AppUsername} - v{AppServices.AppVersion}",
                 avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {

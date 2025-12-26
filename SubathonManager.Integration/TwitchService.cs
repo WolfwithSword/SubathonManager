@@ -271,6 +271,10 @@ public class TwitchService
                 e.ChatMessage.Username, // DisplayName
                 isBroadcaster, isMod, isVip, DateTime.Now);
         }
+        else if (e.ChatMessage.DisplayName.Equals("blerp", StringComparison.InvariantCultureIgnoreCase))
+        {
+            BlerpChatService.ParseMessage(e.ChatMessage.Message, SubathonEventSource.Twitch);
+        }
     }
 
     
