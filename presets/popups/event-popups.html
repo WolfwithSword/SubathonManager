@@ -4,7 +4,7 @@ Width:480
 Height:200
 Author:WolfwithSword
 Demo:https://github.com/WolfwithSword/SubathonManager/discussions/135
-applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation,ExternalDonation,ExternalSub,KoFiSub,KoFiDonation
+applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation,ExternalDonation,ExternalSub,KoFiSub,KoFiDonation,BlerpBits,BlerpBeets
 showSeconds.Boolean:True
 showPoints.Boolean:False
 showMoney.Boolean:False
@@ -85,7 +85,7 @@ END_WIDGET_META
             }
             if (showMoney) {
                 if ((data.event_type.toLowerCase().includes("donation") || data.event_type.toLowerCase().endsWith("tip")
-                    || data.event_type.toLowerCase().includes("twitchcheer"))) {
+                    || data.currency == "bits" || data.currency == "beets")) {
                     let val = data.value ?? "";
                     const currency = data.currency;
                     if (val && val != "") {

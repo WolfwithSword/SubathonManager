@@ -315,14 +315,14 @@ public partial class WebServer
                         t => t.Sum(x => x.Amount)
                     );
             }
+            else if (g.Key.IsCheerType())
+            {
+                result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
+            }
             else
             {
                 switch (g.Key)
                 {
-                    case SubathonEventType.TwitchCheer:
-                        result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
-                        break;
-
                     case SubathonEventType.TwitchFollow:
                         result[key] = g.Count();
                         break;

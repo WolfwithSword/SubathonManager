@@ -164,8 +164,11 @@ namespace SubathonManager.Data
                     !string.IsNullOrWhiteSpace(e.Currency)
                 && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
                 .ToListAsync();
+
             events = events.Where(e => e.EventType.IsCurrencyDonation() ||
-                                       (includeBits && e.EventType == SubathonEventType.TwitchCheer)).ToList();
+                                       (includeBits && 
+                                        SubathonEventTypeHelper.CheerTypes.Contains
+                                            ((SubathonEventType) e.EventType!))).ToList();
             return events;
         }
         
@@ -281,6 +284,8 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.ExternalDonation, Seconds = 12}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.KoFiDonation, Seconds = 12}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
+                new SubathonValue { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
             };
 
             foreach (var def in defaults)

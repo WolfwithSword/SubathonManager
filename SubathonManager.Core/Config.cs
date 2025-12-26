@@ -41,6 +41,13 @@ namespace SubathonManager.Core
                 }
             }
 
+            if (GetSection("Twitch").ContainsKey("BitsAsDonation"))
+            {
+                Set("Currency", "BitsLikeAsDonation", Get("Twitch", "BitsAsDonation", "False"));
+                GetSection("Twitch").RemoveKey("BitsAsDonation");
+                migrated = true;
+            }
+
             if (migrated) Save();
             return migrated;
         }

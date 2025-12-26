@@ -1,7 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
-
+using SubathonManager.Core.Enums;
 namespace SubathonManager.Core;
 
 public class Utils
@@ -15,10 +15,8 @@ public class Utils
         }
 
         input = input.Trim();
-        if (input.Contains(":"))
-        {
+        if (input.Contains(':'))
             return ParseColonDurationString(input);
-        }
 
         return ParseLetterDurationString(input);
 
@@ -160,6 +158,20 @@ public class Utils
             return $"\"{value}\"";
         }
         return value;
+    }
+    
+    public static (bool, double) GetAltCurrencyUseAsDonation(IConfig config, SubathonEventType? eventType)
+    {
+        double modifier = 1;
+        if (!eventType.IsCheerType())
+            return (false, 1);
+        if (eventType != SubathonEventType.TwitchCheer)
+        {
+            double.TryParse(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
+        }
+
+        bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"), out bool useAsDonation);
+        return (useAsDonation, modifier);
     }
 
 }

@@ -113,7 +113,7 @@ public partial class App
             AppConfig.LoadOrCreateDefault();
             AppConfig.MigrateConfig();
             
-            bool.TryParse(AppConfig.Get("Twitch", "BitsAsDonation", "False"), out bool bitsAsDonationCheck);
+            bool.TryParse(AppConfig.Get("Currency", "BitsLikeAsDonation", "False"), out bool bitsAsDonationCheck);
             _bitsAsDonationVal = bitsAsDonationCheck;
             _currencyVal = AppConfig!.Get("Currency", "Primary", "USD")!;
 
@@ -247,7 +247,8 @@ public partial class App
         }
         
         AppYouTubeService?.Dispose();
-        
+        _configWatcher?.Dispose();
+        (AppServices.Provider as IDisposable)?.Dispose();
         base.OnExit(e);
         _logger?.LogInformation("======== Subathon Manager exit ========");
     }
@@ -280,7 +281,8 @@ public partial class App
             }
             AppDiscordWebhookService?.LoadFromConfig();
             SetThemeFromConfig();
-            bool.TryParse(AppConfig.Get("Twitch", "BitsAsDonation", "False"),
+
+            bool.TryParse(AppConfig.Get("Currency", "BitsLikeAsDonation", "False"),
                 out bool bitsAsDonationCheck);
             string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
             
@@ -335,7 +337,7 @@ public partial class App
     {
         // Setup first time or convert currency
         string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
-        bool.TryParse(AppConfig.Get("Twitch", "BitsAsDonation", "False"),
+        bool.TryParse(AppConfig.Get("Currency", "BitsLikeAsDonation", "False"),
             out bool bitsAsDonationCheck);
         
         var subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
@@ -366,12 +368,13 @@ public partial class App
         var events = await AppDbContext.GetSubathonCurrencyEvents(db, bitsAsDonationCheck);
         
         double sum = 0;
-        long bits = 0;
+        double bits = 0;
         foreach (var e in events)
         {
-            if (e.EventType == SubathonEventType.TwitchCheer)
+            (bool isBitsLike, double modifier) = Utils.GetAltCurrencyUseAsDonation(AppConfig, e.EventType);
+            if (e.EventType.IsCheerType() && isBitsLike)
             {
-                bits += int.Parse(e.Value);
+                bits += (int.Parse(e.Value) * modifier);
                 continue;
             }
             if (string.IsNullOrWhiteSpace(e.Currency)) continue;
@@ -381,7 +384,7 @@ public partial class App
 
         if (bitsAsDonationCheck)
         {
-            double val = await currencyService.ConvertAsync(((double)bits) / 100, "USD", subathon.Currency);
+            double val = await currencyService.ConvertAsync((bits) / 100, "USD", subathon.Currency);
             sum += val;
         }
         await db.UpdateSubathonMoney(sum, subathon.Id);

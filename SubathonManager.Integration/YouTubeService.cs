@@ -195,6 +195,10 @@ public class YouTubeService : IDisposable
             CommandService.ChatCommandRequest(SubathonEventSource.YouTube, messagePreview, user,
                 item.IsOwner, item.IsModerator, false,
                 item.Timestamp.DateTime.ToLocalTime());
+        else if (user.Equals("blerp", StringComparison.OrdinalIgnoreCase))
+        {
+            BlerpChatService.ParseMessage(messagePreview, SubathonEventSource.YouTube);
+        }
     }
     
     private void TryReconnectLoop()

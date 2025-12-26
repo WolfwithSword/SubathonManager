@@ -50,6 +50,8 @@
   - SE Pay Tips
 - **StreamLabs**
   - Donations
+- **Blerp**
+  - Twitch & YouTube, (Bits & Beets)
 - **External**
   - Custom commands, donations, and subscriptions via POST API 
 

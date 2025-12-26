@@ -477,5 +477,45 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 YouTubeEvents.YouTubeConnectionUpdated -= handler;
             }
         }
+        
+        [Fact]
+        public void OnChatReceived_BlerpMessage()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
+            SubathonEvent? captured = null;
+            Action<SubathonEvent> handler = e => captured = e;
+            SubathonEvents.SubathonEventCreated += handler;
+            
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            MessagePart parts = new TextPart{Text="SomeGuy used 500 beets to play FunnyHaHa"}; 
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Timestamp = DateTimeOffset.UtcNow,
+                IsModerator = true,
+                Author = new Author { Name = "blerp", ChannelId = "12345"},
+                Message = new[] { parts }
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, new object?[] { null, args });
+            
+            Assert.NotNull(captured);
+            Assert.Equal(SubathonEventSource.Blerp, captured!.Source);
+            Assert.Equal(SubathonEventType.BlerpBeets, captured!.EventType);
+            Assert.Equal("SomeGuy", captured.User);
+            SubathonEvents.SubathonEventCreated -= handler;
+        }
+        
     }
 }

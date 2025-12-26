@@ -47,6 +47,7 @@ public partial class ExternalServiceSettings : UserControl
         var value = SimulateExternalAmt.Text;
         var currency = CurrencyBox.Text;
         Dictionary<string, JsonElement> data = new Dictionary<string, JsonElement>();
+        data.Add("type", JsonSerializer.SerializeToElement($"{SubathonEventType.ExternalDonation}"));
         data.Add("user", JsonSerializer.SerializeToElement("SYSTEM"));
         data.Add("currency", JsonSerializer.SerializeToElement(currency));
         data.Add("amount", JsonSerializer.SerializeToElement(value));

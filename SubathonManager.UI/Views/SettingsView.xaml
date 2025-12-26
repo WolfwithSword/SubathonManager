@@ -65,6 +65,9 @@
                                           x:Name="DefaultCurrencyBox" StaysOpenOnEdit="True"
                                           Margin="0 0 4 0">
                                 </ComboBox>
+                                
+                                <CheckBox x:Name="BitsAsCurrencyBox" Margin="4 0 4 0" ToolTip="Count 1 bit (or similar currency) as 0.01 USD for total money?"
+                                          Content="Bits-Like as Donation?"/>
                             </StackPanel>
                             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
                                 <TextBlock Text="App Theme:" Width="120"
@@ -159,6 +162,9 @@
                     
                      <!-- StreamLabs --> 
                      <views:StreamLabsSettings x:Name="StreamLabsSettingsControl" />
+                     
+                     <!-- Chat Extensions -->
+                     <views:ChatExtensionSettings x:Name="ChatExtSettingsControl" />
                      
                      <!-- KoFi -->
                      <views:KoFiSettings x:Name="KoFiSettingsControl" />

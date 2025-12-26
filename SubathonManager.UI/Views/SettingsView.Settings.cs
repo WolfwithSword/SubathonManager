@@ -75,6 +75,8 @@ namespace SubathonManager.UI.Views
         private void SaveTopAppSettings()
         {
             string selectedCurrency = DefaultCurrencyBox.Text;
+            
+            App.AppConfig!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
             if (selectedCurrency.Length >= 3)
             {
                 App.AppConfig!.Set("Currency", "Primary", selectedCurrency);
@@ -84,7 +86,6 @@ namespace SubathonManager.UI.Views
             if (int.TryParse(ServerPortTextBox.Text, out var port))
             {
                 App.AppConfig!.Set("Server", "Port", port.ToString());
-                App.AppConfig!.Save();
             }
             
             string selectedTheme = (ThemeBox.SelectedItem is ComboBoxItem item) 
@@ -93,8 +94,10 @@ namespace SubathonManager.UI.Views
             if (!string.IsNullOrEmpty(selectedTheme))
             {
                 App.AppConfig!.Set("App", "Theme", selectedTheme);
-                App.AppConfig!.Save();
             }
+
+            ChatExtSettingsControl.SaveConfigValues();
+            App.AppConfig!.Save();
         }
 
         public void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
@@ -134,13 +137,22 @@ namespace SubathonManager.UI.Views
         {
             using var db = _factory.CreateDbContext();
 
+            var updaters = new Func<AppDbContext, bool>[]
+            {
+                ExternalSettingsControl.UpdateValueSettings,
+                YouTubeSettingsControl.UpdateValueSettings,
+                TwitchSettingsControl.UpdateValueSettings,
+                StreamElementsSettingsControl.UpdateValueSettings,
+                StreamLabsSettingsControl.UpdateValueSettings,
+                KoFiSettingsControl.UpdateValueSettings,
+                ChatExtSettingsControl.UpdateValueSettings
+            };
+            
             bool hasUpdated = false;
-            hasUpdated = ExternalSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
-            hasUpdated = YouTubeSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
-            hasUpdated = TwitchSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
-            hasUpdated = StreamElementsSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
-            hasUpdated = StreamLabsSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
-            hasUpdated = KoFiSettingsControl.UpdateValueSettings(db) ? true : hasUpdated;
+            foreach (var updater in updaters)
+            {
+                hasUpdated |= updater(db);
+            }
 
             db.SaveChanges();
 
@@ -148,7 +160,6 @@ namespace SubathonManager.UI.Views
             {
                 SubathonValueConfigHelper helper = new SubathonValueConfigHelper(null, null);
                 var newData = helper.GetAllAsJson();
-                Console.WriteLine(newData);
                 SubathonEvents.RaiseSubathonValueConfigRequested(newData);
             }
         }
@@ -240,6 +251,16 @@ namespace SubathonManager.UI.Views
                         box = TwitchSettingsControl.CheerTextBox;
                         box2 = TwitchSettingsControl.Cheer2TextBox; // in backend when adding, need to round down when adding for odd bits
                         break;
+                    case SubathonEventType.BlerpBits:
+                        v = $"{Math.Round(val.Seconds * 100)}";
+                        box = ChatExtSettingsControl.BitsTextBox;
+                        box2 = ChatExtSettingsControl.Bits2TextBox; 
+                        break;
+                    case SubathonEventType.BlerpBeets:
+                        v = $"{Math.Round(val.Seconds * 100)}";
+                        box = ChatExtSettingsControl.BeetsTextBox;
+                        box2 = ChatExtSettingsControl.Beets2TextBox; 
+                        break;
                     case SubathonEventType.TwitchSub:
                         switch (val.Meta)
                         {
@@ -293,6 +314,10 @@ namespace SubathonManager.UI.Views
 
             if (doConfigLoad)
             {
+                bool.TryParse(App.AppConfig!.Get("Currency", "BitsLikeAsDonation", "False"), out bool  bitsAsDonation);
+                BitsAsCurrencyBox.IsChecked = bitsAsDonation;
+                // App.AppConfig!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
+                
                 var theme = App.AppConfig!.Get("App", "Theme", "Dark")!;
                 foreach (ComboBoxItem item in ThemeBox.Items)
                 {
@@ -302,6 +327,7 @@ namespace SubathonManager.UI.Views
                         break;
                     }
                 }
+                ChatExtSettingsControl.LoadConfigValues();
             }
 
             KoFiSettingsControl.LoadValues(db);

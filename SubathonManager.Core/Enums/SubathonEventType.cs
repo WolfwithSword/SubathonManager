@@ -21,7 +21,9 @@ public enum SubathonEventType
     ExternalSub,
     KoFiDonation,
     KoFiSub,
-    DonationAdjustment
+    DonationAdjustment,
+    BlerpBits, // twitch only
+    BlerpBeets
     // any new must be added after the last
 }
 
@@ -39,9 +41,11 @@ public static class SubathonEventTypeHelper
         SubathonEventType.DonationAdjustment
     };
     
-    private static readonly SubathonEventType[] CheerTypes = new[]
+    public static readonly SubathonEventType[] CheerTypes = new[]
     {
-        SubathonEventType.TwitchCheer
+        SubathonEventType.TwitchCheer,
+        SubathonEventType.BlerpBeets,
+        SubathonEventType.BlerpBits // needs a modifier
     };
 
     private static readonly SubathonEventType[] GiftTypes = new[]
@@ -81,6 +85,15 @@ public static class SubathonEventTypeHelper
         SubathonEventType.Unknown,
         SubathonEventType.TwitchHypeTrain
     };
+
+    private static readonly SubathonEventType[] ExtensionType = new[]
+    {
+        SubathonEventType.BlerpBeets,
+        SubathonEventType.BlerpBits
+    };
+    
+    public static bool IsExtensionType(this SubathonEventType? eventType) => 
+        eventType.HasValue && ExtensionType.Contains(eventType.Value);
     
     public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
         eventType.HasValue && CurrencyDonationEvents.Contains(eventType.Value);
@@ -118,6 +131,9 @@ public static class SubathonEventTypeHelper
             SubathonEventType.TwitchFollow => SubathonEventSource.Twitch,
             SubathonEventType.TwitchSub => SubathonEventSource.Twitch,
             SubathonEventType.TwitchCheer => SubathonEventSource.Twitch,
+            
+            SubathonEventType.BlerpBits => SubathonEventSource.Blerp, // but twitch only
+            SubathonEventType.BlerpBeets => SubathonEventSource.Blerp,
             
             SubathonEventType.StreamElementsDonation => SubathonEventSource.StreamElements,
             SubathonEventType.StreamLabsDonation => SubathonEventSource.StreamLabs,

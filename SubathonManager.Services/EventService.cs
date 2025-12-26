@@ -392,6 +392,7 @@ public class EventService: IDisposable
         if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment)
         {
             ev.ProcessedToSubathon = true;
+            (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
             if (ev.EventType.IsCurrencyDonation() && ev.Currency != "???" &&
                 _currencyService.IsValidCurrency(ev.Currency) && !string.IsNullOrWhiteSpace(ev.Currency))
             {
@@ -403,17 +404,16 @@ public class EventService: IDisposable
                     added, subathon.Id);
 
             }
-            else if (ev.EventType == SubathonEventType.TwitchCheer &&
-                     bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"), out bool bitsAsDono)
-                     && bitsAsDono)
+            else if (asDono)
             {
-                double added = await _currencyService.ConvertAsync(double.Parse(ev.Value) / 100, "USD",
+                double added = await _currencyService.ConvertAsync((double.Parse(ev.Value) * modifier) / 100, "USD",
                     _config.Get("Currency", "Primary", "USD"));
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
                     added, subathon.Id);
                 
             }
+            
             await db.Entry(subathon.Multiplier).ReloadAsync();
             await db.Entry(subathon).ReloadAsync();
             
@@ -517,14 +517,12 @@ public class EventService: IDisposable
 
         // edge case will happen if cheers as dono state was different than when this runs.
         // this is acceptable for now, as it can resync properly on toggle
-        if (ev.EventType == SubathonEventType.TwitchCheer &&
-            bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"), out bool bitsDono)
-            && bitsDono)
+        (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
+        if (asDono)
         {
-            moneyToRemove += await _currencyService.ConvertAsync(Math.Round(double.Parse(ev.Value)/100, 2), "USD",
+            moneyToRemove += await _currencyService.ConvertAsync(Math.Round((double.Parse(ev.Value) * modifier)/100, 2), "USD",
                 _config.Get("Currency", "Primary", "USD"));
         }
-        
 
         if (!ev.ProcessedToSubathon)
         {
@@ -570,7 +568,7 @@ public class EventService: IDisposable
             await DetectGoalStateChange(db, subathon!, goalSet, initialPoints);
         }
     }
-
+    
     public async void UndoSimulatedEvents(AppDbContext db, List<SubathonEvent> events, bool doAll = false)
     {
         // Remove simulated events from the active subathon only
@@ -613,11 +611,10 @@ public class EventService: IDisposable
                     await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
             }
 
-            if (ev.EventType == SubathonEventType.TwitchCheer &&
-                bool.TryParse(_config.Get("Twitch", "BitsAsDonation", "False"),
-                    out bool bitsDono) && bitsDono)
+            (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
+            if (asDono)
             {
-                bits += int.Parse(ev.Value);
+                bits += (long) (int.Parse(ev.Value) * modifier);
             }
         }
         
