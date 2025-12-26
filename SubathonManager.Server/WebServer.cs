@@ -1,9 +1,9 @@
 ﻿using System.Net;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Data;
+using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 
@@ -11,24 +11,33 @@ namespace SubathonManager.Server;
 
 public partial class WebServer
 {
-    private readonly IDbContextFactory<AppDbContext> _factory;
+    internal readonly IDbContextFactory<AppDbContext> _factory;
     public int Port { get; }
     private readonly HttpListener _listener;
     public bool Running { get; private set; }
     
     private readonly HashSet<string> _servedFolders = new();
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
+    private readonly ILogger? _logger;
     private readonly IConfig _config;
-    private SubathonValueConfigHelper _valueHelper = new ();
+    private SubathonValueConfigHelper _valueHelper;
     
     record RouteKey(string Method, string Pattern);
-    private readonly List<(RouteKey key, Func<HttpListenerContext, Task> handler)> _routes
+    private readonly List<(RouteKey key, Func<IHttpContext, Task> handler)> _routes
         = new();
     
-    public WebServer(IDbContextFactory<AppDbContext> factory, IConfig config, int port = 14040)
+    internal Task InvokeHandleRequest(IHttpContext ctx)
+        => HandleRequestAsync(ctx);
+
+    internal object InvokeBuildDataSummary(List<SubathonEvent> e)
+        => BuildDataSummary(e);
+    
+    public WebServer(IDbContextFactory<AppDbContext> factory, IConfig config, ILogger? logger,
+        int port = 14040)
     {
         _factory = factory;
         _config = config; // unused but handy to have for future
+        _logger = logger ?? AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
+        _valueHelper = new(factory, null);
         using (var db = _factory.CreateDbContext())
         {
             var routes = db.Routes.ToList();
@@ -71,7 +80,7 @@ public partial class WebServer
             try
             {
                 var context = await _listener.GetContextAsync();
-                _ = Task.Run(() => HandleRequestAsync(context));
+                _ = Task.Run(() => HandleRequestAsync(new HttpListenerContextAdapter(context)));
             }
             catch (HttpListenerException ex)
             {
@@ -103,10 +112,18 @@ public partial class WebServer
         }
     }
     
-    private async Task HandleRequestAsync(HttpListenerContext ctx)
+    internal Func<IHttpContext, Task>? MatchRoute(string method, string path)
     {
-        string path = ctx.Request.Url?.AbsolutePath ?? "/";
-        var method = ctx.Request.HttpMethod;
+        return _routes
+            .Where(r => r.key.Method == method && path.StartsWith(r.key.Pattern))
+            .Select(r => r.handler)
+            .FirstOrDefault();
+    }
+    
+    private async Task HandleRequestAsync(IHttpContext ctx)
+    {
+        string path = ctx.Path ?? "/";
+        var method = ctx.Method;
 
         if (path != "/ws")
             _logger?.LogDebug($"Request:[{method}] {path}");
@@ -115,14 +132,12 @@ public partial class WebServer
         
         
         bool handled = false;
-        foreach (var (key, handler) in _routes)
+        
+        var routeHandler = MatchRoute(method, path);
+        if (routeHandler != null)
         {
-            if (method == key.Method && path.StartsWith(key.Pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                await handler(ctx);
-                handled = true;
-                break;
-            }
+            handled = true;
+            await routeHandler(ctx);
         }
 
         if (handled) return;
@@ -134,7 +149,7 @@ public partial class WebServer
             var fixedFolder = folder.Replace("\\", "/");
             if (path.Contains(fixedFolder) && File.Exists(path.TrimStart('/')))
             {
-                await ServeFile(ctx, path.TrimStart('/'));
+                await ctx.ServeFile(path.TrimStart('/'), GetContentType(path));
                 return;
             }
         }
@@ -147,14 +162,7 @@ public partial class WebServer
             msg = "Invalid API Request";
         }
 
-        await MakeApiResponse(ctx, code, msg);
-    }
-    
-    private static void AddCorsHeaders(HttpListenerResponse response)
-    {
-        response.AddHeader("Access-Control-Allow-Origin", "*");
-        response.AddHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        response.AddHeader("Access-Control-Allow-Headers", "Content-Type");
+        await ctx.WriteResponse(code, msg);
     }
 
     internal static string GetContentType(string filePath)
@@ -205,16 +213,6 @@ public partial class WebServer
             _ => "application/octet-stream"
         };
         return contentType;
-    }
-
-    private async Task ServeFile(HttpListenerContext ctx, string fullPath)
-    {
-        ctx.Response.ContentType = GetContentType(fullPath);
-        AddCorsHeaders(ctx.Response);  
-        await using var fs = File.OpenRead(fullPath);
-        ctx.Response.ContentLength64 = fs.Length;
-        await fs.CopyToAsync(ctx.Response.OutputStream);
-        ctx.Response.Close();
     }
 
 }

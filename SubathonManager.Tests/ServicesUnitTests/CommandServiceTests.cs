@@ -3,13 +3,13 @@ using Moq;
 using Moq.Protected;
 using SubathonManager.Services;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using IniParser.Model;
 using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
+[Collection("ProviderOverrideTests")]
 public class CommandServiceTests
 {
     public CommandServiceTests()
@@ -222,8 +222,8 @@ public class CommandServiceTests
         string name, SubathonEventSource? source,
         bool? expected)
     {
-        SetupServices();
         CommandService.SetConfig(MockConfig());
+        SetupServices();
         bool outcome = CommandService.ChatCommandRequest(source ?? SubathonEventSource.Unknown, $"!{command} {message}".Trim(), 
             name, isBroadcaster, isMod, isVip, DateTime.Now);
         Assert.Equal(expected, outcome);

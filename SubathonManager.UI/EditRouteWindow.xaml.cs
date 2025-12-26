@@ -117,7 +117,7 @@ public partial class EditRouteWindow
 
         int index = sorted.Count;
         bool hasUpdatedZ = false;
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         foreach (var w in sorted)
         {
             if (w.Z != index)
@@ -135,7 +135,7 @@ public partial class EditRouteWindow
         WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
         {
-            PreviewWebView.Source = new Uri(_route.GetRouteUrl(true));
+            PreviewWebView.Source = new Uri(_route.GetRouteUrl(App.AppConfig!,true));
         }
         catch (Exception ex)
         {
@@ -393,7 +393,7 @@ public partial class EditRouteWindow
             return;
         }
         
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         using var db = _factory.CreateDbContext();
         widgetHelper.SyncCssVariables(widget);
         widgetHelper.SyncJsVariables(widget);
@@ -702,7 +702,7 @@ public partial class EditRouteWindow
     private void ReloadVars_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWidget == null) return;
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         widgetHelper.SyncCssVariables(_selectedWidget);
         widgetHelper.SyncJsVariables(_selectedWidget);
         
@@ -723,7 +723,7 @@ public partial class EditRouteWindow
         try
         {
             if (_selectedWidget == null) return;
-            WidgetEntityHelper widgetHelper = new WidgetEntityHelper();
+            WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
             
             
             widgetHelper.SyncCssVariables(_selectedWidget);
@@ -838,7 +838,7 @@ public partial class EditRouteWindow
                 _lastFolder = Path.GetDirectoryName(path)!;
                 await using var db = await _factory.CreateDbContextAsync();
                 var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
-                WidgetEntityHelper helper = new WidgetEntityHelper();
+                WidgetEntityHelper helper = new WidgetEntityHelper(_factory, null);
                 var metadata = await helper.ExtractWidgetMetadata(path);
                 
                 newWidget.RouteId = _route!.Id;
@@ -902,7 +902,7 @@ public partial class EditRouteWindow
     private void CopyOverlayUrl_Click(object sender, RoutedEventArgs e)
     {
         if (_route == null) return;
-        Clipboard.SetText(_route.GetRouteUrl());
+        Clipboard.SetText(_route.GetRouteUrl(App.AppConfig!));
     }
 
     private void OpenOverlayInBrowser_Click(object sender, RoutedEventArgs e)
@@ -913,7 +913,7 @@ public partial class EditRouteWindow
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = _route.GetRouteUrl(),
+                FileName = _route.GetRouteUrl(App.AppConfig!),
                 UseShellExecute = true
             });
         }

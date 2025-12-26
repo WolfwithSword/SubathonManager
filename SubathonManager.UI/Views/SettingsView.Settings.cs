@@ -146,7 +146,7 @@ namespace SubathonManager.UI.Views
 
             if (hasUpdated)
             {
-                SubathonValueConfigHelper helper = new SubathonValueConfigHelper();
+                SubathonValueConfigHelper helper = new SubathonValueConfigHelper(null, null);
                 var newData = helper.GetAllAsJson();
                 Console.WriteLine(newData);
                 SubathonEvents.RaiseSubathonValueConfigRequested(newData);

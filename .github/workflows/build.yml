@@ -131,6 +131,11 @@ jobs:
           else
             echo "file_version=0.0.0.0" >> $GITHUB_OUTPUT
           fi
+          
+      - name: Set copyright year
+        shell: bash
+        run: |
+          echo "CopyrightYear=$(date +%Y)" >> $GITHUB_ENV
 
       - name: Build project
         run: >
@@ -144,6 +149,7 @@ jobs:
           -p:FileVersion=${{ steps.vars.outputs.file_version }}
           -p:AssemblyVersion=${{ steps.vars.outputs.file_version }}
           -p:InformationalVersion=${{ steps.vars.outputs.version }} 
+          -p:Copyright="© 2025–${{ env.CopyrightYear }} WolfwithSword and contributors"
           -o build
 
       - name: Copy presets folder and license into build output

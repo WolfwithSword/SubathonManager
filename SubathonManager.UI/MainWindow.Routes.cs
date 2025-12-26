@@ -54,7 +54,7 @@ namespace SubathonManager.UI
             {
                 dynamic item = btn.DataContext;
                 Route route = item;
-                Clipboard.SetText(route.GetRouteUrl());
+                Clipboard.SetText(route.GetRouteUrl(App.AppConfig!));
             }
         }
         

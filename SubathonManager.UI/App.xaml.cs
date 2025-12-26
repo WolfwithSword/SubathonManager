@@ -166,7 +166,7 @@ public partial class App
                 }
             );
 
-            AppWebServer = new WebServer(_factory, AppConfig,
+            AppWebServer = new WebServer(_factory, AppConfig, null,
                 int.Parse(AppConfig.Get("Server", "Port", "14040")!));
 
             Task.Run(async () =>
@@ -275,7 +275,7 @@ public partial class App
             {
                 _logger?.LogDebug($"Config reloaded! New server port: {newPort}");
                 AppWebServer?.Stop();
-                AppWebServer = new WebServer(_factory!, AppConfig!, newPort);
+                AppWebServer = new WebServer(_factory!, AppConfig!, null, newPort);
                 Task.Run(async() => await AppWebServer.StartAsync());
             }
             AppDiscordWebhookService?.LoadFromConfig();
