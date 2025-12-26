@@ -85,6 +85,15 @@ public static class SubathonEventTypeHelper
         SubathonEventType.Unknown,
         SubathonEventType.TwitchHypeTrain
     };
+
+    private static readonly SubathonEventType[] ExtensionType = new[]
+    {
+        SubathonEventType.BlerpBeets,
+        SubathonEventType.BlerpBits
+    };
+    
+    public static bool IsExtensionType(this SubathonEventType? eventType) => 
+        eventType.HasValue && ExtensionType.Contains(eventType.Value);
     
     public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
         eventType.HasValue && CurrencyDonationEvents.Contains(eventType.Value);
