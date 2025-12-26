@@ -247,7 +247,8 @@ public partial class App
         }
         
         AppYouTubeService?.Dispose();
-        
+        _configWatcher?.Dispose();
+        (AppServices.Provider as IDisposable)?.Dispose();
         base.OnExit(e);
         _logger?.LogInformation("======== Subathon Manager exit ========");
     }
