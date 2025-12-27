@@ -179,7 +179,7 @@ public class DiscordWebhookService : IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger?.LogError(ex, ex.Message);
+            _logger?.LogDebug(ex, ex.Message);
         }
         catch (Exception ex)
         {
@@ -232,7 +232,7 @@ public class DiscordWebhookService : IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger?.LogError(ex, ex.Message);
+            _logger?.LogDebug(ex, ex.Message);
         }
         catch (Exception ex)
         {
@@ -353,8 +353,12 @@ public class DiscordWebhookService : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
-        _ctsConfig.Cancel();
+        try
+        {
+            _cts.Cancel();
+            _ctsConfig.Cancel();
+        } catch (Exception ex) {/**/}
+
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted -= OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured -= SendErrorEvent;

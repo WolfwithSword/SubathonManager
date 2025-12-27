@@ -19,9 +19,13 @@ public class TimerService
         var periodicTimer = new PeriodicTimer(_tickInterval);
         try
         {
-            while (await periodicTimer.WaitForNextTickAsync(_cts.Token))
+            if (!_cts.IsCancellationRequested)
             {
-                Tick();
+                while (await periodicTimer.WaitForNextTickAsync(_cts.Token))
+                {
+                    Tick();
+                    if (_cts.IsCancellationRequested) break;
+                }
             }
         }
         catch (OperationCanceledException ex)
@@ -29,8 +33,14 @@ public class TimerService
             _logger?.LogError(ex, ex.Message);
         }
     }
-    
-    public void Stop() => _cts.Cancel();
+
+    public void Stop()
+    {
+        if (!_cts.IsCancellationRequested)
+        {
+            _cts.Cancel();
+        }
+    }
 
     private void Tick()
     {

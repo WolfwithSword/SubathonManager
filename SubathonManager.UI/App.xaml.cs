@@ -106,6 +106,7 @@ public partial class App
             services.AddSingleton<StreamElementsService>();
             services.AddSingleton<StreamLabsService>();
             services.AddSingleton<EventService>();
+            services.AddSingleton<DiscordWebhookService>();
 
             AppServices.Provider = services.BuildServiceProvider();
 
@@ -153,7 +154,7 @@ public partial class App
             AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
             AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
             AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
-            
+            AppDiscordWebhookService = AppServices.Provider.GetRequiredService<DiscordWebhookService>();
 
             Task.Run(async () =>
                 {
@@ -204,8 +205,6 @@ public partial class App
             });
 
             WatchConfig();
-
-            AppDiscordWebhookService = new DiscordWebhookService(null, AppConfig);
         }
         catch (Exception ex)
         {
@@ -215,21 +214,22 @@ public partial class App
         }
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    protected override async void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("======== Subathon Manager exiting ========");
-        Task.Run(() => AppServices.Provider.GetRequiredService<EventService>().StopAsync());
+        await AppServices.Provider.GetRequiredService<EventService>().StopAsync();
         AppTimerService.Stop();
         AppWebServer?.Stop();
         AppStreamElementsService?.Disconnect();
-        if (AppStreamLabsService!.Connected) Task.Run(() => { AppStreamLabsService?.DisconnectAsync(); });
+        if (AppStreamLabsService != null && AppStreamLabsService!.Connected) 
+            await AppStreamLabsService!.DisconnectAsync();
         
         if (AppTwitchService != null)
         {
             try
             {
                 var cts = new CancellationTokenSource(5000);
-                Task.Run(async() => await AppTwitchService.StopAsync(cts.Token));
+                await AppTwitchService.StopAsync(cts.Token);
                 _logger?.LogDebug("TwitchService stopped");
             }
             catch (Exception ex)
@@ -239,11 +239,8 @@ public partial class App
         }
         if (AppDiscordWebhookService != null)
         {
-            Task.Run(() =>
-            {
-                AppDiscordWebhookService?.StopAsync();
-                AppDiscordWebhookService?.Dispose();
-            });
+            await AppDiscordWebhookService!.StopAsync(); 
+            AppDiscordWebhookService?.Dispose();
         }
         
         AppYouTubeService?.Dispose();

@@ -99,18 +99,18 @@ public partial class TwitchSettings : UserControl
         }
 
         if (tcdTipValue != null && int.TryParse(DonoBox2.Text, out var tcdTipPoints)
-            && !tcdTipPoints.Equals(tcdTipPoints))
+            && !tcdTipValue.Points.Equals(tcdTipPoints))
         {
             tcdTipValue.Points = tcdTipPoints;
             hasUpdated = true;
         }
         
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2) ? true :  hasUpdated;
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2) ? true : hasUpdated;
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "3000", SubT3TextBox, SubT3TextBox2) ? true : hasUpdated;
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "1000", GiftSubT1TextBox, GiftSubT1TextBox2) ? true : hasUpdated;
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2) ? true : hasUpdated;
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2) ? true : hasUpdated;
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2);
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2) ;
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "3000", SubT3TextBox, SubT3TextBox2) ;
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "1000", GiftSubT1TextBox, GiftSubT1TextBox2) ;
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2) ;
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2) ;
         return hasUpdated;
     }
 

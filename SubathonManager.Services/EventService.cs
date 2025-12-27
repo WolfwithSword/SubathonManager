@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Core;
@@ -10,7 +9,6 @@ namespace SubathonManager.Services;
 
 // We don't need one of these for Subathon updates, because those fire every second anyways
 
-[ExcludeFromCodeCoverage]
 public class EventService: IDisposable
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
@@ -330,7 +328,7 @@ public class EventService: IDisposable
             {
                 ev.SecondsValue = parsedValue * subathonValue.Seconds;
             }
-            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits".Split(",").Contains(ev.Currency))
+            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets".Split(",").Contains(ev.Currency))
             {
                 ev.SecondsValue = subathonValue.Seconds;
             }
@@ -353,6 +351,11 @@ public class EventService: IDisposable
             }
             else
                 ev.SecondsValue = subathonValue.Seconds;
+
+            if (ev.EventType.IsCheerType() && double.TryParse(ev.Value, out var parsedBitsLikeValue))
+            {
+                ev.PointsValue = (int) Math.Floor((parsedBitsLikeValue / 100));
+            }
         }
 
         if (ev.EventType == SubathonEventType.DonationAdjustment)
