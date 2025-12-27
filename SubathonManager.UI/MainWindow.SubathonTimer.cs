@@ -22,11 +22,31 @@ namespace SubathonManager.UI
                     double moneySum =  subathon.GetRoundedMoneySumWithCents();
                     TimerValue.Text = subathon.TimeRemainingRounded().ToString();
                     _lastUpdatedTimerAt = time;
-                    PauseIcon.Symbol = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
-                    LockIcon.Symbol = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
-                    PointsValue.Text = $"{subathon.Points:N0} Pts";
-                    MoneyValue.Text = $"{subathon.Currency} {moneySum:N2}".Trim();
-                    LockStatus.Visibility = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
+                    var pauseIcon = subathon.IsPaused  ? SymbolRegular.Play32 : SymbolRegular.Pause32;
+                    if (PauseIcon.Symbol != pauseIcon)
+                        PauseIcon.Symbol = pauseIcon;
+                    
+                    var lockIcon = subathon.IsLocked ? SymbolRegular.LockOpen28 : SymbolRegular.LockClosed32;
+                    if (LockIcon.Symbol != lockIcon)
+                        LockIcon.Symbol = lockIcon;
+                    
+                    if (PointsValue.Text != $"{subathon.Points:N0} Pts")
+                        PointsValue.Text = $"{subathon.Points:N0} Pts";
+                    
+                    if (MoneyValue.Text != $"{subathon.Currency} {moneySum:N2}".Trim())
+                        MoneyValue.Text = $"{subathon.Currency} {moneySum:N2}".Trim();
+                    
+                    var lockStatus = subathon.IsLocked ? Visibility.Visible : Visibility.Hidden;
+                    if (LockStatus.Visibility != lockStatus)
+                        LockStatus.Visibility = lockStatus;
+
+                    var pauseTt = subathon.IsPaused ? "Resume" : "Pause";
+                    if (!pauseTt.Equals(TogglePauseTimerBtn.ToolTip))
+                        TogglePauseTimerBtn.ToolTip = pauseTt;
+                    
+                    var lockTt = subathon.IsLocked ? "Unlock" : "Lock";
+                    if (!lockTt.Equals(ToggleLockTimerBtn.ToolTip))
+                        ToggleLockTimerBtn.ToolTip = lockTt;
                 });
             }
         }

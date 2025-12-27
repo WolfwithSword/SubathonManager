@@ -92,7 +92,7 @@ public class DiscordWebhookService : IDisposable
         if (string.IsNullOrEmpty(_eventWebhookUrl) ) return;
         var payload = new
         {
-            username = $"{AppUsername} - {AppServices.AppVersion}",
+            username = $"{AppUsername} - {AppServices.AppVersion.Take(10)}",
             avatar_url = AppAvatarUrl,
             embeds = new[]
             {
@@ -144,7 +144,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion}",
+                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
                 avatar_url = AppAvatarUrl,
                 embeds = new[] {embed}
             };
@@ -210,7 +210,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion}",
+                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
                 avatar_url = AppAvatarUrl,
                 embeds
             };
@@ -268,7 +268,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion}",
+                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
                 avatar_url = AppAvatarUrl,
                 embeds
             };
@@ -374,7 +374,7 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion}",
+                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
                 avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
@@ -404,7 +404,7 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion}",
+                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
                 avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
