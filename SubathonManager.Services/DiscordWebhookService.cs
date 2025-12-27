@@ -87,12 +87,18 @@ public class DiscordWebhookService : IDisposable
             _configQueue.Enqueue(v);
     }
 
+    private string MakeUsername()
+    {
+        string username = $"{AppUsername} - {AppServices.AppVersion}";
+        return username.Substring(0, Math.Min(username.Length, 42));
+    }
+
     private void OnCustomEvent(string message)
     {
         if (string.IsNullOrEmpty(_eventWebhookUrl) ) return;
         var payload = new
         {
-            username = $"{AppUsername} - {AppServices.AppVersion.Take(10)}",
+            username = MakeUsername(),
             avatar_url = AppAvatarUrl,
             embeds = new[]
             {
@@ -144,7 +150,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
+                username = MakeUsername(),
                 avatar_url = AppAvatarUrl,
                 embeds = new[] {embed}
             };
@@ -210,7 +216,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
+                username = MakeUsername(),
                 avatar_url = AppAvatarUrl,
                 embeds
             };
@@ -268,7 +274,7 @@ public class DiscordWebhookService : IDisposable
 
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
+                username = MakeUsername(),
                 avatar_url = AppAvatarUrl,
                 embeds
             };
@@ -330,7 +336,8 @@ public class DiscordWebhookService : IDisposable
             var response = await http.PostAsync(url, content, _cts.Token);
             if (!response.IsSuccessStatusCode)
             {
-                _logger?.LogError($"Webhook failed: {response.StatusCode} - {response.ReasonPhrase}");
+                var rc = await response.Content.ReadAsStringAsync();
+                _logger?.LogError($"Webhook failed: {response.StatusCode} - {rc}");
             }
         }
         catch (Exception ex)
@@ -374,7 +381,7 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
+                username = MakeUsername(),
                 avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
@@ -404,7 +411,7 @@ public class DiscordWebhookService : IDisposable
         {
             var payload = new
             {
-                username = $"{AppUsername} - v{AppServices.AppVersion.Take(10)}",
+                username = MakeUsername(),
                 avatar_url = AppAvatarUrl,
                 embeds = new[]
                 {
