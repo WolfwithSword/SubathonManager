@@ -24,14 +24,14 @@
                     
                     <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="Bits:" Width="80" VerticalAlignment="Center" ToolTip="Twitch Only"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
                                     x:Name="BitsTextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center"/>
                     
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                     x:Name="Bits2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1"
+                        <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.75"
                                     x:Name="BitsModifierTextBox" Margin="8 0"/>
                         <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center" ToolTip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
                         
@@ -39,14 +39,14 @@
                     
                     <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="Beets:" Width="80" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
                                     x:Name="BeetsTextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center"/>
                     
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                     x:Name="Beets2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1"
+                        <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.8"
                                     x:Name="BeetsModifierTextBox" Margin="8 0"/>
                         <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center" ToolTip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
                         
@@ -61,7 +61,8 @@
                                     FontSize="12"
                                     validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateBlerpAmt"/>
                         <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
-                                  x:Name="BlerpCurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                  x:Name="BlerpCurrencyBox" StaysOpenOnEdit="True" Height="34"
+                                  ToolTip="Blerp Bits or Beets"
                                   Margin="4 0 4 0" SelectedIndex="0">
                             <ComboBoxItem Content="bits"></ComboBoxItem>
                             <ComboBoxItem Content="beets"></ComboBoxItem>

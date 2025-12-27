@@ -74,18 +74,21 @@ namespace SubathonManager.UI.Views
             {
                 var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 8) };
 
-                var textBox = new TextBox
+                var textBox = new Wpf.Ui.Controls.TextBox
                 {
                     Text = goal.Text,
                     Width = 522,
-                    Margin = new Thickness(0, 0, 8, 0)
+                    Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = "Goal Description",
+                    PlaceholderText = "Goal Description..."
                 };
 
-                var pointsBox = new TextBox
+                var pointsBox = new Wpf.Ui.Controls.TextBox
                 {
                     Text = goal.Points.ToString(),
                     Width = 80,
-                    Margin = new Thickness(0, 0, 8, 0)
+                    Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = "Points/Money to achieve"
                 };
                 pointsBox.PreviewTextInput += NumberOnly_PreviewTextInput;
                 

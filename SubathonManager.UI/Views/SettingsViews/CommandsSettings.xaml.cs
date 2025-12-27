@@ -56,12 +56,13 @@ public partial class CommandsSettings : UserControl
                 HorizontalAlignment = HorizontalAlignment.Left,
             };
 
-            TextBox enumName = new TextBox
+            Wpf.Ui.Controls.TextBox enumName = new Wpf.Ui.Controls.TextBox
             {
                 Text = name,
                 Width = 200,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Left,
+                PlaceholderText = name
             };
 
             CheckBox doMods = new CheckBox
@@ -82,12 +83,12 @@ public partial class CommandsSettings : UserControl
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
 
-            TextBox enumWhitelist = new TextBox
+            Wpf.Ui.Controls.TextBox enumWhitelist = new Wpf.Ui.Controls.TextBox
             {
                 Text = whitelist,
                 Width = 456,
                 VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Left,
+                HorizontalAlignment = HorizontalAlignment.Left
             };
 
             entryPanel.Children.Add(enumType);

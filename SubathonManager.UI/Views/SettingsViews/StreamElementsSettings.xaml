@@ -30,11 +30,11 @@
                     
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                         <TextBlock Text="Tips:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
                                     x:Name="DonoBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
                         
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                     x:Name="DonoBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
                     </StackPanel>

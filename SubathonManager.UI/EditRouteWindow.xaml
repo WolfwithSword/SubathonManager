@@ -84,15 +84,15 @@
             <StackPanel Orientation="Vertical" Background="{DynamicResource UiBrushControlBackground}">
                 <TextBlock Text="Overlay" FontWeight="SemiBold" Margin="0,12,0,8"/>
                 <TextBlock Text="Name" FontSize="12" />
-                <TextBox x:Name="RouteNameBox" Margin="0,4,0,8"/>
+                <ui:TextBox x:Name="RouteNameBox" Margin="0,4,0,8" PlaceholderText="Overlay Name..."/>
                 <StackPanel Orientation="Horizontal">
                     <StackPanel Margin="0 2 2 2">
                         <TextBlock Text="Width" FontSize="12"/>
-                        <TextBox x:Name="RouteWidthBox" Width="120" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                        <ui:TextBox x:Name="RouteWidthBox" Width="120" PreviewTextInput="NumberOnly_PreviewTextInput" PlaceholderText="1920"/>
                     </StackPanel>
                     <StackPanel Margin="2 2 0 2">
                         <TextBlock Text="Height" FontSize="12"/>
-                        <TextBox x:Name="RouteHeightBox" Width="120" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                        <ui:TextBox x:Name="RouteHeightBox" Width="120" PreviewTextInput="NumberOnly_PreviewTextInput" PlaceholderText="1080"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -230,33 +230,33 @@
                             <TextBlock Text="Widget Editor" FontSize="18" FontWeight="Bold" Margin="0,-8,0,24"/>
                             <StackPanel Margin="0,8">
                                 <TextBlock Text="Name" FontWeight="SemiBold" Margin="2 2"/>
-                                <TextBox x:Name="WidgetNameBox"/>
+                                <ui:TextBox x:Name="WidgetNameBox" PlaceholderText="Widget Name..."/>
                             </StackPanel>
 
                             <UniformGrid Columns="2" Rows="2" Margin="0,8">
                                 <StackPanel>
                                     <TextBlock Text="Width" FontWeight="SemiBold" Margin="2 2"/>
-                                    <TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                                    <ui:TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput" PlaceholderText="400"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="Height" FontWeight="SemiBold" Margin="2 2"/>
-                                    <TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                                    <ui:TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput" PlaceholderText="200"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="X" FontWeight="SemiBold" Margin="2 2"/>
-                                    <TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                                    <ui:TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput" PlaceholderText="50"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="Y" FontWeight="SemiBold" Margin="2 2"/>
-                                    <TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput"/>
+                                    <ui:TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput" PlaceholderText="70"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="ScaleX" FontWeight="SemiBold" Margin="2 2"/>
-                                    <TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                                    <ui:TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput" PlaceholderText="2.5"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="ScaleY" FontWeight="SemiBold" Margin="2 2"/>
-                                    <TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput"/>
+                                    <ui:TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput" PlaceholderText="2.5"/>
                                 </StackPanel>
                             </UniformGrid>
 

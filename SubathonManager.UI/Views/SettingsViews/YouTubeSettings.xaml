@@ -30,10 +30,10 @@
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                         <TextBlock Text="SuperChats:" Width="100" VerticalAlignment="Center" ToolTip="Includes SuperStickers"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
                                     x:Name="DonoBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                     x:Name="DonoBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -42,7 +42,7 @@
                         <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    PlaceholderText="100"  Height="34"
+                                    PlaceholderText="10.00"  Height="34"
                                     FontSize="12"
                                     validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateSCAmt"/>
                         
@@ -73,11 +73,11 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
                                     <TextBlock Text="Default:" Width="100" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                                Height="36"
+                                                Height="36" PlaceholderText="60"
                                                 x:Name="MemberDefaultTextBox"/>
                                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                                Height="36"
+                                                Height="36" PlaceholderText="1"
                                                 x:Name="MemberRenameTextBox2"/>
                                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                                 </StackPanel>
@@ -114,11 +114,11 @@
                               <StackPanel Orientation="Horizontal" Margin="0,2">
                                     <TextBlock Text="Default Gift:" Width="100" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                                Height="36"
+                                                Height="36" PlaceholderText="60"
                                                 x:Name="GiftMemberDefaultTextBox"/>
                                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                                Height="36"
+                                                Height="36" PlaceholderText="1"
                                                 x:Name="GiftMemberDefaultTextBox2"/>
                                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                                     

@@ -34,11 +34,11 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center" ToolTip="Includes Combos and PowerUps"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                x:Name="CheerTextBox"/>
+                                x:Name="CheerTextBox" PlaceholderText="12"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
                     
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                x:Name="Cheer2TextBox"/>
+                                x:Name="Cheer2TextBox" PlaceholderText="0"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
                 </StackPanel>
                 
@@ -69,10 +69,10 @@
                 <StackPanel Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                x:Name="RaidTextBox"/>
+                                x:Name="RaidTextBox" PlaceholderText="0"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                x:Name="Raid2TextBox"/>
+                                x:Name="Raid2TextBox" PlaceholderText="0"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
                 </StackPanel>
                                                         
@@ -101,10 +101,10 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                 x:Name="FollowTextBox"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                 x:Name="Follow2TextBox"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -128,9 +128,9 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="Charity Donations:" Width="150" VerticalAlignment="Center"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                x:Name="DonoBox"/>
+                                x:Name="DonoBox" PlaceholderText="12"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"  PlaceholderText="0"
                                 x:Name="DonoBox2"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -139,12 +139,12 @@
                     <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
-                                PlaceholderText="100"  Height="34"
+                                PlaceholderText="10.00"  Height="34"
                                 FontSize="12"
                                 validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateTwitchCharAmt"/>
                     
                     <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True"
-                              x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                              x:Name="CurrencyBox" StaysOpenOnEdit="True" Height="34"
                               Margin="4 0 4 0">
                     </ComboBox>
                     <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -165,10 +165,10 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="60"
                                         x:Name="SubT1TextBox"/>
                             <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="1"
                                         x:Name="SubT1TextBox2"/>
                             <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -192,19 +192,19 @@
                     </Grid>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="120"
                                     x:Name="SubT2TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="2"
                                     x:Name="SubT2TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="300"
                                     x:Name="SubT3TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="5"
                                     x:Name="SubT3TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -218,10 +218,10 @@
                         </Grid.ColumnDefinitions>
                       <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="60"
                                         x:Name="GiftSubT1TextBox"/>
                             <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="1"
                                         x:Name="GiftSubT1TextBox2"/>
                             <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -248,19 +248,19 @@
                     </Grid>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="120"
                                     x:Name="GiftSubT2TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="2"
                                     x:Name="GiftSubT2TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="300"
                                     x:Name="GiftSubT3TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="5"
                                     x:Name="GiftSubT3TextBox2"/>
                         <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -285,7 +285,7 @@
                         
                         <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="Multiplier" Width="74" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0 0 4 0"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"  PlaceholderText="1.20"
                                         x:Name="HypeTrainMultAmt"/>
                             <CheckBox x:Name="HypeTrainMultTimeBox" Content="Time" Margin="28 4 0 4"/>
                             <CheckBox x:Name="HypeTrainMultPointsBox" Content="Points" Margin="4 4 4 4"/>

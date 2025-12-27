@@ -21,9 +21,12 @@
 
                         <StackPanel Orientation="Horizontal" Grid.Column="0">
                             <TextBlock Text="App Settings" FontWeight="Bold" FontSize="16" Margin="0,0,0,10"/>
-                            <ui:Button Content="Open Data Folder" Width="140" VerticalAlignment="Center" Click="OpenDataFolder_Click" FontSize="12" Margin="48,0,0,10"/>
-                            <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="8,0,0,10"/>
-                            <ui:Button Content="View Summary" Width="120" VerticalAlignment="Center" Click="EventsSummary_Click" FontSize="12" Margin="8,0,0,10"/>
+                            <ui:Button Content="Open Data Folder" Width="140" VerticalAlignment="Center" Click="OpenDataFolder_Click" FontSize="12" Margin="48,0,0,10"
+                                       ToolTip="View logs, presets, and other data files"/>
+                            <ui:Button Content="Export Events" Width="120" VerticalAlignment="Center" Click="ExportEvents_Click" FontSize="12" Margin="8,0,0,10"
+                                       ToolTip="Export events to CSV"/>
+                            <ui:Button Content="View Summary" Width="120" VerticalAlignment="Center" Click="EventsSummary_Click" FontSize="12" Margin="8,0,0,10"
+                                       ToolTip="View subathon/donothon summary as JSON in browser"/>
                         </StackPanel>
                         
                         <StackPanel Orientation="Horizontal"
@@ -50,7 +53,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5" HorizontalAlignment="Left">
                                 <TextBlock Text="Port:" Width="120" 
                                            Margin="0 0 4 0" VerticalAlignment="Center"/>
-                                <ui:TextBox x:Name="ServerPortTextBox" Width="100"/>
+                                <ui:TextBox x:Name="ServerPortTextBox" Width="100" PlaceholderText="14040"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                                     <TextBlock Text="WebServer: " VerticalAlignment="Center" FontSize="12" Margin="14 0 2 0"/>
                                     <TextBlock x:Name="ServerStatusText" VerticalAlignment="Center" FontSize="12" Margin="0 0 0 0"/>
@@ -62,7 +65,7 @@
                                 <TextBlock Text="Default Currency:" Width="120"
                                            Margin="0 0 4 0" VerticalAlignment="Center"/>
                                 <ComboBox Text="Default Currency" Width="100" IsEditable="True" IsTextSearchEnabled="True" 
-                                          x:Name="DefaultCurrencyBox" StaysOpenOnEdit="True"
+                                          x:Name="DefaultCurrencyBox" StaysOpenOnEdit="True" ToolTip="Currency"
                                           Margin="0 0 4 0">
                                 </ComboBox>
                                 
