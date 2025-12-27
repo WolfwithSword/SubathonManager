@@ -16,6 +16,67 @@
         <conv:IsNotMetaCommandConverter x:Key="IsNotMetaCommandConverter"/>
         <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter"/>
         <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter"/>
+        <Style x:Key="NoHoverOverlayButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Background" Value="{DynamicResource SolidOverlayButtonColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SolidOverlayButtonBorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ui:Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                            
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource SolidOverlayButtonHoverColor}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource SolidOverlayButtonHoverColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource SolidOverlayButtonPressedColor}"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource SolidOverlayButtonPressedColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Appearance" Value="Secondary"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundBorder}"/>
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ui:Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundPressed}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
     <Grid MaxHeight="550">
         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="532" Width="480">
@@ -132,6 +193,7 @@
                                             Margin="8,0,0,0">
                                     <ui:Button x:Name="ReprocessBtn"
                                             Width="32" Height="32" Margin="4,0" Padding="2"
+                                            Style="{StaticResource OpaqueSecondaryButton}"
                                             Visibility="{Binding ProcessedToSubathon, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                             Click="ReprocessBtn_Click">
                                         <ui:SymbolIcon Symbol="Recycle20" />
