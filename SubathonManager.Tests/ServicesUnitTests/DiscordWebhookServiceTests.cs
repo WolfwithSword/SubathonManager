@@ -4,6 +4,9 @@ using SubathonManager.Services;
 using System.Reflection;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
+using Microsoft.Extensions.Logging;
+using System.Net;
+using Moq.Protected;
 namespace SubathonManager.Tests.ServicesUnitTests;
 
 [Collection("ServicesTests")]
@@ -35,12 +38,51 @@ public class DiscordWebhookServiceTests
         return mock.Object;
     }
     
+    private static CurrencyService SetupCurrencyService()
+    {
+        var jsonResponse = @"{
+                ""usd"": {""code"": ""USD"", ""rate"": 1.0},
+                ""gbp"": {""code"": ""GBP"", ""rate"": 0.9},
+                ""cad"": {""code"": ""GBP"", ""rate"": 0.8},
+                ""twd"": {""code"": ""GBP"", ""rate"": 0.7},
+                ""aud"": {""code"": ""GBP"", ""rate"": 0.6},
+            }";
+        var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .Returns<HttpRequestMessage, CancellationToken>((req, ct) =>
+                Task.FromResult(new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(jsonResponse)
+                }));
+
+        var httpClient = new HttpClient(handlerMock.Object);
+
+        var loggerMock = new Mock<ILogger<CurrencyService>>();
+        var mockConfig = MockConfig(new()
+        {
+            { ("Currency", "Primary"), "USD" }
+        });
+        var currencyMock = new CurrencyService(loggerMock.Object, mockConfig, httpClient);
+        currencyMock.SetRates(new Dictionary<string, double>
+        {
+            { "USD", 1.0 }, { "GBP", 0.9 }, { "CAD", 0.8 }, { "TWD", 0.6 }, { "AUD", 0.5 }
+        });
+        return currencyMock;
+    }
+    
     [Fact]
     public void LoadFromConfig_SetsPropertiesCorrectly()
     {
         var mockConfig = MockConfig();
 
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
         var field = typeof(DiscordWebhookService).GetField("_eventWebhookUrl", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.Equal("https://eventUrl", field!.GetValue(service));
     }
@@ -51,7 +93,7 @@ public class DiscordWebhookServiceTests
         var mockConfig = new Mock<IConfig>();
         mockConfig.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Returns("true");
     
-        var service = new DiscordWebhookService(null, mockConfig.Object);
+        var service = new DiscordWebhookService(null, mockConfig.Object, SetupCurrencyService());
         service.LoadFromConfig();
 
         var subEvent = new SubathonEvent { EventType = SubathonEventType.Command, Source = SubathonEventSource.Twitch };
@@ -70,7 +112,7 @@ public class DiscordWebhookServiceTests
     public void OnSubathonEventProcessed_DoesNotQueueIgnoredEvents()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         var subEvent = new SubathonEvent 
         { 
@@ -93,7 +135,7 @@ public class DiscordWebhookServiceTests
     public void BuildEventDescription_ReturnsCorrectString()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         var subEvent = new SubathonEvent
         {
@@ -124,7 +166,7 @@ public class DiscordWebhookServiceTests
         mockConfig.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns(""); 
 
-        var service = new DiscordWebhookService(null, mockConfig.Object);
+        var service = new DiscordWebhookService(null, mockConfig.Object, SetupCurrencyService());
 
         Exception? ex = Record.Exception(() => service.SendErrorEvent("ERROR", 
             "TestSource", "Test message", DateTime.UtcNow));
@@ -135,7 +177,7 @@ public class DiscordWebhookServiceTests
     public void Dispose_UnsubscribesEvents()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         Exception? ex = Record.Exception(() => service.Dispose());
         Assert.Null(ex);
@@ -145,7 +187,7 @@ public class DiscordWebhookServiceTests
     public void OnSubathonEventDeleted_QueuesSingleDeletedEvent()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         var subEvent = new SubathonEvent
         {
@@ -172,7 +214,7 @@ public class DiscordWebhookServiceTests
     public void OnCustomEvent_DoesNotThrow()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         var method = typeof(DiscordWebhookService)
             .GetMethod("OnCustomEvent", BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -185,7 +227,7 @@ public class DiscordWebhookServiceTests
     public void BuildErrorDescription_ReturnsCorrectStringWithException()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         var ex = new InvalidOperationException("Test exception");
 
@@ -203,7 +245,7 @@ public class DiscordWebhookServiceTests
     public void BuildErrorDescription_NoException_FormatsMessage()
     {
         var mockConfig = MockConfig();
-        var service = new DiscordWebhookService(null, mockConfig);
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
 
         var method = typeof(DiscordWebhookService)
             .GetMethod("BuildErrorDescription", BindingFlags.NonPublic | BindingFlags.Instance)!;
