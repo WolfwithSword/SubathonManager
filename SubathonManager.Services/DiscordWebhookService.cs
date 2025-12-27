@@ -330,7 +330,7 @@ public class DiscordWebhookService : IDisposable
             var response = await http.PostAsync(url, content, _cts.Token);
             if (!response.IsSuccessStatusCode)
             {
-                _logger?.LogError($"Webhook failed: {response.StatusCode}");
+                _logger?.LogError($"Webhook failed: {response.StatusCode} - {response.ReasonPhrase}");
             }
         }
         catch (Exception ex)
