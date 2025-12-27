@@ -1,9 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace SubathonManager.Data
 {
     // to allow migrations add cmdline to work
+    [ExcludeFromCodeCoverage]
     public class AppDbContextFactory
         : IDesignTimeDbContextFactory<AppDbContext>
     {

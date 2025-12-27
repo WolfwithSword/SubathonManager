@@ -210,12 +210,18 @@ namespace SubathonManager.Data
             
             try
             {
-                Process.Start(new ProcessStartInfo
+                bool isTest =
+                    AppDomain.CurrentDomain.GetAssemblies()
+                        .Any(a => a.FullName!.StartsWith("xunit", StringComparison.OrdinalIgnoreCase));
+                if (!isTest)
                 {
-                    FileName = exportDir,
-                    UseShellExecute = true,
-                    Verb = "open"
-                });
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = exportDir,
+                        UseShellExecute = true,
+                        Verb = "open"
+                    });
+                }
             }
             catch {/**/}
         }

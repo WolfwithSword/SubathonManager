@@ -1,3 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-[assembly: ExcludeFromCodeCoverage]
+﻿// using System.Diagnostics.CodeAnalysis;
+//
+// [assembly: ExcludeFromCodeCoverage]

@@ -28,4 +28,8 @@
         </Compile>
     </ItemGroup>
     
+    <ItemGroup>
+        <ExcludeFromCodeCoverage Include="..\SubathonManager.Data\Migrations\**\*.cs" />
+    </ItemGroup>
+    
 </Project>

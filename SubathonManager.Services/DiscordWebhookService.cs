@@ -31,6 +31,7 @@ public class DiscordWebhookService : IDisposable
     
     private readonly ILogger? _logger;
     private readonly IConfig _config;
+    private readonly CurrencyService _currencyService;
 
     private const string AppUsername = "Subathon Manager";
 
@@ -38,10 +39,11 @@ public class DiscordWebhookService : IDisposable
         "https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.png";
 
     // todo handle rate limit and retry_after
-    public DiscordWebhookService(ILogger<DiscordWebhookService>? logger, IConfig config)
+    public DiscordWebhookService(ILogger<DiscordWebhookService>? logger, IConfig config, CurrencyService currencyService)
     {
         _logger = logger;
         _config = config;
+        _currencyService = currencyService;
         LoadFromConfig();
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
@@ -114,19 +116,17 @@ public class DiscordWebhookService : IDisposable
             double totalPoints = 0;
             double totalSeconds = 0;
             double totalMoney = 0;
-            
-            var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
             var currency = _config.Get("Currency", "Primary", "USD");
             foreach (var subathonEvent in subathonEvents)
             {
                 totalPoints += subathonEvent.GetFinalPointsValue();
                 totalSeconds += subathonEvent.GetFinalSecondsValueRaw();
                 if (subathonEvent.EventType.IsCurrencyDonation() &&
-                    currencyService.IsValidCurrency(subathonEvent.Currency))
+                    _currencyService.IsValidCurrency(subathonEvent.Currency))
                 {
                     double result = Task.Run(async () =>
                     {
-                        return await currencyService.ConvertAsync(
+                        return await _currencyService.ConvertAsync(
                             double.Parse(subathonEvent.Value),
                             subathonEvent.Currency!, currency);
                     }).GetAwaiter().GetResult();
@@ -179,7 +179,7 @@ public class DiscordWebhookService : IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger?.LogError(ex, ex.Message);
+            _logger?.LogDebug(ex, ex.Message);
         }
         catch (Exception ex)
         {
@@ -232,7 +232,7 @@ public class DiscordWebhookService : IDisposable
         }
         catch (OperationCanceledException ex)
         {
-            _logger?.LogError(ex, ex.Message);
+            _logger?.LogDebug(ex, ex.Message);
         }
         catch (Exception ex)
         {
@@ -353,8 +353,11 @@ public class DiscordWebhookService : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
-        _ctsConfig.Cancel();
+        if (!_cts.IsCancellationRequested)
+            _cts.Cancel();
+        if (!_ctsConfig.IsCancellationRequested)
+            _ctsConfig.Cancel();
+
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted -= OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured -= SendErrorEvent;
