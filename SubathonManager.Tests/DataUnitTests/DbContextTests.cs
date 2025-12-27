@@ -433,7 +433,7 @@ public class DbContextTests
 
         db.ChangeTracker.Clear();
         var method = typeof(AppDbContext).GetMethod("MigrateLegacyData", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        method.Invoke(null, new object[] { db });
+        method!.Invoke(null, new object[] { db });
 
         var goalSet = await db.SubathonGoalSets.FirstAsync();
         var subathon = await db.SubathonDatas.FirstAsync();
