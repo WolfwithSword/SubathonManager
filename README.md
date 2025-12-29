@@ -16,7 +16,7 @@
 <br/>
 <p style="font-size: 14px;">
   <strong>Subathon Manager</strong><br/>
-  An all-in-one Subathon Manager for Twitch and YouTube. Manage your timer,
+  An all-in-one Subathon/Donothon Manager for Twitch and YouTube. Manage your timer,
   goals, overlays, settings, and more — all locally.
 </p>
 
