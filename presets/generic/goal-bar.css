@@ -1,0 +1,65 @@
+﻿:root {
+    --bar-height: 36px;
+    --font-family: system-ui, sans-serif;
+    --font-size: 14px;
+    --font-color: #ffffff;
+
+    --bar-bg-color: #0C7A94;
+    --bar-fg-color: #5BC6E3;
+    --bar-border-radius: 6px;
+}
+
+.goal-root {
+    width: 100%;
+}
+
+.goal-bar {
+    position: relative;
+    width: 100%;
+    height: var(--bar-height);
+    background: var(--bar-bg-color);
+    border-radius: var(--bar-border-radius);
+    overflow: hidden;
+}
+
+.goal-fill {
+    position: absolute;
+    inset: 0;
+    width: 0%;
+    background: var(--bar-fg-color);
+    transition: width 0.4s ease;
+}
+
+.goal-overlay {
+    position: relative;
+    z-index: 1;
+
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+
+    height: 100%;
+    padding: 0 12px;
+
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    color: var(--font-color);
+    pointer-events: none;
+}
+
+.goal-text {
+    justify-self: start;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.goal-current {
+    justify-self: center;
+    font-weight: 600;
+}
+
+.goal-max {
+    justify-self: end;
+    opacity: 0.85;
+}

@@ -1,0 +1,164 @@
+﻿<!--
+WIDGET_META
+Width:600
+Height:80
+Author:WolfwithSword
+goalType.StringSelect:Money,Points
+valuePrefix.String:NONE
+valueSuffix.String:NONE
+formatWithCommas.Boolean:False
+showDecimalsForMoney.Boolean:False
+overrideMax.Boolean:False
+maxGoalOverride.Int:10000
+overrideGoalText.Boolean:False
+goalTextOverride.String:NONE
+END_WIDGET_META
+-->
+
+<link rel="stylesheet" href="goal-bar.css">
+
+<div class="goal-root">
+    <div class="goal-bar">
+        <div class="goal-fill" id="goalFill"></div>
+
+        <div class="goal-overlay">
+            <div class="goal-text" id="goalText"></div>
+            <div class="goal-current" id="goalCurrent"></div>
+            <div class="goal-max" id="goalMax"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    let goals = [];
+    let currentPoints = 0;
+    let currentMoney = 0;
+    let cachedActiveIndex = -1;
+
+    function getProgressValue() {
+        const v = goalType == "Money"
+            ? currentMoney
+            : currentPoints;
+
+        return Number(v) || 0;
+    }
+    
+    function updateGoalBar({text, current, max }) {
+        if (typeof(overrideMax) != "undefined" && overrideMax) {
+            max = typeof(maxGoalOverride) != "undefined" ? maxGoalOverride : max;
+        }
+        
+        const pct = max > 0 ? Math.min(current / max, 1) * 100 : 100;
+
+        var showCommas = false;
+        if (typeof(formatWithCommas) != "undefined") {
+            showCommas = formatWithCommas;    
+        }
+        var showDecimals = false;
+        if (typeof(showDecimalsForMoney) != "undefined") {
+            if (goalType == "Money") {
+                showDecimals = showDecimalsForMoney;
+            }
+        }
+
+        current = Intl.NumberFormat(undefined, {useGrouping: formatWithCommas,
+            minimumFractionDigits: showDecimals ? 2 : 0,
+            maximumFractionDigits: showDecimals ? 2 : 0}).format(current);
+        if (pct < 100) {
+            max = Intl.NumberFormat(undefined, {
+                useGrouping: formatWithCommas,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(max);
+        }
+        
+        if (typeof(valuePrefix) != "undefined")
+        {
+            current = valuePrefix + current;
+            max = valuePrefix + max;
+        }
+        if (typeof(valueSuffix) != "undefined")
+        {
+            current = current + valueSuffix;
+            max = max + valueSuffix;
+        }
+        if (pct >= 100) {
+            text = "";
+            max = "";
+        }
+        
+        if (typeof(overrideGoalText) != "undefined" && overrideGoalText) {
+            text = typeof(goalTextOverride) != "undefined" ? goalTextOverride : text;
+        }
+        
+        document.getElementById("goalText").textContent = text;
+        document.getElementById("goalCurrent").textContent = current;
+        document.getElementById("goalMax").textContent = max;
+
+        document.getElementById("goalFill").style.width = `${pct}%`;
+    }
+
+    function computeActiveGoalIndex() {
+        const value = getProgressValue();
+        const sorted = getSortedGoals();
+
+        for (let i = 0; i < sorted.length; i++) {
+            if (value < Number(sorted[i].points)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function getSortedGoals() {
+        return [...goals].sort(
+            (a, b) => Number(a.points) - Number(b.points)
+        );
+    }
+        
+    function render() {
+        if (!goals.length) {
+            return;
+        }
+
+        cachedActiveIndex = computeActiveGoalIndex();
+        const sorted = getSortedGoals();
+
+        if (cachedActiveIndex === -1) {
+            updateGoalBar({
+                text: "",
+                current: goalType == "Money" ? currentMoney : currentPoints,
+                max: 0
+            });
+            return;
+        }
+
+        const goal = sorted[cachedActiveIndex];
+
+        updateGoalBar({
+            text: goal.text,
+            current: goalType == "Money" ? currentMoney : currentPoints,
+            max: sorted.pop().points
+        });
+    }
+    
+    function handleGoalsUpdate(data) {
+        if (data.type != "goals_list") return;
+        goals = data.goals ?? [];
+        render();
+    }
+
+    function handleGoalCompleted(data) {
+        if (data.type != "goal_completed") return;
+        render();
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type != "subathon_timer") return;
+        currentPoints = data.total_points;
+        currentMoney = goalType == "Money" && showDecimalsForMoney ? data.fractional_money : data.rounded_money;
+        render();
+    }
+
+</script>
