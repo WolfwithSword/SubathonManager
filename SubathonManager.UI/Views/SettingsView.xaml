@@ -88,7 +88,7 @@
                                   SnapsToDevicePixels="True"
                                   UseLayoutRounding="True"
                                   Stretch="Uniform"
-                                  Margin="0 -30 360 0"/>
+                                  Margin="0 -30 440 0"/>
                         <Grid Grid.Column="1">
                             <Grid>
                                 

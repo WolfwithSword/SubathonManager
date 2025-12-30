@@ -194,6 +194,7 @@
                                     <ui:Button x:Name="ReprocessBtn"
                                             Width="32" Height="32" Margin="4,0" Padding="2"
                                             Style="{StaticResource OpaqueSecondaryButton}"
+                                            ToolTip="Retry"
                                             Visibility="{Binding ProcessedToSubathon, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                             Click="ReprocessBtn_Click">
                                         <ui:SymbolIcon Symbol="Recycle20" />

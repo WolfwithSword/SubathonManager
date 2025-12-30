@@ -31,7 +31,7 @@
                         <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
                                     x:Name="Bits2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.75"
+                        <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.80"
                                     x:Name="BitsModifierTextBox" Margin="8 0"/>
                         <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center" ToolTip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
                         
