@@ -818,13 +818,13 @@ public partial class EditRouteWindow
 
     private async void ImportWidgetButton_Click(object sender, RoutedEventArgs e)
     {
-        string path = "";
         try
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Select widget HTML file",
-                Filter = "HTML Files|*.html;*.htm"
+                Title = "Select widget HTML file(s)",
+                Filter = "HTML Files|*.html;*.htm",
+                Multiselect = true
             };
 
             if (!string.IsNullOrEmpty(_lastFolder) && Directory.Exists(_lastFolder))
@@ -834,51 +834,74 @@ public partial class EditRouteWindow
 
             if (dlg.ShowDialog() == true)
             {
-                path = dlg.FileName;
-                _lastFolder = Path.GetDirectoryName(path)!;
                 await using var db = await _factory.CreateDbContextAsync();
-                var newWidget = new Widget(System.IO.Path.GetFileNameWithoutExtension(path), path);
                 WidgetEntityHelper helper = new WidgetEntityHelper(_factory, null);
-                var metadata = await helper.ExtractWidgetMetadata(path);
-                
-                newWidget.RouteId = _route!.Id;
-                newWidget.X = 0;
-                newWidget.Y = 0;
-                newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
-                newWidget.Width = metadata.TryGetValue("Width", out var w) && int.TryParse(w, out var parsedW)
-                    ? parsedW
-                    : 400;
-                newWidget.Height = metadata.TryGetValue("Height", out var h) && int.TryParse(h, out var parsedH)
-                    ? parsedH
-                    : 200;
-                
-                db.Widgets.Add(newWidget);
-                await db.SaveChangesAsync();
-                
-                (List<JsVariable> jsVars, var extractedNames, var updatedVars ) 
-                    = helper.LoadNewJsVariables(newWidget, metadata);
-                if (jsVars.Count > 0)
+                _lastFolder = Path.GetDirectoryName(dlg.FileNames[0])!;
+                foreach (var path in dlg.FileNames)
                 {
-                    newWidget.JsVariables = jsVars;
-                    db.JsVariables.AddRange(jsVars);
+                    try
+                    {
+                        await ImportSingleWidgetAsync(path, db, helper);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, $"Failed to import widget HTML file {path}");
+                    }
+                    _lastFolder = Path.GetDirectoryName(path)!;
                 }
-                await db.SaveChangesAsync();
-                
-                newWidget.ScanCssVariables();
-                db.CssVariables.AddRange(newWidget.CssVariables);
-                await db.SaveChangesAsync();
-                _route.Widgets.Add(newWidget);
-
-                _widgets.Insert(0, newWidget);
                 await RefreshWidgetZIndicesAsync();
                 RefreshWebView();
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, $"Failed to import widget HTML file {path}");
+            _logger?.LogError(ex, $"Failed to import widget HTML file(s)");
         }
     }
+    
+    private async Task ImportSingleWidgetAsync(string path, AppDbContext db, WidgetEntityHelper helper)
+    {
+        var newWidget = new Widget(Path.GetFileNameWithoutExtension(path), path);
+
+        var metadata = await helper.ExtractWidgetMetadata(path);
+
+        newWidget.RouteId = _route!.Id;
+        newWidget.X = 0;
+        newWidget.Y = 0;
+        newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
+
+        newWidget.Width = metadata.TryGetValue("Width", out var w) &&
+                          int.TryParse(w, out var parsedW)
+            ? parsedW
+            : 400;
+
+        newWidget.Height = metadata.TryGetValue("Height", out var h) &&
+                           int.TryParse(h, out var parsedH)
+            ? parsedH
+            : 200;
+
+        db.Widgets.Add(newWidget);
+        await db.SaveChangesAsync();
+
+        (List<JsVariable> jsVars, _, _) =
+            helper.LoadNewJsVariables(newWidget, metadata);
+
+        if (jsVars.Count > 0)
+        {
+            newWidget.JsVariables = jsVars;
+            db.JsVariables.AddRange(jsVars);
+        }
+
+        await db.SaveChangesAsync();
+
+        newWidget.ScanCssVariables();
+        db.CssVariables.AddRange(newWidget.CssVariables);
+        await db.SaveChangesAsync();
+
+        _route.Widgets.Add(newWidget);
+        _widgets.Insert(0, newWidget);
+    }
+
     
     private void UpdateWebViewScale()
     {
