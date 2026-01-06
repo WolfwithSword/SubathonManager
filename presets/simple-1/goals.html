@@ -21,11 +21,13 @@ END_WIDGET_META
     let goalsState = [];
 
     function filterToMostRecentCompleted(goals) {
+        let lastCompletedIndex = goals.map(r => r.completed).lastIndexOf(true);
+        let last = -1;
         if (showLastCompleted) {
-            const last = goals.map(g => g.completed).lastIndexOf(true);
-            return last === -1 ? goals : goals.slice(last);
+            last = lastCompletedIndex === -1 ? 0 : lastCompletedIndex;
+        } else {
+            last = lastCompletedIndex + 1;
         }
-        const last = goals.map(g => g.completed).lastIndexOf(true) + 1;
         return last <= 0 ? goals : goals.slice(last);
     }
     
@@ -126,8 +128,8 @@ END_WIDGET_META
 
     function handleGoalsUpdate(data) {
         if (data && data.type == "goals_list") {
-            goalsState = filterToMostRecentCompleted(data.goals);
-            goalsState = [...goalsState].sort((a, b) => a.points - b.points);
+            goalsState = [...data.goals].sort((a, b) => a.points - b.points);
+            goalsState = filterToMostRecentCompleted(goalsState);
             renderGoals(goalsState);
         }
     }
