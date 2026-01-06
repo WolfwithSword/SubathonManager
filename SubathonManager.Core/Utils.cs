@@ -65,7 +65,7 @@ public class Utils
         var regex = new Regex(@"(\d+d|\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase);
         
         int days = 0, hours = 0, minutes = 0, seconds = 0;
-        foreach(Match match in regex.Matches(input))
+        foreach(Match match in regex.Matches(input.ToLower()))
         {
             if (!match.Success) continue;
             if (match.ToString().ToLower().Contains("d"))
