@@ -30,6 +30,6 @@ public static class WidgetVariableTypeHelper
     };
 
     public static bool IsFileVariable(this WidgetVariableType? varType) =>
-        varType.HasValue && !FileVariables.Contains(varType.Value);
+        varType.HasValue && FileVariables.Contains(varType.Value);
 }
     

@@ -2,7 +2,13 @@
 WIDGET_META
 Width:950
 Height:180
+finishSound.SoundFile:./done.mp3
+playSoundOnFinish.Boolean:False
+soundVolume.Percent:50
 END_WIDGET_META
+-->
+<!--
+done.mp3 from: https://freesound.org/people/aj_heels/sounds/634089/
 -->
 <link rel="stylesheet" href="nixie-tube.css">
 <link rel="stylesheet" href="nixie-timer.css">
@@ -14,6 +20,9 @@ END_WIDGET_META
     let tweenActive = false;
     let tweenCancel = null;
     const tubeElements = [];
+    
+    var hasPlayedFinish = false;
+    var completedSound;
 
     function tweenValue(start, end, duration, onUpdate, onComplete) {
         let cancelled = false;
@@ -154,6 +163,13 @@ END_WIDGET_META
     function handleSubathonUpdate(data) {
         if (data.type !== "subathon_timer") return;
         smoothSetSeconds(data.total_seconds, data.is_paused, data.is_locked);
+        if (!hasPlayedFinish && data.total_seconds <= 0){
+            hasPlayedFinish = true;
+            playFinish();
+        }
+        else if (data.total_seconds > 0){
+            hasPlayedFinish = false;
+        }
     }
 
     function handleSubathonDisconnect() {
@@ -161,6 +177,18 @@ END_WIDGET_META
         container.classList.add("off");
         for (const tube of tubeElements) {
             if (tube.classList.contains("nixie")) tube.classList.add("locked");
+        }
+    }
+
+    function playFinish(){
+        if (typeof(playSoundOnFinish) != "undefined" && playSoundOnFinish) {
+            if (typeof(finishSound) != "undefined" && finishSound != "") {
+                if (completedSound == undefined)
+                    completedSound = new Audio(finishSound);
+                completedSound.currentTime = 0;
+                completedSound.volume = soundVolume / 100;
+                completedSound.play().catch(() => {});
+            }
         }
     }
 </script>

@@ -4,6 +4,7 @@ Width:400
 Height:90
 playSoundOnCompletedGoal.Boolean:True
 soundVolume.Percent:30
+completionSound.SoundFile:./complete.mp3
 END_WIDGET_META
 -->
 
@@ -32,7 +33,7 @@ END_WIDGET_META
     
     let cachedActiveIndex = -1;
     
-    const goalCompleteSound = new Audio("complete.mp3");
+    var goalCompleteSound;
     
     function clamp(n, min = 0, max = 1) {
         return Math.min(max, Math.max(min, n));
@@ -140,9 +141,14 @@ END_WIDGET_META
     function handleGoalCompleted(data) {
         if (data.type != "goal_completed") return;
         if (playSoundOnCompletedGoal) {
-            goalCompleteSound.currentTime = 0;
-            goalCompleteSound.volume = soundVolume / 100;
-            goalCompleteSound.play().catch(() => {});
+            if (typeof(completionSound) != "undefined" && completionSound != "") {
+                if(goalCompleteSound == undefined)
+                    goalCompleteSound = new Audio(completionSound);
+                goalCompleteSound.currentTime = 0;
+                goalCompleteSound.volume = soundVolume / 100;
+                goalCompleteSound.play().catch(() => {
+                });
+            }
         }
         render();
     }
