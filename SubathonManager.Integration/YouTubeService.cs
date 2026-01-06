@@ -33,6 +33,8 @@ public class YouTubeService : IDisposable
     private readonly ILogger? _logger;
     private readonly IConfig _config;
     
+    private int _canonicalLinkErrorCount = 0;
+    
     public YouTubeService(ILogger<YouTubeService>? logger, IConfig config, ILogger<YTHttpClient>? httpClientLogger, ILogger<YTLiveChat.Services.YTLiveChat>? chatLogger)
     {
         _logger = logger;
@@ -90,8 +92,25 @@ public class YouTubeService : IDisposable
 
     private void OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
     {
+        var ex = e.GetException();
         Running = false;
-        _logger?.LogWarning(e.GetException(), "YT Error Occurred");
+        
+        if (ex?.Message.Contains("canonical link not found", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            if (_canonicalLinkErrorCount == 0)
+            {
+                _logger?.LogWarning(
+                    "YouTube stream is offline? (canonical link not found)."
+                );
+            }
+
+            _canonicalLinkErrorCount++;
+        }
+        else
+        {
+            _logger?.LogWarning(ex, "YT Error Occurred");
+        }
+
         YouTubeEvents.RaiseYouTubeConnectionUpdate(Running, _ytHandle!);
         _reconnectDelay = 60 * 1000;
     }
@@ -101,6 +120,8 @@ public class YouTubeService : IDisposable
         if (!Running)
             YouTubeEvents.RaiseYouTubeConnectionUpdate(true, _ytHandle!);
         Running = true;
+        _canonicalLinkErrorCount = 0;
+        
         ChatItem item = e.ChatItem;
 
         if (item.Timestamp.DateTime.ToLocalTime() <
