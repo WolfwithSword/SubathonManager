@@ -147,6 +147,21 @@ namespace SubathonManager.Core
                 
                 if (!IsEnabled(logLevel)) return;
             }
+            else if (_category.Contains("YTLiveChat", StringComparison.OrdinalIgnoreCase))
+            {
+                var text = (message + " " + exception?.Message);
+                if (text.Contains("Live Stream canonical link not found"))
+                {
+                    logLevel = LogLevel.Debug;
+                }
+                else if (text.Contains("Listener task finished execution") || text.Contains("Fetching initial options") ||
+                         text.Contains("Polling task completed normally") || text.Contains("Attempting to start listener")
+                         || text.Contains("Listener task starting initialization"))
+                {
+                    logLevel = LogLevel.Debug;
+                }
+                if (!IsEnabled(logLevel)) return;
+            }
             
             _ = _provider.WriteAsync(_category, logLevel, message, exception);
         }
