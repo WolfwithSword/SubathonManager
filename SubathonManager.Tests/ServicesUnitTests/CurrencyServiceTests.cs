@@ -167,10 +167,7 @@ public class CurrencyServiceTests
                                                { "usd": { "code": "USD", "rate": 1.0 } }
                                                """);
 
-        var config = new Mock<IConfig>();
-        config.Setup(c => c.Get("Currency", "Primary", "USD")).Returns("USD");
-
-        var service = new CurrencyService(null, config.Object);
+        var service = CreateService("{}");
         typeof(CurrencyService).GetField("_dataDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(service, Path.GetTempPath());
 
@@ -190,10 +187,7 @@ public class CurrencyServiceTests
     [Fact]
     public void IsExpired_ReturnsTrue_WhenFileOld()
     {
-        var config = new Mock<IConfig>();
-        config.Setup(c => c.Get("Currency", "Primary", "USD")).Returns("USD");
-
-        var service = new CurrencyService(null, config.Object);
+        var service =  CreateService("{}");
 
         string tempFile = Path.Combine(Path.GetTempPath(), "usd.json");
         File.WriteAllText(tempFile, "{ \"usd\": { \"code\": \"USD\", \"rate\": 1.0 } }");

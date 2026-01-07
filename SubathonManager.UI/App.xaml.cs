@@ -92,15 +92,17 @@ public partial class App
                 options.UseSqlite($"Data Source={dbPath}");
             });
             
-            services.AddHttpClient<CurrencyService>()
-                .SetHandlerLifetime(Timeout.InfiniteTimeSpan); 
+            services.AddHttpClient(nameof(CurrencyService))
+                .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
             services.AddSingleton<CurrencyService>(sp =>
             {
-                var httpClient = sp.GetRequiredService<System.Net.Http.HttpClient>();
+                var factory = sp.GetRequiredService<System.Net.Http.IHttpClientFactory>();
+                var httpClient = factory.CreateClient(nameof(CurrencyService));
                 var logger = sp.GetRequiredService<ILogger<CurrencyService>>();
                 var config = sp.GetRequiredService<IConfig>();
                 return new CurrencyService(logger, config, httpClient);
             });
+            
             services.AddSingleton<TwitchService>();
             services.AddSingleton<YouTubeService>();
             services.AddSingleton<StreamElementsService>();

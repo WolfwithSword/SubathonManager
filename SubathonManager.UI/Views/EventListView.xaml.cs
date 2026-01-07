@@ -30,7 +30,7 @@ namespace SubathonManager.UI.Views
 
         private void OnSubathonEventsDeleted(List<SubathonEvent> events)
         {
-            Task.Run(() => LoadRecentEvents());
+            Task.Run(LoadRecentEvents);
         }
 
         private async void OnSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)

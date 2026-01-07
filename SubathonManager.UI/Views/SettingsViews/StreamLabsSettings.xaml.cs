@@ -31,6 +31,7 @@ public partial class StreamLabsSettings : UserControl
         if (App.AppStreamLabsService != null)
             Host!.UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
     }
+    
     public bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
