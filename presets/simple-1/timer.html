@@ -2,7 +2,13 @@
 WIDGET_META
 Width:460
 Height:110
+finishSound.SoundFile:./done.mp3
+playSoundOnFinish.Boolean:False
+soundVolume.Percent:50
 END_WIDGET_META
+-->
+<!--
+done.mp3 from: https://freesound.org/people/lewisitoo/sounds/712851/
 -->
 <meta charset=utf-8>
 <link href="https://fonts.cdnfonts.com/css/bright-orchid" rel="stylesheet">
@@ -30,6 +36,8 @@ END_WIDGET_META
 </div>
 
 <script>
+    var hasPlayedFinish = false;
+    var completedSound;
     class AnimatedDigit {
         constructor(container) {
             this.container = container;
@@ -202,12 +210,31 @@ END_WIDGET_META
             multiplierTag.classList.remove("show");
             multiplierTag.classList.add("hidden");
         }
+        if (!hasPlayedFinish && data.total_seconds <= 0){
+            hasPlayedFinish = true;
+            playFinish();
+        }
+        else if (data.total_seconds > 0){
+            hasPlayedFinish = false;
+        }
     }
 
     
     function handleSubathonDisconnect() {
         const timer = document.getElementById("timer");
         timer.classList.add("paused");
+    }
+
+    function playFinish(){
+        if (typeof(playSoundOnFinish) != "undefined" && playSoundOnFinish) {
+            if (typeof(finishSound) != "undefined" && finishSound != "") {
+                if (completedSound == undefined)
+                    completedSound = new Audio(finishSound);
+                completedSound.currentTime = 0;
+                completedSound.volume = soundVolume / 100;
+                completedSound.play().catch(() => {});
+            }
+        }
     }
 
 </script>

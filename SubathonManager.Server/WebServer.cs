@@ -132,6 +132,18 @@ public partial class WebServer
         
         
         bool handled = false;
+
+        if (path.Contains("/externalPath/"))
+        {
+            path = path.Split("/externalPath/").Last();
+            if (File.Exists(path))
+            {
+                await ctx.ServeFile(path, GetContentType(path));
+                return;
+            }
+            await ctx.WriteResponse(400, "File not found");
+            return;
+        }
         
         var routeHandler = MatchRoute(method, path);
         if (routeHandler != null)

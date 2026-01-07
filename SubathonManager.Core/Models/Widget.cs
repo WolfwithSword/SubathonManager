@@ -74,6 +74,17 @@ public class JsVariable
             }));
             sb.Append($"[{val}]");
         }
+        else if (((WidgetVariableType?)Type).IsFileVariable())
+        {
+            if (!Value.StartsWith("./") && !string.IsNullOrWhiteSpace(Value))
+            {
+                sb.Append($"\"externalPath/{Value}\"");
+            }
+            else
+            {
+                sb.Append($"\"{Value}\"");
+            }
+        }
         else // default as always string. Incl EventTypeSelect
             sb.Append($"\"{Value}\"");
         sb.Append(";\n");

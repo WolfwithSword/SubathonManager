@@ -2,7 +2,13 @@
 WIDGET_META
 Width:540
 Height:120
+finishSound.SoundFile:./done.mp3
+playSoundOnFinish.Boolean:False
+soundVolume.Percent:100
 END_WIDGET_META
+-->
+<!--
+done.mp3 from: https://freesound.org/people/Kenneth_Cooney/sounds/609336/
 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 <link href='https://fonts.googleapis.com/css?family=Quantico' rel='stylesheet'>
@@ -39,6 +45,8 @@ END_WIDGET_META
         seconds: document.getElementById("secondsNode")
     };
 
+    var hasPlayedFinish = false;
+    var completedSound;
     function format(key, value) {
         return key === "hours"
             ? value.toString()
@@ -117,6 +125,13 @@ END_WIDGET_META
             timerEl.classList.add("locked");
         } else {
             timerEl.classList.remove("locked");
+        }     
+        if (!hasPlayedFinish && data.total_seconds <= 0){
+            hasPlayedFinish = true;
+            playFinish();
+        }
+        else if (data.total_seconds > 0){
+            hasPlayedFinish = false;
         }
     }
 
@@ -124,5 +139,18 @@ END_WIDGET_META
         const timerEl = document.querySelector(".timer");
         timerEl.classList.add("paused");
         timerEl.classList.add("locked");
+    }
+
+
+    function playFinish(){
+        if (typeof(playSoundOnFinish) != "undefined" && playSoundOnFinish) {
+            if (typeof(finishSound) != "undefined" && finishSound != "") {
+                if (completedSound == undefined)
+                    completedSound = new Audio(finishSound);
+                completedSound.currentTime = 0;
+                completedSound.volume = soundVolume / 100;
+                completedSound.play().catch(() => {});
+            }
+        }
     }
 </script>

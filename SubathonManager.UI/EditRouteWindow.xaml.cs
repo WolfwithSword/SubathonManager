@@ -597,6 +597,94 @@ public partial class EditRouteWindow
                 itemRow.Children.Add(stringList);
                 outerPanel.Children.Add(itemRow);
             }
+            else if (((WidgetVariableType?)jsVar.Type).IsFileVariable())
+            {
+                var shortContent = string.IsNullOrWhiteSpace(jsVar.Value) ? "Empty" : jsVar.Value.Split('/').Last();
+                var valueBtn = new Wpf.Ui.Controls.Button
+                {
+                    Content = shortContent,
+                    Width = 150,
+                    ToolTip = jsVar.Value,
+                    Margin = new Thickness(0,0, 0, 4),
+                };
+                valueBtn.Click += (_, __) =>
+                {
+                    var path = SelectFileVarPathDialog(jsVar.Type);
+                    if (!string.IsNullOrWhiteSpace(path))
+                    {
+                        path = path.Replace('\\', '/');
+                        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+                        dir = dir!.Replace('\\', '/');
+                        var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
+                        widgetDir = widgetDir!.Replace('\\', '/');
+                        
+                        if (widgetDir!.Contains(dir!))
+                        {
+                            path = path.Replace(dir!, "./").Replace("//", "/");
+                        }
+                        jsVar.Value = path;
+                        valueBtn.Content = path.Split('/').Last();
+                        valueBtn.ToolTip = path;
+                    }
+                };
+                
+                var openBtn = new Wpf.Ui.Controls.Button
+                {
+                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Open24 },
+                    ToolTip = "Open File",
+                    Width = 40,
+                    Height = 30,
+                    Margin = new Thickness(0,0, 55, 2),
+                    Padding = new Thickness(2)
+                };
+                
+                openBtn.Click  += (_, __) =>
+                {
+                    var file = jsVar.Value;
+                    if (string.IsNullOrWhiteSpace(file)) return;
+                    if (file.StartsWith('.'))
+                    {
+                        var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
+                        file = Path.Join(widgetDir, file.Replace("./", ""));
+                    }
+
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = file,
+                        UseShellExecute = true
+                    });
+                };
+
+                var removeBtn = new Wpf.Ui.Controls.Button
+                {
+                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24 },
+                    Width = 40,
+                    Height = 30,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    ToolTip = "Clear File",
+                    Foreground = System.Windows.Media.Brushes.Red,
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    Margin = new Thickness(15, 0, 0, 0),
+                    Padding = new Thickness(2)
+                };
+
+                removeBtn.Click  += (_, __) =>
+                {
+                    jsVar.Value = string.Empty;
+                    valueBtn.Content = "Empty";
+                    valueBtn.ToolTip = string.Empty;
+                    
+                };
+                var btnRow = new StackPanel { Orientation = Orientation.Vertical };
+                var btnRow2 = new StackPanel { Orientation = Orientation.Horizontal };
+                btnRow.Children.Add(valueBtn);
+                btnRow2.Children.Add(openBtn);
+                btnRow2.Children.Add(removeBtn);
+                btnRow.Children.Add(btnRow2);
+                itemRow.Children.Add(btnRow);
+                
+                outerPanel.Children.Add(itemRow);
+            }
             else
             {
                 var txtBox = new Wpf.Ui.Controls.TextBox
@@ -690,6 +778,39 @@ public partial class EditRouteWindow
             containerPanel.Children.Add(outerPanel);
         }
         JsVarsList.Items.Add(containerPanel);
+    }
+
+    private string SelectFileVarPathDialog(WidgetVariableType type)
+    {
+        var path = string.Empty;
+        try
+        {
+            // get filter by type
+            var filter = "File|*.*";
+            if (type == WidgetVariableType.ImageFile)
+                filter = "Image|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.ico";
+            else if (type == WidgetVariableType.SoundFile)
+                filter = "Sound|*.wav;*.mp3;*.ogg;*.oga;*.opus;*.m4a;";
+            else if (type == WidgetVariableType.VideoFile)
+                filter = "Video|*.mp4;*.m4v;*.webm;*.ogm";
+            
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select file",
+                Filter = filter
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                path = dlg.FileName;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"Failed to parse filepath");
+        }
+
+        return path;
     }
 
     private void UpdateEventListValues(JsVariable variable, StackPanel dropdown)

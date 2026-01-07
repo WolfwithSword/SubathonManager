@@ -5,7 +5,13 @@ Height:180
 showLeadingEmptyTime.Boolean:True
 minimumTimeUnitsShown.Int:2
 alignment.StringSelect:Center,Left,Right
+finishSound.SoundFile:./done.mp3
+playSoundOnFinish.Boolean:True
+soundVolume.Percent:80
 END_WIDGET_META
+-->
+<!--
+done.mp3 from: https://freesound.org/people/Scrampunk/sounds/345297/
 -->
 <link href='https://fonts.googleapis.com/css?family=Press Start 2P' rel='stylesheet'>
 <link rel="stylesheet" href="timer.css">
@@ -31,7 +37,8 @@ END_WIDGET_META
 </div>
 
 <script>
-
+    var hasPlayedFinish = false;
+    var completedSound;
     function pad(n) {
         return String(n).padStart(2, "0");
     }
@@ -89,10 +96,29 @@ END_WIDGET_META
         }
         updateUnitVisibility(data);
     }
+    
+    function playFinish(){
+        if (typeof(playSoundOnFinish) != "undefined" && playSoundOnFinish) {
+            if (typeof(finishSound) != "undefined" && finishSound != "") {
+                if (completedSound == undefined)
+                    completedSound = new Audio(finishSound);
+                completedSound.currentTime = 0;
+                completedSound.volume = soundVolume / 100;
+                completedSound.play().catch(() => {});
+            }
+        }
+    }
 
     function handleSubathonUpdate(data) {
         if (data.type !== "subathon_timer") return;
         updateTimer(data);
+        if (!hasPlayedFinish && data.total_seconds <= 0){
+            hasPlayedFinish = true;
+            playFinish();
+        }
+        else if (data.total_seconds > 0){
+            hasPlayedFinish = false;
+        }
     }
 
     if (typeof alignment !== "undefined") {

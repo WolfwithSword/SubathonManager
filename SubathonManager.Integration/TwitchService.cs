@@ -251,6 +251,7 @@ public class TwitchService
     {
         var credentials = new ConnectionCredentials(UserName, $"oauth:{AccessToken}");
         _chat = new TwitchClient();
+        
         try
         {
             _chat.Initialize(credentials, channel: UserName);
@@ -261,9 +262,23 @@ public class TwitchService
         }
 
         _chat.OnMessageReceived += HandleMessageCmdReceived;
+        _chat.OnDisconnected += HandleChatDisconnect;
+        _chat.OnReconnected += HandleChatReconnect;
         await Task.Run(() => _chat.Connect());
     }
 
+    private void HandleChatDisconnect(object? _, TwitchLib.Communication.Events.OnDisconnectedEventArgs args)
+    {
+        _logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
+        _chat?.Reconnect();
+    }
+
+    private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
+    {
+        _logger?.LogInformation("Twitch Chat Reconnected");
+    }
+    
+    
     private void HandleMessageCmdReceived(object? s, OnMessageReceivedArgs e)
     {
         string message = e.ChatMessage.Message;
@@ -904,6 +919,8 @@ public class TwitchService
         if (_chat != null)
         {
             _chat.OnMessageReceived -= HandleMessageCmdReceived;
+            _chat.OnDisconnected -= HandleChatDisconnect;
+            _chat.OnReconnected -= HandleChatReconnect;
         }
 
         if (_eventSub != null)
