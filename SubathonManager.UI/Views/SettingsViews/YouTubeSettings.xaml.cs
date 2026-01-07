@@ -1,7 +1,6 @@
 ﻿using System.Windows.Controls;
 using System.Windows;
 using SubathonManager.Core.Events;
-using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 
@@ -51,13 +50,11 @@ public partial class YouTubeSettings : UserControl
             hasUpdated = true;
         }
 
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberRenameTextBox2)
-            ? true : hasUpdated;
-        hasUpdated = Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2)
-            ? true : hasUpdated;
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberRenameTextBox2);
+        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
         return hasUpdated;
     }
-    
+
     private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)
     {
         string user = YTUserHandle.Text.Trim();

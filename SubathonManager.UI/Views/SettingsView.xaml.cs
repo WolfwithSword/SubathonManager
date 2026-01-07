@@ -39,8 +39,7 @@ public partial class SettingsView
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
         UpdateServerStatus(App.AppWebServer?.Running ?? false);
-        Task.Run(() => CheckForUpdateOnBoot());
-
+        Task.Run(CheckForUpdateOnBoot);
         SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
     }
 

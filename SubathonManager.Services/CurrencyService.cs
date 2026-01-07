@@ -22,12 +22,11 @@ public class CurrencyService
     private readonly ILogger? _logger;
     private readonly IConfig _config;
 
-    public CurrencyService(ILogger<CurrencyService>? logger, IConfig config, 
-        HttpClient? httpClient = null)
+    public CurrencyService(ILogger<CurrencyService>? logger, IConfig config, HttpClient httpClient)
     {
         _logger = logger;
         _config = config;
-        _httpClient = httpClient ?? new HttpClient();
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         Directory.CreateDirectory(_dataDirectory);
     }
 
@@ -63,9 +62,13 @@ public class CurrencyService
                 _logger?.LogError(ex, "Failed to fetch new rates");
             }
         }
-        
+
         if (Rates.Count == 0)
-            throw new InvalidOperationException("No exchange rates available (failed to load or fetch).");
+        {
+            _logger?.LogError("No exchange rates available (failed to load or fetch). CurrencyService will remain available but conversions may fail.");
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", "SYSTEM",
+                "Could not fetch exchange rates for Currency Service. Failures may occur.", DateTime.Now);
+        }
     }
     
     public async Task<List<string>> GetValidCurrenciesAsync()

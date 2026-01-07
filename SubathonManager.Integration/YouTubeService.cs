@@ -274,8 +274,19 @@ public class YouTubeService : IDisposable
         {
             if (disposing)
             {
-                _reconnectCts?.Cancel();
-                _reconnectTask?.Wait(1000);
+                _reconnectCts?.Cancel();      
+                try
+                {
+                    _reconnectTask?.Wait(1000);
+                }
+                catch { /**/ }
+                try
+                {
+                    _reconnectCts?.Dispose();
+                }
+                catch { /**/ }
+                _reconnectCts = null;
+                _reconnectTask = null;
                 
                 _ytLiveChat.Stop();
                 _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
