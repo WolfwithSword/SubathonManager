@@ -321,7 +321,7 @@ public class EventService: IDisposable
         if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
-            ev.PointsValue = subathonValue!.Points;
+            ev.PointsValue = (int) Math.Floor(subathonValue!.Points);
             if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && ev.Currency != "member"
                 && !_currencyService.IsValidCurrency(ev.Currency)
                 && !string.IsNullOrEmpty(ev.Value.Trim()))
@@ -338,7 +338,7 @@ public class EventService: IDisposable
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency)).Result;
                 ev.SecondsValue = Math.Round(subathonValue.Seconds * rate, 2);
-                ev.PointsValue = (int) Math.Floor((double) ev.PointsValue! * rate);
+                ev.PointsValue = (int) Math.Floor(subathonValue!.Points * rate);
             }
             else if (ev.EventType.IsCurrencyDonation() && (string.IsNullOrEmpty(ev.Currency) ||
                                                            !_currencyService.IsValidCurrency(ev.Currency)))
@@ -354,7 +354,7 @@ public class EventService: IDisposable
 
             if (ev.EventType.IsCheerType() && double.TryParse(ev.Value, out var parsedBitsLikeValue))
             {
-                ev.PointsValue = (int) Math.Floor((parsedBitsLikeValue / 100));
+                ev.PointsValue = (int) Math.Floor(((parsedBitsLikeValue / 100)) * subathonValue!.Points);
             }
         }
 

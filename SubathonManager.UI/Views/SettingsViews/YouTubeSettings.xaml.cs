@@ -43,7 +43,7 @@ public partial class YouTubeSettings : UserControl
             hasUpdated = true;
         }
 
-        if (superchatValue != null && int.TryParse(DonoBox2.Text, out var scPoints)
+        if (superchatValue != null && double.TryParse(DonoBox2.Text, out var scPoints)
             && !scPoints.Equals(superchatValue.Points))
         {
             superchatValue.Points = scPoints;

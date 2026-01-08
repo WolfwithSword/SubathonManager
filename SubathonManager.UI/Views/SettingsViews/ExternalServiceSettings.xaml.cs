@@ -32,7 +32,7 @@ public partial class ExternalServiceSettings : UserControl
             hasUpdated = true;
         }
 
-        if (externalDonoValue != null && int.TryParse(DonoBox2.Text, out var exPoints)
+        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out var exPoints)
             && !exPoints.Equals(externalDonoValue.Points))
         {
             externalDonoValue.Points = exPoints;

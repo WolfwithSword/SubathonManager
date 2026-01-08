@@ -24,11 +24,11 @@
                     
                     <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="Bits:" Width="80" VerticalAlignment="Center" ToolTip="Twitch Only"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="12"
                                     x:Name="BitsTextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center"/>
                     
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
                                     x:Name="Bits2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
                         <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.80"
@@ -39,11 +39,11 @@
                     
                     <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="Beets:" Width="80" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="12"
                                     x:Name="BeetsTextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center"/>
                     
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
                                     x:Name="Beets2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
                         <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.8"

@@ -30,10 +30,10 @@
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
                         <TextBlock Text="SuperChats:" Width="100" VerticalAlignment="Center" ToolTip="Includes SuperStickers"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="12"
                                     x:Name="DonoBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
                                     x:Name="DonoBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -72,11 +72,11 @@
                                 <!-- Up to six can be defined, with custom names -->
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
                                     <TextBlock Text="Default:" Width="100" VerticalAlignment="Center"/>
-                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="60"
                                                 x:Name="MemberDefaultTextBox"/>
                                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="1"
                                                 x:Name="MemberRenameTextBox2"/>
                                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
@@ -113,11 +113,11 @@
                                 </Grid.ColumnDefinitions>
                               <StackPanel Orientation="Horizontal" Margin="0,2">
                                     <TextBlock Text="Default Gift:" Width="100" VerticalAlignment="Center"/>
-                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="60"
                                                 x:Name="GiftMemberDefaultTextBox"/>
                                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="1"
                                                 x:Name="GiftMemberDefaultTextBox2"/>
                                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
