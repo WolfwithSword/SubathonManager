@@ -33,11 +33,11 @@
                 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center" ToolTip="Donations and Monthly Tips"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="12"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="12"
                                 x:Name="DonoBox"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
                     
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
                                 x:Name="DonoBox2"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -73,10 +73,10 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Margin="4,2">
                             <TextBlock Text="Default:" Width="160" VerticalAlignment="Center" Margin="8 0 0 0 "/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="60"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="60"
                                         x:Name="KFSubDTextBox" Height="36"/>
                             <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" Height="36" PlaceholderText="1"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" Height="36" PlaceholderText="1"
                                         x:Name="KFSubDTextBox2"/>
                             <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                         </StackPanel>

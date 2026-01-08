@@ -18,7 +18,7 @@ public class SubathonValue
     // in future, may want to add a condition column to compare stuff with? i.e., raids of min viewer count
     
     public double Seconds { get; set; } = 0;
-    public int Points { get; set; } = 0;
+    public double Points { get; set; } = 0;
 
     
     public SubathonValueDto ToObject()
@@ -53,7 +53,7 @@ public class SubathonValue
 
         if (dto.Points != null && dto.Points >= 0 && !Points.Equals(dto.Points))
         {
-            Points = (int) dto.Points;
+            Points = (double) dto.Points;
             modified = true;
         }
 
@@ -70,7 +70,7 @@ public class SubathonValueDto
     public SubathonEventSource Source { get; set; }
     public string Meta { get; set; } = "";
     public double? Seconds { get; set; }
-    public int? Points { get; set; }
+    public double? Points { get; set; }
 
     public override string ToString()
     {

@@ -44,7 +44,7 @@ public partial class StreamElementsSettings : UserControl
             hasUpdated = true;
         }
 
-        if (seTipValue != null && int.TryParse(DonoBox2.Text, out var seTipPoints) &&
+        if (seTipValue != null && double.TryParse(DonoBox2.Text, out var seTipPoints) &&
             !seTipPoints.Equals(seTipValue.Points))
         {
             seTipValue.Points = seTipPoints;

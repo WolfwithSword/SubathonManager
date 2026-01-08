@@ -169,7 +169,7 @@ public partial class KoFiSettings : UserControl
             SubValue = subathonValue,
             NameBox = nameBox,
             TimeBox = secondsBox,
-            PointsBox = pointsBox,
+            PointsBox = pointsBox, // todo input validation?
             RowGrid = row
         };
         
@@ -246,7 +246,7 @@ public partial class KoFiSettings : UserControl
             hasUpdated = true;
         }
 
-        if (defaultSubValue != null && int.TryParse(KFSubDTextBox2.Text, out var defaultPoints) &&
+        if (defaultSubValue != null && double.TryParse(KFSubDTextBox2.Text, out var defaultPoints) &&
             !defaultPoints.Equals(defaultSubValue.Points))
         {
             defaultSubValue.Points = defaultPoints;
@@ -262,7 +262,7 @@ public partial class KoFiSettings : UserControl
             hasUpdated = true;
         }
 
-        if (tipValue != null && int.TryParse(DonoBox2.Text, out var tipPoints) && !tipPoints.Equals(tipValue.Points))
+        if (tipValue != null && double.TryParse(DonoBox2.Text, out var tipPoints) && !tipPoints.Equals(tipValue.Points))
         {
             tipValue.Points = tipPoints;
             hasUpdated = true;
@@ -293,7 +293,7 @@ public partial class KoFiSettings : UserControl
             if (!double.TryParse(subRow.TimeBox.Text, out double seconds))
                 seconds = 0;
 
-            if (!int.TryParse(subRow.PointsBox.Text, out int points))
+            if (!double.TryParse(subRow.PointsBox.Text, out double points))
                 points = 0;
             
             var existing = db.SubathonValues

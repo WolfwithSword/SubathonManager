@@ -33,11 +33,11 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center" ToolTip="Includes Combos and PowerUps"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 x:Name="CheerTextBox" PlaceholderText="12"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
                     
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 x:Name="Cheer2TextBox" PlaceholderText="0"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -68,10 +68,10 @@
 
                 <StackPanel Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 x:Name="RaidTextBox" PlaceholderText="0"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 x:Name="Raid2TextBox" PlaceholderText="0"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="150" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -101,10 +101,10 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
                                 x:Name="FollowTextBox"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
                                 x:Name="Follow2TextBox"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="150" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -127,10 +127,10 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="Charity Donations:" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 x:Name="DonoBox" PlaceholderText="12"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"  PlaceholderText="0"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"  PlaceholderText="0"
                                 x:Name="DonoBox2"/>
                     <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
                 </StackPanel>
@@ -165,10 +165,10 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="60"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="60"
                                         x:Name="SubT1TextBox"/>
                             <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="1"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="1"
                                         x:Name="SubT1TextBox2"/>
                             <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -192,19 +192,19 @@
                     </Grid>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="120"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="120"
                                     x:Name="SubT2TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="2"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="2"
                                     x:Name="SubT2TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="300"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="300"
                                     x:Name="SubT3TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="5"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="5"
                                     x:Name="SubT3TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -218,10 +218,10 @@
                         </Grid.ColumnDefinitions>
                       <StackPanel Orientation="Horizontal" Margin="0,2">
                             <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="60"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="60"
                                         x:Name="GiftSubT1TextBox"/>
                             <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="1"
+                            <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="1"
                                         x:Name="GiftSubT1TextBox2"/>
                             <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                         </StackPanel>
@@ -248,19 +248,19 @@
                     </Grid>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="120"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="120"
                                     x:Name="GiftSubT2TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="2"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="2"
                                     x:Name="GiftSubT2TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="300"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="300"
                                     x:Name="GiftSubT3TextBox"/>
                         <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
-                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="5"
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="5"
                                     x:Name="GiftSubT3TextBox2"/>
                         <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>

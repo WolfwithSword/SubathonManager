@@ -49,7 +49,7 @@ public partial class TwitchSettings : UserControl
             hasUpdated = true;
         }
 
-        if (cheerValue != null && int.TryParse(Cheer2TextBox.Text, out var cheerPoints) &&
+        if (cheerValue != null && double.TryParse(Cheer2TextBox.Text, out var cheerPoints) &&
             !cheerValue.Points.Equals(cheerPoints))
         {
             cheerValue.Points = cheerPoints;
@@ -65,7 +65,7 @@ public partial class TwitchSettings : UserControl
             hasUpdated = true;
         }
 
-        if (raidValue != null && int.TryParse(Raid2TextBox.Text, out var raidPoints) &&
+        if (raidValue != null && double.TryParse(Raid2TextBox.Text, out var raidPoints) &&
             !raidValue.Points.Equals(raidPoints))
         {
             raidValue.Points = raidPoints;
@@ -81,7 +81,7 @@ public partial class TwitchSettings : UserControl
             hasUpdated = true;
         }
 
-        if (followValue != null && int.TryParse(Follow2TextBox.Text, out var followPoints)
+        if (followValue != null && double.TryParse(Follow2TextBox.Text, out var followPoints)
             && !followValue.Points.Equals(followPoints))
         {
             followValue.Points = followPoints;
@@ -98,7 +98,7 @@ public partial class TwitchSettings : UserControl
             hasUpdated = true;
         }
 
-        if (tcdTipValue != null && int.TryParse(DonoBox2.Text, out var tcdTipPoints)
+        if (tcdTipValue != null && double.TryParse(DonoBox2.Text, out var tcdTipPoints)
             && !tcdTipValue.Points.Equals(tcdTipPoints))
         {
             tcdTipValue.Points = tcdTipPoints;

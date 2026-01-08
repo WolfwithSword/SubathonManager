@@ -45,7 +45,7 @@ public partial class StreamLabsSettings : UserControl
             hasUpdated = true;
         }
 
-        if (slTipValue != null && int.TryParse(DonoBox2.Text, out var slTipPoints)
+        if (slTipValue != null && double.TryParse(DonoBox2.Text, out var slTipPoints)
             && !slTipPoints.Equals(slTipValue.Points))
         {
             slTipValue.Points = slTipPoints;

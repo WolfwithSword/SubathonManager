@@ -39,7 +39,7 @@ public partial class ChatExtensionSettings : UserControl
             hasUpdated = true;
         }
 
-        if (blerpBitsValue != null && int.TryParse(Bits2TextBox.Text, out var bitsPoints) &&
+        if (blerpBitsValue != null && double.TryParse(Bits2TextBox.Text, out var bitsPoints) &&
             !bitsPoints.Equals(blerpBitsValue.Points))
         {
             blerpBitsValue.Points = bitsPoints;
@@ -56,7 +56,7 @@ public partial class ChatExtensionSettings : UserControl
             hasUpdated = true;
         }
 
-        if (blerpBeetsValue != null && int.TryParse(Bits2TextBox.Text, out var beetsPoints) &&
+        if (blerpBeetsValue != null && double.TryParse(Bits2TextBox.Text, out var beetsPoints) &&
             !beetsPoints.Equals(blerpBeetsValue.Points))
         {
             blerpBeetsValue.Points = beetsPoints;
