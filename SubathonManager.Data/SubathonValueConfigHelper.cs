@@ -59,6 +59,12 @@ public class SubathonValueConfigHelper
         return JsonSerializer.Serialize(dtoList, JsonOptions);
     }
 
+    public async Task<int> PatchFromJsonDataAsync(JsonElement data)
+    {
+        string json = JsonSerializer.Serialize(data, JsonOptions);
+        return await PatchFromJsonAsync(json);
+    }
+
     public async Task<int> PatchFromJsonAsync(string json)
     {
         List<SubathonValueDto>? incoming = null;

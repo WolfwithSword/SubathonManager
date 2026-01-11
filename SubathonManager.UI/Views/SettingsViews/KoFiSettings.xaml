@@ -22,6 +22,8 @@
                        Height="34"
                        Cursor = "Hand"
                        Margin="6,0,0,0"></ui:Button>
+            
+            <TextBlock x:Name="KoFiStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 0"/>
         </StackPanel>
         <StackPanel Margin="10,5,0,5">
             <Grid Margin="0,2">
