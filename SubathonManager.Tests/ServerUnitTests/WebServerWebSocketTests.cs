@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Server;
 using SubathonManager.Data;
+using SubathonManager.Core.Events;
 namespace SubathonManager.Tests.ServerUnitTests;
 
 [Collection("ProviderOverrideTests")]
@@ -208,6 +209,7 @@ public class WebServerWebSocketTests
         
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
         WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.ValueConfig);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendSubathonValues("[{}]");
@@ -331,6 +333,32 @@ public class WebServerWebSocketTests
     }
     
     [Fact]
+    public async Task WebSocket_SendRefreshRequest_NoConsumers()
+    {
+        var server = CreateServer();
+        SetupServices();
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+        
+        await server.HandleWebSocketRequestAsync(ctx);
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client);
+        Guid guid = Guid.Empty;
+        server.SendRefreshRequest(guid);
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 10)
+        {
+            await Task.Delay(10);
+            count++;
+        }
+        Assert.Empty(ctx.Socket.SentMessages);
+        AppServices.Provider = null!;
+    }
+    
+    [Fact]
     public async Task WebSocket_SendSubathonData()
     {
         var server = CreateServer();
@@ -413,4 +441,134 @@ public class WebServerWebSocketTests
         Assert.Equal("{\"type\":\"test\",\"points\":5}", sent);
         AppServices.Provider = null!;
     }
+    
+    [Fact]
+    public async Task WebSocket_ReceivePing_ReturnsPong()
+    {
+        var server = CreateServer();
+        SetupServices();
+
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive("{\"ws_type\":\"ping\"}");
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
+            await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
+
+        var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
+        Assert.Equal("{\"ws_type\":\"pong\"}", sent);
+
+        AppServices.Provider = null!;
+    }
+    
+    [Fact]
+    public async Task WebSocket_ReceiveHello_DoesNotSendMessage()
+    {
+        var server = CreateServer();
+        SetupServices();
+
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive("{\"ws_type\":\"hello\",\"origin\":\"unit-test\"}");
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+
+        Assert.Empty(ctx.Socket.SentMessages);
+
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task WebSocket_ReceiveIntegrationSource_AddsSource_AndRaisesEvent()
+    {
+        var server = CreateServer();
+        SetupServices();
+
+        var tcs = new TaskCompletionSource<string>();
+
+        
+        Action<string, bool> handler = (src, connected) =>
+        {
+            if (connected)
+                tcs.TrySetResult(src);
+        };
+        WebServerEvents.WebSocketIntegrationSourceChange += handler;
+
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive(
+            "{\"ws_type\":\"IntegrationSource\",\"source\":\"KoFi\"}"
+        );
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+
+        var result = await tcs.Task;
+        Assert.Equal(nameof(SubathonEventSource.KoFi), result);
+        WebServerEvents.WebSocketIntegrationSourceChange -= handler;
+        AppServices.Provider = null!;
+    }
+
+
+    [Fact]
+    public async Task WebSocket_ReceiveIntegrationSource_AddsSourceAndEvent()
+    {
+        var server = CreateServer();
+        SetupServices();
+
+        var tcs = new TaskCompletionSource<string>();
+
+        
+        Action<string, bool> handler = (src, connected) =>
+        {
+            if (connected)
+                tcs.TrySetResult(src);
+        };
+
+        WebServerEvents.WebSocketIntegrationSourceChange += handler;
+        
+        SubathonEvent? ev = null;
+        Action<SubathonEvent> handler2 = e => ev = e;
+        SubathonEvents.SubathonEventCreated += handler2;
+
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive(
+            "{\"ws_type\":\"IntegrationSource\",\"source\":\"KoFi\", \"type\": \"KoFiSub\", \"tier\":\"DEFAULT\", \"amount\": 1, \"user\":\"test\"}"
+        );
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+
+        var result = await tcs.Task;
+        Assert.Equal(nameof(SubathonEventSource.KoFi), result);
+        Assert.NotNull(ev);
+        Assert.Equal(SubathonEventSource.KoFi, ev.Source);
+        Assert.Equal(SubathonEventType.KoFiSub, ev.EventType);
+        
+        WebServerEvents.WebSocketIntegrationSourceChange -= handler;
+        SubathonEvents.SubathonEventCreated -= handler2;
+        AppServices.Provider = null!;
+    }
+
 }

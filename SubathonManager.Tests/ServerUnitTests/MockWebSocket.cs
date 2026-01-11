@@ -11,11 +11,27 @@ public sealed class MockWebSocket : WebSocket
     public override string? SubProtocol => null;
     public bool Disposed { get; private set; }
     
-    private readonly Queue<WebSocketReceiveResult> _receiveQueue = new();
+    private readonly Queue<(byte[] Data, WebSocketReceiveResult Result)> _receiveQueue = new();
     
-    public void EnqueueReceive(WebSocketReceiveResult result)
+    public void EnqueueReceive(string message)
     {
-        _receiveQueue.Enqueue(result);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(message);
+        _receiveQueue.Enqueue((
+            bytes,
+            new WebSocketReceiveResult(
+                bytes.Length,
+                WebSocketMessageType.Text,
+                true
+            )
+        ));
+    }
+
+    public void EnqueueClose()
+    {
+        _receiveQueue.Enqueue((
+            Array.Empty<byte>(),
+            new WebSocketReceiveResult(0, WebSocketMessageType.Close, true)
+        ));
     }
     
     public override Task CloseAsync(
@@ -48,13 +64,15 @@ public sealed class MockWebSocket : WebSocket
         ArraySegment<byte> buffer,
         CancellationToken cancellationToken)
     {
-        if (_receiveQueue.Count > 0)
+        if (_receiveQueue.Count == 0)
         {
-            var result = _receiveQueue.Dequeue();
-            return Task.FromResult(result);
+            return Task.FromResult(
+                new WebSocketReceiveResult(0, WebSocketMessageType.Close, true)
+            );
         }
-        
-        return Task.FromResult(new WebSocketReceiveResult(0, WebSocketMessageType.Close, true));
+        var (data, result) = _receiveQueue.Dequeue();
+        Array.Copy(data, 0, buffer.Array!, buffer.Offset, data.Length);
+        return Task.FromResult(result);
     }
 
     public override void Dispose()
