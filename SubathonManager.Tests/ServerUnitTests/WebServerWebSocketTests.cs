@@ -179,10 +179,17 @@ public class WebServerWebSocketTests
         goals.Add(goal);
         
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendGoalsUpdated(goals,10, GoalsType.Points);
-        while (ctx.Socket.SentMessages.Count == 0)
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal("{\"type\":\"goals_list\",\"points\":10,\"goals\":[{\"text\":\"Test Goal\",\"points\":5,\"completed\":true}],\"goals_type\":\"Points\"}", sent);
         AppServices.Provider = null!;
@@ -200,12 +207,19 @@ public class WebServerWebSocketTests
 
         
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendSubathonValues("[{}]");
-        while (ctx.Socket.SentMessages.Count == 0)
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
-        Assert.Equal("{ \"type\": \"value_config\", \"data\": [{}] }", sent);
+        Assert.Equal("{ \"type\": \"value_config\", \"ws_type\": \"ValueConfig\", \"data\": [{}] }", sent);
         AppServices.Provider = null!;
     }
     
@@ -226,10 +240,17 @@ public class WebServerWebSocketTests
         };
 
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendGoalCompleted(goal,10);
-        while (ctx.Socket.SentMessages.Count == 0)
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal("{\"type\":\"goal_completed\",\"goal_text\":\"Test Goal\",\"goal_points\":5,\"points\":10}", sent);
         AppServices.Provider = null!;
@@ -259,16 +280,23 @@ public class WebServerWebSocketTests
         };
 
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendSubathonEventProcessed(subathonEvent,true);
         await Task.Delay(50);
         Assert.Empty(ctx.Socket.SentMessages);
 
         subathonEvent.ProcessedToSubathon = true;
         server.SendSubathonEventProcessed(subathonEvent,true);
-        while (ctx.Socket.SentMessages.Count == 0)
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
-        
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
+
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Contains("{\"type\":\"event\",\"event_type\":\"TwitchGiftSub\",\"source\":\"Twitch\",\"seconds_added\":300,\"points_added\":5,\"user\":\"Test User\",\"value\":\"1000\",\"amount\":5,\"currency\":\"sub\",\"command\":\"None\"", sent);
         AppServices.Provider = null!;
@@ -285,11 +313,18 @@ public class WebServerWebSocketTests
         };
         
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Overlay); // only one that gets refresh
+        server.AddSocketClient(client); // ACTUAL adding to clients list
         Guid guid = Guid.Empty;
         server.SendRefreshRequest(guid);
-        while (ctx.Socket.SentMessages.Count == 0)
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal($"{{\"type\":\"refresh_request\",\"id\":\"{guid}\"}}", sent);
         AppServices.Provider = null!;
@@ -306,7 +341,9 @@ public class WebServerWebSocketTests
         };
         
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client); // ACTUAL adding to clients list
 
         MultiplierData mult = new MultiplierData()
         {
@@ -330,8 +367,13 @@ public class WebServerWebSocketTests
         };
         
         server.SendSubathonDataUpdate(subathon, DateTime.Now);
-        while (ctx.Socket.SentMessages.Count == 0)
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal("{\"type\":\"subathon_timer\",\"total_seconds\":172800,\"days\":2,\"hours\":0,\"minutes\":0,\"seconds\":0,\"total_points\":5678,\"rounded_money\":6769,\"fractional_money\":6769.55,\"currency\":\"CAD\",\"is_paused\":false,\"is_locked\":false,\"is_reversed\":false,\"multiplier_points\":1,\"multiplier_time\":2,\"multiplier_start_time\":null,\"multiplier_seconds_total\":0,\"multiplier_seconds_remaining\":0,\"total_seconds_elapsed\":259200,\"total_seconds_added\":432000}", sent);
         AppServices.Provider = null!;
@@ -349,7 +391,9 @@ public class WebServerWebSocketTests
         };
         
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        server.AddSocketClient(ctx.Socket); // ACTUAL adding to clients list
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client); // ACTUAL adding to clients list
 
         object data = new
         {
@@ -357,9 +401,14 @@ public class WebServerWebSocketTests
             points = 5,
         };
 
-        await server.SelectSendAsync(ctx.Socket, data);
-        while (ctx.Socket.SentMessages.Count == 0)
+        await server.SelectSendAsync(client, data);
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
             await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal("{\"type\":\"test\",\"points\":5}", sent);
         AppServices.Provider = null!;

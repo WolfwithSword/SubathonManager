@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -7,12 +6,13 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
+using SubathonManager.Integration;
 
 namespace SubathonManager.Server;
 
 public partial class WebServer
 {
-    private readonly List<WebSocket> _clients = new();
+    private readonly List<IWebSocketClient> _clients = new();
     private readonly object _lock = new();
     private SemaphoreSlim _sendLock = new SemaphoreSlim(1,1);
 
@@ -38,8 +38,8 @@ public partial class WebServer
 
     internal void SendSubathonValues(string jsonData)
     {
-        var newData = $"{{ \"type\": \"value_config\", \"data\": {jsonData} }}";
-        Task.Run(() => BroadcastAsync(newData));
+        var newData = $"{{ \"type\": \"value_config\", \"ws_type\": \"{WebsocketClientMessageType.ValueConfig}\", \"data\": {jsonData} }}";
+        Task.Run(() => BroadcastAsync(newData, WebsocketClientTypeHelper.ConfigConsumersList));
     }
 
     internal void SendGoalsUpdated(List<SubathonGoal> goals, long currentPoints, GoalsType type)
@@ -56,7 +56,7 @@ public partial class WebServer
             goals = objGoals.ToArray(),
             goals_type = $"{type}"
         };
-        Task.Run(() => BroadcastAsyncObject(data));
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
 
     private object GoalToObject(SubathonGoal goal, long currentPoints)
@@ -78,10 +78,10 @@ public partial class WebServer
             goal_points =  goal.Points,
             points = currentPoints
         };
-        Task.Run(() => BroadcastAsyncObject(data));
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
 
-    private async Task InitConnection(WebSocket socket)
+    private async Task InitConnection(IWebSocketClient socket)
     {
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
@@ -141,7 +141,7 @@ public partial class WebServer
     internal void SendSubathonEventProcessed(SubathonEvent subathonEvent, bool effective)
     {
         if (!subathonEvent.ProcessedToSubathon) return;
-        Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent)));
+        Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent), WebsocketClientTypeHelper.ConsumersList));
     }
 
     internal void SendRefreshRequest(Guid id)
@@ -151,7 +151,7 @@ public partial class WebServer
             {
                 type = "refresh_request",
                 id = id.ToString()
-            })
+            }, WebsocketClientMessageType.Overlay)
         );
     }
 
@@ -196,13 +196,16 @@ public partial class WebServer
 
     internal void SendSubathonDataUpdate(SubathonData subathon, DateTime time)
     {
-        Task.Run(() => BroadcastAsyncObject(SubathonDataToObject(subathon)));
+        Task.Run(() => BroadcastAsyncObject(SubathonDataToObject(subathon), WebsocketClientTypeHelper.ConsumersList));
     }
 
-    internal void AddSocketClient(WebSocket socket)
+    internal void AddSocketClient(IWebSocketClient socket)
     {
         lock (_lock)
+        {
             _clients.Add(socket);
+            _logger?.LogDebug($"{_clients.Count} websocket clients connected");
+        }
     }
     
     public async Task HandleWebSocketRequestAsync(IHttpContext ctx)
@@ -222,26 +225,34 @@ public partial class WebServer
         }
 
         using WebSocket socket = await accept;
-
-        AddSocketClient(socket);
+        IWebSocketClient client = new WebSocketClient(socket);
+        AddSocketClient(client);
         
-        _logger?.LogDebug("New WebSocket Client Connected");
-        await InitConnection(socket);
+        _logger?.LogDebug($"New WebSocket Client Connected [{client.ClientId}].");
         
         try
         {
-            await Listen(socket);
+            await Listen(client);
         }
         finally
         {
-            lock (_lock)
-                _clients.Remove(socket);
+            foreach (var clientIntegrationSource in client.IntegrationSources)
+            {
+                WebServerEvents.RaiseWebSocketIntegrationSourceChange(clientIntegrationSource.ToString(), false);
+                _logger?.LogDebug($"WebSocket Client disconnected for Integration: {clientIntegrationSource}");
+            }
 
-            _logger?.LogDebug("WebSocket Client Disconnected");
+            lock (_lock)
+            {
+                _clients.Remove(client);
+                _logger?.LogDebug($"{_clients.Count} websocket clients connected");
+            }
+
+            _logger?.LogDebug($"WebSocket Client Disconnected [{client.ClientId}]");
         }
     }
     
-    private async Task Listen(WebSocket socket)
+    private async Task Listen(IWebSocketClient socket)
     {
         var buffer = new byte[1024 * 8];
         while (socket.State == WebSocketState.Open)
@@ -254,15 +265,16 @@ public partial class WebServer
             }
 
             string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            WebsocketClientMessageType clientMessageType = WebsocketClientMessageType.None;
             try
             {
                 var json = JsonDocument.Parse(msg);
-                if (json.RootElement.TryGetProperty("type", out var type))
+                if (json.RootElement.TryGetProperty("ws_type", out var type))
                 {
                     switch (type.GetString())
                     {
                         case "ping":
-                            var pong = Encoding.UTF8.GetBytes("{\"type\":\"pong\"}");
+                            var pong = Encoding.UTF8.GetBytes("{\"ws_type\":\"pong\"}");
                             await _sendLock.WaitAsync();
                             try
                             {
@@ -274,8 +286,95 @@ public partial class WebServer
                             }
                             break;
                         case "hello":
-                            _logger?.LogDebug($"[WebSocket] Hello from {json.RootElement.GetProperty("origin").GetString()}");
+                            _logger?.LogDebug($"[WebSocket] [{socket.ClientId}] Hello from {json.RootElement.GetProperty("origin").GetString()}");
                             break;
+                    }
+
+                    if (Enum.TryParse(type.GetString(), out clientMessageType))
+                    {
+                        if (socket.ClientTypes.Count >= 1 && !socket.ClientTypes.Contains(clientMessageType))
+                        {
+                            _logger?.LogDebug($"WebSocket ClientType [{clientMessageType}] identified for client [{socket.ClientId}]");
+                            socket.ClientTypes.Add(clientMessageType);
+                            if (clientMessageType.IsConsumer() && socket.ClientTypes.Contains(WebsocketClientMessageType.Generic))
+                            {
+                                socket.ClientTypes.Remove(WebsocketClientMessageType.Generic);
+                                await InitConnection(socket);
+                            }
+                            else if (clientMessageType == WebsocketClientMessageType.ValueConfig &&
+                                     socket.ClientTypes.Contains(WebsocketClientMessageType.Generic))
+                            {
+                                socket.ClientTypes.Remove(WebsocketClientMessageType.Generic);
+                                string configValues = await _valueHelper.GetAllAsJsonAsync();
+                                var newData = $"{{ \"type\": \"value_config\", \"ws_type\": \"{WebsocketClientMessageType.ValueConfig}\", \"data\": {configValues} }}";
+                                await SelectSendStringAsync(socket, newData);
+                            }
+                        }
+                    }
+                }
+                
+                // received type *may* not equal socket type, we want to be able to reuse sockets like this
+                // set type of socket is just primary type for events
+                if (clientMessageType.Equals(WebsocketClientMessageType.IntegrationSource))
+                {
+                    if (json.RootElement.TryGetProperty("source", out JsonElement src) &&
+                        Enum.TryParse(src.GetString()!, ignoreCase: true, out SubathonEventSource source)
+                        && !socket.IntegrationSources.Contains(source))
+                    {
+                        _logger?.LogDebug($"WebSocket Client [{socket.ClientId}] added Integration: {source}");
+                        socket.IntegrationSources.Add(source);
+                        WebServerEvents.RaiseWebSocketIntegrationSourceChange(source.ToString(), true);
+                    }
+                    
+                    if (!json.RootElement.TryGetProperty("type", out JsonElement elem)
+                        || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out SubathonEventType seType)
+                        || seType == SubathonEventType.Unknown)
+                        continue;
+                    
+                    Dictionary<string, JsonElement> data =
+                        json.RootElement
+                            .EnumerateObject()
+                            .ToDictionary(p => p.Name, p => p.Value);
+
+                    if (seType == SubathonEventType.Command)
+                    {
+                        ExternalEventService.ProcessExternalCommand(data);
+                    }
+                    else if (((SubathonEventType?)seType).IsCurrencyDonation() && ((SubathonEventType?)seType).IsExternalType())
+                    {
+                        if (!socket.IntegrationSources.Contains(((SubathonEventType?)seType).GetSource()))
+                            socket.IntegrationSources.Add(((SubathonEventType?)seType).GetSource());
+                        ExternalEventService.ProcessExternalDonation(data);
+                    }
+                    else if (((SubathonEventType?)seType).IsSubOrMembershipType() && ((SubathonEventType?)seType).IsExternalType())
+                    {
+                        if (!socket.IntegrationSources.Contains(((SubathonEventType?)seType).GetSource()))
+                            socket.IntegrationSources.Add(((SubathonEventType?)seType).GetSource());
+                        ExternalEventService.ProcessExternalSub(data);
+                    }
+                }
+                else if (clientMessageType.Equals(WebsocketClientMessageType.ValueConfig))
+                {
+                    if (json.RootElement.TryGetProperty("data", out var data))
+                    {
+                        int patched = await _valueHelper.PatchFromJsonDataAsync(data);
+
+                        var resMsg = "";
+                        if (patched == -1) resMsg = "Error Patching";
+                        else if (patched == 0) resMsg = "No patches needed";
+                        else resMsg = $"Patched {patched} Values";
+                        object resp = new
+                        {
+                            ws_type = WebsocketClientMessageType.ValueConfig,
+                            response = resMsg
+                        };
+                        await SelectSendAsync(socket, resp);
+                    }
+                    else
+                    {
+                        string configValues = await _valueHelper.GetAllAsJsonAsync();
+                        var newData = $"{{ \"type\": \"value_config\", \"ws_type\": \"{WebsocketClientMessageType.ValueConfig}\", \"data\": {configValues} }}";
+                        await SelectSendStringAsync(socket, newData);
                     }
                 }
             }
@@ -286,23 +385,23 @@ public partial class WebServer
         }
     }
 
-    private async Task BroadcastAsyncObject(object data)
+    private async Task BroadcastAsyncObject(object data, params WebsocketClientMessageType[] types)
     {
         string json = JsonSerializer.Serialize(data);
-        await BroadcastAsync(json);
+        await BroadcastAsync(json, types);
     }
     
-    private async Task BroadcastAsync(string json)
+    private async Task BroadcastAsync(string json, params WebsocketClientMessageType[] types)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(json);
 
-        List<WebSocket> clientsCopy;
+        List<IWebSocketClient> clientsCopy;
         lock (_lock)
             clientsCopy = _clients.ToList();
 
         foreach (var ws in clientsCopy)
         {
-            if (ws.State == WebSocketState.Open)
+            if (ws.State == WebSocketState.Open && ws.ClientTypes.Any(types.Contains))
             {
                 await _sendLock.WaitAsync();
                 try
@@ -317,10 +416,27 @@ public partial class WebServer
         }
     }
 
-    internal async Task SelectSendAsync(WebSocket client, object data)
+    internal async Task SelectSendAsync(IWebSocketClient client, object data)
     {
         string json = JsonSerializer.Serialize(data);
         byte[] bytes = Encoding.UTF8.GetBytes(json);
+        if (client.State == WebSocketState.Open)
+        {
+            await _sendLock.WaitAsync();
+            try
+            {
+                await client.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
+        }
+    }
+    
+    internal async Task SelectSendStringAsync(IWebSocketClient client, string data)
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes(data);
         if (client.State == WebSocketState.Open)
         {
             await _sendLock.WaitAsync();
@@ -352,7 +468,9 @@ public partial class WebServer
                                     console.log('[Subathon WS] Connected');
                                     if (reconnectTimer) clearTimeout(reconnectTimer);
                                     startPing();
-                                    socket.send(JSON.stringify({{ type: 'hello', origin: window.location.href }}));
+                                    var _type = 'Widget';
+                                    if ('{routeId}' != '') _type = 'Overlay';
+                                    socket.send(JSON.stringify({{ ws_type: _type, origin: window.location.href }}));
                                 }};
                         
                                 socket.onmessage = (event) => {{

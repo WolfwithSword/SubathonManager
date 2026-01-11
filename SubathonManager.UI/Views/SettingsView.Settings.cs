@@ -104,10 +104,13 @@ namespace SubathonManager.UI.Views
         {
             Dispatcher.Invoke(() =>
             {
-                if (textBlock == null || button == null) return;
-                if (status && textBlock.Text != "Connected") textBlock.Text = "Connected";
-                else if (!status && textBlock.Text != "Disconnected") textBlock.Text = "Disconnected";
-                
+                if (textBlock != null)
+                {
+                    if (status && textBlock.Text != "Connected") textBlock.Text = "Connected";
+                    else if (!status && textBlock.Text != "Disconnected") textBlock.Text = "Disconnected";
+                }
+
+                if (button == null) return;
                 if (status && button.Content.ToString() != "Reconnect") button.Content = "Reconnect";
                 else if (!status && button.Content.ToString() != "Connect") button.Content = "Connect";
             });

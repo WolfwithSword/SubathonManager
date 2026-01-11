@@ -9,6 +9,7 @@ using SubathonManager.Integration;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 using SubathonManager.Core;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -27,8 +28,15 @@ public partial class KoFiSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
+        WebServerEvents.WebSocketIntegrationSourceChange += UpdateKoFiStatus;
     }
 
+    private void UpdateKoFiStatus(string source, bool status)
+    {
+        if (nameof(SubathonEventSource.KoFi).Equals(source, StringComparison.InvariantCultureIgnoreCase))
+            Host!.UpdateConnectionStatus(status, KoFiStatusText, null);
+    }
+    
     public void LoadValues(AppDbContext db)
     {
         var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.KoFiSub)
