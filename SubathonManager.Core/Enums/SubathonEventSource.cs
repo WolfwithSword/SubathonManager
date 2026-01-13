@@ -2,6 +2,7 @@
 
 public enum SubathonEventSource
 {
+    // some may not actually be event sources in the future, but also integration sources
     Twitch,
     StreamElements,
     KoFi,

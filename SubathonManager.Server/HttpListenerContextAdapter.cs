@@ -1,9 +1,11 @@
 ﻿using System.Net;
 using System.Text;
 using System.Net.WebSockets;
-
+using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Server;
 
+
+[ExcludeFromCodeCoverage]
 public sealed class HttpListenerContextAdapter : IHttpContext
 {
     private readonly HttpListenerContext _ctx;

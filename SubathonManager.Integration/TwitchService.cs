@@ -405,6 +405,7 @@ public class TwitchService
         return Task.CompletedTask;
     }
     
+    [ExcludeFromCodeCoverage]
     private async Task TryReconnectEventSubAsync()
     {
         if (!await _eventSubReconnectLock.WaitAsync(0))
