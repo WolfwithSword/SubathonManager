@@ -561,6 +561,7 @@ public class WebServerWebSocketTests
         await server.HandleWebSocketRequestAsync(ctx);
 
         var result = await tcs.Task;
+        await Task.Delay(50);
         Assert.Equal(nameof(SubathonEventSource.KoFi), result);
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.KoFi, ev.Source);
