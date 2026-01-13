@@ -96,6 +96,7 @@ public class WebServerTests
 
         Assert.NotNull(handler);
         AppServices.Provider = null!;
+        server.Stop();
     }
 
     [Fact]

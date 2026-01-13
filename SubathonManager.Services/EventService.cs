@@ -697,7 +697,8 @@ public class EventService: IDisposable
 
     public async Task StopAsync()
     {
-        _cts.Cancel();
+        if (!_cts.IsCancellationRequested)
+            await _cts.CancelAsync();
         _signal.Release();
         if (_processingTask != null)
             await _processingTask;
@@ -705,7 +706,8 @@ public class EventService: IDisposable
     
     public void Dispose()
     {
-        _cts.Cancel();
+        if (!_cts.IsCancellationRequested)
+            _cts.Cancel();
         _signal.Dispose();
         _cts.Dispose();
     }

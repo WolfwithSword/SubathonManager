@@ -570,5 +570,96 @@ public class WebServerWebSocketTests
         SubathonEvents.SubathonEventCreated -= handler2;
         AppServices.Provider = null!;
     }
+    
+    [Fact]
+    public async Task WebSocket_ReceiveAndInitConsumer()
+    {
+        var server = CreateServer();
+        
+        var factory = AppServices.Provider.GetService<IDbContextFactory<AppDbContext>>();
+        await using var db = await factory!.CreateDbContextAsync();
+        var subathon = new SubathonData { IsActive = true };
+        db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
+        db!.SubathonDatas.Add(subathon);
+
+        db.SubathonEvents.Add(new SubathonEvent {
+            SubathonId = subathon.Id,
+            EventType = SubathonEventType.KoFiDonation,
+            Currency = "USD",
+            Value = "5",
+            ProcessedToSubathon = true
+        });
+
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive("{\"ws_type\":\"Widget\",\"origin\":\"unit-test\"}");
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
+            await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
+
+        AppServices.Provider = null!;
+        server.Stop();
+    }    
+    
+    [Fact]
+    public async Task WebSocket_ReceiveAndInitConfigConsumer()
+    {
+        var server = CreateServer();
+        
+        var factory = AppServices.Provider.GetService<IDbContextFactory<AppDbContext>>();
+        await using var db = await factory!.CreateDbContextAsync();
+        var subathon = new SubathonData { IsActive = true };
+        db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
+        db!.SubathonDatas.Add(subathon);
+
+        db.SubathonEvents.Add(new SubathonEvent {
+            SubathonId = subathon.Id,
+            EventType = SubathonEventType.KoFiDonation,
+            Currency = "USD",
+            Value = "5",
+            ProcessedToSubathon = true
+        });
+        
+        db.SubathonValues.Add(new SubathonValue {
+            EventType = SubathonEventType.TwitchSub,
+            Meta = "1000"
+        });
+        
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive("{\"ws_type\":\"ValueConfig\",\"type\":\"value_config\"}");
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+        int count = 0;
+        while (ctx.Socket.SentMessages.Count == 0 && count <= 20)
+        {
+            await Task.Delay(10);
+            count++;
+        }
+        Assert.NotEmpty(ctx.Socket.SentMessages);
+
+        AppServices.Provider = null!;
+        server.Stop();
+    }
 
 }

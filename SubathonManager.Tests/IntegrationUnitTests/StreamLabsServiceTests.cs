@@ -88,7 +88,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         }
         
         [Fact]
-        public void OnDonation_ShouldRaiseSubathonEvent()
+        public async Task OnDonation_ShouldRaiseSubathonEvent()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
             var config = new Mock<Config>();
@@ -134,6 +134,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(Guid.Parse(donation.MessageId), capturedEvent.Id);
             
             SubathonEvents.SubathonEventCreated -= handler;
+            await service.DisconnectAsync();
         }
     }
 }
