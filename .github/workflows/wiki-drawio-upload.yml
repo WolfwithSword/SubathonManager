@@ -1,4 +1,4 @@
-﻿name: Update Wiki Drawio
+name: Update Wiki Drawio
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
           
       - name: Checkout Wiki Repository
         if: steps.wiki-check.outputs.exists == 'true'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ github.repository }}.wiki
           token: ${{ secrets.GITHUB_TOKEN }}
