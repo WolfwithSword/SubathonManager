@@ -1,4 +1,4 @@
-﻿name: Build SubathonManager (Windows)
+name: Build SubathonManager (Windows)
 
 on:
   push:
@@ -31,15 +31,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '9.0.x'
           
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
@@ -85,15 +85,15 @@ jobs:
       artifact_name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '9.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
@@ -163,7 +163,7 @@ jobs:
       - name: Upload build artifact (GitHub)
         if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) ||
           ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         id: artifact-upload
         continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}
         with:
@@ -201,7 +201,7 @@ jobs:
       || github.event.inputs.force_nightly == 'true'
     steps:
       - name: Checkout external files folder
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             external
@@ -209,7 +209,7 @@ jobs:
           
       - name: Download build artifact (GitHub)
         if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: ${{ needs.build.outputs.artifact_name }}
           path: build/
