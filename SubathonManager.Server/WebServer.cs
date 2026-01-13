@@ -60,6 +60,7 @@ public partial class WebServer
         Port = port;
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{Port}/");
+        _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
     }
 
     private void SetupOverlayRoutes()
