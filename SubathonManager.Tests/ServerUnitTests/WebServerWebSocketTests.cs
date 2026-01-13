@@ -578,6 +578,57 @@ public class WebServerWebSocketTests
         AppServices.Provider = null!;
     }
     
+    
+    [Fact]
+    public async Task WebSocket_ReceiveCommand()
+    {
+        var server = CreateServer();
+        SetupServices();
+
+        var tcs = new TaskCompletionSource<string>();
+
+        
+        Action<string, bool> handler = (src, connected) =>
+        {
+            if (connected)
+                tcs.TrySetResult(src);
+        };
+
+        WebServerEvents.WebSocketIntegrationSourceChange += handler;
+        
+        SubathonEvent? ev = null;
+        Action<SubathonEvent> handler2 = e => ev = e;
+        SubathonEvents.SubathonEventCreated += handler2;
+
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+
+        ctx.Socket.EnqueueReceive(
+            "{\"ws_type\":\"Command\", \"type\": \"Command\", \"message\":\"\", \"command\": \"pause\", \"user\":\"test\"}"
+        );
+        ctx.Socket.EnqueueClose();
+
+        await server.HandleWebSocketRequestAsync(ctx);
+
+        int count = 0;
+        while (count < 20 && ev == null)
+        {
+            await Task.Delay(10);
+            count++;
+        }
+
+        Assert.NotNull(ev);
+        Assert.Equal(SubathonEventSource.External, ev.Source);
+        Assert.Equal(SubathonEventType.Command, ev.EventType);
+        
+        WebServerEvents.WebSocketIntegrationSourceChange -= handler;
+        SubathonEvents.SubathonEventCreated -= handler2;
+        AppServices.Provider = null!;
+    }
+    
+    
     [Fact]
     public async Task WebSocket_ReceiveAndInitConsumer()
     {

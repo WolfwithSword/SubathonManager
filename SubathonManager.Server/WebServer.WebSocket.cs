@@ -315,7 +315,22 @@ public partial class WebServer
                 
                 // received type *may* not equal socket type, we want to be able to reuse sockets like this
                 // set type of socket is just primary type for events
-                if (clientMessageType.Equals(WebsocketClientMessageType.IntegrationSource))
+                if (clientMessageType == WebsocketClientMessageType.Command)
+                {
+                    if (!json.RootElement.TryGetProperty("type", out JsonElement elem)
+                     || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out SubathonEventType seType)
+                     || seType == SubathonEventType.Unknown)
+                        continue;
+                    if (seType != SubathonEventType.Command) continue;
+                    
+                    Dictionary<string, JsonElement> data =
+                        json.RootElement
+                            .EnumerateObject()
+                            .ToDictionary(p => p.Name, p => p.Value);
+                    
+                    ExternalEventService.ProcessExternalCommand(data);
+                }
+                else if (clientMessageType.Equals(WebsocketClientMessageType.IntegrationSource))
                 {
                     if (json.RootElement.TryGetProperty("source", out JsonElement src) &&
                         Enum.TryParse(src.GetString()!, ignoreCase: true, out SubathonEventSource source)
@@ -335,12 +350,8 @@ public partial class WebServer
                         json.RootElement
                             .EnumerateObject()
                             .ToDictionary(p => p.Name, p => p.Value);
-
-                    if (seType == SubathonEventType.Command)
-                    {
-                        ExternalEventService.ProcessExternalCommand(data);
-                    }
-                    else if (((SubathonEventType?)seType).IsCurrencyDonation() && ((SubathonEventType?)seType).IsExternalType())
+                    
+                    if (((SubathonEventType?)seType).IsCurrencyDonation() && ((SubathonEventType?)seType).IsExternalType())
                     {
                         if (!socket.IntegrationSources.Contains(((SubathonEventType?)seType).GetSource()))
                             socket.IntegrationSources.Add(((SubathonEventType?)seType).GetSource());
