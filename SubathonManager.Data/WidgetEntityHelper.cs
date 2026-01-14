@@ -55,6 +55,12 @@ public class WidgetEntityHelper
     {
         Dictionary<string, string> metadata = ExtractWidgetMetadataSync(widget.HtmlPath);
         
+        widget.DocsUrl = metadata.TryGetValue("Url", out var u) && !string.IsNullOrWhiteSpace(u)
+                                                                && Uri.IsWellFormedUriString(u, UriKind.Absolute)
+                                                                && !u.Trim().Equals(widget.DocsUrl)
+            ? u.Trim()
+            : widget.DocsUrl;
+        
         (var jsVars, var extractedNames, var updatedVars) = LoadNewJsVariables(widget, metadata);
         
         using var db = _factory.CreateDbContext();

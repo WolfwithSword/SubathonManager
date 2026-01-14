@@ -230,7 +230,14 @@
                             <TextBlock Text="Widget Editor" FontSize="18" FontWeight="Bold" Margin="0,-8,0,24"/>
                             <StackPanel Margin="0,8">
                                 <TextBlock Text="Name" FontWeight="SemiBold" Margin="2 2"/>
-                                <ui:TextBox x:Name="WidgetNameBox" PlaceholderText="Widget Name..."/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:TextBox x:Name="WidgetNameBox" PlaceholderText="Widget Name..." Width="315"/>
+                                    <ui:Button x:Name="DocsLinkBtn" Icon="Globe24" Width="36" Height="36" 
+                                               Padding="2 0"
+                                               Click="OpenWidgetDocumentation_Click"
+                                               ToolTip="View Documentation"
+                                               Margin="4 0 4 0"/>
+                                </StackPanel>
                             </StackPanel>
 
                             <UniformGrid Columns="2" Rows="2" Margin="0,8">
