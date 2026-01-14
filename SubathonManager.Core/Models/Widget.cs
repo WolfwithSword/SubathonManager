@@ -131,6 +131,8 @@ public class Widget
 
     public bool Visibility { get; set; } = true;
 
+    public string? DocsUrl { get; set; } = string.Empty;
+
     public Widget(string name, string htmlPath)
     {
         Name = name;

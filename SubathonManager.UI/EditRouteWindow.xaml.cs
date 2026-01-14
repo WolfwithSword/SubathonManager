@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.IO;
 using System.Windows;
 using System.Globalization;
+using System.Reflection.Metadata.Ecma335;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -361,7 +362,6 @@ public partial class EditRouteWindow
         using var db = _factory.CreateDbContext();
         var widget = db.Widgets.Include(wX => wX.JsVariables)
             .Include(wX => wX.CssVariables).FirstOrDefault(wX => wX.Id == widgetId);
-        
         Dispatcher.Invoke(() =>
         {
             PopulateWidgetEditor(widget);
@@ -414,13 +414,39 @@ public partial class EditRouteWindow
         if (widget.ScaleY == 0) widget.ScaleY = 1;
         if (WidgetScaleXBox.Text != $"{widget.ScaleX}") WidgetScaleXBox.Text = $"{widget.ScaleX}";
         if (WidgetScaleYBox.Text != $"{widget.ScaleY}") WidgetScaleYBox.Text = $"{widget.ScaleY}";
+
+        if (string.IsNullOrWhiteSpace(widget.DocsUrl))
+        {
+            DocsLinkBtn.Visibility = Visibility.Hidden;
+            WidgetNameBox.Width = 355;
+        }
+        else
+        {
+           DocsLinkBtn.Visibility = Visibility.Visible;
+           DocsLinkBtn.Icon = new SymbolIcon { Symbol = SymbolRegular.Globe24 };
+           WidgetNameBox.Width = 315;
+        }
         
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
     }
 
-
+    private async void OpenWidgetDocumentation_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedWidget == null || string.IsNullOrWhiteSpace(_selectedWidget.DocsUrl)
+            || !Uri.IsWellFormedUriString(_selectedWidget.DocsUrl, UriKind.Absolute)) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _selectedWidget.DocsUrl,
+                UseShellExecute = true
+            });
+        }
+        catch {/**/}
+    }
+    
     private async void ToggleVisibility_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -1000,6 +1026,11 @@ public partial class EditRouteWindow
                            int.TryParse(h, out var parsedH)
             ? parsedH
             : 200;
+
+        newWidget.DocsUrl = metadata.TryGetValue("Url", out var u) && !string.IsNullOrWhiteSpace(u)
+            && Uri.IsWellFormedUriString(u, UriKind.Absolute)
+            ? u.Trim()
+            : string.Empty;
 
         db.Widgets.Add(newWidget);
         await db.SaveChangesAsync();
