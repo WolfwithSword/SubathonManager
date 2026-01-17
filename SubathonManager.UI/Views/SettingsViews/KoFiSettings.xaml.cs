@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Diagnostics;
 using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Integration;
 using SubathonManager.Core.Enums;
@@ -18,6 +19,7 @@ public partial class KoFiSettings : UserControl
 {
     public required SettingsView Host { get; set; }
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<KoFiSettings>>();
     private List<KoFiSubRow> _dynamicSubRows = new();
 
     public KoFiSettings()
@@ -363,12 +365,22 @@ public partial class KoFiSettings : UserControl
                 return;
             }
 
-            Clipboard.SetText(content);
-            var button = sender as Button;
-            var originalContent = button!.Content;
-            button!.Content = "Copied!";
-            await Task.Delay(1500);
-            button!.Content = originalContent;
+            try
+            {
+                var result = await UiUtils.UiUtils.TrySetClipboardTextAsync(content);
+                if (result)
+                {
+                    var button = sender as Button;
+                    var originalContent = button!.Content;
+                    button!.Content = "Copied!";
+                    await Task.Delay(1500);
+                    button!.Content = originalContent;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Failed to copy KoFi StreamerBot import string.");
+            }
         }
         catch
         {

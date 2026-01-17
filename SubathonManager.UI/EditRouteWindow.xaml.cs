@@ -1073,10 +1073,17 @@ public partial class EditRouteWindow
         UpdateWebViewScale();
     }
     
-    private void CopyOverlayUrl_Click(object sender, RoutedEventArgs e)
+    private async void CopyOverlayUrl_Click(object sender, RoutedEventArgs e)
     {
-        if (_route == null) return;
-        Clipboard.SetText(_route.GetRouteUrl(App.AppConfig!));
+        try
+        {
+            if (_route == null) return;
+            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(App.AppConfig!));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, $"Failed to copy overlay URL");
+        }
     }
 
     private void OpenOverlayInBrowser_Click(object sender, RoutedEventArgs e)

@@ -48,14 +48,23 @@ namespace SubathonManager.UI
             OverlayEvents.RaiseOverlayRefreshAllRequested();
         }
         
-        private void CopyRouteUrl_Click(object sender, RoutedEventArgs e)
+        private async void CopyRouteUrl_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext != null)
+            try
             {
-                dynamic item = btn.DataContext;
-                Route route = item;
-                Clipboard.SetText(route.GetRouteUrl(App.AppConfig!));
+                if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext != null)
+                {
+                    dynamic item = btn.DataContext;
+                    Route route = item;
+
+                    await UiUtils.UiUtils.TrySetClipboardTextAsync(route.GetRouteUrl(App.AppConfig!));
+                }
             }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Failed to copy overlay URL");
+            }
+
         }
         
         private void AddRoute_Click(object sender, RoutedEventArgs e)
