@@ -39,6 +39,12 @@ public class TwitchService
     private readonly SemaphoreSlim _eventSubReconnectLock = new(1, 1);
     private CancellationTokenSource? _eventSubReconnectCts;
     private volatile bool _eventSubConnecting = false;
+    private readonly SemaphoreSlim _chatReconnectLock = new(1,1);
+    private CancellationTokenSource? _chatReconnectCts;
+    private volatile bool _chatReconnecting = false;
+    
+    private DateTime _lastChatDisconnectLog = DateTime.MinValue;
+
     private static readonly TimeSpan InitialBackoff = TimeSpan.FromSeconds(2.5);
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
     private volatile bool _isConnected = false;
@@ -269,9 +275,64 @@ public class TwitchService
 
     private void HandleChatDisconnect(object? _, TwitchLib.Communication.Events.OnDisconnectedEventArgs args)
     {
-        _logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
-        _chat?.Reconnect();
+        if ((DateTime.Now - _lastChatDisconnectLog).TotalSeconds > 60)
+        {
+            _logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
+            _lastChatDisconnectLog = DateTime.Now;
+        }
+        Task.Run(TryReconnectChatAsync);
     }
+    
+    
+    [ExcludeFromCodeCoverage]
+    private async Task TryReconnectChatAsync()
+    {
+        if (!await _chatReconnectLock.WaitAsync(0))
+            return;
+
+        if (_chatReconnectCts?.IsCancellationRequested == false)
+            _chatReconnectCts?.Cancel();
+        _chatReconnectCts?.Dispose();
+        _chatReconnectCts = new CancellationTokenSource();
+
+        try
+        {
+            if (_chatReconnecting || _chat?.IsConnected == true)
+                return;
+
+            _chatReconnecting = true;
+
+            var delay = TimeSpan.FromSeconds(5);
+
+            while (!_chatReconnectCts.IsCancellationRequested)
+            {
+                try
+                {
+                    _logger?.LogDebug("Attempting Twitch Chat reconnect...");
+                    _chat?.Reconnect();
+
+                    await Task.Delay(delay, _chatReconnectCts.Token);
+
+                    if (_chat?.IsConnected == true)
+                    {
+                        _logger?.LogDebug("Twitch Chat reconnect successful.");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Chat reconnect failed.");
+                    await Task.Delay(delay, _chatReconnectCts.Token);
+                }
+            }
+        }
+        finally
+        {
+            _chatReconnecting = false;
+            _chatReconnectLock.Release();
+        }
+    }
+
 
     private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
     {
@@ -411,7 +472,10 @@ public class TwitchService
         if (!await _eventSubReconnectLock.WaitAsync(0))
             return;
 
-        _eventSubReconnectCts?.CancelAsync();
+        
+        if (_eventSubReconnectCts?.IsCancellationRequested == false)
+            _eventSubReconnectCts?.Cancel();
+        _eventSubReconnectCts?.Dispose();
         _eventSubReconnectCts = new CancellationTokenSource();
 
         try
@@ -915,7 +979,13 @@ public class TwitchService
 
     private void OnTeardown()
     {
-        _eventSubReconnectCts?.Cancel();
+        if (_eventSubReconnectCts?.IsCancellationRequested == false)
+            _eventSubReconnectCts?.Cancel();
+        _eventSubReconnectCts?.Dispose();
+        
+        if (_chatReconnectCts?.IsCancellationRequested == false)
+            _chatReconnectCts?.Cancel();
+        _chatReconnectCts?.Dispose();
         
         if (_chat != null)
         {
