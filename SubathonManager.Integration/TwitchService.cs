@@ -290,7 +290,9 @@ public class TwitchService
         if (!await _chatReconnectLock.WaitAsync(0))
             return;
 
-        _chatReconnectCts?.CancelAsync();
+        if (_chatReconnectCts?.IsCancellationRequested == false)
+            _chatReconnectCts?.Cancel();
+        _chatReconnectCts?.Dispose();
         _chatReconnectCts = new CancellationTokenSource();
 
         try
@@ -470,7 +472,10 @@ public class TwitchService
         if (!await _eventSubReconnectLock.WaitAsync(0))
             return;
 
-        _eventSubReconnectCts?.CancelAsync();
+        
+        if (_eventSubReconnectCts?.IsCancellationRequested == false)
+            _eventSubReconnectCts?.Cancel();
+        _eventSubReconnectCts?.Dispose();
         _eventSubReconnectCts = new CancellationTokenSource();
 
         try
@@ -974,8 +979,13 @@ public class TwitchService
 
     private void OnTeardown()
     {
-        _eventSubReconnectCts?.Cancel();
-        _chatReconnectCts?.Cancel();
+        if (_eventSubReconnectCts?.IsCancellationRequested == false)
+            _eventSubReconnectCts?.Cancel();
+        _eventSubReconnectCts?.Dispose();
+        
+        if (_chatReconnectCts?.IsCancellationRequested == false)
+            _chatReconnectCts?.Cancel();
+        _chatReconnectCts?.Dispose();
         
         if (_chat != null)
         {
