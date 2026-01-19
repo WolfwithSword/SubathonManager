@@ -642,7 +642,7 @@ public class EventServiceTests
         
         var (processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
-        await Task.Delay(250);
+        await Task.Delay(25);
         
         var ev2 = new SubathonEvent
         {
@@ -657,7 +657,7 @@ public class EventServiceTests
         var (processed2, _) = await service.ProcessSubathonEvent(ev2);
         Assert.False(processed2);
 
-        await Task.Delay(250);
+        await Task.Delay(25);
         
         var ev3 = new SubathonEvent
         {
