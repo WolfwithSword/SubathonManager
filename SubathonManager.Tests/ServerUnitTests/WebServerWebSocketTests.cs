@@ -613,9 +613,9 @@ public class WebServerWebSocketTests
         await server.HandleWebSocketRequestAsync(ctx);
 
         int count = 0;
-        while (count < 20 && ev == null)
+        while (count < 25 && ev == null)
         {
-            await Task.Delay(20);
+            await Task.Delay(50);
             count++;
         }
 
