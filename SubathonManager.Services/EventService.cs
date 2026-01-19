@@ -364,7 +364,7 @@ public class EventService: IDisposable
             ev.SecondsValue = 0;
         }
                 
-        if (ev.EventType == SubathonEventType.TwitchSub)
+        if (ev.EventType == SubathonEventType.TwitchSub && ev.User != "SYSTEM")
         {
             var cutoff = DateTime.Now.AddDays(-3); 
             // find if same tier, user, and is processed in last 3d, if so, return. Will be diff id's.

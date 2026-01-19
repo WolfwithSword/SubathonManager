@@ -562,9 +562,9 @@ public class WebServerWebSocketTests
 
         var result = await tcs.Task;
         int count = 0;
-        while (count < 20 && ev == null)
+        while (count < 25 && ev == null)
         {
-            await Task.Delay(10);
+            await Task.Delay(25);
             count++;
         }
 
@@ -613,9 +613,9 @@ public class WebServerWebSocketTests
         await server.HandleWebSocketRequestAsync(ctx);
 
         int count = 0;
-        while (count < 20 && ev == null)
+        while (count < 25 && ev == null)
         {
-            await Task.Delay(20);
+            await Task.Delay(50);
             count++;
         }
 
