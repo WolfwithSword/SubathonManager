@@ -620,6 +620,76 @@ public class EventServiceTests
     }
     
     [Fact]
+    public async Task TwitchSubEvent_DoNotDupeEvent()
+    {
+        var (service, options, conn) = await SetupServiceWithDb();
+        await using var db = new AppDbContext(options);
+
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        sub.ReversedTime = false;
+        await db.SaveChangesAsync();
+
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchSub,
+            Value = "1000",
+            Currency = "sub",
+            User = "TestUser",
+            Source = SubathonEventSource.Twitch,
+        };
+        
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        await Task.Delay(25);
+        
+        var ev2 = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchSub,
+            Value = "1000",
+            Currency = "sub",
+            User = "TestUser",
+            Source = SubathonEventSource.Twitch
+        };
+        
+        var (processed2, _) = await service.ProcessSubathonEvent(ev2);
+        Assert.False(processed2);
+
+        await Task.Delay(25);
+        
+        var ev3 = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchSub,
+            Value = "1000",
+            Currency = "sub",
+            User = "TestUser2",
+            Source = SubathonEventSource.Twitch
+        };
+        
+        var (processed3, _) = await service.ProcessSubathonEvent(ev3);
+        Assert.True(processed3);
+        
+                
+        var ev4 = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchSub,
+            Value = "3000",
+            Currency = "sub",
+            User = "TestUser",
+            Source = SubathonEventSource.Twitch
+        };
+        
+        var (processed4, _) = await service.ProcessSubathonEvent(ev4);
+        Assert.True(processed4);
+        
+        await conn.CloseAsync();
+    }
+    
+    [Fact]
     public async Task DonationAdjustment_Event_SetsPointsAndSecondsZero_ProcessedTrue()
     {
         var (service, options, conn) = await SetupServiceWithDb(0, false);

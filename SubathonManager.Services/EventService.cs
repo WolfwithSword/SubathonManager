@@ -363,7 +363,21 @@ public class EventService: IDisposable
             ev.PointsValue = 0;
             ev.SecondsValue = 0;
         }
-        
+                
+        if (ev.EventType == SubathonEventType.TwitchSub)
+        {
+            var cutoff = DateTime.Now.AddDays(-3); 
+            // find if same tier, user, and is processed in last 3d, if so, return. Will be diff id's.
+            // we check this late in case they co-processed
+            SubathonEvent? dupeTwitchSub = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s => 
+                s.Source == ev.Source && s.User == ev.User
+                                      && s.Value == ev.Value
+                                      && s.EventType == ev.EventType && s.ProcessedToSubathon
+                                      && s.SubathonId == subathon.Id
+                                      && s.EventTimestamp > cutoff);
+            if (dupeTwitchSub != null) return (false, true);
+        }
+
         int affected = 0;
         if (ev.SecondsValue != 0)
         {
