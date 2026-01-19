@@ -672,6 +672,20 @@ public class EventServiceTests
         var (processed3, _) = await service.ProcessSubathonEvent(ev3);
         Assert.True(processed3);
         
+                
+        var ev4 = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchSub,
+            Value = "3000",
+            Currency = "sub",
+            User = "TestUser",
+            Source = SubathonEventSource.Twitch
+        };
+        
+        var (processed4, _) = await service.ProcessSubathonEvent(ev4);
+        Assert.True(processed4);
+        
         await conn.CloseAsync();
     }
     
