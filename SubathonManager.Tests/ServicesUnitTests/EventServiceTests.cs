@@ -627,9 +627,13 @@ public class EventServiceTests
 
         var sub = await db.SubathonDatas.FirstAsync();
         sub.IsLocked = false;
+        sub.IsPaused = true;
         sub.ReversedTime = false;
         await db.SaveChangesAsync();
 
+        var initialSubTime = sub.MillisecondsCumulative;
+        var initialSubPoints = sub.Points;
+        
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
@@ -643,6 +647,9 @@ public class EventServiceTests
         var (processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         await Task.Delay(25);
+        await db.Entry(sub).ReloadAsync();
+        Assert.Equal(sub.Points, initialSubPoints + 1);
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (60 * 1000));
         
         var ev2 = new SubathonEvent
         {
@@ -656,6 +663,10 @@ public class EventServiceTests
         
         var (processed2, _) = await service.ProcessSubathonEvent(ev2);
         Assert.False(processed2);
+        await db.Entry(sub).ReloadAsync();
+        
+        Assert.Equal(sub.Points, initialSubPoints + 1);
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (60 * 1000));
 
         await Task.Delay(25);
         
@@ -672,6 +683,9 @@ public class EventServiceTests
         var (processed3, _) = await service.ProcessSubathonEvent(ev3);
         Assert.True(processed3);
         
+        await db.Entry(sub).ReloadAsync();
+        Assert.Equal(sub.Points, initialSubPoints + 2);
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (2 * 60 * 1000));
                 
         var ev4 = new SubathonEvent
         {
@@ -685,6 +699,9 @@ public class EventServiceTests
         
         var (processed4, _) = await service.ProcessSubathonEvent(ev4);
         Assert.True(processed4);
+        await db.Entry(sub).ReloadAsync();
+        Assert.Equal(sub.Points, initialSubPoints + 7);
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (7 * 60 * 1000));
         
         await conn.CloseAsync();
     }
