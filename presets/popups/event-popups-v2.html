@@ -1,0 +1,101 @@
+﻿<!--
+WIDGET_META
+Width:480
+Height:200
+Author:WolfwithSword
+Url:https://github.com/WolfwithSword/SubathonManager/discussions/135#discussioncomment-15311062
+applicableEvents.EventSubTypeList:SubLike,GiftSubLike,DonationLike,TokenLike
+showSeconds.Boolean:True
+showPoints.Boolean:False
+showMoney.Boolean:False
+animation.StringSelect:float-up,float-down,popup
+groupGifts.Boolean:True
+END_WIDGET_META
+-->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/bright-orchid" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/milker" rel="stylesheet">
+<link href="https://fonts.cdnfonts.com/css/beachday" rel="stylesheet">
+<link rel="stylesheet" href="event-popups.css">
+
+<div class="popup-root"></div>
+
+<script>
+    const POPUP_LIFETIME = 1600;
+    const root = document.querySelector(".popup-root");
+    
+    function spawnPopup(data, type, reversed = false) {
+        const el = document.createElement("div");
+        
+        const sign = reversed ? "-" : "+";
+               
+        var value = `${sign}${type == "money" ? data : Math.abs(data)}`;
+        if (type == "seconds")
+            value += "s";
+        
+        el.textContent = value;
+
+        el.className = "event-popup " + (reversed ? "negative" : "positive");
+        el.className += " " + type;
+        if (typeof(animation) != "undefined")
+            el.className += " " + animation;
+
+        const x = Math.random() * 90 + 5;
+        el.style.left = `${x}%`;
+
+        setTimeout(() => {    
+            root.appendChild(el);
+            const popupWidth = el.offsetWidth;
+            const containerWidth = root.clientWidth;
+
+            const minX = 4;
+            const maxX = Math.max(minX, containerWidth - popupWidth - 4);
+
+            const x = Math.random() * (maxX - minX) + minX;
+            el.style.left = `${x}px`;
+            el.style.bottom = `${20 + Math.random() * 20}%`;
+            el.style.transform = `translateX(${Math.random() * 4 - 2}px)`;
+            
+            setTimeout(() => el.remove(), POPUP_LIFETIME);
+        }, randomInterval(50, 300))
+    }
+
+    function randomInterval(min, max) {
+        return Math.floor(Math.random() * (max - min + 1) + min);
+    }
+
+    function handleSubathonEvent(data) {
+        if (data.type !== "event") return;
+        if (!applicableEvents.includes(data.sub_type) && data.event_type != "initial") return;
+        
+        var times = 1;
+        if (typeof(groupGifts) != "undefined" && !groupGifts && data.sub_type == "GiftSubLike" && data.amount > 1) {
+            times = data.amount;
+            data.seconds_added = Math.round(data.seconds_added / data.amount);
+            data.points_added = Math.floor(data.points_added / data.amount);
+        }
+        
+        for (var x = 0; x < times; x++) {
+            if (showSeconds) {
+                const seconds = data.seconds_added ?? 0;
+                if (seconds)
+                    spawnPopup(seconds, "seconds", data.reversed === true);
+            }
+            if (showPoints) {
+                const points = data.points_added ?? 0;
+                if (points)
+                    spawnPopup(points, "points", false);
+            }
+            if (showMoney) {
+                if (data.sub_type == "TokenLike" || data.sub_type == "DonationLike") {
+                    let val = data.value ?? "";
+                    const currency = data.currency;
+                    if (val && val != "") {
+                        val = `${val} ${currency}`;
+                        spawnPopup(val, "money", false);
+                    }
+                }
+            }
+        }
+    }
+</script>

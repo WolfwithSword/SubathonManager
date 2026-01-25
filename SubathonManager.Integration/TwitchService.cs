@@ -47,6 +47,7 @@ public class TwitchService
 
     private string? AccessToken { get; set; }
     public string? UserName { get; private set; } = string.Empty;
+    private string? _login = string.Empty;
     private string? UserId { get; set; }
 
     public TwitchService(ILogger<TwitchService>? logger, IConfig config)
@@ -165,7 +166,14 @@ public class TwitchService
 
         if (!HttpListener.IsSupported)
         {
-            _logger?.LogError("HTTP Listener not supported. Cannot start Twitch OAuth flow.");
+            var msg = "HTTP Listener not supported. Cannot start Twitch OAuth flow.";
+            _logger?.LogError(msg);
+            
+            ErrorMessageEvents.RaiseErrorEvent(
+                "ERROR",
+                nameof(SubathonEventSource.Twitch),
+                msg,
+                DateTime.Now.ToLocalTime());
             return;
         }
 
@@ -242,6 +250,7 @@ public class TwitchService
         if (user != null)
         {
             UserName = user.DisplayName;
+            _login = user.Login;
             UserId = user.Id;
             _logger?.LogDebug($"Authenticated as {UserName}");
             
@@ -249,6 +258,7 @@ public class TwitchService
         }
         else
         {
+            _login = string.Empty;
             IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, "", "API");
         }
     }
@@ -361,6 +371,10 @@ public class TwitchService
     
     private void HandleMessageCmdReceived(object? s, OnMessageReceivedArgs e)
     {
+        if (!e.ChatMessage.Channel.Equals(_login, StringComparison.InvariantCultureIgnoreCase) && 
+            !e.ChatMessage.Channel.Equals(UserName, StringComparison.InvariantCultureIgnoreCase))
+            return;
+        
         string message = e.ChatMessage.Message;
         bool isMod = e.ChatMessage.IsModerator;
         bool isBroadcaster = e.ChatMessage.IsBroadcaster;
@@ -457,7 +471,11 @@ public class TwitchService
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex, $"Failed to subscribe to {type}: {ex.Message}");
-                    // todo discord webhook error for which one failed and to report it
+                    ErrorMessageEvents.RaiseErrorEvent(
+                        "ERROR",
+                        nameof(SubathonEventSource.Twitch),
+                        $"Failed to subscribe to {type} EventSub. Please report this issue at https://github.com/WolfwithSword/SubathonManager/issues",
+                        DateTime.Now.ToLocalTime());
                     RevokeTokenFile();
                     hasError = true;
                 }
@@ -719,7 +737,7 @@ public class TwitchService
     
     private Task HandleSubscriptionMsg(object? s, ChannelSubscriptionMessageArgs e) 
     {
-        int duration = e.Payload.Event.DurationMonths; // TODO Do we want to take this into account and multiply?
+        // int duration = e.Payload.Event.DurationMonths; // Do we want to take this into account and multiply? - no, people can reshare and it is read in
 
         var eventMeta = e.Metadata as WebsocketEventSubMetadata;
         Guid.TryParse(eventMeta!.MessageId, out var mId);

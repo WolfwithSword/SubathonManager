@@ -13,13 +13,21 @@
                        Content="Connect"
                        Width="120"
                        Height="35"
-                       Margin="0,5,0,10"
+                       VerticalAlignment="Center"
+                       Margin="0,5,4,4"
                        Click="ConnectTwitchButton_Click"/>
-            <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 48 10"/>
-            <CheckBox x:Name="TwitchPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="4 4 4 4"/>
-            <CheckBox x:Name="TwitchLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="4 4 4 4"/>
-            <CheckBox x:Name="TwitchResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="4 4 4 4"/>
-            <CheckBox x:Name="TwitchUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="4 4 4 4"/>
+            <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="4 5 4 4" MinWidth="170"/>
+            <CheckBox x:Name="TwitchPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip="Pause on stream end?" Margin="2 5 2 4"/>
+            <CheckBox x:Name="TwitchLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip="Lock on stream end?" Margin="2 5 2 4"/>
+            <CheckBox x:Name="TwitchResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip="Resume on stream start?" Margin="2 5 2 4"/>
+            <CheckBox x:Name="TwitchUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip="Unlock on stream start?" Margin="2 5 2 4"/>
+            
+            
+            <TextBlock Text="Chat: " VerticalAlignment="Center" FontSize="12" Margin="42 5 0 4"/>
+            <TextBlock x:Name="ChatStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="2 5 14 4" Width="75"/>
+            <TextBlock Text="EventSub: " VerticalAlignment="Center" FontSize="12" Margin="14 5 0 4"/>
+            <TextBlock x:Name="EventSubStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="2 5 4 4" Width="75"/>
+            
         </StackPanel>
         
         <StackPanel Margin="10,5,0,5">
@@ -125,7 +133,7 @@
                     <ColumnDefinition Width="300"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                     <TextBlock Text="Charity Donations:" Width="150" VerticalAlignment="Center"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 x:Name="DonoBox" PlaceholderText="12"/>
@@ -190,7 +198,7 @@
                         </StackPanel>
                         
                     </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
                         <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
                         <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="120"
                                     x:Name="SubT2TextBox"/>
@@ -199,7 +207,7 @@
                                     x:Name="SubT2TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
                         <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
                         <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="300"
                                     x:Name="SubT3TextBox"/>
@@ -246,7 +254,7 @@
                         </StackPanel>
                         
                     </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
                         <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
                         <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="120"
                                     x:Name="GiftSubT2TextBox"/>
@@ -255,7 +263,7 @@
                                     x:Name="GiftSubT2TextBox2"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
                         <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
                         <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="300"
                                     x:Name="GiftSubT3TextBox"/>

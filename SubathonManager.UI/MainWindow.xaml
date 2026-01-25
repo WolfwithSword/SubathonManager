@@ -9,7 +9,9 @@
                        Background="{DynamicResource AppGeneralBackground}"
                        ResizeMode="NoResize"
                        WindowStartupLocation="CenterScreen"
-                       Title="Subathon Manager" Height="800" Width="1200">
+                       Title="Subathon Manager" Height="800" Width="1200"
+                       MinHeight="800" MinWidth="1200"
+                       MaxHeight="800" MaxWidth="1200">
     <ui:FluentWindow.Resources>
         <Style x:Key="NoHoverOverlayButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource SolidOverlayButtonColor}"/>

@@ -263,6 +263,12 @@ public class YouTubeService : IDisposable
                     _logger?.LogError(
                         "[YT] Max reconnect retries ({Retries}) reached. Giving up.",
                         _reconnectState.MaxRetries);
+                    
+                    ErrorMessageEvents.RaiseErrorEvent(
+                        "ERROR",
+                        nameof(SubathonEventSource.YouTube),
+                        "YouTube reconnect failed after maximum retries.",
+                        DateTime.Now.ToLocalTime());
                     return;
                 }
 

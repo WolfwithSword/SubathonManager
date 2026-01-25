@@ -52,7 +52,6 @@ public class StreamElementsService
         _client.OnTip += _OnTip;
         _client.OnDisconnected += _OnDisconnected;
         _client.OnAuthenticationFailure += _OnAuthenticateError;
-        
         _client.Connect(_jwtToken);
         return true;
     }
@@ -231,7 +230,7 @@ public class StreamElementsService
         subathonEvent.User = "SYSTEM";
         subathonEvent.Currency = currency;
         
-        subathonEvent.Value = value; // TODO verify format, must be parsable as a double
+        subathonEvent.Value = value;
         subathonEvent.Source = SubathonEventSource.Simulated;
         subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
         

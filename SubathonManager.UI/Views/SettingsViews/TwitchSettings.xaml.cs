@@ -27,19 +27,27 @@ public partial class TwitchSettings : UserControl
     
     private void UpdateTwitchStatus(bool status, SubathonEventSource source, string name, string service)
     {
-        if (source != SubathonEventSource.Twitch || service != "EventSub")
+        if (source != SubathonEventSource.Twitch)
             return;
         // we only care to show for event sub mostly, if it fails, the rest may also fail
-        // todo, show the others
         Dispatcher.Invoke(() =>
         {
-            string username = name != string.Empty ? name : "Disconnected";
-            if (!status)
-                username = "Disconnected";
-            if (TwitchStatusText.Text != username) TwitchStatusText.Text = username; 
-            string connectBtn = name != string.Empty ? "Reconnect" : "Connect";
-            if (!status) connectBtn = "Connect";
-            if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
+            string conStat = status ? "Connected" : "Disconnected";
+            if (service == "EventSub")
+            {
+                string username = name != string.Empty ? name : "Disconnected";
+                if (!status)
+                    username = "Disconnected";
+                if (TwitchStatusText.Text != username) TwitchStatusText.Text = username;
+                string connectBtn = name != string.Empty ? "Reconnect" : "Connect";
+                if (!status) connectBtn = "Connect";
+                if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
+                if (EventSubStatusText.Text != conStat) EventSubStatusText.Text = conStat;
+            }
+            else if (service == "Chat")
+            {
+                if (ChatStatusText.Text != conStat) ChatStatusText.Text = conStat;
+            }
         });
     }
 

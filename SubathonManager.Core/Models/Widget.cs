@@ -63,7 +63,9 @@ public class JsVariable
             string val = Value.Split(',')[0].Trim();
             sb.Append($"\"{val}\"");
         }
-        else if (Type == WidgetVariableType.EventTypeList || Type == WidgetVariableType.StringList)
+        else if (Type == WidgetVariableType.EventTypeList || 
+                 Type == WidgetVariableType.StringList ||
+                 Type == WidgetVariableType.EventSubTypeList)
         {
             string val = string.Join(",", Value.Split(',').Select(s =>
             {
@@ -85,7 +87,7 @@ public class JsVariable
                 sb.Append($"\"{Value}\"");
             }
         }
-        else // default as always string. Incl EventTypeSelect
+        else // default as always string. Incl TypeSelects
             sb.Append($"\"{Value}\"");
         sb.Append(";\n");
 

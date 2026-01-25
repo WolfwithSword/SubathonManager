@@ -499,7 +499,7 @@ public partial class EditRouteWindow
                 Width = 172,
                 TextAlignment = TextAlignment.Left,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = jsVar.Type == WidgetVariableType.EventTypeList ?
+                VerticalAlignment = jsVar.Type == WidgetVariableType.EventTypeList || jsVar.Type == WidgetVariableType.EventSubTypeList ?
                     VerticalAlignment.Top : VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
@@ -546,6 +546,46 @@ public partial class EditRouteWindow
                 outerPanel.Children.Add(itemRow);
                 outerPanel.Children.Add(border);
             }
+            else if (jsVar.Type == WidgetVariableType.EventSubTypeList)
+            {
+                var panelValues = (jsVar.Value ?? "").Split(',',
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var border = new Border
+                {
+                    BorderBrush = Brushes.Gray,
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(4),
+                    Width = 282,
+                    CornerRadius = new CornerRadius(4),
+                    Margin = new Thickness(0, 4, 0, 2)
+                };
+                
+                var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
+                foreach (var eType in Enum.GetNames(typeof(SubathonEventSubType)).OrderBy(x => x))
+                {
+                    if (eType == nameof(SubathonEventSubType.CommandLike) ||
+                        eType == nameof(SubathonEventSubType.Unknown)) continue;
+                    var chkBox = new CheckBox
+                    {
+                        Content = new Wpf.Ui.Controls.TextBlock
+                        {
+                            Text = eType,
+                            TextWrapping =  TextWrapping.Wrap,
+                            MaxWidth = 278
+                        },
+                        IsChecked = panelValues.Contains(eType),
+                        Margin = new Thickness(2)
+                    };
+                    chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                    chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                    chkboxList.Children.Add(chkBox);
+                }
+
+                border.Child = chkboxList;
+                outerPanel.Children.Add(itemRow);
+                outerPanel.Children.Add(border);
+            }
             else if (jsVar.Type == WidgetVariableType.Boolean)
             {
                 bool.TryParse(jsVar.Value, out bool isChecked);
@@ -569,6 +609,31 @@ public partial class EditRouteWindow
             {
                 var values = Enum.GetValues<SubathonEventType>()
                     .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
+                    .Select(x=>x.ToString()).ToList().OrderBy(x => x);
+                var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
+                var typeList = new ComboBox
+                {
+                    Margin = new Thickness(2),
+                    IsEditable=true, IsTextSearchEnabled=true, 
+                    StaysOpenOnEdit=true,
+                    MaxWidth = 146,
+                    Width = 146
+                };
+                typeList.Items.Add(string.Empty);
+                foreach (var val in values)
+                    typeList.Items.Add(val);
+                typeList.SelectedValue = selected;
+                typeList.SelectionChanged += (_, __) =>
+                {
+                    jsVar.Value = $"{typeList.SelectedValue}";
+                };
+                itemRow.Children.Add(typeList);
+                outerPanel.Children.Add(itemRow);
+            }
+            else if (jsVar.Type == WidgetVariableType.EventSubTypeSelect)
+            {
+                var values = Enum.GetValues<SubathonEventSubType>()
+                    .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
                     .Select(x=>x.ToString()).ToList().OrderBy(x => x);
                 var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
                 var typeList = new ComboBox

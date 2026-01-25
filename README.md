@@ -44,6 +44,11 @@
   - Memberships & Gift Memberships
     - Due to limitations, we treat all memberships as a single level/tier
   - Chat Commands
+- **Picarto**
+  - Follows
+  - Subs & Gift Subs
+  - Kudos Tips
+  - Chat Commands
 - **KoFi**
   - Tips & Memberships (via StreamerBot)
 - **StreamElements**
@@ -53,7 +58,7 @@
 - **Blerp**
   - Twitch & YouTube, (Bits & Beets)
 - **External**
-  - Custom commands, donations, and subscriptions via POST API 
+  - Custom commands, donations, and subscriptions via POST API or WebSocket
 
 ## Features
 

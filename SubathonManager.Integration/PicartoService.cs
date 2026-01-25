@@ -224,7 +224,12 @@ public class PicartoService : IDisposable
                 if (state.Retries >= state.MaxRetries)
                 {
                     _logger?.LogError("Max retries exceeded for Picarto connection. Please reconnect");
-                    // discord error event TODO 
+                    
+                    ErrorMessageEvents.RaiseErrorEvent(
+                        "ERROR",
+                        nameof(SubathonEventSource.Picarto),
+                        "Picarto reconnect failed after maximum retries.",
+                        DateTime.Now.ToLocalTime());
                     state.Cts?.Cancel();
                     break;
                 }
