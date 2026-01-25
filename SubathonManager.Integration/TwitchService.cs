@@ -47,7 +47,7 @@ public class TwitchService
 
     private string? AccessToken { get; set; }
     public string? UserName { get; private set; } = string.Empty;
-    private string? _login = string.Empty;
+    internal string? Login = string.Empty;
     private string? UserId { get; set; }
 
     public TwitchService(ILogger<TwitchService>? logger, IConfig config)
@@ -250,7 +250,7 @@ public class TwitchService
         if (user != null)
         {
             UserName = user.DisplayName;
-            _login = user.Login;
+            Login = user.Login;
             UserId = user.Id;
             _logger?.LogDebug($"Authenticated as {UserName}");
             
@@ -258,7 +258,7 @@ public class TwitchService
         }
         else
         {
-            _login = string.Empty;
+            Login = string.Empty;
             IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, "", "API");
         }
     }
@@ -371,7 +371,7 @@ public class TwitchService
     
     private void HandleMessageCmdReceived(object? s, OnMessageReceivedArgs e)
     {
-        if (!e.ChatMessage.Channel.Equals(_login, StringComparison.InvariantCultureIgnoreCase) && 
+        if (!e.ChatMessage.Channel.Equals(Login, StringComparison.InvariantCultureIgnoreCase) && 
             !e.ChatMessage.Channel.Equals(UserName, StringComparison.InvariantCultureIgnoreCase))
             return;
         
