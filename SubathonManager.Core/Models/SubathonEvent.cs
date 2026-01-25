@@ -65,7 +65,7 @@ public class CurrencyValidationAttribute : ValidationAttribute
         if (value == null) return ValidationResult.Success;
 
         string s = value.ToString()!;
-        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "bits", "sub", "beets", "", "???",
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "bits", "sub", "beets", "kudos", "", "???",
             "member", "viewers" };
 
         if (allowed.Contains(s)) return ValidationResult.Success;

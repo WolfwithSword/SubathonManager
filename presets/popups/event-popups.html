@@ -69,7 +69,7 @@ END_WIDGET_META
         if (!applicableEvents.includes(data.event_type) && data.event_type != "initial") return;
         
         var times = 1;
-        if (typeof(groupGifts) != "undefined" && !groupGifts && data.event_type.includes("Gift") && data.amount > 1) {
+        if (typeof(groupGifts) != "undefined" && !groupGifts && data.sub_type == "GiftSubLike" && data.amount > 1) {
             times = data.amount;
             data.seconds_added = Math.round(data.seconds_added / data.amount);
             data.points_added = Math.floor(data.points_added / data.amount);
@@ -87,8 +87,7 @@ END_WIDGET_META
                     spawnPopup(points, "points", false);
             }
             if (showMoney) {
-                if ((data.event_type.toLowerCase().includes("donation") || data.event_type.toLowerCase().endsWith("tip")
-                    || data.currency == "bits" || data.currency == "beets")) {
+                if (data.sub_type == "TokenLike" || data.sub_type == "DonationLike") {
                     let val = data.value ?? "";
                     const currency = data.currency;
                     if (val && val != "") {

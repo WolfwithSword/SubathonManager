@@ -22,7 +22,7 @@ public static class ExternalEventService
             string msg = elemMsg.ValueKind == JsonValueKind.String ? elemMsg.GetString()! : "";
             
             return CommandService.ChatCommandRequest(SubathonEventSource.External, msg, user, true,
-                false, false, DateTime.Now, cmd);
+                false, false, DateTime.Now, null, cmd);
         }
 
         return false;

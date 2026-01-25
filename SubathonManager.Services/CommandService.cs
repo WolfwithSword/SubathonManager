@@ -18,6 +18,7 @@ public static class CommandService
     
     public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
         bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp,
+        Guid? overrideGuid = null,
         SubathonCommandType cmdOverride = SubathonCommandType.None)
     {
         timestamp ??= DateTime.Now;
@@ -31,6 +32,9 @@ public static class CommandService
         subathonEvent.EventTimestamp = timestamp.Value;
         subathonEvent.Command = command;
         subathonEvent.EventType = SubathonEventType.Command;
+        
+        if (overrideGuid != null)
+            subathonEvent.Id = overrideGuid.Value;
 
         bool validParams = ValidateParameters(subathonEvent, message);
         if (!validParams) return false;

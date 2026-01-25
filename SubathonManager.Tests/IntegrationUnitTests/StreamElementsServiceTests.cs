@@ -157,11 +157,16 @@ public class StreamElementsServiceTests
 
         bool eventRaised = false;
         
-        StreamElementsEvents.StreamElementsConnectionChanged += connected =>
+        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
         {
-            eventRaised = true;
-            Assert.False(connected);
+            if (source == SubathonEventSource.StreamElements)
+            {
+                eventRaised = true;
+                Assert.False(running);
+            }
         };
+        
+        IntegrationEvents.ConnectionUpdated += handler;
 
         var method = typeof(StreamElementsService)
             .GetMethod("_OnDisconnected", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -178,6 +183,8 @@ public class StreamElementsServiceTests
             null,
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()
         ), Times.Once);
+        
+        IntegrationEvents.ConnectionUpdated -= handler;
     }
     
     [Fact]
@@ -189,17 +196,20 @@ public class StreamElementsServiceTests
 
         bool eventRaised = false;
         
-        typeof(StreamElementsEvents)
-            .GetField("StreamElementsConnectionChanged", BindingFlags.Static | BindingFlags.NonPublic)
+        typeof(IntegrationEvents)
+            .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
-        Action<bool> handler = connected =>
+        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
         {
-            eventRaised = true;
-            Assert.True(connected);
+            if (source == SubathonEventSource.StreamElements)
+            {
+                eventRaised = true;
+                Assert.True(running);
+            }
         };
 
-        StreamElementsEvents.StreamElementsConnectionChanged += handler;
+        IntegrationEvents.ConnectionUpdated += handler;
 
         try
         {
@@ -221,7 +231,7 @@ public class StreamElementsServiceTests
         }
         finally
         {
-            StreamElementsEvents.StreamElementsConnectionChanged -= handler;
+            IntegrationEvents.ConnectionUpdated -= handler;
         }
     }
 
@@ -231,23 +241,25 @@ public class StreamElementsServiceTests
         var logger = new Mock<ILogger<StreamElementsService>>();
         var config = new Mock<Config>();
         var service = new StreamElementsService(logger.Object, config.Object);
-
         
-        typeof(StreamElementsEvents)
-            .GetField("StreamElementsConnectionChanged", BindingFlags.Static | BindingFlags.NonPublic)
+        typeof(IntegrationEvents)
+            .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
         
-        typeof(StreamElementsEvents)
+        typeof(ErrorMessageEvents)
             .GetField("ErrorEventOccured", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
-        bool connectionChangedRaised = false;
-        Action<bool> connectionHandler = connected =>
+        bool eventRaised = false;
+        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
         {
-            connectionChangedRaised = true;
-            Assert.False(connected);
+            if (source == SubathonEventSource.StreamElements)
+            {
+                eventRaised = true;
+                Assert.False(running);
+            }
         };
-        StreamElementsEvents.StreamElementsConnectionChanged += connectionHandler;
+        IntegrationEvents.ConnectionUpdated += handler;
 
         bool errorEventRaised = false;
         Action<string, string, string, DateTime> errorHandler = (level, source, message, time) =>
@@ -265,7 +277,7 @@ public class StreamElementsServiceTests
             method?.Invoke(service, new object?[] { null, EventArgs.Empty });
 
             Assert.False(service.Connected);
-            Assert.True(connectionChangedRaised);
+            Assert.True(eventRaised);
             Assert.True(errorEventRaised);
 
             logger.Verify(l => l.Log(
@@ -278,7 +290,7 @@ public class StreamElementsServiceTests
         }
         finally
         {
-            StreamElementsEvents.StreamElementsConnectionChanged -= connectionHandler;
+            IntegrationEvents.ConnectionUpdated -= handler;
             ErrorMessageEvents.ErrorEventOccured -= errorHandler;
         }
     }

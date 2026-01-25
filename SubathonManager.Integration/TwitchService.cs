@@ -36,18 +36,14 @@ public class TwitchService
     private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
         , "data/twitch_token.json"));
     
-    private readonly SemaphoreSlim _eventSubReconnectLock = new(1, 1);
-    private CancellationTokenSource? _eventSubReconnectCts;
-    private volatile bool _eventSubConnecting = false;
-    private readonly SemaphoreSlim _chatReconnectLock = new(1,1);
-    private CancellationTokenSource? _chatReconnectCts;
-    private volatile bool _chatReconnecting = false;
-    
     private DateTime _lastChatDisconnectLog = DateTime.MinValue;
-
-    private static readonly TimeSpan InitialBackoff = TimeSpan.FromSeconds(2.5);
-    private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
     private volatile bool _isConnected = false;
+    
+    private readonly Utils.ServiceReconnectState _chatReconnect =
+        new(TimeSpan.FromSeconds(5), maxRetries: 200, maxBackoff: TimeSpan.FromMinutes(2));
+
+    private readonly Utils.ServiceReconnectState _eventSubReconnect =
+        new(TimeSpan.FromSeconds(2.5), maxRetries: 200, maxBackoff: TimeSpan.FromMinutes(5));
 
     private string? AccessToken { get; set; }
     public string? UserName { get; private set; } = string.Empty;
@@ -125,7 +121,6 @@ public class TwitchService
             _logger?.LogDebug("Twitch Initialized Chat");
             await InitializeEventSubAsync();
             _logger?.LogDebug("Twitch Initialized EventSub");
-            TwitchEvents.RaiseTwitchConnected();
         }
         catch (Exception ex)
         {
@@ -140,6 +135,7 @@ public class TwitchService
     [ExcludeFromCodeCoverage]
     private async Task StartOAuthFlowAsync()
     {
+        // todo allow scopes to load from file for emergency in case of deprecation, thanks twitch
         string scopes = string.Join('+', new[]
         {
             "user:read:email",
@@ -248,6 +244,12 @@ public class TwitchService
             UserName = user.DisplayName;
             UserId = user.Id;
             _logger?.LogDebug($"Authenticated as {UserName}");
+            
+            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "API");
+        }
+        else
+        {
+            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, "", "API");
         }
     }
 
@@ -255,16 +257,19 @@ public class TwitchService
     [ExcludeFromCodeCoverage]
     private async Task InitializeChatAsync()
     {
+        _chatReconnect.Reset();
         var credentials = new ConnectionCredentials(UserName, $"oauth:{AccessToken}");
         _chat = new TwitchClient();
         
         try
         {
             _chat.Initialize(credentials, channel: UserName);
+            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, ex.Message);
+            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, UserName!, "Chat");
         }
 
         _chat.OnMessageReceived += HandleMessageCmdReceived;
@@ -279,6 +284,7 @@ public class TwitchService
         {
             _logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
             _lastChatDisconnectLog = DateTime.Now;
+            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, UserName!, "Chat");
         }
         Task.Run(TryReconnectChatAsync);
     }
@@ -287,49 +293,60 @@ public class TwitchService
     [ExcludeFromCodeCoverage]
     private async Task TryReconnectChatAsync()
     {
-        if (!await _chatReconnectLock.WaitAsync(0))
+        if (_chat == null)
             return;
 
-        if (_chatReconnectCts?.IsCancellationRequested == false)
-            _chatReconnectCts?.Cancel();
-        _chatReconnectCts?.Dispose();
-        _chatReconnectCts = new CancellationTokenSource();
-
+        if (!await _chatReconnect.Lock.WaitAsync(0))
+            return;
+        
         try
         {
-            if (_chatReconnecting || _chat?.IsConnected == true)
-                return;
+            _chatReconnect.Cts?.Cancel();
+            _chatReconnect.Cts = new CancellationTokenSource();
+            var token = _chatReconnect.Cts.Token;
+            
 
-            _chatReconnecting = true;
-
-            var delay = TimeSpan.FromSeconds(5);
-
-            while (!_chatReconnectCts.IsCancellationRequested)
+            while (!token.IsCancellationRequested && _chat!.IsConnected == false)
             {
+                _chatReconnect.Retries++;
+                var delay = _chatReconnect.Backoff;
+
+                _logger?.LogDebug(
+                    "[Twitch Chat] Reconnect attempt {Attempt} in {Delay}s",
+                    _chatReconnect.Retries,
+                    delay.TotalSeconds);
+                
                 try
                 {
-                    _logger?.LogDebug("Attempting Twitch Chat reconnect...");
-                    _chat?.Reconnect();
+                    await Task.Delay(delay, token);
 
-                    await Task.Delay(delay, _chatReconnectCts.Token);
-
-                    if (_chat?.IsConnected == true)
+                    if (_chat.IsConnected)
                     {
                         _logger?.LogDebug("Twitch Chat reconnect successful.");
+                        IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
                         return;
                     }
+
+                    _chat.Reconnect();
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "Chat reconnect failed.");
-                    await Task.Delay(delay, _chatReconnectCts.Token);
+                    _logger?.LogWarning(ex, "Twitch Chat reconnect failed");
                 }
+
+                _chatReconnect.Backoff = TimeSpan.FromMilliseconds(
+                    Math.Min(
+                        _chatReconnect.Backoff.TotalMilliseconds * 2,
+                        _chatReconnect.MaxBackoff.TotalMilliseconds));
             }
         }
         finally
         {
-            _chatReconnecting = false;
-            _chatReconnectLock.Release();
+            _chatReconnect.Lock.Release();
         }
     }
 
@@ -337,6 +354,8 @@ public class TwitchService
     private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
     {
         _logger?.LogInformation("Twitch Chat Reconnected");
+        _chatReconnect.Cts?.Cancel();
+        _chatReconnect.Reset();
     }
     
     
@@ -363,6 +382,7 @@ public class TwitchService
     [ExcludeFromCodeCoverage]
     private async Task InitializeEventSubAsync()
     {
+        _chatReconnect.Reset();
         _eventSub = new EventSubWebsocketClient();
 
         _eventSub.WebsocketConnected += HandleEventSubConnect;
@@ -399,6 +419,7 @@ public class TwitchService
                                 + _eventSub?.SessionId + ", isReconnect: " + e.IsRequestedReconnect);
         if (!e.IsRequestedReconnect)
         {
+            // todo allow override from local in case of deprecation, thanks twitch
             var eventTypes = new[]
             {
                 "stream.offline",
@@ -436,12 +457,20 @@ public class TwitchService
                 catch (Exception ex)
                 {
                     _logger?.LogError(ex, $"Failed to subscribe to {type}: {ex.Message}");
+                    // todo discord webhook error for which one failed and to report it
                     RevokeTokenFile();
                     hasError = true;
                 }
             }
         }
         _isConnected = !hasError;
+
+        if (_isConnected)
+        {
+            _eventSubReconnect.Cts?.Cancel();
+            _eventSubReconnect.Reset();
+        }
+        IntegrationEvents.RaiseConnectionUpdate(_isConnected, SubathonEventSource.Twitch, UserName!, "EventSub");
     }
 
 
@@ -450,6 +479,8 @@ public class TwitchService
         _logger?.LogInformation("Reconnected EventSub WebSocket.");
         ErrorMessageEvents.RaiseErrorEvent("INFO", nameof(SubathonEventSource.Twitch),
             "Twitch EventSub has reconnected", DateTime.Now.ToLocalTime());
+        _eventSubReconnect.Cts?.Cancel();
+        _eventSubReconnect.Reset();
         _isConnected = true;
         return Task.CompletedTask;
     }
@@ -462,6 +493,7 @@ public class TwitchService
             "Twitch EventSub has disconnected", DateTime.Now.ToLocalTime());
         
         _isConnected = false;
+        IntegrationEvents.RaiseConnectionUpdate(_isConnected, SubathonEventSource.Twitch, UserName!, "EventSub");
         _ = Task.Run(TryReconnectEventSubAsync);
         return Task.CompletedTask;
     }
@@ -469,55 +501,59 @@ public class TwitchService
     [ExcludeFromCodeCoverage]
     private async Task TryReconnectEventSubAsync()
     {
-        if (!await _eventSubReconnectLock.WaitAsync(0))
+        if (_eventSub == null)
             return;
 
+        if (!await _eventSubReconnect.Lock.WaitAsync(0))
+            return;
         
-        if (_eventSubReconnectCts?.IsCancellationRequested == false)
-            _eventSubReconnectCts?.Cancel();
-        _eventSubReconnectCts?.Dispose();
-        _eventSubReconnectCts = new CancellationTokenSource();
-
         try
         {
-            if (_eventSubConnecting || IsEventSubConnected())
-                return;
+            _eventSubReconnect.Cts?.Cancel();
+            _eventSubReconnect.Cts = new CancellationTokenSource();
+            var token = _eventSubReconnect.Cts.Token;
 
-            _eventSubConnecting = true;
-
-            if (!await ValidateTokenAsync())
+            while (!token.IsCancellationRequested && !IsEventSubConnected())
             {
-                _logger?.LogError("EventSub reconnect aborted: Twitch token invalid.");
-                ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch),
-                    "Twitch EventSub could not be reconnected - Twitch Token is invalid", DateTime.Now.ToLocalTime());
-                RevokeTokenFile();
-                return;
-            }
+                if (_eventSubReconnect.MaxRetries > 0 &&
+                    _eventSubReconnect.Retries >= _eventSubReconnect.MaxRetries)
+                {
+                    ErrorMessageEvents.RaiseErrorEvent(
+                        "ERROR",
+                        nameof(SubathonEventSource.Twitch),
+                        "Twitch EventSub reconnect failed after maximum retries.",
+                        DateTime.Now.ToLocalTime());
 
-            var delay = InitialBackoff;
-
-            while (true)
-            {
-                if (IsEventSubConnected())
+                    _logger?.LogError("EventSub reconnect aborted: max retries reached. Please investigate.");
                     return;
+                }
+
+                if (!await ValidateTokenAsync())
+                {
+                    _logger?.LogError("EventSub reconnect aborted: Twitch token invalid.");
+                    ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch),
+                        "Twitch EventSub could not be reconnected - Twitch Token is invalid", DateTime.Now.ToLocalTime());
+                    RevokeTokenFile();
+                    return;
+                }
+
+                _eventSubReconnect.Retries++;
+
+                var delay = _eventSubReconnect.Backoff;
+
+                _logger?.LogWarning(
+                    "[Twitch EventSub] Reconnect attempt {Attempt} in {Delay}s",
+                    _eventSubReconnect.Retries,
+                    delay.TotalSeconds);
 
                 try
                 {
-                    _logger?.LogInformation(
-                        "Attempting EventSub reconnect in {Delay}s...",
-                        delay.TotalSeconds
-                    );
-
-                    await Task.Delay(delay, _eventSubReconnectCts.Token);
+                    await Task.Delay(delay, token);
 
                     if (IsEventSubConnected())
                         return;
 
-                    await _eventSub!.ReconnectAsync();
-
-                    _logger?.LogDebug("Twitch EventSub reconnect successful.");
-                    
-                    return;
+                    await _eventSub.ReconnectAsync();
                 }
                 catch (OperationCanceledException)
                 {
@@ -525,34 +561,18 @@ public class TwitchService
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex,
-                        "EventSub reconnect failed. Next delay: {Delay}s",
-                        delay.TotalSeconds
-                    );
-
-                    delay = TimeSpan.FromMilliseconds(
-                        Math.Min(Math.Max(delay.TotalMilliseconds * 2, TimeSpan.FromSeconds(30).TotalMilliseconds), 
-                            MaxBackoff.TotalMilliseconds)
-                    );
-
-                    if (delay >= MaxBackoff)
-                    {
-                        
-                        ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch),
-                            "Twitch has disconnected and max retries have been reached. Please investigate.", DateTime.Now.ToLocalTime());
-                        _logger?.LogCritical(
-                            "Twitch EventSub reconnect failed after reaching max backoff ({MaxDelay} minutes). Giving up.",
-                            MaxBackoff.TotalMinutes
-                        );
-                        return;
-                    }
+                    _logger?.LogWarning(ex, "EventSub reconnect failed");
                 }
+
+                _eventSubReconnect.Backoff = TimeSpan.FromMilliseconds(
+                    Math.Min(
+                        _eventSubReconnect.Backoff.TotalMilliseconds * 2,
+                        _eventSubReconnect.MaxBackoff.TotalMilliseconds));
             }
         }
         finally
         {
-            _eventSubConnecting = false;
-            _eventSubReconnectLock.Release();
+            _eventSubReconnect.Lock.Release();
         }
     }
 
@@ -637,8 +657,6 @@ public class TwitchService
     
     private Task HandleChannelFollow(object? s, ChannelFollowArgs e)
     {
-        // Console.WriteLine($"New follow from {e.Payload.Event.UserName}");
-
         var eventMeta = e.Metadata as WebsocketEventSubMetadata;
         Guid.TryParse(eventMeta!.MessageId, out var mId);
         if (mId == Guid.Empty) mId = Guid.NewGuid();
@@ -979,13 +997,8 @@ public class TwitchService
 
     private void OnTeardown()
     {
-        if (_eventSubReconnectCts?.IsCancellationRequested == false)
-            _eventSubReconnectCts?.Cancel();
-        _eventSubReconnectCts?.Dispose();
-        
-        if (_chatReconnectCts?.IsCancellationRequested == false)
-            _chatReconnectCts?.Cancel();
-        _chatReconnectCts?.Dispose();
+        _chatReconnect.Dispose();
+        _eventSubReconnect.Dispose();
         
         if (_chat != null)
         {

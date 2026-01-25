@@ -19,8 +19,8 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Command" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="Name" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="3" Text="Mods?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="4" Text="VIPs?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="3" Text="Mods?" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Does not work for Picarto"/>
+                <TextBlock Grid.Column="4" Text="VIPs?" VerticalAlignment="Center" HorizontalAlignment="Center" ToolTip="Only for Twitch"/>
                 <TextBlock Grid.Column="5" Text="User Whitelist" VerticalAlignment="Center" HorizontalAlignment="Center"/>
             </Grid>
             <Separator Margin="4 4"/>

@@ -147,6 +147,16 @@ namespace SubathonManager.Core
                 
                 if (!IsEnabled(logLevel)) return;
             }
+            else if (_category.Contains("PicartoEventsLib", StringComparison.OrdinalIgnoreCase))
+            {
+                var text = (message + " " + exception?.Message);
+                if (text.Contains("WebSocket receive loop error", StringComparison.OrdinalIgnoreCase) &&
+                    text.Contains("without completing the close handshake"))
+                {
+                    logLevel = LogLevel.Debug;
+                }
+                if (!IsEnabled(logLevel)) return;
+            }
             else if (_category.Contains("YTLiveChat", StringComparison.OrdinalIgnoreCase))
             {
                 var text = (message + " " + exception?.Message);

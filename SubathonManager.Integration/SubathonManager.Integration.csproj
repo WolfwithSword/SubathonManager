@@ -19,6 +19,7 @@
       <PackageReference Include="TwitchLib.Client" Version="3.4.0" />
       <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />
       <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.7.0" />
+      <PackageReference Include="WolfwithSword.PicartoEventsLib" Version="0.1.1" />
     </ItemGroup>
 
     <ItemGroup>

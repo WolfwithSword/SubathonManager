@@ -25,6 +25,7 @@ public partial class App
     
     public static TwitchService? AppTwitchService { get; set; }
     public static YouTubeService? AppYouTubeService { get; set; }
+    public static PicartoService? AppPicartoService { get; set; }
     public static StreamElementsService? AppStreamElementsService { get; set; }
     public static StreamLabsService? AppStreamLabsService { get; set; }
     
@@ -105,6 +106,7 @@ public partial class App
             
             services.AddSingleton<TwitchService>();
             services.AddSingleton<YouTubeService>();
+            services.AddSingleton<PicartoService>();
             services.AddSingleton<StreamElementsService>();
             services.AddSingleton<StreamLabsService>();
             services.AddSingleton<EventService>();
@@ -154,6 +156,7 @@ public partial class App
             AppEventService = AppServices.Provider.GetRequiredService<EventService>();
             AppTwitchService = AppServices.Provider.GetRequiredService<TwitchService>();
             AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
+            AppPicartoService = AppServices.Provider.GetRequiredService<PicartoService>();
             AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
             AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
             AppDiscordWebhookService = AppServices.Provider.GetRequiredService<DiscordWebhookService>();
@@ -191,6 +194,7 @@ public partial class App
 
             AppYouTubeService!.Start(null);
 
+            Task.Run(() => AppPicartoService.StartAsync());
             Task.Run(() => AppWebServer.StartAsync());
             Task.Run(() => AppTimerService.StartAsync());
             TimerEvents.TimerTickEvent += UpdateSubathonTimers;

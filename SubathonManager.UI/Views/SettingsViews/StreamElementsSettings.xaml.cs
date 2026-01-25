@@ -24,8 +24,8 @@ public partial class StreamElementsSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
-        
-        StreamElementsEvents.StreamElementsConnectionChanged += UpdateSEStatus;
+
+        IntegrationEvents.ConnectionUpdated += UpdateSEStatus;
         SEJWTTokenBox.Text = App.AppConfig!.Get("StreamElements", "JWT", string.Empty)!;    
         if (App.AppStreamElementsService != null)
             Host!.UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
@@ -54,8 +54,9 @@ public partial class StreamElementsSettings : UserControl
         return hasUpdated;
     }
     
-    private void UpdateSEStatus(bool status)
+    private void UpdateSEStatus(bool status, SubathonEventSource source, string name, string service)
     {
+        if (source != SubathonEventSource.StreamElements) return;
         Host!.UpdateConnectionStatus(status, SEStatusText, ConnectSEBtn);
     }
     

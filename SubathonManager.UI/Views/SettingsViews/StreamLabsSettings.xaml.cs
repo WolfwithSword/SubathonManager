@@ -25,7 +25,7 @@ public partial class StreamLabsSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
-        StreamLabsEvents.StreamLabsConnectionChanged += UpdateSLStatus;
+        IntegrationEvents.ConnectionUpdated += UpdateSLStatus;
         SLTokenBox.Text = App.AppConfig!.Get("StreamLabs", "SocketToken", string.Empty)!;
 
         if (App.AppStreamLabsService != null)
@@ -55,8 +55,9 @@ public partial class StreamLabsSettings : UserControl
         return hasUpdated;
     }
     
-    private void UpdateSLStatus(bool status)
+    private void UpdateSLStatus(bool status, SubathonEventSource source, string name, string service)
     {
+        if (source != SubathonEventSource.StreamLabs) return;
         Host!.UpdateConnectionStatus(status, SLStatusText, ConnectSLBtn);
     }
     

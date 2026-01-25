@@ -133,7 +133,8 @@ public partial class WebServer
             currency = subathonEvent.Currency, // sometimes useful
             command =  subathonEvent.Command.ToString(), // only useful if eventType is command
             event_timestamp = subathonEvent.EventTimestamp,
-            reversed = subathonEvent.WasReversed
+            reversed = subathonEvent.WasReversed,
+            sub_type = subathonEvent.EventType.GetSubType().ToString()
         };
         return data;
     }

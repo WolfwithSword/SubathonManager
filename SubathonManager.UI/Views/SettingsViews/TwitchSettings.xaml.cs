@@ -22,16 +22,23 @@ public partial class TwitchSettings : UserControl
         Host = host;
         InitTwitchAutoSettings();
         LoadHypeTrainValues();
-        TwitchEvents.TwitchConnected += UpdateTwitchStatus;
+        IntegrationEvents.ConnectionUpdated += UpdateTwitchStatus;
     }
     
-    private void UpdateTwitchStatus()
+    private void UpdateTwitchStatus(bool status, SubathonEventSource source, string name, string service)
     {
+        if (source != SubathonEventSource.Twitch || service != "EventSub")
+            return;
+        // we only care to show for event sub mostly, if it fails, the rest may also fail
+        // todo, show the others
         Dispatcher.Invoke(() =>
         {
-            string username = App.AppTwitchService!.UserName != string.Empty ? App.AppTwitchService.UserName! : "Disconnected";
+            string username = name != string.Empty ? name : "Disconnected";
+            if (!status)
+                username = "Disconnected";
             if (TwitchStatusText.Text != username) TwitchStatusText.Text = username; 
-            string connectBtn = App.AppTwitchService!.UserName != string.Empty ? "Reconnect" : "Connect";
+            string connectBtn = name != string.Empty ? "Reconnect" : "Connect";
+            if (!status) connectBtn = "Connect";
             if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
         });
     }

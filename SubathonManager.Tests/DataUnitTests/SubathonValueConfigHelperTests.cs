@@ -107,5 +107,7 @@ public class SubathonValueConfigHelperTests
                                                             && x.EventType == SubathonEventType.TwitchSub);
         Assert.Contains(deserialized, x => x.Meta == "2000" && x.Points == 2
                                                             && x.EventType == SubathonEventType.TwitchGiftSub);
+        Assert.Equal("Twitch TwitchSub [1000]: 60s, 1pts", deserialized[0].ToString());
+        Assert.Equal("60s 1pts",  deserialized[0].ToValueString());
     }
 }

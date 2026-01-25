@@ -24,6 +24,7 @@ public partial class SettingsView
         
         TwitchSettingsControl.Init(this);
         YouTubeSettingsControl.Init(this);
+        PicartoSettingsControl.Init(this);
         WebhookLogSettingsControl.Init(this);
         StreamLabsSettingsControl.Init(this);
         StreamElementsSettingsControl.Init(this);
