@@ -1,0 +1,127 @@
+﻿:root {
+    --goal-height: 44px;
+    --goal-gap: 6px;
+    --background-color: #0a0a0a;
+    --points-bg-color: #121212;
+    --border-color: #3cff8f;
+    --border-thickness: 4px;
+    --font-size: 0.8rem;
+    --small-font-size: 0.7rem;
+    --font: 'Press Start 2P', monospace;
+    --font-color: #eaeaea;
+}
+
+body {
+    font-family: var(--font);
+    color: var(--font-color);
+    display: grid;
+    align-items: start;
+}
+
+.goals-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: 4px;
+    padding-bottom: 8px;
+    gap: 0;
+    transition: all 0.4s ease;
+}
+
+.goal-row {
+    margin-top: calc(var(--goal-gap)/2);
+    margin-bottom: calc(var(--goal-gap)/2);
+    margin-left: 4px;
+    margin-right: 4px;
+    transition:
+            all 0.35s ease,
+}
+
+.goal-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: var(--goal-height);
+    min-height: var(--goal-height);
+    max-height: var(--goal-height);
+    padding: 0 12px;
+
+    background-color: var(--background-color);
+    border: var(--border-thickness) solid var(--border-color);
+    font-size: var(--font-size);
+    font-family: var(--font);
+    color: var(--font-color);
+    font-weight: 300;
+
+    box-sizing: border-box;
+    clip-path: polygon(
+            0px calc(100% - 8px),
+            4px calc(100% - 8px),
+            4px calc(100% - 4px),
+            8px calc(100% - 4px),
+            8px 100%,
+            calc(100% - 8px) 100%,
+            calc(100% - 8px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 4px),
+            calc(100% - 4px) calc(100% - 8px),
+            100% calc(100% - 8px),
+            100% 8px,
+            calc(100% - 4px) 8px,
+            calc(100% - 4px) 4px,
+            calc(100% - 8px) 4px,
+            calc(100% - 8px) 0px,
+            8px 0px,
+            8px 4px,
+            4px 4px,
+            4px 8px,
+            0px 8px
+    );
+    
+    transition: all 0.35s ease,
+}
+
+.goal-points {
+    margin-left: auto;
+    padding: 2px 8px;
+    font-weight: 300;
+    font-size: var(--small-font-size);
+    background: var(--points-bg-color);
+    border: 2px solid var(--font-color);
+    0 2px 2px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+    clip-path: polygon(
+            0px calc(100% - 4px),
+            4px calc(100% - 4px),
+            4px 100%,
+            calc(100% - 4px) 100%,
+            calc(100% - 4px) calc(100% - 4px),
+            100% calc(100% - 4px),
+            100% 4px,
+            calc(100% - 4px) 4px,
+            calc(100% - 4px) 0px,
+            4px 0px,
+            4px 4px,
+            0px 4px
+    );
+
+}
+
+.goal-item.completed {
+    text-decoration: line-through;
+    filter: brightness(0.95);
+    opacity: 0.30;
+    transition: opacity 0.5s ease;
+}
+
+.goal-row.enter {
+    opacity: 0;
+    transform: translateY(12px);
+}
+.goal-row.enter-active {
+    opacity: 1;
+    transform: translateY(0);
+}
+.goal-row.exit {
+    opacity: 0;
+    transform: translateY(-12px);
+}
