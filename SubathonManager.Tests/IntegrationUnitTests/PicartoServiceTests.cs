@@ -298,7 +298,7 @@ public class PicartoServiceTests
 
     
     [Fact]
-    public async void StartAsync_Test_RaisesConnections()
+    public async Task StartAsync_Test_RaisesConnections()
     {
                 
         var configCs = MockConfig(new()
@@ -363,7 +363,7 @@ public class PicartoServiceTests
     
         
     [Fact]
-    public async void Test_ChangeChannel_And_Connect_RaisesConnections()
+    public async Task Test_ChangeChannel_And_Connect_RaisesConnections()
     {
                 
         var configCs = MockConfig(new()
