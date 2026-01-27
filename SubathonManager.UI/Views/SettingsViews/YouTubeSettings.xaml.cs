@@ -17,12 +17,13 @@ public partial class YouTubeSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
-        YouTubeEvents.YouTubeConnectionUpdated += UpdateYoutubeStatus;
+        IntegrationEvents.ConnectionUpdated += UpdateYoutubeStatus;
         YTUserHandle.Text = App.AppConfig!.Get("YouTube", "Handle", string.Empty)!;
     }
     
-    private void UpdateYoutubeStatus(bool status,  string name)
+    private void UpdateYoutubeStatus(bool status, SubathonEventSource source, string name, string service)
     {
+        if (source != SubathonEventSource.YouTube) return;
         Dispatcher.Invoke(() =>
         {
             if (YTUserHandle.Text != name && name != "None") YTUserHandle.Text = name; 

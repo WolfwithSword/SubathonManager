@@ -12,5 +12,6 @@ public enum SubathonEventSource
     Unknown, // default
     StreamLabs,
     External,
-    Blerp
+    Blerp,
+    Picarto
 }

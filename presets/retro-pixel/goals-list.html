@@ -1,0 +1,164 @@
+﻿<!--
+WIDGET_META
+Width:420
+Height:600
+Url:https://github.com/WolfwithSword/SubathonManager/discussions/133#discussioncomment-15607034
+showLastCompleted.Boolean:True
+maxGoalsToShow.Int:3
+END_WIDGET_META
+-->
+<link href="https://fonts.googleapis.com/css?family=Press Start 2P" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="./goals-list.css"  />
+<div class="container">
+    <div class="goals-container" id="goalsContainer">
+    </div>
+</div>
+
+<script>
+    const goalsContainer = document.getElementById("goalsContainer");
+    let goalsState = [];
+    let allGoals = [];
+    let goalsType = "Points";
+    let currentPoints = 0;
+    let currentMoney = 0;
+
+    function applyGoalVisibility() {
+        const rows = Array.from(goalsContainer.children);
+        const showCount = maxGoalsToShow;
+
+        let lastCompletedIndex = rows.map(r => r.classList.contains("completed-row")).lastIndexOf(true);
+
+        let startIndex;
+        if (showLastCompleted) {
+            startIndex = lastCompletedIndex === -1 ? 0 : lastCompletedIndex;
+        } else {
+            startIndex = lastCompletedIndex + 1;
+        }
+
+        rows.forEach((row, index) => {
+            if (index >= startIndex && index < startIndex + showCount) {
+                row.style.display = "block";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    }
+
+
+    function renderGoals(newGoals) {
+        const existingRows = Array.from(goalsContainer.children);
+        const existingMap = new Map(
+            existingRows.map(row => [
+                row.querySelector(".goal-text").textContent,
+                row
+            ])
+        );
+
+        const newKeys = newGoals.map(g => g.text);
+
+        existingRows.forEach(row => {
+            const text = row.querySelector(".goal-text").textContent;
+            const points = row.querySelector(".goal-points").textContent;
+            const existsInNew = newGoals.some(g => g.text == text && g.points.toString() == points);
+            if (!existsInNew) {
+                removeGoalRow(row);
+            }
+        });
+
+        newGoals.forEach(goal => {
+            let row = Array.from(goalsContainer.children).find(r => {
+                const text = r.querySelector(".goal-text").textContent;
+                const points = r.querySelector(".goal-points").textContent;
+                return text == goal.text && points == goal.points.toString();
+            });
+
+            if (!row) {
+                appendGoalRow(goal);
+            } else {
+                const item = row.querySelector(".goal-item");
+                if (goal.completed) {
+                    item.classList.add("completed");
+                    row.classList.add("completed-row");
+                }
+                else {
+                    item.classList.remove("completed");
+                    row.classList.remove("completed-row");
+                }
+
+                goalsContainer.appendChild(row);
+            }
+        });
+
+        applyGoalVisibility();
+    }
+
+    function appendGoalRow(goal) {
+        const row = createGoalElement(goal);
+        row.classList.add("goal-row", "enter");
+        goalsContainer.appendChild(row);
+
+        requestAnimationFrame(() => {
+            row.classList.remove("enter");
+            row.classList.add("enter-active");
+        });
+    }
+
+    function removeGoalRow(row) {
+        row.classList.add("exit");
+
+        row.style.height = row.offsetHeight + "px";
+        row.offsetHeight;
+        row.style.height = "0px";
+        row.style.margin = "0px";
+
+        setTimeout(() => {
+            row.remove();
+        }, 350);
+    }
+
+    function createGoalElement(goal) {
+        const row = document.createElement("div");
+        row.className = "goal-row";
+
+        const item = document.createElement("div");
+        item.className = "goal-item";
+        if (goal.completed) {
+            item.classList.add("completed");
+            row.classList.add("completed-row");
+        }
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "goal-text";
+        textSpan.textContent = goal.text;
+
+        const pointsSpan = document.createElement("span");
+        pointsSpan.className = "goal-points";
+        pointsSpan.textContent = goal.points;
+
+        item.appendChild(textSpan);
+        item.appendChild(pointsSpan);
+        row.appendChild(item);
+
+        return row;
+    }
+
+    function handleGoalsUpdate(data) {
+        if (data && data.type == "goals_list") {
+            allGoals = data.goals;
+            goalsState = [...allGoals].sort((a, b) => a.points - b.points);
+            renderGoals(goalsState);
+        }
+    }
+
+    function handleGoalCompleted(data) {
+        if (data && data.type == "goal_completed") {
+            const completedText = data.goal_text;
+            const completedAmt = data.goal_points;
+
+            goalsState = allGoals.map(g =>
+                (g.text == completedText && g.points == completedAmt) ? { ...g, completed: true } : g
+            ).sort((a, b) => a.points - b.points);
+            renderGoals(goalsState);
+        }
+    }
+</script>

@@ -29,7 +29,8 @@ public class StreamLabsService
     {
         Connected = false;
         GetTokenFromConfig();
-        StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
+        
+        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
         if (_secretToken.Equals(string.Empty)) return false;
 
         OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
@@ -53,7 +54,8 @@ public class StreamLabsService
                 message, DateTime.Now);
         }
         
-        StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
+        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
+        _logger?.LogInformation("StreamLabs Service Connected");
         return Connected;
     }
     
@@ -107,12 +109,13 @@ public class StreamLabsService
     
     public async Task DisconnectAsync()
     {
+        if (!Connected) return;
         Connected = false;
         if (_client == null) return;
         
         _client.OnDonation -= OnDonation;
         await _client.DisconnectAsync();
-        StreamLabsEvents.RaiseStreamLabsConnectionChanged(Connected);
+        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
         _logger?.LogInformation("StreamLabsService Disconnected");
     }
 }

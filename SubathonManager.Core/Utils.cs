@@ -165,13 +165,63 @@ public class Utils
         double modifier = 1;
         if (!eventType.IsCheerType())
             return (false, 1);
-        if (eventType != SubathonEventType.TwitchCheer)
+        if (eventType != SubathonEventType.TwitchCheer && eventType != SubathonEventType.PicartoTip)
         {
             double.TryParse(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
         }
 
         bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"), out bool useAsDonation);
         return (useAsDonation, modifier);
+    }
+    
+    public sealed class ServiceReconnectState : IDisposable
+    {
+        public TimeSpan Backoff = TimeSpan.FromSeconds(2);
+        public int MaxRetries = 100;
+        public TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
+        public CancellationTokenSource? Cts;
+        public readonly SemaphoreSlim Lock = new(1, 1);
+        public int Retries = 0;
+        
+        private TimeSpan InitialBackOff { get; init; }
+        private TimeSpan InitialMaxBackOff { get; init; }
+        private int InitialMaxRetries { get; init; }
+
+        public ServiceReconnectState(TimeSpan backoff, int maxRetries, TimeSpan maxBackoff)
+        {
+            Backoff = backoff;
+            MaxRetries = maxRetries;
+            MaxBackoff = maxBackoff;
+            InitialBackOff = Backoff;
+            InitialMaxBackOff = MaxBackoff;
+            InitialMaxRetries = MaxRetries;
+        }
+        
+        public ServiceReconnectState() {
+            InitialBackOff = Backoff;
+            InitialMaxBackOff = MaxBackoff;
+            InitialMaxRetries = MaxRetries;
+            
+        }
+
+        public async Task<bool> IsReconnecting()
+        {
+            return !(await Lock.WaitAsync(0));
+        }
+
+        public void Reset()
+        {
+            Backoff = InitialBackOff;
+            MaxRetries = InitialMaxRetries;
+            MaxBackoff = InitialMaxBackOff;
+            Retries = 0;
+        }
+
+        public void Dispose()
+        {
+            Cts?.Cancel();
+            Cts?.Dispose();
+        }
     }
 
 }

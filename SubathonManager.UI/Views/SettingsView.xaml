@@ -160,7 +160,10 @@
                     
                      <!-- YouTube --> 
                      <views:YouTubeSettings x:Name="YouTubeSettingsControl" />
-                    
+                     
+                     <!-- Picarto --> 
+                     <views:PicartoSettings x:Name="PicartoSettingsControl" />
+
                      <!-- StreamElements --> 
                      <views:StreamElementsSettings x:Name="StreamElementsSettingsControl" />
                     

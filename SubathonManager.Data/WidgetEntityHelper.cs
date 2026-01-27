@@ -111,10 +111,10 @@ public class WidgetEntityHelper
             if (Enum.TryParse<WidgetVariableType>(key.Split('.')[1], ignoreCase: true, out var type))
                 jVar.Type = type;
             if (jVar.Value == "NONE") jVar.Value = string.Empty;
-            if (jVar.Type == WidgetVariableType.EventTypeSelect)
+            if (jVar.Type == WidgetVariableType.EventTypeSelect || jVar.Type == WidgetVariableType.EventSubTypeSelect)
             {
                 if (!string.IsNullOrWhiteSpace(jVar.Value) &&
-                    !Enum.TryParse(jVar.Value, out SubathonEventType setValue))
+                    !Enum.TryParse(jVar.Type.GetClsSingleType(), jVar.Value, true, out _))
                 {
                     jVar.Value = string.Empty;
                 }

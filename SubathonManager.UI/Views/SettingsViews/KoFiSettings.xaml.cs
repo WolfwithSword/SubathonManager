@@ -30,13 +30,13 @@ public partial class KoFiSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
-        WebServerEvents.WebSocketIntegrationSourceChange += UpdateKoFiStatus;
+        IntegrationEvents.ConnectionUpdated += UpdateKoFiStatus;
     }
 
-    private void UpdateKoFiStatus(string source, bool status)
+    private void UpdateKoFiStatus(bool status, SubathonEventSource source, string name, string service)
     {
-        if (nameof(SubathonEventSource.KoFi).Equals(source, StringComparison.InvariantCultureIgnoreCase))
-            Host!.UpdateConnectionStatus(status, KoFiStatusText, null);
+        if (source != SubathonEventSource.KoFi || service != "Socket") return;
+        Host!.UpdateConnectionStatus(status, KoFiStatusText, null);
     }
     
     public void LoadValues(AppDbContext db)

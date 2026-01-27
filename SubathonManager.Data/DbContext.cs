@@ -292,6 +292,14 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
+                new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T1", Seconds = 60, Points = 1 },
+                new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T2", Seconds = 120, Points = 2 },
+                new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T3", Seconds = 180, Points = 3 },
+                new SubathonValue { EventType = SubathonEventType.PicartoGiftSub, Meta = "T1", Seconds = 60, Points = 1 }, // you can only gift T1
+                // PicartoMonth subs, treat as amount? = months * quantity = amount
+                new SubathonValue { EventType = SubathonEventType.PicartoTip, Seconds = 0.12 },
+                new SubathonValue { EventType = SubathonEventType.PicartoFollow, Seconds = 0 },
+                
             };
 
             foreach (var def in defaults)

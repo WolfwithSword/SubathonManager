@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using StreamElements.WebSocket;
 using StreamElements.WebSocket.Models.Tip;
 using StreamElements.WebSocket.Models.Internal;
@@ -20,8 +19,8 @@ public class StreamElementsService
     public bool Connected { get; private set; } = false;
     private string _jwtToken = "";
     private bool _hasAuthError = false;
-    private readonly object _reconnectLock = new();
-    private bool _isReconnecting = false;
+    private readonly Utils.ServiceReconnectState _reconnectState =
+        new(TimeSpan.FromSeconds(2), maxRetries: 50, maxBackoff: TimeSpan.FromMinutes(5));
     
     private readonly ILogger? _logger;
     private readonly IConfig _config;
@@ -47,12 +46,12 @@ public class StreamElementsService
 
         _client = new StreamElementsClient();
         
+        _reconnectState.Reset();
         _client.OnConnected += _OnConnected;
         _client.OnAuthenticated += _OnAuthenticated;
         _client.OnTip += _OnTip;
         _client.OnDisconnected += _OnDisconnected;
         _client.OnAuthenticationFailure += _OnAuthenticateError;
-        
         _client.Connect(_jwtToken);
         return true;
     }
@@ -76,54 +75,94 @@ public class StreamElementsService
 
     private void _OnConnected(object? sender, EventArgs e)
     {
-        lock (_reconnectLock)
-            _isReconnecting = false;
         _logger?.LogInformation("StreamElementsService Connected");
+        _reconnectState.Reset();
+        _reconnectState.Cts?.Cancel();
     }
     private void _OnDisconnected(object? sender, EventArgs e)
     {
         _logger?.LogWarning($"StreamElementsService Disconnected");
         Connected = false;
-        StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
+        
+        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
         if (_hasAuthError) return;
         
-        Task.Run(async () =>
+        _ = Task.Run(ReconnectWithBackoffAsync);
+    }
+
+    private async Task ReconnectWithBackoffAsync()
+    {
+        if (_client == null)
+            return;
+
+        if (!await _reconnectState.Lock.WaitAsync(0))
+            return; // already reconnecting
+
+        try
         {
-            await Task.Delay(500);
-            lock (_reconnectLock)
+            _reconnectState.Cts?.Cancel();
+            _reconnectState.Cts = new CancellationTokenSource();
+            var token = _reconnectState.Cts.Token;
+
+            while (!token.IsCancellationRequested && !Connected && !_hasAuthError)
             {
-                if (_isReconnecting || Connected || _hasAuthError || _client == null)
+                if (_reconnectState.Retries >= _reconnectState.MaxRetries)
+                {
+                    string message =
+                        "StreamElements disconnected and max reconnect retries were reached.";
+
+                    ErrorMessageEvents.RaiseErrorEvent(
+                        "ERROR",
+                        nameof(SubathonEventSource.StreamElements),
+                        message,
+                        DateTime.Now.ToLocalTime());
+
+                    _logger?.LogError(message);
                     return;
+                }
 
-                _isReconnecting = true;
-            }
+                _reconnectState.Retries++;
 
-            try
-            {
-                _client.Connect(_jwtToken);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "StreamElements Reconnection failed, retrying in 2s");
-                await Task.Delay(2000);
+                var delay = _reconnectState.Backoff;
+
+                _logger?.LogWarning(
+                    "[StreamElements] Reconnect attempt {Attempt}/{Max} in {Delay}s",
+                    _reconnectState.Retries,
+                    _reconnectState.MaxRetries,
+                    delay.TotalSeconds);
+
                 try
                 {
-                    _client.Connect(_jwtToken);
+                    await Task.Delay(delay, token);
+
+                    if (!Connected && !_hasAuthError && _client != null)
+                    {
+                        _client.Connect(_jwtToken);
+                    }
                 }
-                catch (Exception ex2)
+                catch (OperationCanceledException)
                 {
-                    string message = $"StreamElements Disconnected with an error. Could not auto-reconnect. {ex2.Message}";
-                    ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
-                        message, DateTime.Now.ToLocalTime());
-                    _logger?.LogError(ex2, message);
+                    return;
                 }
+                catch (Exception ex)
+                {
+                    string message = $"StreamElements Disconnected with an error. Could not auto-reconnect. {ex.Message}";
+                    _logger?.LogWarning(ex, message);
+                    ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
+                                       message, DateTime.Now.ToLocalTime());
+                }
+
+                // exponential backoff
+                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
+                    Math.Min(
+                        _reconnectState.Backoff.TotalMilliseconds * 2,
+                        _reconnectState.MaxBackoff.TotalMilliseconds));
             }
-            finally
-            {
-                lock (_reconnectLock)
-                    _isReconnecting = false;
-            }
-        });
+        }
+        finally
+        {
+            _reconnectState.Lock.Release();
+        }
     }
 
     private void _OnAuthenticated(object? sender, Authenticated e)
@@ -131,7 +170,10 @@ public class StreamElementsService
         _logger?.LogDebug($"StreamElementsService Authenticated");
         Connected = true;
         _hasAuthError = false;
-        StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
+
+        _reconnectState.Cts?.Cancel();
+        _reconnectState.Reset();
+        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
     }
 
     private void _OnAuthenticateError(object? sender, EventArgs e)
@@ -139,7 +181,8 @@ public class StreamElementsService
         _logger?.LogError($"StreamElementsService Authentication Error");
         Connected = false;
         _hasAuthError = true;
-        StreamElementsEvents.RaiseStreamElementsConnectionChanged(Connected);
+        _reconnectState.Cts?.Cancel();
+        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
         ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
             "StreamElements Token could not be validated", DateTime.Now.ToLocalTime());
     }
@@ -160,6 +203,7 @@ public class StreamElementsService
 
     public void Disconnect()
     {
+        _reconnectState.Cts?.Cancel();
         if (_client == null) return;
         try
         {
@@ -186,7 +230,7 @@ public class StreamElementsService
         subathonEvent.User = "SYSTEM";
         subathonEvent.Currency = currency;
         
-        subathonEvent.Value = value; // TODO verify format, must be parsable as a double
+        subathonEvent.Value = value;
         subathonEvent.Source = SubathonEventSource.Simulated;
         subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
         

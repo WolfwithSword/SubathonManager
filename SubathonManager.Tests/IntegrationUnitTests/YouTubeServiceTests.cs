@@ -105,12 +105,15 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
 
             bool eventRaised = false;
-            Action<bool, string?> handler = (running, handle) =>
+            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
             {
-                eventRaised = true;
-                Assert.True(running);
+                if (source == SubathonEventSource.YouTube)
+                {
+                    eventRaised = true;
+                    Assert.True(running);
+                }
             };
-            YouTubeEvents.YouTubeConnectionUpdated += handler;
+            IntegrationEvents.ConnectionUpdated += handler;
 
             try
             {
@@ -129,7 +132,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             }
             finally
             {
-                YouTubeEvents.YouTubeConnectionUpdated -= handler;
+                IntegrationEvents.ConnectionUpdated -= handler;
             }
         }
 
@@ -144,13 +147,16 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
 
             bool eventRaised = false;
-            Action<bool, string?> handler = (running, handle) =>
+            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
             {
-                eventRaised = true;
-                Assert.False(running);
+                if (source == SubathonEventSource.YouTube)
+                {
+                    eventRaised = true;
+                    Assert.False(running);
+                }
             };
 
-            YouTubeEvents.YouTubeConnectionUpdated += handler;
+            IntegrationEvents.ConnectionUpdated += handler;
 
             try
             {
@@ -165,7 +171,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             }
             finally
             {
-                YouTubeEvents.YouTubeConnectionUpdated -= handler;
+                IntegrationEvents.ConnectionUpdated -= handler;
             }
         }
 
@@ -408,12 +414,15 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
 
             bool eventRaised = false;
-            Action<bool, string?> handler = (running, handle) =>
+            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
             {
-                eventRaised = true;
-                Assert.False(running);
+                if (source == SubathonEventSource.YouTube)
+                {
+                    eventRaised = true;
+                    Assert.False(running);
+                }
             };
-            YouTubeEvents.YouTubeConnectionUpdated += handler;
+            IntegrationEvents.ConnectionUpdated += handler;
 
             try
             {
@@ -428,7 +437,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             }
             finally
             {
-                YouTubeEvents.YouTubeConnectionUpdated -= handler;
+                IntegrationEvents.ConnectionUpdated -= handler;
             }
         }
 
@@ -445,8 +454,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             bool eventRaised = false;
             bool ranNone = false;
-            Action<bool, string?> handler = (running, handle) =>
+            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
             {
+                if (source != SubathonEventSource.YouTube) return;
                 if (!ranNone)
                 {
                     Assert.Equal("None", handle);
@@ -461,7 +471,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 Assert.Equal("@TestChannel", handle);
                 Assert.True(service.Running);
             };
-            YouTubeEvents.YouTubeConnectionUpdated += handler;
+            IntegrationEvents.ConnectionUpdated += handler;
 
             try
             {
@@ -474,7 +484,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             }
             finally
             {
-                YouTubeEvents.YouTubeConnectionUpdated -= handler;
+                IntegrationEvents.ConnectionUpdated -= handler;
             }
         }
         

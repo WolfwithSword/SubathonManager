@@ -148,7 +148,9 @@ namespace SubathonManager.UI.Views
                 StreamElementsSettingsControl.UpdateValueSettings,
                 StreamLabsSettingsControl.UpdateValueSettings,
                 KoFiSettingsControl.UpdateValueSettings,
-                ChatExtSettingsControl.UpdateValueSettings
+                ChatExtSettingsControl.UpdateValueSettings,
+                PicartoSettingsControl.UpdateValueSettings
+                
             };
             
             bool hasUpdated = false;
@@ -175,6 +177,7 @@ namespace SubathonManager.UI.Views
             
             TwitchSettingsControl.UpdateConfigValueSettings();
             KoFiSettingsControl.RefreshKoFiTierCombo();
+            PicartoSettingsControl.UpdateConfigValueSettings();
             
             CommandsSettingsControl.UpdateValueSettings();
             WebhookLogSettingsControl.UpdateValueSettings();
@@ -249,10 +252,19 @@ namespace SubathonManager.UI.Views
                         box = TwitchSettingsControl.FollowTextBox;
                         box2 = TwitchSettingsControl.Follow2TextBox;
                         break;
+                    case SubathonEventType.PicartoFollow:
+                        box = PicartoSettingsControl.FollowTextBox;
+                        box2 = PicartoSettingsControl.Follow2TextBox;
+                        break;
                     case SubathonEventType.TwitchCheer:
                         v = $"{Math.Round(val.Seconds * 100)}";
                         box = TwitchSettingsControl.CheerTextBox;
                         box2 = TwitchSettingsControl.Cheer2TextBox; // in backend when adding, need to round down when adding for odd bits
+                        break;
+                    case SubathonEventType.PicartoTip:
+                        v = $"{Math.Round(val.Seconds * 100)}";
+                        box = PicartoSettingsControl.KudosTextBox;
+                        box2 = PicartoSettingsControl.Kudos2TextBox; 
                         break;
                     case SubathonEventType.BlerpBits:
                         v = $"{Math.Round(val.Seconds * 100)}";
@@ -278,6 +290,32 @@ namespace SubathonManager.UI.Views
                             case "3000":
                                 box = TwitchSettingsControl.SubT3TextBox;
                                 box2 = TwitchSettingsControl.SubT3TextBox2;
+                                break;
+                        }
+                        break;
+                    case SubathonEventType.PicartoSub:
+                        switch (val.Meta)
+                        {
+                            case "T1":
+                                box = PicartoSettingsControl.SubT1TextBox;
+                                box2 = PicartoSettingsControl.SubT1TextBox2;
+                                break;
+                            case "T2":
+                                box = PicartoSettingsControl.SubT2TextBox;
+                                box2 = PicartoSettingsControl.SubT2TextBox2;
+                                break;
+                            case "T3":
+                                box = PicartoSettingsControl.SubT3TextBox;
+                                box2 = PicartoSettingsControl.SubT3TextBox2;
+                                break;
+                        }
+                        break;
+                    case SubathonEventType.PicartoGiftSub:
+                        switch (val.Meta)
+                        {
+                            case "T1":
+                                box = PicartoSettingsControl.GiftSubTextBox;
+                                box2 = PicartoSettingsControl.GiftSubTextBox2;
                                 break;
                         }
                         break;

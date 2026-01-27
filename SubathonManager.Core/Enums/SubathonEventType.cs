@@ -23,7 +23,11 @@ public enum SubathonEventType
     KoFiSub,
     DonationAdjustment,
     BlerpBits, // twitch only
-    BlerpBeets
+    BlerpBeets,
+    PicartoFollow,
+    PicartoSub,
+    PicartoGiftSub,
+    PicartoTip
     // any new must be added after the last
 }
 
@@ -45,7 +49,8 @@ public static class SubathonEventTypeHelper
     {
         SubathonEventType.TwitchCheer,
         SubathonEventType.BlerpBeets,
-        SubathonEventType.BlerpBits // needs a modifier
+        SubathonEventType.BlerpBits, // needs a modifier
+        SubathonEventType.PicartoTip
     };
 
     private static readonly SubathonEventType[] GiftTypes = new[]
@@ -53,6 +58,7 @@ public static class SubathonEventTypeHelper
 
         SubathonEventType.YouTubeGiftMembership,
         SubathonEventType.TwitchGiftSub,
+        SubathonEventType.PicartoGiftSub,
     };
     
     private static readonly SubathonEventType[] MembershipTypes = new[]
@@ -66,7 +72,9 @@ public static class SubathonEventTypeHelper
     {
         SubathonEventType.TwitchSub,
         SubathonEventType.TwitchGiftSub,
-        SubathonEventType.ExternalSub
+        SubathonEventType.ExternalSub,
+        SubathonEventType.PicartoSub,
+        SubathonEventType.PicartoGiftSub
     };
 
     private static readonly SubathonEventType[] ExternalTypes = new[]
@@ -91,6 +99,25 @@ public static class SubathonEventTypeHelper
         SubathonEventType.BlerpBeets,
         SubathonEventType.BlerpBits
     };
+
+    public static SubathonEventSubType GetSubType(this SubathonEventType? eventType)
+    {
+        if (!eventType.HasValue) return SubathonEventSubType.Unknown;
+        if (eventType.IsGiftType()) return SubathonEventSubType.GiftSubLike;
+        if (eventType.IsSubOrMembershipType()) return SubathonEventSubType.SubLike;
+        if (eventType.IsCheerType()) return SubathonEventSubType.TokenLike;
+        if (eventType.IsCurrencyDonation()) return SubathonEventSubType.DonationLike;
+
+        return eventType.Value switch
+        {
+            SubathonEventType.TwitchRaid => SubathonEventSubType.RaidLike,
+            SubathonEventType.TwitchFollow => SubathonEventSubType.FollowLike,
+            SubathonEventType.PicartoFollow => SubathonEventSubType.FollowLike,
+            SubathonEventType.TwitchHypeTrain =>  SubathonEventSubType.TrainLike,
+            SubathonEventType.Command => SubathonEventSubType.CommandLike,
+            _ => SubathonEventSubType.Unknown
+        };
+    }
     
     public static bool IsExtensionType(this SubathonEventType? eventType) => 
         eventType.HasValue && ExtensionType.Contains(eventType.Value);
@@ -149,6 +176,11 @@ public static class SubathonEventTypeHelper
             SubathonEventType.YouTubeGiftMembership => SubathonEventSource.YouTube,
             SubathonEventType.YouTubeMembership => SubathonEventSource.YouTube,
             SubathonEventType.YouTubeSuperChat => SubathonEventSource.YouTube,
+            
+            SubathonEventType.PicartoFollow => SubathonEventSource.Picarto,
+            SubathonEventType.PicartoSub => SubathonEventSource.Picarto,
+            SubathonEventType.PicartoGiftSub => SubathonEventSource.Picarto,
+            SubathonEventType.PicartoTip => SubathonEventSource.Picarto,
             
             SubathonEventType.DonationAdjustment => SubathonEventSource.Command,
             
