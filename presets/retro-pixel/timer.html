@@ -9,6 +9,7 @@ alignment.StringSelect:Center,Left,Right
 finishSound.SoundFile:./done.mp3
 playSoundOnFinish.Boolean:True
 soundVolume.Percent:80
+showDays.Boolean:True
 END_WIDGET_META
 -->
 <!--
@@ -40,8 +41,8 @@ done.mp3 from: https://freesound.org/people/Scrampunk/sounds/345297/
 <script>
     var hasPlayedFinish = false;
     var completedSound;
-    function pad(n) {
-        return String(n).padStart(2, "0");
+    function pad(n, min = 2) {
+        return String(n).padStart(min, "0");
     }
     
     function animateValue(el) {
@@ -49,8 +50,9 @@ done.mp3 from: https://freesound.org/people/Scrampunk/sounds/345297/
     
     function updateUnitVisibility(data) {
         if (showLeadingEmptyTime) return;
-
-        const order = ["days", "hours", "minutes", "seconds"];
+        const order = (typeof showDays !== "undefined" && !showDays)
+            ? ["hours", "minutes", "seconds"]
+            : ["days", "hours", "minutes", "seconds"];
 
         const values = {
             days: data.days,
@@ -79,23 +81,45 @@ done.mp3 from: https://freesound.org/people/Scrampunk/sounds/345297/
     }
 
     function updateTimer(data) {
-        if (document.getElementById("days").textContent != pad(data.days)) {
-            animateValue(document.getElementById("days"));
-            document.getElementById("days").textContent = pad(data.days);
+        let days = data.days;
+        let hours = data.hours;
+        let minutes = data.minutes;
+        let seconds = data.seconds;
+        
+        if (typeof showDays !== "undefined" && !showDays) {
+            hours = (days * 24) + hours;
+            days = 0;
+
+            const dayBlock = document.querySelector('.time-block[data-unit="days"]');
+            if (dayBlock) dayBlock.style.display = "none";
         }
-        if (document.getElementById("hours").textContent != pad(data.hours)) {
+
+        if (showDays) {
+            if (document.getElementById("days").textContent !== pad(days)) {
+                animateValue(document.getElementById("days"));
+                document.getElementById("days").textContent = pad(days);
+            }
+        }
+        if (document.getElementById("hours").textContent !== pad(hours, 2)) {
             animateValue(document.getElementById("hours"));
-            document.getElementById("hours").textContent = pad(data.hours);
+            document.getElementById("hours").textContent = pad(hours, 2);
         }
-        if (document.getElementById("minutes").textContent != pad(data.minutes)) {
+
+        if (document.getElementById("minutes").textContent !== pad(minutes)) {
             animateValue(document.getElementById("minutes"));
-            document.getElementById("minutes").textContent = pad(data.minutes);
+            document.getElementById("minutes").textContent = pad(minutes);
         }
-        if (document.getElementById("seconds").textContent != pad(data.seconds)) {
+
+        if (document.getElementById("seconds").textContent !== pad(seconds)) {
             animateValue(document.getElementById("seconds"));
-            document.getElementById("seconds").textContent = pad(data.seconds);
+            document.getElementById("seconds").textContent = pad(seconds);
         }
-        updateUnitVisibility(data);
+        updateUnitVisibility({
+            days,
+            hours,
+            minutes,
+            seconds
+        });
     }
     
     function playFinish(){
