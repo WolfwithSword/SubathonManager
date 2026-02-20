@@ -17,7 +17,8 @@ public enum WidgetVariableType
     VideoFile,
     SoundFile,
     EventSubTypeList,
-    EventSubTypeSelect
+    EventSubTypeSelect,
+    FolderPath
 }
 
 [ExcludeFromCodeCoverage]
@@ -28,7 +29,8 @@ public static class WidgetVariableTypeHelper
         WidgetVariableType.AnyFile,
         WidgetVariableType.ImageFile,
         WidgetVariableType.VideoFile,
-        WidgetVariableType.SoundFile
+        WidgetVariableType.SoundFile,
+        WidgetVariableType.FolderPath
     };
 
     public static bool IsFileVariable(this WidgetVariableType? varType) =>
@@ -56,6 +58,7 @@ public static class WidgetVariableTypeHelper
         WidgetVariableType.ImageFile => typeof(string),
         WidgetVariableType.VideoFile => typeof(string),
         WidgetVariableType.SoundFile => typeof(string),
+        WidgetVariableType.FolderPath => typeof(string),
         
         _ => throw new ArgumentOutOfRangeException(nameof(varType), varType, null)
     };

@@ -690,6 +690,7 @@ public partial class EditRouteWindow
             else if (((WidgetVariableType?)jsVar.Type).IsFileVariable())
             {
                 var shortContent = string.IsNullOrWhiteSpace(jsVar.Value) ? "Empty" : jsVar.Value.Split('/').Last();
+                if (string.IsNullOrWhiteSpace(shortContent)) shortContent = "./";
                 var valueBtn = new Wpf.Ui.Controls.Button
                 {
                     Content = shortContent,
@@ -702,18 +703,18 @@ public partial class EditRouteWindow
                     var path = SelectFileVarPathDialog(jsVar.Type);
                     if (!string.IsNullOrWhiteSpace(path))
                     {
-                        path = path.Replace('\\', '/');
-                        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
-                        dir = dir!.Replace('\\', '/');
+                        path = Path.GetFullPath(path).Replace('\\', '/');
+                        //var dir = jsVar.Type == WidgetVariableType.FolderPath ? path : Path.GetDirectoryName(Path.GetFullPath(path));
+                        //dir = dir!.Replace('\\', '/');
                         var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
                         widgetDir = widgetDir!.Replace('\\', '/');
                         
-                        if (widgetDir!.Contains(dir!))
+                        if (path!.Contains(widgetDir!))
                         {
-                            path = path.Replace(dir!, "./").Replace("//", "/");
+                            path = path.Replace(widgetDir!, "./").Replace("//", "/");
                         }
                         jsVar.Value = path;
-                        valueBtn.Content = path.Split('/').Last();
+                        valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
                         valueBtn.ToolTip = path;
                     }
                 };
@@ -721,7 +722,7 @@ public partial class EditRouteWindow
                 var openBtn = new Wpf.Ui.Controls.Button
                 {
                     Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Open24 },
-                    ToolTip = "Open File",
+                    ToolTip = "Open",
                     Width = 40,
                     Height = 30,
                     Margin = new Thickness(0,0, 55, 2),
@@ -751,7 +752,7 @@ public partial class EditRouteWindow
                     Width = 40,
                     Height = 30,
                     HorizontalAlignment = HorizontalAlignment.Right,
-                    ToolTip = "Clear File",
+                    ToolTip = $"Clear Value",
                     Foreground = System.Windows.Media.Brushes.Red,
                     Cursor = System.Windows.Input.Cursors.Hand,
                     Margin = new Thickness(15, 0, 0, 0),
@@ -875,24 +876,41 @@ public partial class EditRouteWindow
         var path = string.Empty;
         try
         {
-            // get filter by type
-            var filter = "File|*.*";
-            if (type == WidgetVariableType.ImageFile)
-                filter = "Image|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.ico";
-            else if (type == WidgetVariableType.SoundFile)
-                filter = "Sound|*.wav;*.mp3;*.ogg;*.oga;*.opus;*.m4a;";
-            else if (type == WidgetVariableType.VideoFile)
-                filter = "Video|*.mp4;*.m4v;*.webm;*.ogm";
-            
-            var dlg = new Microsoft.Win32.OpenFileDialog
+            if (type == WidgetVariableType.FolderPath)
             {
-                Title = "Select file",
-                Filter = filter
-            };
+                var dlg = new Microsoft.Win32.OpenFolderDialog()
+                {
+                    Title = "Select Folder",
+                    Multiselect = false
+                };
+                
+                if (dlg.ShowDialog() == true)
+                {
+                    path = dlg.FolderName;
+                }
+            }
+            else
+            {
+                // get filter by type
+                var filter = "File|*.*";
+                if (type == WidgetVariableType.ImageFile)
+                    filter = "Image|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.ico";
+                else if (type == WidgetVariableType.SoundFile)
+                    filter = "Sound|*.wav;*.mp3;*.ogg;*.oga;*.opus;*.m4a;";
+                else if (type == WidgetVariableType.VideoFile)
+                    filter = "Video|*.mp4;*.m4v;*.webm;*.ogm";
 
-            if (dlg.ShowDialog() == true)
-            {
-                path = dlg.FileName;
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select file",
+                    Filter = filter,
+                    Multiselect = false
+                };
+
+                if (dlg.ShowDialog() == true)
+                {
+                    path = dlg.FileName;
+                }
             }
         }
         catch (Exception ex)
