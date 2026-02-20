@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
 
 namespace SubathonManager.Core.Models;
 
@@ -34,6 +35,30 @@ public class CssVariable
             Type = Type,
             Description = Description
         };
+    }
+    
+    public static CssVariable? FromJson(JsonElement json, Guid widgetId)
+    {
+        var name = json.GetProperty("name").GetString() ?? string.Empty;
+        var value = json.GetProperty("value").GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name)) return null;
+        return new CssVariable
+        {
+            Name = name,
+            Value = value,
+            WidgetId = widgetId
+        };
+    }
+    
+    public JsonElement ToJson()
+    {
+        var obj = new
+        {
+            name = Name,
+            value = Value
+        };
+
+        return JsonSerializer.SerializeToElement(obj);
     }
 }
 
@@ -110,6 +135,32 @@ public class JsVariable
             WidgetId = newWidgetId
         };
     }
+    
+    public static JsVariable? FromJson(JsonElement json, Guid widgetId)
+    {
+        var name =  json.GetProperty("name").GetString() ?? string.Empty;
+        var typeStr =  json.GetProperty("type").GetString() ?? string.Empty;
+        if (!Enum.TryParse(typeStr, out WidgetVariableType type) || string.IsNullOrEmpty(name)) return null;
+        return new JsVariable
+        {
+            Name = name,
+            Value = json.GetProperty("value").GetString() ?? string.Empty,
+            Type = type,
+            WidgetId = widgetId
+        };
+    }
+    
+    public JsonElement ToJson()
+    {
+        var obj = new
+        {
+            name = Name,
+            value = Value, /// todo hash if file and find full path need root widget path stuff
+            type = Type
+        };
+
+        return JsonSerializer.SerializeToElement(obj);
+    }
 }
 
 [ExcludeFromCodeCoverage]
@@ -168,6 +219,41 @@ public partial class Widget
         
         return widget;
     }
+
+    /// 
+    /***
+     * 0) add support for folder type variable -- done
+     * 1) method to do best guess scan of file dependencies -- not needed except for parents of htmls
+     * 2) list all files, popup with add/remove for overlay -- complex idea
+     * 3) util fn to get hashed split truncated paths when given path, do not hash filename/extension -- not whole thing i think, just lowest shared root and dont need split?
+     * 4) webserver backend resource fetch - if not file at all try this rel to widget parent -- dont need anymore
+     *
+     * RULES:
+     * - Default, parent of all html files folder will be zipped
+     * - fullpath vars will be replaced
+     * - hardcoded full paths will be dead, die die die die die
+    ***/
+    ///
+    // todo how to bundle stuff from included folder rel paths but not variables
+    
+    // in html file, find all relative files. oh god what if it's in the code only. 
+    // could like, for each widget, it zips up their whole folder, need to warn that, but it would help resolve relatively imports for anything under
+    
+    // can also have a metadata field of like "Requires" and it's a list of file paths?
+    
+    // fullproof would be to export and have all listed files be visible in a list, and let them manually add files too. But then resolving internally is borked - if we can't resolve via code we wouldnt be able to reverse
+    
+    
+    public string GetPathHash()
+    {
+        // each part, hash, crop to 2-4?
+        using var sha256 = SHA256.Create(); 
+        return Convert.ToHexString(sha256.ComputeHash(
+                Encoding.UTF8.GetBytes(GetPath())))
+            .ToLowerInvariant();
+    }
+    
+    public string GetPath() => Path.GetDirectoryName(HtmlPath) ?? HtmlPath;
 
     public void ScanCssVariables()
     {
@@ -251,5 +337,84 @@ public partial class Widget
     private static partial Regex CssLinkRegex();
     
     [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
+    
     private static partial Regex CssVarRegex();
+    // todo oh yeah dummy dont forget filepath stuffs for widget in json for relative shenanigans
+    public JsonElement ToJson(string htmlRelPath)
+    {
+        var obj = new
+        {
+            name = Name,
+            htmlPath = htmlRelPath,
+
+            position = new
+            {
+                x = X,
+                y = Y,
+                z = Z
+            },
+
+            size = new
+            {
+                width = Width,
+                height = Height
+            },
+
+            scale = new
+            {
+                x = ScaleX,
+                y = ScaleY
+            },
+
+            visibility = Visibility,
+            docsUrl = DocsUrl,
+
+            cssVariables = CssVariables.Select(v => v.ToJson()).ToArray(),
+            jsVariables = JsVariables.Select(v => v.ToJson()).ToArray()
+        };
+
+        return JsonSerializer.SerializeToElement(obj);
+    }
+    
+    public static Widget? FromJson(JsonElement json, string rootPath, Guid routeId)
+    {
+        var htmlPath = Path.Join(rootPath, json.GetProperty("htmlPath").GetString());
+        var name = json.GetProperty("name").GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name)) return null;
+        
+        var widget = new Widget(name, htmlPath)
+        {
+            RouteId = routeId,
+            Visibility = json.GetProperty("visibility").GetBoolean(),
+            DocsUrl = json.TryGetProperty("docsUrl", out var d) ? d.GetString() : null
+        };
+
+        var pos = json.GetProperty("position");
+        widget.X = pos.GetProperty("x").GetSingle();
+        widget.Y = pos.GetProperty("y").GetSingle();
+        widget.Z = pos.GetProperty("z").GetInt32();
+
+        var size = json.GetProperty("size");
+        widget.Width = size.GetProperty("width").GetInt32();
+        widget.Height = size.GetProperty("height").GetInt32();
+
+        var scale = json.GetProperty("scale");
+        widget.ScaleX = scale.GetProperty("x").GetSingle();
+        widget.ScaleY = scale.GetProperty("y").GetSingle();
+
+        foreach (var css in json.GetProperty("cssVariables").EnumerateArray())
+        {
+            CssVariable? cssVar = CssVariable.FromJson(css, widget.Id);
+            if (cssVar != null) widget.CssVariables.Add(cssVar);
+        }
+
+        foreach (var js in json.GetProperty("jsVariables").EnumerateArray())
+        {
+            JsVariable? jsVar = JsVariable.FromJson(js, widget.Id);
+            if (jsVar != null) widget.JsVariables.Add(jsVar);
+        }
+
+        return widget;
+    }
+    
 }
