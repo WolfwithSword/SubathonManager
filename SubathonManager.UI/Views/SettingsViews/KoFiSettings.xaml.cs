@@ -12,6 +12,7 @@ using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.UI.Validation;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
@@ -79,7 +80,7 @@ public partial class KoFiSettings : UserControl
             }
         }
 
-        RefreshKoFiTierCombo();
+        RefreshTierCombo();
     }
 
     private void TestKoFiSub_Click(object sender, RoutedEventArgs e)
@@ -95,7 +96,7 @@ public partial class KoFiSettings : UserControl
         ExternalEventService.ProcessExternalSub(data);
     }
     
-    public void RefreshKoFiTierCombo()
+    public void RefreshTierCombo()
     {
         string selectedTier = (SimKoFiTierSelection.SelectedItem is ComboBoxItem item) 
             ? item.Content?.ToString() ?? "" 
@@ -164,7 +165,10 @@ public partial class KoFiSettings : UserControl
             Foreground = System.Windows.Media.Brushes.Red,
             Cursor = System.Windows.Input.Cursors.Hand,
             Width = 36, Height = 36, Margin = new Thickness(64,0,0,0) };
-
+        
+        InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
+        InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
+        
         panelRow.Children.Add(nameBox);
         panelRow.Children.Add(secondsBox);
         panelRow.Children.Add(pointsBox);
@@ -179,7 +183,7 @@ public partial class KoFiSettings : UserControl
             SubValue = subathonValue,
             NameBox = nameBox,
             TimeBox = secondsBox,
-            PointsBox = pointsBox, // todo input validation?
+            PointsBox = pointsBox,
             RowGrid = row
         };
         
@@ -235,7 +239,7 @@ public partial class KoFiSettings : UserControl
             string original = row.NameBox.Text.Trim();
             string current = original;
 
-            while (!seen.Add(current))
+            while (!seen.Add(current.ToLower()))
             {
                 current = "New " + current;
             }
@@ -306,10 +310,11 @@ public partial class KoFiSettings : UserControl
             if (!double.TryParse(subRow.PointsBox.Text, out double points))
                 points = 0;
             
+#pragma warning disable CA1862
             var existing = db.SubathonValues
                 .FirstOrDefault(sv => sv.EventType == SubathonEventType.KoFiSub 
-                                      && sv.Meta == meta);
-            
+                                      && sv.Meta.ToLower() == meta.ToLower());
+#pragma warning restore CA1862           
             if (existing != null)
             {
                 existing.Seconds = seconds;

@@ -80,6 +80,11 @@ public partial class App
             builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
             builder.AddFilter("Microsoft.Extensions.Http", LogLevel.Warning);
             builder.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+            builder.AddFilter("YTLiveChat", LogLevel.Warning);
+            builder.AddFilter("YTLiveChat.Services.YTLiveChat", LogLevel.Error);
+            builder.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(
+                "YTLiveChat",
+                LogLevel.Critical);
             builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
         });
 

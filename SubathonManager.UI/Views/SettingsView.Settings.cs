@@ -176,7 +176,8 @@ namespace SubathonManager.UI.Views
             UpdateSubathonValues();
             
             TwitchSettingsControl.UpdateConfigValueSettings();
-            KoFiSettingsControl.RefreshKoFiTierCombo();
+            KoFiSettingsControl.RefreshTierCombo();
+            YouTubeSettingsControl.RefreshTierCombo();
             PicartoSettingsControl.UpdateConfigValueSettings();
             
             CommandsSettingsControl.UpdateValueSettings();
@@ -231,10 +232,6 @@ namespace SubathonManager.UI.Views
                     case SubathonEventType.KoFiDonation:
                         box = KoFiSettingsControl.DonoBox;
                         box2 = KoFiSettingsControl.DonoBox2;
-                        break;
-                    case SubathonEventType.YouTubeMembership:
-                        box = YouTubeSettingsControl.MemberDefaultTextBox;
-                        box2 = YouTubeSettingsControl.MemberRenameTextBox2;
                         break;
                     case SubathonEventType.YouTubeGiftMembership:
                         box = YouTubeSettingsControl.GiftMemberDefaultTextBox;
@@ -372,6 +369,7 @@ namespace SubathonManager.UI.Views
             }
 
             KoFiSettingsControl.LoadValues(db);
+            YouTubeSettingsControl.LoadValues(db);
         }
     }
 }

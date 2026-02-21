@@ -16,7 +16,10 @@ public partial class YouTubeSettings : UserControl
     
     private void TestYTMembership_Click(object sender, RoutedEventArgs e)
     {
-        YouTubeService.SimulateMembership();
+        string selectedTier = (SimTierSelection.SelectedItem is ComboBoxItem item) 
+            ? item.Content?.ToString() ?? "DEFAULT" 
+            : "DEFAULT";     
+        YouTubeService.SimulateMembership(selectedTier);
     }
 
     private void TestYTGiftMembership_Click(object sender, RoutedEventArgs e)

@@ -61,7 +61,7 @@
                 
                 
                 <!-- Memberships -->
-                <Expander Header="Memberships" IsExpanded="True" Margin="0,5,0,0" ToolTip="Multiple Levels are not currently supported" >
+                <Expander Header="Memberships" IsExpanded="True" Margin="0,5,0,0">
                     <StackPanel  Margin="10,5,0,5">
                         <StackPanel x:Name="MembershipsPanel">
                             <Grid x:Name="DefaultMember" Margin="0,2">
@@ -71,29 +71,29 @@
                                 </Grid.ColumnDefinitions>
                                 <!-- Up to six can be defined, with custom names -->
                                 <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <TextBlock Text="Default:" Width="100" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Default:" Width="172" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="60"
                                                 x:Name="MemberDefaultTextBox"/>
                                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="1"
-                                                x:Name="MemberRenameTextBox2"/>
+                                                x:Name="MemberDefaultTextBox2"/>
                                     <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <!-- <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36" -->
-                                    <!--            Content="Add Membership Tier" x:Name="AddBtn" -->
-                                    <!--            Click="AddMembership_Click" -->
-                                    <!--            Width="160" Margin="4,5,4,5"/> -->
-                                    <!-- <ComboBox Text="Tier" Width="150" Height="36" FontSize="12"  -->
-                                    <!--           x:Name="SimKoFiTierSelection" -->
-                                    <!--           SelectedIndex="0" Margin="4 0 4 0"> -->
-                                    <!--     <ComboBoxItem Content="DEFAULT"/>  -->
-                                    <!-- </ComboBox> -->
+                                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36"
+                                               Content="Add Membership Tier" x:Name="AddBtn"
+                                               Click="AddMembership_Click"
+                                               Width="160" Margin="4,5,4,5"/>
+                                    <ComboBox Text="Tier" Width="150" Height="36" FontSize="12"
+                                              x:Name="SimTierSelection"
+                                              SelectedIndex="0" Margin="4 0 4 0">
+                                        <ComboBoxItem Content="DEFAULT"/>
+                                    </ComboBox>
                                       <!-- populate also for gifted when adding, and won't be editable -->
-                                    <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                Content="Test"
                                                Click="TestYTMembership_Click"
                                                Width="60" Padding="2"
@@ -112,7 +112,7 @@
                                     <ColumnDefinition Width="400"/>
                                 </Grid.ColumnDefinitions>
                               <StackPanel Orientation="Horizontal" Margin="0,2">
-                                    <TextBlock Text="Default Gift:" Width="100" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Default Gift:" Width="172" VerticalAlignment="Center"/>
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                                 Height="36" PlaceholderText="60"
                                                 x:Name="GiftMemberDefaultTextBox"/>
@@ -129,11 +129,6 @@
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
                                                 Text="1" PlaceholderText="1" Height="35" FontSize="14"
                                                 x:Name="SimGiftMembershipAmtInput"/>
-                                    <!-- <ComboBox Text="Tier" Width="150" Height="36" FontSize="12"  -->
-                                    <!--           x:Name="SimKoFiTierSelection" -->
-                                    <!--           SelectedIndex="0" Margin="4 0 4 0"> -->
-                                    <!--     <ComboBoxItem Content="DEFAULT"/>  -->
-                                    <!-- </ComboBox> -->
                                     <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                Content="Test"
                                                Click="TestYTGiftMembership_Click"

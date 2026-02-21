@@ -160,9 +160,11 @@ namespace SubathonManager.Core
             else if (_category.Contains("YTLiveChat", StringComparison.OrdinalIgnoreCase))
             {
                 var text = (message + " " + exception?.Message);
-                if (text.Contains("Live Stream canonical link not found"))
+                if (text.Contains("Live Stream canonical link not found", StringComparison.OrdinalIgnoreCase)
+                    || text.Contains("Failed to get or parse initial options") 
+                    || text.Contains("Initial Continuation token not found", StringComparison.OrdinalIgnoreCase))
                 {
-                    logLevel = LogLevel.Debug;
+                    logLevel = LogLevel.None;
                 }
                 else if (text.Contains("Listener task finished execution") || text.Contains("Fetching initial options") ||
                          text.Contains("Polling task completed normally") || text.Contains("Attempting to start listener")
