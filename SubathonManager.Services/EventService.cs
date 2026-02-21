@@ -308,7 +308,7 @@ public class EventService: IDisposable
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
-                v.EventType == ev.EventType && (v.Meta == ev.Value || v.Meta == string.Empty));
+                v.EventType == ev.EventType && (v.Meta.ToLower() == ev.Value.ToLower() || v.Meta == string.Empty));
 
             subathonValue ??= await db.SubathonValues.FirstOrDefaultAsync(v =>
                     v.EventType == ev.EventType && (v.Meta == "DEFAULT"));

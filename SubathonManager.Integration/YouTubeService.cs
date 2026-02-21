@@ -36,11 +36,15 @@ public class YouTubeService : IDisposable
     
     public YouTubeService(ILogger<YouTubeService>? logger, IConfig config, ILogger<YTHttpClient>? httpClientLogger, ILogger<YTLiveChat.Services.YTLiveChat>? chatLogger)
     {
+#pragma warning disable CS0618
+        
         _logger = logger;
         _config = config;
         var options = new YTLiveChatOptions
         {
             RequestFrequency = _pollTime,
+            EnableContinuousLivestreamMonitor = true, // having upcoming streams will report as true
+            LiveCheckFrequency = 10 * 1000
         };
         
         if (_httpClient == null)
@@ -56,6 +60,10 @@ public class YouTubeService : IDisposable
         _ytLiveChat.ChatReceived += OnChatReceived;
         _ytLiveChat.ChatStopped += OnChatStopped;
         _ytLiveChat.ErrorOccurred += OnErrorOccurred;
+        //_ytLiveChat.LivestreamStarted += OnStreamStart;
+        _ytLiveChat.LivestreamEnded += OnStreamEnd; 
+        
+#pragma warning restore CS0618
     }
 
     public bool Start(string? handle)
@@ -76,6 +84,22 @@ public class YouTubeService : IDisposable
         
         _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
         return true;
+    }
+    
+    // private void OnStreamStart(object? sender, LivestreamStartedEventArgs e)
+    // {
+    //     Console.WriteLine("----------------------YT Live Stream Started");
+    // }
+    
+    private async void OnStreamEnd(object? sender, LivestreamEndedEventArgs e)
+    {
+        _logger?.LogDebug("YT Stream has ended");
+        await Task.Delay(2000);
+        if (await _reconnectState.IsReconnecting() && _reconnectState.Retries < _reconnectState.MaxRetries)
+        {
+            _logger?.LogInformation("YT Cancelling reconnects. Stream verified as ended. Attempting last try.");
+            _reconnectState.Retries = _reconnectState.MaxRetries - 1;
+        }
     }
 
     private void OnInitialPageLoaded(object? sender, InitialPageLoadedEventArgs e)
@@ -113,7 +137,14 @@ public class YouTubeService : IDisposable
         }
         else
         {
-            _logger?.LogWarning(ex, "YT Error Occurred");
+            var msg = "YT Error Occured";
+            if (ex != null && ex.Message.Contains("Initial Continuation token not found"))
+            {
+                msg += " - Initial Continuation token not found";
+                _logger?.LogWarning(msg);
+            }
+            else 
+                _logger?.LogWarning(ex, "YT Error Occurred");
         }
 
         IntegrationEvents.RaiseConnectionUpdate(Running, SubathonEventSource.YouTube, _ytHandle!, "Chat");
@@ -147,6 +178,8 @@ public class YouTubeService : IDisposable
         string user = item.Author.Name.Replace("@", "");
         if (item.Superchat != null)
         {
+            if (item.IsTicker)
+                return;
             string currency = item.Superchat.Currency.ToUpper().Trim();
             string raw = item.Superchat.AmountString.Trim();
             if (currency == "USD" && !raw.StartsWith('$')) // Parsed incorrectly
@@ -174,15 +207,15 @@ public class YouTubeService : IDisposable
 
         if (item.MembershipDetails != null)
         {
+            if (item.IsTicker)
+                return;
             SubathonEvent subathonEvent = new();
             subathonEvent.Source = SubathonEventSource.YouTube;
-            subathonEvent.Id = Utils.CreateGuidFromUniqueString(item.Id);
+            if (Guid.TryParse(item.Id, out Guid gid))
+                subathonEvent.Id = gid;
+            else 
+                subathonEvent.Id = Utils.CreateGuidFromUniqueString(item.Id);
             subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
-            
-            // there can be up to 6 unique membership tiers
-            // we will check/store as Meta
-            // however due to limitation on New Members not showing tier
-            // we treat it as if there is only one for now
             
             var details = item.MembershipDetails;
             string tier = details.HeaderSubtext ?? details.LevelName;
@@ -198,17 +231,23 @@ public class YouTubeService : IDisposable
             {
                 case MembershipEventType.Milestone: // essentially a resub
                     subathonEvent.EventType = SubathonEventType.YouTubeMembership;
+                    tier = details.LevelName;
+                    if (tier.Equals("Member", StringComparison.OrdinalIgnoreCase))
+                        tier = details.HeaderSubtext ?? "DEFAULT";
                     break;
                 case MembershipEventType.GiftPurchase:
                     subathonEvent.EventType = SubathonEventType.YouTubeGiftMembership;
                     user = details.GifterUsername?.Replace("@", "") ?? user;
                     subathonEvent.Amount = details.GiftCount ?? 1;
+                    // always based from a 4.99 tier is gifted? either way, is never provided options. Let user customize
+                    tier = "DEFAULT";
                     break;
                 case MembershipEventType.GiftRedemption:
                     // NEVER PROCESS THIS
                     return;
                 case MembershipEventType.New:
                     subathonEvent.EventType = SubathonEventType.YouTubeMembership;
+                    tier = details.LevelName;
                     break;
                 default:
                     subathonEvent.EventType = SubathonEventType.YouTubeMembership;
@@ -216,8 +255,9 @@ public class YouTubeService : IDisposable
             }
             subathonEvent.User = user;
             
-            // temp
-            subathonEvent.Value = "DEFAULT";
+            if (tier.Equals("Member", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(tier))
+                tier = "DEFAULT";
+            subathonEvent.Value = tier.Trim();
             
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return;
