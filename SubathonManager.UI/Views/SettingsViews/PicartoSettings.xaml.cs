@@ -6,8 +6,10 @@ using PicartoEventsLib.Abstractions.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
@@ -24,7 +26,8 @@ public partial class PicartoSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
-        PicartoUserBox.Text = App.AppConfig!.Get("Picarto", "Username", string.Empty)!;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        PicartoUserBox.Text = config!.Get("Picarto", "Username", string.Empty)!;
         IntegrationEvents.ConnectionUpdated += UpdateConnectionStatus;
     }
     
@@ -42,8 +45,9 @@ public partial class PicartoSettings : UserControl
     
     public void UpdateConfigValueSettings()
     {
-        App.AppConfig!.Set("Picarto", "Username", $"{PicartoUserBox.Text}");
-        App.AppConfig!.Save();
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        config!.Set("Picarto", "Username", $"{PicartoUserBox.Text}");
+        config!.Save();
     }
     
     private async void ConnectPicartoButton_Click(object sender, RoutedEventArgs e)
@@ -51,7 +55,7 @@ public partial class PicartoSettings : UserControl
         try
         {
             UpdateConfigValueSettings();
-            await App.AppPicartoService!.UpdateChannel();
+            await ServiceManager.Picarto.UpdateChannel();
         }
         catch (Exception ex)
         {

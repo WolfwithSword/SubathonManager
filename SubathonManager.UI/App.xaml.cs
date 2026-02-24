@@ -9,47 +9,24 @@ using SubathonManager.Server;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
-using SubathonManager.Integration;
 using SubathonManager.Services;
+using SubathonManager.UI.Services;
 using Wpf.Ui.Markup;
 
 namespace SubathonManager.UI;
 
 public partial class App
 {    
-    public static WebServer? AppWebServer { get; private set; }
     private FileSystemWatcher? _configWatcher;
-    private static TimerService AppTimerService { get; } = new();
-    public static EventService? AppEventService { get; private set; }
     
-    public static TwitchService? AppTwitchService { get; set; }
-    public static YouTubeService? AppYouTubeService { get; set; }
-    public static PicartoService? AppPicartoService { get; set; }
-    public static StreamElementsService? AppStreamElementsService { get; set; }
-    public static StreamLabsService? AppStreamLabsService { get; set; }
-    
-    public static IConfig? AppConfig;
-    private static DiscordWebhookService? AppDiscordWebhookService { get; set; }
     private ResourceDictionary? _themeDictionary;
     private ILogger? _logger;
     
     private IDbContextFactory<AppDbContext>? _factory;
     private bool _bitsAsDonationVal = false;
     private string _currencyVal = string.Empty;
-    
-    public static string AppVersion
-    {
-        get
-        {
-            var ver = Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion ?? "dev";
-
-            var plusIndex = ver.IndexOf('+');
-            return plusIndex > 0 && ver.StartsWith('v') ? ver[..plusIndex] : ver;
-        }
-    }
     
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -65,85 +42,24 @@ public partial class App
         string folder = Path.GetFullPath(Path.Combine(string.Empty, 
             "data"));
         Directory.CreateDirectory(folder);
-        
-        services.AddLogging(builder =>
-        {
-            builder.ClearProviders();
-            builder.AddProvider(new RotatingFileLoggerProvider("data/logs"));
-            builder.AddSimpleConsole(options =>
-            {
-                options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
-                options.SingleLine = true;
-                options.IncludeScopes = false;
-            });
-            builder.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Error);
-            builder.AddFilter("StreamLabs.SocketClient", LogLevel.Warning);
-            builder.AddFilter("Microsoft.Extensions.Http", LogLevel.Warning);
-            builder.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
-            builder.AddFilter("YTLiveChat", LogLevel.Warning);
-            builder.AddFilter("YTLiveChat.Services.YTLiveChat", LogLevel.Error);
-            builder.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(
-                "YTLiveChat",
-                LogLevel.Critical);
-            builder.SetMinimumLevel(AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
-        });
 
         try
         {
-            services.AddSingleton<IConfig, Config>();
-            services.AddDbContextFactory<AppDbContext>(options =>
-            {
-                var dbPath = Config.DatabasePath;
-                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-                options.UseSqlite($"Data Source={dbPath}");
-            });
-            
-            services.AddHttpClient(nameof(CurrencyService))
-                .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
-            services.AddSingleton<CurrencyService>(sp =>
-            {
-                var factory = sp.GetRequiredService<System.Net.Http.IHttpClientFactory>();
-                var httpClient = factory.CreateClient(nameof(CurrencyService));
-                var logger = sp.GetRequiredService<ILogger<CurrencyService>>();
-                var config = sp.GetRequiredService<IConfig>();
-                return new CurrencyService(logger, config, httpClient);
-            });
-            
-            services.AddSingleton<TwitchService>();
-            services.AddSingleton<YouTubeService>();
-            services.AddSingleton<PicartoService>();
-            services.AddSingleton<StreamElementsService>();
-            services.AddSingleton<StreamLabsService>();
-            services.AddSingleton<EventService>();
-            services.AddSingleton<DiscordWebhookService>();
+            services.SetupInfrastructure();
+            services.SetupCoreServices();
+            services.AddIntegrations();
 
             AppServices.Provider = services.BuildServiceProvider();
 
-            AppConfig = AppServices.Provider.GetRequiredService<IConfig>();
-            AppConfig.LoadOrCreateDefault();
-            AppConfig.MigrateConfig();
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            config.LoadOrCreateDefault();
+            config.MigrateConfig();
             
-            bool.TryParse(AppConfig.Get("Currency", "BitsLikeAsDonation", "False"), out bool bitsAsDonationCheck);
+            bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"), out bool bitsAsDonationCheck);
             _bitsAsDonationVal = bitsAsDonationCheck;
-            _currencyVal = AppConfig!.Get("Currency", "Primary", "USD")!;
+            _currencyVal = config!.Get("Currency", "Primary", "USD")!;
 
-            string theme = (AppConfig.Get("App", "Theme", "Dark"))!.Trim();
-            _themeDictionary = new ResourceDictionary
-            {
-                Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
-            };
-
-            var oldCustom = Resources.MergedDictionaries
-                .FirstOrDefault(d =>
-                    d.Source != null && d.Source.OriginalString.StartsWith("Themes/") &&
-                    !d.Source.OriginalString.Contains("Fluent"));
-            if (oldCustom != null)
-                Resources.MergedDictionaries.Remove(oldCustom);
-            Resources.MergedDictionaries.Add(_themeDictionary);
-            if (Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
-                fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
-                    ? ApplicationTheme.Dark
-                    : ApplicationTheme.Light;
+            SetStartupTheme(config);
 
             _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
             _logger.LogInformation("======== Subathon Manager started ========");
@@ -157,64 +73,29 @@ public partial class App
             }
 
             base.OnStartup(e);
-
-            AppEventService = AppServices.Provider.GetRequiredService<EventService>();
-            AppTwitchService = AppServices.Provider.GetRequiredService<TwitchService>();
-            AppYouTubeService = AppServices.Provider.GetRequiredService<YouTubeService>();
-            AppPicartoService = AppServices.Provider.GetRequiredService<PicartoService>();
-            AppStreamElementsService = AppServices.Provider.GetRequiredService<StreamElementsService>();
-            AppStreamLabsService = AppServices.Provider.GetRequiredService<StreamLabsService>();
-            AppDiscordWebhookService = AppServices.Provider.GetRequiredService<DiscordWebhookService>();
-
-            Task.Run(async () =>
-                {
-                    await using var context1 = await _factory.CreateDbContextAsync();
-                    await AppDbContext.PauseAllTimers(context1);
-                    await using var context2 = await _factory.CreateDbContextAsync();
-                    await AppDbContext.ResetPowerHour(context2);
-                    await using var context3 = await _factory.CreateDbContextAsync();
-                    await SetupSubathonCurrencyData(context3, _bitsAsDonationVal);
-                }
-            );
-
-            AppWebServer = new WebServer(_factory, AppConfig, null,
-                int.Parse(AppConfig.Get("Server", "Port", "14040")!));
-
+            
+            var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
+            
             Task.Run(async () =>
             {
-                if (AppTwitchService!.HasTokenFile())
-                {
-                    var tokenValid = await AppTwitchService.ValidateTokenAsync();
-                    if (!tokenValid)
-                    {
-                        AppTwitchService.RevokeTokenFile();
-                        _logger.LogWarning("Twitch token expired - deleting token file");
-                    }
-                    else
-                    {
-                        await AppTwitchService.InitializeAsync();
-                    }
-                }
+                await sm.StartAsync<EventService>();
+                
+                await using var context1 = await _factory.CreateDbContextAsync();
+                await AppDbContext.PauseAllTimers(context1);
+                await using var context2 = await _factory.CreateDbContextAsync();
+                await AppDbContext.ResetPowerHour(context2);
+                await using var context3 = await _factory.CreateDbContextAsync();
+                await SetupSubathonCurrencyData(context3, _bitsAsDonationVal);
+                
+                // fire-forget
+                await sm.StartAsync<WebServer>(fireAndForget: true);
+                await sm.StartAsync<TimerService>(fireAndForget: true);
+                await Task.Delay(100);
+                TimerEvents.TimerTickEvent += UpdateSubathonTimers;
+                
+                await sm.StartIntegrationsAsync();
             });
-
-            AppYouTubeService!.Start(null);
-
-            Task.Run(() => AppPicartoService.StartAsync());
-            Task.Run(() => AppWebServer.StartAsync());
-            Task.Run(() => AppTimerService.StartAsync());
-            TimerEvents.TimerTickEvent += UpdateSubathonTimers;
-            Task.Run(() =>
-            {
-                Task.Delay(200);
-                AppStreamElementsService!.InitClient();
-                return Task.CompletedTask;
-            });
-            Task.Run(() =>
-            {
-                Task.Delay(200);
-                return AppStreamLabsService!.InitClientAsync();
-            });
-
+            
             WatchConfig();
         }
         catch (Exception ex)
@@ -225,36 +106,34 @@ public partial class App
         }
     }
 
+    private void SetStartupTheme(IConfig config)
+    {
+        string theme = (config.Get("App", "Theme", "Dark"))!.Trim();
+        _themeDictionary = new ResourceDictionary
+        {
+            Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
+        };
+
+        var oldCustom = Resources.MergedDictionaries
+            .FirstOrDefault(d =>
+                d.Source != null && d.Source.OriginalString.StartsWith("Themes/") &&
+                !d.Source.OriginalString.Contains("Fluent"));
+        if (oldCustom != null)
+            Resources.MergedDictionaries.Remove(oldCustom);
+        Resources.MergedDictionaries.Add(_themeDictionary);
+        if (Resources.MergedDictionaries.FirstOrDefault(d => d is ThemesDictionary) is ThemesDictionary fluentDict)
+            fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
+                ? ApplicationTheme.Dark
+                : ApplicationTheme.Light;
+    }
+
     protected override async void OnExit(ExitEventArgs e)
     {
         _logger?.LogInformation("======== Subathon Manager exiting ========");
-        await AppServices.Provider.GetRequiredService<EventService>().StopAsync();
-        AppTimerService.Stop();
-        AppWebServer?.Stop();
-        AppStreamElementsService?.Disconnect();
-        if (AppStreamLabsService != null && AppStreamLabsService!.Connected) 
-            await AppStreamLabsService!.DisconnectAsync();
+        var sm =  AppServices.Provider.GetRequiredService<ServiceManager>();
+        await sm.StopCoreServicesAsync();
+        await sm.StopIntegrationsAsync();
         
-        if (AppTwitchService != null)
-        {
-            try
-            {
-                var cts = new CancellationTokenSource(5000);
-                await AppTwitchService.StopAsync(cts.Token);
-                _logger?.LogDebug("TwitchService stopped");
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug($"Error stopping TwitchService: {ex.Message}");
-            }
-        }
-        if (AppDiscordWebhookService != null)
-        {
-            await AppDiscordWebhookService!.StopAsync(); 
-            AppDiscordWebhookService?.Dispose();
-        }
-        
-        AppYouTubeService?.Dispose();
         _configWatcher?.Dispose();
         (AppServices.Provider as IDisposable)?.Dispose();
         base.OnExit(e);
@@ -279,20 +158,36 @@ public partial class App
     {
         try
         {
-            int newPort = int.Parse(AppConfig!.Get("Server", "Port", "14040")!);
-            if (AppWebServer?.Port != newPort)
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
+            int newPort = int.Parse(config!.Get("Server", "Port", "14040")!);
+            int currentPort = ServiceManager.Server?.Port ?? newPort;
+            
+            if (currentPort != newPort)
             {
                 _logger?.LogDebug($"Config reloaded! New server port: {newPort}");
-                AppWebServer?.Stop();
-                AppWebServer = new WebServer(_factory!, AppConfig!, null, newPort);
-                Task.Run(async() => await AppWebServer.StartAsync());
+                ServiceManager.Server!.Port = newPort;
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await sm.StopAsync<WebServer>();
+                        await Task.Delay(100);
+                        await sm.StartAsync<WebServer>(fireAndForget: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Error occurred when starting Subathon Manager");
+                    }
+                });
+                
             }
-            AppDiscordWebhookService?.LoadFromConfig();
+            ServiceManager.DiscordWebHooksOrNull?.LoadFromConfig();
             SetThemeFromConfig();
 
-            bool.TryParse(AppConfig.Get("Currency", "BitsLikeAsDonation", "False"),
+            bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"),
                 out bool bitsAsDonationCheck);
-            string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
+            string currency = config!.Get("Currency", "Primary", "USD")!;
             
             if (_bitsAsDonationVal != bitsAsDonationCheck || _currencyVal != currency)
             {
@@ -316,7 +211,8 @@ public partial class App
     {
         Current.Dispatcher.InvokeAsync(() =>
         {
-            string theme = AppConfig!.Get("App", "Theme", "Dark")!;
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            string theme = config!.Get("App", "Theme", "Dark")!;
             theme = theme.Trim();
 
             if (_themeDictionary == null)
@@ -344,8 +240,9 @@ public partial class App
     private async Task SetupSubathonCurrencyData(AppDbContext db, bool? oldBitsDonoValue)
     {
         // Setup first time or convert currency
-        string currency = AppConfig!.Get("Currency", "Primary", "USD")!;
-        bool.TryParse(AppConfig.Get("Currency", "BitsLikeAsDonation", "False"),
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        string currency = config!.Get("Currency", "Primary", "USD")!;
+        bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"),
             out bool bitsAsDonationCheck);
         
         var subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
@@ -379,7 +276,7 @@ public partial class App
         double bits = 0;
         foreach (var e in events)
         {
-            (bool isBitsLike, double modifier) = Utils.GetAltCurrencyUseAsDonation(AppConfig, e.EventType);
+            (bool isBitsLike, double modifier) = Utils.GetAltCurrencyUseAsDonation(config, e.EventType);
             if (e.EventType.IsCheerType() && isBitsLike)
             {
                 bits += (int.Parse(e.Value) * modifier);

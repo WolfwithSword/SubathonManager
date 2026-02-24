@@ -13,5 +13,6 @@ public enum SubathonEventSource
     StreamLabs,
     External,
     Blerp,
-    Picarto
+    Picarto,
+    GoAffPro
 }

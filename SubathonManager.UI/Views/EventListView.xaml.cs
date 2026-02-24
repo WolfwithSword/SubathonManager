@@ -8,6 +8,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views
 {
@@ -101,7 +102,7 @@ namespace SubathonManager.UI.Views
                     };
                     
                     using var db = _factory.CreateDbContext();
-                    App.AppEventService?.DeleteSubathonEvent(db, ev);
+                    ServiceManager.EventsOrNull?.DeleteSubathonEvent(db, ev);
                     SubathonEvents.RaiseSubathonEventCreated(newEv);
                 });;
             }
@@ -115,7 +116,7 @@ namespace SubathonManager.UI.Views
                 Task.Run(() =>
                 {
                     using var db = _factory.CreateDbContext();
-                    App.AppEventService?.DeleteSubathonEvent(db, ev);
+                    ServiceManager.EventsOrNull?.DeleteSubathonEvent(db, ev);
                 });
             }
         }

@@ -6,8 +6,10 @@ using System.Diagnostics;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Integration;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
@@ -25,10 +27,11 @@ public partial class StreamElementsSettings : UserControl
     {
         Host = host;
 
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
         IntegrationEvents.ConnectionUpdated += UpdateSEStatus;
-        SEJWTTokenBox.Text = App.AppConfig!.Get("StreamElements", "JWT", string.Empty)!;    
-        if (App.AppStreamElementsService != null)
-            Host!.UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
+        SEJWTTokenBox.Text = config!.Get("StreamElements", "JWT", string.Empty)!;    
+        if (ServiceManager.StreamElementsOrNull != null)
+            Host!.UpdateConnectionStatus(ServiceManager.StreamElementsOrNull.Connected, SEStatusText, ConnectSEBtn);
     }
 
     public bool UpdateValueSettings(AppDbContext db)
@@ -65,11 +68,11 @@ public partial class StreamElementsSettings : UserControl
     {
         try
         {
-            App.AppStreamElementsService!.Disconnect();
-            App.AppStreamElementsService!.SetJwtToken(SEJWTTokenBox.Password);
+            ServiceManager.StreamElements.Disconnect();
+            ServiceManager.StreamElements.SetJwtToken(SEJWTTokenBox.Password);
             await Task.Delay(100);
-            App.AppStreamElementsService!.InitClient();
-            if (App.AppStreamElementsService.IsTokenEmpty())
+            ServiceManager.StreamElements.InitClient();
+            if (ServiceManager.StreamElements.IsTokenEmpty())
             {
                 Process.Start(new ProcessStartInfo
                 {

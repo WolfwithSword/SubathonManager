@@ -6,8 +6,10 @@ using System.Diagnostics;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
+using SubathonManager.UI.Services;
 
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -26,10 +28,11 @@ public partial class StreamLabsSettings : UserControl
     {
         Host = host;
         IntegrationEvents.ConnectionUpdated += UpdateSLStatus;
-        SLTokenBox.Text = App.AppConfig!.Get("StreamLabs", "SocketToken", string.Empty)!;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        SLTokenBox.Text = config!.Get("StreamLabs", "SocketToken", string.Empty)!;
 
-        if (App.AppStreamLabsService != null)
-            Host!.UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
+        if (ServiceManager.StreamLabsOrNull != null)
+            Host!.UpdateConnectionStatus(ServiceManager.StreamLabsOrNull.Connected, SLStatusText, ConnectSLBtn);
     }
     
     public bool UpdateValueSettings(AppDbContext db)
@@ -65,11 +68,11 @@ public partial class StreamLabsSettings : UserControl
     {
         try
         {
-            await App.AppStreamLabsService!.DisconnectAsync();
-            App.AppStreamLabsService!.SetSocketToken(SLTokenBox.Password);
+            await ServiceManager.StreamLabs.DisconnectAsync();
+            ServiceManager.StreamLabs.SetSocketToken(SLTokenBox.Password);
             await Task.Delay(100);
-            await App.AppStreamLabsService!.InitClientAsync();
-            if (App.AppStreamLabsService.IsTokenEmpty())
+            await ServiceManager.StreamLabs.InitClientAsync();
+            if (ServiceManager.StreamLabs.IsTokenEmpty())
             {
                 Process.Start(new ProcessStartInfo
                 {

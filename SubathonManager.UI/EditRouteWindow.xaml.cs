@@ -13,6 +13,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using Wpf.Ui.Controls;
 
@@ -135,7 +136,8 @@ public partial class EditRouteWindow
         WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
         {
-            PreviewWebView.Source = new Uri(_route.GetRouteUrl(App.AppConfig!,true));
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            PreviewWebView.Source = new Uri(_route.GetRouteUrl(config!,true));
         }
         catch (Exception ex)
         {
@@ -1161,7 +1163,8 @@ public partial class EditRouteWindow
         try
         {
             if (_route == null) return;
-            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(App.AppConfig!));
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(config!));
         }
         catch (Exception ex)
         {
@@ -1175,9 +1178,10 @@ public partial class EditRouteWindow
 
         try
         {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
             Process.Start(new ProcessStartInfo
             {
-                FileName = _route.GetRouteUrl(App.AppConfig!),
+                FileName = _route.GetRouteUrl(config!),
                 UseShellExecute = true
             });
         }

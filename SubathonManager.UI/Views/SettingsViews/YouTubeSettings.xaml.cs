@@ -5,8 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.Validation;
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -25,8 +27,9 @@ public partial class YouTubeSettings : UserControl
     public void Init(SettingsView host)
     {
         Host = host;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
         IntegrationEvents.ConnectionUpdated += UpdateYoutubeStatus;
-        YTUserHandle.Text = App.AppConfig!.Get("YouTube", "Handle", string.Empty)!;
+        YTUserHandle.Text = config!.Get("YouTube", "Handle", string.Empty)!;
     }
     
     public void LoadValues(AppDbContext db)
@@ -307,10 +310,11 @@ public partial class YouTubeSettings : UserControl
         string user = YTUserHandle.Text.Trim();
         if (!user.StartsWith("@") && !string.IsNullOrEmpty(user))
             user = "@" + user;
-        App.AppConfig!.Set("YouTube", "Handle", user);
-        App.AppConfig!.Save();
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        config!.Set("YouTube", "Handle", user);
+        config!.Save();
 
-        App.AppYouTubeService!.Start(user);
+        ServiceManager.YouTube.Start(user);
     }
     
     public class MembershipRow

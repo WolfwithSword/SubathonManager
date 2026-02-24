@@ -3,10 +3,11 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Services;
 
-public class CurrencyService
+public class CurrencyService : IAppService
 {
     private string _baseUrl = "http://www.floatrates.com/daily/";
 
@@ -37,7 +38,7 @@ public class CurrencyService
         return currencyFile;
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         var currencyFilePath = CurrencyFilePath();
         if (File.Exists(currencyFilePath))
@@ -69,6 +70,11 @@ public class CurrencyService
             ErrorMessageEvents.RaiseErrorEvent("ERROR", "SYSTEM",
                 "Could not fetch exchange rates for Currency Service. Failures may occur.", DateTime.Now);
         }
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
     }
     
     public async Task<List<string>> GetValidCurrenciesAsync()
@@ -124,7 +130,6 @@ public class CurrencyService
             _refreshLock.Release();
         }
     }
-
 
     private async Task LoadFromFileAsync()
     {
@@ -210,4 +215,5 @@ public class CurrencyService
     {
         Rates = rates;
     }
+    
 }

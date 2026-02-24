@@ -7,11 +7,12 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Services;
 
-public class DiscordWebhookService : IDisposable
+public class DiscordWebhookService : IDisposable, IAppService
 {
     private readonly ConcurrentQueue<SubathonEvent> _eventQueue = new();
     private readonly ConcurrentQueue<SubathonValueDto> _configQueue = new();
@@ -45,6 +46,10 @@ public class DiscordWebhookService : IDisposable
         _config = config;
         _currencyService = currencyService;
         LoadFromConfig();
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
@@ -52,6 +57,7 @@ public class DiscordWebhookService : IDisposable
         SubathonEvents.SubathonValuesPatched += OnSubathonConfigValuesPatched;
         _backgroundTask = Task.Run(ProcessQueueAsync);
         _backgroundConfigTask = Task.Run(ProcessValueQueueAsync);
+        return Task.CompletedTask;
     }
 
     public void LoadFromConfig()
@@ -346,7 +352,7 @@ public class DiscordWebhookService : IDisposable
         }
     }
 
-    public async Task StopAsync()
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _cts.CancelAsync();
         if (_backgroundTask != null)

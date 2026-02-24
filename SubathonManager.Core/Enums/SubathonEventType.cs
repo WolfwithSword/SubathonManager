@@ -27,7 +27,8 @@ public enum SubathonEventType
     PicartoFollow,
     PicartoSub,
     PicartoGiftSub,
-    PicartoTip
+    PicartoTip,
+    GamerSuppsOrder
     // any new must be added after the last
 }
 
@@ -115,6 +116,7 @@ public static class SubathonEventTypeHelper
             SubathonEventType.PicartoFollow => SubathonEventSubType.FollowLike,
             SubathonEventType.TwitchHypeTrain =>  SubathonEventSubType.TrainLike,
             SubathonEventType.Command => SubathonEventSubType.CommandLike,
+            SubathonEventType.GamerSuppsOrder => SubathonEventSubType.SalesLike,
             _ => SubathonEventSubType.Unknown
         };
     }
@@ -183,6 +185,8 @@ public static class SubathonEventTypeHelper
             SubathonEventType.PicartoTip => SubathonEventSource.Picarto,
             
             SubathonEventType.DonationAdjustment => SubathonEventSource.Command,
+            
+            SubathonEventType.GamerSuppsOrder => SubathonEventSource.GoAffPro,
             
             _ => SubathonEventSource.Unknown
         };

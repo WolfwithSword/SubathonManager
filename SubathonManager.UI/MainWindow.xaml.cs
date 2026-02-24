@@ -8,6 +8,8 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Core;
+using SubathonManager.Core.Interfaces;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI
 {
@@ -25,7 +27,7 @@ namespace SubathonManager.UI
             ApplicationThemeManager.Apply(this);
 
             Loaded += MainWindow_Loaded;
-            TitleBar.Title = $"Subathon Manager - {App.AppVersion}";
+            TitleBar.Title = $"Subathon Manager - {ServiceManager.AppVersion}";
 
             SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
             SubathonEvents.SubathonDataUpdate += UpdateMultiplierUi;
@@ -40,9 +42,10 @@ namespace SubathonManager.UI
                 Task.Delay(500);
                 OverlayEvents.RaiseOverlayRefreshAllRequested();
             });
-            var currencies = App.AppEventService!.ValidEventCurrencies().OrderBy(x => x).ToList();
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            var currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
             AdjustCurrencyBox.ItemsSource = currencies;
-            AdjustCurrencyBox.SelectedItem = App.AppConfig!.Get("Currency", "Primary", "USD")?
+            AdjustCurrencyBox.SelectedItem = config!.Get("Currency", "Primary", "USD")?
                 .Trim().ToUpperInvariant() ?? "USD";
 
         }

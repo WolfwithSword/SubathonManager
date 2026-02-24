@@ -5,7 +5,9 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
@@ -131,15 +133,16 @@ public partial class TwitchSettings : UserControl
 
     public void UpdateConfigValueSettings()
     {
-        App.AppConfig!.Set("Twitch", "PauseOnEnd", $"{TwitchPauseOnEndBx.IsChecked}");
-        App.AppConfig!.Set("Twitch", "LockOnEnd",  $"{TwitchLockOnEndBx.IsChecked}");
-        App.AppConfig!.Set("Twitch", "ResumeOnStart",  $"{TwitchResumeOnStartBx.IsChecked}");
-        App.AppConfig!.Set("Twitch", "UnlockOnStart",  $"{TwitchUnlockOnStartBx.IsChecked}");
-        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Enabled",  $"{HypeTrainMultBox.IsChecked}");
-        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Points",  $"{HypeTrainMultPointsBox.IsChecked}");
-        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Time",  $"{HypeTrainMultTimeBox.IsChecked}");
-        App.AppConfig!.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
-        App.AppConfig!.Save();
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        config!.Set("Twitch", "PauseOnEnd", $"{TwitchPauseOnEndBx.IsChecked}");
+        config!.Set("Twitch", "LockOnEnd",  $"{TwitchLockOnEndBx.IsChecked}");
+        config!.Set("Twitch", "ResumeOnStart",  $"{TwitchResumeOnStartBx.IsChecked}");
+        config!.Set("Twitch", "UnlockOnStart",  $"{TwitchUnlockOnStartBx.IsChecked}");
+        config!.Set("Twitch", "HypeTrainMultiplier.Enabled",  $"{HypeTrainMultBox.IsChecked}");
+        config!.Set("Twitch", "HypeTrainMultiplier.Points",  $"{HypeTrainMultPointsBox.IsChecked}");
+        config!.Set("Twitch", "HypeTrainMultiplier.Time",  $"{HypeTrainMultTimeBox.IsChecked}");
+        config!.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
+        config!.Save();
     }
     
     private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
@@ -149,14 +152,14 @@ public partial class TwitchSettings : UserControl
             try
             {
                 var cts = new CancellationTokenSource(5000);
-                await App.AppTwitchService!.StopAsync(cts.Token);
+                await ServiceManager.Twitch.StopAsync(cts.Token);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Error in Twitch connection");
             }
 
-            await App.AppTwitchService!.InitializeAsync();
+            await ServiceManager.Twitch.InitializeAsync();
             _logger?.LogInformation("Twitch connection established");
         }
         catch (Exception ex)
@@ -167,34 +170,36 @@ public partial class TwitchSettings : UserControl
     
     private void InitTwitchAutoSettings()
     {
-        bool.TryParse(App.AppConfig!.Get("Twitch", "PauseOnEnd", "false"), out var pauseOnEnd);
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        bool.TryParse(config!.Get("Twitch", "PauseOnEnd", "false"), out var pauseOnEnd);
         if (TwitchPauseOnEndBx.IsChecked != pauseOnEnd) TwitchPauseOnEndBx.IsChecked = pauseOnEnd;
             
-        bool.TryParse(App.AppConfig!.Get("Twitch", "LockOnEnd", "false"), out var lockOnEnd);
+        bool.TryParse(config!.Get("Twitch", "LockOnEnd", "false"), out var lockOnEnd);
         if (TwitchLockOnEndBx.IsChecked != lockOnEnd) TwitchLockOnEndBx.IsChecked = lockOnEnd;
             
-        bool.TryParse(App.AppConfig!.Get("Twitch", "ResumeOnStart", "false"), out var resumeOnStart);
+        bool.TryParse(config!.Get("Twitch", "ResumeOnStart", "false"), out var resumeOnStart);
         if (TwitchResumeOnStartBx.IsChecked != resumeOnStart) TwitchResumeOnStartBx.IsChecked = resumeOnStart;
             
-        bool.TryParse(App.AppConfig!.Get("Twitch", "UnlockOnStart", "false"), out var unlockOnStart);
+        bool.TryParse(config!.Get("Twitch", "UnlockOnStart", "false"), out var unlockOnStart);
         if (TwitchUnlockOnStartBx.IsChecked != unlockOnStart) TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
     }
     
     private void LoadHypeTrainValues()
     {
-        bool.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        bool.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
             out bool enabled);
         if (HypeTrainMultBox.IsChecked != enabled)
             HypeTrainMultBox.IsChecked = enabled;
-        double.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
+        double.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
             out var parsedAmt);
             
         if (HypeTrainMultAmt.Text != parsedAmt.ToString("0.00"))
             HypeTrainMultAmt.Text = parsedAmt.ToString("0.00");
 
-        bool.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
+        bool.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
             out var applyPts);
-        bool.TryParse(App.AppConfig!.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
+        bool.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
             out var applyTime);
             
         if (HypeTrainMultTimeBox.IsChecked != applyTime)

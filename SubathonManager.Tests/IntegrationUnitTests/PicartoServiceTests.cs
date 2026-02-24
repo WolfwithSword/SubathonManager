@@ -12,6 +12,7 @@ using System.Reflection;
 using IniParser.Model;
 using PicartoEventsLib.Clients;
 using PicartoEventsLib.Options;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 

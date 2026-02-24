@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 
@@ -68,18 +69,20 @@ public partial class ChatExtensionSettings : UserControl
 
     public void SaveConfigValues()
     {
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
         if (double.TryParse(BitsModifierTextBox.Text, out var blerpBitsMod))
-            App.AppConfig!.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
+            config!.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
         
         if (double.TryParse(BeetsModifierTextBox.Text, out var blerpBeetsMod))
-            App.AppConfig!.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
+            config!.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
     }
 
     public void LoadConfigValues()
     {
-        double.TryParse(App.AppConfig!.Get("Extensions", "BlerpBits.Modifier", "1"), out var blerpBitsMod);
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        double.TryParse(config!.Get("Extensions", "BlerpBits.Modifier", "1"), out var blerpBitsMod);
         BitsModifierTextBox.Text = $"{blerpBitsMod}";
-        double.TryParse(App.AppConfig!.Get("Extensions", "BlerpBeets.Modifier", "1"), out var blerpBeetsMod);
+        double.TryParse(config!.Get("Extensions", "BlerpBeets.Modifier", "1"), out var blerpBeetsMod);
         BeetsModifierTextBox.Text = $"{blerpBeetsMod}";
     }
     

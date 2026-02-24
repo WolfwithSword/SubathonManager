@@ -6,11 +6,12 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Integration;
 
-public class StreamLabsService
+public class StreamLabsService : IAppService
 {
     private StreamlabsClient? _client;
     private string _secretToken = "";
@@ -25,6 +26,17 @@ public class StreamLabsService
         _config = config;
     }
     
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        await InitClientAsync();
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        await DisconnectAsync();
+    }
+    
+    // todo cleanup all names in test for inits
     public async Task<bool> InitClientAsync()
     {
         Connected = false;

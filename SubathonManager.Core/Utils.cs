@@ -2,6 +2,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
+
 namespace SubathonManager.Core;
 
 public class Utils

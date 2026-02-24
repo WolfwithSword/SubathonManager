@@ -3,8 +3,11 @@ using System.Windows.Input;
 using System.IO;
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI
@@ -57,7 +60,8 @@ namespace SubathonManager.UI
                     dynamic item = btn.DataContext;
                     Route route = item;
 
-                    await UiUtils.UiUtils.TrySetClipboardTextAsync(route.GetRouteUrl(App.AppConfig!));
+                    var config = AppServices.Provider.GetRequiredService<IConfig>();
+                    await UiUtils.UiUtils.TrySetClipboardTextAsync(route.GetRouteUrl(config!));
                 }
             }
             catch (Exception ex)

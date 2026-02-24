@@ -1,4 +1,6 @@
-﻿namespace SubathonManager.Core.Models;
+﻿using SubathonManager.Core.Interfaces;
+
+namespace SubathonManager.Core.Models;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 

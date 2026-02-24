@@ -9,9 +9,11 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Services;
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Interfaces;
+
 namespace SubathonManager.Integration;
 
-public class PicartoService : IDisposable
+public class PicartoService : IDisposable, IAppService
 {
     internal PicartoEventsClient? _eventClient;
     internal PicartoChatClient? _chatClient;
@@ -41,8 +43,20 @@ public class PicartoService : IDisposable
         _clientLogger = clientLogger;
         _chatLogger = chatLogger;
     }
+
+    public async Task StartAsync(CancellationToken ct = default)
+    {
+        await StartupServiceAsync(ct);
+    }
     
-    public async Task<bool> StartAsync()
+    public Task StopAsync(CancellationToken ct = default)
+    {
+        Running = false;
+        Dispose();
+        return Task.CompletedTask;
+    }
+    
+    public async Task StartupServiceAsync(CancellationToken ct = default)
     {
         Running = false;
         Opts.Channel = string.Empty;
@@ -50,7 +64,7 @@ public class PicartoService : IDisposable
         _picartoUsername = _config.Get("Picarto", "Username", string.Empty)!;
 
         if (string.IsNullOrWhiteSpace(_picartoUsername))
-            return Running;
+            return;
         
         IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Picarto, _picartoUsername, "Chat");
         IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Picarto, _picartoUsername, "Alerts");
@@ -72,7 +86,6 @@ public class PicartoService : IDisposable
 
         await _eventClient.ConnectAsync();
         await _chatClient.ConnectAsync();
-        return true;
     }
 
     [ExcludeFromCodeCoverage]
@@ -132,7 +145,7 @@ public class PicartoService : IDisposable
         // call for connect/reconnect button
         if (_eventClient == null && _chatClient == null)
         {
-            await StartAsync();
+            await StartupServiceAsync();
             return;
         }
         

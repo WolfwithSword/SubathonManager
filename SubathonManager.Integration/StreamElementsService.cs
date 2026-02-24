@@ -5,14 +5,15 @@ using StreamElements.WebSocket.Models.Internal;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Integration;
 
-public class StreamElementsService
+public class StreamElementsService : IAppService
 {
 
-    public Func<StreamElementsClient> ClientFactory { get; set; } 
+    private Func<StreamElementsClient> ClientFactory { get; set; } 
         = () => new StreamElementsClient();
     
     private StreamElementsClient? _client;
@@ -29,6 +30,18 @@ public class StreamElementsService
     {
         _logger = logger;
         _config = config;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        InitClient();
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Disconnect();
+        return Task.CompletedTask;
     }
     
     public bool InitClient()

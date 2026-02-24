@@ -6,14 +6,15 @@ using SubathonManager.Data;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Server;
 
-public partial class WebServer
+public partial class WebServer : IAppService
 {
     internal readonly IDbContextFactory<AppDbContext> _factory;
-    public int Port { get; }
-    private readonly HttpListener _listener;
+    public int Port { get; set; }
+    private HttpListener? _listener;
     public bool Running { get; private set; }
     
     private readonly HashSet<string> _servedFolders = new();
@@ -30,9 +31,8 @@ public partial class WebServer
 
     internal object InvokeBuildDataSummary(List<SubathonEvent> e)
         => BuildDataSummary(e);
-    
-    public WebServer(IDbContextFactory<AppDbContext> factory, IConfig config, ILogger? logger,
-        int port = 14040)
+
+    public WebServer(ILogger<WebServer>? logger, IConfig config, IDbContextFactory<AppDbContext> factory)
     {
         _factory = factory;
         _config = config; // unused but handy to have for future
@@ -52,13 +52,29 @@ public partial class WebServer
                 }
             }
         }
+        
+        Port = int.Parse(_config.Get("Server", "Port", "14040")!);
+        //Initialize();
+    }
+
+    internal void Initialize()
+    {
+        if (_listener is { IsListening: true })
+        {
+            try
+            {
+                Stop();
+            }
+            catch (Exception ex) { /**/ }
+        }
+        
+        _listener = new HttpListener();
 
         _routes.Clear();
         SetupApiRoutes();
         SetupOverlayRoutes();
         SetupWebsocketListeners();
-        Port = port;
-        _listener = new HttpListener();
+        
         _listener.Prefixes.Add($"http://localhost:{Port}/");
         _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
     }
@@ -70,26 +86,35 @@ public partial class WebServer
         _routes.Add((new RouteKey("GET", "/route/"),HandleRouteRequest ));
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+        Port = int.Parse(_config.Get("Server", "Port", "14040")!);
+        Initialize();
         Running = true;
-        _listener.Start();
+        _listener?.Start();
         _logger?.LogInformation($"WebServer running at http://localhost:{Port}/");
+        var oldPort = Port;
         WebServerEvents.RaiseWebServerStatusChange(Running);
         while (Running)
         {
             try
             {
-                var context = await _listener.GetContextAsync();
-                _ = Task.Run(() => HandleRequestAsync(new HttpListenerContextAdapter(context)));
+                var context = await _listener!.GetContextAsync();
+                _ = Task.Run(() => HandleRequestAsync(new HttpListenerContextAdapter(context)), cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                    break;
             }
             catch (HttpListenerException ex)
             {
+                if (cancellationToken.IsCancellationRequested || oldPort != Port)
+                    return;
                 _logger?.LogError(ex, $"WebServer Error: {ex.Message}");
                 break;
             }
             catch (Exception ex)
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
                 _logger?.LogError(ex, $"WebServer Error: {ex.Message}");
             }
         }
@@ -100,7 +125,7 @@ public partial class WebServer
         Running = false;
         try
         {
-            _listener.Stop();
+            _listener?.Stop();
             StopWebsocketServer();
         }
         catch (Exception ex)
@@ -111,6 +136,13 @@ public partial class WebServer
         {
             WebServerEvents.RaiseWebServerStatusChange(Running);
         }
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Running = false;
+        Stop();
+        return Task.CompletedTask;
     }
     
     internal Func<IHttpContext, Task>? MatchRoute(string method, string path)

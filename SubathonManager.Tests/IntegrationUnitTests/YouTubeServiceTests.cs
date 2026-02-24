@@ -9,6 +9,7 @@ using YTLiveChat.Contracts.Models;
 using YTLiveChat.Contracts.Services;
 using IniParser.Model;
 using System.Reflection;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {

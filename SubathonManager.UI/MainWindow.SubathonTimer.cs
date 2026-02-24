@@ -1,12 +1,14 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 
 
 namespace SubathonManager.UI
@@ -121,10 +123,13 @@ namespace SubathonManager.UI
             {
                 initialMs = TimeSpan.FromSeconds(1);
             }
+            
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            
             subathon.MillisecondsCumulative += (int) initialMs.TotalMilliseconds;
             subathon.IsPaused = true;
             subathon.ReversedTime = checkBox.IsChecked;
-            subathon.Currency = App.AppConfig!.Get("Currency", "Primary", "USD")!;
+            subathon.Currency = config!.Get("Currency", "Primary", "USD")!;
             db.SubathonDatas.Add(subathon);
             await db.SaveChangesAsync();
             db.Entry(subathon).State = EntityState.Detached;

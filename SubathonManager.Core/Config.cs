@@ -1,6 +1,7 @@
 ﻿using IniParser;
 using IniParser.Model;
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Core
 {

@@ -7,12 +7,13 @@ using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Services;
 
 namespace SubathonManager.Integration;
 
-public class YouTubeService : IDisposable
+public class YouTubeService : IDisposable, IAppService
 {
     private int _pollTime = 1500;
     private readonly HttpClient _httpClient;
@@ -66,6 +67,19 @@ public class YouTubeService : IDisposable
 #pragma warning restore CS0618
     }
 
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        Start(null);
+        return Task.CompletedTask;
+    }
+    
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Running = false;
+        Dispose();
+        return Task.CompletedTask;
+    }
+    
     public bool Start(string? handle)
     {
         Running = false;
@@ -182,6 +196,9 @@ public class YouTubeService : IDisposable
                 return;
             string currency = item.Superchat.Currency.ToUpper().Trim();
             string raw = item.Superchat.AmountString.Trim();
+            
+            //Console.WriteLine($"{currency} -- {raw}"); // TODO monitor
+            
             if (currency == "USD" && !raw.StartsWith('$')) // Parsed incorrectly
                 currency = Utils.TryParseCurrency(raw);
 

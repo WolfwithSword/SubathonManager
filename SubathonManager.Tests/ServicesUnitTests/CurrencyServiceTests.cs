@@ -5,6 +5,8 @@ using SubathonManager.Services;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using IniParser.Model;
+using SubathonManager.Core.Interfaces;
+
 namespace SubathonManager.Tests.ServicesUnitTests;
 
 [Collection("ServicesTests")]

@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; 
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views;
 
@@ -33,13 +35,14 @@ public partial class SettingsView
         CommandsSettingsControl.Init(this);
         ChatExtSettingsControl.Init(this);
         
-        ServerPortTextBox.Text = App.AppConfig!.Get("Server", "Port", string.Empty)!;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        ServerPortTextBox.Text = config!.Get("Server", "Port", string.Empty)!;
         LoadValues();
         InitCurrencySelects();
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
         WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
-        UpdateServerStatus(App.AppWebServer?.Running ?? false);
+        UpdateServerStatus(ServiceManager.Server?.Running ?? false);
         Task.Run(CheckForUpdateOnBoot);
         SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
     }

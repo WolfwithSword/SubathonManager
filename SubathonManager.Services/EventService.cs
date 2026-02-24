@@ -5,11 +5,13 @@ using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
+
 namespace SubathonManager.Services;
 
 // We don't need one of these for Subathon updates, because those fire every second anyways
 
-public class EventService: IDisposable
+public class EventService: IDisposable, IAppService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly CancellationTokenSource _cts = new();
@@ -28,14 +30,18 @@ public class EventService: IDisposable
         _logger = logger;
         _config = config;
         _currencyService = currencyService;
-        
+    }
+
+    public Task StartAsync(CancellationToken ct = default)
+    {
         Core.Events.SubathonEvents.SubathonEventCreated += AddSubathonEvent;
         _processingTask = Task.Run(LoopAsync);
         _processingTask.ContinueWith(t => 
                 _logger?.LogError($"Event loop crashed: {t.Exception}", t.Exception), 
             TaskContinuationOptions.OnlyOnFaulted);
-        Task.Run(() =>_currencyService.StartAsync());
+        Task.Run(() =>_currencyService.StartAsync(ct));
         _logger?.LogInformation("EventService started");
+        return Task.CompletedTask;
     }
 
     public List<string> ValidEventCurrencies()
@@ -709,10 +715,10 @@ public class EventService: IDisposable
         }
     }
 
-    public async Task StopAsync()
+    public async Task StopAsync(CancellationToken ct = default)
     {
         if (!_cts.IsCancellationRequested)
-            await _cts.CancelAsync();
+            _cts.Cancel();
         _signal.Release();
         if (_processingTask != null)
             await _processingTask;

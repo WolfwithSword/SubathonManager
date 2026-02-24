@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using IniParser.Model;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 

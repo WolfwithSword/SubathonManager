@@ -1,10 +1,13 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
+using SubathonManager.UI.Services;
 using Button = System.Windows.Controls.Button;
 using TextBlock = System.Windows.Controls.TextBlock;
 using TextBox = System.Windows.Controls.TextBox;
@@ -16,9 +19,11 @@ namespace SubathonManager.UI.Views
 
         private void InitCurrencySelects()
         {
-            var currencies = App.AppEventService!.ValidEventCurrencies().OrderBy(x => x).ToList();
+            var currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
             DefaultCurrencyBox.ItemsSource = currencies;
-            DefaultCurrencyBox.SelectedItem = App.AppConfig!.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
+            
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            DefaultCurrencyBox.SelectedItem = config!.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
             
             StreamElementsSettingsControl.CurrencyBox.ItemsSource = currencies;
             StreamElementsSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
@@ -49,9 +54,10 @@ namespace SubathonManager.UI.Views
         
         private void EventsSummary_Click(object sender, RoutedEventArgs e)
         {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
             Process.Start(new ProcessStartInfo
             {
-                FileName = $"http://localhost:{App.AppConfig!.Get("Server", "Port", "14040")}/api/data/amounts",
+                FileName = $"http://localhost:{config!.Get("Server", "Port", "14040")}/api/data/amounts",
                 UseShellExecute = true
             });
         }
@@ -76,16 +82,17 @@ namespace SubathonManager.UI.Views
         {
             string selectedCurrency = DefaultCurrencyBox.Text;
             
-            App.AppConfig!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            config!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
             if (selectedCurrency.Length >= 3)
             {
-                App.AppConfig!.Set("Currency", "Primary", selectedCurrency);
-                App.AppConfig!.Save();
-                App.AppEventService!.ReInitCurrencyService();
+                config!.Set("Currency", "Primary", selectedCurrency);
+                config!.Save();
+                ServiceManager.Events.ReInitCurrencyService();
             }
             if (int.TryParse(ServerPortTextBox.Text, out var port))
             {
-                App.AppConfig!.Set("Server", "Port", port.ToString());
+                config!.Set("Server", "Port", port.ToString());
             }
             
             string selectedTheme = (ThemeBox.SelectedItem is ComboBoxItem item) 
@@ -93,11 +100,11 @@ namespace SubathonManager.UI.Views
                 : "";
             if (!string.IsNullOrEmpty(selectedTheme))
             {
-                App.AppConfig!.Set("App", "Theme", selectedTheme);
+                config!.Set("App", "Theme", selectedTheme);
             }
 
             ChatExtSettingsControl.SaveConfigValues();
-            App.AppConfig!.Save();
+            config!.Save();
         }
 
         public void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
@@ -183,7 +190,8 @@ namespace SubathonManager.UI.Views
             CommandsSettingsControl.UpdateValueSettings();
             WebhookLogSettingsControl.UpdateValueSettings();
             
-            App.AppConfig!.Save();
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            config!.Save();
             
             Task.Run(async () =>
             {
@@ -352,11 +360,12 @@ namespace SubathonManager.UI.Views
 
             if (doConfigLoad)
             {
-                bool.TryParse(App.AppConfig!.Get("Currency", "BitsLikeAsDonation", "False"), out bool  bitsAsDonation);
+                var config = AppServices.Provider.GetRequiredService<IConfig>();
+                bool.TryParse(config!.Get("Currency", "BitsLikeAsDonation", "False"), out bool  bitsAsDonation);
                 BitsAsCurrencyBox.IsChecked = bitsAsDonation;
-                // App.AppConfig!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
+                // config!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
                 
-                var theme = App.AppConfig!.Get("App", "Theme", "Dark")!;
+                var theme = config!.Get("App", "Theme", "Dark")!;
                 foreach (ComboBoxItem item in ThemeBox.Items)
                 {
                     if (theme.Equals((string)item.Content, StringComparison.OrdinalIgnoreCase))

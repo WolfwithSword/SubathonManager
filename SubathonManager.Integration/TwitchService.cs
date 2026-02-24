@@ -14,6 +14,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Services;
 using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
@@ -21,7 +22,7 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 
 namespace SubathonManager.Integration;
 
-public class TwitchService
+public class TwitchService : IAppService
 {
     private readonly string _callbackUrl;
 
@@ -57,7 +58,7 @@ public class TwitchService
         _logger = logger;
         _config = config;
     }
-
+    
     public bool HasTokenFile()
     {
         return File.Exists(_tokenFile);
@@ -97,10 +98,27 @@ public class TwitchService
             return false;
         }
     }
-
+    
+    public async Task StartAsync(CancellationToken ct = default)
+    {
+        if (HasTokenFile())
+        {
+            var tokenValid = await ValidateTokenAsync();
+            if (!tokenValid)
+            {
+                RevokeTokenFile();
+                _logger?.LogWarning("Twitch token expired - deleting token file");
+            }
+            else
+            {
+                _logger?.LogInformation("Twitch Service starting up...");
+                await InitializeAsync(ct);
+            }
+        }
+    }
     
     [ExcludeFromCodeCoverage]
-    public async Task InitializeAsync()
+    public async Task InitializeAsync(CancellationToken ct = default)
     {
         if (HasTokenFile())
         {
@@ -884,7 +902,7 @@ public class TwitchService
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken ct = default)
     {
         // api has no disconnect? 
         OnTeardown();

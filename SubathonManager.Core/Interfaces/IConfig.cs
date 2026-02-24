@@ -1,4 +1,4 @@
-﻿namespace SubathonManager.Core;
+﻿namespace SubathonManager.Core.Interfaces;
 
 public interface IConfig
 {

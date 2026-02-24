@@ -14,6 +14,7 @@ using SubathonManager.Integration;
 using System.Reflection;
 using TwitchLib.Client.Models;
 using IniParser.Model;
+using SubathonManager.Core.Interfaces;
 using UserType = TwitchLib.Client.Enums.UserType;
 
 namespace SubathonManager.Tests.IntegrationUnitTests

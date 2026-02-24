@@ -7,6 +7,8 @@ using SubathonManager.Core.Enums;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using Moq.Protected;
+using SubathonManager.Core.Interfaces;
+
 namespace SubathonManager.Tests.ServicesUnitTests;
 
 [Collection("ServicesTests")]

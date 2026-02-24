@@ -2,6 +2,7 @@
 using SubathonManager.Core.Enums;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Services;

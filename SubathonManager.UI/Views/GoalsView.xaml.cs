@@ -7,6 +7,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Views;
@@ -125,11 +126,13 @@ public partial class GoalsView
         public long Points { get; set; } = 0;
         public string PointsText { get; set; } = "";
         public bool Completed { get; set; } = false;
+        
+        private IConfig _config =>  AppServices.Provider.GetRequiredService<IConfig>();
 
         public Brush TextColor => Completed ? Brushes.Gray : 
-            "Dark".Equals(App.AppConfig!.Get("App", "Theme", "Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
+            "Dark".Equals(_config!.Get("App", "Theme", "Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
         public Brush PointsColor => Completed ? Brushes.DarkGray : 
-            "Dark".Equals(App.AppConfig!.Get("App", "Theme","Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
+            "Dark".Equals(_config!.Get("App", "Theme","Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
         public double OpacityValue => Completed ? 0.6 : 1.0;
         public TextDecorationCollection? PointsDecoration =>
             Completed ? TextDecorations.Strikethrough : null;

@@ -8,6 +8,7 @@ using SubathonManager.Core.Enums;
 using System.Net;
 using Moq.Protected;
 using IniParser.Model;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
