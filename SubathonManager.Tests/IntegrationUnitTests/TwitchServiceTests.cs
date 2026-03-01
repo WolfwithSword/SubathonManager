@@ -203,7 +203,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainStart());
+            SubathonEvent? ev = CaptureEvent(TwitchService.SimulateHypeTrainStart);
             SubathonEvent? ev2 = CaptureEvent(() => TwitchService.SimulateHypeTrainProgress(5));
             Assert.Equal(SubathonEventSource.Simulated, ev2!.Source);
             Assert.Equal(SubathonEventType.TwitchHypeTrain, ev2!.EventType);

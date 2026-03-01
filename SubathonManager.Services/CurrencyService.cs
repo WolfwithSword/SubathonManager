@@ -9,7 +9,7 @@ namespace SubathonManager.Services;
 
 public class CurrencyService : IAppService
 {
-    private string _baseUrl = "http://www.floatrates.com/daily/";
+    internal string BaseUrl = "http://www.floatrates.com/daily/";
 
     private readonly HttpClient _httpClient;
     private readonly TimeSpan _refreshInterval = TimeSpan.FromHours(24);
@@ -117,7 +117,7 @@ public class CurrencyService : IAppService
                 .ToUpperInvariant()
                 .Trim();
 
-            string url = _baseUrl + $"{defaultCurrency.ToLowerInvariant()}.json";
+            string url = BaseUrl + $"{defaultCurrency.ToLowerInvariant()}.json";
             string json = await _httpClient.GetStringAsync(url);
 
             var path = CurrencyFilePath();

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
@@ -49,6 +50,8 @@ public class EventService: IDisposable, IAppService
         return Task.Run(() => _currencyService.GetValidCurrenciesAsync()).Result;
     }
 
+    
+    [ExcludeFromCodeCoverage]
     public void ReInitCurrencyService()
     {
         Task.Run(() => _currencyService.StartAsync());
@@ -176,14 +179,19 @@ public class EventService: IDisposable, IAppService
                 ev.SecondsValue = subathonValue.Seconds;
             }
             else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency)
-                     && (ev.EventType.IsCurrencyDonation() || ev.EventType.IsOrderType())) // includes orders when parsed as money mode
+                                                        && (ev.EventType.IsCurrencyDonation() ||
+                                                            ev.EventType
+                                                                .IsOrderType())) // includes orders when parsed as money mode
             {
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency)).Result;
                 ev.SecondsValue = Math.Round(subathonValue.Seconds * rate, 2);
-                ev.PointsValue = (int) Math.Floor(subathonValue!.Points * rate);
+                ev.PointsValue = (int)Math.Floor(subathonValue!.Points * rate);
             }
-            else if (ev.EventType.IsCurrencyDonation() && (string.IsNullOrEmpty(ev.Currency) ||
+            else
+                ev.SecondsValue = subathonValue.Seconds;
+            
+            if (ev.EventType.IsCurrencyDonation() && (string.IsNullOrEmpty(ev.Currency) ||
                                                            !_currencyService.IsValidCurrency(ev.Currency)))
             {
                 ev.PointsValue = 0;
@@ -192,8 +200,6 @@ public class EventService: IDisposable, IAppService
                 if (string.IsNullOrEmpty(ev.Currency))
                     ev.Currency = "???";
             }
-            else
-                ev.SecondsValue = subathonValue.Seconds;
 
             if (ev.EventType.IsCheerType() && double.TryParse(ev.Value, out var parsedBitsLikeValue))
             {
@@ -536,7 +542,7 @@ public class EventService: IDisposable, IAppService
         await Task.CompletedTask;
     }
 
-    public async void DeleteSubathonEvent(AppDbContext db, SubathonEvent ev)
+    public async Task DeleteSubathonEvent(AppDbContext db, SubathonEvent ev)
     {
         if (ev.SubathonId == null) return;
         
@@ -788,6 +794,7 @@ public class EventService: IDisposable, IAppService
             await _processingTask;
     }
     
+    [ExcludeFromCodeCoverage]
     public void Dispose()
     {
         if (!_cts.IsCancellationRequested)

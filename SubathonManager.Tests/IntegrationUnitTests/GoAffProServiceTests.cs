@@ -1,10 +1,8 @@
 ﻿using System.Reflection;
-using IniParser.Model;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
-using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
@@ -59,40 +57,6 @@ public class GoAffProServiceTests
         }
     }
     
-    // todo move this and above stuff to a test utils perhaps?
-    private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
-    {
-        var mock = new Mock<IConfig>();
-        mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns((string s, string k, string d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? v : d);
-        mock.Setup(c => c.GetBool(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
-            .Returns((string s, string k, bool d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? bool.TryParse(v, out var boolParse) ? boolParse : d : d);
-        mock.Setup(c => c.GetFromEncoded(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns((string s, string k, string d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? v : d);
-
-        // change section stuff later
-        mock.Setup(c => c.GetSection("GoAffPro")).Returns(() =>
-        {
-            var kdc = new KeyDataCollection();
-            if (values == null)  return kdc;
-            foreach (var valueTuple in values.Keys)
-            {
-                var (section, key) = valueTuple;
-                var val = values.TryGetValue(valueTuple, out var v) ? v : "";
-                kdc.AddKey(new KeyData(key)
-                {
-                    Value = val
-                });
-                
-            }
-            return kdc;
-        });
-            
-        return mock.Object;
-    }
     
     [Theory]
     [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
@@ -112,7 +76,7 @@ public class GoAffProServiceTests
             { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
         };
 
-        GoAffProService service = new GoAffProService(logger.Object, MockConfig(values));
+        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -147,7 +111,7 @@ public class GoAffProServiceTests
             { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
         };
 
-        GoAffProService service = new GoAffProService(logger.Object, MockConfig(values));
+        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -172,7 +136,7 @@ public class GoAffProServiceTests
             { ("GoAffPro", "Email"), email},
             { ("GoAffPro", "Password"), password},
         };
-        var service = new GoAffProService(logger.Object, MockConfig(values));
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
         
         typeof(IntegrationEvents)
             .GetField("RaiseConnectionUpdate", BindingFlags.Static | BindingFlags.NonPublic)
@@ -251,7 +215,7 @@ public class GoAffProServiceTests
             { ("GoAffPro", "Email"), email},
             { ("GoAffPro", "Password"), password},
         };
-        var service = new GoAffProService(logger.Object, MockConfig(values));
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
         service.Endpoint = new Uri(webserver.BaseUrl);
         
         typeof(IntegrationEvents)
@@ -269,6 +233,8 @@ public class GoAffProServiceTests
         Assert.NotNull(status);
         Assert.True(status);
         await service.StopAsync();
+        Assert.Equal(1, webserver.PostCallCount);
+        Assert.Equal(1, webserver.GetCallCount);
     }
     
     [Fact]
@@ -286,7 +252,7 @@ public class GoAffProServiceTests
             { ("GoAffPro", "Email"), "test@example.com"},
             { ("GoAffPro", "Password"),  "p4$$w0rd"},
         };
-        var service = new GoAffProService(logger.Object, MockConfig(values));
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
         service.Endpoint = new Uri(webserver.BaseUrl);
         
         typeof(IntegrationEvents)
@@ -304,6 +270,7 @@ public class GoAffProServiceTests
         Assert.NotNull(status);
         Assert.False(status);
         await service.StopAsync();
+        Assert.Equal(1, webserver.PostCallCount);
     }
     
     [Fact]
@@ -326,7 +293,7 @@ public class GoAffProServiceTests
             { ("GoAffPro", "Email"), "test@example.com"},
             { ("GoAffPro", "Password"),  "p4$$w0rd"},
         };
-        var service = new GoAffProService(logger.Object, MockConfig(values));
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
         service.MaxRetries = 1;
         service.Endpoint = new Uri(webserver.BaseUrl);
         
@@ -345,5 +312,7 @@ public class GoAffProServiceTests
         Assert.NotNull(status);
         Assert.False(status);
         await service.StopAsync();
+        Assert.Equal(1, webserver.PostCallCount);
+        Assert.Equal(2, webserver.GetCallCount);
     }
 }

@@ -6,7 +6,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using Streamlabs.SocketClient.Messages;
 using System.Reflection;
-using IniParser.Model;
 using Streamlabs.SocketClient.Messages.DataTypes;
 
 namespace SubathonManager.Tests.IntegrationUnitTests

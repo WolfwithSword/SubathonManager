@@ -198,6 +198,7 @@ public class DiscordWebhookService : IDisposable, IAppService
         }  
     }
     
+    [ExcludeFromCodeCoverage]
     private async Task FlushConfigQueueAsync()
     {
         if (_configQueue.IsEmpty) return;
@@ -250,6 +251,7 @@ public class DiscordWebhookService : IDisposable, IAppService
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task FlushQueueAsync()
     {
         if (_eventQueue.IsEmpty) return;

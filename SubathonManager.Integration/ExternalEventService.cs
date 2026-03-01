@@ -28,6 +28,8 @@ public static class ExternalEventService
         return false;
     }
     
+    // todo ExternalOrder ? 
+    
     public static bool ProcessExternalSub(Dictionary<string, JsonElement> data)
     {
         data.TryGetValue("type", out JsonElement elemType);

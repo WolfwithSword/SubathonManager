@@ -13,6 +13,8 @@ public class MockWebServerHost : IAsyncDisposable
     private readonly Dictionary<(string method, string path), (int statusCode, string body)> _routes = new();
 
     public string BaseUrl { get; }
+    public int GetCallCount { get; private set; }
+    public int PostCallCount { get; private set; }
 
     public MockWebServerHost(int port = 0)
     {
@@ -25,6 +27,8 @@ public class MockWebServerHost : IAsyncDisposable
         
         _app.Use(async (context, next) =>
         {
+            if (context.Request.Method == "GET") GetCallCount += 1;
+            else if (context.Request.Method == "POST") PostCallCount += 1;
             // useful for breakpoint checking
             Console.WriteLine($"[MockServer] Incoming: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
             await next();

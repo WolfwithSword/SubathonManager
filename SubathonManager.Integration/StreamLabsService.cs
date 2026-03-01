@@ -76,7 +76,7 @@ public class StreamLabsService : IAppService
     
     private void GetTokenFromConfig()
     {
-        _secretToken = _config.Get("StreamLabs", "SocketToken")!;
+        _secretToken = _config.Get("StreamLabs", "SocketToken", string.Empty)!;
     }  
     
     public bool IsTokenEmpty()
