@@ -2,6 +2,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -181,73 +182,31 @@ public class TwitchService : IDisposable, IAppService
             FileName = oauthUrl,
             UseShellExecute = true
         });
+        
+        var uri = new Uri(_callbackUrl);
+        int port = uri.Port;
 
-
-        if (!HttpListener.IsSupported)
-        {
-            var msg = "HTTP Listener not supported. Cannot start Twitch OAuth flow.";
-            _logger?.LogError(msg);
-            
-            ErrorMessageEvents.RaiseErrorEvent(
-                "ERROR",
-                nameof(SubathonEventSource.Twitch),
-                msg,
-                DateTime.Now.ToLocalTime());
-            return;
-        }
-
-        // temp listener for callback
-        var listener = new HttpListener();
+        var tcpListener = new TcpListener(IPAddress.Loopback, port);
 
         try
         {
-            listener.Prefixes.Add(_callbackUrl.EndsWith("/") ? _callbackUrl : _callbackUrl + "/");
-            var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
-            listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
-            listener.Start();
+            tcpListener.Start();
             _logger?.LogDebug("Waiting for Twitch auth...");
 
-            var context = await listener.GetContextAsync();
-            var response = context.Response;
-
-            string html = $"""
-                               <html>
-                                   <body>
-                                       <h2>Waiting for authorization to complete...</h2>
-                                       <script>
-                                           const hash = window.location.hash.substring(1);
-                                           fetch('/token?' + hash)
-                                               .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
-                                       </script>
-                                   </body>
-                               </html>
-                           """;
-            var buffer = System.Text.Encoding.UTF8.GetBytes(html);
-            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-            response.Close();
-
-            var tokenContext = await listener.GetContextAsync();
-            var query = tokenContext.Request.Url!.Query.TrimStart('?');
-            var parts = System.Web.HttpUtility.ParseQueryString(query);
-
-            AccessToken = parts["access_token"];
-            var tokenResponse = tokenContext.Response;
-            tokenResponse.StatusCode = 200;
-            await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
-            tokenResponse.Close();
+            // serve the HTML page
+            AccessToken = await HandleOAuthExchangeAsync(tcpListener, uri.AbsolutePath);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, $"TwitchService Authentication Failure: {ex.Message}");
+            _logger?.LogError(ex, "TwitchService Authentication Failure: {ExMessage}", ex.Message);
+            ErrorMessageEvents.RaiseErrorEvent(
+                "ERROR",
+                nameof(SubathonEventSource.Twitch),"Failed to do Twitch OAuth setup",
+                DateTime.Now.ToLocalTime());
         }
-
-        try
+        finally
         {
-            listener.Stop();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "TwitchService Authentication Listener Shutdown Error");
+            tcpListener.Stop();
         }
 
         if (!string.IsNullOrEmpty(AccessToken))
@@ -256,6 +215,82 @@ public class TwitchService : IDisposable, IAppService
                 JsonSerializer.Serialize(new { access_token = AccessToken }));
             await Task.Delay(100);
         }
+    }
+    
+    [ExcludeFromCodeCoverage]
+    private async Task<string?> HandleOAuthExchangeAsync(TcpListener tcpListener, string callbackPath)
+    {
+        using (var client = await tcpListener.AcceptTcpClientAsync())
+        {
+            var stream = client.GetStream();
+            await ReadHttpRequestAsync(stream); // consume
+
+            string html = """
+                          <html>
+                              <body>
+                                  <h2>Waiting for authorization to complete...</h2>
+                                  <script>
+                                      const hash = window.location.hash.substring(1);
+                                      fetch('/token?' + hash)
+                                          .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
+                                  </script>
+                              </body>
+                          </html>
+                          """;
+
+            await SendHttpResponseAsync(stream, 200, "text/html", html);
+        }
+
+        // fetch token
+        using (var client = await tcpListener.AcceptTcpClientAsync())
+        {
+            var stream = client.GetStream();
+            string requestLine = await ReadHttpRequestAsync(stream);
+            
+            var match = System.Text.RegularExpressions.Regex.Match(requestLine, @"GET (/token\?[^ ]+)");
+            string? accessToken = null;
+
+            if (match.Success)
+            {
+                var query = match.Groups[1].Value.Split('?', 2).ElementAtOrDefault(1) ?? "";
+                var parts = System.Web.HttpUtility.ParseQueryString(query);
+                accessToken = parts["access_token"];
+            }
+
+            await SendHttpResponseAsync(stream, 200, "text/plain", "OK");
+            return accessToken;
+        }
+    }
+    
+    [ExcludeFromCodeCoverage]
+    private async Task<string> ReadHttpRequestAsync(NetworkStream stream)
+    {
+        var buffer = new byte[4096];
+        var sb = new System.Text.StringBuilder();
+
+        while (true)
+        {
+            int bytesRead = await stream.ReadAsync(buffer);
+            if (bytesRead == 0) break;
+            sb.Append(System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead));
+            if (sb.ToString().Contains("\r\n\r\n")) break; // end headers
+        }
+
+        return sb.ToString().Split("\r\n")[0];
+    }
+
+    private async Task SendHttpResponseAsync(NetworkStream stream, int statusCode, string contentType, string body)
+    {
+        var bodyBytes = System.Text.Encoding.UTF8.GetBytes(body);
+        var headers = $"HTTP/1.1 {statusCode} OK\r\n" +
+                      $"Content-Type: {contentType}; charset=utf-8\r\n" +
+                      $"Content-Length: {bodyBytes.Length}\r\n" +
+                      $"Connection: close\r\n\r\n";
+
+        var headerBytes = System.Text.Encoding.UTF8.GetBytes(headers);
+        await stream.WriteAsync(headerBytes);
+        await stream.WriteAsync(bodyBytes);
+        await stream.FlushAsync();
     }
 
     

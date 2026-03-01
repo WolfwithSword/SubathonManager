@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -15,12 +16,15 @@ public partial class WebServer : IAppService
     internal readonly IDbContextFactory<AppDbContext> _factory;
     public int Port { get; set; }
     private HttpListener? _listener;
+    private TcpListener? _tcpListener;
     public bool Running { get; private set; }
     
     private readonly HashSet<string> _servedFolders = new();
     private readonly ILogger? _logger;
     private readonly IConfig _config;
     private SubathonValueConfigHelper _valueHelper;
+
+    private static bool IsWindows => HttpListener.IsSupported;
     
     record RouteKey(string Method, string Pattern);
     private readonly List<(RouteKey key, Func<IHttpContext, Task> handler)> _routes
@@ -59,6 +63,7 @@ public partial class WebServer : IAppService
 
     internal void Initialize()
     {
+        
         if (_listener is { IsListening: true })
         {
             try
@@ -68,15 +73,21 @@ public partial class WebServer : IAppService
             catch (Exception ex) { /**/ }
         }
         
-        _listener = new HttpListener();
-
         _routes.Clear();
         SetupApiRoutes();
         SetupOverlayRoutes();
         SetupWebsocketListeners();
-        
-        _listener.Prefixes.Add($"http://localhost:{Port}/");
-        _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
+
+        if (IsWindows)
+        {
+            _listener = new HttpListener();
+            _listener.Prefixes.Add($"http://localhost:{Port}/");
+            _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
+        }
+        else
+        {
+            _tcpListener = new TcpListener(IPAddress.Loopback, Port);
+        }
     }
 
     private void SetupOverlayRoutes()
@@ -91,6 +102,21 @@ public partial class WebServer : IAppService
         Port = int.Parse(_config.Get("Server", "Port", "14040")!);
         Initialize();
         Running = true;
+
+        if (IsWindows)
+        {
+            await RunHttpListenerLoopAsync(cancellationToken);
+        }
+        else
+        {
+            _logger?.LogWarning("HttpListener is not supported. Running BETA TcpListener as fallback");
+            await RunTcpListenerLoopAsync(cancellationToken);
+        }
+        
+    }
+
+    private async Task RunHttpListenerLoopAsync(CancellationToken cancellationToken)
+    {
         _listener?.Start();
         _logger?.LogInformation($"WebServer running at http://localhost:{Port}/");
         var oldPort = Port;
@@ -119,6 +145,52 @@ public partial class WebServer : IAppService
             }
         }
     }
+    
+    private async Task RunTcpListenerLoopAsync(CancellationToken cancellationToken)
+    {
+        _tcpListener!.Start();
+        _logger?.LogInformation($"WebServer (TCP) running at http://localhost:{Port}/");
+        WebServerEvents.RaiseWebServerStatusChange(Running);
+
+        while (Running && !cancellationToken.IsCancellationRequested)
+        {
+            TcpClient? client = null;
+            try
+            {
+                client = await _tcpListener.AcceptTcpClientAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (SocketException ex)
+            {
+                if (!Running || cancellationToken.IsCancellationRequested) break;
+                _logger?.LogError(ex, $"WebServer TCP accept error: {ex.Message}");
+                continue;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var ctx = await TcpListenerContextAdapter.ParseAsync(client, cancellationToken);
+                    if (ctx != null)
+                        await HandleRequestAsync(ctx);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "TCP Request Handler had an error.");
+                }
+                finally
+                {
+                    try { client.Dispose(); } catch { /* ignored */ }
+                }
+            }, cancellationToken);
+        }
+
+        try { _tcpListener.Stop(); } catch { /* ignored */ }
+    }
 
     public void Stop()
     {
@@ -126,6 +198,7 @@ public partial class WebServer : IAppService
         try
         {
             _listener?.Stop();
+            _tcpListener?.Stop();
             StopWebsocketServer();
         }
         catch (Exception ex)
