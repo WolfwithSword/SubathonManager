@@ -201,15 +201,34 @@
         <!-- MIDDLE - webview editor -->
         <Grid Grid.Column="1" Margin="12 40 12 12"> 
             <Border Background="{DynamicResource UiBrushSurface}" CornerRadius="8" Padding="6">
-                
                 <Grid x:Name="WebViewContainer" Background="Black">
-                <wv2:WebView2 x:Name="PreviewWebView" 
-                              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
-                              HorizontalAlignment="Stretch"
-                              VerticalAlignment="Stretch" 
-                              Width="{Binding _route.Width}" 
-                              Height="{Binding _route.Height}"
-                              DefaultBackgroundColor="White"/>
+                    <wv2:WebView2 x:Name="PreviewWebView" 
+                                  xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Stretch" 
+                                  Width="{Binding _route.Width}" 
+                                  Height="{Binding _route.Height}"
+                                  DefaultBackgroundColor="White"/>
+
+                    <!-- show if WebView2 is unavailable (WINE/Linux or not installed) -->
+                    <StackPanel x:Name="WebViewFallbackPanel"
+                                Visibility="Collapsed"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                MaxWidth="420">
+                        <TextBlock Text="WebView2 is either not installed or not supported on your system."
+                                   Foreground="Gray"
+                                   FontSize="18"
+                                   TextWrapping="Wrap"
+                                   Width="400"
+                                   TextAlignment="Center"
+                                   Margin="0,0,0,12"/>
+                        <ui:Button x:Name="OpenEditorInBrowserButton"
+                                   Content="Open Editor Preview in Browser"
+                                   Icon="Open24"
+                                   HorizontalAlignment="Center"
+                                   Click="OpenEditorInBrowser_Click"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

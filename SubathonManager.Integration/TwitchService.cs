@@ -38,6 +38,8 @@ public class TwitchService : IDisposable, IAppService
 
     private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
         , "data/twitch_token.json"));
+    internal string TwitchOAuthUrl = "https://id.twitch.tv/oauth2/authorize";
+    internal int CallbackPort = 14041;  // hardcode cause of app callback url
     
     private DateTime _lastChatDisconnectLog = DateTime.MinValue;
     private volatile bool _isConnected = false;
@@ -55,8 +57,7 @@ public class TwitchService : IDisposable, IAppService
 
     public TwitchService(ILogger<TwitchService>? logger, IConfig config)
     {
-        int port = 14041; // hardcode cause of app callback url
-        _callbackUrl = $"http://localhost:{port}/auth/twitch/callback/";
+        _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
         _logger = logger;
         _config = config;
     }
@@ -170,7 +171,7 @@ public class TwitchService : IDisposable, IAppService
             "channel:read:hype_train"
         });
 
-        var oauthUrl = $"https://id.twitch.tv/oauth2/authorize" +
+        var oauthUrl = $"{TwitchOAuthUrl}" +
                        $"?client_id={Config.TwitchClientId}" +
                        $"&redirect_uri={_callbackUrl}" +
                        $"&response_type=token" +

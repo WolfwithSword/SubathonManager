@@ -53,8 +53,14 @@ public partial class EditRouteWindow
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to load overlay editor");
+            _logger?.LogError(ex, "Failed to load overlay editor. WebView2 is not available");
             _loadedWebView = false;
+            Dispatcher.Invoke(() => 
+            {
+                PreviewWebView.Visibility = Visibility.Collapsed;
+                WebViewFallbackPanel.Visibility = Visibility.Visible;
+            });
+            await LoadRouteAsync();
         }
         finally
         {
@@ -62,6 +68,21 @@ public partial class EditRouteWindow
             WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
         }
+    }
+    
+    private void OpenEditorInBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        if (_route == null) return;
+        try
+        {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _route.GetRouteUrl(config, true),
+                UseShellExecute = true
+            });
+        }
+        catch { /**/ }
     }
     
     private void OnWidgetPositionUpdated(Widget updatedWidget)
@@ -1189,7 +1210,8 @@ public partial class EditRouteWindow
     }
     protected override void OnClosed(EventArgs e)
     {
-        PreviewWebView?.Dispose();
+        if (_loadedWebView)
+            PreviewWebView?.Dispose();
         
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
         WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
