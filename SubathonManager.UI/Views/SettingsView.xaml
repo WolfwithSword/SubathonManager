@@ -175,6 +175,9 @@
                      
                      <!-- KoFi -->
                      <views:KoFiSettings x:Name="KoFiSettingsControl" />
+                     
+                     <!-- GoAffPro --> 
+                     <views:GoAffProSettings x:Name="GoAffProSettingsControl" />
                     
                      <!-- External Events/Services -->
                      <views:ExternalServiceSettings x:Name="ExternalSettingsControl" />

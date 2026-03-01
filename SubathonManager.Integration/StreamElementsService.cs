@@ -1,18 +1,20 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using StreamElements.WebSocket;
 using StreamElements.WebSocket.Models.Tip;
 using StreamElements.WebSocket.Models.Internal;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Integration;
 
-public class StreamElementsService
+public class StreamElementsService : IAppService
 {
 
-    public Func<StreamElementsClient> ClientFactory { get; set; } 
+    private Func<StreamElementsClient> ClientFactory { get; set; } 
         = () => new StreamElementsClient();
     
     private StreamElementsClient? _client;
@@ -29,6 +31,18 @@ public class StreamElementsService
     {
         _logger = logger;
         _config = config;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        InitClient();
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Disconnect();
+        return Task.CompletedTask;
     }
     
     public bool InitClient()
@@ -64,8 +78,8 @@ public class StreamElementsService
     public void SetJwtToken(string token)
     {
         _jwtToken = token;
-        _config.Set("StreamElements", "JWT", token);
-        _config.Save();
+        if (_config.Set("StreamElements", "JWT", token))
+            _config.Save();
     }
 
     private void GetJwtFromConfig()
@@ -90,6 +104,7 @@ public class StreamElementsService
         _ = Task.Run(ReconnectWithBackoffAsync);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync()
     {
         if (_client == null)
@@ -189,12 +204,14 @@ public class StreamElementsService
 
     private void _OnTip(object? sender, Tip e)
     {
-        SubathonEvent subathonEvent = new();
-        subathonEvent.User = e.Username;
-        subathonEvent.Currency = e.Currency;
-        subathonEvent.Value = $"{e.Amount}";
-        subathonEvent.Source = SubathonEventSource.StreamElements;
-        subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
+        SubathonEvent subathonEvent = new()
+        {
+            User = e.Username,
+            Currency = e.Currency,
+            Value = $"{e.Amount}",
+            Source = SubathonEventSource.StreamElements,
+            EventType = SubathonEventType.StreamElementsDonation
+        };
         if (Guid.TryParse(e.TipId, out var tipGuid))
             subathonEvent.Id = tipGuid;
         
@@ -226,14 +243,15 @@ public class StreamElementsService
         if (!double.TryParse(value, out var val))
             return;
 
-        SubathonEvent subathonEvent = new();
-        subathonEvent.User = "SYSTEM";
-        subathonEvent.Currency = currency;
-        
-        subathonEvent.Value = value;
-        subathonEvent.Source = SubathonEventSource.Simulated;
-        subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
-        
+        SubathonEvent subathonEvent = new()
+        {
+            User = "SYSTEM",
+            Currency = currency,
+            Value = value,
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.StreamElementsDonation
+        };
+
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 }

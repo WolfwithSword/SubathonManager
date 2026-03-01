@@ -6,11 +6,12 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Integration;
 
-public class StreamLabsService
+public class StreamLabsService : IAppService
 {
     private StreamlabsClient? _client;
     private string _secretToken = "";
@@ -19,12 +20,25 @@ public class StreamLabsService
     private readonly ILogger? _logger;
     private readonly IConfig _config;
 
+    internal string BaseUrl = "https://sockets.streamlabs.com";
+
     public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config)
     {
         _logger = logger;
         _config = config;
     }
     
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        await InitClientAsync();
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        await DisconnectAsync();
+    }
+    
+    // todo cleanup all names in test for inits
     public async Task<bool> InitClientAsync()
     {
         Connected = false;
@@ -33,8 +47,9 @@ public class StreamLabsService
         IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
         if (_secretToken.Equals(string.Empty)) return false;
 
+        // TODO Webserver selfhost mock tests here 
         OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
-            new StreamlabsOptions { Token = _secretToken }
+            new StreamlabsOptions { Token = _secretToken, Url = BaseUrl}
         );
 
         if (_client != null) await DisconnectAsync();
@@ -61,7 +76,7 @@ public class StreamLabsService
     
     private void GetTokenFromConfig()
     {
-        _secretToken = _config.Get("StreamLabs", "SocketToken")!;
+        _secretToken = _config.Get("StreamLabs", "SocketToken", string.Empty)!;
     }  
     
     public bool IsTokenEmpty()
@@ -72,8 +87,8 @@ public class StreamLabsService
     public void SetSocketToken(string token)
     {
         _secretToken = token;
-        _config.Set("StreamLabs", "SocketToken", token);
-        _config.Save();
+        if (_config.Set("StreamLabs", "SocketToken", token))
+            _config.Save();
     }
     
     private void OnDonation(object? o, DonationMessage message)

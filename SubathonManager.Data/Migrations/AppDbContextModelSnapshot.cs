@@ -217,6 +217,10 @@ namespace SubathonManager.Data.Migrations
                     b.Property<bool>("ProcessedToSubathon")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SecondaryValue")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<double?>("SecondsValue")
                         .HasColumnType("REAL");
 

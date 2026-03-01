@@ -1,31 +1,52 @@
 ﻿using System.Windows.Controls;
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
+using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class WebhookLogSettings : UserControl
+public partial class WebhookLogSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     public WebhookLogSettings()
     {
         InitializeComponent();
     }
 
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
         InitWebhookSettings();
     }
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override bool UpdateValueSettings(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
     private void InitWebhookSettings()
     {
-        foreach (SubathonEventType eventType in Enum.GetValues(typeof(SubathonEventType))
-                     .Cast<SubathonEventType>().OrderBy(x => x.ToString(), 
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        
+        foreach (SubathonEventType eventType in Enum.GetValues<SubathonEventType>()
+                     .Cast<SubathonEventType>().Where(x => 
+                         ((SubathonEventType?)x).IsEnabled()).OrderBy(x => x.ToString(), 
                          StringComparer.OrdinalIgnoreCase))
         {
-            bool.TryParse(App.AppConfig!.Get("Discord", $"Events.Log.{eventType}", "false"), out var check);
+            bool.TryParse(config!.Get("Discord", $"Events.Log.{eventType}", "false"), out var check);
             CheckBox typeCheckBox = new()
             {
                 Content = eventType.ToString(),
@@ -36,27 +57,29 @@ public partial class WebhookLogSettings : UserControl
             EventWebhookListPanel.Children.Add(typeCheckBox);
         }
             
-        bool.TryParse(App.AppConfig!.Get("Discord", "Events.Log.Simulated", "false"), out var logSim);
+        bool.TryParse(config.Get("Discord", "Events.Log.Simulated", "false"), out var logSim);
         LogSimEventsCbx.IsChecked = logSim;
-        bool.TryParse(App.AppConfig!.Get("Discord", "Events.Log.RemoteConfig", "false"), out var logRemote);
+        bool.TryParse(config.Get("Discord", "Events.Log.RemoteConfig", "false"), out var logRemote);
         LogRemoteConfigCbx.IsChecked = logRemote; 
-        ErrorWebhookUrlBx.Text = App.AppConfig!.Get("Discord", "WebhookUrl", string.Empty)!;
-        EventWebhookUrlBx.Text = App.AppConfig!.Get("Discord", "Events.WebhookUrl", string.Empty)!;
+        ErrorWebhookUrlBx.Text = config.Get("Discord", "WebhookUrl", string.Empty)!;
+        EventWebhookUrlBx.Text = config.Get("Discord", "Events.WebhookUrl", string.Empty)!;
     }
     
-    public void UpdateValueSettings()
+    public override bool UpdateConfigValueSettings()
     {
+        bool hasUpdated = false;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
         foreach (var child in EventWebhookListPanel.Children)
         {
             if (child is CheckBox checkbox)
-                App.AppConfig!.Set("Discord", $"Events.Log.{checkbox.Content}", $"{checkbox.IsChecked}");
+                hasUpdated |= config.Set("Discord", $"Events.Log.{checkbox.Content}", $"{checkbox.IsChecked}");
         }
 
-        App.AppConfig!.Set("Discord", "WebhookUrl", ErrorWebhookUrlBx.Text);
-        App.AppConfig!.Set("Discord", "Events.WebhookUrl", EventWebhookUrlBx.Text);
-        App.AppConfig!.Set("Discord", "Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
-        App.AppConfig!.Set("Discord", "Events.Log.RemoteConfig", $"{LogRemoteConfigCbx.IsChecked}");
-        App.AppConfig!.Save();
+        hasUpdated |= config.Set("Discord", "WebhookUrl", ErrorWebhookUrlBx.Text);
+        hasUpdated |= config.Set("Discord", "Events.WebhookUrl", EventWebhookUrlBx.Text);
+        hasUpdated |= config.Set("Discord", "Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
+        hasUpdated |= config.Set("Discord", "Events.Log.RemoteConfig", $"{LogRemoteConfigCbx.IsChecked}");
+        return hasUpdated;
     }  
     
     private void TestWebhook_Click(object sender, RoutedEventArgs e)

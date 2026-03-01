@@ -1,5 +1,4 @@
 ﻿using System.Windows;
-using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +7,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views
 {
@@ -80,7 +80,7 @@ namespace SubathonManager.UI.Views
 
         private void ReprocessBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is SubathonEvent ev)
+            if (sender is Wpf.Ui.Controls.Button { DataContext: SubathonEvent ev })
             {
                 Task.Run(() =>
                 {
@@ -101,7 +101,7 @@ namespace SubathonManager.UI.Views
                     };
                     
                     using var db = _factory.CreateDbContext();
-                    App.AppEventService?.DeleteSubathonEvent(db, ev);
+                    ServiceManager.EventsOrNull?.DeleteSubathonEvent(db, ev);
                     SubathonEvents.RaiseSubathonEventCreated(newEv);
                 });;
             }
@@ -109,15 +109,13 @@ namespace SubathonManager.UI.Views
 
         private void DeleteBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is SubathonEvent ev)
+            if (sender is not Wpf.Ui.Controls.Button { DataContext: SubathonEvent ev }) return;
+            if (ev.Command.IsControlTypeCommand()) return;
+            Task.Run(() =>
             {
-                if (ev.Command.IsControlTypeCommand()) return;
-                Task.Run(() =>
-                {
-                    using var db = _factory.CreateDbContext();
-                    App.AppEventService?.DeleteSubathonEvent(db, ev);
-                });
-            }
+                using var db = _factory.CreateDbContext();
+                ServiceManager.EventsOrNull?.DeleteSubathonEvent(db, ev);
+            });
         }
     }
 }

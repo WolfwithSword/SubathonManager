@@ -28,6 +28,8 @@ public static class ExternalEventService
         return false;
     }
     
+    // todo ExternalOrder ? 
+    
     public static bool ProcessExternalSub(Dictionary<string, JsonElement> data)
     {
         data.TryGetValue("type", out JsonElement elemType);
@@ -45,10 +47,12 @@ public static class ExternalEventService
         
         data.TryGetValue("amount", out JsonElement elemAmount);
         
-        SubathonEvent subathonEvent = new SubathonEvent();
-        subathonEvent.Currency = type == SubathonEventType.KoFiSub ? "member" : "sub";
-        subathonEvent.User = user;
-        subathonEvent.Value = $"{value}";
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Currency = type == SubathonEventType.KoFiSub ? "member" : "sub",
+            User = user,
+            Value = $"{value}"
+        };
         if (type != SubathonEventType.KoFiSub)
         {
             data.TryGetValue("seconds", out JsonElement elemSeconds);

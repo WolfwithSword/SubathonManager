@@ -37,6 +37,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
             var config = new Mock<Config>();
+            config.Setup(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN"))
+                .Returns(true);
 
             var service = new StreamLabsService(logger.Object, config.Object);
 
@@ -44,6 +46,22 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             config.Verify(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN"), Times.Once);
             config.Verify(c => c.Save(), Times.Once);
+        }
+        
+        [Fact]
+        public void SetSocketToken_ShouldNotUpdateConfigAndSave()
+        {
+            var logger = new Mock<ILogger<StreamLabsService>>();
+            var config = new Mock<Config>();
+            config.Setup(c => c.Set("StreamLabs", "SocketToken", "OLD_TOKEN"))
+                .Returns(false);
+
+            var service = new StreamLabsService(logger.Object, config.Object);
+
+            service.SetSocketToken("OLD_TOKEN");
+
+            config.Verify(c => c.Set("StreamLabs", "SocketToken", "OLD_TOKEN"), Times.Once);
+            config.Verify(c => c.Save(), Times.Never);
         }
 
         [Fact]
@@ -59,6 +77,20 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             Assert.False(result);
             Assert.False(service.Connected);
+        }
+        
+        [Fact]
+        public async Task StartAsync_Works()
+        {
+            var logger = new Mock<ILogger<StreamLabsService>>();
+            var config = new Mock<Config>();
+            config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
+
+            var service = new StreamLabsService(logger.Object, config.Object);
+
+            await service.StartAsync();
+            Assert.False(service.Connected);
+            await service.StopAsync();
         }
 
         [Fact]

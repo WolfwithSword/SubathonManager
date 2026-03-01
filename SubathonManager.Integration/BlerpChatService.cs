@@ -38,7 +38,8 @@ public static class BlerpChatService
 
     public static void SimulateBlerpMessage(long amount, string bitsBeets)
     {
-        if (bitsBeets.ToLower() != "bits" && bitsBeets.ToLower() != "beets")
+        if (!bitsBeets.Equals("bits", StringComparison.CurrentCultureIgnoreCase) && 
+            !bitsBeets.Equals("beets", StringComparison.CurrentCultureIgnoreCase))
             return;
         var message = $"SYSTEM used {amount} {bitsBeets} to play a thing";
         ParseMessage(message, SubathonEventSource.Simulated);

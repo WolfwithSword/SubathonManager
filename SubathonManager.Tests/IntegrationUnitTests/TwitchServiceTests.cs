@@ -14,6 +14,7 @@ using SubathonManager.Integration;
 using System.Reflection;
 using TwitchLib.Client.Models;
 using IniParser.Model;
+using SubathonManager.Core.Interfaces;
 using UserType = TwitchLib.Client.Enums.UserType;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
@@ -202,7 +203,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainStart());
+            SubathonEvent? ev = CaptureEvent(TwitchService.SimulateHypeTrainStart);
             SubathonEvent? ev2 = CaptureEvent(() => TwitchService.SimulateHypeTrainProgress(5));
             Assert.Equal(SubathonEventSource.Simulated, ev2!.Source);
             Assert.Equal(SubathonEventType.TwitchHypeTrain, ev2!.EventType);
@@ -882,6 +883,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             // in case any listeners still exist
             var service = new TwitchService(null, MockConfig());
+            await service.StartAsync(CancellationToken.None);
 
             await service.StopAsync(CancellationToken.None);
             await service.StopAsync(CancellationToken.None);

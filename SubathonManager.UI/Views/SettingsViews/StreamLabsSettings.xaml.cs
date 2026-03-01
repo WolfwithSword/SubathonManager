@@ -1,38 +1,47 @@
-﻿using System.Windows.Controls;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Windows;
 using System.Diagnostics;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
+using SubathonManager.UI.Services;
 
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class StreamLabsSettings : UserControl
+public partial class StreamLabsSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamLabsSettings>>();
     public StreamLabsSettings()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+        };
+
+        Unloaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+        };
     }
 
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
-        IntegrationEvents.ConnectionUpdated += UpdateSLStatus;
-        SLTokenBox.Text = App.AppConfig!.Get("StreamLabs", "SocketToken", string.Empty)!;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        SLTokenBox.Text = config.Get("StreamLabs", "SocketToken", string.Empty)!;
 
-        if (App.AppStreamLabsService != null)
-            Host!.UpdateConnectionStatus(App.AppStreamLabsService.Connected, SLStatusText, ConnectSLBtn);
+        if (ServiceManager.StreamLabsOrNull != null)
+            Host.UpdateConnectionStatus(ServiceManager.StreamLabsOrNull.Connected, SLStatusText, ConnectSLBtn);
     }
     
-    public bool UpdateValueSettings(AppDbContext db)
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var slTipValue =
@@ -54,22 +63,32 @@ public partial class StreamLabsSettings : UserControl
 
         return hasUpdated;
     }
-    
-    private void UpdateSLStatus(bool status, SubathonEventSource source, string name, string service)
+
+    public override bool UpdateConfigValueSettings()
+    {
+        throw new NotImplementedException();
+    }
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.StreamLabs) return;
-        Host!.UpdateConnectionStatus(status, SLStatusText, ConnectSLBtn);
+        Host.UpdateConnectionStatus(status, SLStatusText, ConnectSLBtn);
     }
-    
+
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
     private async void ConnectSLButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            await App.AppStreamLabsService!.DisconnectAsync();
-            App.AppStreamLabsService!.SetSocketToken(SLTokenBox.Password);
+            await ServiceManager.StreamLabs.DisconnectAsync();
+            ServiceManager.StreamLabs.SetSocketToken(SLTokenBox.Password);
             await Task.Delay(100);
-            await App.AppStreamLabsService!.InitClientAsync();
-            if (App.AppStreamLabsService.IsTokenEmpty())
+            await ServiceManager.StreamLabs.InitClientAsync();
+            if (ServiceManager.StreamLabs.IsTokenEmpty())
             {
                 Process.Start(new ProcessStartInfo
                 {

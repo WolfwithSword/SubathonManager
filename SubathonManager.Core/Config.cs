@@ -1,6 +1,7 @@
 ﻿using IniParser;
 using IniParser.Model;
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Core
 {
@@ -22,6 +23,8 @@ namespace SubathonManager.Core
         private static IniData Data { get; set; } = new();
 
         public static string TwitchClientId { get; } = "jsykjc9k0yqkbqg4ttsfgnwwqmoxfh";
+        
+        public bool PendingChanges { get; private set; }
 
         public virtual IniParser.Model.KeyDataCollection GetSection(string section)
         {
@@ -111,6 +114,7 @@ namespace SubathonManager.Core
         public virtual void Save()
         {
             Parser.WriteFile(ConfigPath, Data);
+            PendingChanges = false;
         }
 
         public virtual string GetDatabasePath()
@@ -123,9 +127,40 @@ namespace SubathonManager.Core
             return Data[section][key] ?? defaultValue;
         }
 
-        public virtual void Set(string section, string key, string? value)
+        public virtual bool GetBool(string section, string key, bool defaultValue = false)
         {
-            Data[section][key] = value ?? string.Empty;
+            bool val = Boolean.TryParse(Get(section, key, defaultValue.ToString()), out bool b) ? b : defaultValue;
+            return val;
+        }
+
+        public string? GetFromEncoded(string section, string key, string? defaultValue = "")
+        {
+            string val = Get(section, key, defaultValue) ?? string.Empty;
+            var fromBase64String = Convert.FromBase64String(val);
+            return System.Text.Encoding.UTF8.GetString(fromBase64String);
+        }
+
+        public virtual bool Set(string section, string key, string? value)
+        {
+            if (Data[section][key] != value)
+            {
+                Data[section][key] = value ?? string.Empty;
+                PendingChanges = true;
+                return true;
+            }
+            return false;
+        }
+
+        public virtual bool SetBool(string section, string key, bool? value)
+        {
+            value ??= false;
+            return Set(section, key, ((bool)value).ToString());
+        }
+
+        public bool SetEncoded(string section, string key, string value)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+            return Set(section, key, Convert.ToBase64String(bytes));
         }
     }
 }

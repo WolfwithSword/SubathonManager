@@ -5,37 +5,46 @@ using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.Validation;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class YouTubeSettings : UserControl
+public partial class YouTubeSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     private readonly IDbContextFactory<AppDbContext> _factory;
     private List<MembershipRow> _dynamicSubRows = new();
     public YouTubeSettings()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+        };
+
+        Unloaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+        };
     }
 
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
-        IntegrationEvents.ConnectionUpdated += UpdateYoutubeStatus;
-        YTUserHandle.Text = App.AppConfig!.Get("YouTube", "Handle", string.Empty)!;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        YTUserHandle.Text = config.Get("YouTube", "Handle", string.Empty)!;
     }
     
-    public void LoadValues(AppDbContext db)
+    public override void LoadValues(AppDbContext db)
     {
         var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.YouTubeMembership)
             .OrderBy(meta => meta)
             .AsNoTracking().ToList();
-        
-        string v, p;
+
         for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--)
         {
             var child = MembershipsPanel.Children[i];
@@ -50,10 +59,10 @@ public partial class YouTubeSettings : UserControl
         {      
             TextBox? box1 = null;
             TextBox? box2 = null;
-            v = $"{value.Seconds}";
-            p = $"{value.Points}";
+            var v = $"{value.Seconds}";
+            var p = $"{value.Points}";
             
-            if (value.Meta == "DEFAULT" && value.EventType == SubathonEventType.YouTubeMembership)
+            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.YouTubeMembership })
             {
                 box1 = MemberDefaultTextBox;
                 box2 = MemberDefaultTextBox2;
@@ -65,7 +74,7 @@ public partial class YouTubeSettings : UserControl
 
             if (!string.IsNullOrWhiteSpace(v) && !string.IsNullOrWhiteSpace(p) && box1 != null && box2 != null)
             {
-                Host!.UpdateTimePointsBoxes(box1, box2, v, p);
+                Host.UpdateTimePointsBoxes(box1, box2, v, p);
             }
         }
 
@@ -95,15 +104,13 @@ public partial class YouTubeSettings : UserControl
 
         foreach (var comboItem in SimTierSelection.Items)
         {
-            if (comboItem is ComboBoxItem cbi && string.Equals(cbi.Content?.ToString(), selectedTier, StringComparison.OrdinalIgnoreCase))
-            {
-                SimTierSelection.SelectedItem = cbi;
-                break;
-            }
+            if (comboItem is not ComboBoxItem cbi || !string.Equals(cbi.Content?.ToString(), selectedTier,
+                    StringComparison.OrdinalIgnoreCase)) continue;
+            SimTierSelection.SelectedItem = cbi;
+            break;
         }
 
-        if (SimTierSelection.SelectedItem == null)
-            SimTierSelection.SelectedItem = SimTierSelection.Items[0];
+        SimTierSelection.SelectedItem ??= SimTierSelection.Items[0];
     }
     
     
@@ -118,7 +125,7 @@ public partial class YouTubeSettings : UserControl
         
         var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
         var nameBox = new Wpf.Ui.Controls.TextBox { Width = 154, Text = subathonValue.Meta ?? "", 
-            ToolTip = "Tier Name", PlaceholderText = "Tier Name",
+            ToolTip = "Tier Name. If your tier includes a !, only include everything before the first ! symbol", PlaceholderText = "Tier Name", // TODO monitor. Will be fixed in next YTLiveChat update
             Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
         var secondsBox = new Wpf.Ui.Controls.TextBox { Width = 100, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)};
@@ -212,18 +219,18 @@ public partial class YouTubeSettings : UserControl
             row.NameBox.Text = current;
         }
     }
-    
-    private void UpdateYoutubeStatus(bool status, SubathonEventSource source, string name, string service)
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.YouTube) return;
         Dispatcher.Invoke(() =>
         {
             if (YTUserHandle.Text != name && name != "None") YTUserHandle.Text = name; 
-            Host!.UpdateConnectionStatus(status, YTStatusText, ConnectYTBtn);
+            Host.UpdateConnectionStatus(status, YTStatusText, ConnectYTBtn);
         });
     }
 
-    public bool UpdateValueSettings(AppDbContext db)
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var superchatValue = db.SubathonValues.FirstOrDefault(sv =>
@@ -243,8 +250,8 @@ public partial class YouTubeSettings : UserControl
             hasUpdated = true;
         }
 
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberDefaultTextBox2);
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberDefaultTextBox2);
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
         
         
         var removeRows = _dynamicSubRows
@@ -297,20 +304,42 @@ public partial class YouTubeSettings : UserControl
                 db.SubathonValues.Add(subRow.SubValue);
                 hasUpdated = true;
             }
+            // cleanup ones that were renamed
+            List<string> names = ["DEFAULT"];
+            foreach (var row in _dynamicSubRows)
+            {
+                string name = row.NameBox.Text.Trim();
+                names.Add(name);
+            }
+            
+            var dbRows = db.SubathonValues.Where(x =>
+                !names.Contains(x.Meta) && x.EventType == SubathonEventType.YouTubeMembership).ToList();
+
+            if (dbRows.Count > 0)
+            {
+                db.SubathonValues.RemoveRange(dbRows);
+                hasUpdated = true;
+            }
         }
         
         return hasUpdated;
     }
 
+    public override bool UpdateConfigValueSettings()
+    {
+        throw new NotImplementedException();
+    }
+
     private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)
     {
         string user = YTUserHandle.Text.Trim();
-        if (!user.StartsWith("@") && !string.IsNullOrEmpty(user))
+        if (!user.StartsWith('@') && !string.IsNullOrEmpty(user))
             user = "@" + user;
-        App.AppConfig!.Set("YouTube", "Handle", user);
-        App.AppConfig!.Save();
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        if (config.Set("YouTube", "Handle", user))
+            config.Save();
 
-        App.AppYouTubeService!.Start(user);
+        ServiceManager.YouTube.Start(user);
     }
     
     public class MembershipRow

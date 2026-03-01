@@ -11,7 +11,8 @@ public enum SubathonEventSubType
     FollowLike,
     RaidLike,
     TrainLike,
-    CommandLike
+    CommandLike,
+    OrderLike 
 }
 
 [ExcludeFromCodeCoverage]

@@ -7,11 +7,12 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Services;
 
-public class DiscordWebhookService : IDisposable
+public class DiscordWebhookService : IDisposable, IAppService
 {
     private readonly ConcurrentQueue<SubathonEvent> _eventQueue = new();
     private readonly ConcurrentQueue<SubathonValueDto> _configQueue = new();
@@ -45,13 +46,18 @@ public class DiscordWebhookService : IDisposable
         _config = config;
         _currencyService = currencyService;
         LoadFromConfig();
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted += OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
         ErrorMessageEvents.SendCustomEvent += OnCustomEvent;
         SubathonEvents.SubathonValuesPatched += OnSubathonConfigValuesPatched;
-        _backgroundTask = Task.Run(ProcessQueueAsync);
-        _backgroundConfigTask = Task.Run(ProcessValueQueueAsync);
+        _backgroundTask = Task.Run(ProcessQueueAsync, cancellationToken);
+        _backgroundConfigTask = Task.Run(ProcessValueQueueAsync, cancellationToken);
+        return Task.CompletedTask;
     }
 
     public void LoadFromConfig()
@@ -60,7 +66,7 @@ public class DiscordWebhookService : IDisposable
         _webhookUrl = _config.Get("Discord", "WebhookUrl", "");
         
         _auditEventTypes.Clear();
-        foreach (SubathonEventType type in Enum.GetValues(typeof(SubathonEventType)))
+        foreach (SubathonEventType type in Enum.GetValues<SubathonEventType>())
         {
             bool.TryParse(_config.Get("Discord", $"Events.Log.{type}", "false"), out bool result);
             if (result)
@@ -116,8 +122,7 @@ public class DiscordWebhookService : IDisposable
 
     private void OnSubathonEventDeleted(List<SubathonEvent>? subathonEvents)
     {
-        if (subathonEvents?.Count > 1 || (subathonEvents?.Count == 1 && 
-                                          subathonEvents[0].Source == SubathonEventSource.Simulated))
+        if (subathonEvents?.Count > 1 || subathonEvents is [{ Source: SubathonEventSource.Simulated }])
         {
             double totalPoints = 0;
             double totalSeconds = 0;
@@ -143,7 +148,7 @@ public class DiscordWebhookService : IDisposable
             var embed = new
             {
                 title=$"Deleted {subathonEvents.Count} Events",
-                description=$"**Total Seconds:** {Math.Round(totalSeconds, 2)}s\n**Total Points:** {totalPoints}\n**Total {currency}:** {Math.Round(totalMoney, 2)}",
+                description=$"**Dollar Seconds:** {Math.Round(totalSeconds, 2)}s\n**Dollar Points:** {totalPoints}\n**Dollar {currency}:** {Math.Round(totalMoney, 2)}",
                 color = 0x86ACBD,
                 timestamp = DateTime.Now.ToUniversalTime().ToString("o")
             };
@@ -193,10 +198,10 @@ public class DiscordWebhookService : IDisposable
         }  
     }
     
+    [ExcludeFromCodeCoverage]
     private async Task FlushConfigQueueAsync()
     {
         if (_configQueue.IsEmpty) return;
-        var sb = new StringBuilder();
         var events = new List<SubathonValueDto>();
         // we will hard limit this to 5msg per min. 10 embeds per msg
         while (events.Count < (5 * 10) && _configQueue.TryDequeue(out var sValue) )
@@ -246,10 +251,10 @@ public class DiscordWebhookService : IDisposable
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task FlushQueueAsync()
     {
         if (_eventQueue.IsEmpty) return;
-        var sb = new StringBuilder();
         var events = new List<SubathonEvent>();
         while (events.Count < (_maxMsgPerMinute * 10) && _eventQueue.TryDequeue(out var subathonEvent) )
         {
@@ -291,22 +296,16 @@ public class DiscordWebhookService : IDisposable
         var val = e.Value.Replace("[DELETED]", "").Trim();
         if (e.Currency == "sub")
         {
-            switch (val)
+            val = val switch
             {
-                case "1000":
-                    val = "Tier 1";
-                    break;
-                case "2000":
-                    val = "Tier 2";
-                    break;
-                case "3000":
-                    val = "Tier 3";
-                    break;
-            }
+                "1000" => "Tier 1",
+                "2000" => "Tier 2",
+                "3000" => "Tier 3",
+                _ => val
+            };
         }
 
-        if (!(e.Command == SubathonCommandType.Pause || e.Command == SubathonCommandType.Resume ||
-              e.Command == SubathonCommandType.Lock || e.Command == SubathonCommandType.Unlock))
+        if (e.Command is not (SubathonCommandType.Pause or SubathonCommandType.Resume or SubathonCommandType.Lock or SubathonCommandType.Unlock))
         {
             sb.AppendLine($"**Value:** {val} {(string.IsNullOrEmpty(e.Currency) ? "" : e.Currency)}");
             if (e.Command != SubathonCommandType.SetMultiplier && e.Command != SubathonCommandType.StopMultiplier)
@@ -337,7 +336,7 @@ public class DiscordWebhookService : IDisposable
             if (!response.IsSuccessStatusCode)
             {
                 var rc = await response.Content.ReadAsStringAsync();
-                _logger?.LogError($"Webhook failed: {response.StatusCode} - {rc}");
+                _logger?.LogError("Webhook failed: {ResponseStatusCode} - {Rc}", response.StatusCode, rc);
             }
         }
         catch (Exception ex)
@@ -346,7 +345,7 @@ public class DiscordWebhookService : IDisposable
         }
     }
 
-    public async Task StopAsync()
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         await _cts.CancelAsync();
         if (_backgroundTask != null)
@@ -467,11 +466,9 @@ internal static class LinqExtensions
         foreach (var item in source)
         {
             list.Add(item);
-            if (list.Count >= size)
-            {
-                yield return list;
-                list = new List<T>(size);
-            }
+            if (list.Count < size) continue;
+            yield return list;
+            list = new List<T>(size);
         }
 
         if (list.Count > 0)

@@ -29,6 +29,8 @@ public class SubathonEvent
     public int? PointsValue { get; set; } = 0;
     public string? User { get; set; } = "";
     public string Value { get; set; } = "";
+    
+    public string SecondaryValue { get; set; } = "";
     public SubathonCommandType Command { get; set; } = SubathonCommandType.None;
     public int Amount { get; set; } = 1; // how many times to multiply everything for amount, only used for giftsubs
     
@@ -66,7 +68,7 @@ public class CurrencyValidationAttribute : ValidationAttribute
 
         string s = value.ToString()!;
         var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "bits", "sub", "beets", "kudos", "", "???",
-            "member", "viewers" };
+            "order", "items", "member", "viewers" };
 
         if (allowed.Contains(s)) return ValidationResult.Success;
 

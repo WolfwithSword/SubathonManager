@@ -7,6 +7,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Views;
@@ -30,7 +31,7 @@ public partial class GoalsView
 
     private void OnGoalsUpdate(List<SubathonGoal> goals, long points, GoalsType type)
     {
-        Dispatcher.InvokeAsync(() => { LoadGoals() ;});
+        Dispatcher.InvokeAsync(LoadGoals);
     }
 
     private void OnSubathonUpdate(SubathonData subathon, DateTime timestamp)
@@ -40,32 +41,21 @@ public partial class GoalsView
         Dispatcher.InvokeAsync(() =>
         {
             long moneySum = subathon.GetRoundedMoneySum();
-            if (_currency != subathon.Currency ||
-                (_subathonLastPoints != subathon.Points && _type == GoalsType.Points) ||
-                (_subathonLastPoints != moneySum && _type == GoalsType.Money))
+            if (_currency == subathon.Currency &&
+                (_subathonLastPoints == subathon.Points || _type != GoalsType.Points) &&
+                (_subathonLastPoints == moneySum || _type != GoalsType.Money)) return;
+            
+            if (Goals.Any(goal => (_type == GoalsType.Points &&
+                                   ((!goal.Completed && subathon.Points >= goal.Points) || subathon.Points == 0)) ||
+                                  (_type == GoalsType.Money &&
+                                   ((!goal.Completed && moneySum >= goal.Points)
+                                    || moneySum == 0 || _currency != subathon.Currency))))
             {
-                foreach (var goal in Goals)
-                {
-                    if (_type == GoalsType.Points &&
-                        (!goal.Completed && subathon.Points >= goal.Points || subathon.Points == 0))
-                    {
-                        _currency = subathon.Currency ?? "";
-                        LoadGoals();
-                        break;
-                    }
-
-                    if (_type == GoalsType.Money &&
-                        (!goal.Completed && moneySum >= goal.Points
-                         || moneySum == 0 || _currency != subathon.Currency))
-                    {
-                        _currency = subathon.Currency ?? "";
-                        LoadGoals();
-                        break;
-                    }
-                }
-
-                _subathonLastPoints = _type == GoalsType.Money ? moneySum : subathon.Points;
+                _currency = subathon.Currency ?? "";
+                LoadGoals();
             }
+
+            _subathonLastPoints = _type == GoalsType.Money ? moneySum : subathon.Points;
         });
     }
     
@@ -110,12 +100,10 @@ public partial class GoalsView
             var lastCompleted = Goals
                 .Select((g, i) => new { g, i })
                 .LastOrDefault(x => x.g.Completed);
-            
-            if (lastCompleted != null)
-            {
-                var item = GoalsList.ItemContainerGenerator.ContainerFromIndex(lastCompleted.i) as FrameworkElement;
-                item?.BringIntoView();
-            }
+
+            if (lastCompleted == null) return;
+            var item = GoalsList.ItemContainerGenerator.ContainerFromIndex(lastCompleted.i) as FrameworkElement;
+            item?.BringIntoView();
         });
     }
     
@@ -125,11 +113,13 @@ public partial class GoalsView
         public long Points { get; set; } = 0;
         public string PointsText { get; set; } = "";
         public bool Completed { get; set; } = false;
+        
+        private IConfig _config => AppServices.Provider.GetRequiredService<IConfig>();
 
         public Brush TextColor => Completed ? Brushes.Gray : 
-            "Dark".Equals(App.AppConfig!.Get("App", "Theme", "Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
+            "Dark".Equals(_config.Get("App", "Theme", "Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
         public Brush PointsColor => Completed ? Brushes.DarkGray : 
-            "Dark".Equals(App.AppConfig!.Get("App", "Theme","Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
+            "Dark".Equals(_config.Get("App", "Theme","Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
         public double OpacityValue => Completed ? 0.6 : 1.0;
         public TextDecorationCollection? PointsDecoration =>
             Completed ? TextDecorations.Strikethrough : null;

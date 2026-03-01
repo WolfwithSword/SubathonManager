@@ -27,13 +27,21 @@ public enum SubathonEventType
     PicartoFollow,
     PicartoSub,
     PicartoGiftSub,
-    PicartoTip
+    PicartoTip,
+    GamerSuppsOrder,
+    UwUMarketOrder
     // any new must be added after the last
 }
 
 [ExcludeFromCodeCoverage]
 public static class SubathonEventTypeHelper
 {
+    private static readonly SubathonEventType[] DisabledEvents =
+    [
+        //SubathonEventType.GamerSuppsOrder,
+        //SubathonEventType.UwUMarketOrder
+    ];
+    
     private static readonly SubathonEventType[] CurrencyDonationEvents = new[]
     {
         SubathonEventType.YouTubeSuperChat,
@@ -99,6 +107,18 @@ public static class SubathonEventTypeHelper
         SubathonEventType.BlerpBeets,
         SubathonEventType.BlerpBits
     };
+    
+    private static readonly SubathonEventType[] FollowTypes = new[]
+    {
+        SubathonEventType.PicartoFollow,
+        SubathonEventType.TwitchFollow
+    };
+
+    private static readonly SubathonEventType[] OrderTypes = new[]
+    {
+        SubathonEventType.UwUMarketOrder,
+        SubathonEventType.GamerSuppsOrder
+    };
 
     public static SubathonEventSubType GetSubType(this SubathonEventType? eventType)
     {
@@ -107,17 +127,26 @@ public static class SubathonEventTypeHelper
         if (eventType.IsSubOrMembershipType()) return SubathonEventSubType.SubLike;
         if (eventType.IsCheerType()) return SubathonEventSubType.TokenLike;
         if (eventType.IsCurrencyDonation()) return SubathonEventSubType.DonationLike;
-
+        if (eventType.IsOrderType()) return SubathonEventSubType.OrderLike;
+        if (eventType.IsFollowType()) return SubathonEventSubType.FollowLike;
+            
         return eventType.Value switch
         {
             SubathonEventType.TwitchRaid => SubathonEventSubType.RaidLike,
-            SubathonEventType.TwitchFollow => SubathonEventSubType.FollowLike,
-            SubathonEventType.PicartoFollow => SubathonEventSubType.FollowLike,
             SubathonEventType.TwitchHypeTrain =>  SubathonEventSubType.TrainLike,
             SubathonEventType.Command => SubathonEventSubType.CommandLike,
             _ => SubathonEventSubType.Unknown
         };
     }
+    
+    public static bool IsFollowType(this SubathonEventType? eventType) => 
+        eventType.HasValue && FollowTypes.Contains(eventType.Value);
+
+    public static bool IsOrderType(this SubathonEventType? eventType) => 
+        eventType.HasValue && OrderTypes.Contains(eventType.Value);
+
+    public static bool IsEnabled(this SubathonEventType? eventType) => 
+        eventType.HasValue && !DisabledEvents.Contains(eventType.Value);
     
     public static bool IsExtensionType(this SubathonEventType? eventType) => 
         eventType.HasValue && ExtensionType.Contains(eventType.Value);
@@ -183,6 +212,9 @@ public static class SubathonEventTypeHelper
             SubathonEventType.PicartoTip => SubathonEventSource.Picarto,
             
             SubathonEventType.DonationAdjustment => SubathonEventSource.Command,
+            
+            SubathonEventType.GamerSuppsOrder => SubathonEventSource.GoAffPro,
+            SubathonEventType.UwUMarketOrder => SubathonEventSource.GoAffPro,
             
             _ => SubathonEventSource.Unknown
         };

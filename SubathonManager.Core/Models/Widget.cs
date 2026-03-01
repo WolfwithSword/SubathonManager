@@ -145,11 +145,11 @@ public class Widget
     {
         Widget widget = new Widget(string.IsNullOrEmpty(newName) ? Name : newName, HtmlPath);
 
-        widget.RouteId = routeId == null ? RouteId : routeId.Value;
+        widget.RouteId = routeId ?? RouteId;
         widget.Visibility = Visibility;
         widget.X = X;
         widget.Y = Y;
-        widget.Z = newZ == null ? Z : newZ.Value;
+        widget.Z = newZ ?? Z;
         widget.Width = Width;
         widget.Height = Height;
         widget.ScaleX = ScaleX;

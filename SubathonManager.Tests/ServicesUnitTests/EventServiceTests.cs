@@ -7,32 +7,13 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using System.Net;
 using Moq.Protected;
-using IniParser.Model;
+using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
 [Collection("Sequential")]
 public class EventServiceTests
 {
-    private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
-    {
-        var mock = new Mock<IConfig>();
-        
-        mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Returns((string s, string k, string d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? v : d);
-            
-        var kd0 = new KeyData("Primary");
-        kd0.Value = "USD";
-        mock.Setup(c => c.GetSection("Currency")).Returns(() =>
-        {
-            var kdc = new KeyDataCollection();
-            kdc.AddKey(kd0);
-            return kdc;
-        });
-        return mock.Object;
-    }
-
     private static CurrencyService SetupCurrencyService()
     {
         var jsonResponse = @"{
@@ -60,11 +41,10 @@ public class EventServiceTests
         var httpClient = new HttpClient(handlerMock.Object);
 
         var loggerMock = new Mock<ILogger<CurrencyService>>();
-        var mockConfig = MockConfig(new()
+        var currencyMock = new CurrencyService(loggerMock.Object, MockConfig.MakeMockConfig(new()
         {
             { ("Currency", "Primary"), "USD" }
-        });
-        var currencyMock = new CurrencyService(loggerMock.Object, mockConfig, httpClient);
+        }), httpClient);
         currencyMock.SetRates(new Dictionary<string, double>
         {
             { "USD", 1.0 }, { "GBP", 0.9 }, { "CAD", 0.8 }, { "TWD", 0.6 }, { "AUD", 0.5 }
@@ -95,11 +75,35 @@ public class EventServiceTests
         factoryMock.Setup(f => f.CreateDbContextAsync(default))
             .ReturnsAsync(() => new AppDbContext(options));
 
-        var service = new EventService(factoryMock.Object, Mock.Of<ILogger<EventService>>(), MockConfig(), SetupCurrencyService());
+        var service = new EventService(factoryMock.Object, Mock.Of<ILogger<EventService>>(), MockConfig.MakeMockConfig(new()
+        {
+            { ("Currency", "Primary"), "USD" },
+            { ("Currency", "BitsLikeAsDonation"), "True" },
+            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "True"},
+            { ("GoAffPro", "GamerSupps.CommissionAsDonation"), "False"},
+            { ("GoAffPro", "UwUMarket.Mode"), "Dollar"},
+            { ("GoAffPro", "GamerSupps.Mode"), "Item"},
+            { ("Twitch", "HypeTrainMultiplier.Enabled"), "True"},
+            { ("Twitch", "HypeTrainMultiplier.Points"), "True"},
+            { ("Twitch", "HypeTrainMultiplier.Time"), "True"},
+            { ("Twitch", "HypeTrainMultiplier.Multiplier"), "2"},
+        }), SetupCurrencyService());
+        await service.StartAsync();
 
         return (service, options, connection);
     }
 
+    [Fact]
+    public async Task FetchValidCurrencies_Test()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(10);
+
+        var data = service.ValidEventCurrencies();
+        Assert.NotNull(data);
+        Assert.NotEmpty(data);
+        await service.StopAsync();
+    }
+    
     [Fact]
     public async Task AddPointsCommand_Works()
     {
@@ -123,6 +127,7 @@ public class EventServiceTests
         Assert.Equal(15, sub.Points);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -147,6 +152,7 @@ public class EventServiceTests
         Assert.Equal(5, sub.Points);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -171,6 +177,7 @@ public class EventServiceTests
         Assert.Equal(100, sub.Points);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -194,6 +201,7 @@ public class EventServiceTests
         Assert.Equal(120_000, sub.MillisecondsCumulative);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
 
     [Fact]
@@ -217,6 +225,7 @@ public class EventServiceTests
         Assert.Equal(-30_000, sub.MillisecondsCumulative);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }  
     
     [Fact]
@@ -256,8 +265,228 @@ public class EventServiceTests
         Assert.True(sub.MillisecondsCumulative > 0);
 
         await conn.CloseAsync();
+        await service.StopAsync();
+    } 
+    
+    [Fact]
+    public async Task DonationEvent_InvalidCurrency()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.KoFiDonation,
+            Currency = "EEE",
+            Value = "10"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed); // will have 0 values
+        
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.False(sub.MillisecondsCumulative > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("EEE", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(0, ev2.SecondsValue);
+        
+        await conn.CloseAsync();
+        await service.StopAsync();
     }
     
+    [Fact]
+    public async Task DonationEvent_InvalidCurrency2()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.KoFiDonation,
+            Currency = "",
+            Value = "10"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.False(processed); // will have 0 values
+        
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.False(sub.MillisecondsCumulative > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("???", ev2.Currency);
+        Assert.False(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(0, ev2.SecondsValue);
+        
+        await conn.CloseAsync();
+        await service.StopAsync();
+    }
+    
+    [Fact]
+    public async Task OrderEvent_WithCommission()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.UwUMarketOrder,
+            Currency = "USD",
+            Value = "10.00",
+            SecondaryValue = "2.00|USD"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.True(sub.MillisecondsCumulative > 0);
+        Assert.True(sub.MoneySum > 0);
+        Assert.Equal(2.00, sub.MoneySum);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("USD", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(12 * 10, ev2.SecondsValue);
+        
+        await conn.CloseAsync();
+        await service.StopAsync();
+    }
+    
+    [Fact]
+    public async Task OrderEvent_ByItemsNoCommission()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.GamerSuppsOrder,
+            Currency = "items",
+            Value = "3",
+            SecondaryValue = "2.00|USD"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.True(sub.MillisecondsCumulative > 0);
+        Assert.False(sub.MoneySum > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("items", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(12 * 3, ev2.SecondsValue);
+        
+        await conn.CloseAsync();
+        await service.StopAsync();
+    }
+    
+    
+    [Fact]
+    public async Task BitsCheerEvent_AsDonation()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchCheer,
+            Currency = "bits",
+            Value = "30",
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.True(sub.MillisecondsCumulative > 0);
+        Assert.True(sub.MoneySum > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("bits", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.True(ev2.SecondsValue > 0);
+        Assert.True(ev2.SecondsValue < 10);
+        
+        await conn.CloseAsync();
+        await service.StopAsync();
+    }
+    
+    [Fact]
+    public async Task OrderEvent_ByOrderNoCommission()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.GamerSuppsOrder,
+            Currency = "order",
+            Value = "New",
+            SecondaryValue = "2.00|USD"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        
+        sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.True(sub.MillisecondsCumulative > 0);
+        Assert.False(sub.MoneySum > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("order", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(12, ev2.SecondsValue);
+        
+        await conn.CloseAsync();
+        await service.StopAsync();
+    }
     [Fact]
     public async Task DuplicateEvent_IsDetected()
     {
@@ -280,6 +509,7 @@ public class EventServiceTests
         Assert.True(dupe2);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -305,12 +535,13 @@ public class EventServiceTests
         Assert.False(dupe);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
     public async Task DeleteSubathonEvent_RemovesPointsAndTime()
     {
-        var (service, options, conn) = await SetupServiceWithDb(0);
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
 
         await using var db = new AppDbContext(options);
         var sub = await db.SubathonDatas.FirstAsync();
@@ -342,13 +573,57 @@ public class EventServiceTests
         Assert.Equal(10, sub2.Points);
         Assert.Equal(120000, sub2.MillisecondsCumulative);
 
-        service.DeleteSubathonEvent(db, ev);
+        await service.DeleteSubathonEvent(db, ev);
         await Task.Delay(50);
         db.ChangeTracker.Clear();
 
         var subUpdated = await db.SubathonDatas.FirstAsync();
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
+    }
+    
+    
+    [Fact]
+    public async Task DeleteOrderTypeSubathonEvent_RemovesPointsAndTimeAndMoney()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        Assert.Equal(0, sub.Points);
+        Assert.Equal(0, sub.MillisecondsCumulative);
+
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.UwUMarketOrder,
+            SecondaryValue = "2.00|USD",
+            Value = "10.00",
+            Currency = "USD"
+        };
+        
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+
+        db.ChangeTracker.Clear();
+        
+        var sub2 = await db.SubathonDatas.FirstAsync();
+        Assert.Equal(0, sub2.Points);
+        Assert.Equal(12 * 10 * 1000, sub2.MillisecondsCumulative);
+        Assert.True(sub2.MoneySum > 0);
+        Assert.Equal(2, sub2.MoneySum);
+
+        await service.DeleteSubathonEvent(db, ev);
+        await Task.Delay(50);
+        db.ChangeTracker.Clear();
+
+        var subUpdated = await db.SubathonDatas.FirstAsync();
+        Assert.Equal(0, subUpdated.Points);
+        Assert.Equal(0, subUpdated.MillisecondsCumulative);
+        Assert.Equal(0, sub2.MoneySum);
     }
     
     [Fact]
@@ -397,9 +672,100 @@ public class EventServiceTests
     }
     
     [Fact]
+    public async Task UndoSimulatedEvents_RemovesSingleOrderCommissionEvent()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0);
+        await using var db = new AppDbContext(options);
+
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            SubathonId = sub.Id,
+            Source = SubathonEventSource.Simulated,
+            User = "SYSTEM",
+            EventType = SubathonEventType.UwUMarketOrder,
+            Value = "10",
+            Currency = "USD",
+            SecondaryValue = "2.00|USD",
+            PointsValue = 5,
+            SecondsValue = 10,
+            ProcessedToSubathon = true
+        };
+
+        sub.Points += (int) ev.PointsValue;
+        sub.MillisecondsCumulative += (int) ev.SecondsValue * 1000;
+        sub.MoneySum += 2;
+        db.SubathonEvents.Add(ev);
+        await db.SaveChangesAsync();
+
+        var subUpdated = await db.SubathonDatas.FirstAsync();
+        Assert.NotEqual(0, subUpdated.Points);
+        Assert.NotEqual(0, subUpdated.MillisecondsCumulative);
+        Assert.NotEqual(0, subUpdated.MoneySum);
+        
+        await Task.Run(() => service.UndoSimulatedEvents(db, new List<SubathonEvent> { ev }));
+        await Task.Delay(50);
+        db.ChangeTracker.Clear();
+        
+        var subUpdated2 = await db.SubathonDatas.FirstAsync();
+        Assert.Equal(0, subUpdated2.Points);
+        Assert.Equal(0, subUpdated2.MillisecondsCumulative);
+        Assert.Equal(0, subUpdated2.MoneySum);
+    }
+
+    [Fact]
+    public async Task UndoSimulatedEvents_RemovesSingleBitsCheerEvent()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0);
+        await using var db = new AppDbContext(options);
+
+        var sub = await db.SubathonDatas.FirstAsync();
+        sub.IsLocked = false;
+        await db.SaveChangesAsync();
+
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            SubathonId = sub.Id,
+            Source = SubathonEventSource.Simulated,
+            User = "SYSTEM",
+            EventType = SubathonEventType.TwitchCheer,
+            Value = "30",
+            Currency = "bits",
+            PointsValue = 5,
+            SecondsValue = 10,
+            ProcessedToSubathon = true
+        };
+
+        sub.Points += (int) ev.PointsValue;
+        sub.MillisecondsCumulative += (int) ev.SecondsValue * 1000;
+        sub.MoneySum += 0.3;
+        db.SubathonEvents.Add(ev);
+        await db.SaveChangesAsync();
+
+        var subUpdated = await db.SubathonDatas.FirstAsync();
+        Assert.NotEqual(0, subUpdated.Points);
+        Assert.NotEqual(0, subUpdated.MillisecondsCumulative);
+        Assert.NotEqual(0, subUpdated.MoneySum);
+        
+        await Task.Run(() => service.UndoSimulatedEvents(db, new List<SubathonEvent> { ev }));
+        await Task.Delay(50);
+        db.ChangeTracker.Clear();
+        
+        var subUpdated2 = await db.SubathonDatas.FirstAsync();
+        Assert.Equal(0, subUpdated2.Points);
+        Assert.Equal(0, subUpdated2.MillisecondsCumulative);
+        Assert.Equal(0, subUpdated2.MoneySum);
+    }
+
+    [Fact]
     public async Task HypeTrainStart_UpdatesMultiplier()
     {
-        var (service, options, conn) = await SetupServiceWithDb();
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
@@ -408,14 +774,65 @@ public class EventServiceTests
         };
         var (processed, dupe) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
+        
+        await using var db = new AppDbContext(options);
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Contains("start | x2", ev2.Value);
+    }
+    
+    
+    [Fact]
+    public async Task HypeTrain_UpdatesMultiplier()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchHypeTrain,
+            Value = "start"
+        };
+        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        
+        await using var db = new AppDbContext(options);
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Contains(ev2.Value, "start | x2 Points Time");
+        
+        var mult1 = await db.MultiplierDatas.FirstAsync();
+        Assert.True(mult1.IsRunning());
+        
+        var ev3 = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchHypeTrain,
+            Value = "progress",
+            Amount = 2
+        };
+        (processed, dupe) = await service.ProcessSubathonEvent(ev3);
+        Assert.True(processed);   
+        
+        var ev4 = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchHypeTrain,
+            Value = "end",
+            Amount = 3
+        };
+        (processed, dupe) = await service.ProcessSubathonEvent(ev4);
+        Assert.True(processed);
+        await db.Entry(mult1).ReloadAsync();
+        Assert.False(mult1.IsRunning());
     }
 
+    
     [Fact]
     public async Task HypeTrainEnd_ResetsMultiplier()
     {
         var (service, options, conn) = await SetupServiceWithDb();
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync();
+        var sub = await db.SubathonDatas.Include(subathonData => subathonData.Multiplier).FirstAsync();
         sub.Multiplier.FromHypeTrain = true;
         await db.SaveChangesAsync();
 
@@ -464,7 +881,7 @@ public class EventServiceTests
     {
         var (service, options, conn) = await SetupServiceWithDb();
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync();
+        var sub = await db.SubathonDatas.Include(subathonData => subathonData.Multiplier).FirstAsync();
         sub.Multiplier.Multiplier = 5;
         await db.SaveChangesAsync();
 
@@ -472,7 +889,8 @@ public class EventServiceTests
         var (processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
-        sub = await db.SubathonDatas.Include(s => s.Multiplier).FirstAsync();
+        await db.Entry(sub).ReloadAsync();
+        await db.Entry(sub.Multiplier).ReloadAsync();
         Assert.Equal(1, sub.Multiplier.Multiplier);
     }
 
@@ -568,6 +986,7 @@ public class EventServiceTests
         }
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
 
     [Fact]
@@ -591,6 +1010,7 @@ public class EventServiceTests
         Assert.True(sub.MoneySum > 0);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -617,6 +1037,7 @@ public class EventServiceTests
         Assert.True(ev.WasReversed);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -704,6 +1125,7 @@ public class EventServiceTests
         Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (7 * 60 * 1000));
         
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -725,6 +1147,7 @@ public class EventServiceTests
         Assert.Equal(0, ev.SecondsValue);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Fact]
@@ -743,6 +1166,7 @@ public class EventServiceTests
         Assert.True(processed);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
     
     [Theory]
@@ -766,5 +1190,6 @@ public class EventServiceTests
         Assert.False(dupe);
 
         await conn.CloseAsync();
+        await service.StopAsync();
     }
 }

@@ -153,25 +153,36 @@ namespace SubathonManager.Data
                 }
             }
         }
-        
-        public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db, bool includeBits = false)
+
+        public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db)
         {
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
             if (subathon == null) return new List<SubathonEvent>();
-            
-            List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e => 
-                    e.SubathonId == subathon.Id && e.ProcessedToSubathon && 
+
+            List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e =>
+                    e.SubathonId == subathon.Id && e.ProcessedToSubathon &&
                     !string.IsNullOrWhiteSpace(e.Currency)
-                && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
+                    && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
                 .ToListAsync();
 
-            events = events.Where(e => e.EventType.IsCurrencyDonation() ||
-                                       (includeBits && 
-                                        SubathonEventTypeHelper.CheerTypes.Contains
-                                            ((SubathonEventType) e.EventType!))).ToList();
+            bool includeBits = Utils.DonationSettings.TryGetValue("BitsLikeAsDonation",  out bool bitslike) && bitslike ;
+            List<SubathonEventType> orderTypesToInclude = new List<SubathonEventType>();
+            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            {
+                bool asDonation = Utils.DonationSettings.TryGetValue($"{goAffProSource}", out  bool donation) && donation;
+                if (asDonation && Enum.TryParse($"{goAffProSource}Order", out SubathonEventType eventType))
+                    orderTypesToInclude.Add(eventType);
+            }
+
+            events = events.Where(e => e.EventType != null && 
+                                       (e.EventType.IsCurrencyDonation() ||
+                                        (e.EventType.IsOrderType() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
+                                        (includeBits &&
+                                         SubathonEventTypeHelper.CheerTypes.Contains
+                                             ((SubathonEventType)e.EventType)))).ToList();
             return events;
         }
-        
+
         public static async Task ActiveEventsToCsv(AppDbContext db)
         {
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
@@ -184,7 +195,7 @@ namespace SubathonManager.Data
             string filepath = $"{exportDir}/subathon-{subathon.Id}.csv";
             
             var sb = new StringBuilder();
-            sb.AppendLine("Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp");
+            sb.AppendLine("Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp,Secondary Value");
             foreach (var e in events)
             {
                 sb.AppendLine(string.Join(",",
@@ -203,7 +214,8 @@ namespace SubathonManager.Data
                     e.ProcessedToSubathon,
                     e.GetFinalSecondsValueRaw(),
                     e.GetFinalPointsValue(),
-                    e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss")
+                    e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Utils.EscapeCsv(e.SecondaryValue)
                 ));
             }
             await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
@@ -299,6 +311,9 @@ namespace SubathonManager.Data
                 // PicartoMonth subs, treat as amount? = months * quantity = amount
                 new SubathonValue { EventType = SubathonEventType.PicartoTip, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.PicartoFollow, Seconds = 0 },
+                // assuming defaults for order types are by Dollar, we set at 12s
+                new SubathonValue { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
+                new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
                 
             };
 

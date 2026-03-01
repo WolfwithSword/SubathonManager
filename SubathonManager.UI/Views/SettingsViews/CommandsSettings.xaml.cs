@@ -1,43 +1,62 @@
 ﻿using System.Windows.Controls;
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
+using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class CommandsSettings : UserControl
+public partial class CommandsSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     public CommandsSettings()
     {
         InitializeComponent();
     }
 
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
         InitCommandSettings();
     }
-    
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override bool UpdateValueSettings(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
     private void InitCommandSettings()
     {
         bool hasNewCommands = false;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
         foreach (SubathonCommandType commandType in Enum.GetValues(typeof(SubathonCommandType)))
         {
             if (commandType == SubathonCommandType.None || commandType == SubathonCommandType.Unknown) continue;
             // 200 | 30 blank | 200 | 120 | 120 | remain
             // enum / blank / name / mods / vips / whitelist 
-            bool.TryParse(App.AppConfig!.Get("Chat", $"Commands.{commandType}.permissions.Mods", "false")!, out var checkMods);
-            bool.TryParse(App.AppConfig!.Get("Chat",$"Commands.{commandType}.permissions.VIPs", "false")!, out var checkVips);
-            string name = App.AppConfig!.Get("Chat",$"Commands.{commandType}.name", commandType.ToString().ToLower())!;
-            string whitelist = App.AppConfig!.Get("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty)!;
+            var checkMods = config.GetBool("Chat", $"Commands.{commandType}.permissions.Mods", false);
+            var checkVips = config.GetBool("Chat", $"Commands.{commandType}.permissions.VIPs", false);
+            string name = config.Get("Chat",$"Commands.{commandType}.name", commandType.ToString().ToLower())!;
+            string whitelist = config.Get("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty)!;
             
-            if (App.AppConfig!.Get("Chat",$"Commands.{commandType}.name") == string.Empty
+            if (config.Get("Chat",$"Commands.{commandType}.name") == string.Empty
                 && !checkMods && !checkVips && whitelist == string.Empty)
             {
-                App.AppConfig!.Set("Chat", $"Commands.{commandType}.name", name);
-                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.Mods", "False");
-                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.VIPs", "False");
-                App.AppConfig!.Set("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty);
+                config.Set("Chat", $"Commands.{commandType}.name", name);
+                config.SetBool("Chat", $"Commands.{commandType}.permissions.Mods", false);
+                config.SetBool("Chat", $"Commands.{commandType}.permissions.VIPs", false);
+                config.Set("Chat", $"Commands.{commandType}.permissions.Whitelist", string.Empty);
                 hasNewCommands = true;
             }
 
@@ -101,44 +120,40 @@ public partial class CommandsSettings : UserControl
         }
 
         if (hasNewCommands)
-            App.AppConfig!.Save();
+            config.Save();
     }
     
-    public void UpdateValueSettings()
+    public override bool UpdateConfigValueSettings()
     {
+        bool hasUpdated = false;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
         foreach (var child in CommandListPanel.Children)
         {
-            if (child is StackPanel entry)
-
-                if (entry.Children[0] is TextBlock enumType)
-                {
-                    string key = $"Commands.{enumType.Text}";
+            if (child is not StackPanel entry) continue;
+            if (entry.Children[0] is not TextBlock enumType) continue;
+            string key = $"Commands.{enumType.Text}";
                         
-                    if (entry.Children[1] is TextBox enumName &&
-                        App.AppConfig!.Get("Chat", $"{key}.name") != enumName.Text.Trim())
-                    {
-                        App.AppConfig!.Set("Chat", $"{key}.name", enumName.Text.Trim());
-                    }
+            if (entry.Children[1] is TextBox enumName)
+            {
+                hasUpdated |= config.Set("Chat", $"{key}.name", enumName.Text.Trim());
+            }
                     
-                    if (entry.Children[2] is CheckBox doMods &&
-                        App.AppConfig!.Get("Chat", $"{key}.permissions.Mods") != $"{doMods.IsChecked}")
-                    {
-                        App.AppConfig!.Set("Chat", $"{key}.permissions.Mods",  $"{doMods.IsChecked}");
-                    }
+            if (entry.Children[2] is CheckBox doMods)
+            {
+                hasUpdated |= config.Set("Chat", $"{key}.permissions.Mods",  $"{doMods.IsChecked}");
+            }
 
-                    if (entry.Children[3] is CheckBox doVips &&
-                        App.AppConfig!.Get("Chat", $"{key}.permissions.VIPs") != $"{doVips.IsChecked}")
-                    {
-                        App.AppConfig!.Set("Chat", $"{key}.permissions.VIPs", $"{doVips.IsChecked}");
-                    }
+            if (entry.Children[3] is CheckBox doVips)
+            {
+                hasUpdated |= config.Set("Chat", $"{key}.permissions.VIPs", $"{doVips.IsChecked}");
+            }
 
-                    if (entry.Children[4] is TextBox whitelist &&
-                        App.AppConfig!.Get("Chat", $"{key}.permissions.Whitelist") != whitelist.Text.Trim())
-                    {
-                        App.AppConfig!.Set("Chat", $"{key}.permissions.Whitelist", whitelist.Text.Trim());
-                    }
-                }
+            if (entry.Children[4] is TextBox whitelist)
+            {
+                hasUpdated |= config.Set("Chat", $"{key}.permissions.Whitelist", whitelist.Text.Trim());
+            }
         }
-        App.AppConfig!.Save();
+
+        return hasUpdated;
     }
 }

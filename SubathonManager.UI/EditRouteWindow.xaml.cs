@@ -13,6 +13,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using Wpf.Ui.Controls;
 
@@ -52,8 +53,14 @@ public partial class EditRouteWindow
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to load overlay editor");
+            _logger?.LogError(ex, "Failed to load overlay editor. WebView2 is not available");
             _loadedWebView = false;
+            Dispatcher.Invoke(() => 
+            {
+                PreviewWebView.Visibility = Visibility.Collapsed;
+                WebViewFallbackPanel.Visibility = Visibility.Visible;
+            });
+            await LoadRouteAsync();
         }
         finally
         {
@@ -61,6 +68,21 @@ public partial class EditRouteWindow
             WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
         }
+    }
+    
+    private void OpenEditorInBrowser_Click(object sender, RoutedEventArgs e)
+    {
+        if (_route == null) return;
+        try
+        {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = _route.GetRouteUrl(config, true),
+                UseShellExecute = true
+            });
+        }
+        catch { /**/ }
     }
     
     private void OnWidgetPositionUpdated(Widget updatedWidget)
@@ -135,7 +157,8 @@ public partial class EditRouteWindow
         WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
         {
-            PreviewWebView.Source = new Uri(_route.GetRouteUrl(App.AppConfig!,true));
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            PreviewWebView.Source = new Uri(_route.GetRouteUrl(config,true));
         }
         catch (Exception ex)
         {
@@ -399,7 +422,8 @@ public partial class EditRouteWindow
         _selectedWidget = db.Widgets.Include(wX => wX.CssVariables)
             .Include(wX => wX.JsVariables)
             .FirstOrDefault(wX => wX.Id == widget.Id);
-        widget = _selectedWidget!;
+        if (_selectedWidget == null) return;
+        widget = _selectedWidget;
 
         WidgetEditPanel.Visibility = Visibility.Visible;
         EmptyEditorPanel.Visibility = Visibility.Collapsed;
@@ -464,7 +488,7 @@ public partial class EditRouteWindow
 
             await db.SaveChangesAsync();
             RefreshWebView();
-            if (sender is Wpf.Ui.Controls.Button button && button.Content is SymbolIcon icon)
+            if (sender is Wpf.Ui.Controls.Button { Content: SymbolIcon icon })
             {
                 Dispatcher.Invoke(() =>
                 {
@@ -499,368 +523,368 @@ public partial class EditRouteWindow
                 Width = 172,
                 TextAlignment = TextAlignment.Left,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = jsVar.Type == WidgetVariableType.EventTypeList || jsVar.Type == WidgetVariableType.EventSubTypeList ?
+                VerticalAlignment = jsVar.Type is WidgetVariableType.EventTypeList or WidgetVariableType.EventSubTypeList ?
                     VerticalAlignment.Top : VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
             
             itemRow.Children.Add(nameBlock);
 
-            if (jsVar.Type == WidgetVariableType.EventTypeList)
+            switch (jsVar.Type)
             {
-                var panelValues = (jsVar.Value ?? "").Split(',',
-                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var border = new Border
+                case WidgetVariableType.EventTypeList:
                 {
-                    BorderBrush = Brushes.Gray,
-                    BorderThickness = new Thickness(1),
-                    Padding = new Thickness(4),
-                    Width = 282,
-                    CornerRadius = new CornerRadius(4),
-                    Margin = new Thickness(0, 4, 0, 2)
-                };
-                
-                var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-                foreach (var eType in Enum.GetNames(typeof(SubathonEventType)).OrderBy(x => x))
-                {
-                    if (eType == nameof(SubathonEventType.Command) ||
-                        eType == nameof(SubathonEventType.Unknown)) continue;
-                    var chkBox = new CheckBox
+                    var panelValues = (jsVar.Value ?? "").Split(',',
+                            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    var expander = new Expander
                     {
-                        Content = new Wpf.Ui.Controls.TextBlock
-                        {
-                            Text = eType,
-                            TextWrapping =  TextWrapping.Wrap,
-                            MaxWidth = 278
-                        },
-                        IsChecked = panelValues.Contains(eType),
-                        Margin = new Thickness(2)
+                        BorderBrush = Brushes.Gray,
+                        BorderThickness = new Thickness(1),
+                        Padding = new Thickness(4),
+                        Width = 290,
+                        Margin = new Thickness(0, 4, 0, 2),
+                        IsExpanded = false,
+                        Header = "Select EventTypes"
                     };
-                    chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
-                    chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
-                    chkboxList.Children.Add(chkBox);
+                
+                    var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
+                    var values = Enum.GetValues<SubathonEventType>()
+                        .Where(x => ((SubathonEventType?)x).IsEnabled())
+                        .Select(x=>x.ToString()).ToList().OrderBy(x => x);
+                    foreach (var eType in values)
+                    {
+                        if (eType is nameof(SubathonEventType.Command) or nameof(SubathonEventType.Unknown)) continue;
+                        var chkBox = new CheckBox
+                        {
+                            Content = new Wpf.Ui.Controls.TextBlock
+                            {
+                                Text = eType,
+                                TextWrapping =  TextWrapping.Wrap,
+                                MaxWidth = 278
+                            },
+                            IsChecked = panelValues.Contains(eType),
+                            Margin = new Thickness(2)
+                        };
+                        chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                        chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                        chkboxList.Children.Add(chkBox);
+                    }
+                    expander.Content = chkboxList;
+                    outerPanel.Children.Add(itemRow);
+                    outerPanel.Children.Add(expander);
+                    break;
                 }
-
-                border.Child = chkboxList;
-                outerPanel.Children.Add(itemRow);
-                outerPanel.Children.Add(border);
-            }
-            else if (jsVar.Type == WidgetVariableType.EventSubTypeList)
-            {
-                var panelValues = (jsVar.Value ?? "").Split(',',
-                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var border = new Border
+                case WidgetVariableType.EventSubTypeList:
                 {
-                    BorderBrush = Brushes.Gray,
-                    BorderThickness = new Thickness(1),
-                    Padding = new Thickness(4),
-                    Width = 282,
-                    CornerRadius = new CornerRadius(4),
-                    Margin = new Thickness(0, 4, 0, 2)
-                };
-                
-                var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-                foreach (var eType in Enum.GetNames(typeof(SubathonEventSubType)).OrderBy(x => x))
-                {
-                    if (eType == nameof(SubathonEventSubType.CommandLike) ||
-                        eType == nameof(SubathonEventSubType.Unknown)) continue;
-                    var chkBox = new CheckBox
-                    {
-                        Content = new Wpf.Ui.Controls.TextBlock
-                        {
-                            Text = eType,
-                            TextWrapping =  TextWrapping.Wrap,
-                            MaxWidth = 278
-                        },
-                        IsChecked = panelValues.Contains(eType),
-                        Margin = new Thickness(2)
-                    };
-                    chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
-                    chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
-                    chkboxList.Children.Add(chkBox);
-                }
-
-                border.Child = chkboxList;
-                outerPanel.Children.Add(itemRow);
-                outerPanel.Children.Add(border);
-            }
-            else if (jsVar.Type == WidgetVariableType.Boolean)
-            {
-                bool.TryParse(jsVar.Value, out bool isChecked);
-                var chkBox = new CheckBox
-                {
-                    Content = new Wpf.Ui.Controls.TextBlock
-                    {
-                        Text = string.Empty,
-                        TextWrapping =  TextWrapping.Wrap,
-                        MaxWidth = 150
-                    },
-                    IsChecked = isChecked,
-                    Margin = new Thickness(2)
-                };
-                chkBox.Checked += (_, __) => jsVar.Value = "True";
-                chkBox.Unchecked += (_, __) => jsVar.Value = "False";
-                itemRow.Children.Add(chkBox);
-                outerPanel.Children.Add(itemRow);
-            }
-            else if (jsVar.Type == WidgetVariableType.EventTypeSelect)
-            {
-                var values = Enum.GetValues<SubathonEventType>()
-                    .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
-                    .Select(x=>x.ToString()).ToList().OrderBy(x => x);
-                var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
-                var typeList = new ComboBox
-                {
-                    Margin = new Thickness(2),
-                    IsEditable=true, IsTextSearchEnabled=true, 
-                    StaysOpenOnEdit=true,
-                    MaxWidth = 146,
-                    Width = 146
-                };
-                typeList.Items.Add(string.Empty);
-                foreach (var val in values)
-                    typeList.Items.Add(val);
-                typeList.SelectedValue = selected;
-                typeList.SelectionChanged += (_, __) =>
-                {
-                    jsVar.Value = $"{typeList.SelectedValue}";
-                };
-                itemRow.Children.Add(typeList);
-                outerPanel.Children.Add(itemRow);
-            }
-            else if (jsVar.Type == WidgetVariableType.EventSubTypeSelect)
-            {
-                var values = Enum.GetValues<SubathonEventSubType>()
-                    .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
-                    .Select(x=>x.ToString()).ToList().OrderBy(x => x);
-                var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
-                var typeList = new ComboBox
-                {
-                    Margin = new Thickness(2),
-                    IsEditable=true, IsTextSearchEnabled=true, 
-                    StaysOpenOnEdit=true,
-                    MaxWidth = 146,
-                    Width = 146
-                };
-                typeList.Items.Add(string.Empty);
-                foreach (var val in values)
-                    typeList.Items.Add(val);
-                typeList.SelectedValue = selected;
-                typeList.SelectionChanged += (_, __) =>
-                {
-                    jsVar.Value = $"{typeList.SelectedValue}";
-                };
-                itemRow.Children.Add(typeList);
-                outerPanel.Children.Add(itemRow);
-            }
-            else if (jsVar.Type == WidgetVariableType.StringSelect)
-            {
-                var values = jsVar.Value!.Trim().Split(',');
-                var selected = values.Length > 0 ? values[0] : string.Empty;
-                var stringList = new ComboBox
-                {
-                    Margin = new Thickness(2),
-                    MaxWidth = 146,
-                    Width = 146
-                };
-                foreach (var val in values)
-                    stringList.Items.Add(val);
-                stringList.SelectedValue = selected;
-                stringList.SelectionChanged += (_, __) =>
-                {
-                    if (!jsVar.Value.Contains(',')) return;
-                    if (jsVar.Value.Contains(',') && jsVar.Value.StartsWith($"{stringList.SelectedValue},")) return;
-                    var newVal = new List<string>
-                    {
-                        $"{stringList.SelectedValue}"
-                    };
-                    foreach (var v in values)
-                    {
-                        if (newVal.Contains(v)) continue;
-                        newVal.Add(v);
-                    }
-                    jsVar.Value = string.Join(',', newVal);
-
-                };
-                itemRow.Children.Add(stringList);
-                outerPanel.Children.Add(itemRow);
-            }
-            else if (((WidgetVariableType?)jsVar.Type).IsFileVariable())
-            {
-                var shortContent = string.IsNullOrWhiteSpace(jsVar.Value) ? "Empty" : jsVar.Value.Split('/').Last();
-                if (string.IsNullOrWhiteSpace(shortContent)) shortContent = "./";
-                var valueBtn = new Wpf.Ui.Controls.Button
-                {
-                    Content = shortContent,
-                    Width = 150,
-                    ToolTip = jsVar.Value,
-                    Margin = new Thickness(0,0, 0, 4),
-                };
-                valueBtn.Click += (_, __) =>
-                {
-                    var path = SelectFileVarPathDialog(jsVar.Type);
-                    if (!string.IsNullOrWhiteSpace(path))
-                    {
-                        path = Path.GetFullPath(path).Replace('\\', '/');
-                        //var dir = jsVar.Type == WidgetVariableType.FolderPath ? path : Path.GetDirectoryName(Path.GetFullPath(path));
-                        //dir = dir!.Replace('\\', '/');
-                        var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
-                        widgetDir = widgetDir!.Replace('\\', '/');
-                        
-                        if (path!.Contains(widgetDir!))
-                        {
-                            path = path.Replace(widgetDir!, "./").Replace("//", "/");
-                        }
-                        jsVar.Value = path;
-                        valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
-                        valueBtn.ToolTip = path;
-                    }
-                };
-                
-                var openBtn = new Wpf.Ui.Controls.Button
-                {
-                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Open24 },
-                    ToolTip = "Open",
-                    Width = 40,
-                    Height = 30,
-                    Margin = new Thickness(0,0, 55, 2),
-                    Padding = new Thickness(2)
-                };
-                
-                openBtn.Click  += (_, __) =>
-                {
-                    var file = jsVar.Value;
-                    if (string.IsNullOrWhiteSpace(file)) return;
-                    if (file.StartsWith('.'))
-                    {
-                        var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
-                        file = Path.Join(widgetDir, file.Replace("./", ""));
-                    }
-
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = file,
-                        UseShellExecute = true
-                    });
-                };
-
-                var removeBtn = new Wpf.Ui.Controls.Button
-                {
-                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24 },
-                    Width = 40,
-                    Height = 30,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    ToolTip = $"Clear Value",
-                    Foreground = System.Windows.Media.Brushes.Red,
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    Margin = new Thickness(15, 0, 0, 0),
-                    Padding = new Thickness(2)
-                };
-
-                removeBtn.Click  += (_, __) =>
-                {
-                    jsVar.Value = string.Empty;
-                    valueBtn.Content = "Empty";
-                    valueBtn.ToolTip = string.Empty;
+                    var panelValues = (jsVar.Value ?? "").Split(',',
+                            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
                     
-                };
-                var btnRow = new StackPanel { Orientation = Orientation.Vertical };
-                var btnRow2 = new StackPanel { Orientation = Orientation.Horizontal };
-                btnRow.Children.Add(valueBtn);
-                btnRow2.Children.Add(openBtn);
-                btnRow2.Children.Add(removeBtn);
-                btnRow.Children.Add(btnRow2);
-                itemRow.Children.Add(btnRow);
-                
-                outerPanel.Children.Add(itemRow);
-            }
-            else
-            {
-                var txtBox = new Wpf.Ui.Controls.TextBox
-                {
-                    Text = jsVar.Value,
-                    Width = 150
-                };
-
-                if (jsVar.Type == WidgetVariableType.Int)
-                {
-                    txtBox.PreviewTextInput += (s, e) =>
+                    var expander = new Expander
                     {
-                        var tb = (Wpf.Ui.Controls.TextBox)s;
-
-                        if (char.IsDigit(e.Text, 0))
-                        {
-                            e.Handled = false;
-                            return;
-                        }
-
-                        if (e.Text == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
-                        {
-                            e.Handled = false;
-                            return;
-                        }
-
-                        e.Handled = true;
+                        BorderBrush = Brushes.Gray,
+                        BorderThickness = new Thickness(1),
+                        Padding = new Thickness(4),
+                        Width = 290,
+                        Margin = new Thickness(0, 4, 0, 2),
+                        IsExpanded = false,
+                        Header = "Select Event Groups"
                     };
-                }
-                else if (jsVar.Type == WidgetVariableType.Percent)
-                {
-                    txtBox.PreviewTextInput += (s, e) =>
-                    {
-                        var tb = (Wpf.Ui.Controls.TextBox)s;
-
-                        var newText = tb.Text.Remove(tb.SelectionStart, tb.SelectionLength)
-                            .Insert(tb.SelectionStart, e.Text);
-
-                        if (!int.TryParse(newText, out var value) || value < 0 || value > 100)
-                        {
-                            e.Handled = true;
-                        }
-                    };
-                }
-                else if (jsVar.Type == WidgetVariableType.Float)
-                {
-                    txtBox.PreviewTextInput += (s, e) =>
-                    {
-                        var tb = (Wpf.Ui.Controls.TextBox)s;
-                        string incoming = e.Text;
-
-                        if (char.IsDigit(incoming, 0))
-                        {
-                            e.Handled = false;
-                            return;
-                        }
-
-                        if (incoming == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
-                        {
-                            e.Handled = false;
-                            return;
-                        }
-
-                        if (incoming == "." && !tb.Text.Contains('.'))
-                        {
-                            e.Handled = false;
-                            return;
-                        }
-
-                        e.Handled = true;
-                    };
-
-                }
-                txtBox.Text = jsVar.Value;
-
-                txtBox.TextChanged += (s, e) =>
-                {
-                    if (jsVar.Type == WidgetVariableType.Percent && string.IsNullOrWhiteSpace(txtBox.Text))
-                        txtBox.Text = "0";
-                    jsVar.Value = txtBox.Text!;
-                };
                 
-                itemRow.Children.Add(txtBox);
+                    var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
+                    foreach (var eType in Enum.GetNames(typeof(SubathonEventSubType)).OrderBy(x => x))
+                    {
+                        if (eType is nameof(SubathonEventSubType.CommandLike) or nameof(SubathonEventSubType.Unknown)) continue;
+                        var chkBox = new CheckBox
+                        {
+                            Content = new Wpf.Ui.Controls.TextBlock
+                            {
+                                Text = eType,
+                                TextWrapping =  TextWrapping.Wrap,
+                                MaxWidth = 278
+                            },
+                            IsChecked = panelValues.Contains(eType),
+                            Margin = new Thickness(2)
+                        };
+                        chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                        chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
+                        chkboxList.Children.Add(chkBox);
+                    }
+
+                    expander.Content = chkboxList;
+                    outerPanel.Children.Add(itemRow);
+                    outerPanel.Children.Add(expander);
+                    break;
+                }
+                case WidgetVariableType.Boolean:
+                {
+                    bool.TryParse(jsVar.Value, out bool isChecked);
+                    var chkBox = new CheckBox
+                    {
+                        Content = new Wpf.Ui.Controls.TextBlock
+                        {
+                            Text = string.Empty,
+                            TextWrapping =  TextWrapping.Wrap,
+                            MaxWidth = 150
+                        },
+                        IsChecked = isChecked,
+                        Margin = new Thickness(2)
+                    };
+                    chkBox.Checked += (_, __) => jsVar.Value = "True";
+                    chkBox.Unchecked += (_, __) => jsVar.Value = "False";
+                    itemRow.Children.Add(chkBox);
+                    outerPanel.Children.Add(itemRow);
+                    break;
+                }
+                case WidgetVariableType.EventTypeSelect:
+                {
+                    var values = Enum.GetValues<SubathonEventType>()
+                        .Where(x => ((SubathonEventType?)x).IsEnabled())
+                        .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
+                        .Select(x=>x.ToString()).ToList().OrderBy(x => x);
+                    var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
+                    var typeList = new ComboBox
+                    {
+                        Margin = new Thickness(2),
+                        IsEditable=true, IsTextSearchEnabled=true, 
+                        StaysOpenOnEdit=true,
+                        MaxWidth = 146,
+                        Width = 146
+                    };
+                    typeList.Items.Add(string.Empty);
+                    foreach (var val in values)
+                        typeList.Items.Add(val);
+                    typeList.SelectedValue = selected;
+                    typeList.SelectionChanged += (_, __) =>
+                    {
+                        jsVar.Value = $"{typeList.SelectedValue}";
+                    };
+                    itemRow.Children.Add(typeList);
+                    outerPanel.Children.Add(itemRow);
+                    break;
+                }
+                case WidgetVariableType.EventSubTypeSelect:
+                {
+                    var values = Enum.GetValues<SubathonEventSubType>()
+                        .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
+                        .Select(x=>x.ToString()).ToList().OrderBy(x => x);
+                    var selected = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
+                    var typeList = new ComboBox
+                    {
+                        Margin = new Thickness(2),
+                        IsEditable=true, IsTextSearchEnabled=true, 
+                        StaysOpenOnEdit=true,
+                        MaxWidth = 146,
+                        Width = 146
+                    };
+                    typeList.Items.Add(string.Empty);
+                    foreach (var val in values)
+                        typeList.Items.Add(val);
+                    typeList.SelectedValue = selected;
+                    typeList.SelectionChanged += (_, __) =>
+                    {
+                        jsVar.Value = $"{typeList.SelectedValue}";
+                    };
+                    itemRow.Children.Add(typeList);
+                    outerPanel.Children.Add(itemRow);
+                    break;
+                }
+                case WidgetVariableType.StringSelect:
+                {
+                    var values = jsVar.Value.Trim().Split(',');
+                    var selected = values.Length > 0 ? values[0] : string.Empty;
+                    var stringList = new ComboBox
+                    {
+                        Margin = new Thickness(2),
+                        MaxWidth = 146,
+                        Width = 146
+                    };
+                    foreach (var val in values)
+                        stringList.Items.Add(val);
+                    stringList.SelectedValue = selected;
+                    stringList.SelectionChanged += (_, __) =>
+                    {
+                        if (!jsVar.Value.Contains(',')) return;
+                        if (jsVar.Value.Contains(',') && jsVar.Value.StartsWith($"{stringList.SelectedValue},")) return;
+                        var newVal = new List<string>
+                        {
+                            $"{stringList.SelectedValue}"
+                        };
+                        foreach (var v in values)
+                        {
+                            if (newVal.Contains(v)) continue;
+                            newVal.Add(v);
+                        }
+                        jsVar.Value = string.Join(',', newVal);
+
+                    };
+                    itemRow.Children.Add(stringList);
+                    outerPanel.Children.Add(itemRow);
+                    break;
+                }
+                default:
+                {
+                    if (((WidgetVariableType?)jsVar.Type).IsFileVariable())
+                    {
+                        var shortContent = string.IsNullOrWhiteSpace(jsVar.Value) ? "Empty" : jsVar.Value.Split('/').Last();
+                        if (string.IsNullOrWhiteSpace(shortContent)) shortContent = "./";
+                        var valueBtn = new Wpf.Ui.Controls.Button
+                        {
+                            Content = shortContent,
+                            Width = 150,
+                            ToolTip = jsVar.Value,
+                            Margin = new Thickness(0,0, 0, 4),
+                        };
+                        valueBtn.Click += (_, __) =>
+                        {
+                            var path = SelectFileVarPathDialog(jsVar.Type);
+                            if (!string.IsNullOrWhiteSpace(path))
+                            {
+                                path = Path.GetFullPath(path).Replace('\\', '/');
+                                var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
+                                widgetDir = widgetDir!.Replace('\\', '/');
+                        
+                                if (path.Contains(widgetDir))
+                                {
+                                    path = path.Replace(widgetDir, "./").Replace("//", "/");
+                                }
+                                jsVar.Value = path;
+                                valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
+                                valueBtn.ToolTip = path;
+                            }
+                        };
                 
-                outerPanel.Children.Add(itemRow);
+                        var openBtn = new Wpf.Ui.Controls.Button
+                        {
+                            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Open24 },
+                            ToolTip = "Open",
+                            Width = 40,
+                            Height = 30,
+                            Margin = new Thickness(0,0, 55, 2),
+                            Padding = new Thickness(2)
+                        };
+                
+                        openBtn.Click  += (_, __) =>
+                        {
+                            var file = jsVar.Value;
+                            if (string.IsNullOrWhiteSpace(file)) return;
+                            if (file.StartsWith('.'))
+                            {
+                                var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath);
+                                file = Path.Join(widgetDir, file.Replace("./", ""));
+                            }
+
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = file,
+                                UseShellExecute = true
+                            });
+                        };
+
+                        var removeBtn = new Wpf.Ui.Controls.Button
+                        {
+                            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24 },
+                            Width = 40,
+                            Height = 30,
+                            HorizontalAlignment = HorizontalAlignment.Right,
+                            ToolTip = $"Clear Value",
+                            Foreground = System.Windows.Media.Brushes.Red,
+                            Cursor = System.Windows.Input.Cursors.Hand,
+                            Margin = new Thickness(15, 0, 0, 0),
+                            Padding = new Thickness(2)
+                        };
+
+                        removeBtn.Click  += (_, __) =>
+                        {
+                            jsVar.Value = string.Empty;
+                            valueBtn.Content = "Empty";
+                            valueBtn.ToolTip = string.Empty;
+                    
+                        };
+                        var btnRow = new StackPanel { Orientation = Orientation.Vertical };
+                        var btnRow2 = new StackPanel { Orientation = Orientation.Horizontal };
+                        btnRow.Children.Add(valueBtn);
+                        btnRow2.Children.Add(openBtn);
+                        btnRow2.Children.Add(removeBtn);
+                        btnRow.Children.Add(btnRow2);
+                        itemRow.Children.Add(btnRow);
+                
+                        outerPanel.Children.Add(itemRow);
+                    }
+                    else
+                    {
+                        var txtBox = new Wpf.Ui.Controls.TextBox
+                        {
+                            Text = jsVar.Value,
+                            Width = 150
+                        };
+
+                        switch (jsVar.Type)
+                        {
+                            case WidgetVariableType.Int:
+                                txtBox.PreviewTextInput += (s, e) =>
+                                {
+                                    var tb = (Wpf.Ui.Controls.TextBox)s;
+
+                                    if (char.IsDigit(e.Text, 0) ||
+                                        e.Text == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
+                                    {
+                                        e.Handled = false;
+                                        return;
+                                    }
+
+                                    e.Handled = true;
+                                };
+                                break;
+                            case WidgetVariableType.Percent:
+                                txtBox.PreviewTextInput += (s, e) =>
+                                {
+                                    var tb = (Wpf.Ui.Controls.TextBox)s;
+
+                                    var newText = tb.Text.Remove(tb.SelectionStart, tb.SelectionLength)
+                                        .Insert(tb.SelectionStart, e.Text);
+
+                                    if (!int.TryParse(newText, out var value) || value < 0 || value > 100)
+                                    {
+                                        e.Handled = true;
+                                    }
+                                };
+                                break;
+                            case WidgetVariableType.Float:
+                                txtBox.PreviewTextInput += (s, e) =>
+                                {
+                                    var tb = (Wpf.Ui.Controls.TextBox)s;
+                                    string incoming = e.Text;
+
+                                    if (char.IsDigit(incoming, 0) || 
+                                        incoming == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-') || 
+                                        incoming == "." && !tb.Text.Contains('.'))
+                                    {
+                                        e.Handled = false;
+                                        return;
+                                    }
+
+                                    e.Handled = true;
+                                };
+                                break;
+                        }
+                        txtBox.Text = jsVar.Value;
+
+                        txtBox.TextChanged += (s, e) =>
+                        {
+                            if (jsVar.Type == WidgetVariableType.Percent && string.IsNullOrWhiteSpace(txtBox.Text))
+                                txtBox.Text = "0";
+                            jsVar.Value = txtBox.Text;
+                        };
+                
+                        itemRow.Children.Add(txtBox);
+                
+                        outerPanel.Children.Add(itemRow);
+                    }
+                    break;
+                }
             }
             outerPanel.Children.Add(new Separator
             {
@@ -892,13 +916,13 @@ public partial class EditRouteWindow
             else
             {
                 // get filter by type
-                var filter = "File|*.*";
-                if (type == WidgetVariableType.ImageFile)
-                    filter = "Image|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.ico";
-                else if (type == WidgetVariableType.SoundFile)
-                    filter = "Sound|*.wav;*.mp3;*.ogg;*.oga;*.opus;*.m4a;";
-                else if (type == WidgetVariableType.VideoFile)
-                    filter = "Video|*.mp4;*.m4v;*.webm;*.ogm";
+                var filter = type switch
+                {
+                    WidgetVariableType.ImageFile => "Image|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.ico",
+                    WidgetVariableType.SoundFile => "Sound|*.wav;*.mp3;*.ogg;*.oga;*.opus;*.m4a;",
+                    WidgetVariableType.VideoFile => "Video|*.mp4;*.m4v;*.webm;*.ogm",
+                    _ => "File|*.*"
+                };
 
                 var dlg = new Microsoft.Win32.OpenFileDialog
                 {
@@ -953,7 +977,6 @@ public partial class EditRouteWindow
         {
             if (_selectedWidget == null) return;
             WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
-            
             
             widgetHelper.SyncCssVariables(_selectedWidget);
             widgetHelper.SyncJsVariables(_selectedWidget);
@@ -1074,7 +1097,7 @@ public partial class EditRouteWindow
                     }
                     catch (Exception ex)
                     {
-                        _logger?.LogError(ex, $"Failed to import widget HTML file {path}");
+                        _logger?.LogError(ex, "Failed to import widget HTML file {Path}", path);
                     }
                     _lastFolder = Path.GetDirectoryName(path)!;
                 }
@@ -1161,7 +1184,8 @@ public partial class EditRouteWindow
         try
         {
             if (_route == null) return;
-            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(App.AppConfig!));
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(config!));
         }
         catch (Exception ex)
         {
@@ -1175,9 +1199,10 @@ public partial class EditRouteWindow
 
         try
         {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
             Process.Start(new ProcessStartInfo
             {
-                FileName = _route.GetRouteUrl(App.AppConfig!),
+                FileName = _route.GetRouteUrl(config!),
                 UseShellExecute = true
             });
         }
@@ -1185,7 +1210,8 @@ public partial class EditRouteWindow
     }
     protected override void OnClosed(EventArgs e)
     {
-        PreviewWebView?.Dispose();
+        if (_loadedWebView)
+            PreviewWebView?.Dispose();
         
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
         WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;

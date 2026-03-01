@@ -49,10 +49,7 @@ namespace SubathonManager.UI.Views
             GoalSetNameBox.Text = _activeGoalSet.Name;
             GoalSetType.SelectedValue = $"{_activeGoalSet.Type ?? GoalsType.Points}";
             
-            Dispatcher.InvokeAsync(() => 
-            {
-                LoadGoals();
-            });
+            Dispatcher.InvokeAsync(LoadGoals);
         }
         
         private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
@@ -137,9 +134,11 @@ namespace SubathonManager.UI.Views
         
         private async void CreateNewGoalSet_Click(object sender, RoutedEventArgs e)
         {
-            var msgBox = new Wpf.Ui.Controls.MessageBox();
-            msgBox.Title = "Create new Goals List";
-            
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Create new Goals List"
+            };
+
             var textBlock = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
@@ -239,7 +238,7 @@ namespace SubathonManager.UI.Views
             await db.SaveChangesAsync();
             if (sender != null && e != null)
             {
-                await Dispatcher.InvokeAsync(() => { LoadGoals(); });
+                await Dispatcher.InvokeAsync(LoadGoals);
                 SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive); 
                 long pts = subathon?.Points ?? 0;
                 if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon!.GetRoundedMoneySum();

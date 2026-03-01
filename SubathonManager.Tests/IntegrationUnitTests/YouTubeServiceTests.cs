@@ -9,6 +9,7 @@ using YTLiveChat.Contracts.Models;
 using YTLiveChat.Contracts.Services;
 using IniParser.Model;
 using System.Reflection;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
@@ -475,12 +476,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             try
             {
-                bool result = service.Start(null);
-
-                Assert.True(result);
+                //bool result = service.Start(null);
+                await service.StartAsync(CancellationToken.None);
                 Assert.False(service.Running); // happens during events
                 await Task.Delay(100);
                 Assert.True(eventRaised);
+                await service.StopAsync(CancellationToken.None);
             }
             finally
             {
