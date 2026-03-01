@@ -177,6 +177,7 @@ public class CurrencyServiceTests
 
         Assert.True(service.IsValidCurrency("USD"));
         File.Delete(tempPath);
+        await service.StopAsync();
     }
     
     [Fact]

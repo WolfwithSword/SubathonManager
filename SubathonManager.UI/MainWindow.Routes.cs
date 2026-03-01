@@ -42,7 +42,7 @@ namespace SubathonManager.UI
             }
             catch
             {
-                _logger?.LogWarning($"Unable to locate presets folder: {path}");
+                _logger?.LogWarning("Unable to locate presets folder: {Path}", path);
             }
         }
 
@@ -55,13 +55,13 @@ namespace SubathonManager.UI
         {
             try
             {
-                if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext != null)
+                if (sender is Wpf.Ui.Controls.Button { DataContext: not null } btn)
                 {
                     dynamic item = btn.DataContext;
                     Route route = item;
 
                     var config = AppServices.Provider.GetRequiredService<IConfig>();
-                    await UiUtils.UiUtils.TrySetClipboardTextAsync(route.GetRouteUrl(config!));
+                    await UiUtils.UiUtils.TrySetClipboardTextAsync(route.GetRouteUrl(config));
                 }
             }
             catch (Exception ex)
@@ -88,7 +88,7 @@ namespace SubathonManager.UI
         
         private void DeleteRoute_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is Route route)
+            if (sender is Wpf.Ui.Controls.Button { DataContext: Route route })
             {
                 using var db = _factory.CreateDbContext();
                 var found = db.Routes.FirstOrDefault(r => r.Id == route.Id);
@@ -104,7 +104,7 @@ namespace SubathonManager.UI
         
         private void DuplicateRoute_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is Route route)
+            if (sender is Wpf.Ui.Controls.Button { DataContext: Route route })
             {
                 using var db = _factory.CreateDbContext();
                 var dbRoute = db.Routes.Include(r => r.Widgets)
@@ -137,7 +137,7 @@ namespace SubathonManager.UI
         
         private void RouteCard_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.DataContext is Route route)
+            if (sender is FrameworkElement { DataContext: Route route })
             {
                 OpenRouteEditor(route);
             }
@@ -149,7 +149,7 @@ namespace SubathonManager.UI
             // open editor window for overlay/route
             // note: All edits in moving elements save LIVE. Widget copy/delete is LIVE.
             // Overlay name/size requires save button. Widget editing requires save button.
-            if (sender is Wpf.Ui.Controls.Button btn && btn.DataContext is Route route)
+            if (sender is Wpf.Ui.Controls.Button { DataContext: Route route })
             {
                 OpenRouteEditor(route);
             }

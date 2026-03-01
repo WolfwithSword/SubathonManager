@@ -883,6 +883,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             // in case any listeners still exist
             var service = new TwitchService(null, MockConfig());
+            await service.StartAsync(CancellationToken.None);
 
             await service.StopAsync(CancellationToken.None);
             await service.StopAsync(CancellationToken.None);

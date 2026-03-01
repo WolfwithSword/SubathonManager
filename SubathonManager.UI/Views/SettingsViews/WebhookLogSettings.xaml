@@ -1,10 +1,11 @@
-﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsViews.WebhookLogSettings"
+﻿<views:SettingsControl x:Class="SubathonManager.UI.Views.SettingsViews.WebhookLogSettings"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:SubathonManager.UI.Views">
     <Expander Header="Discord Webhooks" IsExpanded="False">
         <StackPanel Margin="10,5,0,5">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -33,4 +34,4 @@
             </WrapPanel>
         </StackPanel>
     </Expander>
-</UserControl>
+</views:SettingsControl>

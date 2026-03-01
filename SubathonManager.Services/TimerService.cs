@@ -45,16 +45,14 @@ public class TimerService : IDisposable, IAppService
 
     public void Stop()
     {
-        if (!_cts.IsCancellationRequested)
+        if (_cts.IsCancellationRequested) return;
+        _cts.Cancel();
+        try
         {
-            _cts.Cancel();
-            try
-            {
-                _periodicTimer?.Dispose();
-            }
-            catch { /**/ }
-            _periodicTimer = null;
+            _periodicTimer?.Dispose();
         }
+        catch { /**/ }
+        _periodicTimer = null;
     }
 
     public Task StopAsync(CancellationToken ct = default)

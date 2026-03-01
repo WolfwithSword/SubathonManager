@@ -23,7 +23,7 @@ namespace SubathonManager.UI.Views
             DefaultCurrencyBox.ItemsSource = currencies;
             
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            DefaultCurrencyBox.SelectedItem = config!.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
+            DefaultCurrencyBox.SelectedItem = config.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
             
             StreamElementsSettingsControl.CurrencyBox.ItemsSource = currencies;
             StreamElementsSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
@@ -57,7 +57,7 @@ namespace SubathonManager.UI.Views
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             Process.Start(new ProcessStartInfo
             {
-                FileName = $"http://localhost:{config!.Get("Server", "Port", "14040")}/api/data/amounts",
+                FileName = $"http://localhost:{config.Get("Server", "Port", "14040")}/api/data/amounts",
                 UseShellExecute = true
             });
         }
@@ -78,21 +78,26 @@ namespace SubathonManager.UI.Views
             });
         }
         
-        private void SaveTopAppSettings()
+        private bool SaveTopAppSettings()
         {
+            bool hasUpdated = false;
             string selectedCurrency = DefaultCurrencyBox.Text;
             
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            config!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
+            hasUpdated |= config.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
+            
+
             if (selectedCurrency.Length >= 3)
             {
-                config!.Set("Currency", "Primary", selectedCurrency);
-                config!.Save();
-                ServiceManager.Events.ReInitCurrencyService();
+                if (config.Get("Currency", "Primary", string.Empty) != selectedCurrency)
+                {
+                    hasUpdated |= config.Set("Currency", "Primary", selectedCurrency);
+                    ServiceManager.Events.ReInitCurrencyService();
+                }
             }
             if (int.TryParse(ServerPortTextBox.Text, out var port))
             {
-                config!.Set("Server", "Port", port.ToString());
+                hasUpdated |= config.Set("Server", "Port", port.ToString());
             }
             
             string selectedTheme = (ThemeBox.SelectedItem is ComboBoxItem item) 
@@ -100,11 +105,10 @@ namespace SubathonManager.UI.Views
                 : "";
             if (!string.IsNullOrEmpty(selectedTheme))
             {
-                config!.Set("App", "Theme", selectedTheme);
+                hasUpdated |= config.Set("App", "Theme", selectedTheme);
             }
-
-            ChatExtSettingsControl.SaveConfigValues();
-            config!.Save();
+            hasUpdated |= ChatExtSettingsControl.SaveConfigValues();
+            return hasUpdated;
         }
 
         public void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
@@ -156,43 +160,39 @@ namespace SubathonManager.UI.Views
                 StreamLabsSettingsControl.UpdateValueSettings,
                 KoFiSettingsControl.UpdateValueSettings,
                 ChatExtSettingsControl.UpdateValueSettings,
-                PicartoSettingsControl.UpdateValueSettings
-                
+                PicartoSettingsControl.UpdateValueSettings,
+                GoAffProSettingsControl.UpdateValueSettings
             };
             
-            bool hasUpdated = false;
-            foreach (var updater in updaters)
-            {
-                hasUpdated |= updater(db);
-            }
+            bool hasUpdated = updaters.Aggregate(false, (current, updater) => current | updater(db));
 
             db.SaveChanges();
 
-            if (hasUpdated)
-            {
-                SubathonValueConfigHelper helper = new SubathonValueConfigHelper(null, null);
-                var newData = helper.GetAllAsJson();
-                SubathonEvents.RaiseSubathonValueConfigRequested(newData);
-            }
+            if (!hasUpdated) return;
+            SubathonValueConfigHelper helper = new SubathonValueConfigHelper(null, null);
+            var newData = helper.GetAllAsJson();
+            SubathonEvents.RaiseSubathonValueConfigRequested(newData);
         }
         
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
-            SaveTopAppSettings();
-
+            bool hasUpdated = false;
+            hasUpdated |= SaveTopAppSettings();
             UpdateSubathonValues();
-            
-            TwitchSettingsControl.UpdateConfigValueSettings();
+            hasUpdated |= TwitchSettingsControl.UpdateConfigValueSettings();
             KoFiSettingsControl.RefreshTierCombo();
             YouTubeSettingsControl.RefreshTierCombo();
-            PicartoSettingsControl.UpdateConfigValueSettings();
-            
-            CommandsSettingsControl.UpdateValueSettings();
-            WebhookLogSettingsControl.UpdateValueSettings();
-            
-            var config = AppServices.Provider.GetRequiredService<IConfig>();
-            config!.Save();
-            
+            hasUpdated |= PicartoSettingsControl.UpdateConfigValueSettings();
+            hasUpdated |= GoAffProSettingsControl.UpdateConfigValueSettings();
+            hasUpdated |= CommandsSettingsControl.UpdateConfigValueSettings();
+            hasUpdated |= WebhookLogSettingsControl.UpdateConfigValueSettings();
+
+            if (hasUpdated)
+            {
+                var config = AppServices.Provider.GetRequiredService<IConfig>();
+                config.Save();
+            }
+
             Task.Run(async () =>
             {
                 await Dispatcher.InvokeAsync(() => 
@@ -224,6 +224,7 @@ namespace SubathonManager.UI.Views
         {
             using var db = _factory.CreateDbContext();
             var values = db.SubathonValues.ToList();
+            // todo consider moving to other controls
             foreach (var val in values)
             {
                 var v = $"{val.Seconds}";
@@ -361,11 +362,10 @@ namespace SubathonManager.UI.Views
             if (doConfigLoad)
             {
                 var config = AppServices.Provider.GetRequiredService<IConfig>();
-                bool.TryParse(config!.Get("Currency", "BitsLikeAsDonation", "False"), out bool  bitsAsDonation);
+                bool bitsAsDonation = config.GetBool("Currency", "BitsLikeAsDonation", false);
                 BitsAsCurrencyBox.IsChecked = bitsAsDonation;
-                // config!.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
                 
-                var theme = config!.Get("App", "Theme", "Dark")!;
+                var theme = config.Get("App", "Theme", "Dark")!;
                 foreach (ComboBoxItem item in ThemeBox.Items)
                 {
                     if (theme.Equals((string)item.Content, StringComparison.OrdinalIgnoreCase))
@@ -379,6 +379,7 @@ namespace SubathonManager.UI.Views
 
             KoFiSettingsControl.LoadValues(db);
             YouTubeSettingsControl.LoadValues(db);
+            GoAffProSettingsControl.LoadValues(db);
         }
     }
 }

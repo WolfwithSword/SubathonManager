@@ -20,6 +20,8 @@ public class StreamLabsService : IAppService
     private readonly ILogger? _logger;
     private readonly IConfig _config;
 
+    internal string BaseUrl = "https://sockets.streamlabs.com";
+
     public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config)
     {
         _logger = logger;
@@ -45,8 +47,9 @@ public class StreamLabsService : IAppService
         IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
         if (_secretToken.Equals(string.Empty)) return false;
 
+        // TODO Webserver selfhost mock tests here 
         OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
-            new StreamlabsOptions { Token = _secretToken }
+            new StreamlabsOptions { Token = _secretToken, Url = BaseUrl}
         );
 
         if (_client != null) await DisconnectAsync();
@@ -84,8 +87,8 @@ public class StreamLabsService : IAppService
     public void SetSocketToken(string token)
     {
         _secretToken = token;
-        _config.Set("StreamLabs", "SocketToken", token);
-        _config.Save();
+        if (_config.Set("StreamLabs", "SocketToken", token))
+            _config.Save();
     }
     
     private void OnDonation(object? o, DonationMessage message)

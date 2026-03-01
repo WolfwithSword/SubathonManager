@@ -18,7 +18,7 @@ namespace SubathonManager.UI
         private readonly IDbContextFactory<AppDbContext> _factory;
         
         private DateTime? _lastUpdatedTimerAt;
-        public ObservableCollection<Route> Overlays { get; set; } = new();
+        private ObservableCollection<Route> Overlays { get; set; } = new();
         private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<MainWindow>>();
         public MainWindow()
         {
@@ -45,7 +45,7 @@ namespace SubathonManager.UI
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             var currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
             AdjustCurrencyBox.ItemsSource = currencies;
-            AdjustCurrencyBox.SelectedItem = config!.Get("Currency", "Primary", "USD")?
+            AdjustCurrencyBox.SelectedItem = config.Get("Currency", "Primary", "USD")?
                 .Trim().ToUpperInvariant() ?? "USD";
 
         }

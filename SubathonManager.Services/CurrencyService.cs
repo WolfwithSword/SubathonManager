@@ -145,16 +145,13 @@ public class CurrencyService : IAppService
 
         Rates.Clear();
 
-        foreach (var kvp in root.EnumerateObject())
+        foreach (var item in root.EnumerateObject().Select(kvp => kvp.Value))
         {
-            var item = kvp.Value;
-            if (item.TryGetProperty("code", out var codeProp) &&
-                item.TryGetProperty("rate", out var rateProp))
-            {
-                string code = codeProp.GetString()!.ToUpperInvariant();
-                double rate = rateProp.GetDouble();
-                Rates[code] = rate;
-            }
+            if (!item.TryGetProperty("code", out var codeProp) ||
+                !item.TryGetProperty("rate", out var rateProp)) continue;
+            string code = codeProp.GetString()!.ToUpperInvariant();
+            double rate = rateProp.GetDouble();
+            Rates[code] = rate;
         }
     }
     

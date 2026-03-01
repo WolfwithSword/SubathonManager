@@ -360,6 +360,7 @@ public class PicartoServiceTests
         await Task.Delay(200);
         Assert.True(eventChatDisconnectRaised);
         Assert.True(eventAlertsDisconnectRaised);
+        await service.StopAsync();
     }
     
         

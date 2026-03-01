@@ -1,7 +1,5 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
@@ -10,23 +8,30 @@ using SubathonManager.Integration;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class ChatExtensionSettings : UserControl
+public partial class ChatExtensionSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
-    //private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<ChatExtensionSettings>>();
-    
     public ChatExtensionSettings()
     {
         InitializeComponent();
     }
     
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
         LoadConfigValues();
     }
-    
-    public bool UpdateValueSettings(AppDbContext db)
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override bool UpdateValueSettings(AppDbContext db)
     {
 
         bool hasUpdated = false;
@@ -67,22 +72,33 @@ public partial class ChatExtensionSettings : UserControl
         return hasUpdated;
     }
 
-    public void SaveConfigValues()
+    public override bool UpdateConfigValueSettings()
     {
+        throw new NotImplementedException();
+    }
+
+    public bool SaveConfigValues()
+    {
+        bool hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         if (double.TryParse(BitsModifierTextBox.Text, out var blerpBitsMod))
-            config!.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
-        
+        {
+            hasUpdated |= config.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
+        }
+
         if (double.TryParse(BeetsModifierTextBox.Text, out var blerpBeetsMod))
-            config!.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
+        {
+            hasUpdated |= config.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
+        }
+        return hasUpdated;
     }
 
     public void LoadConfigValues()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        double.TryParse(config!.Get("Extensions", "BlerpBits.Modifier", "1"), out var blerpBitsMod);
+        double.TryParse(config.Get("Extensions", "BlerpBits.Modifier", "1"), out var blerpBitsMod);
         BitsModifierTextBox.Text = $"{blerpBitsMod}";
-        double.TryParse(config!.Get("Extensions", "BlerpBeets.Modifier", "1"), out var blerpBeetsMod);
+        double.TryParse(config.Get("Extensions", "BlerpBeets.Modifier", "1"), out var blerpBeetsMod);
         BeetsModifierTextBox.Text = $"{blerpBeetsMod}";
     }
     

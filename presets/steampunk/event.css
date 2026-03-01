@@ -2,7 +2,7 @@
     --background-color: #40342d;
     --border-color: #734d26;
     --border-thickness: 4px;
-    --font-size: 1rem;
+    --font-size: 0.9rem;
     --small-font-size: 0.8rem;
     --font-family: "Courier New", monospace;
     --text-color: #eee;
@@ -109,7 +109,7 @@
 }
 
 .event-value {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     opacity: 0.85;
     min-height: 1.2rem;
     padding-top: 4px;

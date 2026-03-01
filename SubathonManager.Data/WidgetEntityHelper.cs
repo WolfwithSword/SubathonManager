@@ -61,7 +61,7 @@ public class WidgetEntityHelper
             ? u.Trim()
             : widget.DocsUrl;
         
-        (var jsVars, var extractedNames, var updatedVars) = LoadNewJsVariables(widget, metadata);
+        var (jsVars, extractedNames, updatedVars) = LoadNewJsVariables(widget, metadata);
         
         using var db = _factory.CreateDbContext();
         db.JsVariables.AddRange(jsVars);
@@ -99,8 +99,10 @@ public class WidgetEntityHelper
         foreach (var key in metadata.Keys)
         {
             if (key.Count(c => c == '.') != 1) continue;
-            JsVariable jVar = new JsVariable();
-            jVar.Name = key.Split('.')[0];
+            JsVariable jVar = new JsVariable
+            {
+                Name = key.Split('.')[0]
+            };
             if (string.IsNullOrEmpty(jVar.Name) || "/?<>~!@#$%^&*()_+=-{}|\\]['\";:,.".Contains(jVar.Name[0])) continue;
             if (extractedNames.Contains(jVar.Name)) continue;
             extractedNames.Add(jVar.Name);
@@ -111,7 +113,7 @@ public class WidgetEntityHelper
             if (Enum.TryParse<WidgetVariableType>(key.Split('.')[1], ignoreCase: true, out var type))
                 jVar.Type = type;
             if (jVar.Value == "NONE") jVar.Value = string.Empty;
-            if (jVar.Type == WidgetVariableType.EventTypeSelect || jVar.Type == WidgetVariableType.EventSubTypeSelect)
+            if (jVar.Type is WidgetVariableType.EventTypeSelect or WidgetVariableType.EventSubTypeSelect)
             {
                 if (!string.IsNullOrWhiteSpace(jVar.Value) &&
                     !Enum.TryParse(jVar.Type.GetClsSingleType(), jVar.Value, true, out _))
@@ -216,24 +218,21 @@ public class WidgetEntityHelper
     public async Task<bool> UpdateWidgetPosition(string widgetId, Dictionary<string, JsonElement> data)
     {
         if (!data.Any()) return false;
-        
-        if (Guid.TryParse(widgetId, out var widgetGuid))
-        {
-            await using var db = await _factory.CreateDbContextAsync();
-            var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
-            if (widget != null)
-            {
-                if (data.TryGetValue("x", out var xElem) && xElem.TryGetSingle(out var x)) widget.X = x;
-                if (data.TryGetValue("y", out var yElem) && yElem.TryGetSingle(out var y)) widget.Y = y;
-                if (data.TryGetValue("z", out var zElem) && zElem.TryGetInt32(out var z)) widget.Z = z;
-                
-                await db.SaveChangesAsync();
-                WidgetEvents.RaisePositionUpdated(widget);
-                await db.Entry(widget).ReloadAsync();
-                return true;
-            }
-        }
 
-        return false;
+        if (!Guid.TryParse(widgetId, out var widgetGuid)) return false;
+        
+        await using var db = await _factory.CreateDbContextAsync();
+        var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
+        if (widget == null) return false;
+            
+        if (data.TryGetValue("x", out var xElem) && xElem.TryGetSingle(out var x)) widget.X = x;
+        if (data.TryGetValue("y", out var yElem) && yElem.TryGetSingle(out var y)) widget.Y = y;
+        if (data.TryGetValue("z", out var zElem) && zElem.TryGetInt32(out var z)) widget.Z = z;
+                
+        await db.SaveChangesAsync();
+        WidgetEvents.RaisePositionUpdated(widget);
+        await db.Entry(widget).ReloadAsync();
+        return true;
+
     }
 }

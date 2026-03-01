@@ -14,6 +14,7 @@ namespace SubathonManager.Tests.ServicesUnitTests;
 [Collection("ServicesTests")]
 public class DiscordWebhookServiceTests
 {
+    // TODO mock webserver for urls posting?
     private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
     {
         var mock = new Mock<IConfig>();

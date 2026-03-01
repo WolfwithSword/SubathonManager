@@ -4,7 +4,7 @@ using SubathonManager.Integration;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class YouTubeSettings : UserControl
+public partial class YouTubeSettings : SettingsControl
 {
    
     private void TestYTSuperChat_Click(object sender, RoutedEventArgs e)

@@ -22,14 +22,15 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 
 namespace SubathonManager.Integration;
 
-public class TwitchService : IAppService
+public class TwitchService : IDisposable, IAppService
 {
     private readonly string _callbackUrl;
 
-    private TwitchAPI? _api = null!;
-    private TwitchClient? _chat = null!;
-    private EventSubWebsocketClient? _eventSub = null!;
+    private TwitchAPI? _api;
+    private TwitchClient? _chat;
+    private EventSubWebsocketClient? _eventSub;
     private static int _hypeTrainLevel = 0;
+    private bool _disposed = false;
 
     private readonly ILogger? _logger;
     private readonly IConfig _config;
@@ -122,7 +123,7 @@ public class TwitchService : IAppService
     {
         if (HasTokenFile())
         {
-            var json = await File.ReadAllTextAsync(_tokenFile);
+            var json = await File.ReadAllTextAsync(_tokenFile, ct);
             var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
             AccessToken = data?["access_token"];
         }
@@ -253,6 +254,7 @@ public class TwitchService : IAppService
         {
             await File.WriteAllTextAsync(_tokenFile,
                 JsonSerializer.Serialize(new { access_token = AccessToken }));
+            await Task.Delay(100);
         }
     }
 
@@ -260,9 +262,14 @@ public class TwitchService : IAppService
     [ExcludeFromCodeCoverage]
     private async Task InitializeApiAsync()
     {
-        _api = new TwitchAPI();
-        _api.Settings.ClientId = Config.TwitchClientId;
-        _api.Settings.AccessToken = AccessToken;
+        _api = new TwitchAPI
+        {
+            Settings =
+            {
+                ClientId = Config.TwitchClientId,
+                AccessToken = AccessToken
+            }
+        };
 
         var user = (await _api.Helix.Users.GetUsersAsync()).Users.FirstOrDefault();
         if (user != null)
@@ -306,6 +313,7 @@ public class TwitchService : IAppService
         await Task.Run(() => _chat.Connect());
     }
 
+    [ExcludeFromCodeCoverage]
     private void HandleChatDisconnect(object? _, TwitchLib.Communication.Events.OnDisconnectedEventArgs args)
     {
         if ((DateTime.Now - _lastChatDisconnectLog).TotalSeconds > 60)
@@ -334,7 +342,7 @@ public class TwitchService : IAppService
             var token = _chatReconnect.Cts.Token;
             
 
-            while (!token.IsCancellationRequested && _chat!.IsConnected == false)
+            while (!token.IsCancellationRequested && _chat.IsConnected == false)
             {
                 _chatReconnect.Retries++;
                 var delay = _chatReconnect.Backoff;
@@ -379,6 +387,7 @@ public class TwitchService : IAppService
     }
 
 
+    [ExcludeFromCodeCoverage]
     private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
     {
         _logger?.LogInformation("Twitch Chat Reconnected");
@@ -510,6 +519,7 @@ public class TwitchService : IAppService
     }
 
 
+    [ExcludeFromCodeCoverage]
     private Task HandleEventSubReconnect(object? s, WebsocketReconnectedArgs e)
     {
         _logger?.LogInformation("Reconnected EventSub WebSocket.");
@@ -521,6 +531,7 @@ public class TwitchService : IAppService
         return Task.CompletedTask;
     }
     
+    [ExcludeFromCodeCoverage]
     private Task HandleEventSubDisconnect(object? s, WebsocketDisconnectedArgs e)
     {
         _logger?.LogWarning("Disconnected EventSub WebSocket.");
@@ -1031,11 +1042,30 @@ public class TwitchService : IAppService
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
+    [ExcludeFromCodeCoverage]
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    [ExcludeFromCodeCoverage]
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _chatReconnect.Dispose();
+                _eventSubReconnect.Dispose();
+                OnTeardown();
+            }
+            _disposed = true;
+        }
+    }
+    
     private void OnTeardown()
     {
-        _chatReconnect.Dispose();
-        _eventSubReconnect.Dispose();
-        
         if (_chat != null)
         {
             _chat.OnMessageReceived -= HandleMessageCmdReceived;

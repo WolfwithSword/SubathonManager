@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using StreamElements.WebSocket;
 using StreamElements.WebSocket.Models.Tip;
 using StreamElements.WebSocket.Models.Internal;
@@ -77,8 +78,8 @@ public class StreamElementsService : IAppService
     public void SetJwtToken(string token)
     {
         _jwtToken = token;
-        _config.Set("StreamElements", "JWT", token);
-        _config.Save();
+        if (_config.Set("StreamElements", "JWT", token))
+            _config.Save();
     }
 
     private void GetJwtFromConfig()
@@ -103,6 +104,7 @@ public class StreamElementsService : IAppService
         _ = Task.Run(ReconnectWithBackoffAsync);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync()
     {
         if (_client == null)
@@ -202,12 +204,14 @@ public class StreamElementsService : IAppService
 
     private void _OnTip(object? sender, Tip e)
     {
-        SubathonEvent subathonEvent = new();
-        subathonEvent.User = e.Username;
-        subathonEvent.Currency = e.Currency;
-        subathonEvent.Value = $"{e.Amount}";
-        subathonEvent.Source = SubathonEventSource.StreamElements;
-        subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
+        SubathonEvent subathonEvent = new()
+        {
+            User = e.Username,
+            Currency = e.Currency,
+            Value = $"{e.Amount}",
+            Source = SubathonEventSource.StreamElements,
+            EventType = SubathonEventType.StreamElementsDonation
+        };
         if (Guid.TryParse(e.TipId, out var tipGuid))
             subathonEvent.Id = tipGuid;
         
@@ -239,14 +243,15 @@ public class StreamElementsService : IAppService
         if (!double.TryParse(value, out var val))
             return;
 
-        SubathonEvent subathonEvent = new();
-        subathonEvent.User = "SYSTEM";
-        subathonEvent.Currency = currency;
-        
-        subathonEvent.Value = value;
-        subathonEvent.Source = SubathonEventSource.Simulated;
-        subathonEvent.EventType = SubathonEventType.StreamElementsDonation;
-        
+        SubathonEvent subathonEvent = new()
+        {
+            User = "SYSTEM",
+            Currency = currency,
+            Value = value,
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.StreamElementsDonation
+        };
+
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 }

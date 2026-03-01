@@ -12,7 +12,7 @@ public enum SubathonEventSubType
     RaidLike,
     TrainLike,
     CommandLike,
-    SalesLike // not like merch, but sale using an affil code. In future, will add MerchLike when needed maybe?
+    OrderLike 
 }
 
 [ExcludeFromCodeCoverage]

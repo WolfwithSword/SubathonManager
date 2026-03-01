@@ -37,7 +37,7 @@ public class EventService: IDisposable, IAppService
         Core.Events.SubathonEvents.SubathonEventCreated += AddSubathonEvent;
         _processingTask = Task.Run(LoopAsync);
         _processingTask.ContinueWith(t => 
-                _logger?.LogError($"Event loop crashed: {t.Exception}", t.Exception), 
+                _logger?.LogError("Event loop crashed: {AggregateException}", t.Exception), 
             TaskContinuationOptions.OnlyOnFaulted);
         Task.Run(() =>_currencyService.StartAsync(ct));
         _logger?.LogInformation("EventService started");
@@ -63,8 +63,8 @@ public class EventService: IDisposable, IAppService
 
         _signal.Release();
     }
-    
-    public async Task LoopAsync()
+
+    private async Task LoopAsync()
     {
         try
         {
@@ -100,138 +100,18 @@ public class EventService: IDisposable, IAppService
         
         SubathonEvent? dupeCheck = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s => s.Id == ev.Id 
             && s.Source == ev.Source);
-        if (dupeCheck != null && dupeCheck.ProcessedToSubathon) return (false, true);
+        if (dupeCheck is { ProcessedToSubathon: true }) return (false, true);
 
         SubathonGoalSet? goalSet = await db.SubathonGoalSets.Include(s => s.Goals).AsNoTracking().SingleOrDefaultAsync(s => s.IsActive);
         
         double initialMoney = subathon!.GetRoundedMoneySumWithCents();
         long initialPoints = subathon?.Points ?? 0;
         if (goalSet?.Type == GoalsType.Money) initialPoints = (long) Math.Floor(initialMoney);
+        
         if (subathon != null && ev.EventType == SubathonEventType.Command && ev.Command != SubathonCommandType.None)
         {
-            // we allow commands to add even if locked
-            int ranCmd = int.MinValue;
-            switch (ev.Command)
-            {
-                case SubathonCommandType.AddMoney:
-                    ev.EventType = SubathonEventType.DonationAdjustment;
-                    break;
-                case SubathonCommandType.SubtractMoney:
-                    ev.EventType = SubathonEventType.DonationAdjustment;
-                    double.TryParse(ev.Value, out double moneyVal);
-                    if (moneyVal > 0) moneyVal *= -1;
-                    ev.Value = $"{moneyVal:N2}";
-                    break;
-                case SubathonCommandType.SetPoints:
-                    if (ev.PointsValue < 0) return (false, false);
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET Points = {1} WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id, ev.PointsValue!);
-                    break;
-                case SubathonCommandType.AddPoints:
-                    if (ev.PointsValue < 1) return (false, false);
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET Points = Points + {1} WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id, ev.PointsValue!);
-                    break;
-                case SubathonCommandType.SubtractPoints:
-                    if (ev.PointsValue < 1) return (false, false);
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET Points = Points - {1} WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id, ev.PointsValue!);
-                    break;
-                case SubathonCommandType.SetTime:
-                    if (subathon.IsSubathonReversed())
-                    {
-                        ranCmd = await db.Database.ExecuteSqlRawAsync(
-                            "UPDATE SubathonDatas SET MillisecondsElapsed = {1} - MillisecondsCumulative WHERE IsActive = 1 AND Id = {0}",
-                            subathon.Id, ev.SecondsValue! * 1000);
-                    }
-                    else
-                    {
-                        ranCmd = await db.Database.ExecuteSqlRawAsync(
-                            "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsElapsed + {1} WHERE IsActive = 1 AND Id = {0}",
-                            subathon.Id, ev.SecondsValue! * 1000);
-                    }
-
-                    break;
-                case SubathonCommandType.AddTime:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {1} WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id, ev.SecondsValue! * 1000);
-                    break;
-                case SubathonCommandType.SubtractTime:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {1} WHERE IsActive = 1 AND Id = {0}",
-                        subathon.Id, ev.SecondsValue! * 1000);
-                    break;
-                case SubathonCommandType.Unlock:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsLocked = 0 WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id);
-                    break;
-                case SubathonCommandType.Lock:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND Id = {0}", 
-                        subathon.Id);
-                    break;
-                case SubathonCommandType.Resume:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsPaused = 0 WHERE IsActive = 1  AND Id = {0}", 
-                        subathon.Id);
-                    break;
-                case SubathonCommandType.Pause:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET IsPaused = 1 WHERE IsActive = 1  AND Id = {0}", 
-                        subathon.Id);
-                    break;
-                case SubathonCommandType.StopMultiplier:
-                    ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds = {1}, ApplyToPoints = {2}, FromHypeTrain = {3} WHERE  SubathonId = {0}",
-                        subathon.Id, false, false, false);
-                    
-                    if (string.IsNullOrEmpty(ev.Value)) 
-                        ev.Value = $"{ev.Command}";
-                    break;
-                case SubathonCommandType.SetMultiplier:
-                    // string dataStr = $"{parsedAmt}|{durationStr}s|{applyPts}|{applyTime}";
-                    string[] data = ev.Value.Split("|");
-                    if (!double.TryParse(data[0], out var parsedAmt))
-                        return (false, false);
-                    TimeSpan? duration;
-                    if (data[1] == "xs")
-                        duration = null;
-                    else
-                        duration = Utils.ParseDurationString(data[1]);
-                    if (!bool.TryParse(data[2], out var applyPts))
-                        return (false, false);
-                    if (!bool.TryParse(data[3], out var applyTime))
-                        return (false, false);
-
-                    ev.Value = $"{ev.Command} {ev.Value}";
-                    ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}, FromHypeTrain = {6} WHERE SubathonId = {5}",
-                        parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, false);
-                    break;
-            }
-            
-            if (ranCmd >= 0)
-            {
-                await db.Entry(subathon.Multiplier).ReloadAsync();
-                await db.Entry(subathon).ReloadAsync();
-                db.Entry(subathon).State = EntityState.Detached;
-                db.Entry(subathon.Multiplier).State = EntityState.Detached;
-                SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-                ev.ProcessedToSubathon = true;
-                ev.SubathonId = subathon.Id;   
-                ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
-                ev.CurrentPoints = subathon.Points;
-
-                db.Add(ev);
-                await db.SaveChangesAsync();
-                long pts = subathon.Points;
-                if (goalSet?.Type == GoalsType.Money) pts = subathon.GetRoundedMoneySum();
-                await CheckForGoalChange(db,  pts, initialPoints);
-                return (true, false);
-            }
+            var (bool1, bool2, hasRun) =  await HandleCommandEvent(ev, db, subathon, goalSet, initialPoints);
+            if (hasRun) return (bool1, bool2);
         }
         
         if (subathon == null || (subathon.IsLocked && ev.EventType != SubathonEventType.TwitchHypeTrain)) // we only do math if it's unlocked, otherwise, only link
@@ -255,55 +135,8 @@ public class EventService: IDisposable, IAppService
         
         if (ev.EventType == SubathonEventType.TwitchHypeTrain)
         {
-            if (bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
-                    out var doHypeTrainMult) && doHypeTrainMult && 
-                (!subathon.Multiplier.IsRunning() || subathon.Multiplier.FromHypeTrain))
-            {
-                if (ev.Value == "start" || ev.Value == "progress")
-                {
-                    TimeSpan? duration = null;
-                    bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
-                        out var applyPts);
-                    bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
-                        out var applyTime);
-                    double.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
-                        out var parsedAmt);
-                    if (!(subathon.Multiplier.IsRunning()
-                          && !parsedAmt.Equals(1)
-                          && (applyPts
-                             || applyTime)))
-                    {
-                        if (applyTime || applyPts)
-                        {
-
-                            ev.Value = $"start | x{parsedAmt}" + (applyPts ? " Points" : "") +
-                                       (applyTime ? " Time" : "");
-
-                            await db.Database.ExecuteSqlRawAsync(
-                                "UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}, FromHypeTrain = {6} WHERE SubathonId = {5}",
-                                parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, true);
-                        }
-                    }
-                }
-                else if (ev.Value == "end" && subathon.Multiplier.FromHypeTrain && subathon.Multiplier.IsRunning())
-                {
-                    // do multiplier end 
-                    await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds = {1}, ApplyToPoints = {2}, FromHypeTrain = {3} WHERE  SubathonId = {0}",
-                        subathon.Id, false, false, false);
-                    await db.Entry(subathon.Multiplier).ReloadAsync();
-                    await db.Entry(subathon).ReloadAsync();
-                    db.Entry(subathon).State = EntityState.Detached;
-                    db.Entry(subathon.Multiplier).State = EntityState.Detached;
-                    SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-                }
-            }
-            ev.ProcessedToSubathon = true;
-            db.Add(ev);
-            await db.SaveChangesAsync();
-            return (ev.ProcessedToSubathon, false);
+            return await HandleHypeTrainEvent(ev, subathon, db);
         }
-        
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
@@ -314,32 +147,36 @@ public class EventService: IDisposable, IAppService
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
-                v.EventType == ev.EventType && (v.Meta.ToLower() == ev.Value.ToLower() || v.Meta == string.Empty));
+                v.EventType == ev.EventType && (v.Meta.ToLower() == ev.Value.ToLower() || 
+                                                //v.Meta.ToLower().Replace("!", string.Empty) == ev.Value.ToLower().Replace("!", string.Empty) ||
+                                                // Youtube has an issue where memberships with ! in it will include everything before the ! and nother else
+                                                v.Meta == string.Empty));
 
             subathonValue ??= await db.SubathonValues.FirstOrDefaultAsync(v =>
                     v.EventType == ev.EventType && (v.Meta == "DEFAULT"));
 
             if (subathonValue == null)
                 return (false, false);
-
         }
 
         if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
+            ///////////////////////////////////////////////////////////////
             ev.PointsValue = (int) Math.Floor(subathonValue!.Points);
-            if (double.TryParse(ev.Value, out var parsedValue) && ev.Currency != "sub" && ev.Currency != "member"
+            if (double.TryParse(ev.Value, out var parsedValue) 
+                && ev.Currency != "sub" && ev.Currency != "member" && ev.Currency != "order" // allow items from orders
                 && !_currencyService.IsValidCurrency(ev.Currency)
                 && !string.IsNullOrEmpty(ev.Value.Trim()))
             {
                 ev.SecondsValue = parsedValue * subathonValue.Seconds;
             }
-            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets".Split(",").Contains(ev.Currency))
+            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets,order".Split(",").Contains(ev.Currency)) // flat orders 
             {
                 ev.SecondsValue = subathonValue.Seconds;
             }
             else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency)
-                     && ev.EventType.IsCurrencyDonation())
+                     && (ev.EventType.IsCurrencyDonation() || ev.EventType.IsOrderType())) // includes orders when parsed as money mode
             {
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency)).Result;
@@ -404,28 +241,48 @@ public class EventService: IDisposable, IAppService
             affected += await db.Database.ExecuteSqlRawAsync(
                 "UPDATE SubathonDatas SET Points = Points + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
                 (int)ev.GetFinalPointsValue(), subathon.Id);
-        
         }
 
-        if (ev.PointsValue == 0 && ev.SecondsValue == 0 && ev.Currency != "???")
+        if (ev is { PointsValue: 0, SecondsValue: 0 } && ev.Currency != "???")
         {
             ev.ProcessedToSubathon = true;
         }
         
-        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment)
+        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment || 
+            (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
+                                            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                                        && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|')))
         {
             ev.ProcessedToSubathon = true;
             (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
-            if (ev.EventType.IsCurrencyDonation() && ev.Currency != "???" &&
+            
+            if (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
+                                                    $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
+            {
+                var value = ev.SecondaryValue.Split('|')[0];
+                var currency = ev.SecondaryValue.Split('|')[1];
+                if (_currencyService.IsValidCurrency(currency))
+                {
+                    double added = await _currencyService.ConvertAsync(double.Parse(value), currency,
+                        _config.Get("Currency", "Primary", "USD"));
+
+                    await db.Database.ExecuteSqlRawAsync(
+                        "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
+                        added, subathon.Id);
+                }
+
+            }
+            else if (ev.EventType.IsCurrencyDonation() && ev.Currency != "???" &&
                 _currencyService.IsValidCurrency(ev.Currency) && !string.IsNullOrWhiteSpace(ev.Currency))
             {
-                double added = await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency,
+                var value = ev.Value;
+                double added = await _currencyService.ConvertAsync(double.Parse(value), ev.Currency,
                         _config.Get("Currency", "Primary", "USD"));
 
                 await db.Database.ExecuteSqlRawAsync(
                     "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
                     added, subathon.Id);
-
             }
             else if (asDono)
             {
@@ -467,7 +324,184 @@ public class EventService: IDisposable, IAppService
         db.Entry(subathon).State = EntityState.Detached;
         return (affected > 0 || (ev.ProcessedToSubathon), false);
     }
-    
+
+    private async Task<(bool, bool)> HandleHypeTrainEvent(SubathonEvent ev, SubathonData subathon, AppDbContext db)
+    {
+        if (bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
+                out var doHypeTrainMult) && doHypeTrainMult && 
+            (!subathon.Multiplier.IsRunning() || subathon.Multiplier.FromHypeTrain))
+        {
+            if (ev.Value is "start" or "progress")
+            {
+                TimeSpan? duration = null;
+                bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
+                    out var applyPts);
+                bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
+                    out var applyTime);
+                double.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
+                    out var parsedAmt);
+                if (!(subathon.Multiplier.IsRunning()
+                      && !parsedAmt.Equals(1)
+                      && (applyPts
+                          || applyTime)))
+                {
+                    if (applyTime || applyPts)
+                    {
+
+                        ev.Value = $"start | x{parsedAmt}" + (applyPts ? " Points" : "") +
+                                   (applyTime ? " Time" : "");
+
+                        await db.Database.ExecuteSqlRawAsync(
+                            "UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}, FromHypeTrain = {6} WHERE SubathonId = {5}",
+                            parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, true);
+                    }
+                }
+            }
+            else if (ev.Value == "end" && subathon.Multiplier.FromHypeTrain && subathon.Multiplier.IsRunning())
+            {
+                // do multiplier end 
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds = {1}, ApplyToPoints = {2}, FromHypeTrain = {3} WHERE  SubathonId = {0}",
+                    subathon.Id, false, false, false);
+                await db.Entry(subathon.Multiplier).ReloadAsync();
+                await db.Entry(subathon).ReloadAsync();
+                db.Entry(subathon).State = EntityState.Detached;
+                db.Entry(subathon.Multiplier).State = EntityState.Detached;
+                SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+            }
+        }
+        ev.ProcessedToSubathon = true;
+        db.Add(ev);
+        await db.SaveChangesAsync();
+        return (ev.ProcessedToSubathon, false);
+    }
+
+    private async Task<(bool, bool, bool)> HandleCommandEvent(SubathonEvent ev, AppDbContext db, SubathonData subathon,
+        SubathonGoalSet? goalSet, long initialPoints)
+    {
+        // we allow commands to add even if locked
+        int ranCmd = int.MinValue;
+        switch (ev.Command)
+        {
+            case SubathonCommandType.AddMoney:
+                ev.EventType = SubathonEventType.DonationAdjustment;
+                break;
+            case SubathonCommandType.SubtractMoney:
+                ev.EventType = SubathonEventType.DonationAdjustment;
+                double.TryParse(ev.Value, out double moneyVal);
+                if (moneyVal > 0) moneyVal *= -1;
+                ev.Value = $"{moneyVal:N2}";
+                break;
+            case SubathonCommandType.SetPoints:
+                if (ev.PointsValue < 0) return (false, false, true);
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = {1} WHERE IsActive = 1 AND Id = {0}", 
+                    subathon.Id, ev.PointsValue!);
+                break;
+            case SubathonCommandType.AddPoints:
+                if (ev.PointsValue < 1) return (false, false, true);
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = Points + {1} WHERE IsActive = 1 AND Id = {0}", 
+                    subathon.Id, ev.PointsValue!);
+                break;
+            case SubathonCommandType.SubtractPoints:
+                if (ev.PointsValue < 1) return (false, false, true);
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = Points - {1} WHERE IsActive = 1 AND Id = {0}", 
+                    subathon.Id, ev.PointsValue!);
+                break;
+            case SubathonCommandType.SetTime:
+                if (subathon.IsSubathonReversed())
+                {
+                    ranCmd = await db.Database.ExecuteSqlRawAsync(
+                        "UPDATE SubathonDatas SET MillisecondsElapsed = {1} - MillisecondsCumulative WHERE IsActive = 1 AND Id = {0}",
+                        subathon.Id, ev.SecondsValue! * 1000);
+                }
+                else
+                {
+                    ranCmd = await db.Database.ExecuteSqlRawAsync(
+                        "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsElapsed + {1} WHERE IsActive = 1 AND Id = {0}",
+                        subathon.Id, ev.SecondsValue! * 1000);
+                }
+
+                break;
+            case SubathonCommandType.AddTime:
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative + {1} WHERE IsActive = 1 AND Id = {0}", 
+                    subathon.Id, ev.SecondsValue! * 1000);
+                break;
+            case SubathonCommandType.SubtractTime:
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {1} WHERE IsActive = 1 AND Id = {0}",
+                    subathon.Id, ev.SecondsValue! * 1000);
+                break;
+            case SubathonCommandType.Unlock:
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET IsLocked = 0 WHERE IsActive = 1 AND Id = {0}", 
+                    subathon.Id);
+                break;
+            case SubathonCommandType.Lock:
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND Id = {0}", 
+                    subathon.Id);
+                break;
+            case SubathonCommandType.Resume:
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET IsPaused = 0 WHERE IsActive = 1  AND Id = {0}", 
+                    subathon.Id);
+                break;
+            case SubathonCommandType.Pause:
+                ranCmd = await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET IsPaused = 1 WHERE IsActive = 1  AND Id = {0}", 
+                    subathon.Id);
+                break;
+            case SubathonCommandType.StopMultiplier:
+                ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds = {1}, ApplyToPoints = {2}, FromHypeTrain = {3} WHERE  SubathonId = {0}",
+                    subathon.Id, false, false, false);
+                    
+                if (string.IsNullOrEmpty(ev.Value)) 
+                    ev.Value = $"{ev.Command}";
+                break;
+            case SubathonCommandType.SetMultiplier:
+                // string dataStr = $"{parsedAmt}|{durationStr}s|{applyPts}|{applyTime}";
+                string[] data = ev.Value.Split("|");
+                if (!double.TryParse(data[0], out var parsedAmt))
+                    return (false, false, true);
+                TimeSpan? duration;
+                if (data[1] == "xs")
+                    duration = null;
+                else
+                    duration = Utils.ParseDurationString(data[1]);
+                if (!bool.TryParse(data[2], out var applyPts) || !bool.TryParse(data[3], out var applyTime))
+                    return (false, false, true);
+
+                ev.Value = $"{ev.Command} {ev.Value}";
+                ranCmd = await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = {0}, Duration = {1}, Started = {2}, ApplyToSeconds = {3}, ApplyToPoints = {4}, FromHypeTrain = {6} WHERE SubathonId = {5}",
+                    parsedAmt, duration!, DateTime.Now, applyTime, applyPts, subathon.Id, false);
+                break;
+        }
+
+        if (ranCmd < 0) return (false, false, false);
+        
+        await db.Entry(subathon.Multiplier).ReloadAsync();
+        await db.Entry(subathon).ReloadAsync();
+        db.Entry(subathon).State = EntityState.Detached;
+        db.Entry(subathon.Multiplier).State = EntityState.Detached;
+        SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+        ev.ProcessedToSubathon = true;
+        ev.SubathonId = subathon.Id;   
+        ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
+        ev.CurrentPoints = subathon.Points;
+
+        db.Add(ev);
+        await db.SaveChangesAsync();
+        long pts = subathon.Points;
+        if (goalSet?.Type == GoalsType.Money) pts = subathon.GetRoundedMoneySum();
+        await CheckForGoalChange(db,  pts, initialPoints);
+        return (true, false, true);
+
+    }
+
     private static async Task CheckForGoalChange(AppDbContext db, long newPoints, long initialPoints)
     {
         if (newPoints != initialPoints)
@@ -517,22 +551,38 @@ public class EventService: IDisposable, IAppService
         int pointsToRemove = (int) ev.GetFinalPointsValue();
         double moneyToRemove = 0;
 
-        if (ev.Command == SubathonCommandType.SubtractPoints)
-            pointsToRemove = -pointsToRemove;
-
-        if (ev.Command == SubathonCommandType.SubtractTime)
-            msToRemove = -msToRemove;
-
-        if (ev.Command == SubathonCommandType.SetPoints || ev.Command == SubathonCommandType.SetTime)
+        switch (ev.Command)
         {
-            string msg = "Cannot delete SetTime or SetPoints events. Retaining event...";
-            ErrorMessageEvents.RaiseErrorEvent("WARN", $"Delete {ev.Command} Event", 
-                msg, DateTime.Now);
-            _logger?.LogWarning(msg);
-            return;
+            case SubathonCommandType.SubtractPoints:
+                pointsToRemove = -pointsToRemove;
+                break;
+            case SubathonCommandType.SubtractTime:
+                msToRemove = -msToRemove;
+                break;
+            case SubathonCommandType.SetPoints or SubathonCommandType.SetTime:
+            {
+                string msg = "Cannot delete SetTime or SetPoints events. Retaining event...";
+                ErrorMessageEvents.RaiseErrorEvent("WARN", $"Delete {ev.Command} Event", 
+                    msg, DateTime.Now);
+                _logger?.LogWarning(msg);
+                return;
+            }
         }
 
-        if (ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency) && ev.ProcessedToSubathon)
+        if (ev.EventType.IsOrderType() && ev.ProcessedToSubathon && _config.GetBool(ev.EventType.GetSource().ToString(),
+                $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+            && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
+        {
+            var value = ev.SecondaryValue.Split('|')[0];
+            var currency = ev.SecondaryValue.Split('|')[1];
+            if (_currencyService.IsValidCurrency(currency))
+            {
+                moneyToRemove += await _currencyService.ConvertAsync(double.Parse(value), currency,
+                    _config.Get("Currency", "Primary", "USD"));
+            }
+
+        }
+        else if (ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency) && ev.ProcessedToSubathon)
         {
             moneyToRemove += await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!,
                 _config.Get("Currency", "Primary", "USD"));
@@ -554,7 +604,7 @@ public class EventService: IDisposable, IAppService
             moneyToRemove = 0;
         }
 
-        if (ev.WasReversed && ev.Command == SubathonCommandType.None)
+        if (ev is { WasReversed: true, Command: SubathonCommandType.None })
         {
             msToRemove *= -1;
         }
@@ -624,7 +674,7 @@ public class EventService: IDisposable, IAppService
             if (ev.SubathonId != subathon.Id) continue;
             if (!ev.ProcessedToSubathon) continue;
             long ms = (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000);
-            if (ev.WasReversed && ev.Command == SubathonCommandType.None)
+            if (ev is { WasReversed: true, Command: SubathonCommandType.None })
                 ms *= -1;
             msToRemove += ms;
             pointsToRemove +=  (int) ev.GetFinalPointsValue();
@@ -632,6 +682,19 @@ public class EventService: IDisposable, IAppService
             {
                 moneyToRemove +=
                     await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
+            }
+            else if (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
+                    $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
+            {
+                var value = ev.SecondaryValue.Split('|')[0];
+                var currency = ev.SecondaryValue.Split('|')[1];
+                if (_currencyService.IsValidCurrency(currency))
+                {
+                    moneyToRemove +=
+                        await _currencyService.ConvertAsync(double.Parse(value), currency, subathon.Currency!);
+                }
+
             }
 
             (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
@@ -647,6 +710,7 @@ public class EventService: IDisposable, IAppService
             moneyToRemove +=
                 await _currencyService.ConvertAsync(Math.Round(val, 2), "USD", subathon.Currency!);
         }
+        
         int affected = 0;
         if (msToRemove != 0)
         {

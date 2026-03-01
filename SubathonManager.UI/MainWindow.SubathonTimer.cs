@@ -55,8 +55,10 @@ namespace SubathonManager.UI
 
         private async void StartNewSubathon_Click(object sender, RoutedEventArgs e)
         {
-            var msgBox = new Wpf.Ui.Controls.MessageBox();
-            msgBox.Title = "Start New Subathon";
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Start New Subathon"
+            };
             var textBlock = new System.Windows.Controls.TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
@@ -116,7 +118,7 @@ namespace SubathonManager.UI
             if (!confirm) return;
             
             await Task.Run(async () => AppDbContext.DisableAllTimers(await _factory.CreateDbContextAsync()));
-            using var db = await _factory.CreateDbContextAsync();
+            await using var db = await _factory.CreateDbContextAsync();
             SubathonData subathon = new SubathonData();
             TimeSpan initialMs = Utils.ParseDurationString(initialTimeBox.Text);
             if (initialMs == TimeSpan.Zero)
@@ -129,13 +131,13 @@ namespace SubathonManager.UI
             subathon.MillisecondsCumulative += (int) initialMs.TotalMilliseconds;
             subathon.IsPaused = true;
             subathon.ReversedTime = checkBox.IsChecked;
-            subathon.Currency = config!.Get("Currency", "Primary", "USD")!;
+            subathon.Currency = config.Get("Currency", "Primary", "USD")!;
             db.SubathonDatas.Add(subathon);
             await db.SaveChangesAsync();
             db.Entry(subathon).State = EntityState.Detached;
             
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-            SubathonEvents.RaiseSubathonEventsDeleted(new List<SubathonEvent>());
+            SubathonEvents.RaiseSubathonEventsDeleted([]);
         }
 
         private void AddTime_Click(object sender, RoutedEventArgs e)

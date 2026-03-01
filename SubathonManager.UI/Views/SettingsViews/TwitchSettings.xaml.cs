@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Events;
@@ -11,23 +10,31 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class TwitchSettings : UserControl
+public partial class TwitchSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<TwitchSettings>>();
     public TwitchSettings()
     {
-        InitializeComponent();
+        InitializeComponent();     
+        
+        Loaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+        };
+
+        Unloaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+        };
     }
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
         InitTwitchAutoSettings();
         LoadHypeTrainValues();
-        IntegrationEvents.ConnectionUpdated += UpdateTwitchStatus;
     }
-    
-    private void UpdateTwitchStatus(bool status, SubathonEventSource source, string name, string service)
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.Twitch)
             return;
@@ -35,25 +42,35 @@ public partial class TwitchSettings : UserControl
         Dispatcher.Invoke(() =>
         {
             string conStat = status ? "Connected" : "Disconnected";
-            if (service == "EventSub")
+            switch (service)
             {
-                string username = name != string.Empty ? name : "Disconnected";
-                if (!status)
-                    username = "Disconnected";
-                if (TwitchStatusText.Text != username) TwitchStatusText.Text = username;
-                string connectBtn = name != string.Empty ? "Reconnect" : "Connect";
-                if (!status) connectBtn = "Connect";
-                if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
-                if (EventSubStatusText.Text != conStat) EventSubStatusText.Text = conStat;
-            }
-            else if (service == "Chat")
-            {
-                if (ChatStatusText.Text != conStat) ChatStatusText.Text = conStat;
+                case "EventSub":
+                {
+                    string username = name != string.Empty ? name : "Disconnected";
+                    if (!status)
+                        username = "Disconnected";
+                    if (TwitchStatusText.Text != username) TwitchStatusText.Text = username;
+                    string connectBtn = name != string.Empty ? "Reconnect" : "Connect";
+                    if (!status) connectBtn = "Connect";
+                    if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
+                    if (EventSubStatusText.Text != conStat) EventSubStatusText.Text = conStat;
+                    break;
+                }
+                case "Chat":
+                {
+                    if (ChatStatusText.Text != conStat) ChatStatusText.Text = conStat;
+                    break;
+                }
             }
         });
     }
 
-    public bool UpdateValueSettings(AppDbContext db)
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var cheerValue =
@@ -122,27 +139,28 @@ public partial class TwitchSettings : UserControl
             hasUpdated = true;
         }
         
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2);
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2) ;
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchSub, "3000", SubT3TextBox, SubT3TextBox2) ;
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "1000", GiftSubT1TextBox, GiftSubT1TextBox2) ;
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2) ;
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2) ;
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.TwitchSub, "1000", SubT1TextBox, SubT1TextBox2);
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.TwitchSub, "2000", SubT2TextBox, SubT2TextBox2) ;
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.TwitchSub, "3000", SubT3TextBox, SubT3TextBox2) ;
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "1000", GiftSubT1TextBox, GiftSubT1TextBox2) ;
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "2000", GiftSubT2TextBox, GiftSubT2TextBox2) ;
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.TwitchGiftSub, "3000", GiftSubT3TextBox, GiftSubT3TextBox2) ;
         return hasUpdated;
     }
 
-    public void UpdateConfigValueSettings()
+    public override bool UpdateConfigValueSettings()
     {
+        bool hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        config!.Set("Twitch", "PauseOnEnd", $"{TwitchPauseOnEndBx.IsChecked}");
-        config!.Set("Twitch", "LockOnEnd",  $"{TwitchLockOnEndBx.IsChecked}");
-        config!.Set("Twitch", "ResumeOnStart",  $"{TwitchResumeOnStartBx.IsChecked}");
-        config!.Set("Twitch", "UnlockOnStart",  $"{TwitchUnlockOnStartBx.IsChecked}");
-        config!.Set("Twitch", "HypeTrainMultiplier.Enabled",  $"{HypeTrainMultBox.IsChecked}");
-        config!.Set("Twitch", "HypeTrainMultiplier.Points",  $"{HypeTrainMultPointsBox.IsChecked}");
-        config!.Set("Twitch", "HypeTrainMultiplier.Time",  $"{HypeTrainMultTimeBox.IsChecked}");
-        config!.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
-        config!.Save();
+        hasUpdated |= config.SetBool("Twitch", "PauseOnEnd", TwitchPauseOnEndBx.IsChecked);
+        hasUpdated |= config.SetBool("Twitch", "LockOnEnd",  TwitchLockOnEndBx.IsChecked);
+        hasUpdated |= config.SetBool("Twitch", "ResumeOnStart",  TwitchResumeOnStartBx.IsChecked);
+        hasUpdated |= config.SetBool("Twitch", "UnlockOnStart",  TwitchUnlockOnStartBx.IsChecked);
+        hasUpdated |= config.SetBool("Twitch", "HypeTrainMultiplier.Enabled",  HypeTrainMultBox.IsChecked);
+        hasUpdated |= config.SetBool("Twitch", "HypeTrainMultiplier.Points",  HypeTrainMultPointsBox.IsChecked);
+        hasUpdated |= config.SetBool("Twitch", "HypeTrainMultiplier.Time",  HypeTrainMultTimeBox.IsChecked);
+        hasUpdated |= config.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
+        return hasUpdated;
     }
     
     private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
@@ -171,35 +189,35 @@ public partial class TwitchSettings : UserControl
     private void InitTwitchAutoSettings()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool.TryParse(config!.Get("Twitch", "PauseOnEnd", "false"), out var pauseOnEnd);
+        var pauseOnEnd = config.GetBool("Twitch", "PauseOnEnd", false);
         if (TwitchPauseOnEndBx.IsChecked != pauseOnEnd) TwitchPauseOnEndBx.IsChecked = pauseOnEnd;
-            
-        bool.TryParse(config!.Get("Twitch", "LockOnEnd", "false"), out var lockOnEnd);
+
+        var lockOnEnd = config.GetBool("Twitch", "LockOnEnd", false);
         if (TwitchLockOnEndBx.IsChecked != lockOnEnd) TwitchLockOnEndBx.IsChecked = lockOnEnd;
-            
-        bool.TryParse(config!.Get("Twitch", "ResumeOnStart", "false"), out var resumeOnStart);
+
+        var resumeOnStart = config.GetBool("Twitch", "ResumeOnStart", false);
         if (TwitchResumeOnStartBx.IsChecked != resumeOnStart) TwitchResumeOnStartBx.IsChecked = resumeOnStart;
-            
-        bool.TryParse(config!.Get("Twitch", "UnlockOnStart", "false"), out var unlockOnStart);
+
+        var unlockOnStart = config.GetBool("Twitch", "UnlockOnStart", false);
         if (TwitchUnlockOnStartBx.IsChecked != unlockOnStart) TwitchUnlockOnStartBx.IsChecked = unlockOnStart;
     }
     
     private void LoadHypeTrainValues()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
+        bool.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
             out bool enabled);
         if (HypeTrainMultBox.IsChecked != enabled)
             HypeTrainMultBox.IsChecked = enabled;
-        double.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
+        double.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
             out var parsedAmt);
             
         if (HypeTrainMultAmt.Text != parsedAmt.ToString("0.00"))
             HypeTrainMultAmt.Text = parsedAmt.ToString("0.00");
 
-        bool.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
+        bool.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
             out var applyPts);
-        bool.TryParse(config!.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
+        bool.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
             out var applyTime);
             
         if (HypeTrainMultTimeBox.IsChecked != applyTime)

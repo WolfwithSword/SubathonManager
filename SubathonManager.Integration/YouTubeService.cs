@@ -48,11 +48,10 @@ public class YouTubeService : IDisposable, IAppService
             LiveCheckFrequency = 10 * 1000
         };
         
-        if (_httpClient == null)
-            _httpClient = new HttpClient()
-            {
-                BaseAddress = new Uri(options.YoutubeBaseUrl)
-            };
+        _httpClient ??= new HttpClient()
+        {
+            BaseAddress = new Uri(options.YoutubeBaseUrl)
+        };
         
         var ytHttpClient = new YTHttpClient(_httpClient, httpClientLogger);
         _ytLiveChat = new YTLiveChat.Services.YTLiveChat(options, ytHttpClient, chatLogger);
@@ -197,12 +196,10 @@ public class YouTubeService : IDisposable, IAppService
             string currency = item.Superchat.Currency.ToUpper().Trim();
             string raw = item.Superchat.AmountString.Trim();
             
-            //Console.WriteLine($"{currency} -- {raw}"); // TODO monitor
-            
             if (currency == "USD" && !raw.StartsWith('$')) // Parsed incorrectly
                 currency = Utils.TryParseCurrency(raw);
 
-            if (currency == "" || currency == "???")
+            if (currency is "" or "???")
             {
                 string message = $"Unknown currency detected: From: {user},  {item.Superchat.AmountString}";
                 ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventType.YouTubeSuperChat), 
@@ -210,14 +207,16 @@ public class YouTubeService : IDisposable, IAppService
                 _logger?.LogWarning(message);
             }
             
-            SubathonEvent subathonEvent = new();
-            subathonEvent.User = user;
-            subathonEvent.Currency = $"{currency}".Trim().ToUpper();
-            subathonEvent.Value = $"{item.Superchat.AmountValue}";
-            subathonEvent.Source = SubathonEventSource.YouTube;
-            subathonEvent.EventType = SubathonEventType.YouTubeSuperChat;
-            subathonEvent.Id = Utils.CreateGuidFromUniqueString(item.Id);
-            subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
+            SubathonEvent subathonEvent = new()
+            {
+                User = user,
+                Currency = $"{currency}".Trim().ToUpper(),
+                Value = $"{item.Superchat.AmountValue}",
+                Source = SubathonEventSource.YouTube,
+                EventType = SubathonEventType.YouTubeSuperChat,
+                Id = Utils.CreateGuidFromUniqueString(item.Id),
+                EventTimestamp = item.Timestamp.DateTime.ToLocalTime()
+            };
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return;
         }
@@ -226,12 +225,11 @@ public class YouTubeService : IDisposable, IAppService
         {
             if (item.IsTicker)
                 return;
-            SubathonEvent subathonEvent = new();
-            subathonEvent.Source = SubathonEventSource.YouTube;
-            if (Guid.TryParse(item.Id, out Guid gid))
-                subathonEvent.Id = gid;
-            else 
-                subathonEvent.Id = Utils.CreateGuidFromUniqueString(item.Id);
+            SubathonEvent subathonEvent = new()
+            {
+                Source = SubathonEventSource.YouTube
+            };
+            subathonEvent.Id = Guid.TryParse(item.Id, out Guid gid) ? gid : Utils.CreateGuidFromUniqueString(item.Id);
             subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
             
             var details = item.MembershipDetails;
@@ -299,6 +297,7 @@ public class YouTubeService : IDisposable, IAppService
         _ = Task.Run(ReconnectWithBackoffAsync);
     }
     
+    [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync()
     {
         if (await _reconnectState.IsReconnecting())
@@ -380,21 +379,19 @@ public class YouTubeService : IDisposable, IAppService
     [ExcludeFromCodeCoverage]
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposed)
+        if (_disposed) return;
+        if (disposing)
         {
-            if (disposing)
-            {
-                _reconnectState.Dispose();
-                _ytLiveChat.Stop();
-                _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
-                _ytLiveChat.ChatReceived -= OnChatReceived;
-                _ytLiveChat.ChatStopped -= OnChatStopped;
-                _ytLiveChat.ErrorOccurred -= OnErrorOccurred;
-                _ytLiveChat.Dispose();
-                _httpClient.Dispose();
-            }
-            _disposed = true;
+            _reconnectState.Dispose();
+            _ytLiveChat.Stop();
+            _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
+            _ytLiveChat.ChatReceived -= OnChatReceived;
+            _ytLiveChat.ChatStopped -= OnChatStopped;
+            _ytLiveChat.ErrorOccurred -= OnErrorOccurred;
+            _ytLiveChat.Dispose();
+            _httpClient.Dispose();
         }
+        _disposed = true;
     }
     
     public static void SimulateSuperChat(string value = "10.00", string currency = "USD")

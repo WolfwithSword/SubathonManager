@@ -33,8 +33,10 @@ public static class UiUtils
             }
         }
         
-        var msgBox = new Wpf.Ui.Controls.MessageBox();
-        msgBox.Title = "Copy Dialogue";
+        var msgBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "Copy Dialogue"
+        };
         var textBlock = new System.Windows.Controls.TextBlock
         {
             TextWrapping = TextWrapping.Wrap,

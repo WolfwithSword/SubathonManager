@@ -39,7 +39,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StartAsync<PicartoService>();
         await StartAsync<StreamElementsService>();
         await StartAsync<StreamLabsService>();
-        await StartAsync<GoAffProService>();
+        await StartAsync<GoAffProService>();//(fireAndForget: true);
         await StartAsync<DiscordWebhookService>();
     }
 

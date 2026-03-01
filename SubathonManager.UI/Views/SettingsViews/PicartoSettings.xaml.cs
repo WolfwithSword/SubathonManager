@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PicartoEventsLib.Abstractions.Models;
@@ -13,48 +12,66 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class PicartoSettings : UserControl
+public partial class PicartoSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
-    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<TwitchSettings>>();
+    private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<PicartoSettings>>();
     
     public PicartoSettings()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+        };
+
+        Unloaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+        };
     }
     
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        PicartoUserBox.Text = config!.Get("Picarto", "Username", string.Empty)!;
-        IntegrationEvents.ConnectionUpdated += UpdateConnectionStatus;
+        PicartoUserBox.Text = config.Get("Picarto", "Username", string.Empty)!;
     }
-    
-    private void UpdateConnectionStatus(bool status, SubathonEventSource source, string name, string service)
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.Picarto) return;
         Dispatcher.Invoke(() =>
         { 
             if (service == "Chat")
-                Host!.UpdateConnectionStatus(status, PicartoChatStatusText, ConnectPicartoBtn);
+                Host.UpdateConnectionStatus(status, PicartoChatStatusText, ConnectPicartoBtn);
             else if (service == "Alerts")
-                Host!.UpdateConnectionStatus(status, PicartoClientStatusText, ConnectPicartoBtn);
+                Host.UpdateConnectionStatus(status, PicartoClientStatusText, ConnectPicartoBtn);
         });
     }
-    
-    public void UpdateConfigValueSettings()
+
+    public override void LoadValues(AppDbContext db)
     {
+        throw new NotImplementedException();
+    }
+
+    public override bool UpdateConfigValueSettings()
+    {
+        bool hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        config!.Set("Picarto", "Username", $"{PicartoUserBox.Text}");
-        config!.Save();
+        hasUpdated |= config.Set("Picarto", "Username", $"{PicartoUserBox.Text}");
+        return hasUpdated;
     }
     
     private async void ConnectPicartoButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            UpdateConfigValueSettings();
+            var updated = UpdateConfigValueSettings();
+            if (updated)
+            {
+                var config = AppServices.Provider.GetRequiredService<IConfig>();
+                config.Save();
+            }
             await ServiceManager.Picarto.UpdateChannel();
         }
         catch (Exception ex)
@@ -63,7 +80,7 @@ public partial class PicartoSettings : UserControl
         }
     }
     
-    public bool UpdateValueSettings(AppDbContext db)
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var cheerValue =
@@ -99,10 +116,10 @@ public partial class PicartoSettings : UserControl
             hasUpdated = true;
         }
         
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.PicartoSub, "T1", SubT1TextBox, SubT1TextBox2);
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.PicartoSub, "T2", SubT2TextBox, SubT2TextBox2);
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.PicartoSub, "T3", SubT3TextBox, SubT3TextBox2);
-        hasUpdated |= Host!.SaveSubTier(db, SubathonEventType.PicartoGiftSub, "T1", GiftSubTextBox, GiftSubTextBox2); 
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.PicartoSub, "T1", SubT1TextBox, SubT1TextBox2);
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.PicartoSub, "T2", SubT2TextBox, SubT2TextBox2);
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.PicartoSub, "T3", SubT3TextBox, SubT3TextBox2);
+        hasUpdated |= Host.SaveSubTier(db, SubathonEventType.PicartoGiftSub, "T1", GiftSubTextBox, GiftSubTextBox2); 
         return hasUpdated;
     }
     
@@ -151,9 +168,12 @@ public partial class PicartoSettings : UserControl
                 break;
         }
 
-        decimal amount = 4.99m;
-        if (tier == 2) amount = 9.99m;
-        if (tier == 3) amount = 14.99m;
+        decimal amount = tier switch
+        {
+            2 => 9.99m,
+            3 => 14.99m,
+            _ => 4.99m
+        };
         PicartoSubscription sub = new PicartoSubscription
         {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,

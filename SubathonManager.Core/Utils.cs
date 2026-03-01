@@ -6,8 +6,11 @@ using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Core;
 
-public class Utils
+public static class Utils
 {
+    
+    public static readonly Dictionary<string, bool> DonationSettings = new Dictionary<string, bool>(); 
+    
     public static TimeSpan ParseDurationString(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -153,7 +156,7 @@ public class Utils
     
     public static string EscapeCsv(string? value)
     {
-        if (string.IsNullOrEmpty(value)) return "";
+        if (string.IsNullOrWhiteSpace(value)) return "";
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
         {
             value = value.Replace("\"", "\"\"");

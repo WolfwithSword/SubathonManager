@@ -3,7 +3,7 @@ WIDGET_META
 Width:300
 Height:100
 Url:https://github.com/WolfwithSword/SubathonManager/discussions/77#discussioncomment-15090793
-applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation,ExternalDonation,ExternalSub,KoFiSub,KoFiDonation,BlerpBits,BlerpBeets
+applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,TwitchCharityDonation,ExternalDonation,ExternalSub,KoFiSub,KoFiDonation,BlerpBits,BlerpBeets,UwUMarketOrder,GamerSuppsOrder
 END_WIDGET_META
 -->
 <meta charset=utf-8>
@@ -63,6 +63,9 @@ function createEventIcon(eventType) {
         case "TokenLike":
             // diamond
             return makeSVG("M12 2l10 10-10 10L2 12 12 2z");
+        case "OrderLike":
+            // shopping cart
+            return makeSVG("M7 18a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm10 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2zM7.16 14h9.45a2 2 0 0 0 1.92-1.43L21 6H6.21l-.94-2H1v2h3l3.6 7.59-1.35 2.44A2 2 0 0 0 8 18h12v-2H8l1.16-2z");
         default:
             // heart
             return makeSVG("M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z");

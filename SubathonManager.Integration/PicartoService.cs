@@ -96,11 +96,13 @@ public class PicartoService : IDisposable, IAppService
 
     public static void ProcessAlert(PicartoAlert alert)
     {
-        SubathonEvent ev = new SubathonEvent();
-        ev.Source = alert.Username == "SYSTEM" ? SubathonEventSource.Simulated : SubathonEventSource.Picarto;
-        ev.EventTimestamp = alert.Timestamp.ToLocalTime();
-        ev.User = alert.Username;
-        
+        SubathonEvent ev = new SubathonEvent
+        {
+            Source = alert.Username == "SYSTEM" ? SubathonEventSource.Simulated : SubathonEventSource.Picarto,
+            EventTimestamp = alert.Timestamp.ToLocalTime(),
+            User = alert.Username
+        };
+
         if (alert is PicartoFollow follow)
         {
             ev.EventType = SubathonEventType.PicartoFollow;

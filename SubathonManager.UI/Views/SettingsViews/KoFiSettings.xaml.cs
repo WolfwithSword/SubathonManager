@@ -16,9 +16,8 @@ using SubathonManager.UI.Validation;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class KoFiSettings : UserControl
+public partial class KoFiSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<KoFiSettings>>();
     private List<KoFiSubRow> _dynamicSubRows = new();
@@ -27,26 +26,29 @@ public partial class KoFiSettings : UserControl
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
-    }
-    public void Init(SettingsView host)
-    {
-        Host = host;
-        IntegrationEvents.ConnectionUpdated += UpdateKoFiStatus;
+        Loaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+        };
+
+        Unloaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+        };
     }
 
-    private void UpdateKoFiStatus(bool status, SubathonEventSource source, string name, string service)
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.KoFi || service != "Socket") return;
-        Host!.UpdateConnectionStatus(status, KoFiStatusText, null);
+        Host.UpdateConnectionStatus(status, KoFiStatusText, null);
     }
     
-    public void LoadValues(AppDbContext db)
+    public override void LoadValues(AppDbContext db)
     {
         var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.KoFiSub)
             .OrderBy(meta => meta)
             .AsNoTracking().ToList();
-        
-        string v, p;
+
         for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--)
         {
             var child = MembershipsPanel.Children[i];
@@ -61,10 +63,10 @@ public partial class KoFiSettings : UserControl
         {      
             TextBox? box1 = null;
             TextBox? box2 = null;
-            v = $"{value.Seconds}";
-            p = $"{value.Points}";
+            var v = $"{value.Seconds}";
+            var p = $"{value.Points}";
             
-            if (value.Meta == "DEFAULT" && value.EventType == SubathonEventType.KoFiSub)
+            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.KoFiSub })
             {
                 box1 = KFSubDTextBox;
                 box2 = KFSubDTextBox2;
@@ -76,7 +78,7 @@ public partial class KoFiSettings : UserControl
 
             if (!string.IsNullOrWhiteSpace(v) && !string.IsNullOrWhiteSpace(p) && box1 != null && box2 != null)
             {
-                Host!.UpdateTimePointsBoxes(box1, box2, v, p);
+                Host.UpdateTimePointsBoxes(box1, box2, v, p);
             }
         }
 
@@ -119,15 +121,13 @@ public partial class KoFiSettings : UserControl
 
         foreach (var comboItem in SimKoFiTierSelection.Items)
         {
-            if (comboItem is ComboBoxItem cbi && string.Equals(cbi.Content?.ToString(), selectedTier, StringComparison.OrdinalIgnoreCase))
-            {
-                SimKoFiTierSelection.SelectedItem = cbi;
-                break;
-            }
+            if (comboItem is not ComboBoxItem cbi || !string.Equals(cbi.Content?.ToString(), selectedTier,
+                    StringComparison.OrdinalIgnoreCase)) continue;
+            SimKoFiTierSelection.SelectedItem = cbi;
+            break;
         }
 
-        if (SimKoFiTierSelection.SelectedItem == null)
-            SimKoFiTierSelection.SelectedItem = SimKoFiTierSelection.Items[0];
+        SimKoFiTierSelection.SelectedItem ??= SimKoFiTierSelection.Items[0];
     }
     
     private void TestKoFiTip_Click(object sender, RoutedEventArgs e)
@@ -247,7 +247,7 @@ public partial class KoFiSettings : UserControl
         }
     }
     
-    public bool UpdateValueSettings(AppDbContext db)
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var defaultSubValue =
@@ -332,7 +332,27 @@ public partial class KoFiSettings : UserControl
                 hasUpdated = true;
             }
         }
+        List<string> names = ["DEFAULT"];
+        foreach (var row in _dynamicSubRows)
+        {
+            string name = row.NameBox.Text.Trim();
+            names.Add(name);
+        }
+            
+        var dbRows   = db.SubathonValues.Where(x =>
+            !names.Contains(x.Meta) && x.EventType == SubathonEventType.KoFiSub).ToList();
+
+        if (dbRows.Count > 0)
+        {
+            db.SubathonValues.RemoveRange(dbRows);
+            hasUpdated = true;
+        }
         return hasUpdated;
+    }
+
+    public override bool UpdateConfigValueSettings()
+    {
+        throw new NotImplementedException();
     }
 
     private void OpenKoFiSetup_Click(object sender, RoutedEventArgs e)
@@ -373,14 +393,12 @@ public partial class KoFiSettings : UserControl
             try
             {
                 var result = await UiUtils.UiUtils.TrySetClipboardTextAsync(content);
-                if (result)
-                {
-                    var button = sender as Button;
-                    var originalContent = button!.Content;
-                    button!.Content = "Copied!";
-                    await Task.Delay(1500);
-                    button!.Content = originalContent;
-                }
+                if (!result) return;
+                var button = sender as Button;
+                var originalContent = button!.Content;
+                button!.Content = "Copied!";
+                await Task.Delay(1500);
+                button!.Content = originalContent;
             }
             catch (Exception ex)
             {

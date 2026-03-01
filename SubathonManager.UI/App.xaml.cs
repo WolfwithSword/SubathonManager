@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Windows;
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Appearance;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +24,6 @@ public partial class App
     private ILogger? _logger;
     
     private IDbContextFactory<AppDbContext>? _factory;
-    private bool _bitsAsDonationVal = false;
     private string _currencyVal = string.Empty;
     
     protected override void OnStartup(StartupEventArgs e)
@@ -54,16 +52,22 @@ public partial class App
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             config.LoadOrCreateDefault();
             config.MigrateConfig();
+
+            bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
+            Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
+            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            {
+                Utils.DonationSettings[goAffProSource] =
+                    config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
+            }
             
-            bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"), out bool bitsAsDonationCheck);
-            _bitsAsDonationVal = bitsAsDonationCheck;
-            _currencyVal = config!.Get("Currency", "Primary", "USD")!;
+            _currencyVal = config.Get("Currency", "Primary", "USD")!;
 
             SetStartupTheme(config);
 
             _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
             _logger.LogInformation("======== Subathon Manager started ========");
-            _logger.LogInformation($"== Data folder: {Config.DataFolder} ==");
+            _logger.LogInformation("== Data folder: {DataFolder} ==", Config.DataFolder);
 
             var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             _factory = factory;      
@@ -85,7 +89,7 @@ public partial class App
                 await using var context2 = await _factory.CreateDbContextAsync();
                 await AppDbContext.ResetPowerHour(context2);
                 await using var context3 = await _factory.CreateDbContextAsync();
-                await SetupSubathonCurrencyData(context3, _bitsAsDonationVal);
+                await SetupSubathonCurrencyData(context3, false);
                 
                 // fire-forget
                 await sm.StartAsync<WebServer>(fireAndForget: true);
@@ -108,7 +112,7 @@ public partial class App
 
     private void SetStartupTheme(IConfig config)
     {
-        string theme = (config.Get("App", "Theme", "Dark"))!.Trim();
+        string theme = config.Get("App", "Theme", "Dark")!.Trim();
         _themeDictionary = new ResourceDictionary
         {
             Source = new Uri($"Themes/{theme.ToUpper()}.xaml", UriKind.Relative)
@@ -160,13 +164,13 @@ public partial class App
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
-            int newPort = int.Parse(config!.Get("Server", "Port", "14040")!);
+            int newPort = int.Parse(config.Get("Server", "Port", "14040")!);
             int currentPort = ServiceManager.Server?.Port ?? newPort;
             
             if (currentPort != newPort)
             {
-                _logger?.LogDebug($"Config reloaded! New server port: {newPort}");
-                ServiceManager.Server!.Port = newPort;
+                _logger?.LogDebug("Config reloaded! New server port: {NewPort}", newPort);
+                if (ServiceManager.Server != null) ServiceManager.Server.Port = newPort;
                 Task.Run(async () =>
                 {
                     try
@@ -185,25 +189,42 @@ public partial class App
             ServiceManager.DiscordWebHooksOrNull?.LoadFromConfig();
             SetThemeFromConfig();
 
-            bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"),
-                out bool bitsAsDonationCheck);
-            string currency = config!.Get("Currency", "Primary", "USD")!;
+            bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
+            string currency = config.Get("Currency", "Primary", "USD")!;
+
+            bool optionToggled = false;
+            bool currencyChanged = _currencyVal != currency;
             
-            if (_bitsAsDonationVal != bitsAsDonationCheck || _currencyVal != currency)
+            if (currencyChanged)
+                _currencyVal = currency;
+    
+            
+            if (Utils.DonationSettings.TryGetValue("BitsLikeAsDonation", out bool asDonoBits) && asDonoBits != bitsAsDonationCheck)
             {
-                _currencyVal = currency; 
-                _bitsAsDonationVal = bitsAsDonationCheck;
-                bool wasOnlyBitsChange = _bitsAsDonationVal != bitsAsDonationCheck;
+                optionToggled = true;
+                Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
+            }
+            
+            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            {
+                bool asDonation = config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
+                if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
+                optionToggled = true;
+                Utils.DonationSettings[goAffProSource] = asDonation;
+            }
+
+            if (currencyChanged || optionToggled)
+            {
                 Task.Run(async () =>
                 {
                     await using var db = await _factory!.CreateDbContextAsync();
-                    await SetupSubathonCurrencyData(db, wasOnlyBitsChange ? !_bitsAsDonationVal :  _bitsAsDonationVal);
+                    await SetupSubathonCurrencyData(db, optionToggled);
                 });
             }
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning($"Error reloading config: {ex}");
+            _logger?.LogWarning("Error reloading config: {Exception}", ex);
         }
     }
 
@@ -212,7 +233,7 @@ public partial class App
         Current.Dispatcher.InvokeAsync(() =>
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            string theme = config!.Get("App", "Theme", "Dark")!;
+            string theme = config.Get("App", "Theme", "Dark")!;
             theme = theme.Trim();
 
             if (_themeDictionary == null)
@@ -237,13 +258,11 @@ public partial class App
         }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
-    private async Task SetupSubathonCurrencyData(AppDbContext db, bool? oldBitsDonoValue)
+    private async Task SetupSubathonCurrencyData(AppDbContext db, bool? optionToggled)
     {
         // Setup first time or convert currency
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        string currency = config!.Get("Currency", "Primary", "USD")!;
-        bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"),
-            out bool bitsAsDonationCheck);
+        string currency = config.Get("Currency", "Primary", "USD")!;
         
         var subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
         _currencyVal = currency; 
@@ -257,20 +276,25 @@ public partial class App
             db.Entry(subathon).State = EntityState.Detached;
         }
 
+        // validate this logic, it always runs? 
         var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
-        if ( subathon.MoneySum != null && 
+        if (subathon.MoneySum != null && 
             !subathon.MoneySum.Equals((double)0) && !string.IsNullOrWhiteSpace(oldCurrency))
         {
             var amt = await currencyService.ConvertAsync((double)subathon.MoneySum, oldCurrency, currency);
             await db.UpdateSubathonMoney(amt, subathon.Id);
-            if (oldBitsDonoValue != bitsAsDonationCheck) return;
+            if (optionToggled != null && !(bool)optionToggled) return;
         }
 
         // reconvert everything, rarely called, unless toggling bits as donations
         // alternate was to add bits always when sending out, but that got messy code-wise
         // this way has downside of recalculating conversions historically, but, only if toggling often.
         // and this is estimated to be low usage to change currency or bit dono toggle.
-        var events = await AppDbContext.GetSubathonCurrencyEvents(db, bitsAsDonationCheck);
+        
+        var events = await AppDbContext.GetSubathonCurrencyEvents(db);
+
+        // warning: there can be drift upward if constantly swapping between multiple currencies.
+        // A cent usually, but when >1k$ could be a dollar or so. Sometimes when toggling some things, it can self-fix.
         
         double sum = 0;
         double bits = 0;
@@ -283,11 +307,18 @@ public partial class App
                 continue;
             }
             if (string.IsNullOrWhiteSpace(e.Currency)) continue;
-            var amt = await currencyService.ConvertAsync(double.Parse(e.Value), e.Currency, currency.ToUpper());
+            var value = e.Value;
+            var curr = e.Currency;
+            if (e.EventType.IsOrderType())
+            {
+                value = e.SecondaryValue.Split('|')[0];
+                curr = e.SecondaryValue.Split('|')[1];
+            }
+            var amt = await currencyService.ConvertAsync(double.Parse(value), curr, currency.ToUpper());
             sum += amt;
         }
 
-        if (bitsAsDonationCheck)
+        if (Utils.DonationSettings.TryGetValue("BitsLikeAsDonation", out var bitslike) && bitslike)
         {
             double val = await currencyService.ConvertAsync((bits) / 100, "USD", subathon.Currency);
             sum += val;

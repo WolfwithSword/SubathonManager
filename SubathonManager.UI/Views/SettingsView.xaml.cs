@@ -22,8 +22,18 @@ public partial class SettingsView
     public SettingsView()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        InitializeComponent();
+        InitializeComponent();     
+        //Console.WriteLine("\n\nSettings view reinstanced\n\n");//////////////////////////////////////
         
+        SubathonEvents.SubathonDataUpdate += UpdateTimerValue; // needed outside of loaded to actually capture first fire
+        Loaded += (_, _) =>
+        {
+            //SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
+            WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
+            UpdateServerStatus(ServiceManager.Server?.Running ?? false);
+            SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
+        };
+
         TwitchSettingsControl.Init(this);
         YouTubeSettingsControl.Init(this);
         PicartoSettingsControl.Init(this);
@@ -31,20 +41,24 @@ public partial class SettingsView
         StreamLabsSettingsControl.Init(this);
         StreamElementsSettingsControl.Init(this);
         KoFiSettingsControl.Init(this);
+        GoAffProSettingsControl.Init(this);
         ExternalSettingsControl.Init(this);
         CommandsSettingsControl.Init(this);
         ChatExtSettingsControl.Init(this);
         
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        ServerPortTextBox.Text = config!.Get("Server", "Port", string.Empty)!;
+        ServerPortTextBox.Text = config.Get("Server", "Port", string.Empty) ?? string.Empty;
         LoadValues();
         InitCurrencySelects();
         
-        SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
-        WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
-        UpdateServerStatus(ServiceManager.Server?.Running ?? false);
+        Unloaded += (_, _) =>
+        {
+            //SubathonEvents.SubathonDataUpdate -= UpdateTimerValue;
+            WebServerEvents.WebServerStatusChanged -= UpdateServerStatus;
+            SubathonEvents.SubathonValueConfigUpdatedRemote -= RefreshSubathonValues;
+        };
+        
         Task.Run(CheckForUpdateOnBoot);
-        SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
     }
 
     private async void CheckForUpdateOnBoot()
@@ -80,9 +94,11 @@ public partial class SettingsView
         (bool hasUpdate, string? newVersion, string? url) = await AppServices.CheckForUpdate(_logger);
         if (hasUpdate && !string.IsNullOrEmpty(newVersion))
         {
-            var msgBox = new Wpf.Ui.Controls.MessageBox();
-            msgBox.Title = "Updater";
-            
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Updater"
+            };
+
             var textBlock = new System.Windows.Controls.TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
