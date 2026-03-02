@@ -138,7 +138,9 @@ namespace SubathonManager.Core
                 // won't ignore logging for dev/console, but will for file output at least
                 var text = (message + " " + exception?.Message);
 
-                if (text.Contains("JSON property 'type' could not be mapped", StringComparison.OrdinalIgnoreCase))
+                if (text.Contains("JSON property 'type' could not be mapped", StringComparison.OrdinalIgnoreCase) || 
+                    text.Contains("The input string '' was not in a correct format", StringComparison.OrdinalIgnoreCase) ||
+                    text.Contains("The JSON value could not be converted to ", StringComparison.OrdinalIgnoreCase))
                     logLevel = LogLevel.Debug;
 
                 if (text.Contains("deserializing event", StringComparison.OrdinalIgnoreCase) &&

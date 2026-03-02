@@ -25,7 +25,7 @@ namespace SubathonManager.Integration;
 
 public class TwitchService : IDisposable, IAppService
 {
-    private readonly string _callbackUrl;
+    private string _callbackUrl;
 
     private TwitchAPI? _api;
     private TwitchClient? _chat;
@@ -40,6 +40,7 @@ public class TwitchService : IDisposable, IAppService
         , "data/twitch_token.json"));
     internal string TwitchOAuthUrl = "https://id.twitch.tv/oauth2/authorize";
     internal int CallbackPort = 14041;  // hardcode cause of app callback url
+    internal Uri? EventSubUrl = null;
     
     private DateTime _lastChatDisconnectLog = DateTime.MinValue;
     private volatile bool _isConnected = false;
@@ -61,6 +62,8 @@ public class TwitchService : IDisposable, IAppService
         _logger = logger;
         _config = config;
     }
+    
+    internal Action<string> OpenBrowser = url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
     
     public bool HasTokenFile()
     {
@@ -102,6 +105,7 @@ public class TwitchService : IDisposable, IAppService
         }
     }
     
+    [ExcludeFromCodeCoverage]
     public async Task StartAsync(CancellationToken ct = default)
     {
         if (HasTokenFile())
@@ -152,9 +156,7 @@ public class TwitchService : IDisposable, IAppService
                 $"Please try reconnecting twitch or restarting the application", DateTime.Now);
         }
     }
-
     
-    [ExcludeFromCodeCoverage]
     private async Task StartOAuthFlowAsync()
     {
         // todo allow scopes to load from file for emergency in case of deprecation, thanks twitch
@@ -171,6 +173,9 @@ public class TwitchService : IDisposable, IAppService
             "channel:read:hype_train"
         });
 
+        
+        _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
+        
         var oauthUrl = $"{TwitchOAuthUrl}" +
                        $"?client_id={Config.TwitchClientId}" +
                        $"&redirect_uri={_callbackUrl}" +
@@ -178,11 +183,8 @@ public class TwitchService : IDisposable, IAppService
                        $"&scope={scopes}";
 
         _logger?.LogDebug("Opening Twitch OAuth...");
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = oauthUrl,
-            UseShellExecute = true
-        });
+        
+        OpenBrowser(oauthUrl);
         
         var uri = new Uri(_callbackUrl);
         int port = uri.Port;
@@ -218,7 +220,6 @@ public class TwitchService : IDisposable, IAppService
         }
     }
     
-    [ExcludeFromCodeCoverage]
     private async Task<string?> HandleOAuthExchangeAsync(TcpListener tcpListener, string callbackPath)
     {
         using (var client = await tcpListener.AcceptTcpClientAsync())
@@ -263,7 +264,6 @@ public class TwitchService : IDisposable, IAppService
         }
     }
     
-    [ExcludeFromCodeCoverage]
     private async Task<string> ReadHttpRequestAsync(NetworkStream stream)
     {
         var buffer = new byte[4096];
@@ -454,9 +454,7 @@ public class TwitchService : IDisposable, IAppService
             BlerpChatService.ParseMessage(e.ChatMessage.Message, SubathonEventSource.Twitch);
         }
     }
-
     
-    [ExcludeFromCodeCoverage]
     private async Task InitializeEventSubAsync()
     {
         _chatReconnect.Reset();
@@ -479,7 +477,7 @@ public class TwitchService : IDisposable, IAppService
         _eventSub.ChannelHypeTrainEndV2 += HandleHypeTrainEndV2;
         _eventSub.ChannelCharityCampaignDonate += HandleCharityEvent;
 
-        await _eventSub.ConnectAsync();
+        await _eventSub.ConnectAsync(EventSubUrl);
     }
     
     private bool IsEventSubConnected()
@@ -488,7 +486,6 @@ public class TwitchService : IDisposable, IAppService
     }
 
     
-    [ExcludeFromCodeCoverage]
     private async Task HandleEventSubConnect(object? s, WebsocketConnectedArgs e)
     {
         bool hasError = false;
@@ -524,7 +521,8 @@ public class TwitchService : IDisposable, IAppService
                         { "broadcaster_user_id", UserId! }, { "to_broadcaster_user_id", UserId! },
                         { "moderator_user_id", UserId! }, { "user_id", UserId! }
                     };
-                    var x = await _api!.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
+                    if (_api == null) continue;
+                    var x = await _api.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
                         type.Contains("follow") || type.Contains("hype_train") ? "2" : "1", condition,
                         EventSubTransportMethod.Websocket, _eventSub?.SessionId,
                         clientId: Config.TwitchClientId,
@@ -551,7 +549,7 @@ public class TwitchService : IDisposable, IAppService
             _eventSubReconnect.Cts?.Cancel();
             _eventSubReconnect.Reset();
         }
-        IntegrationEvents.RaiseConnectionUpdate(_isConnected, SubathonEventSource.Twitch, UserName!, "EventSub");
+        IntegrationEvents.RaiseConnectionUpdate(IsEventSubConnected(), SubathonEventSource.Twitch, UserName!, "EventSub");
     }
 
 
@@ -1078,14 +1076,12 @@ public class TwitchService : IDisposable, IAppService
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
-    [ExcludeFromCodeCoverage]
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
     
-    [ExcludeFromCodeCoverage]
     protected virtual void Dispose(bool disposing)
     {
         if (!_disposed)

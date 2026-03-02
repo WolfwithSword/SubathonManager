@@ -5,6 +5,8 @@ using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.Models;
 using TwitchLib.Client.Enums;
 using System.Drawing;
+using System.Net;
+using System.Net.WebSockets;
 using System.Text.Json;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -12,8 +14,12 @@ using SubathonManager.Core.Models;
 using SubathonManager.Services;
 using SubathonManager.Integration;
 using System.Reflection;
+using System.Text;
 using TwitchLib.Client.Models;
 using IniParser.Model;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Interfaces;
 using UserType = TwitchLib.Client.Enums.UserType;
 
@@ -27,12 +33,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            
+
             var path = Path.GetFullPath(Path.Combine(string.Empty
                 , "data"));
             Directory.CreateDirectory(path);
         }
-        
+
         private static SubathonEvent CaptureEvent(Action trigger)
         {
             SubathonEvent? captured = null;
@@ -49,14 +55,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 SubathonEvents.SubathonEventCreated -= EventCaptureHandler;
             }
         }
-        
+
         private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
         {
             var mock = new Mock<IConfig>();
             mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
                 .Returns((string s, string k, string d) =>
                     values != null && values.TryGetValue((s, k), out var v) ? v : d);
-            
+
             var kd = new KeyData("Commands.Pause");
             kd.Value = "pause";
             mock.Setup(c => c.GetSection("Chat")).Returns(() =>
@@ -65,10 +71,171 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 kdc.AddKey(kd);
                 return kdc;
             });
-            
+
             return mock.Object;
         }
-        
+
+        public class MockEventSubServer : IAsyncDisposable
+        {
+            private readonly WebApplication _app;
+            private WebSocket? _currentSocket;
+            private readonly CancellationTokenSource _cts = new();
+
+            public string SessionId { get; } = Guid.NewGuid().ToString("N")[..16];
+            public Uri Uri { get; }
+
+            public MockEventSubServer()
+            {
+                int port = GetFreePort();
+                Uri = new Uri($"ws://127.0.0.1:{port}/ws");
+                string httpBase = $"http://127.0.0.1:{port}";
+
+                var builder = WebApplication.CreateBuilder();
+                builder.WebHost.UseUrls(httpBase);
+                builder.Logging.ClearProviders();
+                _app = builder.Build();
+                _app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
+
+                _app.Map("/ws", async context =>
+                {
+                    if (!context.WebSockets.IsWebSocketRequest)
+                    {
+                        context.Response.StatusCode = 400;
+                        return;
+                    }
+
+                    var socket = await context.WebSockets.AcceptWebSocketAsync();
+                    _currentSocket = socket;
+
+                    var welcome = new
+                    {
+                        metadata = new
+                        {
+                            message_id = Guid.NewGuid().ToString(),
+                            message_type = "session_welcome",
+                            message_timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+                        },
+                        payload = new
+                        {
+                            session = new
+                            {
+                                id = SessionId,
+                                status = "connected",
+                                keepalive_timeout_seconds = 10,
+                                reconnect_url = (string?)null,
+                                connected_at = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+                            }
+                        }
+                    };
+
+                    await SendRawAsync(socket, JsonSerializer.Serialize(welcome));
+
+                    var buffer = new byte[4096];
+                    while (socket.State == WebSocketState.Open && !_cts.Token.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            using var readCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                            readCts.CancelAfter(TimeSpan.FromSeconds(9));
+                            var result = await socket.ReceiveAsync(buffer, readCts.Token);
+                            if (result.MessageType == WebSocketMessageType.Close) break;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            if (socket.State == WebSocketState.Open)
+                            {
+                                var keepalive = new
+                                {
+                                    metadata = new
+                                    {
+                                        message_id = Guid.NewGuid().ToString(),
+                                        message_type = "session_keepalive",
+                                        message_timestamp =
+                                            DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+                                    },
+                                    payload = new { }
+                                };
+                                await SendRawAsync(socket, JsonSerializer.Serialize(keepalive));
+                            }
+                        }
+                        catch
+                        {
+                            break;
+                        }
+                    }
+                });
+
+                _app.StartAsync().GetAwaiter().GetResult();
+            }
+
+            public async Task SendNotificationAsync(string subscriptionType, string subscriptionVersion,
+                object eventPayload)
+            {
+                if (_currentSocket?.State != WebSocketState.Open) return;
+
+                var notification = new
+                {
+                    metadata = new
+                    {
+                        message_id = Guid.NewGuid().ToString(),
+                        message_type = "notification",
+                        message_timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ"),
+                        subscription_type = subscriptionType,
+                        subscription_version = subscriptionVersion
+                    },
+                    payload = new
+                    {
+                        subscription = new
+                        {
+                            id = Guid.NewGuid().ToString(),
+                            type = subscriptionType,
+                            version = subscriptionVersion,
+                            status = "enabled",
+                            condition = new { broadcaster_user_id = "123456" },
+                            transport = new { method = "websocket", session_id = SessionId },
+                            created_at = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ")
+                        },
+                        @event = eventPayload
+                    }
+                };
+
+                await SendRawAsync(_currentSocket, JsonSerializer.Serialize(notification));
+            }
+
+            private static async Task SendRawAsync(WebSocket socket, string json)
+            {
+                var bytes = Encoding.UTF8.GetBytes(json);
+                await socket.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+
+            public static int GetFreePort()
+            {
+                var l = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+                l.Start();
+                int port = ((IPEndPoint)l.LocalEndpoint).Port;
+                l.Stop();
+                return port;
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                _cts.Cancel();
+                if (_currentSocket?.State == WebSocketState.Open)
+                {
+                    try
+                    {
+                        await _currentSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                    }
+                    catch {/**/}
+                }
+
+                await _app.StopAsync();
+                await _app.DisposeAsync();
+                _cts.Dispose();
+            }
+        }
+
+
         [Fact]
         public void SimulateRaid_RaisesRaidEvent()
         {
@@ -118,7 +285,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             }
         }
 
-        
+
         [Theory]
         [InlineData("1000")]
         [InlineData("2000")]
@@ -132,12 +299,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             TwitchService.SimulateSubscription(tier);
 
             Assert.NotNull(ev);
-            Assert.Equal(SubathonEventType.TwitchSub, ev!.EventType);
-            Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
+            Assert.Equal(SubathonEventType.TwitchSub, ev.EventType);
+            Assert.Equal(SubathonEventSource.Simulated, ev.Source);
             Assert.Equal("sub", ev.Currency);
             Assert.Equal(1, ev.Amount);
             Assert.Equal(tier, ev.Value);
-            
+
         }
 
         [Fact]
@@ -148,8 +315,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateGiftSubscriptions("1000", 5));
             Assert.NotNull(ev);
-            Assert.Equal(SubathonEventType.TwitchGiftSub, ev!.EventType);
-            Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
+            Assert.Equal(SubathonEventType.TwitchGiftSub, ev.EventType);
+            Assert.Equal(SubathonEventSource.Simulated, ev.Source);
             Assert.Equal("sub", ev.Currency);
             Assert.Equal("1000", ev.Value);
             Assert.Equal(5, ev.Amount);
@@ -161,9 +328,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateFollow());
+            SubathonEvent? ev = CaptureEvent(TwitchService.SimulateFollow);
             Assert.NotNull(ev);
-            Assert.Equal(SubathonEventType.TwitchFollow, ev!.EventType);
+            Assert.Equal(SubathonEventType.TwitchFollow, ev.EventType);
             Assert.Equal(SubathonEventSource.Simulated, ev.Source);
         }
 
@@ -176,8 +343,8 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateCharityDonation("25.50", "CAD"));
 
             Assert.NotNull(ev);
-            Assert.Equal(SubathonEventType.TwitchCharityDonation, ev!.EventType);
-            Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
+            Assert.Equal(SubathonEventType.TwitchCharityDonation, ev.EventType);
+            Assert.Equal(SubathonEventSource.Simulated, ev.Source);
             Assert.Equal("25.50", ev.Value);
             Assert.Equal("CAD", ev.Currency);
         }
@@ -188,11 +355,11 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainStart());
+            SubathonEvent? ev = CaptureEvent(TwitchService.SimulateHypeTrainStart);
 
-            Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
+            Assert.Equal(SubathonEventSource.Simulated, ev.Source);
             Assert.NotNull(ev);
-            Assert.Equal(SubathonEventType.TwitchHypeTrain, ev!.EventType);
+            Assert.Equal(SubathonEventType.TwitchHypeTrain, ev.EventType);
             Assert.Equal("start", ev.Value);
             Assert.Equal(1, ev.Amount);
         }
@@ -205,10 +372,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(TwitchService.SimulateHypeTrainStart);
             SubathonEvent? ev2 = CaptureEvent(() => TwitchService.SimulateHypeTrainProgress(5));
-            Assert.Equal(SubathonEventSource.Simulated, ev2!.Source);
-            Assert.Equal(SubathonEventType.TwitchHypeTrain, ev2!.EventType);
+            Assert.Equal(SubathonEventSource.Simulated, ev2.Source);
+            Assert.Equal(SubathonEventType.TwitchHypeTrain, ev2.EventType);
             Assert.NotNull(ev2);
-            Assert.Equal("progress", ev2!.Value);
+            Assert.Equal("progress", ev2.Value);
             Assert.Equal(5, ev2.Amount);
         }
 
@@ -219,13 +386,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
             SubathonEvent? ev = CaptureEvent(() => TwitchService.SimulateHypeTrainEnd(10));
-            Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
-            Assert.Equal(SubathonEventType.TwitchHypeTrain, ev!.EventType);
+            Assert.Equal(SubathonEventSource.Simulated, ev.Source);
+            Assert.Equal(SubathonEventType.TwitchHypeTrain, ev.EventType);
             Assert.NotNull(ev);
-            Assert.Equal("end", ev!.Value);
+            Assert.Equal("end", ev.Value);
             Assert.Equal(10, ev.Amount);
         }
-        
+
         [Fact]
         public void HandleChannelOnline_ResumeOnStart_RaisesResumeCommand()
         {
@@ -246,15 +413,15 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 service
                     .GetType()
                     .GetMethod("HandleChannelOnline", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, new StreamOnlineArgs() })
+                    .Invoke(service, [null, new StreamOnlineArgs()])
             );
 
             Assert.NotNull(ev);
             Assert.Equal(SubathonCommandType.Resume, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-        }      
-        
+        }
+
         [Fact]
         public void HandleChannelOnline_UnlockOnStart_RaisesResumeCommand()
         {
@@ -272,7 +439,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 service
                     .GetType()
                     .GetMethod("HandleChannelOnline", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, new StreamOnlineArgs() })
+                    .Invoke(service, [null, new StreamOnlineArgs()])
             );
 
             Assert.Equal(SubathonCommandType.Unlock, ev.Command);
@@ -297,14 +464,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 service
                     .GetType()
                     .GetMethod("HandleChannelOffline", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, new StreamOfflineArgs() })
+                    .Invoke(service, [null, new StreamOfflineArgs()])
             );
 
             Assert.Equal(SubathonCommandType.Pause, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
         }
-        
+
         [Fact]
         public void HandleChannelOffline_LockOnEnd_RaisesPauseCommand()
         {
@@ -322,14 +489,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 service
                     .GetType()
                     .GetMethod("HandleChannelOffline", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, new StreamOfflineArgs() })
+                    .Invoke(service, [null, new StreamOfflineArgs()])
             );
 
             Assert.Equal(SubathonCommandType.Lock, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
         }
-        
+
         [Fact]
         public void HandleChannelFollow_RaisesFollowEvent()
         {
@@ -360,7 +527,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 service
                     .GetType()
                     .GetMethod("HandleChannelFollow", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.Equal(SubathonEventType.TwitchFollow, ev.EventType);
@@ -390,7 +557,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 SubathonEvents.SubathonEventCreated -= Handler;
             }
         }
-        
+
         [Fact]
         public void HandleChatMessage_Command_RaisesCommandEvent()
         {
@@ -412,7 +579,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 TwitchLib.Client.Enums.UserType type = UserType.Viewer;
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
-                
+
                 return new ChatMessage(
                     botUsername: "",
                     userId: "123456789",
@@ -438,7 +605,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     noisy: Noisy.NotSet,
                     rawIrcMessage: "",
                     emoteReplacedMessage: "",
-                    badges: new List<KeyValuePair<string, string>>(),
+                    badges: [],
                     cheerBadge: new CheerBadge(0),
                     bits: 0,
                     bitsInDollars: 0
@@ -446,22 +613,22 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             }
 
-            var chatMsg = MakeMessage("!pause", false, false, 
+            var chatMsg = MakeMessage("!pause", false, false,
                 true, "test", "Test");
             var args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            
+
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.NotNull(ev);
@@ -469,20 +636,20 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Pause, ev.Command);
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("test", ev.User);
-            
-            
-            chatMsg = MakeMessage("!pause", false, false, 
+
+
+            chatMsg = MakeMessage("!pause", false, false,
                 false, "specialguy", "specialguy");
             args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.NotNull(ev);
@@ -490,55 +657,55 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Pause, ev.Command);
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("specialguy", ev.User);
-            
-            chatMsg = MakeMessage("!pause", false, true, 
+
+            chatMsg = MakeMessage("!pause", false, true,
                 false, "testuser", "TestUser");
             args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal(SubathonCommandType.Pause, ev.Command);
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
-            Assert.Equal("testuser", ev.User);       
-            
-            chatMsg = MakeMessage("!pause", true, false, 
+            Assert.Equal("testuser", ev.User);
+
+            chatMsg = MakeMessage("!pause", true, false,
                 false, "testuser", "TestUser");
             args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.Null(ev);
-            
-            chatMsg = MakeMessage("!resume", true, true, 
+
+            chatMsg = MakeMessage("!resume", true, true,
                 false, "testuser", "TestUser");
             args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.Null(ev);
@@ -555,7 +722,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             File.Delete(filePath);
             Assert.False(service.HasTokenFile());
         }
-        
+
         [Fact]
         public void RevokeTokenFile_DeletesFileAndClearsAccessToken()
         {
@@ -566,7 +733,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             service.RevokeTokenFile();
             Assert.False(File.Exists(filePath));
         }
-        
+
         [Fact]
         public async Task ValidateTokenAsync_ReturnsFalse_WhenFileMissing()
         {
@@ -574,9 +741,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 , "data/twitch_token.json"));
             var service = new TwitchService(null, MockConfig());
             File.Delete(filePath);
-    
+
             bool result = await service.ValidateTokenAsync();
-    
+
             Assert.False(result);
         }
 
@@ -593,13 +760,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.False(result);
             File.Delete(filePath);
         }
-        
+
         [Fact]
         public async Task HandleSubGift_RaisesGiftSubEvent()
         {
             var service = new TwitchService(null, MockConfig());
-    
-            var meta = new WebsocketEventSubMetadata { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
+
+            var meta = new WebsocketEventSubMetadata
+                { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
             var args = new ChannelSubscriptionGiftArgs
             {
                 Metadata = meta,
@@ -616,13 +784,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(3, ev.Amount);
             Assert.Equal("gifter", ev.User);
         }
-        
+
         [Fact]
         public async Task HandleBitsUse_RaisesCheerEvent()
         {
             var service = new TwitchService(null, MockConfig());
 
-            var meta = new WebsocketEventSubMetadata { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
+            var meta = new WebsocketEventSubMetadata
+                { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
             var args = new ChannelBitsUseArgs
             {
                 Metadata = meta,
@@ -663,7 +832,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 }
             };
 
-            var ev = CaptureEvent(() => service.InvokePrivate("HandleChannelSubscribe", 
+            var ev = CaptureEvent(() => service.InvokePrivate("HandleChannelSubscribe",
                 null, args).Wait());
 
             Assert.Equal(SubathonEventType.TwitchSub, ev.EventType);
@@ -671,7 +840,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("subscriber", ev.User);
             Assert.Equal("1000", ev.Value);
         }
-        
+
 
         [Fact]
         public async Task HandleSubscriptionMsg_RaisesSubEvent()
@@ -702,7 +871,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("subscriber", ev.User);
             Assert.Equal("2000", ev.Value);
         }
-        
+
         [Fact]
         public async Task HandleChannelRaid_RaisesRaidEvent()
         {
@@ -732,7 +901,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("raider", ev.User);
             Assert.Equal("42", ev.Value);
         }
-        
+
         [Fact]
         public async Task HandleHypeTrainBeginV2_RaisesStartEvent()
         {
@@ -763,7 +932,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(1, ev.Amount);
         }
-        
+
         [Fact]
         public async Task HandleHypeTrainProgressV2_RaisesProgressEvent()
         {
@@ -810,7 +979,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(2, ev.Amount);
         }
-        
+
         [Fact]
         public async Task HandleHypeTrainEndV2_RaisesEndEvent()
         {
@@ -841,7 +1010,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(5, ev.Amount);
         }
-        
+
         [Fact]
         public async Task HandleCharityEvent_RaisesDonationEvent()
         {
@@ -877,7 +1046,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("25.50", ev.Value);
             Assert.Equal("CAD", ev.Currency);
         }
-        
+
         [Fact]
         public async Task StopAsync_CanBeCalledTwice_Safely()
         {
@@ -888,7 +1057,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             await service.StopAsync(CancellationToken.None);
             await service.StopAsync(CancellationToken.None);
         }
-        
+
         [Fact]
         public void HandleChatMessage_BlerpNotification()
         {
@@ -903,7 +1072,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 TwitchLib.Client.Enums.UserType type = UserType.Viewer;
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
-                
+
                 return new ChatMessage(
                     botUsername: "",
                     userId: "123456789",
@@ -929,7 +1098,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     noisy: Noisy.NotSet,
                     rawIrcMessage: "",
                     emoteReplacedMessage: "",
-                    badges: new List<KeyValuePair<string, string>>(),
+                    badges: [],
                     cheerBadge: new CheerBadge(0),
                     bits: 0,
                     bitsInDollars: 0
@@ -937,22 +1106,22 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             }
 
-            var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false, 
+            var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false,
                 false, "blerp", "blerp");
             var args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            
+
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.NotNull(ev);
@@ -960,7 +1129,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Blerp, ev.Source);
             Assert.Equal("SomeGuy", ev.User);
         }
-        
+
         [Fact]
         public void HandleChatMessage_BlerpNotificationWrongChat()
         {
@@ -975,7 +1144,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 TwitchLib.Client.Enums.UserType type = UserType.Viewer;
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
-                
+
                 return new ChatMessage(
                     botUsername: "",
                     userId: "123456789",
@@ -1001,7 +1170,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     noisy: Noisy.NotSet,
                     rawIrcMessage: "",
                     emoteReplacedMessage: "",
-                    badges: new List<KeyValuePair<string, string>>(),
+                    badges: [],
                     cheerBadge: new CheerBadge(0),
                     bits: 0,
                     bitsInDollars: 0
@@ -1009,25 +1178,129 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             }
 
-            var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false, 
+            var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false,
                 false, "blerp", "blerp");
             var args = new OnMessageReceivedArgs
             {
                 ChatMessage = chatMsg
             };
-            
+
             typeof(SubathonEvents)
                 .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-            
+
             var ev = CaptureEvent(() =>
                 service
                     .GetType()
                     .GetMethod("HandleMessageCmdReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, new object?[] { null, args })
+                    .Invoke(service, [null, args])
             );
 
             Assert.Null(ev);
+        }
+
+        [Fact]
+        public async Task StartOAuthFlow_WritesTokenFile()
+        {
+            var tokenFilePath = Path.GetFullPath("data/twitch_token.json");
+            if (File.Exists(tokenFilePath)) File.Delete(tokenFilePath);
+
+            var service = new TwitchService(null, MockConfig());
+            service.TwitchOAuthUrl = "http://localhost/fake";
+            service.OpenBrowser = _ => { };
+            service.CallbackPort = MockEventSubServer.GetFreePort();
+
+            var fakeToken = "test_access_token_abc123";
+
+            var browserSim = Task.Run(async () =>
+            {
+                await Task.Delay(200);
+
+                using (var tcp = new System.Net.Sockets.TcpClient())
+                {
+                    await tcp.ConnectAsync(IPAddress.Loopback, service.CallbackPort);
+                    var stream = tcp.GetStream();
+                    var req = "GET /auth/twitch/callback/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+                    await stream.WriteAsync(Encoding.UTF8.GetBytes(req));
+                    var buf = new byte[4096];
+                    while (await stream.ReadAsync(buf) > 0)
+                    {
+                    }
+                }
+
+                await Task.Delay(50);
+
+                using (var tcp = new System.Net.Sockets.TcpClient())
+                {
+                    await tcp.ConnectAsync(IPAddress.Loopback, service.CallbackPort);
+                    var stream = tcp.GetStream();
+                    var req =
+                        $"GET /token?access_token={fakeToken}&token_type=bearer HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
+                    await stream.WriteAsync(Encoding.UTF8.GetBytes(req));
+                    var buf = new byte[4096];
+                    while (await stream.ReadAsync(buf) > 0)
+                    {
+                    }
+                }
+            });
+
+            var oauthMethod = typeof(TwitchService)
+                .GetMethod("StartOAuthFlowAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            await Task.WhenAll(
+                browserSim,
+                (Task)oauthMethod.Invoke(service, null)!
+            );
+
+            Assert.True(File.Exists(tokenFilePath));
+            var json = await File.ReadAllTextAsync(tokenFilePath);
+            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            Assert.Equal(fakeToken, data!["access_token"]);
+
+            File.Delete(tokenFilePath);
+        }
+        
+        [Fact]
+        public async Task EventSub_ConnectsAndFiresConnectionUpdate()
+        {
+            await using var wsServer = new MockEventSubServer();
+
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            void Handler(bool b, SubathonEventSource source, string name, string svc)
+            {
+                if (svc == "EventSub") tcs.TrySetResult(b);
+            }
+
+            IntegrationEvents.ConnectionUpdated += Handler;
+            try
+            {
+                var service = new TwitchService(null, MockConfig());
+                service.EventSubUrl = wsServer.Uri;
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await (Task)typeof(TwitchService)
+                            .GetMethod("InitializeEventSubAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
+                            .Invoke(service, null)!;
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.TrySetException(ex);
+                    }
+                });
+
+                var result = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                Assert.True(result == tcs.Task, "Timed out — EventSub ConnectionUpdated never fired");
+                Assert.True(await tcs.Task, "EventSub connected=false, expected true");
+                service.Dispose();
+            }
+            finally
+            {
+                IntegrationEvents.ConnectionUpdated -= Handler;
+            }
         }
     }
 }

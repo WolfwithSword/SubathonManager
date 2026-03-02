@@ -13,7 +13,8 @@ namespace SubathonManager.Integration;
 
 public class StreamLabsService : IAppService
 {
-    private StreamlabsClient? _client;
+    internal Func<string, IStreamlabsClient> ClientFactory;
+    private IStreamlabsClient? _client;
     private string _secretToken = "";
     public bool Connected { get; private set; } = false;
 
@@ -26,6 +27,14 @@ public class StreamLabsService : IAppService
     {
         _logger = logger;
         _config = config;
+        
+        ClientFactory = token =>
+        {
+            var options = new OptionsWrapper<StreamlabsOptions>(
+                new StreamlabsOptions { Token = token, Url = BaseUrl });
+            return new StreamlabsClient(
+                AppServices.Provider.GetRequiredService<ILogger<StreamlabsClient>>(), options);
+        };
     }
     
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -41,20 +50,19 @@ public class StreamLabsService : IAppService
     // todo cleanup all names in test for inits
     public async Task<bool> InitClientAsync()
     {
-        Connected = false;
         GetTokenFromConfig();
         
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
-        if (_secretToken.Equals(string.Empty)) return false;
-
-        // TODO Webserver selfhost mock tests here 
-        OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
-            new StreamlabsOptions { Token = _secretToken, Url = BaseUrl}
-        );
+        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.StreamLabs, "User", "Socket");
+        
+        if (_secretToken.Equals(string.Empty))
+        {
+            Connected = false; 
+            return false;
+        }
 
         if (_client != null) await DisconnectAsync();
-
-        _client = new StreamlabsClient(AppServices.Provider.GetRequiredService<ILogger<StreamlabsClient>>(), options);
+        
+        _client = ClientFactory(_secretToken);
         _client.OnDonation += OnDonation;
         try
         {

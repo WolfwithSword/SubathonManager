@@ -274,6 +274,51 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         }
         
         [Fact]
+        public void OnChatReceived_Membership_Milestone_RaisesEvent()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
+            SubathonEvent? captured = null;
+            Action<SubathonEvent> handler = e => captured = e;
+            SubathonEvents.SubathonEventCreated += handler;
+
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Message = Array.Empty<MessagePart>(),
+                Timestamp = DateTimeOffset.UtcNow,
+                Author = new Author { Name = "MemberUser", ChannelId = "MemberChannelId" },
+                MembershipDetails = new MembershipDetails
+                {
+                    EventType = MembershipEventType.Milestone,
+                    HeaderSubtext = "Special guy",
+                    LevelName = "DEFAULT",
+                    MilestoneMonths = 6
+                }
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, new object?[] { null, args });
+
+            Assert.NotNull(captured);
+            Assert.Equal(SubathonEventSource.YouTube, captured!.Source);
+            Assert.Equal(SubathonEventType.YouTubeMembership, captured!.EventType);
+            Assert.Equal("MemberUser", captured.User);
+
+            SubathonEvents.SubathonEventCreated -= handler;
+        }
+        
+        [Fact]
         public void OnChatReceived_Membership_Gift_RaisesEvent()
         {
             var logger = new Mock<ILogger<YouTubeService>>();

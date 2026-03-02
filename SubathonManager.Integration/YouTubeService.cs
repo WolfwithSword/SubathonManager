@@ -104,6 +104,7 @@ public class YouTubeService : IDisposable, IAppService
     //     Console.WriteLine("----------------------YT Live Stream Started");
     // }
     
+    [ExcludeFromCodeCoverage]
     private async void OnStreamEnd(object? sender, LivestreamEndedEventArgs e)
     {
         _logger?.LogDebug("YT Stream has ended");
