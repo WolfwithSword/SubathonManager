@@ -24,7 +24,9 @@ public partial class WebServer : IAppService
     private readonly IConfig _config;
     private SubathonValueConfigHelper _valueHelper;
 
-    private static bool IsWindows => HttpListener.IsSupported;
+    private static bool IsWindows => HttpListener.IsSupported && 
+                                     !(Environment.GetEnvironmentVariable("TEMP")
+                                         ?.Contains("steamuser", StringComparison.OrdinalIgnoreCase) ?? false);
     
     record RouteKey(string Method, string Pattern);
     private readonly List<(RouteKey key, Func<IHttpContext, Task> handler)> _routes
