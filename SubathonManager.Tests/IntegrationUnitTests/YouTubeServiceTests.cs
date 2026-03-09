@@ -10,31 +10,13 @@ using YTLiveChat.Contracts.Services;
 using IniParser.Model;
 using System.Reflection;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
     [Collection("IntegrationEventTests")]
     public class YouTubeServiceTests
     {
-        private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
-        {
-            var mock = new Mock<IConfig>();
-            mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .Returns((string s, string k, string d) =>
-                    values != null && values.TryGetValue((s, k), out var v) ? v : d);
-            
-            var kd = new KeyData("Commands.Pause");
-            kd.Value = "pause";
-            mock.Setup(c => c.GetSection("Chat")).Returns(() =>
-            {
-                var kdc = new KeyDataCollection();
-                kdc.AddKey(kd);
-                return kdc;
-            });
-            
-            return mock.Object;
-        }
-        
         public YouTubeServiceTests()
         {
             typeof(SubathonEvents)
@@ -413,7 +395,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Action<SubathonEvent> handler = e => captured = e;
             SubathonEvents.SubathonEventCreated += handler;
             
-            var configCs = MockConfig(new()
+            var configCs = MockConfig.MakeMockConfig(new()
             {
                 { ("Chat", "Commands.Pause"), "pause" },
                 { ("Chat", "Commands.Pause.permissions.Mods"), "true" },

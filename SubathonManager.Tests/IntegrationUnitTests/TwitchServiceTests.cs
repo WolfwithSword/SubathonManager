@@ -1,5 +1,4 @@
-﻿using Moq;
-using TwitchLib.Client.Events;
+﻿using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.Models;
@@ -16,11 +15,10 @@ using SubathonManager.Integration;
 using System.Reflection;
 using System.Text;
 using TwitchLib.Client.Models;
-using IniParser.Model;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Core.Interfaces;
+using SubathonManager.Tests.Utility;
 using UserType = TwitchLib.Client.Enums.UserType;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
@@ -54,25 +52,6 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             {
                 SubathonEvents.SubathonEventCreated -= EventCaptureHandler;
             }
-        }
-
-        private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
-        {
-            var mock = new Mock<IConfig>();
-            mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .Returns((string s, string k, string d) =>
-                    values != null && values.TryGetValue((s, k), out var v) ? v : d);
-
-            var kd = new KeyData("Commands.Pause");
-            kd.Value = "pause";
-            mock.Setup(c => c.GetSection("Chat")).Returns(() =>
-            {
-                var kdc = new KeyDataCollection();
-                kdc.AddKey(kd);
-                return kdc;
-            });
-
-            return mock.Object;
         }
 
         public class MockEventSubServer : IAsyncDisposable
@@ -396,7 +375,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChannelOnline_ResumeOnStart_RaisesResumeCommand()
         {
-            var config = MockConfig(new()
+            var config = MockConfig.MakeMockConfig(new()
             {
                 { ("Twitch", "ResumeOnStart"), "true" }
             });
@@ -425,7 +404,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChannelOnline_UnlockOnStart_RaisesResumeCommand()
         {
-            var config = MockConfig(new()
+            var config =MockConfig.MakeMockConfig(new()
             {
                 { ("Twitch", "UnlockOnStart"), "true" }
             });
@@ -450,7 +429,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChannelOffline_PauseOnEnd_RaisesPauseCommand()
         {
-            var config = MockConfig(new()
+            var config =MockConfig.MakeMockConfig(new()
             {
                 { ("Twitch", "PauseOnEnd"), "true" }
             });
@@ -475,7 +454,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChannelOffline_LockOnEnd_RaisesPauseCommand()
         {
-            var config = MockConfig(new()
+            var config =MockConfig.MakeMockConfig(new()
             {
                 { ("Twitch", "LockOnEnd"), "true" }
             });
@@ -500,7 +479,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChannelFollow_RaisesFollowEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var meta = new WebsocketEventSubMetadata
             {
@@ -561,7 +540,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChatMessage_Command_RaisesCommandEvent()
         {
-            var config = MockConfig(new()
+            var config =MockConfig.MakeMockConfig(new()
             {
                 { ("Chat", "Commands.Pause"), "pause" },
 
@@ -716,7 +695,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             File.WriteAllText(filePath, "{}");
             Assert.True(service.HasTokenFile());
             File.Delete(filePath);
@@ -729,7 +708,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
             File.WriteAllText(filePath, "{}");
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             service.RevokeTokenFile();
             Assert.False(File.Exists(filePath));
         }
@@ -739,7 +718,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             File.Delete(filePath);
 
             bool result = await service.ValidateTokenAsync();
@@ -752,7 +731,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(new { access_token = "badtoken" }));
 
             bool result = await service.ValidateTokenAsync();
@@ -764,7 +743,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleSubGift_RaisesGiftSubEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var meta = new WebsocketEventSubMetadata
                 { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
@@ -788,7 +767,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleBitsUse_RaisesCheerEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var meta = new WebsocketEventSubMetadata
                 { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
@@ -812,7 +791,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleChannelSubscribe_RaisesSubEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var args = new ChannelSubscribeArgs
             {
@@ -845,7 +824,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleSubscriptionMsg_RaisesSubEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var args = new ChannelSubscriptionMessageArgs
             {
@@ -875,7 +854,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleChannelRaid_RaisesRaidEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var args = new ChannelRaidArgs
             {
@@ -905,7 +884,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleHypeTrainBeginV2_RaisesStartEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var args = new ChannelHypeTrainBeginV2Args
             {
@@ -936,7 +915,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleHypeTrainProgressV2_RaisesProgressEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             await service.InvokePrivate("HandleHypeTrainBeginV2", null, new ChannelHypeTrainBeginV2Args
             {
                 Metadata = new WebsocketEventSubMetadata
@@ -983,7 +962,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleHypeTrainEndV2_RaisesEndEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var args = new ChannelHypeTrainEndV2Args
             {
@@ -1014,7 +993,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public async Task HandleCharityEvent_RaisesDonationEvent()
         {
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
 
             var args = new ChannelCharityCampaignDonateArgs
             {
@@ -1051,7 +1030,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public async Task StopAsync_CanBeCalledTwice_Safely()
         {
             // in case any listeners still exist
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             await service.StartAsync(CancellationToken.None);
 
             await service.StopAsync(CancellationToken.None);
@@ -1061,7 +1040,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChatMessage_BlerpNotification()
         {
-            var config = MockConfig();
+            var config =MockConfig.MakeMockConfig();
             var service = new TwitchService(null, config);
 
             service.Login = "teststreamer";
@@ -1133,7 +1112,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         [Fact]
         public void HandleChatMessage_BlerpNotificationWrongChat()
         {
-            var config = MockConfig();
+            var config =MockConfig.MakeMockConfig();
             var service = new TwitchService(null, config);
 
             service.Login = "teststreamer2";
@@ -1205,7 +1184,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var tokenFilePath = Path.GetFullPath("data/twitch_token.json");
             if (File.Exists(tokenFilePath)) File.Delete(tokenFilePath);
 
-            var service = new TwitchService(null, MockConfig());
+            var service = new TwitchService(null,MockConfig.MakeMockConfig());
             service.TwitchOAuthUrl = "http://localhost/fake";
             service.OpenBrowser = _ => { };
             service.CallbackPort = MockEventSubServer.GetFreePort();
@@ -1275,7 +1254,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             IntegrationEvents.ConnectionUpdated += Handler;
             try
             {
-                var service = new TwitchService(null, MockConfig());
+                var service = new TwitchService(null,MockConfig.MakeMockConfig());
                 service.EventSubUrl = wsServer.Uri;
 
                 _ = Task.Run(async () =>

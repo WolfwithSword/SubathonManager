@@ -34,6 +34,17 @@ public class MockConfig
                 return kdc;
             });
         }
+        
+        /** Forced KeyData **/
+        
+        var kd = new KeyData("Commands.Pause");
+        kd.Value = "pause";
+        mock.Setup(c => c.GetSection("Chat")).Returns(() =>
+        {
+            var kdc = new KeyDataCollection();
+            kdc.AddKey(kd);
+            return kdc;
+        });
             
         return mock.Object;
     }
