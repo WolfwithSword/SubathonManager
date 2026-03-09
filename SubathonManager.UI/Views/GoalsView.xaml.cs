@@ -31,7 +31,8 @@ public partial class GoalsView
 
     private void OnGoalsUpdate(List<SubathonGoal> goals, long points, GoalsType type)
     {
-        Dispatcher.InvokeAsync(LoadGoals);
+        // Dispatcher.InvokeAsync(LoadGoals);
+        LoadGoals();
     }
 
     private void OnSubathonUpdate(SubathonData subathon, DateTime timestamp)
@@ -114,12 +115,18 @@ public partial class GoalsView
         public string PointsText { get; set; } = "";
         public bool Completed { get; set; } = false;
         
-        private IConfig _config => AppServices.Provider.GetRequiredService<IConfig>();
+        private readonly bool _isDarkTheme;
 
-        public Brush TextColor => Completed ? Brushes.Gray : 
-            "Dark".Equals(_config.Get("App", "Theme", "Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.White : Brushes.Black;
-        public Brush PointsColor => Completed ? Brushes.DarkGray : 
-            "Dark".Equals(_config.Get("App", "Theme","Dark")!, StringComparison.OrdinalIgnoreCase) ?  Brushes.LightBlue : Brushes.DarkBlue;
+        
+        public GoalViewModel()
+        {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            _isDarkTheme = "Dark".Equals(config.Get("App", "Theme", "Dark"), StringComparison.OrdinalIgnoreCase);
+        }
+
+        public Brush TextColor => Completed ? Brushes.Gray : (_isDarkTheme ? Brushes.White : Brushes.Black);
+        public Brush PointsColor => Completed ? Brushes.DarkGray : (_isDarkTheme ? Brushes.LightBlue : Brushes.DarkBlue);
+
         public double OpacityValue => Completed ? 0.6 : 1.0;
         public TextDecorationCollection? PointsDecoration =>
             Completed ? TextDecorations.Strikethrough : null;

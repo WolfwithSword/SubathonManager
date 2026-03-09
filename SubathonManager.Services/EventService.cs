@@ -333,17 +333,14 @@ public class EventService: IDisposable, IAppService
 
     private async Task<(bool, bool)> HandleHypeTrainEvent(SubathonEvent ev, SubathonData subathon, AppDbContext db)
     {
-        if (bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
-                out var doHypeTrainMult) && doHypeTrainMult && 
+        if (_config.GetBool("Twitch", "HypeTrainMultiplier.Enabled", false) && 
             (!subathon.Multiplier.IsRunning() || subathon.Multiplier.FromHypeTrain))
         {
             if (ev.Value is "start" or "progress")
             {
                 TimeSpan? duration = null;
-                bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
-                    out var applyPts);
-                bool.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
-                    out var applyTime);
+                bool applyPts = _config.GetBool("Twitch", "HypeTrainMultiplier.Points", false);
+                bool applyTime = _config.GetBool("Twitch", "HypeTrainMultiplier.Time", false);
                 double.TryParse(_config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
                     out var parsedAmt);
                 if (!(subathon.Multiplier.IsRunning()

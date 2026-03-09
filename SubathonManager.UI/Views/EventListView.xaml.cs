@@ -22,7 +22,7 @@ namespace SubathonManager.UI.Views
             _factory = AppServices.Provider!.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
             EventListPanel.ItemsSource = EventItems;
-            LoadRecentEvents();
+            Task.Run(async () => await LoadRecentEvents());
 
             SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
             SubathonEvents.SubathonEventsDeleted += OnSubathonEventsDeleted;
@@ -30,7 +30,7 @@ namespace SubathonManager.UI.Views
 
         private void OnSubathonEventsDeleted(List<SubathonEvent> events)
         {
-            Task.Run(LoadRecentEvents);
+            Task.Run(async () => await LoadRecentEvents());
         }
 
         private async void OnSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)
@@ -53,7 +53,7 @@ namespace SubathonManager.UI.Views
             });
         }
 
-        private async void LoadRecentEvents()
+        private async Task LoadRecentEvents()
         {
             await using var db = await _factory.CreateDbContextAsync();
             SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
@@ -103,7 +103,7 @@ namespace SubathonManager.UI.Views
                     using var db = _factory.CreateDbContext();
                     ServiceManager.EventsOrNull?.DeleteSubathonEvent(db, ev);
                     SubathonEvents.RaiseSubathonEventCreated(newEv);
-                });;
+                });
             }
         }
 

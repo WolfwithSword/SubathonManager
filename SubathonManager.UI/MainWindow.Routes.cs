@@ -120,7 +120,6 @@ namespace SubathonManager.UI
                 };
                 
                 db.Routes.Add(clone);
-                db.SaveChanges();
 
                 foreach (var widget in dbRoute.Widgets.ToArray())
                 {
@@ -128,9 +127,8 @@ namespace SubathonManager.UI
                     db.Widgets.Add(cloneWidget);
                     db.CssVariables.AddRange(cloneWidget.CssVariables);
                     db.JsVariables.AddRange(cloneWidget.JsVariables);
-                    db.SaveChanges();
                 }
-
+                db.SaveChanges();
                 Overlays.Insert(0, clone);
             }
         }

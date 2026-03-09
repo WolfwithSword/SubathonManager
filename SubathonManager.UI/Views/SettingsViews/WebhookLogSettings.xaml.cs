@@ -46,7 +46,7 @@ public partial class WebhookLogSettings : SettingsControl
                          ((SubathonEventType?)x).IsEnabled()).OrderBy(x => x.ToString(), 
                          StringComparer.OrdinalIgnoreCase))
         {
-            bool.TryParse(config!.Get("Discord", $"Events.Log.{eventType}", "false"), out var check);
+            bool check = config.GetBool("Discord", $"Events.Log.{eventType}", false);
             CheckBox typeCheckBox = new()
             {
                 Content = eventType.ToString(),
@@ -57,9 +57,9 @@ public partial class WebhookLogSettings : SettingsControl
             EventWebhookListPanel.Children.Add(typeCheckBox);
         }
             
-        bool.TryParse(config.Get("Discord", "Events.Log.Simulated", "false"), out var logSim);
+        bool logSim = config.GetBool("Discord", $"Events.Log.Simulated", false);
         LogSimEventsCbx.IsChecked = logSim;
-        bool.TryParse(config.Get("Discord", "Events.Log.RemoteConfig", "false"), out var logRemote);
+        bool logRemote = config.GetBool("Discord", "Events.Log.RemoteConfig", false);
         LogRemoteConfigCbx.IsChecked = logRemote; 
         ErrorWebhookUrlBx.Text = config.Get("Discord", "WebhookUrl", string.Empty)!;
         EventWebhookUrlBx.Text = config.Get("Discord", "Events.WebhookUrl", string.Empty)!;

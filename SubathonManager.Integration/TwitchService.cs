@@ -64,7 +64,19 @@ public class TwitchService : IDisposable, IAppService
     }
     
     internal Action<string> OpenBrowser = url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-    
+    private static readonly string[] TwitchScopes =
+    [
+        "user:read:email",
+        "bits:read",
+        "channel:read:subscriptions",
+        "channel:read:redemptions",
+        "moderator:read:followers",
+        "channel:read:charity",
+        "chat:read",
+        "chat:edit",
+        "channel:read:hype_train"
+    ];
+
     public bool HasTokenFile()
     {
         return File.Exists(_tokenFile);
@@ -160,18 +172,7 @@ public class TwitchService : IDisposable, IAppService
     private async Task StartOAuthFlowAsync()
     {
         // todo allow scopes to load from file for emergency in case of deprecation, thanks twitch
-        string scopes = string.Join('+', new[]
-        {
-            "user:read:email",
-            "bits:read",
-            "channel:read:subscriptions",
-            "channel:read:redemptions",
-            "moderator:read:followers",
-            "channel:read:charity",
-            "chat:read",
-            "chat:edit",
-            "channel:read:hype_train"
-        });
+        string scopes = string.Join('+', TwitchScopes);
 
         
         _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
@@ -660,8 +661,7 @@ public class TwitchService : IDisposable, IAppService
 
     private Task HandleChannelOnline(object? s, StreamOnlineArgs e)
     {
-        if (bool.TryParse(_config.Get("Twitch", "ResumeOnStart", "false"),
-                out var resumeOnStart) && resumeOnStart)
+        if (_config.GetBool("Twitch", "ResumeOnStart", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -677,8 +677,7 @@ public class TwitchService : IDisposable, IAppService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
-        if (bool.TryParse(_config.Get("Twitch", "UnlockOnStart", "false"),
-                out var unlockOnStart) && unlockOnStart)
+        if (_config.GetBool("Twitch", "UnlockOnStart", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -699,8 +698,7 @@ public class TwitchService : IDisposable, IAppService
 
     private Task HandleChannelOffline(object? s, StreamOfflineArgs e)
     {
-        if (bool.TryParse(_config.Get("Twitch", "PauseOnEnd", "false"),
-                out var pauseOnEnd) && pauseOnEnd)
+        if (_config.GetBool("Twitch", "PauseOnEnd", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -716,8 +714,7 @@ public class TwitchService : IDisposable, IAppService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
-        if (bool.TryParse(_config.Get("Twitch", "LockOnEnd", "false"),
-                out var lockOnEnd) && lockOnEnd)
+        if (_config.GetBool("Twitch", "LockOnEnd", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {

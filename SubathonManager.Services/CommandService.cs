@@ -67,11 +67,9 @@ public static class CommandService
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
         // All Commands are under twitch section at the moment, despite being cross platform chat commands
         // Should update eventually, or is it too late
-        if (isModerator && bool.TryParse(
-                AppConfig!.Get("Chat", $"{configKey}.Mods"), out var modPerms) && modPerms)
+        if (isModerator && AppConfig!.GetBool("Chat", $"{configKey}.Mods", false))
             return true;
-        if (isVip && bool.TryParse(
-                AppConfig!.Get("Chat", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
+        if (isVip && AppConfig!.GetBool("Chat", $"{configKey}.VIPs", false))
             return true;
         
         string[] whitelist = AppConfig!.Get("Chat", $"{configKey}.Whitelist")!.ToLower().Split(',');

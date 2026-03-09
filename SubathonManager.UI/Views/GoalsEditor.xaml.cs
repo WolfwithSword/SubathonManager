@@ -179,12 +179,12 @@ namespace SubathonManager.UI.Views
             SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
         }
 
-        private void AddGoal_Click(object sender, RoutedEventArgs e)
+        private async void AddGoal_Click(object sender, RoutedEventArgs e)
         {
             if (_activeGoalSet == null) return;
-            SaveGoals_Click(null, null);
+            await SaveGoalsAsync(null, null);
 
-            using var db = _factory.CreateDbContext();
+            await using var db = await _factory.CreateDbContextAsync();
 
             long maxPoints = 0;
             if (_activeGoalSet.Goals.Count > 0)
@@ -197,10 +197,10 @@ namespace SubathonManager.UI.Views
             };
 
             db.SubathonGoals.Add(newGoal);
-            db.SaveChanges();
-            db.Entry(_activeGoalSet).Reload();
+            await db.SaveChangesAsync();
+            await db.Entry(_activeGoalSet).ReloadAsync();
             SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
-            Dispatcher.InvokeAsync(() => 
+            await Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
                 long pts = subathon?.Points ?? 0;
@@ -212,6 +212,11 @@ namespace SubathonManager.UI.Views
         }
 
         private async void SaveGoals_Click(object? sender, RoutedEventArgs? e)
+        {
+            await SaveGoalsAsync(sender, e);
+        }
+
+        private async Task SaveGoalsAsync(object? sender, RoutedEventArgs? e)
         {
             if (_activeGoalSet == null) return;
 
@@ -244,13 +249,16 @@ namespace SubathonManager.UI.Views
                 if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon!.GetRoundedMoneySum();
                 SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
             }
-           
+
+            int delay = 1500;
+            if (sender == null)
+                delay = 100;
             await Dispatcher.InvokeAsync(() => 
                 { 
                     SaveGoalsBtn.Content = "Saved!";
                 } 
             );
-            await Task.Delay(1500);
+            await Task.Delay(delay);
             await Dispatcher.InvokeAsync(() => 
                 { 
                     SaveGoalsBtn.Content = "Save Changes";

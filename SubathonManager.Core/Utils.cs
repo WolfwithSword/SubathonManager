@@ -175,7 +175,7 @@ public static class Utils
             double.TryParse(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
         }
 
-        bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"), out bool useAsDonation);
+        bool useAsDonation = config.GetBool("Currency", "BitsLikeAsDonation", false);
         return (useAsDonation, modifier);
     }
     

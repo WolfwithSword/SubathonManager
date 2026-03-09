@@ -68,12 +68,12 @@ public class DiscordWebhookService : IDisposable, IAppService
         _auditEventTypes.Clear();
         foreach (SubathonEventType type in Enum.GetValues<SubathonEventType>())
         {
-            bool.TryParse(_config.Get("Discord", $"Events.Log.{type}", "false"), out bool result);
-            if (result)
+            if (_config.GetBool("Discord", $"Events.Log.{type}", false))
                 _auditEventTypes.Add(type);
         }
-        bool.TryParse(_config.Get("Discord", "Events.Log.Simulated", "false"), out _doSimulatedEvents);
-        bool.TryParse(_config.Get("Discord", "Events.Log.RemoteConfig", "false"), out _doRemoteValuePatches);
+
+        _doSimulatedEvents = _config.GetBool("Discord", "Events.Log.Simulated", false);
+        _doRemoteValuePatches = _config.GetBool("Discord", "Events.Log.RemoteConfig", false);
     }
 
     private void OnSubathonEventProcessed(SubathonEvent? subathonEvent, bool effective)

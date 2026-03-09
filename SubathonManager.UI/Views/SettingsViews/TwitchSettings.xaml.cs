@@ -205,8 +205,7 @@ public partial class TwitchSettings : SettingsControl
     private void LoadHypeTrainValues()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Enabled", "false"),
-            out bool enabled);
+        bool enabled = config.GetBool("Twitch", "HypeTrainMultiplier.Enabled", false);
         if (HypeTrainMultBox.IsChecked != enabled)
             HypeTrainMultBox.IsChecked = enabled;
         double.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"),
@@ -215,10 +214,8 @@ public partial class TwitchSettings : SettingsControl
         if (HypeTrainMultAmt.Text != parsedAmt.ToString("0.00"))
             HypeTrainMultAmt.Text = parsedAmt.ToString("0.00");
 
-        bool.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Points", "false"),
-            out var applyPts);
-        bool.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Time", "false"),
-            out var applyTime);
+        bool applyPts = config.GetBool("Twitch", "HypeTrainMultiplier.Points", false);
+        bool applyTime = config.GetBool("Twitch", "HypeTrainMultiplier.Time", false);
             
         if (HypeTrainMultTimeBox.IsChecked != applyTime)
             HypeTrainMultTimeBox.IsChecked = applyTime;
