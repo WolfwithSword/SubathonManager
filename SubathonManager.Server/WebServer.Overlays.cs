@@ -10,7 +10,7 @@ namespace SubathonManager.Server;
 public partial class WebServer
 {
   
-    public void AddRoute(Route route)
+    public void AddRoute(Core.Models.Route route)
     {
         foreach (var widget in route.Widgets)
         {
@@ -130,7 +130,7 @@ public partial class WebServer
         await ctx.WriteResponse(404, "Route not found");
     }
 
-    private string GenerateMergedPage(Route route, bool isEditor = false)
+    private string GenerateMergedPage(Core.Models.Route route, bool isEditor = false)
     {
         StringBuilder sb = new StringBuilder();
         sb.AppendLine(

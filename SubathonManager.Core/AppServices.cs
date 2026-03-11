@@ -1,6 +1,7 @@
 ﻿using Updatum;
 using System.Reflection;
 using System.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 namespace SubathonManager.Core {
 
@@ -86,7 +87,6 @@ namespace SubathonManager.Core {
             }
             return null;
         }
-
         public static async Task<bool> InstallUpdate(UpdatumDownloadedAsset? asset, ILogger? logger)
         {
             if (asset == null)

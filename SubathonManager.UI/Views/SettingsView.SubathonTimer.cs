@@ -4,6 +4,7 @@ using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views;
 
@@ -51,7 +52,7 @@ public partial class SettingsView
         private void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
         {
             using var db = _factory.CreateDbContext();
-            App.AppEventService?.UndoSimulatedEvents(db, new(), true);
+            ServiceManager.EventsOrNull?.UndoSimulatedEvents(db, new(), true);
         }
         
         private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)

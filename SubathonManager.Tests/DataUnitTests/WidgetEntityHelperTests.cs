@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Data;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.DataUnitTests;
 

@@ -2,11 +2,11 @@ name: Build SubathonManager (Windows)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
     tags:
       - 'v*.*.*'
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
   workflow_dispatch:
     inputs:
       upload_target:
@@ -114,7 +114,7 @@ jobs:
           RUNTIME=${{ env.RUNTIME }}
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
             echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           else
             SAFE_REF=${GITHUB_REF_NAME//\//-}
@@ -123,7 +123,7 @@ jobs:
           
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
             echo "filename=SubathonManager_${RUNTIME}_nightly.zip" >> $GITHUB_OUTPUT
-          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
             echo "filename=SubathonManager_${RUNTIME}_${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
           else
             SAFE_REF=${GITHUB_REF_NAME//\//-}
@@ -166,7 +166,7 @@ jobs:
 
       - name: Upload build artifact (GitHub)
         if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) ||
-          ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') }}
+          ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') && github.ref_name != 'dev' }}
         uses: actions/upload-artifact@v6
         id: artifact-upload
         continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}

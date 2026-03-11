@@ -2,6 +2,7 @@
 using SubathonManager.Core.Enums;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Services;
@@ -12,8 +13,7 @@ public static class CommandService
     
     static CommandService()
     {
-        if (AppConfig == null)
-            AppConfig = AppServices.Provider?.GetRequiredService<IConfig>()!;
+        AppConfig ??= AppServices.Provider?.GetRequiredService<IConfig>()!;
     }
     
     public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
@@ -27,12 +27,14 @@ public static class CommandService
         SubathonCommandType command = ValidateCommand(message, cmdOverride);
         if (command == SubathonCommandType.Unknown) return false;
         
-        SubathonEvent subathonEvent = new SubathonEvent();
-        subathonEvent.Source = source;
-        subathonEvent.EventTimestamp = timestamp.Value;
-        subathonEvent.Command = command;
-        subathonEvent.EventType = SubathonEventType.Command;
-        
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = source,
+            EventTimestamp = timestamp.Value,
+            Command = command,
+            EventType = SubathonEventType.Command
+        };
+
         if (overrideGuid != null)
             subathonEvent.Id = overrideGuid.Value;
 
@@ -65,11 +67,9 @@ public static class CommandService
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
         // All Commands are under twitch section at the moment, despite being cross platform chat commands
         // Should update eventually, or is it too late
-        if (isModerator && bool.TryParse(
-                AppConfig!.Get("Chat", $"{configKey}.Mods"), out var modPerms) && modPerms)
+        if (isModerator && AppConfig!.GetBool("Chat", $"{configKey}.Mods", false))
             return true;
-        if (isVip && bool.TryParse(
-                AppConfig!.Get("Chat", $"{configKey}.VIPs"), out var vipPerms) && vipPerms)
+        if (isVip && AppConfig!.GetBool("Chat", $"{configKey}.VIPs", false))
             return true;
         
         string[] whitelist = AppConfig!.Get("Chat", $"{configKey}.Whitelist")!.ToLower().Split(',');
@@ -88,11 +88,11 @@ public static class CommandService
         foreach (var keyData in AppConfig!.GetSection("Chat")!)
         {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
-            
-            if (keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase))
-                if (Enum.TryParse<SubathonCommandType>(keyData.KeyName.Split('.')[1] ?? "Unknown", 
-                        out SubathonCommandType command))
-                    return command;
+
+            if (!keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase)) continue;
+            if (Enum.TryParse<SubathonCommandType>(keyData.KeyName.Split('.')[1] ?? "Unknown", 
+                    out SubathonCommandType command))
+                return command;
         }
         
         return SubathonCommandType.Unknown;

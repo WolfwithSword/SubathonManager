@@ -23,13 +23,11 @@ namespace SubathonManager.UI.Validation
 
         private static void OnIsNumberOnlyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is TextBoxBase || d is Wpf.Ui.Controls.TextBox)
-            {
-                if ((bool)e.NewValue)
-                    ((UIElement)d).PreviewTextInput += NumberOnlyHandler;
-                else
-                    ((UIElement)d).PreviewTextInput -= NumberOnlyHandler;
-            }
+            if (d is not (TextBoxBase or Wpf.Ui.Controls.TextBox)) return;
+            if ((bool)e.NewValue)
+                ((UIElement)d).PreviewTextInput += NumberOnlyHandler;
+            else
+                ((UIElement)d).PreviewTextInput -= NumberOnlyHandler;
         }
 
         private static void NumberOnlyHandler(object sender, TextCompositionEventArgs e)
@@ -64,13 +62,11 @@ namespace SubathonManager.UI.Validation
 
         private static void OnIsDecimalOnlyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            if (d is TextBoxBase || d is Wpf.Ui.Controls.TextBox)
-            {
-                if ((bool)e.NewValue)
-                    ((UIElement)d).PreviewTextInput += DecimalOnlyHandler;
-                else
-                    ((UIElement)d).PreviewTextInput -= DecimalOnlyHandler;
-            }
+            if (d is not (TextBoxBase or Wpf.Ui.Controls.TextBox)) return;
+            if ((bool)e.NewValue)
+                ((UIElement)d).PreviewTextInput += DecimalOnlyHandler;
+            else
+                ((UIElement)d).PreviewTextInput -= DecimalOnlyHandler;
         }
 
         private static void DecimalOnlyHandler(object sender, TextCompositionEventArgs e)

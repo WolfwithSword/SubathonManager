@@ -6,40 +6,63 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Integration;
 
-public class StreamLabsService
+public class StreamLabsService : IAppService
 {
-    private StreamlabsClient? _client;
+    internal Func<string, IStreamlabsClient> ClientFactory;
+    private IStreamlabsClient? _client;
     private string _secretToken = "";
     public bool Connected { get; private set; } = false;
 
     private readonly ILogger? _logger;
     private readonly IConfig _config;
 
+    internal string BaseUrl = "https://sockets.streamlabs.com";
+
     public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config)
     {
         _logger = logger;
         _config = config;
+        
+        ClientFactory = token =>
+        {
+            var options = new OptionsWrapper<StreamlabsOptions>(
+                new StreamlabsOptions { Token = token, Url = BaseUrl });
+            return new StreamlabsClient(
+                AppServices.Provider.GetRequiredService<ILogger<StreamlabsClient>>(), options);
+        };
     }
     
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        await InitClientAsync();
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        await DisconnectAsync();
+    }
+    
+    // todo cleanup all names in test for inits
     public async Task<bool> InitClientAsync()
     {
-        Connected = false;
         GetTokenFromConfig();
         
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
-        if (_secretToken.Equals(string.Empty)) return false;
-
-        OptionsWrapper<StreamlabsOptions> options = new OptionsWrapper<StreamlabsOptions>(
-            new StreamlabsOptions { Token = _secretToken }
-        );
+        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.StreamLabs, "User", "Socket");
+        
+        if (_secretToken.Equals(string.Empty))
+        {
+            Connected = false; 
+            return false;
+        }
 
         if (_client != null) await DisconnectAsync();
-
-        _client = new StreamlabsClient(AppServices.Provider.GetRequiredService<ILogger<StreamlabsClient>>(), options);
+        
+        _client = ClientFactory(_secretToken);
         _client.OnDonation += OnDonation;
         try
         {
@@ -61,7 +84,7 @@ public class StreamLabsService
     
     private void GetTokenFromConfig()
     {
-        _secretToken = _config.Get("StreamLabs", "SocketToken")!;
+        _secretToken = _config.Get("StreamLabs", "SocketToken", string.Empty)!;
     }  
     
     public bool IsTokenEmpty()
@@ -72,8 +95,8 @@ public class StreamLabsService
     public void SetSocketToken(string token)
     {
         _secretToken = token;
-        _config.Set("StreamLabs", "SocketToken", token);
-        _config.Save();
+        if (_config.Set("StreamLabs", "SocketToken", token))
+            _config.Save();
     }
     
     private void OnDonation(object? o, DonationMessage message)
