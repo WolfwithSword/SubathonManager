@@ -124,7 +124,8 @@ public partial class WebServer
             command =  subathonEvent.Command.ToString(), // only useful if eventType is command
             event_timestamp = subathonEvent.EventTimestamp,
             reversed = subathonEvent.WasReversed,
-            sub_type = subathonEvent.EventType.GetSubType().ToString()
+            sub_type = subathonEvent.EventType.GetSubType().ToString(),
+            secondary_value = subathonEvent.SecondaryValue
         };
         return data;
     }

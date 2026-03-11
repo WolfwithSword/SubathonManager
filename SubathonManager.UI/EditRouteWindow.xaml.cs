@@ -548,30 +548,51 @@ public partial class EditRouteWindow
                         IsExpanded = false,
                         Header = "Select EventTypes"
                     };
-                
-                    var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-                    var values = Enum.GetValues<SubathonEventType>()
+                    
+                    var outerCheckboxList = new StackPanel { Orientation = Orientation.Vertical };
+                    var groupValues = Enum.GetValues<SubathonEventType>()
                         .Where(x => ((SubathonEventType?)x).IsEnabled())
-                        .Select(x=>x.ToString()).ToList().OrderBy(x => x);
-                    foreach (var eType in values)
+                        .Where(x => x is not SubathonEventType.Command and not SubathonEventType.Unknown)
+                        .GroupBy(x => ((SubathonEventType?)x).GetSource())
+                        .OrderBy(g => g.Key.ToString());
+                    
+                    foreach (var group in groupValues)
                     {
-                        if (eType is nameof(SubathonEventType.Command) or nameof(SubathonEventType.Unknown)) continue;
-                        var chkBox = new CheckBox
+                        var groupExpander = new Expander
                         {
-                            Content = new Wpf.Ui.Controls.TextBlock
-                            {
-                                Text = eType,
-                                TextWrapping =  TextWrapping.Wrap,
-                                MaxWidth = 278
-                            },
-                            IsChecked = panelValues.Contains(eType),
-                            Margin = new Thickness(2)
+                            BorderBrush = Brushes.DarkGray,
+                            BorderThickness = new Thickness(0, 0, 0, 1),
+                            Padding = new Thickness(4, 2, 4, 2),
+                            Margin = new Thickness(0, 2, 0, 2),
+                            IsExpanded = false,
+                            Header = group.Key.ToString()
                         };
-                        chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
-                        chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
-                        chkboxList.Children.Add(chkBox);
+
+                        var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
+
+                        foreach (var eType in group.Select(x => x.ToString()).OrderBy(x => x))
+                        {
+                            var chkBox = new CheckBox
+                            {
+                                Content = new Wpf.Ui.Controls.TextBlock
+                                {
+                                    Text = eType,
+                                    TextWrapping = TextWrapping.Wrap,
+                                    MaxWidth = 240
+                                },
+                                IsChecked = panelValues.Contains(eType),
+                                Margin = new Thickness(2)
+                            };
+                            chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerCheckboxList);
+                            chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, outerCheckboxList);
+                            chkboxList.Children.Add(chkBox);
+                        }
+
+                        groupExpander.Content = chkboxList;
+                        outerCheckboxList.Children.Add(groupExpander);
                     }
-                    expander.Content = chkboxList;
+                
+                    expander.Content = outerCheckboxList;
                     outerPanel.Children.Add(itemRow);
                     outerPanel.Children.Add(expander);
                     break;
@@ -945,10 +966,27 @@ public partial class EditRouteWindow
         return path;
     }
 
-    private void UpdateEventListValues(JsVariable variable, StackPanel dropdown)
+    private IEnumerable<CheckBox> GetAllCheckBoxes(Panel panel)
     {
-        var selected = dropdown.Children.OfType<CheckBox>().Where(c => c.IsChecked == true)
-            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Text).ToList();
+        foreach (var child in panel.Children)
+        {
+            if (child is CheckBox cb)
+                yield return cb;
+            else if (child is Expander { Content: Panel innerPanel })
+                foreach (var nested in GetAllCheckBoxes(innerPanel))
+                    yield return nested;
+            else if (child is Panel childPanel)
+                foreach (var nested in GetAllCheckBoxes(childPanel))
+                    yield return nested;
+        }
+    }
+    
+    private void UpdateEventListValues(JsVariable variable, StackPanel container)
+    {
+        var selected = GetAllCheckBoxes(container)
+            .Where(c => c.IsChecked == true)
+            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Text)
+            .ToList();
         variable.Value = string.Join(',', selected);
     }
     
@@ -1006,13 +1044,13 @@ public partial class EditRouteWindow
             foreach(var cssVar in _selectedWidget.CssVariables)
                 _editingCssVars.Add(cssVar);
 
-            await LoadRouteAsync();
+            //await LoadRouteAsync();
             RefreshWebView();
 
             WidgetsList.Items.Refresh();
             OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
             
-            PopulateWidgetEditor(_selectedWidget);
+            //PopulateWidgetEditor(_selectedWidget);
             await Task.Run(async () =>
             {
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }

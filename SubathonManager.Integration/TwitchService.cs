@@ -558,8 +558,9 @@ public class TwitchService : IDisposable, IAppService
     private Task HandleEventSubReconnect(object? s, WebsocketReconnectedArgs e)
     {
         _logger?.LogInformation("Reconnected EventSub WebSocket.");
-        ErrorMessageEvents.RaiseErrorEvent("INFO", nameof(SubathonEventSource.Twitch),
-            "Twitch EventSub has reconnected", DateTime.Now.ToLocalTime());
+        if (_eventSubReconnect.Retries >= 1)
+            ErrorMessageEvents.RaiseErrorEvent("INFO", nameof(SubathonEventSource.Twitch),
+                "Twitch EventSub has reconnected", DateTime.Now.ToLocalTime());
         _eventSubReconnect.Cts?.Cancel();
         _eventSubReconnect.Reset();
         _isConnected = true;
@@ -757,6 +758,9 @@ public class TwitchService : IDisposable, IAppService
         var eventMeta = e.Metadata as WebsocketEventSubMetadata;
         Guid.TryParse(eventMeta!.MessageId, out var mId);
         if (mId == Guid.Empty) mId = Guid.NewGuid();
+        var user = e.Payload.Event.UserName;
+        if (string.IsNullOrWhiteSpace(user))
+            user = "Anonymous";
         SubathonEvent subathonEvent = new SubathonEvent
         {
             Id = mId,
@@ -764,7 +768,7 @@ public class TwitchService : IDisposable, IAppService
             Currency = "sub",
             EventType = SubathonEventType.TwitchGiftSub,
             Value = e.Payload.Event.Tier,
-            User = e.Payload.Event.UserName,
+            User = user,
             Amount = e.Payload.Event.Total,
             EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
         };

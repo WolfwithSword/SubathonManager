@@ -23,7 +23,6 @@ public partial class SettingsView
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();     
-        //Console.WriteLine("\n\nSettings view reinstanced\n\n");//////////////////////////////////////
         
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue; // needed outside of loaded to actually capture first fire
         Loaded += (_, _) =>

@@ -95,12 +95,6 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             await StopAsync(ct);
             return;
         }
-
-        var options = new JsonSerializerOptions///////////////////////////////////////////////// todo remove
-        {//////////
-            WriteIndented = true//////////
-        };///////////
-        
         
         if (sitesResponse?.Sites == null) return;
 
@@ -111,15 +105,10 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
             IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.GoAffPro,
                 currency, SiteMapping[(int)site.Id].ToString());
-
-            Console.WriteLine($"{SiteMapping[(int)site.Id].ToString()} connected"); /////////////// todo remove
         }
-
-        Console.WriteLine(JsonSerializer.Serialize(sitesResponse.AdditionalData, options));////////////////// todo remove
         
         _detectorCts = new CancellationTokenSource();
         _client.OrderObserverStartTime = DateTimeOffset.UtcNow;
-        //_client.OrderDetected += OnOrderDetected;
         
         _ = Task.Run(async() => {
             await foreach (var order in _client.NewOrdersAsync(
@@ -160,83 +149,87 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
     private void HandleOrder(UserOrderFeedItem order)
     {
-        // If an order comes in as new and then approved, only one is added due to unique id's 
-        
-        // todo remove
-        var options = new JsonSerializerOptions////////////////////////
-        {////////////////////////
-            WriteIndented = true/////////////////
-        };/////////////////////////
-        Console.WriteLine(JsonSerializer.Serialize(order.AdditionalData, options));//////////////////
-
-        if (order.Id == null || order.SiteId == null || order.LineItems == null || string.IsNullOrWhiteSpace(order.Status) ||
-            (!string.Equals(order.Status, "approved", StringComparison.OrdinalIgnoreCase) &&
-             !string.Equals(order.Status, "new", StringComparison.OrdinalIgnoreCase))) return;
-        // new and approved can both come in, but same id will mean it doesn't add twice
-        
-        SubathonEvent ev = new SubathonEvent
+        try
         {
-            Id = Utils.CreateGuidFromUniqueString(!string.IsNullOrWhiteSpace(order.Id.String) ? order.Id.String : order.Id!.Integer.ToString()),
-            Source = SubathonEventSource.GoAffPro
-        };
-        if (order.CreatedAt.HasValue)
-            ev.EventTimestamp = order.CreatedAt.Value.LocalDateTime;
+            // If an order comes in as new and then approved, only one is added due to unique id's 
 
-        ev.User = "New Order!";
-        if (!string.IsNullOrWhiteSpace(order.Number) && order.Number == "SIMULATED")
-        {
-            ev.User = "SIMULATED";
-            ev.Source = SubathonEventSource.Simulated; // check based on eventType in event service
-        }
+            if (order.Id == null || order.SiteId == null || order.LineItems == null ||
+                string.IsNullOrWhiteSpace(order.Status) ||
+                (!string.Equals(order.Status, "approved", StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(order.Status, "new", StringComparison.OrdinalIgnoreCase))) return;
+            // new and approved can both come in, but same id will mean it doesn't add twice
 
-        var site = (int) order.SiteId!.Integer;
-        if (!SiteMapping.TryGetValue(site, out GoAffProSource source)) return;
-        
-        // we will listen for these sites regardless in orders, but will ignore if not enabled.
-        var enabled = config.GetBool(_configSection, $"{source}.Enabled", true);
-        if (!enabled) return;
-        
-        var mode = config.Get(_configSection, $"{source}.Mode", "Dollar");
-
-        var sourceMode = Enum.TryParse(mode, out GoAffProModes m) ? m : GoAffProModes.Dollar;
-        
-        ev.Currency = sourceMode switch
-        {
-            GoAffProModes.Item => "items",
-            GoAffProModes.Order => "order",
-            _ => order.Currency
-        };
-        
-        switch (sourceMode)
-        {
-            case GoAffProModes.Dollar:
-                ev.Value = $"{order.Subtotal}";
-                break;
-            case GoAffProModes.Order:
-                ev.Value = "New";
-                break;
-            default:
+            SubathonEvent ev = new SubathonEvent
             {
-                int itemCount = 0;
-                foreach (var item in order.LineItems)
-                {
-                    itemCount += item.Quantity ?? 0;
-                    itemCount -= item.RefundQuantity ?? 0;
-                }
-                ev.Value = $"{itemCount}";
-                break;
+                Id = Utils.CreateGuidFromUniqueString(!string.IsNullOrWhiteSpace(order.Id.String)
+                    ? order.Id.String
+                    : order.Id!.Integer.ToString()),
+                Source = SubathonEventSource.GoAffPro
+            };
+            if (order.CreatedAt.HasValue)
+                ev.EventTimestamp = order.CreatedAt.Value.LocalDateTime;
+
+            ev.User = "New Order!";
+            if (!string.IsNullOrWhiteSpace(order.Number) && order.Number == "SIMULATED")
+            {
+                ev.User = "SIMULATED";
+                ev.Source = SubathonEventSource.Simulated; // check based on eventType in event service
             }
+
+            var site = (int)order.SiteId!.Integer;
+            if (!SiteMapping.TryGetValue(site, out GoAffProSource source)) return;
+
+            // we will listen for these sites regardless in orders, but will ignore if not enabled.
+            var enabled = config.GetBool(_configSection, $"{source}.Enabled", true);
+            if (!enabled) return;
+
+            var mode = config.Get(_configSection, $"{source}.Mode", "Dollar");
+
+            var sourceMode = Enum.TryParse(mode, out GoAffProModes m) ? m : GoAffProModes.Dollar;
+
+            ev.Currency = sourceMode switch
+            {
+                GoAffProModes.Item => "items",
+                GoAffProModes.Order => "order",
+                _ => order.Currency
+            };
+
+            switch (sourceMode)
+            {
+                case GoAffProModes.Dollar:
+                    ev.Value = $"{order.Subtotal}";
+                    break;
+                case GoAffProModes.Order:
+                    ev.Value = "New";
+                    break;
+                default:
+                {
+                    int itemCount = 0;
+                    foreach (var item in order.LineItems)
+                    {
+                        itemCount += item.Quantity ?? 0;
+                        itemCount -= item.RefundQuantity ?? 0;
+                    }
+
+                    ev.Value = $"{itemCount}";
+                    break;
+                }
+            }
+
+            ev.SecondaryValue = $"{order.Commission}|{order.Currency}";
+            ev.EventType = OrderMapping.GetValueOrDefault(source, SubathonEventType.Unknown);
+            if (ev.EventType == SubathonEventType.Unknown) return;
+
+            ev.User = $"New {source}";
+            if (ev.Source == SubathonEventSource.Simulated)
+                ev.User = $"SYSTEM {source}";
+
+            SubathonEvents.RaiseSubathonEventCreated(ev);
         }
-        
-        ev.SecondaryValue = $"{order.Commission}|{order.Currency}";
-        ev.EventType = OrderMapping.GetValueOrDefault(source, SubathonEventType.Unknown);
-        if (ev.EventType == SubathonEventType.Unknown) return;
-        
-        ev.User = $"New {source}";
-        if (ev.Source == SubathonEventSource.Simulated)
-            ev.User = $"SYSTEM {source}";
-        
-        SubathonEvents.RaiseSubathonEventCreated(ev);
+        catch (Exception e)
+        {
+            logger?.LogWarning(e, "[GoAffPro] Failed to consume order. Data: {Serialize}", JsonSerializer.Serialize(order.AdditionalData));
+        }
     }
 
     public Task StopAsync(CancellationToken ct = default)
@@ -265,12 +258,10 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     [ExcludeFromCodeCoverage]
     protected virtual void Dispose(bool disposing)
     {
-        if (!_disposed)
-        {
-            if (_client != null &&  _detectorCts is { IsCancellationRequested: true })
-                _detectorCts.Cancel();
-            _client?.Dispose();
-            _disposed = true;
-        }
+        if (_disposed) return;
+        if (_client != null &&  _detectorCts is { IsCancellationRequested: true })
+            _detectorCts.Cancel();
+        _client?.Dispose();
+        _disposed = true;
     }
 }

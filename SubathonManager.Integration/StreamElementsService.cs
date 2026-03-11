@@ -89,13 +89,13 @@ public class StreamElementsService : IAppService
 
     private void _OnConnected(object? sender, EventArgs e)
     {
-        _logger?.LogInformation("StreamElementsService Connected");
+        _logger?.LogInformation("[StreamElementsService] Connected");
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
     }
     private void _OnDisconnected(object? sender, EventArgs e)
     {
-        _logger?.LogWarning($"StreamElementsService Disconnected");
+        _logger?.LogWarning("[StreamElementsService] Disconnected");
         Connected = false;
         
         IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
@@ -141,7 +141,7 @@ public class StreamElementsService : IAppService
                 var delay = _reconnectState.Backoff;
 
                 _logger?.LogWarning(
-                    "[StreamElements] Reconnect attempt {Attempt}/{Max} in {Delay}s",
+                    "[StreamElementsService] Reconnect attempt {Attempt}/{Max} in {Delay}s",
                     _reconnectState.Retries,
                     _reconnectState.MaxRetries,
                     delay.TotalSeconds);
@@ -182,7 +182,7 @@ public class StreamElementsService : IAppService
 
     private void _OnAuthenticated(object? sender, Authenticated e)
     {
-        _logger?.LogDebug($"StreamElementsService Authenticated");
+        _logger?.LogDebug($"[StreamElementsService] Authenticated");
         Connected = true;
         _hasAuthError = false;
 
@@ -193,7 +193,7 @@ public class StreamElementsService : IAppService
 
     private void _OnAuthenticateError(object? sender, EventArgs e)
     {
-        _logger?.LogError($"StreamElementsService Authentication Error");
+        _logger?.LogError("[StreamElementsService] Authentication Error");
         Connected = false;
         _hasAuthError = true;
         _reconnectState.Cts?.Cancel();
@@ -234,7 +234,7 @@ public class StreamElementsService : IAppService
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "StreamElementsService Disconnection Error");
+            _logger?.LogWarning(ex, "[StreamElementsService] Disconnection Error");
         }
     }
 
