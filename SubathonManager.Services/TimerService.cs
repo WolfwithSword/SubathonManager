@@ -3,12 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Services;
 
 
 [ExcludeFromCodeCoverage]
-public class TimerService : IDisposable
+public class TimerService : IDisposable, IAppService
 {
     private readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
     private readonly CancellationTokenSource _cts = new();
@@ -16,10 +17,10 @@ public class TimerService : IDisposable
     
     private PeriodicTimer? _periodicTimer;
     
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken ct = default)
     {
         _periodicTimer ??= new PeriodicTimer(_tickInterval);
-        
+
         try
         {
             if (!_cts.IsCancellationRequested)
@@ -33,22 +34,31 @@ public class TimerService : IDisposable
         }
         catch (OperationCanceledException ex)
         {
+            if (_cts.IsCancellationRequested) return;
+            _logger?.LogError(ex, ex.Message);
+        }
+        catch (Exception ex)
+        {
             _logger?.LogError(ex, ex.Message);
         }
     }
 
     public void Stop()
     {
-        if (!_cts.IsCancellationRequested)
+        if (_cts.IsCancellationRequested) return;
+        _cts.Cancel();
+        try
         {
-            _cts.Cancel();
-            try
-            {
-                _periodicTimer?.Dispose();
-            }
-            catch { /**/ }
-            _periodicTimer = null;
+            _periodicTimer?.Dispose();
         }
+        catch { /**/ }
+        _periodicTimer = null;
+    }
+
+    public Task StopAsync(CancellationToken ct = default)
+    {
+        Stop();
+        return Task.CompletedTask;
     }
 
     private void Tick()

@@ -1,37 +1,46 @@
-﻿using System.Windows.Controls;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Windows;
 using System.Diagnostics;
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Integration;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class StreamElementsSettings : UserControl
+public partial class StreamElementsSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamElementsSettings>>();
     public StreamElementsSettings()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+        };
+
+        Unloaded += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+        };
     }
 
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
 
-        IntegrationEvents.ConnectionUpdated += UpdateSEStatus;
-        SEJWTTokenBox.Text = App.AppConfig!.Get("StreamElements", "JWT", string.Empty)!;    
-        if (App.AppStreamElementsService != null)
-            Host!.UpdateConnectionStatus(App.AppStreamElementsService.Connected, SEStatusText, ConnectSEBtn);
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        SEJWTTokenBox.Text = config.Get("StreamElements", "JWT", string.Empty)!;    
+        if (ServiceManager.StreamElementsOrNull != null)
+            Host!.UpdateConnectionStatus(ServiceManager.StreamElementsOrNull.Connected, SEStatusText, ConnectSEBtn);
     }
 
-    public bool UpdateValueSettings(AppDbContext db)
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var seTipValue =
@@ -53,23 +62,33 @@ public partial class StreamElementsSettings : UserControl
 
         return hasUpdated;
     }
-    
-    private void UpdateSEStatus(bool status, SubathonEventSource source, string name, string service)
+
+    public override bool UpdateConfigValueSettings()
+    {
+        throw new NotImplementedException();
+    }
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.StreamElements) return;
-        Host!.UpdateConnectionStatus(status, SEStatusText, ConnectSEBtn);
+        Host.UpdateConnectionStatus(status, SEStatusText, ConnectSEBtn);
     }
-    
-    
+
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
+
     private async void ConnectSEButton_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            App.AppStreamElementsService!.Disconnect();
-            App.AppStreamElementsService!.SetJwtToken(SEJWTTokenBox.Password);
+            ServiceManager.StreamElements.Disconnect();
+            ServiceManager.StreamElements.SetJwtToken(SEJWTTokenBox.Password);
             await Task.Delay(100);
-            App.AppStreamElementsService!.InitClient();
-            if (App.AppStreamElementsService.IsTokenEmpty())
+            ServiceManager.StreamElements.InitClient();
+            if (ServiceManager.StreamElements.IsTokenEmpty())
             {
                 Process.Start(new ProcessStartInfo
                 {

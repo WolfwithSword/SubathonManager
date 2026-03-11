@@ -27,14 +27,16 @@ public static class UiUtils
                 }
                 return true;
             }
-            catch (COMException ex) // when ((uint)ex.ErrorCode == 0x800401D0)
+            catch (COMException) // when ((uint)ex.ErrorCode == 0x800401D0)
             {
                 await Task.Delay(delayMs);
             }
         }
         
-        var msgBox = new Wpf.Ui.Controls.MessageBox();
-        msgBox.Title = "Copy Dialogue";
+        var msgBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "Copy Dialogue"
+        };
         var textBlock = new System.Windows.Controls.TextBlock
         {
             TextWrapping = TextWrapping.Wrap,

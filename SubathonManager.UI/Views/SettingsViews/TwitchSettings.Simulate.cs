@@ -77,18 +77,13 @@ public partial class TwitchSettings
             ? item.Content?.ToString() ?? "" 
             : "";
         int amount = int.TryParse(SimGiftSubAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
-        switch (selectedTier)
+        tier = selectedTier switch
         {
-            case "Tier 1":
-                tier = "1000";
-                break;
-            case "Tier 2":
-                tier = "2000";
-                break;
-            case "Tier 3":
-                tier = "3000";
-                break;
-        }
+            "Tier 1" => "1000",
+            "Tier 2" => "2000",
+            "Tier 3" => "3000",
+            _ => tier
+        };
         if (!string.IsNullOrEmpty(tier) && amount > 0)
             TwitchService.SimulateGiftSubscriptions(tier, amount);
     }

@@ -6,6 +6,7 @@ using SubathonManager.Core.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Server;
 using SubathonManager.Data;
 namespace SubathonManager.Tests.ServerUnitTests;
@@ -55,8 +56,12 @@ public class WebServerTests
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        services.AddSingleton(MockConfig());
+        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName)); 
+        var mockConfig = MockConfig(new()
+        {
+            { ("Server", "Port"), "14045" }
+        });
+        services.AddSingleton(mockConfig);
         AppServices.Provider = services.BuildServiceProvider();
     }
     
@@ -65,7 +70,13 @@ public class WebServerTests
         SetupServices();
         var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
         var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        return new WebServer(factory, MockConfig(), logger, port: 14045);
+        var mockConfig = MockConfig(new()
+        {
+            { ("Server", "Port"), "14045" }
+        });
+        var webserver = new WebServer(logger, mockConfig, factory);
+        webserver.Initialize();
+        return webserver;
     }
     
     private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
@@ -90,8 +101,8 @@ public class WebServerTests
     [Fact]
     public void MatchRoute_Matches_By_Method_And_Prefix()
     {
-        var server = CreateServer();
         SetupServices();
+        var server = CreateServer();
         var handler = server.MatchRoute("GET", "/api/data/status");
 
         Assert.NotNull(handler);

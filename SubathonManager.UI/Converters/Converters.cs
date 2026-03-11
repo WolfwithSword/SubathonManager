@@ -111,36 +111,22 @@ namespace SubathonManager.UI.Converters
             var curr = values[2]?.ToString() ?? "";
             if (values[1] is SubathonEventType eventType)
             {
-                if (eventType == SubathonEventType.TwitchRaid)
-                {
-                    type = "viewers";
-                }
-                else
-                {
-                    type = curr;
-                }
+                type = eventType == SubathonEventType.TwitchRaid ? "viewers" : curr;
             }
             
             
             if (curr == "sub")
             {
-                switch (val)
+                val = val switch
                 {
-                    case "1000":
-                        val = "Tier 1";
-                        break;
-                    case "2000":
-                        val = "Tier 2";
-                        break;
-                    case "3000":
-                        val = "Tier 3";
-                        break;
-                }
+                    "1000" => "Tier 1",
+                    "2000" => "Tier 2",
+                    "3000" => "Tier 3",
+                    _ => val
+                };
             }
 
-            if (string.IsNullOrEmpty(type.Trim()))
-                return val!;
-            return $"{val} {type}";
+            return string.IsNullOrEmpty(type.Trim()) ? val! : $"{val} {type}";
         }
         public object[] ConvertBack(object value, Type[] targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();

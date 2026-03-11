@@ -10,12 +10,21 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Server;
 using SubathonManager.Data;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
+using Xunit.Abstractions;
+
 namespace SubathonManager.Tests.ServerUnitTests;
 
 [Collection("ProviderOverrideTests")]
 public class WebServerWebSocketTests
 {
-    
+    private readonly ITestOutputHelper _testOutputHelper;
+
+    public WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
+    {
+        _testOutputHelper = testOutputHelper;
+    }
+
     private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
     {
         var mock = new Mock<IConfig>();
@@ -40,8 +49,12 @@ public class WebServerWebSocketTests
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        services.AddSingleton(MockConfig());
+        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName)); 
+        var mockConfig = MockConfig(new()
+        {
+            { ("Server", "Port"), "14045" }
+        });
+        services.AddSingleton(mockConfig);
         AppServices.Provider = services.BuildServiceProvider();
     }
     
@@ -50,7 +63,13 @@ public class WebServerWebSocketTests
         SetupServices();
         var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
         var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        return new WebServer(factory, MockConfig(), logger, port: 14045);
+        var mockConfig = MockConfig(new()
+        {
+            { ("Server", "Port"), "14045" }
+        });
+        var webserver = new WebServer(logger, mockConfig, factory);
+        webserver.Initialize();
+        return webserver;
     }
     
     private async Task HandleWebSocketAsync(IHttpContext ctx)
@@ -76,8 +95,8 @@ public class WebServerWebSocketTests
     [Fact]
     public void Generate_Injection_Script()
     {   
-        var server = CreateServer();
         SetupServices();
+        var server = CreateServer();
         var script = server.GetWebsocketInjectionScript();
         Assert.Contains("ws://localhost:14045/ws", script);
         AppServices.Provider = null!;

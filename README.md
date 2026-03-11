@@ -17,7 +17,7 @@
 <p style="font-size: 14px;">
   <strong>Subathon Manager</strong><br/>
   An all-in-one Subathon/Donothon Manager for Twitch and YouTube. Manage your timer,
-  goals, overlays, settings, and more — all locally.
+  goals, overlays, settings, and more - all locally.
 </p>
 
 <br clear="left" />
@@ -28,37 +28,81 @@
 
 
 ## Supported Integrations 
-- **Twitch**
-  - Cheers/Bits
-    - Including Combos & Powerups 
-  - Follows, Raids
-  - Subs & Gift Subs
-  - Charity Donations
-  - Chat Commands
-  - Auto lock/pause on stream end
-  - Auto unlock/resume on stream start
-  - Hype Trains
-    - Events and optional multiplier trigger
-- **Youtube**
-  - SuperChats
-  - Memberships & Gift Memberships
-    - Due to limitations, we treat all memberships as a single level/tier
-  - Chat Commands
-- **Picarto**
-  - Follows
-  - Subs & Gift Subs
-  - Kudos Tips
-  - Chat Commands
-- **KoFi**
-  - Tips & Memberships (via StreamerBot)
-- **StreamElements**
-  - SE Pay Tips
-- **StreamLabs**
-  - Donations
-- **Blerp**
-  - Twitch & YouTube, (Bits & Beets)
-- **External**
-  - Custom commands, donations, and subscriptions via POST API or WebSocket
+
+<details> <summary><strong>Platforms</strong></summary>
+
+<details> <summary><strong>Twitch</strong></summary>
+
+- Cheers/Bits (Including Combos & Powerups!)
+- Follows, Raids
+- Subs, Gift Subs
+- Charity Donations
+- Chat Commands
+- Automations
+    - Lock/Pause on Stream End
+    - Unlock/Resume on Stream Start
+- Hype Trains with optional automated multiplier mode!
+</details>
+
+<details> <summary><strong>YouTube</strong></summary>
+
+- SuperChats
+- Memberships (Configurable Levels) & Gift Memberships
+- Chat Commands
+</details>
+
+<details> <summary><strong>Picarto</strong></summary>
+
+- Follows
+- Subs & Gift Subs
+- Kudos Tips
+- Chat Commands
+</details>
+
+</details>
+
+
+<details> <summary><strong>Integrations</strong></summary>
+
+<details> <summary><strong>GoAffPro Affiliate Stores</strong></summary>
+
+- UwuMarket
+- GamerSupps
+</details>
+<details> <summary><strong>KoFi</strong></summary>
+
+Requires StreamerBot
+
+- Tips
+- Memberships
+
+</details>
+
+<details> <summary><strong>StreamElements</strong></summary>
+
+- SE Pay Tips
+
+</details>
+
+<details> <summary><strong>StreamLabs</strong></summary>
+
+- Donations
+
+</details>
+<details> <summary><strong>Blerp</strong></summary>
+
+- Bits & Beets
+    - On both YouTube and Twitch
+
+</details>
+
+<details> <summary><strong>External</strong></summary>
+
+Custom commands, donations and subscriptions via POST API or WebSocket
+
+</details>
+
+</details>
 
 ## Features
 
