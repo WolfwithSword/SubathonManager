@@ -708,7 +708,7 @@ public class EventServiceTests
         Assert.NotEqual(0, subUpdated.MoneySum);
         
         await Task.Run(() => service.UndoSimulatedEvents(db, new List<SubathonEvent> { ev }));
-        await Task.Delay(50);
+        await Task.Delay(150);
         db.ChangeTracker.Clear();
         
         var subUpdated2 = await db.SubathonDatas.FirstAsync();
