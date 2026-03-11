@@ -6,7 +6,9 @@ namespace SubathonManager.UI.Views;
 
 public abstract class SettingsControl : UserControl
 {
+#pragma warning disable CS8618 
     protected SettingsView Host;
+#pragma warning restore CS8618 
 
     public virtual void Init(SettingsView host)
     {

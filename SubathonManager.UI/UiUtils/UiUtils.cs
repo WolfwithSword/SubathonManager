@@ -27,7 +27,7 @@ public static class UiUtils
                 }
                 return true;
             }
-            catch (COMException ex) // when ((uint)ex.ErrorCode == 0x800401D0)
+            catch (COMException) // when ((uint)ex.ErrorCode == 0x800401D0)
             {
                 await Task.Delay(delayMs);
             }
