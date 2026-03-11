@@ -57,8 +57,7 @@ public class MockWebServerHost : IAsyncDisposable
                     await context.Response.WriteAsync("Not Found");
                 }
             }
-            catch (Exception ex)
-            { /**/ }
+            catch { /**/ }
         });
         _app.StartAsync().GetAwaiter().GetResult();
 

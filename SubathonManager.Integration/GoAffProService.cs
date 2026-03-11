@@ -176,8 +176,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
                 ev.Source = SubathonEventSource.Simulated; // check based on eventType in event service
             }
 
-            var site = (int)order.SiteId!.Integer;
-            if (!SiteMapping.TryGetValue(site, out GoAffProSource source)) return;
+            var site = order.SiteId!.Integer;
+            if (site == null || !SiteMapping.TryGetValue((int)site, out GoAffProSource source)) return;
 
             // we will listen for these sites regardless in orders, but will ignore if not enabled.
             var enabled = config.GetBool(_configSection, $"{source}.Enabled", true);

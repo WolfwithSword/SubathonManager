@@ -72,7 +72,7 @@ public partial class WebServer : IAppService
             {
                 Stop();
             }
-            catch (Exception ex) { /**/ }
+            catch { /**/ }
         }
         
         _routes.Clear();

@@ -93,8 +93,9 @@ public static class Utils
         return  new TimeSpan(days, hours, minutes, seconds);
     }
 
-    public static Guid CreateGuidFromUniqueString(string key)
-    {       
+    public static Guid CreateGuidFromUniqueString(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return Guid.Empty;
         using var sha1 = SHA1.Create();
         byte[] hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(key));
 
