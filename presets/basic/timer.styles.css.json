@@ -1,0 +1,8 @@
+﻿{
+  "text-color": {"type": "color"},
+  "outline-color": {"type": "color"},
+  "alignment": {"type":  "alignment"},
+  "size-big-numbers": {"type":  "size", "description": "Font size of the numbers in the timer"},
+  "outline-width": {"type":  "size"},
+  "size-small-numbers": {"type":  "size", "description": "Font size of the small numbers (seconds) in timer"}
+}

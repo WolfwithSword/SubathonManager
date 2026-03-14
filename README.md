@@ -119,11 +119,13 @@ Custom commands, donations and subscriptions via POST API or WebSocket
 
 ## License
 
-We use a [modified MIT License](LICENSE) that only prohibits the software from being sold or redistributed commercially, or offered as or part of a commercial service.
+We use the [AGPL-3-0-only license](LICENSE) for the software, indicating source must be made available in any and all distributions, including over a network.
 
-You are fully permitted to *use* the software for commercial purposes such as streaming, or developing widget assets for sale. Modifications are allowed, provided they retain this license, though contributions back are preferred!
+At its core, we do not wish for this software to be gatekept behind commerical, service, or otherwise restrictive means, or to be used to take advantage of a user. Although that cannot be prevented, we still want to keep the code open and encourage contributions.
 
-In private, you can do whatever you want. This software is as open-source as possible with that single restriction, as its sole purpose is to prevent users from being taken advantage of from commercial distributions/derivatives of this otherwise open and free software.
+You are fully permitted to *use* the software for commercial purposes, and encouraged for purposes such as streaming, or developing widget assets for sale. Modifications are allowed, provided they retain this license and make available the source, though contributions back are preferred!
+
+Custom widgets for overlays you develop can be licensed however you want and distributed however you want and are not considered part of this software. In fact, we encourage you to share and even commercialize widgets you make.
 
 ## Contact
 

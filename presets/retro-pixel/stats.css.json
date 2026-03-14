@@ -1,0 +1,15 @@
+﻿{
+  "background": {"type": "color"},
+  "border-color": {"type": "color"},
+  "text-color": {"type": "color"},
+  "statbox-background": {"type": "color"},
+  "stat-border-color": {"type": "color"},
+  "points-color": {"type": "color"},
+  "money-color": {"type": "color"},
+  "train-color": {"type": "color"},
+  "time-mult-color": {"type": "color"},
+  "locked-color": {"type": "color"},
+  "paused-color": {"type": "color"},
+  "pixel-border": {"type": "size", "description": "Thickness of the outer border"},
+  "min-width": {"type": "size"}
+}

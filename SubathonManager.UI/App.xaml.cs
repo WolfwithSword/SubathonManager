@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Appearance;
@@ -19,6 +20,7 @@ namespace SubathonManager.UI;
 public partial class App
 {    
     private FileSystemWatcher? _configWatcher;
+    private static Mutex? _mutex;
     
     private ResourceDictionary? _themeDictionary;
     private ILogger? _logger;
@@ -34,6 +36,17 @@ public partial class App
         {
             File.WriteAllText("error_load.log", $"{ex.ExceptionObject}");
         };
+        
+        const string mutexName = "SubathonManager_SingleInstanceMutex";
+        bool createdNew;
+        _mutex = new Mutex(true, mutexName, out createdNew);
+        
+        if (!createdNew)
+        {
+            FocusRunningInstance();
+            Shutdown();
+            return;
+        }
         
         var services = new ServiceCollection();
         
@@ -129,6 +142,25 @@ public partial class App
             fluentDict.Theme = theme.Equals("Dark", StringComparison.OrdinalIgnoreCase)
                 ? ApplicationTheme.Dark
                 : ApplicationTheme.Light;
+    }
+    
+    private void FocusRunningInstance()
+    {
+        var current = Process.GetCurrentProcess();
+        foreach (var proc in Process.GetProcessesByName(current.ProcessName))
+        {
+            if (proc.Id == current.Id)
+                continue;
+
+            if (proc.MainWindowHandle != IntPtr.Zero)
+            {
+                Utils.SingleInstanceHelper.PostMessage(
+                    proc.MainWindowHandle,
+                    Utils.SingleInstanceHelper.WM_SHOWAPP,
+                    IntPtr.Zero,
+                    IntPtr.Zero);
+            }
+        }
     }
 
     protected override async void OnExit(ExitEventArgs e)

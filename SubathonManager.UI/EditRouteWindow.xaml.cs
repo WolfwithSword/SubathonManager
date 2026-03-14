@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.IO;
 using System.Windows;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using Wpf.Ui.Controls;
+using TextBox = Wpf.Ui.Controls.TextBox;
 
 namespace SubathonManager.UI;
 
@@ -30,6 +32,9 @@ public partial class EditRouteWindow
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
     private bool _loadedWebView = false;
+    
+    [GeneratedRegex(@"^-?[\d.]+")]
+    private static partial Regex IsNumberRegex();
     
     public EditRouteWindow(Guid routeId)
     {
@@ -148,11 +153,18 @@ public partial class EditRouteWindow
                 w.Z = index;
             }
             index -= 1;
-            _widgets.Add(w);
             widgetHelper.SyncCssVariables(w);
             widgetHelper.SyncJsVariables(w);
+            await db.Entry(w).ReloadAsync();
+            await db.Entry(w).Collection(x => x.CssVariables).LoadAsync();
+            await db.Entry(w).Collection(x => x.JsVariables).LoadAsync();
+            _widgets.Add(w);
         }
-        if (hasUpdatedZ) await db.SaveChangesAsync();
+
+        if (hasUpdatedZ)
+        {
+            await db.SaveChangesAsync();
+        }
 
         WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
@@ -416,9 +428,10 @@ public partial class EditRouteWindow
         }
         
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
-        using var db = _factory.CreateDbContext();
         widgetHelper.SyncCssVariables(widget);
         widgetHelper.SyncJsVariables(widget);
+        
+        using var db = _factory.CreateDbContext();
         _selectedWidget = db.Widgets.Include(wX => wX.CssVariables)
             .Include(wX => wX.JsVariables)
             .FirstOrDefault(wX => wX.Id == widget.Id);
@@ -1006,7 +1019,6 @@ public partial class EditRouteWindow
         _editingCssVars = new ObservableCollection<CssVariable>(_selectedWidget!.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
-        //RefreshWebView();
     }
     
     private async void SaveWidgetButton_Click(object sender, RoutedEventArgs e)
@@ -1032,7 +1044,11 @@ public partial class EditRouteWindow
             {
                 var cssVarToUpdate = _selectedWidget.CssVariables.Find(csv => csv.Name == cssVar.Name);
                 if (cssVarToUpdate != null)
+                {
                     cssVarToUpdate.Value = cssVar.Value;
+                    cssVarToUpdate.Type = cssVar.Type;
+                    cssVarToUpdate.Description = cssVar.Description;
+                }
             }
             
             db.Entry(_selectedWidget).State = EntityState.Modified;
@@ -1044,13 +1060,13 @@ public partial class EditRouteWindow
             foreach(var cssVar in _selectedWidget.CssVariables)
                 _editingCssVars.Add(cssVar);
 
-            //await LoadRouteAsync();
+            await LoadRouteAsync();
             RefreshWebView();
 
             WidgetsList.Items.Refresh();
             OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
             
-            //PopulateWidgetEditor(_selectedWidget);
+            await db.Entry(_selectedWidget).ReloadAsync();
             await Task.Run(async () =>
             {
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }
@@ -1266,4 +1282,42 @@ public partial class EditRouteWindow
         Loaded -= EditRouteWindow_Loaded;
         base.OnClosed(e);
     }
+    
+    private void SizeValueBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
+        tb.TextChanged += SizeValueBox_TextChanged;
+    }
+
+    private void SizeValueBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
+        var unit = FindSiblingUnitBox(tb)?.SelectedItem as string ?? "px";
+        cssVar.Value = tb.Text + unit;
+    }
+
+    private void SizeUnitBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is ComboBox cb)
+            cb.SelectionChanged += SizeUnitBox_SelectionChanged;
+    }
+    
+    private void SizeUnitBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox { Tag: CssVariable cssVar } cb) return;
+        if (e.AddedItems.Count == 0) return;
+    
+        var unit = cb.SelectedItem as string ?? "px";
+        if ((cssVar.Value ?? "").EndsWith(unit)) return;
+    
+        var numericPart = IsNumberRegex().Match(cssVar.Value ?? "").Value;
+        cssVar.Value = numericPart + unit;
+    }
+
+    private ComboBox? FindSiblingUnitBox(TextBox tb)
+    {
+        if (tb.Parent is not Panel parent) return null;
+        return parent.Children.OfType<ComboBox>().FirstOrDefault();
+    }
+
 }

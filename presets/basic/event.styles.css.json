@@ -1,0 +1,10 @@
+﻿{
+  "text-color": {"type": "color"},
+  "outline-color": {"type": "color"},
+  "alignment": {"type":  "alignment"},
+  "font-size": {"type":  "size"},
+  "outline-width": {"type":  "size"},
+  "icon-outline-width": {"type":  "size"},
+  "gap": {"type":  "size"},
+  "icon-size": {"type":  "size"}
+}
