@@ -648,7 +648,7 @@ public class EventService: IDisposable, IAppService
         }
     }
     
-    public async void UndoSimulatedEvents(AppDbContext db, List<SubathonEvent> events, bool doAll = false)
+    public async Task UndoSimulatedEvents(AppDbContext db, List<SubathonEvent> events, bool doAll = false)
     {
         // Remove simulated events from the active subathon only
         // idea - recent events in main page can have "remove" option each that invoke this with a list of 1 
@@ -743,7 +743,16 @@ public class EventService: IDisposable, IAppService
                     moneyToRemove, subathon.Id);
             }
 
-            db.RemoveRange(events);
+            // db.RemoveRange(events);
+            // to avoid tracking issues in tests, we delete separate entities
+            var ids = events.Select(e => e.Id).ToList();
+
+            var trackedEvents = await db.SubathonEvents
+                .Where(e => ids.Contains(e.Id))
+                .ToListAsync();
+
+            db.RemoveRange(trackedEvents);
+            
             await db.SaveChangesAsync();
             SubathonEvents.RaiseSubathonEventsDeleted(events);
 

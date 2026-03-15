@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Wpf.Ui.Controls;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
@@ -49,10 +50,17 @@ public partial class SettingsView
             }
         }
         
-        private void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
+        private async void RemoveSimEvents_Click(object sender, RoutedEventArgs e)
         {
-            using var db = _factory.CreateDbContext();
-            ServiceManager.EventsOrNull?.UndoSimulatedEvents(db, new(), true);
+            try
+            {
+                await using var db = await _factory.CreateDbContextAsync();
+                await ServiceManager.Events.UndoSimulatedEvents(db, [], true);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Error undoing simulated events");
+            }
         }
         
         private void TogglePauseSubathon_Click(object sender, RoutedEventArgs e)

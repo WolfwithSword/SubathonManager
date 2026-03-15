@@ -4,3 +4,8 @@
 public class SequentialCollectionDefinition
 {
 }
+
+[CollectionDefinition("SequentialParallel", DisableParallelization = false)]
+public class SequentialParallelCollectionDefinition
+{
+}

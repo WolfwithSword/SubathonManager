@@ -9,6 +9,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Services;
 
@@ -148,7 +149,7 @@ public class DiscordWebhookService : IDisposable, IAppService
             var embed = new
             {
                 title=$"Deleted {subathonEvents.Count} Events",
-                description=$"**Dollar Seconds:** {Math.Round(totalSeconds, 2)}s\n**Dollar Points:** {totalPoints}\n**Dollar {currency}:** {Math.Round(totalMoney, 2)}",
+                description=$"**Seconds:** {Math.Round(totalSeconds, 2)}s\n**Points:** {totalPoints}\n**Dollars {currency}:** {Math.Round(totalMoney, 2)}",
                 color = 0x86ACBD,
                 timestamp = DateTime.Now.ToUniversalTime().ToString("o")
             };
