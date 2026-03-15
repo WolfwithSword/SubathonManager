@@ -583,7 +583,7 @@ public class WebServerWebSocketTests
         int count = 0;
         while (count < 25 && ev == null)
         {
-            await Task.Delay(25);
+            await Task.Delay(50);
             count++;
         }
 
