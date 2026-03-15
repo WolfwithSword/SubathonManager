@@ -84,7 +84,8 @@ public class EventServiceTests
         }
 
         var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
-        factoryMock.Setup(f => f.CreateDbContextAsync(CancellationToken.None))
+        factoryMock
+            .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new AppDbContext(options));
         typeof(Core.Events.SubathonEvents)
             .GetField("SubathonGoalCompleted", BindingFlags.Static | BindingFlags.NonPublic)
