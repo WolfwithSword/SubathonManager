@@ -37,9 +37,8 @@ public partial class App
             File.WriteAllText("error_load.log", $"{ex.ExceptionObject}");
         };
         
-        const string mutexName = "SubathonManager_SingleInstanceMutex";
-        bool createdNew;
-        _mutex = new Mutex(true, mutexName, out createdNew);
+        const string mutexName = @"Global\SubathonManager_SingleInstanceMutex";
+        _mutex = new Mutex(true, mutexName, out var createdNew);
         
         if (!createdNew)
         {

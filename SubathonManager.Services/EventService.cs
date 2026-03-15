@@ -7,6 +7,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Services;
 
@@ -100,6 +101,8 @@ public class EventService: IDisposable, IAppService
         await using var db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .FirstOrDefaultAsync(s => s.IsActive);
+        
+        if (subathon == null) return (false, false);
         
         SubathonEvent? dupeCheck = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s => s.Id == ev.Id 
             && s.Source == ev.Source);
@@ -654,97 +657,107 @@ public class EventService: IDisposable, IAppService
         long msToRemove = 0;
         double moneyToRemove = 0;
 
-        SubathonData? subathon = await db.SubathonDatas.Include(x => x.Multiplier)
-            .FirstOrDefaultAsync(s => s.IsActive);
-        if (subathon == null) return;
-        
-        SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking()
-            .Include(s => s.Goals).FirstOrDefaultAsync(s => s.IsActive);
-        
-        long initialPoints = goalSet?.Type == GoalsType.Money ? subathon.GetRoundedMoneySum() : subathon.Points;
-        
-        if (doAll)
+        try
         {
-            // Do All for current subathon
-            events = await db.SubathonEvents.Where(e => e.SubathonId == subathon.Id 
-                                                        && e.Source == SubathonEventSource.Simulated)
-                .ToListAsync();
-        }
+            SubathonData? subathon = await db.SubathonDatas.Include(x => x.Multiplier)
+                .FirstOrDefaultAsync(s => s.IsActive);
+            if (subathon == null) return;
 
-        long bits = 0;
-        foreach (SubathonEvent ev in events)
-        {
-            if (ev.SubathonId != subathon.Id) continue;
-            if (!ev.ProcessedToSubathon) continue;
-            long ms = (long) Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000);
-            if (ev is { WasReversed: true, Command: SubathonCommandType.None })
-                ms *= -1;
-            msToRemove += ms;
-            pointsToRemove +=  (int) ev.GetFinalPointsValue();
-            if (ev.EventType.IsCurrencyDonation())
+            SubathonGoalSet? goalSet = await db.SubathonGoalSets.AsNoTracking()
+                .Include(s => s.Goals).FirstOrDefaultAsync(s => s.IsActive);
+
+            long initialPoints = goalSet?.Type == GoalsType.Money ? subathon.GetRoundedMoneySum() : subathon.Points;
+
+            if (doAll)
             {
-                moneyToRemove +=
-                    await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
+                // Do All for current subathon
+                events = await db.SubathonEvents.Where(e => e.SubathonId == subathon.Id
+                                                            && e.Source == SubathonEventSource.Simulated)
+                    .ToListAsync();
             }
-            else if (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                    $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
-                && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
+
+            long bits = 0;
+            foreach (SubathonEvent ev in events)
             {
-                var value = ev.SecondaryValue.Split('|')[0];
-                var currency = ev.SecondaryValue.Split('|')[1];
-                if (_currencyService.IsValidCurrency(currency))
+                if (ev.SubathonId != subathon.Id) continue;
+                if (!ev.ProcessedToSubathon) continue;
+                long ms = (long)Math.Ceiling(ev.GetFinalSecondsValueRaw() * 1000);
+                if (ev is { WasReversed: true, Command: SubathonCommandType.None })
+                    ms *= -1;
+                msToRemove += ms;
+                pointsToRemove += (int)ev.GetFinalPointsValue();
+                if (ev.EventType.IsCurrencyDonation())
                 {
                     moneyToRemove +=
-                        await _currencyService.ConvertAsync(double.Parse(value), currency, subathon.Currency!);
+                        await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
+                }
+                else if (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
+                                                        $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
+                                                        false)
+                                                    && !string.IsNullOrWhiteSpace(ev.SecondaryValue) &&
+                                                    ev.SecondaryValue.Contains('|'))
+                {
+                    var value = ev.SecondaryValue.Split('|')[0];
+                    var currency = ev.SecondaryValue.Split('|')[1];
+                    if (_currencyService.IsValidCurrency(currency))
+                    {
+                        moneyToRemove +=
+                            await _currencyService.ConvertAsync(double.Parse(value), currency, subathon.Currency!);
+                    }
+
                 }
 
+                (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
+                if (asDono)
+                {
+                    bits += (long)(int.Parse(ev.Value) * modifier);
+                }
             }
 
-            (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
-            if (asDono)
+            if (bits > 0)
             {
-                bits += (long) (int.Parse(ev.Value) * modifier);
+                double val = (double)bits / 100;
+                moneyToRemove +=
+                    await _currencyService.ConvertAsync(Math.Round(val, 2), "USD", subathon.Currency!);
             }
-        }
-        
-        if (bits > 0)
-        {
-            double val = (double) bits / 100;
-            moneyToRemove +=
-                await _currencyService.ConvertAsync(Math.Round(val, 2), "USD", subathon.Currency!);
-        }
-        
-        int affected = 0;
-        if (msToRemove != 0)
-        {
-            affected += await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {0} WHERE IsActive = 1 AND Id = {1} "
-                , msToRemove, subathon.Id);
-        }
 
-        if (pointsToRemove != 0)
-        {
-            affected += await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET Points = Points - {0} WHERE IsActive = 1 AND Id = {1} ",
-                pointsToRemove, subathon.Id);
-        }
+            int affected = 0;
+            if (msToRemove != 0)
+            {
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MillisecondsCumulative = MillisecondsCumulative - {0} WHERE IsActive = 1 AND Id = {1} "
+                    , msToRemove, subathon.Id);
+            }
 
-        if (!moneyToRemove.Equals(0))
-        {
-            affected += await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET MoneySum = MoneySum - {0} WHERE IsActive = 1 AND Id = {1} ",
-                moneyToRemove, subathon.Id);
-        }
+            if (pointsToRemove != 0)
+            {
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET Points = Points - {0} WHERE IsActive = 1 AND Id = {1} ",
+                    pointsToRemove, subathon.Id);
+            }
 
-        db.RemoveRange(events);
-        await db.SaveChangesAsync();
-        SubathonEvents.RaiseSubathonEventsDeleted(events);
-        
-        if (affected > 0)
-        {
-            await DetectGoalStateChange(db, subathon, goalSet, initialPoints);
+            if (!moneyToRemove.Equals(0))
+            {
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MoneySum = MoneySum - {0} WHERE IsActive = 1 AND Id = {1} ",
+                    moneyToRemove, subathon.Id);
+            }
+
+            db.RemoveRange(events);
+            await db.SaveChangesAsync();
+            SubathonEvents.RaiseSubathonEventsDeleted(events);
+
+            if (affected > 0)
+            {
+                await DetectGoalStateChange(db, subathon, goalSet, initialPoints);
+            }
+
+            db.Entry(subathon).State = EntityState.Detached;
         }
-        db.Entry(subathon).State = EntityState.Detached;
+        catch (Exception ex)
+        {
+            _logger?.LogError("UndoSimulatedEvents failed: {Message}", ex.Message);
+        }
     }
 
     private async Task DetectGoalStateChange(AppDbContext db, SubathonData subathon, SubathonGoalSet? goalSet,

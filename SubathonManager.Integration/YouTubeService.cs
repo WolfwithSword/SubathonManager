@@ -86,7 +86,7 @@ public class YouTubeService : IDisposable, IAppService
         IntegrationEvents.RaiseConnectionUpdate(Running, SubathonEventSource.YouTube, "None", "Chat");
 
         _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
-        if (string.IsNullOrEmpty(_ytHandle) || _ytHandle.Trim() == "@")
+        if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
         {
             _logger?.LogInformation("YouTube Service not connected to any channel. Not running.");
             return Running;
@@ -235,7 +235,7 @@ public class YouTubeService : IDisposable, IAppService
             
             var details = item.MembershipDetails;
             string tier = details.HeaderSubtext ?? details.LevelName;
-            if (string.IsNullOrEmpty(tier))
+            if (string.IsNullOrWhiteSpace(tier))
                 tier = details.LevelName;
             subathonEvent.Value = tier;
             subathonEvent.Currency = "member";
@@ -343,7 +343,7 @@ public class YouTubeService : IDisposable, IAppService
                 {
                     await Task.Delay(delay, token);
 
-                    if (!Running && !string.IsNullOrEmpty(_ytHandle))
+                    if (!Running && !string.IsNullOrWhiteSpace(_ytHandle))
                     {
                         _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
                     }

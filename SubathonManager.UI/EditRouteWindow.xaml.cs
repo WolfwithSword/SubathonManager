@@ -1264,22 +1264,24 @@ public partial class EditRouteWindow
     }
     protected override void OnClosed(EventArgs e)
     {
+        WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
+        WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
+        WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
+        WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
+        Loaded -= EditRouteWindow_Loaded;
+        
         if (_loadedWebView)
         {    
             try
             {
                 PreviewWebView.CoreWebView2.Stop();
+                PreviewWebView.CoreWebView2.Navigate("about:blank"); 
                 PreviewWebView.Source = new Uri("about:blank");
             }
             catch { /**/ }
             PreviewWebView?.Dispose();
         }
 
-        WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
-        WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
-        WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
-        WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
-        Loaded -= EditRouteWindow_Loaded;
         base.OnClosed(e);
     }
     
