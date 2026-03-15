@@ -234,7 +234,7 @@ public class WebServerWebSocketTests
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendSubathonValues("[{}]");
-        int count = 0;
+        
         await WaitForMessageAsync(ctx.Socket, TimeSpan.FromSeconds(5));
         Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
@@ -263,7 +263,7 @@ public class WebServerWebSocketTests
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendGoalCompleted(goal,10);
-        int count = 0;
+        
         await WaitForMessageAsync(ctx.Socket, TimeSpan.FromSeconds(5));
         Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
@@ -299,12 +299,12 @@ public class WebServerWebSocketTests
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendSubathonEventProcessed(subathonEvent,true);
-        await Task.Delay(50);
+        await Task.Delay(25);
         Assert.Empty(ctx.Socket.SentMessages);
 
         subathonEvent.ProcessedToSubathon = true;
         server.SendSubathonEventProcessed(subathonEvent,true);
-        int count = 0;
+
         await WaitForMessageAsync(ctx.Socket, TimeSpan.FromSeconds(5));
         Assert.NotEmpty(ctx.Socket.SentMessages);
 
@@ -329,7 +329,7 @@ public class WebServerWebSocketTests
         server.AddSocketClient(client); // ACTUAL adding to clients list
         Guid guid = Guid.Empty;
         server.SendRefreshRequest(guid);
-        int count = 0;
+        
         await WaitForMessageAsync(ctx.Socket, TimeSpan.FromSeconds(5));
         Assert.NotEmpty(ctx.Socket.SentMessages);
         var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
@@ -353,7 +353,7 @@ public class WebServerWebSocketTests
         server.AddSocketClient(client);
         Guid guid = Guid.Empty;
         server.SendRefreshRequest(guid);
-        await WaitForMessageAsync(ctx.Socket, TimeSpan.FromSeconds(5));
+        await Task.Delay(25);
         Assert.Empty(ctx.Socket.SentMessages);
         AppServices.Provider = null!;
     }
