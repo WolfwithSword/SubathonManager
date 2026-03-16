@@ -20,6 +20,7 @@
         <conv:CssSizeValueConverter x:Key="CssSizeValueConverter"/>
         <conv:CssSizeUnitConverter x:Key="CssSizeUnitConverter"/>
         <conv:NullOrEmptyToNullConverter x:Key="NullOrEmptyToNull"/>
+        <conv:StringToBoolConverter x:Key="StringToBoolConverter"/>
         <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Appearance" Value="Secondary"/>
             <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
@@ -383,8 +384,174 @@
 
                                 <!-- JS Variables -->
                                 <Expander Header="JS Variables" IsExpanded="False" Margin="0 0 4 6">
-                                    <ItemsControl x:Name="JsVarsList">
+                                    <ItemsControl x:Name="JsVarsList" ItemsSource="{Binding}">
+                                        <ItemsControl.Resources>
+                                            <uiUtils:JsVariableTemplateSelector x:Key="JsVarSelector">
 
+                                                <uiUtils:JsVariableTemplateSelector.DefaultTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150" ToolTip="{Binding Type}"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.DefaultTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.IntTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                                                                         Tag="{Binding}"  ToolTip="{Binding Type}"
+                                                                         Loaded="JsIntBox_Loaded"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.IntTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.FloatTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                                                                         Tag="{Binding}" ToolTip="{Binding Type}"
+                                                                         Loaded="JsFloatBox_Loaded"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.FloatTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.PercentTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <DockPanel >
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="170" 
+                                                                              VerticalAlignment="Center" Margin="0,0,2,0"
+                                                                              DockPanel.Dock="Left"/>
+                                                                <TextBox x:Name="PercentBox" Width="44" Margin="2,0,0,0"
+                                                                         VerticalAlignment="Center" DockPanel.Dock="Right"
+                                                                         Tag="{Binding}" ToolTip="{Binding Type}"
+                                                                         Loaded="JsPercentBox_Loaded"/>
+                                                                <Slider x:Name="PercentSlider" Minimum="0" Maximum="100" Width="88"
+                                                                        VerticalAlignment="Center" DockPanel.Dock="Right"
+                                                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                                                        Tag="{Binding}" ToolTip="{Binding Type}"
+                                                                        Loaded="JsPercentSlider_Loaded"/>
+                                                            </DockPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.PercentTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.BooleanTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="196" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <CheckBox Tag="{Binding}" Margin="2" Loaded="JsBoolBox_Loaded" ToolTip="{Binding Type}">
+                                                                    <CheckBox.IsChecked>
+                                                                        <Binding Path="Value" Converter="{StaticResource StringToBoolConverter}"/>
+                                                                    </CheckBox.IsChecked>
+                                                                </CheckBox>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.BooleanTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.EventTypeSelectTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ComboBox Width="146" IsEditable="True" IsTextSearchEnabled="True" StaysOpenOnEdit="True" ToolTip="{Binding Type}"
+                                                                          Tag="{Binding}"
+                                                                          Loaded="JsEventTypeSelectBox_Loaded"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.EventTypeSelectTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.EventSubTypeSelectTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ComboBox Width="146" IsEditable="True" IsTextSearchEnabled="True" StaysOpenOnEdit="True" ToolTip="{Binding Type}"
+                                                                          Tag="{Binding}"
+                                                                          Loaded="JsEventSubTypeSelectBox_Loaded"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.EventSubTypeSelectTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.StringSelectTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ComboBox Width="146" Tag="{Binding}" Loaded="JsStringSelectBox_Loaded" ToolTip="{Binding Type}"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.StringSelectTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.FileVarTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Top" Margin="0,0,8,0"/>
+                                                                <StackPanel Orientation="Vertical" Tag="{Binding}" Loaded="JsFileVar_Loaded" ToolTip="{Binding Type}"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.FileVarTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.EventTypeListTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" 
+                                                                          HorizontalAlignment="Left"
+                                                                          VerticalAlignment="Top" Margin="0,0,8,4"/>
+                                                            <Expander BorderBrush="Gray" BorderThickness="1" Padding="4" 
+                                                                      Width="288" HorizontalAlignment="Center" ToolTip="{Binding Type}"
+                                                                      Margin="0,0,0,2" IsExpanded="False" Header="Select EventTypes"
+                                                                      Tag="{Binding}" Loaded="JsEventTypeList_Loaded"/>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.EventTypeListTemplate>
+
+                                                <uiUtils:JsVariableTemplateSelector.EventSubTypeListTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172"
+                                                                          VerticalAlignment="Top" Margin="0,0,8,4" HorizontalAlignment="Left"/>
+                                                            <Expander BorderBrush="Gray" BorderThickness="1" Padding="4"
+                                                                      Width="288" HorizontalAlignment="Center" ToolTip="{Binding Type}"
+                                                                      Margin="0,0,0,2" IsExpanded="False" Header="Select Event Groups"
+                                                                      Tag="{Binding}" Loaded="JsEventSubTypeList_Loaded"/>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.EventSubTypeListTemplate>
+
+                                            </uiUtils:JsVariableTemplateSelector>
+                                        </ItemsControl.Resources>
+                                        <ItemsControl.ItemTemplateSelector>
+                                            <StaticResource ResourceKey="JsVarSelector"/>
+                                        </ItemsControl.ItemTemplateSelector>
                                     </ItemsControl>
                                 </Expander>
                             </StackPanel>
