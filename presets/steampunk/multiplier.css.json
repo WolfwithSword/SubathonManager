@@ -1,0 +1,13 @@
+﻿{
+  "background-color": {"type": "color"},
+  "font-color": {"type": "color"},
+  "light-color": {"type": "color"},
+  "border-color": {"type": "color"},
+  "alignment": {"type":  "alignment"},
+  "border-thickness": {"type": "size"},
+  "font-size": {"type": "size", "description": "Multiplier amount size"},
+  "small-font-size": {"type": "size", "description": "Multiplier type labels"},
+  "width": {"type": "size"},
+  "light-size": {"type": "size", "description": "Size of the indicator light"},
+  "gauge-thickness": {"type": "size", "description": "Thickness of the duration bar"}
+}

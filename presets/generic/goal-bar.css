@@ -8,6 +8,7 @@
     --bar-fg-color: #5BC6E3;
     --bar-border-radius: 6px;
 }
+/* not using border radius values as size values since they can be multiple */
 
 .goal-root {
     width: 100%;

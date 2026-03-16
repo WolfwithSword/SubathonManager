@@ -30,23 +30,47 @@ public class WidgetEntityHelper
 
         foreach (var variable in extracted)
         {
-            bool exists = db.CssVariables.Any(v =>
-                v.WidgetId == widget.Id && v.Name == variable.Name);
-
-            if (!exists)
+            var cssVar = db.CssVariables
+                .FirstOrDefault(v => v.WidgetId == widget.Id && v.Name == variable.Name);
+            
+            if (cssVar == null)
             {
                 db.CssVariables.Add(variable);
                 _logger?.LogDebug($"[Widget {widget.Name}] Added new CSS variable: {variable.Name}");
+            }
+            else
+            {
+                if (cssVar.Type != variable.Type)
+                {
+                    cssVar.Type = variable.Type;
+                }
+
+                if (cssVar.Description != variable.Description)
+                {
+                    cssVar.Description = variable.Description;
+                }
             }
             extractedNames.Add(variable.Name);
         }
 
         db.SaveChanges();
-        foreach (var variable in db.CssVariables
+        foreach (var variable in db.CssVariables.AsNoTracking()
                      .Where(v => v.WidgetId == widget.Id && !extractedNames.Contains(v.Name))
                      .ToList())
         {
             db.CssVariables.Remove(variable);
+        }
+        
+        //dedupe
+        var seenNames = new HashSet<string>();
+        foreach (var variable in db.CssVariables.AsNoTracking()
+                     .Where(v => v.WidgetId == widget.Id)
+                     .ToList())
+        {
+            if (!seenNames.Add(variable.Name))
+            {
+                db.CssVariables.Remove(variable);
+            }
         }
         db.SaveChanges();
     }
@@ -65,7 +89,14 @@ public class WidgetEntityHelper
         
         using var db = _factory.CreateDbContext();
         db.JsVariables.AddRange(jsVars);
-        db.JsVariables.UpdateRange(updatedVars);
+        // db.JsVariables.UpdateRange(updatedVars);
+        foreach (var updated in updatedVars)
+        {
+            var tracked = db.JsVariables
+                .FirstOrDefault(v => v.WidgetId == widget.Id && v.Name == updated.Name);
+            if (tracked != null)
+                tracked.Value = updated.Value;
+        }
         db.SaveChanges();
 
         _logger?.LogDebug($"[Widget {widget.Name}] Added new JS variables: {jsVars.Count}");
@@ -78,7 +109,7 @@ public class WidgetEntityHelper
         }
         
         var seenNames = new HashSet<string>();
-        foreach (var variable in db.JsVariables
+        foreach (var variable in db.JsVariables.AsNoTracking()
                      .Where(v => v.WidgetId == widget.Id)
                      .ToList())
         {

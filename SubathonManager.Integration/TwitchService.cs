@@ -430,6 +430,7 @@ public class TwitchService : IDisposable, IAppService
         _logger?.LogInformation("Twitch Chat Reconnected");
         _chatReconnect.Cts?.Cancel();
         _chatReconnect.Reset();
+        IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
     }
     
     

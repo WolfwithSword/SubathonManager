@@ -1,0 +1,10 @@
+﻿{
+  "background-color": {"type": "color"},
+  "font-color": {"type": "color"},
+  "border-color": {"type": "color"},
+  "border-thickness": {"type": "size"},
+  "font-size": {"type": "size", "description": "Goal text size"},
+  "small-font-size": {"type": "size", "description": "Size of the goal points"},
+  "goal-height": {"type": "size"},
+  "goal-gap": {"type": "size", "description": "Gap between goal items"}
+}

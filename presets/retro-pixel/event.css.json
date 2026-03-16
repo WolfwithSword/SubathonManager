@@ -1,0 +1,6 @@
+﻿{
+  "background": {"type": "color"},
+  "text-color": {"type": "color"},
+  "border-color": {"type": "color"},
+  "pixel-border": {"type": "size", "description": "Thickness of the outer border"}
+}
