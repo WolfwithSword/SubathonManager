@@ -1,0 +1,8 @@
+﻿{
+  "background": {"type": "color"},
+  "bar-background": {"type": "color", "description": "Background colour of the empty parts of the progress bar"},
+  "text-color": {"type": "color"},
+  "bar-color": {"type": "color", "description": "Colour of the progress bar"},
+  "border-color": {"type": "color"},
+  "pixel-border": {"type": "size", "description": "Thickness of the outer border"}
+}

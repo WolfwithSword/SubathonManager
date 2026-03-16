@@ -1,0 +1,9 @@
+﻿{
+  "border-color": {"type": "color"},
+  "inner-border-color": {"type": "color"},
+  "main-background-color": {"type": "color"},
+  "text-color": {"type": "color"},
+  "multiplier-text-color": {"type": "color", "description": "Text colour for the points multiplier"},
+  "gradient-start": {"type": "color", "description": "Gradient colour starting the progress bar"},
+  "gradient-end": {"type": "color", "description": "Gradient colour ending the progress bar"}
+}

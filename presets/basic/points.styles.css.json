@@ -1,0 +1,8 @@
+﻿{
+  "text-color": {"type": "color"},
+  "outline-color": {"type": "color"},
+  "alignment": {"type":  "alignment"},
+  "font-size": {"type":  "size"},
+  "outline-width": {"type":  "size"},
+  "suffix-size": {"type":  "size", "description": "Font size of the optional suffix text"}
+}

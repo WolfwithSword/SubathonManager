@@ -1,0 +1,5 @@
+﻿{
+  "colon-color": {"type": "color", "description": "Colour of the colons and lock symbols"},
+  "colon-glow-color": {"type": "color", "description": "Glow colour of the colons while on"},
+  "gap-colon": {"type": "size", "description": "Gap around the colons in the timer"}
+}

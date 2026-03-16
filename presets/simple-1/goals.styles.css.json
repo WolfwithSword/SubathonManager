@@ -1,0 +1,8 @@
+﻿{
+  "border-color": {"type": "color"},
+  "inner-border-color": {"type": "color"},
+  "main-background-color": {"type": "color"},
+  "goal-text-color": {"type": "color"},
+  "goal-height": {"type": "size"},
+  "goal-gap": {"type": "size", "description": "Vertical gap between goal items"}
+}

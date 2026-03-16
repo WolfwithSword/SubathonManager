@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using SubathonManager.Core.Enums;
@@ -228,6 +229,18 @@ public static class Utils
             Cts?.Cancel();
             Cts?.Dispose();
         }
+    }
+    
+    public static class SingleInstanceHelper
+    {
+        public const int WM_SHOWAPP = 0x0400 + 1;
+
+        [DllImport("user32")]
+        public static extern bool PostMessage(
+            IntPtr hwnd,
+            int msg,
+            IntPtr wparam,
+            IntPtr lparam);
     }
 
 }

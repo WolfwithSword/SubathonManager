@@ -1,4 +1,6 @@
-﻿namespace SubathonManager.Core.Enums;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventSource
 {
@@ -15,4 +17,36 @@ public enum SubathonEventSource
     Blerp,
     Picarto,
     GoAffPro
+}
+
+[ExcludeFromCodeCoverage]
+public static class SubathonEventSourceHelper
+{
+    private static readonly List<SubathonEventSource> SourceOrder =
+    [
+        SubathonEventSource.Twitch,
+        SubathonEventSource.YouTube,
+        SubathonEventSource.Picarto,
+        SubathonEventSource.StreamElements,
+        SubathonEventSource.StreamLabs,
+        SubathonEventSource.KoFi,
+        SubathonEventSource.GoAffPro,
+        SubathonEventSource.Blerp
+    ];
+
+    private static readonly List<SubathonEventSource> SourceOrderEnd =
+    [
+        SubathonEventSource.External, SubathonEventSource.Command
+    ];
+
+    public static int GetSourceOrder(SubathonEventSource source)
+    {
+        var idx = SourceOrder.IndexOf(source);
+        if (idx >= 0) return idx;
+
+        var endIdx = SourceOrderEnd.IndexOf(source);
+        if (endIdx >= 0) return SourceOrder.Count + 1000 + endIdx;
+
+        return SourceOrder.Count + endIdx;
+    }
 }

@@ -63,4 +63,24 @@ public static class WidgetVariableTypeHelper
         _ => throw new ArgumentOutOfRangeException(nameof(varType), varType, null)
     };
 }
+
+public enum WidgetCssVariableType
+{
+    Default, // same as string
+    String, 
+    Color,
+    Alignment,
+    Size
     
+}
+
+[ExcludeFromCodeCoverage]
+public static class WidgetCssVariableTypeHelper
+{
+    public static List<string> GetOptions(this WidgetCssVariableType varType) => varType switch
+    {
+        WidgetCssVariableType.Alignment => ["left", "center", "right"], 
+        WidgetCssVariableType.Size => ["px", "%", "pt", "rem", "em", "vh", "vw", "vmin", "vmax", "cm", "mm", "in", "ch", "ex"],
+        _ => []
+    };
+}
