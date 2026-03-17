@@ -5,7 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Security.Cryptography;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Core.Models;
 
@@ -94,9 +94,9 @@ public class JsVariable
             string val = Value.Split(',')[0].Trim();
             sb.Append($"\"{val}\"");
         }
-        else if (Type == WidgetVariableType.EventTypeList || 
-                 Type == WidgetVariableType.StringList ||
-                 Type == WidgetVariableType.EventSubTypeList)
+        else if (Type is WidgetVariableType.EventTypeList or
+                 WidgetVariableType.StringList or
+                 WidgetVariableType.EventSubTypeList)
         {
             string val = string.Join(",", Value.Split(',').Select(s =>
             {
@@ -138,9 +138,21 @@ public class JsVariable
     
     public static JsVariable? FromJson(JsonElement json, Guid widgetId)
     {
-        var name =  json.GetProperty("name").GetString() ?? string.Empty;
-        var typeStr =  json.GetProperty("type").GetString() ?? string.Empty;
-        if (!Enum.TryParse(typeStr, out WidgetVariableType type) || string.IsNullOrEmpty(name)) return null;
+        var name = json.GetProperty("name").GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name)) return null;
+ 
+        var typeEl = json.GetProperty("type");
+        WidgetVariableType type;
+        if (typeEl.ValueKind == JsonValueKind.Number
+            && typeEl.TryGetInt32(out var typeInt)
+            && Enum.IsDefined(typeof(WidgetVariableType), typeInt))
+        {
+            type = (WidgetVariableType)typeInt;
+        }
+        else if (!Enum.TryParse(typeEl.GetString() ?? string.Empty, out type))
+        {
+            return null;
+        }
         return new JsVariable
         {
             Name = name,
@@ -155,7 +167,7 @@ public class JsVariable
         var obj = new
         {
             name = Name,
-            value = Value, /// todo hash if file and find full path need root widget path stuff
+            value = Value,
             type = Type
         };
 
@@ -218,39 +230,6 @@ public partial class Widget
             widget.CssVariables.Add(cssVariable.Clone(widget.Id));
         
         return widget;
-    }
-
-    /// 
-    /***
-     * 0) add support for folder type variable -- done
-     * 1) method to do best guess scan of file dependencies -- not needed except for parents of htmls
-     * 2) list all files, popup with add/remove for overlay -- complex idea
-     * 3) util fn to get hashed split truncated paths when given path, do not hash filename/extension -- not whole thing i think, just lowest shared root and dont need split?
-     * 4) webserver backend resource fetch - if not file at all try this rel to widget parent -- dont need anymore
-     *
-     * RULES:
-     * - Default, parent of all html files folder will be zipped
-     * - fullpath vars will be replaced
-     * - hardcoded full paths will be dead, die die die die die
-    ***/
-    ///
-    // todo how to bundle stuff from included folder rel paths but not variables
-    
-    // in html file, find all relative files. oh god what if it's in the code only. 
-    // could like, for each widget, it zips up their whole folder, need to warn that, but it would help resolve relatively imports for anything under
-    
-    // can also have a metadata field of like "Requires" and it's a list of file paths?
-    
-    // fullproof would be to export and have all listed files be visible in a list, and let them manually add files too. But then resolving internally is borked - if we can't resolve via code we wouldnt be able to reverse
-    
-    
-    public string GetPathHash()
-    {
-        // each part, hash, crop to 2-4?
-        using var sha256 = SHA256.Create(); 
-        return Convert.ToHexString(sha256.ComputeHash(
-                Encoding.UTF8.GetBytes(GetPath())))
-            .ToLowerInvariant();
     }
     
     public string GetPath() => Path.GetDirectoryName(HtmlPath) ?? HtmlPath;
@@ -339,7 +318,7 @@ public partial class Widget
     [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
     
     private static partial Regex CssVarRegex();
-    // todo oh yeah dummy dont forget filepath stuffs for widget in json for relative shenanigans
+
     public JsonElement ToJson(string htmlRelPath)
     {
         var obj = new
@@ -402,16 +381,16 @@ public partial class Widget
         widget.ScaleX = scale.GetProperty("x").GetSingle();
         widget.ScaleY = scale.GetProperty("y").GetSingle();
 
-        foreach (var css in json.GetProperty("cssVariables").EnumerateArray())
+        foreach (var cssVar in json.GetProperty("cssVariables").EnumerateArray().Select(css => 
+                     CssVariable.FromJson(css, widget.Id)).OfType<CssVariable>())
         {
-            CssVariable? cssVar = CssVariable.FromJson(css, widget.Id);
-            if (cssVar != null) widget.CssVariables.Add(cssVar);
+            widget.CssVariables.Add(cssVar);
         }
 
-        foreach (var js in json.GetProperty("jsVariables").EnumerateArray())
+        foreach (var jsVar in json.GetProperty("jsVariables").EnumerateArray().Select(js => 
+                     JsVariable.FromJson(js, widget.Id)).OfType<JsVariable>())
         {
-            JsVariable? jsVar = JsVariable.FromJson(js, widget.Id);
-            if (jsVar != null) widget.JsVariables.Add(jsVar);
+            widget.JsVariables.Add(jsVar);
         }
 
         return widget;

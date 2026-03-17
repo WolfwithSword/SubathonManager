@@ -16,9 +16,11 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.UI.Views;
 using Wpf.Ui.Controls;
 using TextBox = Wpf.Ui.Controls.TextBox;
 // ReSharper disable NullableWarningSuppressionIsUsed
+// ReSharper disable UnusedVariable
 
 namespace SubathonManager.UI;
 
@@ -37,7 +39,7 @@ public partial class EditRouteWindow
         {
             if (_route == null) return;
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(config!));
+            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(config));
         }
         catch (Exception ex)
         {
@@ -54,7 +56,7 @@ public partial class EditRouteWindow
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             Process.Start(new ProcessStartInfo
             {
-                FileName = _route.GetRouteUrl(config!),
+                FileName = _route.GetRouteUrl(config),
                 UseShellExecute = true
             });
         }
@@ -383,7 +385,7 @@ public partial class EditRouteWindow
             return;
         }
 
-        if (sender is Wpf.Ui.Controls.TextBox tb)
+        if (sender is TextBox tb)
         {
             if (e.Text == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
             {
@@ -417,7 +419,7 @@ public partial class EditRouteWindow
             return;
         }
 
-        if (sender is Wpf.Ui.Controls.TextBox tb)
+        if (sender is TextBox tb)
         {
             if (e.Text == "." && !tb.Text.Contains('.'))
             {
@@ -466,6 +468,20 @@ public partial class EditRouteWindow
         }
         catch { /**/ }
     }
+    
+    private void ExportRoute_Click(object sender, RoutedEventArgs e)
+    {
+        if (_route == null) return;
+        var dialog = new ExportOverlayDialog(_route)
+        {
+            Owner = Application.Current.Windows
+                .OfType<Window>()
+                .FirstOrDefault(w => w.IsActive),
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        dialog.ShowDialog();
+    }
+    
 #endregion GeneralHandlers
     
     
@@ -495,7 +511,7 @@ public partial class EditRouteWindow
         if (e.AddedItems.Count == 0) return;
     
         var unit = cb.SelectedItem as string ?? "px";
-        if ((cssVar.Value ?? "").EndsWith(unit)) return;
+        if (cssVar.Value.EndsWith(unit)) return;
     
         var numericPart = IsNumberRegex().Match(cssVar.Value ?? "").Value;
         cssVar.Value = numericPart + unit;
@@ -624,7 +640,7 @@ public partial class EditRouteWindow
 
         var openBtn = new Wpf.Ui.Controls.Button
         {
-            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Open24 },
+            Icon = new SymbolIcon { Symbol = SymbolRegular.Open24 },
             ToolTip = "Open", Width = 40, Height = 30, Margin = new Thickness(0, 0, 55, 2), Padding = new Thickness(2)
         };
         openBtn.Click += (_, __) =>
@@ -638,7 +654,7 @@ public partial class EditRouteWindow
 
         var removeBtn = new Wpf.Ui.Controls.Button
         {
-            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24 },
+            Icon = new SymbolIcon { Symbol = SymbolRegular.Delete24 },
             Width = 40, Height = 30, ToolTip = "Clear Value",
             Foreground = Brushes.Red, Cursor = Cursors.Hand,
             Margin = new Thickness(15, 0, 0, 0), Padding = new Thickness(2)
