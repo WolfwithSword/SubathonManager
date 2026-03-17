@@ -355,6 +355,7 @@ public partial class Widget
         return JsonSerializer.SerializeToElement(obj);
     }
     
+    /*
     public static Widget? FromJson(JsonElement json, string rootPath, Guid routeId)
     {
         var htmlPath = Path.Join(rootPath, json.GetProperty("htmlPath").GetString());
@@ -395,5 +396,5 @@ public partial class Widget
 
         return widget;
     }
-    
+    */
 }
