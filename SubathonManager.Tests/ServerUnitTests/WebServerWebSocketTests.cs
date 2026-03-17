@@ -66,7 +66,6 @@ public class WebServerWebSocketEventBusTests
         }
     }
     
-    
     [Fact]
     public async Task WebSocket_ReceiveCommand()
     {
