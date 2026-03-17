@@ -589,7 +589,7 @@ public class WebServerWebSocketTests
                 );
             ctx.Socket.EnqueueClose();
 
-            SubathonEvent? ev = CaptureEvent( async () => 
+            SubathonEvent? ev = CaptureEvent( async void () => 
                 await server.HandleWebSocketRequestAsync(ctx));
 
             var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -637,7 +637,7 @@ public class WebServerWebSocketTests
             ctx.Socket.EnqueueClose();
             
 
-            SubathonEvent? ev = CaptureEvent( async () => 
+            SubathonEvent? ev = CaptureEvent( async void () => 
                 await server.HandleWebSocketRequestAsync(ctx));
 
             Assert.NotNull(ev);
