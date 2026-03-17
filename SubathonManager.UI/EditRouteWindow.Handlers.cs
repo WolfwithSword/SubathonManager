@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -174,6 +175,7 @@ public partial class EditRouteWindow
             {
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }
                 );
+                UpdateSaveButtonBorder(false);
                 await Task.Delay(1500);
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Save"; }
                 );
@@ -481,8 +483,51 @@ public partial class EditRouteWindow
         };
         dialog.ShowDialog();
     }
-    
-#endregion GeneralHandlers
+
+    private void SuppressUnsavedChanges(Action action)
+    {
+        _suppressCount++;
+        try { action(); }
+        finally { _suppressCount--; }
+    }
+
+    private void AttachChangeHandler(object sender, RoutedEventArgs routedEventArgs)
+    {
+        void Attach()
+        {
+            switch (sender)
+            {
+                case TextBox tb:
+                    tb.TextChanged += Value_OnChanged;
+                    break;
+                case ComboBox cb:
+                    cb.SelectionChanged += Value_OnChanged;
+                    break;
+                case CheckBox chk:
+                    chk.Checked += Value_OnChanged;
+                    chk.Unchecked += Value_OnChanged;
+                    break;
+                case ToggleButton tb2:
+                    tb2.Checked += Value_OnChanged;
+                    tb2.Unchecked += Value_OnChanged;
+                    break;
+                case Slider sld:
+                    sld.ValueChanged += Value_OnChanged;
+                    break;
+                case CssColorPicker csscp:
+                    csscp.ColorChanged += Value_OnChanged;
+                    break;
+            }
+        }
+        SuppressUnsavedChanges(Attach);
+    }
+    private void Value_OnChanged(object sender, RoutedEventArgs e)
+    {
+        if (_suppressCount > 0) return;
+        Dispatcher.Invoke( () => UpdateSaveButtonBorder(true));
+    }
+
+    #endregion GeneralHandlers
     
     
 #region CSSHandlers
@@ -490,6 +535,7 @@ public partial class EditRouteWindow
     {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
         tb.TextChanged += SizeValueBox_TextChanged;
+        AttachChangeHandler(sender, e);
     }
 
     private void SizeValueBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -502,7 +548,10 @@ public partial class EditRouteWindow
     private void SizeUnitBox_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is ComboBox cb)
+        {
             cb.SelectionChanged += SizeUnitBox_SelectionChanged;
+            AttachChangeHandler(sender, e);
+        }
     }
     
     private void SizeUnitBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -536,6 +585,7 @@ public partial class EditRouteWindow
             else
                 ev.Handled = true;
         };
+        AttachChangeHandler(sender, e);
     }
 
     private void JsFloatBox_Loaded(object sender, RoutedEventArgs e)
@@ -551,6 +601,7 @@ public partial class EditRouteWindow
             else
                 ev.Handled = true;
         };
+        AttachChangeHandler(sender, e);
     }
 
     private void JsBoolBox_Loaded(object sender, RoutedEventArgs e)
@@ -561,6 +612,7 @@ public partial class EditRouteWindow
             cb.Checked += (_, __) => jsVar.Value = "True";
             cb.Unchecked += (_, __) => jsVar.Value = "False";
         });
+        AttachChangeHandler(sender, e);
     }
 
     private void JsEventTypeSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -577,6 +629,8 @@ public partial class EditRouteWindow
         {
             cb.SelectionChanged += (_, __) => jsVar.Value = $"{cb.SelectedValue}";
         });
+        
+        AttachChangeHandler(sender, e);
     }
 
     private void JsEventSubTypeSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -592,6 +646,7 @@ public partial class EditRouteWindow
         {
             cb.SelectionChanged += (_, __) => jsVar.Value = $"{cb.SelectedValue}";
         });
+        AttachChangeHandler(sender, e);
     }
 
     private void JsStringSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -612,6 +667,7 @@ public partial class EditRouteWindow
                 jsVar.Value = string.Join(',', newVal);
             };
         });
+        AttachChangeHandler(sender, e);
     }
 
     private void JsFileVar_Loaded(object sender, RoutedEventArgs e)
@@ -636,6 +692,7 @@ public partial class EditRouteWindow
             jsVar.Value = path;
             valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
             valueBtn.ToolTip = path;
+            UpdateSaveButtonBorder(true);
         };
 
         var openBtn = new Wpf.Ui.Controls.Button
@@ -710,6 +767,7 @@ public partial class EditRouteWindow
                 chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
                 chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
                 chkboxList.Children.Add(chkBox);
+                AttachChangeHandler(chkBox, e);
             }
             groupExpander.Content = chkboxList;
             outerPanel.Children.Add(groupExpander);
@@ -738,6 +796,7 @@ public partial class EditRouteWindow
             chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
             chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
             chkboxList.Children.Add(chkBox);
+            AttachChangeHandler(chkBox, e);
         }
         expander.Content = chkboxList;
     }
@@ -759,6 +818,7 @@ public partial class EditRouteWindow
                     tb.Text = intVal.ToString();
             };
         });
+        AttachChangeHandler(sender, e);
     }
 
     private void JsPercentBox_Loaded(object sender, RoutedEventArgs e)
@@ -783,6 +843,7 @@ public partial class EditRouteWindow
             if (FindPercentSiblingSlider(tb) is { } slider && (int)slider.Value != val)
                 slider.Value = val;
         };
+        AttachChangeHandler(sender, e);
     }
 
     private Slider? FindPercentSiblingSlider(System.Windows.Controls.TextBox tb)

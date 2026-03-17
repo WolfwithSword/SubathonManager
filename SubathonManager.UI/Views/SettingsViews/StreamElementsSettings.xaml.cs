@@ -22,6 +22,7 @@ public partial class StreamElementsSettings : SettingsControl
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            RegisterUnsavedChangeHandlers();
         };
 
         Unloaded += (_, _) =>
