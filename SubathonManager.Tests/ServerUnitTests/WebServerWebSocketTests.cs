@@ -15,14 +15,108 @@ using Xunit.Abstractions;
 
 namespace SubathonManager.Tests.ServerUnitTests;
 
+[Collection("SharedEventBusTests")]
+public class WebServerWebSocketEventBusTests
+{
+    
+    private static SubathonEvent? CaptureEvent(Action trigger) =>
+        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+
+    [Fact]
+    public async Task WebSocket_ReceiveIntegrationSource_AddsSourceAndEvent()
+    {
+        WebServerWebSocketTests.SetupServices();
+        var server = WebServerWebSocketTests.CreateServer();
+
+        var sourceTcs = new TaskCompletionSource<string>();
+        Action<string, bool> handler = (src, connected) =>
+        {
+            if (connected)
+                sourceTcs.TrySetResult(src);
+        };
+
+        WebServerEvents.WebSocketIntegrationSourceChange += handler;
+
+        try
+        {
+            var ctx = new MockHttpContext
+            {
+                IsWebSocket = true
+            };
+            ctx.Socket.EnqueueReceive(
+                    "{\"ws_type\":\"IntegrationSource\",\"source\":\"KoFi\", \"type\": \"KoFiSub\", \"tier\":\"DEFAULT\", \"amount\": 1, \"user\":\"test\"}"
+                );
+            ctx.Socket.EnqueueClose();
+
+            SubathonEvent? ev = CaptureEvent( async void () => 
+                await server.HandleWebSocketRequestAsync(ctx));
+
+            var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.Equal(nameof(SubathonEventSource.KoFi), result);
+            Assert.NotNull(ev);
+            Assert.Equal(SubathonEventSource.KoFi, ev.Source);
+            Assert.Equal(SubathonEventType.KoFiSub, ev.EventType);
+        }
+        finally
+        {
+            WebServerEvents.WebSocketIntegrationSourceChange -= handler;
+            AppServices.Provider = null!;
+            await server.StopAsync();
+        }
+    }
+    
+    
+    [Fact]
+    public async Task WebSocket_ReceiveCommand()
+    {
+        WebServerWebSocketTests.SetupServices();
+        var server = WebServerWebSocketTests.CreateServer();
+
+        var sourceTcs = new TaskCompletionSource<string>();
+
+        Action<string, bool> handler = (src, connected) =>
+        {
+            if (connected)
+                sourceTcs.TrySetResult(src);
+        };
+
+
+        WebServerEvents.WebSocketIntegrationSourceChange += handler;
+
+        try
+        {
+            var ctx = new MockHttpContext
+            {
+                IsWebSocket = true
+            };
+
+            ctx.Socket.EnqueueReceive(
+                    "{\"ws_type\":\"Command\", \"type\": \"Command\", \"message\":\"\", \"command\": \"pause\", \"user\":\"test\"}");
+            ctx.Socket.EnqueueClose();
+            
+
+            SubathonEvent? ev = CaptureEvent( async void () => 
+                await server.HandleWebSocketRequestAsync(ctx));
+
+            Assert.NotNull(ev);
+            Assert.Equal(SubathonEventSource.External, ev.Source);
+            Assert.Equal(SubathonEventType.Command, ev.EventType);
+        }
+        finally
+        {
+            WebServerEvents.WebSocketIntegrationSourceChange -= handler;
+            AppServices.Provider = null!;
+            await server.StopAsync();
+        }
+    }
+}
+
 [Collection("ProviderOverrideTests")]
 public class WebServerWebSocketTests
 {
     private readonly ITestOutputHelper _testOutputHelper;
 
-    private static SubathonEvent? CaptureEvent(Action trigger) =>
-        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
-    
     public WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
     {
         _testOutputHelper = testOutputHelper;
@@ -66,7 +160,7 @@ public class WebServerWebSocketTests
         return config;
     }
     
-    private static void SetupServices()
+    internal static void SetupServices()
     { 
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
@@ -80,7 +174,7 @@ public class WebServerWebSocketTests
         AppServices.Provider = services.BuildServiceProvider();
     }
     
-    private static WebServer CreateServer()
+    internal static WebServer CreateServer()
     {
         SetupServices();
         var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
@@ -560,96 +654,6 @@ public class WebServerWebSocketTests
         WebServerEvents.WebSocketIntegrationSourceChange -= handler;
         AppServices.Provider = null!;
         await server.StopAsync();
-    }
-
-
-    [Fact]
-    public async Task WebSocket_ReceiveIntegrationSource_AddsSourceAndEvent()
-    {
-        SetupServices();
-        var server = CreateServer();
-
-        var sourceTcs = new TaskCompletionSource<string>();
-        Action<string, bool> handler = (src, connected) =>
-        {
-            if (connected)
-                sourceTcs.TrySetResult(src);
-        };
-
-        WebServerEvents.WebSocketIntegrationSourceChange += handler;
-
-        try
-        {
-            var ctx = new MockHttpContext
-            {
-                IsWebSocket = true
-            };
-            ctx.Socket.EnqueueReceive(
-                    "{\"ws_type\":\"IntegrationSource\",\"source\":\"KoFi\", \"type\": \"KoFiSub\", \"tier\":\"DEFAULT\", \"amount\": 1, \"user\":\"test\"}"
-                );
-            ctx.Socket.EnqueueClose();
-
-            SubathonEvent? ev = CaptureEvent( async void () => 
-                await server.HandleWebSocketRequestAsync(ctx));
-
-            var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
-            Assert.Equal(nameof(SubathonEventSource.KoFi), result);
-            Assert.NotNull(ev);
-            Assert.Equal(SubathonEventSource.KoFi, ev.Source);
-            Assert.Equal(SubathonEventType.KoFiSub, ev.EventType);
-        }
-        finally
-        {
-            WebServerEvents.WebSocketIntegrationSourceChange -= handler;
-            AppServices.Provider = null!;
-            await server.StopAsync();
-        }
-    }
-    
-    
-    [Fact]
-    public async Task WebSocket_ReceiveCommand()
-    {
-        SetupServices();
-        var server = CreateServer();
-
-        var sourceTcs = new TaskCompletionSource<string>();
-
-        Action<string, bool> handler = (src, connected) =>
-        {
-            if (connected)
-                sourceTcs.TrySetResult(src);
-        };
-
-
-        WebServerEvents.WebSocketIntegrationSourceChange += handler;
-
-        try
-        {
-            var ctx = new MockHttpContext
-            {
-                IsWebSocket = true
-            };
-
-            ctx.Socket.EnqueueReceive(
-                    "{\"ws_type\":\"Command\", \"type\": \"Command\", \"message\":\"\", \"command\": \"pause\", \"user\":\"test\"}");
-            ctx.Socket.EnqueueClose();
-            
-
-            SubathonEvent? ev = CaptureEvent( async void () => 
-                await server.HandleWebSocketRequestAsync(ctx));
-
-            Assert.NotNull(ev);
-            Assert.Equal(SubathonEventSource.External, ev.Source);
-            Assert.Equal(SubathonEventType.Command, ev.EventType);
-        }
-        finally
-        {
-            WebServerEvents.WebSocketIntegrationSourceChange -= handler;
-            AppServices.Provider = null!;
-            await server.StopAsync();
-        }
     }
     
     
