@@ -26,6 +26,7 @@ public class Route
         return $"http://localhost:{config.Get("Server", "Port", "14040")}/route/{Id}{qString}";
     }
     
+    /*
     public JsonElement ToJson()
     {
         var obj = new
@@ -38,7 +39,7 @@ public class Route
                 height = Height
             },
 
-            widgets = Widgets.Select(w => w.ToJson("")).ToArray(), //todo
+            widgets = Widgets.Select(w => w.ToJson("")).ToArray(),
 
             meta = new
             {
@@ -49,16 +50,6 @@ public class Route
 
         return JsonSerializer.SerializeToElement(obj);
     }
-    
-    // todo remember that for all files when exporting i should collect
-    // their references including FullPath ones and make them all relative somehow
-    // standardize when it's a fullpath thing or a duplicate filename thing as like "ref1/thing.txt" etc
-    
-    // idea - hash the full path of the file regardless w/o name,
-    // make that an internal folder name, then put it in there as file.
-    // store variable path as that hash and filename. ez.
-    
-    
     
     public static Route? FromJson(JsonElement json)
     {
@@ -74,13 +65,12 @@ public class Route
         route.Width = res.GetProperty("width").GetInt32();
         route.Height = res.GetProperty("height").GetInt32();
 
-        foreach (var widgetJson in json.GetProperty("widgets").EnumerateArray())
+        foreach (var widget in json.GetProperty("widgets").EnumerateArray().Select(widgetJson => Widget.FromJson(widgetJson, "", route.Id)).OfType<Widget>())
         {
-            var widget = Widget.FromJson(widgetJson, "", route.Id); // todo
-            if (widget != null)
-                route.Widgets.Add(widget);
+            route.Widgets.Add(widget);
         }
         
         return route;
     }
+    */
 }
