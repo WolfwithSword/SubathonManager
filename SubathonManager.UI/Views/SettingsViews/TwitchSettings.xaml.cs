@@ -20,6 +20,7 @@ public partial class TwitchSettings : SettingsControl
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            RegisterUnsavedChangeHandlers();
         };
 
         Unloaded += (_, _) =>

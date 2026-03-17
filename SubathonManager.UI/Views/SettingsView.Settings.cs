@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Diagnostics;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Data;
 using SubathonManager.Core;
@@ -174,6 +176,33 @@ namespace SubathonManager.UI.Views
             SubathonEvents.RaiseSubathonValueConfigRequested(newData);
         }
         
+        public void UpdateSaveButtonBorder(bool hasPendingChanges)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (hasPendingChanges)
+                {
+                    var pulse = new ColorAnimation
+                    {
+                        From = Color.FromRgb(0xF5, 0xC5, 0x18),  
+                        To   = Color.FromArgb(0x55, 0xF5, 0xC5, 0x18),
+                        Duration = new Duration(TimeSpan.FromSeconds(1.4)),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    var brush = new SolidColorBrush(Color.FromRgb(0xF5, 0xC5, 0x18));
+                    SaveButtonBorder.BorderBrush = brush;
+                    brush.BeginAnimation(SolidColorBrush.ColorProperty, pulse);
+                }
+                else
+                {
+                    if (SaveButtonBorder.BorderBrush is SolidColorBrush b)
+                        b.BeginAnimation(SolidColorBrush.ColorProperty, null);
+                    SaveButtonBorder.BorderBrush = new SolidColorBrush(Colors.Transparent);
+                }
+            });
+        }
+        
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
             bool hasUpdated = false;
@@ -198,6 +227,7 @@ namespace SubathonManager.UI.Views
                 await Dispatcher.InvokeAsync(() => 
                     { 
                         SaveAllSubathonValuesButton.Content = "Saved!";
+                        UpdateSaveButtonBorder(false);
                     } 
                 );
                 await Task.Delay(1500);

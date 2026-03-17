@@ -3,6 +3,8 @@ using System.IO;
 using System.Windows;
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,6 +29,7 @@ public partial class EditRouteWindow
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
     private bool _loadedWebView = false;
+    private int _suppressCount = 0;
     
     [GeneratedRegex(@"^-?[\d.]+")]
     private static partial Regex IsNumberRegex();
@@ -179,6 +182,7 @@ public partial class EditRouteWindow
     
     private void PopulateWidgetEditor(Widget? widget)
     {
+        UpdateSaveButtonBorder(false);
         if (widget == null)
         {
             WidgetEditPanel.Visibility = Visibility.Collapsed;
@@ -227,6 +231,7 @@ public partial class EditRouteWindow
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
+        UpdateSaveButtonBorder(false);
     }
 
     private void PopulateJsVars()
@@ -432,6 +437,33 @@ public partial class EditRouteWindow
         }
 
         base.OnClosed(e);
+    }
+
+    private void UpdateSaveButtonBorder(bool hasPendingChanges)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (hasPendingChanges)
+            {
+                var pulse = new ColorAnimation
+                {
+                    From = Color.FromRgb(0xF5, 0xC5, 0x18),  
+                    To   = Color.FromArgb(0x55, 0xF5, 0xC5, 0x18),
+                    Duration = new Duration(TimeSpan.FromSeconds(1.4)),
+                    AutoReverse = true,
+                    RepeatBehavior = RepeatBehavior.Forever
+                };
+                var brush = new SolidColorBrush(Color.FromRgb(0xF5, 0xC5, 0x18));
+                SaveButtonBorder.BorderBrush = brush;
+                brush.BeginAnimation(SolidColorBrush.ColorProperty, pulse);
+            }
+            else
+            {
+                if (SaveButtonBorder.BorderBrush is SolidColorBrush b)
+                    b.BeginAnimation(SolidColorBrush.ColorProperty, null);
+                SaveButtonBorder.BorderBrush = new SolidColorBrush(Colors.Transparent);
+            }
+        });
     }
 
 }
