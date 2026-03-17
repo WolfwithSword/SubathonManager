@@ -9,3 +9,6 @@ public class SequentialCollectionDefinition
 public class SequentialParallelCollectionDefinition
 {
 }
+
+[CollectionDefinition("SharedEventBusTests", DisableParallelization = true)] // slowdown but might fix the eventbus issue in websocket consumers
+public class SharedEventBusTestsCollection { }
