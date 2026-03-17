@@ -116,8 +116,14 @@
 
                     <ui:Button Padding="2" ToolTip="Open in browser"
                                Width="32" Height="32"
-                               Margin="4,0,194,0"
+                               Margin="4,0,4, 0"
                                Click="OpenOverlayInBrowser_Click"><ui:SymbolIcon Symbol="Open24"/>
+                    </ui:Button>
+
+                    <ui:Button Padding="2" ToolTip="Export"
+                               Width="32" Height="32"
+                               Margin="4,0,154,0"
+                               Click="ExportRoute_Click"><ui:SymbolIcon Symbol="ArrowExportUp24"/>
                     </ui:Button>
                     <ui:Button x:Name="SaveRouteButton" Content="Save" Width="80" Click="SaveRouteButton_Click"/>
                 </StackPanel>

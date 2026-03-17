@@ -7,18 +7,16 @@ using Moq;
 using StreamElements.WebSocket.Models.Tip;
 using StreamElements.WebSocket.Models.Internal;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Tests.Utility;
+
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("IntegrationEventTests")]
+[Collection("SharedEventBusTests")]
 public class StreamElementsServiceTests
 {
     
-    public StreamElementsServiceTests()
-    {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-    }
+    private static SubathonEvent? CaptureEvent(Action trigger) =>
+        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
     
     [Fact]
     public async Task InitClient_ShouldReturnFalse_WhenJwtIsEmpty()
@@ -91,19 +89,15 @@ public class StreamElementsServiceTests
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        SubathonEvent? capturedEvent = null;
-        Action<SubathonEvent> handler = ev => capturedEvent = ev;
-        SubathonEvents.SubathonEventCreated += handler;
 
-        StreamElementsService.SimulateTip("15.5", "USD");
+        
+        SubathonEvent? capturedEvent = CaptureEvent( () => StreamElementsService.SimulateTip("15.5", "USD"));
 
         Assert.NotNull(capturedEvent);
-        Assert.Equal("15.5", capturedEvent!.Value);
+        Assert.Equal("15.5", capturedEvent.Value);
         Assert.Equal("USD", capturedEvent.Currency);
         Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
         Assert.Equal(SubathonEventType.StreamElementsDonation, capturedEvent.EventType);
-
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]
@@ -117,10 +111,6 @@ public class StreamElementsServiceTests
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
-        SubathonEvent? capturedEvent = null;
-        Action<SubathonEvent> handler = ev => capturedEvent = ev;
-        SubathonEvents.SubathonEventCreated += handler;
-
         var tip = new Tip(
             tipId: Guid.NewGuid().ToString(),
             username: "Test",
@@ -133,17 +123,17 @@ public class StreamElementsServiceTests
         var method = typeof(StreamElementsService)
             .GetMethod("_OnTip", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        method?.Invoke(service, new object?[] { null, tip });
+        
+        SubathonEvent? capturedEvent = CaptureEvent( () => method?.Invoke(service, new object?[] { null, tip }));
 
         Assert.NotNull(capturedEvent);
-        Assert.Equal("Test", capturedEvent!.User);
+        Assert.Equal("Test", capturedEvent.User);
         Assert.Equal("USD", capturedEvent.Currency);
         Assert.Equal("12.5", capturedEvent.Value);
         Assert.Equal(SubathonEventSource.StreamElements, capturedEvent.Source);
         Assert.Equal(SubathonEventType.StreamElementsDonation, capturedEvent.EventType);
 
         Assert.Equal(Guid.Parse(tip.TipId), capturedEvent.Id);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]

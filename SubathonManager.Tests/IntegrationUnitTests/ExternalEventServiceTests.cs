@@ -5,20 +5,18 @@ using SubathonManager.Core.Models;
 using SubathonManager.Integration;
 using System.Reflection;
 using Moq;
+using SubathonManager.Tests.Utility;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("IntegrationEventTests")]
+[Collection("SharedEventBusTests")]
 public class ExternalEventServiceTests
 {
-    public ExternalEventServiceTests()
-    {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-    }
-
+    private static SubathonEvent? CaptureEvent(Action trigger) =>
+        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    
     [Fact]
     public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandMissing()
     {
@@ -32,12 +30,8 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommand()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
+
         SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
 
         var json = """
                    {
@@ -49,7 +43,9 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        
+        bool result = false;
+        ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -58,18 +54,13 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonCommandType.Pause, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
+        
         SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
 
         var json = """
                    {
@@ -81,7 +72,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        bool result = false;
+        ev = CaptureEvent( () =>  result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -90,19 +82,12 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonCommandType.AddPoints, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
 
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam2()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
-
+        
         var json = """
                    {
                                "command": "SubtractTime",
@@ -113,7 +98,9 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        bool result = false;
+            
+        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -122,19 +109,11 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonCommandType.SubtractTime, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
         
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam3()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
-
         var json = """
                    {
                                "command": "SetMultiplier",
@@ -145,7 +124,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -154,18 +134,13 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonCommandType.SetMultiplier, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]
     public void ProcessExternalCommand_ShouldNotRaiseEvent_InvalidCommand()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
+        
+        
 
         var json = """
                    {
@@ -177,23 +152,19 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        bool result = true;
+        SubathonEvent? ev = CaptureEvent( () =>  result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.False(result);
         Assert.Null(ev);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
          
     [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenInvalidCommandWithParam2()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
+        
+        
 
         var json = """
                    {
@@ -205,7 +176,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -214,19 +186,11 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonCommandType.StopMultiplier, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
-        SubathonEvents.SubathonEventCreated -= handler;
     }
 
     [Fact]
     public void ProcessExternalSub_ShouldRaiseEvent_WithDefaults()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
-
         var json = """
                    {
                                "type": "ExternalSub",
@@ -241,7 +205,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalSub(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -253,21 +218,12 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonEventType.ExternalSub, ev.EventType);
         Assert.Equal(Guid.Parse("b3e1f7e2-1234-4a5b-9e8f-123456789abc"), ev.Id);
-
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     
     [Fact]
     public void ProcessKoFiSub_ShouldRaiseEvent_WithDefaults()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
-
         var json = """
                    {
                                "type": "KoFiSub",
@@ -280,7 +236,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalSub(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -290,20 +247,11 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.KoFi, ev.Source);
         Assert.Equal(SubathonEventType.KoFiSub, ev.EventType);
         Assert.Equal(Guid.Parse("b3e1f7e2-1234-4a5b-9e8f-123456789abc"), ev.Id);
-
-        SubathonEvents.SubathonEventCreated -= handler;
     }
 
     [Fact]
     public void ProcessExternalDonation_ShouldRaiseEvent_WithValidData()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
-
         var json = """
                    {
                                "type": "ExternalDonation",
@@ -316,7 +264,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalDonation(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () =>  result = ExternalEventService.ProcessExternalDonation(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -326,20 +275,11 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.External, ev.Source);
         Assert.Equal(SubathonEventType.ExternalDonation, ev.EventType);
         Assert.Equal(Guid.Parse("c1e2d3f4-5678-4abc-9def-987654321abc"), ev.Id);
-
-        SubathonEvents.SubathonEventCreated -= handler;
     }
     
     [Fact]
     public void ProcessKoFiDonation_ShouldRaiseEvent_WithValidData()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        Action<SubathonEvent> handler = e => ev = e;
-        SubathonEvents.SubathonEventCreated += handler;
-
         var json = """
                    {
                                "type": "KoFiDonation",
@@ -352,7 +292,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalDonation(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalDonation(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -362,8 +303,6 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventSource.KoFi, ev.Source);
         Assert.Equal(SubathonEventType.KoFiDonation, ev.EventType);
         Assert.Equal(Guid.Parse("c1e2d3f4-5678-4abc-9def-987654321abc"), ev.Id);
-
-        SubathonEvents.SubathonEventCreated -= handler;
     }
 
     [Fact]
@@ -410,16 +349,11 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_EmptyUser_DefaultsToExternal()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
+        
         var json = """{ "command": "Pause", "user": "   ", "message": "" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        ExternalEventService.ProcessExternalCommand(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalCommand(data));
 
         Assert.NotNull(ev);
         Assert.Equal("EXTERNAL", ev!.User);
@@ -428,16 +362,11 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalCommand_MissingMessage_DefaultsToEmpty()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """{ "command": "Pause", "user": "Tester" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = ExternalEventService.ProcessExternalCommand(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -446,10 +375,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_ShouldReturnFalse_WhenSecondsOrPointsMissing()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -468,10 +393,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_ShouldReturnFalse_WhenPointsMissingButSecondsPresent()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -491,12 +412,7 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_EmptyUser_DefaultsToExternal()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
+        
         var json = """
                    {
                            "type": "ExternalSub",
@@ -509,7 +425,8 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        bool result = ExternalEventService.ProcessExternalSub(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.Equal("EXTERNAL", ev!.User);
@@ -518,12 +435,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_MissingValue_DefaultsToExternal()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -535,7 +446,8 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        bool result = ExternalEventService.ProcessExternalSub(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.Equal("External", ev!.Value);
@@ -544,12 +456,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_MissingAmount_DefaultsToOne()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -561,7 +467,8 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        bool result = ExternalEventService.ProcessExternalSub(data);
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.Equal(1, ev!.Amount);
@@ -570,12 +477,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_SystemUser_SetsSimulatedSource()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -588,7 +489,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalSub(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalSub(data));
 
         Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
     }
@@ -596,12 +497,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_MissingId_KeepsGeneratedGuid()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -614,7 +509,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalSub(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalSub(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     }
@@ -622,12 +517,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalSub_InvalidId_KeepsGeneratedGuid()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalSub",
@@ -641,7 +530,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalSub(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalSub(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     } 
@@ -667,12 +556,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalDonation_EmptyUser_DefaultsToExternal()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -683,7 +566,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalDonation(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.Equal("EXTERNAL", ev!.User);
     }
@@ -708,12 +591,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalDonation_SystemUser_SetsSimulatedSource()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -724,7 +601,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalDonation(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
     }
@@ -732,12 +609,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalDonation_MissingId_KeepsGeneratedGuid()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -748,7 +619,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalDonation(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     }
@@ -756,12 +627,6 @@ public class ExternalEventServiceTests
     [Fact]
     public void ProcessExternalDonation_InvalidId_KeepsGeneratedGuid()
     {
-        typeof(SubathonEvents)
-            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
-            ?.SetValue(null, null);
-        SubathonEvent? ev = null;
-        SubathonEvents.SubathonEventCreated += e => ev = e;
-
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -773,7 +638,7 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        ExternalEventService.ProcessExternalDonation(data);
+        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     }
