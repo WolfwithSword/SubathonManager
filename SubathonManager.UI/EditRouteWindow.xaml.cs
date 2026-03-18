@@ -27,7 +27,6 @@ public partial class EditRouteWindow
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
     private bool _loadedWebView = false;
-    private int _suppressCount = 0;
     
     [GeneratedRegex(@"^-?[\d.]+")]
     private static partial Regex IsNumberRegex();
@@ -180,7 +179,6 @@ public partial class EditRouteWindow
     
     private void PopulateWidgetEditor(Widget? widget)
     {
-        UpdateSaveButtonBorder(SaveButtonBorder, false);
         if (widget == null)
         {
             WidgetEditPanel.Visibility = Visibility.Collapsed;
@@ -229,7 +227,6 @@ public partial class EditRouteWindow
         _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
-        UpdateSaveButtonBorder(SaveButtonBorder, false);
     }
 
     private void PopulateJsVars()
@@ -435,14 +432,6 @@ public partial class EditRouteWindow
         }
 
         base.OnClosed(e);
-    }
-
-    private void UpdateSaveButtonBorder(Border border, bool hasPendingChanges)
-    {
-        Dispatcher.InvokeAsync(() =>
-        {
-            UiUtils.UiUtils.UpdateButtonPendingBorder(border, hasPendingChanges);
-        });
     }
 
 }

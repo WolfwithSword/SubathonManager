@@ -129,17 +129,9 @@ public class EventService: IDisposable, IAppService
                 ev.CurrentTime = (int)subathon.TimeRemaining().TotalSeconds;
                 ev.CurrentPoints = subathon.Points;
             }
-
-            try
-            {
-                db.Add(ev);
-                await db.SaveChangesAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "Error in Event Loop: {ExMessage}", ex.Message);
-            }
-
+            db.Add(ev);
+            await db.SaveChangesAsync();
+            
             return (false, false);
         }
         

@@ -13,10 +13,6 @@ public partial class ChatExtensionSettings : SettingsControl
     public ChatExtensionSettings()
     {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
-            RegisterUnsavedChangeHandlers();
-        };
     }
     
     public override void Init(SettingsView host)

@@ -13,26 +13,40 @@ using IniParser.Model;
 using PicartoEventsLib.Clients;
 using PicartoEventsLib.Options;
 using SubathonManager.Core.Interfaces;
-using SubathonManager.Tests.Utility;
-
-// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("IntegrationEventTests")]
 public class PicartoServiceTests
 {
     public PicartoServiceTests()
     {
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+        
         var path = Path.GetFullPath(Path.Combine(string.Empty
             , "data"));
         Directory.CreateDirectory(path);
     }    
     
-    // istg if this works
-    private static SubathonEvent? CaptureEvent(Action trigger) =>
-        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    private static SubathonEvent CaptureEvent(Action trigger)
+    {
+        SubathonEvent? captured = null;
+        void EventCaptureHandler(SubathonEvent e) => captured = e;
 
+        SubathonEvents.SubathonEventCreated += EventCaptureHandler;
+        try
+        {
+            trigger();
+            return captured!;
+        }
+        finally
+        {
+            SubathonEvents.SubathonEventCreated -= EventCaptureHandler;
+        }
+    }
+    
     private static IConfig MockConfig(Dictionary<(string, string), string>? values = null)
     {
         var mock = new Mock<IConfig>();
@@ -107,9 +121,11 @@ public class PicartoServiceTests
             Channel = "TestChannel"
         };
         
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => PicartoService.ProcessAlert(tip));
 
-        Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.PicartoTip, ev.EventType);
         Assert.Equal(SubathonEventSubType.TokenLike, ev.EventType.GetSubType());
         Assert.Equal("kudos", ev.Currency);
@@ -132,12 +148,15 @@ public class PicartoServiceTests
             Amount = amount,
             Channel = "TestChannel"
         };
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = CaptureEvent(() => 
             PicartoService.ProcessAlert(sub));
 
         Assert.NotNull(ev);
-        Assert.Equal(SubathonEventType.PicartoSub, ev.EventType);
-        Assert.Equal(SubathonEventSource.Picarto, ev.Source);
+        Assert.Equal(SubathonEventType.PicartoSub, ev!.EventType);
+        Assert.Equal(SubathonEventSource.Picarto, ev!.Source);
         Assert.Equal("sub", ev.Currency);
         Assert.Equal(months, ev.Amount);
         Assert.Equal($"T{tier}", ev.Value);
@@ -162,12 +181,15 @@ public class PicartoServiceTests
             Channel = "TestChannel",
             IsGift = true
         };
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         SubathonEvent? ev = CaptureEvent(() => 
             PicartoService.ProcessAlert(sub));
 
         Assert.NotNull(ev);
-        Assert.Equal(SubathonEventType.PicartoGiftSub, ev.EventType);
-        Assert.Equal(SubathonEventSource.Picarto, ev.Source);
+        Assert.Equal(SubathonEventType.PicartoGiftSub, ev!.EventType);
+        Assert.Equal(SubathonEventSource.Picarto, ev!.Source);
         Assert.Equal("sub", ev.Currency);
         Assert.Equal(months * quantity, ev.Amount);
         Assert.Equal($"T1", ev.Value);
@@ -185,9 +207,12 @@ public class PicartoServiceTests
             Username = user,
             Channel = "TestChannel"
         };
+        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => PicartoService.ProcessAlert(fl));
 
-        Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.PicartoFollow, ev.EventType);
         Assert.Equal(SubathonEventSubType.FollowLike, ev.EventType.GetSubType());
         Assert.Equal(user, ev.User);
@@ -201,6 +226,10 @@ public class PicartoServiceTests
     [InlineData("hey wassup", false, "specialguy", "TestStreamer", false)]
     public void OnChatReceived_ChatCommand_InvokesCommandService(string cmd, bool isBroadcaster, string user, string channel, bool output)
     {
+        SubathonEvent? captured = null;
+        Action<SubathonEvent> handler = e => captured = e;
+        SubathonEvents.SubathonEventCreated += handler;
+        
         var configCs = MockConfig(new()
         {
             { ("Chat", "Commands.Pause"), "pause" },
@@ -227,8 +256,7 @@ public class PicartoServiceTests
             MsgId = Guid.Empty
         };
         
-        
-        SubathonEvent? captured = CaptureEvent( () => PicartoService.ProcessChatMessage(msg));
+        PicartoService.ProcessChatMessage(msg);
 
         if (output)
         {
@@ -242,6 +270,8 @@ public class PicartoServiceTests
         {
             Assert.Null(captured);
         }
+
+        SubathonEvents.SubathonEventCreated -= handler;
     }
 
     [Fact]

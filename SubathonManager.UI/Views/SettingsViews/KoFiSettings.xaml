@@ -50,11 +50,11 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
-                                Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                Height="34"
                                 validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateKFTipAmountBox"/>
                     
                     <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
-                              x:Name="CurrencyBox" StaysOpenOnEdit="True"  Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                              x:Name="CurrencyBox" StaysOpenOnEdit="True"  Height="34"
                               Margin="4 0 4 0">
                     </ComboBox>
                     <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"

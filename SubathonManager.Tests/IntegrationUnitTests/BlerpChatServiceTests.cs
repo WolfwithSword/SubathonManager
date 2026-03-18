@@ -1,23 +1,38 @@
 ﻿using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Integration;
-using SubathonManager.Tests.Utility;
-
+using System.Reflection;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("IntegrationEventTests")]
 public class BlerpChatServiceTests
 {     
-    private static SubathonEvent? CaptureEvent(Action trigger) =>
-        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    private static SubathonEvent CaptureEvent(Action trigger)
+    {
+        SubathonEvent? captured = null;
+        void EventCaptureHandler(SubathonEvent e) => captured = e;
+
+        SubathonEvents.SubathonEventCreated += EventCaptureHandler;
+        try
+        {
+            trigger();
+            return captured!;
+        }
+        finally
+        {
+            SubathonEvents.SubathonEventCreated -= EventCaptureHandler;
+        }
+    }
     
     [Fact]
     public void SimulateBlerpBits_RaiseEvent()
     {
-        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => BlerpChatService.SimulateBlerpMessage(500, "bits"));
 
-        Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.BlerpBits, ev.EventType);
         Assert.Equal("bits", ev.Currency);
         Assert.Equal("500", ev.Value);
@@ -27,7 +42,9 @@ public class BlerpChatServiceTests
     [Fact]
     public void SimulateBlerpBits_NoEvent()
     {
-        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => BlerpChatService.SimulateBlerpMessage(500, "something"));
         Assert.Null(ev);
     }
@@ -35,10 +52,11 @@ public class BlerpChatServiceTests
     [Fact]
     public void SimulateBlerpBeets_RaiseEvent()
     {
-        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => BlerpChatService.SimulateBlerpMessage(500, "beets"));
 
-        Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.BlerpBeets, ev.EventType);
         Assert.Equal("beets", ev.Currency);
         Assert.Equal("500", ev.Value);
@@ -48,10 +66,11 @@ public class BlerpChatServiceTests
     [Fact]
     public void BlerpBeets_RaiseEvent()
     {
-        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => BlerpChatService.ParseMessage("SomeGuy used 500 beets to play XYZ", SubathonEventSource.Twitch));
 
-        Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.BlerpBeets, ev.EventType);
         Assert.Equal("beets", ev.Currency);
         Assert.Equal("500", ev.Value);
@@ -61,10 +80,11 @@ public class BlerpChatServiceTests
     [Fact]
     public void BlerpBits_RaiseEvent()
     {
-        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => BlerpChatService.ParseMessage("SomeGuy used 500 bits to play XYZ", SubathonEventSource.Twitch));
 
-        Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.BlerpBits, ev.EventType);
         Assert.Equal("bits", ev.Currency);
         Assert.Equal("500", ev.Value);
@@ -74,7 +94,9 @@ public class BlerpChatServiceTests
     [Fact]
     public void BlerpBits_DoesNotRaiseEvent()
     {
-        
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
         var ev = CaptureEvent(() => BlerpChatService.ParseMessage("SomeGuy used 400 currency to play XYZ", SubathonEventSource.Twitch));
 
         Assert.Null(ev);

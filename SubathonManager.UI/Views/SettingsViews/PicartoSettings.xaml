@@ -50,7 +50,7 @@
                                 VerticalAlignment="Center"
                                 PlaceholderText="100"
                                 Height="30"
-                                FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                FontSize="12"
                                 validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateTipAmt"/>
                     <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Content="Test"
@@ -106,7 +106,7 @@
                         
                         <StackPanel Grid.Column="1" Orientation = "Horizontal" HorizontalAlignment="Right">
                             <ComboBox Text="Tier" Width="120" 
-                                      x:Name="SimSubTierSelection" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                      x:Name="SimSubTierSelection"
                                       SelectedIndex="0" Margin="4 0 4 0">
                                 <ComboBoxItem Content="Tier 1"/>
                                 <ComboBoxItem Content="Tier 2"/>
@@ -137,7 +137,7 @@
                         
                         <StackPanel Grid.Column="1"  Orientation="Horizontal" HorizontalAlignment="Right" Margin="0 8 0 0">
                             <ComboBox Text="Months" Width="120"  Height="35"
-                                      x:Name="SimSubMonthSelection" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                      x:Name="SimSubMonthSelection"
                                       SelectedIndex="0" Margin="4 0 4 0">
                                 <ComboBoxItem Content="1 Month"/>
                                 <ComboBoxItem Content="3 Months"/>

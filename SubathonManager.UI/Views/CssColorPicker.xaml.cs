@@ -15,20 +15,7 @@ public partial class CssColorPicker : UserControl
             new FrameworkPropertyMetadata(string.Empty,
                 FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
                 OnCssColorPropertyChanged));
-    
-    public static readonly RoutedEvent ColorChangedEvent =
-        EventManager.RegisterRoutedEvent(
-            nameof(ColorChanged),
-            RoutingStrategy.Bubble,
-            typeof(RoutedEventHandler),
-            typeof(CssColorPicker));
 
-    public event RoutedEventHandler ColorChanged
-    {
-        add => AddHandler(ColorChangedEvent, value);
-        remove => RemoveHandler(ColorChangedEvent, value);
-    }
-    
     [GeneratedRegex(@"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)", RegexOptions.IgnoreCase, "en-CA")]
     private static partial Regex IsRgbaColourParseRegex();
     
@@ -40,11 +27,8 @@ public partial class CssColorPicker : UserControl
 
     private static void OnCssColorPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is CssColorPicker picker)
-        {
-            if (!picker._updatingFromInternal) picker.ApplyCssString((string)e.NewValue);
-            picker.RaiseEvent(new RoutedEventArgs(ColorChangedEvent));
-        }
+        if (d is CssColorPicker { _updatingFromInternal: false } picker)
+            picker.ApplyCssString((string)e.NewValue);
     }
 
     private double _hue = 0;

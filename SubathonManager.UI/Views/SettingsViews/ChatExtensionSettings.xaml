@@ -59,11 +59,11 @@
                                     VerticalAlignment="Center"
                                     PlaceholderText="100"
                                     Height="34"
-                                    FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                    FontSize="12"
                                     validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateBlerpAmt"/>
                         <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
                                   x:Name="BlerpCurrencyBox" StaysOpenOnEdit="True" Height="34"
-                                  ToolTip="Blerp Bits or Beets" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                  ToolTip="Blerp Bits or Beets"
                                   Margin="4 0 4 0" SelectedIndex="0">
                             <ComboBoxItem Content="bits"></ComboBoxItem>
                             <ComboBoxItem Content="beets"></ComboBoxItem>

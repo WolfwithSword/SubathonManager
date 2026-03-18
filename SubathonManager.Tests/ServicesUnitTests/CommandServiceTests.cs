@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using IniParser.Model;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
-// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 

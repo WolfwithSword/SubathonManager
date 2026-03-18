@@ -315,6 +315,66 @@ public class EventServiceTests
     }
 
     [Fact]
+    public async Task DonationEvent_InvalidCurrency()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.KoFiDonation,
+            Currency = "EEE",
+            Value = "10"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        await service.StopAsync();
+        Assert.True(processed); // will have 0 values
+
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.False(sub.MillisecondsCumulative > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("EEE", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(0, ev2.SecondsValue);
+
+        await conn.CloseAsync();
+    }
+
+    [Fact]
+    public async Task DonationEvent_InvalidCurrency2()
+    {
+        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.KoFiDonation,
+            Currency = "",
+            Value = "10"
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        await service.StopAsync();
+        Assert.False(processed); // will have 0 values
+
+        await using var db = new AppDbContext(options);
+
+        var sub = await db.SubathonDatas.FirstAsync();
+        Assert.False(sub.Points > 0);
+        Assert.False(sub.MillisecondsCumulative > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync();
+        Assert.Equal("???", ev2.Currency);
+        Assert.False(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.Equal(0, ev2.SecondsValue);
+        await conn.CloseAsync();
+    }
+
+    [Fact]
     public async Task OrderEvent_WithCommission()
     {
         var (service, options, conn) = await SetupServiceWithDb(0, false);
@@ -1467,67 +1527,6 @@ public class EventServiceTests
 [Collection("Sequential")]
 public class EventServiceSequentialTests
 {
-    
-    [Fact]
-    public async Task DonationEvent_InvalidCurrency()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
-            Id = Guid.NewGuid(),
-            EventType = SubathonEventType.KoFiDonation,
-            Currency = "EEE",
-            Value = "10"
-        };
-
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
-        await service.StopAsync();
-        Assert.True(processed); // will have 0 values
-
-        await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync();
-        Assert.False(sub.Points > 0);
-        Assert.False(sub.MillisecondsCumulative > 0);
-
-        var ev2 = await db.SubathonEvents.FirstAsync();
-        Assert.Equal("EEE", ev2.Currency);
-        Assert.True(ev2.ProcessedToSubathon);
-        Assert.Equal(0, ev2.PointsValue);
-        Assert.Equal(0, ev2.SecondsValue);
-
-        await conn.CloseAsync();
-    }
-
-    [Fact]
-    public async Task DonationEvent_InvalidCurrency2()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
-            Id = Guid.NewGuid(),
-            EventType = SubathonEventType.KoFiDonation,
-            Currency = "",
-            Value = "10"
-        };
-
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
-        await service.StopAsync();
-        Assert.False(processed); // will have 0 values
-
-        await using var db = new AppDbContext(options);
-
-        var sub = await db.SubathonDatas.FirstAsync();
-        Assert.False(sub.Points > 0);
-        Assert.False(sub.MillisecondsCumulative > 0);
-
-        var ev2 = await db.SubathonEvents.FirstAsync();
-        Assert.Equal("???", ev2.Currency);
-        Assert.False(ev2.ProcessedToSubathon);
-        Assert.Equal(0, ev2.PointsValue);
-        Assert.Equal(0, ev2.SecondsValue);
-        await conn.CloseAsync();
-    }
-
     
     [Fact]
     public async Task DeleteSubathonEvent_SubtractPoints_Command_ReversesPoints()

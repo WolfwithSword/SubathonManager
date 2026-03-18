@@ -6,14 +6,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; 
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
-using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views;
 
-public partial class SettingsView : SettingsControl
+public partial class SettingsView
 {
     private DateTime? _lastUpdatedTimerAt;
     private readonly IDbContextFactory<AppDbContext> _factory;
@@ -32,8 +31,6 @@ public partial class SettingsView : SettingsControl
             WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
             UpdateServerStatus(ServiceManager.Server?.Running ?? false);
             SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
-            SettingsEvents.SettingsUnsavedChanges += UpdateSaveButtonBorder;
-            RegisterUnsavedChangeHandlers();
         };
 
         TwitchSettingsControl.Init(this);
@@ -166,25 +163,5 @@ public partial class SettingsView : SettingsControl
             );
             
         }
-    }
-
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
-    {
-        return;
-    }
-
-    public override void LoadValues(AppDbContext db)
-    {
-        return;
-    }
-
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        return false;
-    }
-
-    public override bool UpdateConfigValueSettings()
-    {
-        return false;
     }
 }
