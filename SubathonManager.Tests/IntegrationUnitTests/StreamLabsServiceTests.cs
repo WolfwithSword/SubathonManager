@@ -271,7 +271,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 To = new Recipient{Name = "TestTo"},
                 From = "TestFrom",
                 MessageId = Guid.NewGuid().ToString(),
-                FromUserId = "",
+                FromUserId = 123456,
                 Source = "TestSource",
                 Priority = long.MinValue,
                 Name = "Donor",
@@ -317,7 +317,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 IconClassName = "",
                 To = new Recipient { Name = "TestTo" },
                 From = "TestFrom",
-                FromUserId = "",
+                FromUserId = 123456,
                 Source = "TestSource",
                 Priority = 0
             };
@@ -328,7 +328,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     .Invoke(service, [null, donation]));
 
             Assert.NotNull(captured);
-            Assert.Equal("Donor", captured!.User);
+            Assert.Equal("Donor", captured.User);
             Assert.Equal("USD", captured.Currency);
             Assert.Equal("5.0", captured.Value);
             Assert.Equal(SubathonEventSource.StreamLabs, captured.Source);
