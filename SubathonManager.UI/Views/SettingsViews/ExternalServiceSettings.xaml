@@ -31,11 +31,11 @@
                              HorizontalAlignment="Center"
                              VerticalAlignment="Center"
                              PlaceholderText="10.00"  Height="34"
-                             FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
+                             FontSize="12"
                              validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateExternalAmt"/>
 
                  <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
-                           x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                           x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
                            Margin="4 0 4 0">
                  </ComboBox>
                  <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"

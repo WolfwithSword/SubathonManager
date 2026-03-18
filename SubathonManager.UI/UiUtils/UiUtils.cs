@@ -1,9 +1,6 @@
 ﻿using System.Windows;
 using System.Runtime.InteropServices;
 using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-
 namespace SubathonManager.UI.UiUtils;
 
 public static class UiUtils
@@ -73,34 +70,5 @@ public static class UiUtils
         
         await msgBox.ShowDialogAsync();
         return false;
-    }
-
-    /// <summary>
-    /// Updates a Border to indicate pending changes on a save button. Run from a dispatcher.
-    /// </summary>
-    /// <param name="border"></param>
-    /// <param name="hasPendingChanges"></param>
-    public static void UpdateButtonPendingBorder(Border border, bool hasPendingChanges)
-    {
-        if (hasPendingChanges)
-        {
-            var pulse = new ColorAnimation
-            {
-                From = Color.FromRgb(0xF5, 0xC5, 0x18),  
-                To   = Color.FromArgb(0x55, 0xF5, 0xC5, 0x18),
-                Duration = new Duration(TimeSpan.FromSeconds(1.4)),
-                AutoReverse = true,
-                RepeatBehavior = RepeatBehavior.Forever
-            };
-            var brush = new SolidColorBrush(Color.FromRgb(0xF5, 0xC5, 0x18));
-            border.BorderBrush = brush;
-            brush.BeginAnimation(SolidColorBrush.ColorProperty, pulse);
-        }
-        else
-        {
-            if (border.BorderBrush is SolidColorBrush b)
-                b.BeginAnimation(SolidColorBrush.ColorProperty, null);
-            border.BorderBrush = new SolidColorBrush(Colors.Transparent);
-        }
     }
 }

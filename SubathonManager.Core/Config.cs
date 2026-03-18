@@ -1,7 +1,6 @@
 ﻿using IniParser;
 using IniParser.Model;
 using System.Diagnostics.CodeAnalysis;
-using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Core
@@ -116,7 +115,6 @@ namespace SubathonManager.Core
         {
             Parser.WriteFile(ConfigPath, Data);
             PendingChanges = false;
-            SettingsEvents.RaiseSettingsUnsavedChanges(PendingChanges);
         }
 
         public virtual string GetDatabasePath()
@@ -148,7 +146,6 @@ namespace SubathonManager.Core
             {
                 Data[section][key] = value ?? string.Empty;
                 PendingChanges = true;
-                SettingsEvents.RaiseSettingsUnsavedChanges(PendingChanges);
                 return true;
             }
             return false;
