@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Data;
 namespace SubathonManager.Tests.DataUnitTests;
 
-[Collection("Sequential")]
+[Collection("SequentialParallel")]
 public class DbContextTests
 {
     private AppDbContext CreateInMemorySqliteDb()
@@ -108,6 +108,7 @@ public class DbContextTests
         });
 
         await db.SaveChangesAsync();
+        Utils.DonationSettings["BitsLikeAsDonation"] = false;
 
         var result = await AppDbContext.GetSubathonCurrencyEvents(db);
 
@@ -348,6 +349,7 @@ public class DbContextTests
         var db = CreateInMemorySqliteDb();
 
         var subathon = new SubathonData { IsActive = true };
+        Utils.DonationSettings["BitsLikeAsDonation"] = false;
         db.SubathonDatas.Add(subathon);
 
         db.SubathonEvents.Add(new SubathonEvent {

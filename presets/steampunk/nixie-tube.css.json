@@ -1,0 +1,17 @@
+﻿{
+  "digit-color": {"type": "color", "description": "Colour of the numbers while on"},
+  "digit-glow-color": {"type": "color", "description": "Colour of the glow effect on numbers"},
+  "tube-bg": {"type": "color", "description": "Empty space of the tube background"},
+  "tube-border": {"type": "color", "description": "Edge colour of the tubes"},
+  "tube-inner-glow": {"type": "color", "description": "Inwards glow colour on the tubes"},
+  "tube-inner-glow-strong": {"type": "color", "description": "Inwards stronger glow colour on the tubes"},
+  "tube-outer-glow": {"type": "color", "description": "Outwards glow colour from the tubes"},
+  "tube-outer-glow-strong": {"type": "color", "description": "Outwards stronger glow colour from the tubes"},
+  "tube-wire-light": {"type": "color", "description": "Wire / Line edge colour"},
+  "tube-wire-dark": {"type": "color", "description": "Wire / Line core colour"},
+  "alignment": {"type":  "alignment"},
+  "digit-size": {"type": "size"},
+  "gap-digit": {"type": "size", "description": "Gap between number tubes"},
+  "tube-width": {"type": "size"},
+  "tube-height": {"type": "size"}
+}

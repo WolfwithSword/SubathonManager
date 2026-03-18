@@ -3,12 +3,13 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Services;
 
-public class CurrencyService
+public class CurrencyService : IAppService
 {
-    private string _baseUrl = "http://www.floatrates.com/daily/";
+    internal string BaseUrl = "http://www.floatrates.com/daily/";
 
     private readonly HttpClient _httpClient;
     private readonly TimeSpan _refreshInterval = TimeSpan.FromHours(24);
@@ -37,7 +38,7 @@ public class CurrencyService
         return currencyFile;
     }
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         var currencyFilePath = CurrencyFilePath();
         if (File.Exists(currencyFilePath))
@@ -69,6 +70,11 @@ public class CurrencyService
             ErrorMessageEvents.RaiseErrorEvent("ERROR", "SYSTEM",
                 "Could not fetch exchange rates for Currency Service. Failures may occur.", DateTime.Now);
         }
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
     }
     
     public async Task<List<string>> GetValidCurrenciesAsync()
@@ -111,7 +117,7 @@ public class CurrencyService
                 .ToUpperInvariant()
                 .Trim();
 
-            string url = _baseUrl + $"{defaultCurrency.ToLowerInvariant()}.json";
+            string url = BaseUrl + $"{defaultCurrency.ToLowerInvariant()}.json";
             string json = await _httpClient.GetStringAsync(url);
 
             var path = CurrencyFilePath();
@@ -124,7 +130,6 @@ public class CurrencyService
             _refreshLock.Release();
         }
     }
-
 
     private async Task LoadFromFileAsync()
     {
@@ -140,16 +145,13 @@ public class CurrencyService
 
         Rates.Clear();
 
-        foreach (var kvp in root.EnumerateObject())
+        foreach (var item in root.EnumerateObject().Select(kvp => kvp.Value))
         {
-            var item = kvp.Value;
-            if (item.TryGetProperty("code", out var codeProp) &&
-                item.TryGetProperty("rate", out var rateProp))
-            {
-                string code = codeProp.GetString()!.ToUpperInvariant();
-                double rate = rateProp.GetDouble();
-                Rates[code] = rate;
-            }
+            if (!item.TryGetProperty("code", out var codeProp) ||
+                !item.TryGetProperty("rate", out var rateProp)) continue;
+            string code = codeProp.GetString()!.ToUpperInvariant();
+            double rate = rateProp.GetDouble();
+            Rates[code] = rate;
         }
     }
     
@@ -210,4 +212,5 @@ public class CurrencyService
     {
         Rates = rates;
     }
+    
 }

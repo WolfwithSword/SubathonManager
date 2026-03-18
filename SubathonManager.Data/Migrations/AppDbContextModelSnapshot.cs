@@ -23,9 +23,16 @@ namespace SubathonManager.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Value")
                         .IsRequired()
@@ -216,6 +223,10 @@ namespace SubathonManager.Data.Migrations
 
                     b.Property<bool>("ProcessedToSubathon")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("SecondaryValue")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<double?>("SecondsValue")
                         .HasColumnType("REAL");

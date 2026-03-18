@@ -1,0 +1,7 @@
+﻿{
+  "positive-time-color": {"type": "color"},
+  "negative-time-color": {"type": "color"},
+  "points-color": {"type": "color"},
+  "money-color": {"type": "color"},
+  "font-size": {"type": "size"}
+}

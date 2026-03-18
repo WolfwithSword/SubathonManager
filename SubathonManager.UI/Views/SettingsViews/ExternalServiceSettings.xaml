@@ -1,11 +1,12 @@
-﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsViews.ExternalServiceSettings"
+﻿<views:SettingsControl x:Class="SubathonManager.UI.Views.SettingsViews.ExternalServiceSettings"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
              xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:SubathonManager.UI.Views">
     
     <Expander Header="External Generic Services" IsExpanded="False">
      <StackPanel>
@@ -30,11 +31,11 @@
                              HorizontalAlignment="Center"
                              VerticalAlignment="Center"
                              PlaceholderText="10.00"  Height="34"
-                             FontSize="12"
+                             FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
                              validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateExternalAmt"/>
 
                  <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
-                           x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                           x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
                            Margin="4 0 4 0">
                  </ComboBox>
                  <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -46,4 +47,4 @@
          </Grid>
      </StackPanel>
  </Expander>
-</UserControl>
+</views:SettingsControl>

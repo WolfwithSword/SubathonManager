@@ -84,6 +84,9 @@
       <Compile Update="Views\SettingsViews\YouTubeSettings.Simulate.cs">
         <DependentUpon>YouTubeSettings.xaml</DependentUpon>
       </Compile>
+      <Compile Update="EditRouteWindow.Handlers.cs">
+        <DependentUpon>EditRouteWindow.xaml</DependentUpon>
+      </Compile>
     </ItemGroup>
 
     <ItemGroup>

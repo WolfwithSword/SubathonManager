@@ -6,6 +6,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using IniParser.Model;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
@@ -91,6 +93,10 @@ public class CommandServiceTests
                 .Returns("True");
             mock.Setup(c => c.Get("Chat", $"Commands.{cmd}.permissions.VIPs", It.IsAny<string>()))
                 .Returns("False");
+            mock.Setup(c => c.GetBool("Chat", $"Commands.{cmd}.permissions.Mods", It.IsAny<bool>()))
+                .Returns(true);
+            mock.Setup(c => c.GetBool("Chat", $"Commands.{cmd}.permissions.VIPs", It.IsAny<bool>()))
+                .Returns(false);
             mock.Setup(c => c.Get("Chat", $"Commands.{cmd}.permissions.Whitelist", It.IsAny<string>()))
                 .Returns("speciallittleguy");
             KeyData kd = new KeyData($"Commands.{cmd}.name");
