@@ -45,13 +45,13 @@ public class SubathonValue
         if (dto.Seconds == null && dto.Points == null)
             return false;
         
-        if (dto.Seconds != null && dto.Seconds >= 0 && !Seconds.Equals(dto.Seconds))
+        if (dto.Seconds is >= 0 && !Seconds.Equals(dto.Seconds))
         {
             Seconds = (double) dto.Seconds;
             modified = true;
         }
 
-        if (dto.Points != null && dto.Points >= 0 && !Points.Equals(dto.Points))
+        if (dto.Points is >= 0 && !Points.Equals(dto.Points))
         {
             Points = (double) dto.Points;
             modified = true;

@@ -7,8 +7,8 @@
 ![GitHub Release Date](https://img.shields.io/github/release-date-pre/WolfwithSword/SubathonManager?style=for-the-badge&label=Latest%20Release) ![GitHub Release](https://img.shields.io/github/v/release/WolfwithSword/SubathonManager?include_prereleases&style=for-the-badge)
 
 ![Static Badge](https://img.shields.io/badge/OPENSOURCE-g?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/License-APGL-yellow.svg?style=flat-square)](https://opensource.org/licenses/AGPL)
 ![Static Badge](https://img.shields.io/badge/NO%20AI-orange?style=flat-square)
-
 
 <img src="assets/icon_base.png" width="160" align="left" alt="icon" style="margin-right: 4px;"/>
 
@@ -17,7 +17,7 @@
 <p style="font-size: 14px;">
   <strong>Subathon Manager</strong><br/>
   An all-in-one Subathon/Donothon Manager for Twitch and YouTube. Manage your timer,
-  goals, overlays, settings, and more — all locally.
+  goals, overlays, settings, and more - all locally.
 </p>
 
 <br clear="left" />
@@ -28,37 +28,81 @@
 
 
 ## Supported Integrations 
-- **Twitch**
-  - Cheers/Bits
-    - Including Combos & Powerups 
-  - Follows, Raids
-  - Subs & Gift Subs
-  - Charity Donations
-  - Chat Commands
-  - Auto lock/pause on stream end
-  - Auto unlock/resume on stream start
-  - Hype Trains
-    - Events and optional multiplier trigger
-- **Youtube**
-  - SuperChats
-  - Memberships & Gift Memberships
-    - Due to limitations, we treat all memberships as a single level/tier
-  - Chat Commands
-- **Picarto**
-  - Follows
-  - Subs & Gift Subs
-  - Kudos Tips
-  - Chat Commands
-- **KoFi**
-  - Tips & Memberships (via StreamerBot)
-- **StreamElements**
-  - SE Pay Tips
-- **StreamLabs**
-  - Donations
-- **Blerp**
-  - Twitch & YouTube, (Bits & Beets)
-- **External**
-  - Custom commands, donations, and subscriptions via POST API or WebSocket
+
+<details> <summary><strong>Platforms</strong></summary>
+
+<details> <summary><strong>Twitch</strong></summary>
+
+- Cheers/Bits (Including Combos & Powerups!)
+- Follows, Raids
+- Subs, Gift Subs
+- Charity Donations
+- Chat Commands
+- Automations
+    - Lock/Pause on Stream End
+    - Unlock/Resume on Stream Start
+- Hype Trains with optional automated multiplier mode!
+</details>
+
+<details> <summary><strong>YouTube</strong></summary>
+
+- SuperChats
+- Memberships (Configurable Levels) & Gift Memberships
+- Chat Commands
+</details>
+
+<details> <summary><strong>Picarto</strong></summary>
+
+- Follows
+- Subs & Gift Subs
+- Kudos Tips
+- Chat Commands
+</details>
+
+</details>
+
+
+<details> <summary><strong>Integrations</strong></summary>
+
+<details> <summary><strong>GoAffPro Affiliate Stores</strong></summary>
+
+- UwuMarket
+- GamerSupps
+</details>
+<details> <summary><strong>KoFi</strong></summary>
+
+Requires StreamerBot
+
+- Tips
+- Memberships
+
+</details>
+
+<details> <summary><strong>StreamElements</strong></summary>
+
+- SE Pay Tips
+
+</details>
+
+<details> <summary><strong>StreamLabs</strong></summary>
+
+- Donations
+
+</details>
+<details> <summary><strong>Blerp</strong></summary>
+
+- Bits & Beets
+    - On both YouTube and Twitch
+
+</details>
+
+<details> <summary><strong>External</strong></summary>
+
+Custom commands, donations and subscriptions via POST API or WebSocket
+
+</details>
+
+</details>
 
 ## Features
 
@@ -75,11 +119,13 @@
 
 ## License
 
-We use a [modified MIT License](LICENSE) that only prohibits the software from being sold or redistributed commercially, or offered as or part of a commercial service.
+We use the [AGPL-3-0-only license](LICENSE) for the software, indicating source must be made available in any and all distributions, including over a network.
 
-You are fully permitted to *use* the software for commercial purposes such as streaming, or developing widget assets for sale. Modifications are allowed, provided they retain this license, though contributions back are preferred!
+At its core, we do not wish for this software to be gatekept behind commerical, service, or otherwise restrictive means, or to be used to take advantage of a user. Although that cannot be prevented, we still want to keep the code open and encourage contributions.
 
-In private, you can do whatever you want. This software is as open-source as possible with that single restriction, as its sole purpose is to prevent users from being taken advantage of from commercial distributions/derivatives of this otherwise open and free software.
+You are fully permitted to *use* the software for commercial purposes, and encouraged for purposes such as streaming, or developing widget assets for sale. Modifications are allowed, provided they retain this license and make available the source, though contributions back are preferred!
+
+Custom widgets for overlays you develop can be licensed however you want and distributed however you want and are not considered part of this software. In fact, we encourage you to share and even commercialize widgets you make.
 
 ## Contact
 

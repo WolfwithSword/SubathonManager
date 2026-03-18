@@ -49,10 +49,7 @@ namespace SubathonManager.UI.Views
             GoalSetNameBox.Text = _activeGoalSet.Name;
             GoalSetType.SelectedValue = $"{_activeGoalSet.Type ?? GoalsType.Points}";
             
-            Dispatcher.InvokeAsync(() => 
-            {
-                LoadGoals();
-            });
+            Dispatcher.InvokeAsync(LoadGoals);
         }
         
         private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
@@ -137,9 +134,11 @@ namespace SubathonManager.UI.Views
         
         private async void CreateNewGoalSet_Click(object sender, RoutedEventArgs e)
         {
-            var msgBox = new Wpf.Ui.Controls.MessageBox();
-            msgBox.Title = "Create new Goals List";
-            
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Create new Goals List"
+            };
+
             var textBlock = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
@@ -180,12 +179,12 @@ namespace SubathonManager.UI.Views
             SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
         }
 
-        private void AddGoal_Click(object sender, RoutedEventArgs e)
+        private async void AddGoal_Click(object sender, RoutedEventArgs e)
         {
             if (_activeGoalSet == null) return;
-            SaveGoals_Click(null, null);
+            await SaveGoalsAsync(null, null);
 
-            using var db = _factory.CreateDbContext();
+            await using var db = await _factory.CreateDbContextAsync();
 
             long maxPoints = 0;
             if (_activeGoalSet.Goals.Count > 0)
@@ -198,10 +197,10 @@ namespace SubathonManager.UI.Views
             };
 
             db.SubathonGoals.Add(newGoal);
-            db.SaveChanges();
-            db.Entry(_activeGoalSet).Reload();
+            await db.SaveChangesAsync();
+            await db.Entry(_activeGoalSet).ReloadAsync();
             SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
-            Dispatcher.InvokeAsync(() => 
+            await Dispatcher.InvokeAsync(() => 
             {
                 LoadGoals();
                 long pts = subathon?.Points ?? 0;
@@ -213,6 +212,11 @@ namespace SubathonManager.UI.Views
         }
 
         private async void SaveGoals_Click(object? sender, RoutedEventArgs? e)
+        {
+            await SaveGoalsAsync(sender, e);
+        }
+
+        private async Task SaveGoalsAsync(object? sender, RoutedEventArgs? e)
         {
             if (_activeGoalSet == null) return;
 
@@ -239,19 +243,22 @@ namespace SubathonManager.UI.Views
             await db.SaveChangesAsync();
             if (sender != null && e != null)
             {
-                await Dispatcher.InvokeAsync(() => { LoadGoals(); });
+                await Dispatcher.InvokeAsync(LoadGoals);
                 SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive); 
                 long pts = subathon?.Points ?? 0;
                 if (_activeGoalSet?.Type == GoalsType.Money) pts = subathon!.GetRoundedMoneySum();
                 SubathonEvents.RaiseSubathonGoalListUpdated(_activeGoalSet!.Goals, pts, (GoalsType) _activeGoalSet.Type!);
             }
-           
+
+            int delay = 1500;
+            if (sender == null)
+                delay = 100;
             await Dispatcher.InvokeAsync(() => 
                 { 
                     SaveGoalsBtn.Content = "Saved!";
                 } 
             );
-            await Task.Delay(1500);
+            await Task.Delay(delay);
             await Dispatcher.InvokeAsync(() => 
                 { 
                     SaveGoalsBtn.Content = "Save Changes";

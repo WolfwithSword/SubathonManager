@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
 using System.Text.Json;
 using SubathonManager.Integration;
 using SubathonManager.Core.Enums;
@@ -7,19 +6,29 @@ using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class ExternalServiceSettings : UserControl
+public partial class ExternalServiceSettings : SettingsControl
 {
-    public required SettingsView Host { get; set; }
     public ExternalServiceSettings()
     {
         InitializeComponent();
     }
 
-    public void Init(SettingsView host)
+    public override void Init(SettingsView host)
     {
         Host = host;
     }
-    public bool UpdateValueSettings(AppDbContext db)
+
+    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override void LoadValues(AppDbContext db)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
@@ -41,7 +50,12 @@ public partial class ExternalServiceSettings : UserControl
 
         return hasUpdated;
     }
-    
+
+    public override bool UpdateConfigValueSettings()
+    {
+        throw new NotImplementedException();
+    }
+
     private void TestExternalDonation_Click(object sender, RoutedEventArgs e)
     {
         var value = SimulateExternalAmt.Text;

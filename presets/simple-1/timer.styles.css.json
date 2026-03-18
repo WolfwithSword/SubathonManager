@@ -1,0 +1,13 @@
+﻿{
+  "hours-color": {"type": "color"},
+  "minutes-color": {"type": "color"},
+  "seconds-color": {"type": "color"},
+  "border-color": {"type": "color"},
+  "inner-border-color": {"type": "color"},
+  "main-background-color": {"type": "color"},
+  "colon-color": {"type": "color"},
+  "multiplier-text-color": {"type": "color", "description": "Text colour for the time multiplier"},
+  "glow-color": {"type": "color", "description": "Glow colour surrounding the timer. Transparent to disable"},
+  "lock-color": {"type": "color"},
+  "font-size": {"type": "size"}
+}

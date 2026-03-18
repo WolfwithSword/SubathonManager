@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace SubathonManager.Core.Models;
@@ -14,11 +15,14 @@ public class CssVariable
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
-
+    
     
     [ForeignKey("Widget")]
     public Guid WidgetId { get; set; }
     public Widget Widget { get; set; } = null!;
+    
+    public WidgetCssVariableType Type { get; set; } =  WidgetCssVariableType.Default;
+    public string Description { get; set; } = string.Empty;
     
     public CssVariable Clone(Guid newWidgetId)
     {
@@ -26,7 +30,9 @@ public class CssVariable
         {
             Name = Name,
             Value = Value,
-            WidgetId = newWidgetId
+            WidgetId = newWidgetId,
+            Type = Type,
+            Description = Description
         };
     }
 }
@@ -107,7 +113,7 @@ public class JsVariable
 }
 
 [ExcludeFromCodeCoverage]
-public class Widget
+public partial class Widget
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -145,11 +151,11 @@ public class Widget
     {
         Widget widget = new Widget(string.IsNullOrEmpty(newName) ? Name : newName, HtmlPath);
 
-        widget.RouteId = routeId == null ? RouteId : routeId.Value;
+        widget.RouteId = routeId ?? RouteId;
         widget.Visibility = Visibility;
         widget.X = X;
         widget.Y = Y;
-        widget.Z = newZ == null ? Z : newZ.Value;
+        widget.Z = newZ ?? Z;
         widget.Width = Width;
         widget.Height = Height;
         widget.ScaleX = ScaleX;
@@ -178,11 +184,7 @@ public class Widget
         string htmlContent = File.ReadAllText(HtmlPath);
         string baseDir = Path.GetDirectoryName(HtmlPath)!;
 
-        var cssMatches = Regex.Matches(
-            htmlContent,
-            @"<link[^>]+href\s*=\s*[""']((?!https?:|\/\/)[^""']+\.css)[""']",
-            RegexOptions.IgnoreCase
-        );
+        var cssMatches = CssLinkRegex().Matches(htmlContent);
 
         foreach (Match match in cssMatches)
         {
@@ -195,22 +197,46 @@ public class Widget
                 continue;
 
             string cssContent = File.ReadAllText(cssPath);
-            var varMatches = Regex.Matches(cssContent, @"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);");
+            var varMatches = CssVarRegex().Matches(cssContent);
+
+            string metaPath = cssPath + ".json";
+            Dictionary<string, Dictionary<string, string>>? varTypes = null;
+            if (File.Exists(metaPath))
+            {
+                var metaJson = File.ReadAllText(metaPath);
+                varTypes = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(metaJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = false });
+            }
 
             foreach (Match varMatch in varMatches)
             {
                 string name = varMatch.Groups[1].Value.Trim();
                 string value = varMatch.Groups[2].Value.Trim();
+                string? description = string.Empty;
+                if (extractedVars.Any(v => v.Name == name)) continue;
 
-                if (!extractedVars.Any(v => v.Name == name))
+                WidgetCssVariableType cssType = WidgetCssVariableType.Default;
+
+                Dictionary<string, string>? metaValue = null;
+                if (varTypes is { Count: > 0 })
+                    varTypes.TryGetValue(name, out metaValue);
+                
+                if (metaValue != null)
                 {
-                    extractedVars.Add(new CssVariable
-                    {
-                        Name = name,
-                        Value = value,
-                        WidgetId = Id
-                    });
+                    metaValue.TryGetValue("type", out var typeName);
+                    Enum.TryParse(typeName, ignoreCase: true, out cssType);
+                    metaValue.TryGetValue("description", out description);
                 }
+                
+                extractedVars.Add(new CssVariable
+                {
+                    Name = name,
+                    Value = value,
+                    WidgetId = Id,
+                    Type = cssType,
+                    Description = string.IsNullOrWhiteSpace(description) ? string.Empty : description
+                });
+                
             }
         }
         return extractedVars;
@@ -220,5 +246,10 @@ public class Widget
     {
         return $"Widget {Name} (Instance {Id})";
     }
+
+    [GeneratedRegex(@"<link[^>]+href\s*=\s*[""']((?!https?:|\/\/)[^""']+\.css)[""']", RegexOptions.IgnoreCase, "en-CA")]
+    private static partial Regex CssLinkRegex();
     
+    [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
+    private static partial Regex CssVarRegex();
 }

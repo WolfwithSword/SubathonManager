@@ -21,7 +21,7 @@ public class StreamElementsServiceTests
     }
     
     [Fact]
-    public void InitClient_ShouldReturnFalse_WhenJwtIsEmpty()
+    public async Task InitClient_ShouldReturnFalse_WhenJwtIsEmpty()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
         var config = new Mock<Config>();
@@ -29,11 +29,12 @@ public class StreamElementsServiceTests
 
         var service = new StreamElementsService(logger.Object, config.Object);
 
-        var result = service.InitClient();
-
-        Assert.False(result);
+        await service.StartAsync();
+        
         Assert.False(service.Connected);
         Assert.True(service.IsTokenEmpty());
+        
+        await service.StopAsync();
     }
     
     [Fact]
@@ -57,6 +58,8 @@ public class StreamElementsServiceTests
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
         var config = new Mock<Config>();
+        config.Setup(c => c.Set("StreamElements", "JWT", "NEW_JWT"))
+            .Returns(true);
 
         var service = new StreamElementsService(logger.Object, config.Object);
 
@@ -64,6 +67,22 @@ public class StreamElementsServiceTests
 
         config.Verify(c => c.Set("StreamElements", "JWT", "NEW_JWT"), Times.Once);
         config.Verify(c => c.Save(), Times.Once);
+    }
+    
+    [Fact]
+    public void SetJwtToken_ShouldNotUpdateConfigAndSave()
+    {
+        var logger = new Mock<ILogger<StreamElementsService>>();
+        var config = new Mock<Config>();
+        config.Setup(c => c.Set("StreamElements", "JWT", "OLD_JWT"))
+            .Returns(false);
+
+        var service = new StreamElementsService(logger.Object, config.Object);
+
+        service.SetJwtToken("OLD_JWT");
+
+        config.Verify(c => c.Set("StreamElements", "JWT", "OLD_JWT"), Times.Once);
+        config.Verify(c => c.Save(), Times.Never);
     }
     
     [Fact]
@@ -149,7 +168,7 @@ public class StreamElementsServiceTests
     }
     
     [Fact]
-    public void OnDisconnected_ShouldSetConnectedFalse_AndRaiseEvent()
+    public async Task OnDisconnected_ShouldSetConnectedFalse_AndRaiseEvent()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
         var config = new Mock<Config>();
@@ -170,9 +189,9 @@ public class StreamElementsServiceTests
 
         var method = typeof(StreamElementsService)
             .GetMethod("_OnDisconnected", BindingFlags.NonPublic | BindingFlags.Instance);
-
+        
         method?.Invoke(service, new object?[] { null, EventArgs.Empty });
-
+        await Task.Delay(100);
         Assert.False(service.Connected);
         Assert.True(eventRaised);
 

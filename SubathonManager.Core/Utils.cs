@@ -1,11 +1,17 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
+
 namespace SubathonManager.Core;
 
-public class Utils
+public static class Utils
 {
+    
+    public static readonly Dictionary<string, bool> DonationSettings = new Dictionary<string, bool>(); 
+    
     public static TimeSpan ParseDurationString(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -88,8 +94,9 @@ public class Utils
         return  new TimeSpan(days, hours, minutes, seconds);
     }
 
-    public static Guid CreateGuidFromUniqueString(string key)
-    {       
+    public static Guid CreateGuidFromUniqueString(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return Guid.Empty;
         using var sha1 = SHA1.Create();
         byte[] hash = sha1.ComputeHash(Encoding.UTF8.GetBytes(key));
 
@@ -151,7 +158,7 @@ public class Utils
     
     public static string EscapeCsv(string? value)
     {
-        if (string.IsNullOrEmpty(value)) return "";
+        if (string.IsNullOrWhiteSpace(value)) return "";
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
         {
             value = value.Replace("\"", "\"\"");
@@ -170,7 +177,7 @@ public class Utils
             double.TryParse(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
         }
 
-        bool.TryParse(config.Get("Currency", "BitsLikeAsDonation", "False"), out bool useAsDonation);
+        bool useAsDonation = config.GetBool("Currency", "BitsLikeAsDonation", false);
         return (useAsDonation, modifier);
     }
     
@@ -222,6 +229,18 @@ public class Utils
             Cts?.Cancel();
             Cts?.Dispose();
         }
+    }
+    
+    public static class SingleInstanceHelper
+    {
+        public const int WM_SHOWAPP = 0x0400 + 1;
+
+        [DllImport("user32")]
+        public static extern bool PostMessage(
+            IntPtr hwnd,
+            int msg,
+            IntPtr wparam,
+            IntPtr lparam);
     }
 
 }

@@ -79,8 +79,6 @@ public partial class MainWindow
 
     private void UpdateMultiplierUi(SubathonData subathon, DateTime time)
     {
-        using var db = _factory.CreateDbContext();
-
         bool isMultiplierSet = subathon.Multiplier.Multiplier < 1 || subathon.Multiplier.Multiplier > 1;
 
         TimeSpan? newDuration = subathon.Multiplier.Duration == null || subathon.Multiplier.Started == null ? null :

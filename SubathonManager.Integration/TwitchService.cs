@@ -2,6 +2,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -14,6 +15,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Services;
 using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
@@ -21,20 +23,24 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 
 namespace SubathonManager.Integration;
 
-public class TwitchService
+public class TwitchService : IDisposable, IAppService
 {
-    private readonly string _callbackUrl;
+    private string _callbackUrl;
 
-    private TwitchAPI? _api = null!;
-    private TwitchClient? _chat = null!;
-    private EventSubWebsocketClient? _eventSub = null!;
+    private TwitchAPI? _api;
+    private TwitchClient? _chat;
+    private EventSubWebsocketClient? _eventSub;
     private static int _hypeTrainLevel = 0;
+    private bool _disposed = false;
 
     private readonly ILogger? _logger;
     private readonly IConfig _config;
 
     private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
         , "data/twitch_token.json"));
+    internal string TwitchOAuthUrl = "https://id.twitch.tv/oauth2/authorize";
+    internal int CallbackPort = 14041;  // hardcode cause of app callback url
+    internal Uri? EventSubUrl = null;
     
     private DateTime _lastChatDisconnectLog = DateTime.MinValue;
     private volatile bool _isConnected = false;
@@ -52,11 +58,24 @@ public class TwitchService
 
     public TwitchService(ILogger<TwitchService>? logger, IConfig config)
     {
-        int port = 14041; // hardcode cause of app callback url
-        _callbackUrl = $"http://localhost:{port}/auth/twitch/callback/";
+        _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
         _logger = logger;
         _config = config;
     }
+    
+    internal Action<string> OpenBrowser = url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+    private static readonly string[] TwitchScopes =
+    [
+        "user:read:email",
+        "bits:read",
+        "channel:read:subscriptions",
+        "channel:read:redemptions",
+        "moderator:read:followers",
+        "channel:read:charity",
+        "chat:read",
+        "chat:edit",
+        "channel:read:hype_train"
+    ];
 
     public bool HasTokenFile()
     {
@@ -97,14 +116,32 @@ public class TwitchService
             return false;
         }
     }
-
     
     [ExcludeFromCodeCoverage]
-    public async Task InitializeAsync()
+    public async Task StartAsync(CancellationToken ct = default)
     {
         if (HasTokenFile())
         {
-            var json = await File.ReadAllTextAsync(_tokenFile);
+            var tokenValid = await ValidateTokenAsync();
+            if (!tokenValid)
+            {
+                RevokeTokenFile();
+                _logger?.LogWarning("Twitch token expired - deleting token file");
+            }
+            else
+            {
+                _logger?.LogInformation("Twitch Service starting up...");
+                await InitializeAsync(ct);
+            }
+        }
+    }
+    
+    [ExcludeFromCodeCoverage]
+    public async Task InitializeAsync(CancellationToken ct = default)
+    {
+        if (HasTokenFile())
+        {
+            var json = await File.ReadAllTextAsync(_tokenFile, ct);
             var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
             AccessToken = data?["access_token"];
         }
@@ -131,120 +168,145 @@ public class TwitchService
                 $"Please try reconnecting twitch or restarting the application", DateTime.Now);
         }
     }
-
     
-    [ExcludeFromCodeCoverage]
     private async Task StartOAuthFlowAsync()
     {
         // todo allow scopes to load from file for emergency in case of deprecation, thanks twitch
-        string scopes = string.Join('+', new[]
-        {
-            "user:read:email",
-            "bits:read",
-            "channel:read:subscriptions",
-            "channel:read:redemptions",
-            "moderator:read:followers",
-            "channel:read:charity",
-            "chat:read",
-            "chat:edit",
-            "channel:read:hype_train"
-        });
+        string scopes = string.Join('+', TwitchScopes);
 
-        var oauthUrl = $"https://id.twitch.tv/oauth2/authorize" +
+        
+        _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
+        
+        var oauthUrl = $"{TwitchOAuthUrl}" +
                        $"?client_id={Config.TwitchClientId}" +
                        $"&redirect_uri={_callbackUrl}" +
                        $"&response_type=token" +
                        $"&scope={scopes}";
 
         _logger?.LogDebug("Opening Twitch OAuth...");
-        Process.Start(new ProcessStartInfo
-        {
-            FileName = oauthUrl,
-            UseShellExecute = true
-        });
+        
+        OpenBrowser(oauthUrl);
+        
+        var uri = new Uri(_callbackUrl);
+        int port = uri.Port;
 
-
-        if (!HttpListener.IsSupported)
-        {
-            var msg = "HTTP Listener not supported. Cannot start Twitch OAuth flow.";
-            _logger?.LogError(msg);
-            
-            ErrorMessageEvents.RaiseErrorEvent(
-                "ERROR",
-                nameof(SubathonEventSource.Twitch),
-                msg,
-                DateTime.Now.ToLocalTime());
-            return;
-        }
-
-        // temp listener for callback
-        var listener = new HttpListener();
+        var tcpListener = new TcpListener(IPAddress.Loopback, port);
 
         try
         {
-            listener.Prefixes.Add(_callbackUrl.EndsWith("/") ? _callbackUrl : _callbackUrl + "/");
-            var tokenUrl = _callbackUrl.Replace("auth/twitch/callback", "token");
-            listener.Prefixes.Add(tokenUrl.EndsWith("/") ? tokenUrl : tokenUrl + "/");
-            listener.Start();
+            tcpListener.Start();
             _logger?.LogDebug("Waiting for Twitch auth...");
 
-            var context = await listener.GetContextAsync();
-            var response = context.Response;
-
-            string html = $"""
-                               <html>
-                                   <body>
-                                       <h2>Waiting for authorization to complete...</h2>
-                                       <script>
-                                           const hash = window.location.hash.substring(1);
-                                           fetch('/token?' + hash)
-                                               .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
-                                       </script>
-                                   </body>
-                               </html>
-                           """;
-            var buffer = System.Text.Encoding.UTF8.GetBytes(html);
-            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-            response.Close();
-
-            var tokenContext = await listener.GetContextAsync();
-            var query = tokenContext.Request.Url!.Query.TrimStart('?');
-            var parts = System.Web.HttpUtility.ParseQueryString(query);
-
-            AccessToken = parts["access_token"];
-            var tokenResponse = tokenContext.Response;
-            tokenResponse.StatusCode = 200;
-            await tokenResponse.OutputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("OK"));
-            tokenResponse.Close();
+            // serve the HTML page
+            AccessToken = await HandleOAuthExchangeAsync(tcpListener, uri.AbsolutePath);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, $"TwitchService Authentication Failure: {ex.Message}");
+            _logger?.LogError(ex, "TwitchService Authentication Failure: {ExMessage}", ex.Message);
+            ErrorMessageEvents.RaiseErrorEvent(
+                "ERROR",
+                nameof(SubathonEventSource.Twitch),"Failed to do Twitch OAuth setup",
+                DateTime.Now.ToLocalTime());
         }
-
-        try
+        finally
         {
-            listener.Stop();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "TwitchService Authentication Listener Shutdown Error");
+            tcpListener.Stop();
         }
 
         if (!string.IsNullOrEmpty(AccessToken))
         {
             await File.WriteAllTextAsync(_tokenFile,
                 JsonSerializer.Serialize(new { access_token = AccessToken }));
+            await Task.Delay(100);
         }
+    }
+    
+    private async Task<string?> HandleOAuthExchangeAsync(TcpListener tcpListener, string callbackPath)
+    {
+        using (var client = await tcpListener.AcceptTcpClientAsync())
+        {
+            var stream = client.GetStream();
+            await ReadHttpRequestAsync(stream); // consume
+
+            string html = """
+                          <html>
+                              <body>
+                                  <h2>Waiting for authorization to complete...</h2>
+                                  <script>
+                                      const hash = window.location.hash.substring(1);
+                                      fetch('/token?' + hash)
+                                          .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
+                                  </script>
+                              </body>
+                          </html>
+                          """;
+
+            await SendHttpResponseAsync(stream, 200, "text/html", html);
+        }
+
+        // fetch token
+        using (var client = await tcpListener.AcceptTcpClientAsync())
+        {
+            var stream = client.GetStream();
+            string requestLine = await ReadHttpRequestAsync(stream);
+            
+            var match = System.Text.RegularExpressions.Regex.Match(requestLine, @"GET (/token\?[^ ]+)");
+            string? accessToken = null;
+
+            if (match.Success)
+            {
+                var query = match.Groups[1].Value.Split('?', 2).ElementAtOrDefault(1) ?? "";
+                var parts = System.Web.HttpUtility.ParseQueryString(query);
+                accessToken = parts["access_token"];
+            }
+
+            await SendHttpResponseAsync(stream, 200, "text/plain", "OK");
+            return accessToken;
+        }
+    }
+    
+    private async Task<string> ReadHttpRequestAsync(NetworkStream stream)
+    {
+        var buffer = new byte[4096];
+        var sb = new System.Text.StringBuilder();
+
+        while (true)
+        {
+            int bytesRead = await stream.ReadAsync(buffer);
+            if (bytesRead == 0) break;
+            sb.Append(System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead));
+            if (sb.ToString().Contains("\r\n\r\n")) break; // end headers
+        }
+
+        return sb.ToString().Split("\r\n")[0];
+    }
+
+    private async Task SendHttpResponseAsync(NetworkStream stream, int statusCode, string contentType, string body)
+    {
+        var bodyBytes = System.Text.Encoding.UTF8.GetBytes(body);
+        var headers = $"HTTP/1.1 {statusCode} OK\r\n" +
+                      $"Content-Type: {contentType}; charset=utf-8\r\n" +
+                      $"Content-Length: {bodyBytes.Length}\r\n" +
+                      $"Connection: close\r\n\r\n";
+
+        var headerBytes = System.Text.Encoding.UTF8.GetBytes(headers);
+        await stream.WriteAsync(headerBytes);
+        await stream.WriteAsync(bodyBytes);
+        await stream.FlushAsync();
     }
 
     
     [ExcludeFromCodeCoverage]
     private async Task InitializeApiAsync()
     {
-        _api = new TwitchAPI();
-        _api.Settings.ClientId = Config.TwitchClientId;
-        _api.Settings.AccessToken = AccessToken;
+        _api = new TwitchAPI
+        {
+            Settings =
+            {
+                ClientId = Config.TwitchClientId,
+                AccessToken = AccessToken
+            }
+        };
 
         var user = (await _api.Helix.Users.GetUsersAsync()).Users.FirstOrDefault();
         if (user != null)
@@ -288,6 +350,7 @@ public class TwitchService
         await Task.Run(() => _chat.Connect());
     }
 
+    [ExcludeFromCodeCoverage]
     private void HandleChatDisconnect(object? _, TwitchLib.Communication.Events.OnDisconnectedEventArgs args)
     {
         if ((DateTime.Now - _lastChatDisconnectLog).TotalSeconds > 60)
@@ -316,7 +379,7 @@ public class TwitchService
             var token = _chatReconnect.Cts.Token;
             
 
-            while (!token.IsCancellationRequested && _chat!.IsConnected == false)
+            while (!token.IsCancellationRequested && _chat.IsConnected == false)
             {
                 _chatReconnect.Retries++;
                 var delay = _chatReconnect.Backoff;
@@ -361,11 +424,13 @@ public class TwitchService
     }
 
 
+    [ExcludeFromCodeCoverage]
     private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
     {
         _logger?.LogInformation("Twitch Chat Reconnected");
         _chatReconnect.Cts?.Cancel();
         _chatReconnect.Reset();
+        IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
     }
     
     
@@ -391,9 +456,7 @@ public class TwitchService
             BlerpChatService.ParseMessage(e.ChatMessage.Message, SubathonEventSource.Twitch);
         }
     }
-
     
-    [ExcludeFromCodeCoverage]
     private async Task InitializeEventSubAsync()
     {
         _chatReconnect.Reset();
@@ -416,7 +479,7 @@ public class TwitchService
         _eventSub.ChannelHypeTrainEndV2 += HandleHypeTrainEndV2;
         _eventSub.ChannelCharityCampaignDonate += HandleCharityEvent;
 
-        await _eventSub.ConnectAsync();
+        await _eventSub.ConnectAsync(EventSubUrl);
     }
     
     private bool IsEventSubConnected()
@@ -425,7 +488,6 @@ public class TwitchService
     }
 
     
-    [ExcludeFromCodeCoverage]
     private async Task HandleEventSubConnect(object? s, WebsocketConnectedArgs e)
     {
         bool hasError = false;
@@ -461,7 +523,8 @@ public class TwitchService
                         { "broadcaster_user_id", UserId! }, { "to_broadcaster_user_id", UserId! },
                         { "moderator_user_id", UserId! }, { "user_id", UserId! }
                     };
-                    var x = await _api!.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
+                    if (_api == null) continue;
+                    var x = await _api.Helix.EventSub.CreateEventSubSubscriptionAsync(type,
                         type.Contains("follow") || type.Contains("hype_train") ? "2" : "1", condition,
                         EventSubTransportMethod.Websocket, _eventSub?.SessionId,
                         clientId: Config.TwitchClientId,
@@ -488,21 +551,24 @@ public class TwitchService
             _eventSubReconnect.Cts?.Cancel();
             _eventSubReconnect.Reset();
         }
-        IntegrationEvents.RaiseConnectionUpdate(_isConnected, SubathonEventSource.Twitch, UserName!, "EventSub");
+        IntegrationEvents.RaiseConnectionUpdate(IsEventSubConnected(), SubathonEventSource.Twitch, UserName!, "EventSub");
     }
 
 
+    [ExcludeFromCodeCoverage]
     private Task HandleEventSubReconnect(object? s, WebsocketReconnectedArgs e)
     {
         _logger?.LogInformation("Reconnected EventSub WebSocket.");
-        ErrorMessageEvents.RaiseErrorEvent("INFO", nameof(SubathonEventSource.Twitch),
-            "Twitch EventSub has reconnected", DateTime.Now.ToLocalTime());
+        if (_eventSubReconnect.Retries >= 1)
+            ErrorMessageEvents.RaiseErrorEvent("INFO", nameof(SubathonEventSource.Twitch),
+                "Twitch EventSub has reconnected", DateTime.Now.ToLocalTime());
         _eventSubReconnect.Cts?.Cancel();
         _eventSubReconnect.Reset();
         _isConnected = true;
         return Task.CompletedTask;
     }
     
+    [ExcludeFromCodeCoverage]
     private Task HandleEventSubDisconnect(object? s, WebsocketDisconnectedArgs e)
     {
         _logger?.LogWarning("Disconnected EventSub WebSocket.");
@@ -597,8 +663,7 @@ public class TwitchService
 
     private Task HandleChannelOnline(object? s, StreamOnlineArgs e)
     {
-        if (bool.TryParse(_config.Get("Twitch", "ResumeOnStart", "false"),
-                out var resumeOnStart) && resumeOnStart)
+        if (_config.GetBool("Twitch", "ResumeOnStart", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -614,8 +679,7 @@ public class TwitchService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
-        if (bool.TryParse(_config.Get("Twitch", "UnlockOnStart", "false"),
-                out var unlockOnStart) && unlockOnStart)
+        if (_config.GetBool("Twitch", "UnlockOnStart", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -636,8 +700,7 @@ public class TwitchService
 
     private Task HandleChannelOffline(object? s, StreamOfflineArgs e)
     {
-        if (bool.TryParse(_config.Get("Twitch", "PauseOnEnd", "false"),
-                out var pauseOnEnd) && pauseOnEnd)
+        if (_config.GetBool("Twitch", "PauseOnEnd", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -653,8 +716,7 @@ public class TwitchService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
-        if (bool.TryParse(_config.Get("Twitch", "LockOnEnd", "false"),
-                out var lockOnEnd) && lockOnEnd)
+        if (_config.GetBool("Twitch", "LockOnEnd", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -697,6 +759,9 @@ public class TwitchService
         var eventMeta = e.Metadata as WebsocketEventSubMetadata;
         Guid.TryParse(eventMeta!.MessageId, out var mId);
         if (mId == Guid.Empty) mId = Guid.NewGuid();
+        var user = e.Payload.Event.UserName;
+        if (string.IsNullOrWhiteSpace(user))
+            user = "Anonymous";
         SubathonEvent subathonEvent = new SubathonEvent
         {
             Id = mId,
@@ -704,7 +769,7 @@ public class TwitchService
             Currency = "sub",
             EventType = SubathonEventType.TwitchGiftSub,
             Value = e.Payload.Event.Tier,
-            User = e.Payload.Event.UserName,
+            User = user,
             Amount = e.Payload.Event.Total,
             EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
         };
@@ -884,7 +949,7 @@ public class TwitchService
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken ct = default)
     {
         // api has no disconnect? 
         OnTeardown();
@@ -1013,11 +1078,28 @@ public class TwitchService
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _chatReconnect.Dispose();
+                _eventSubReconnect.Dispose();
+                OnTeardown();
+            }
+            _disposed = true;
+        }
+    }
+    
     private void OnTeardown()
     {
-        _chatReconnect.Dispose();
-        _eventSubReconnect.Dispose();
-        
         if (_chat != null)
         {
             _chat.OnMessageReceived -= HandleMessageCmdReceived;

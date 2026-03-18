@@ -1,0 +1,9 @@
+﻿{
+  "border-color": {"type": "color"},
+  "inner-border-color": {"type": "color"},
+  "main-background-color": {"type": "color"},
+  "text-color": {"type": "color"},
+  "event-glow": {"type": "color", "description": "Glow effect surrounding the event block. Transparent to disable"},
+  "glow-color": {"type": "color", "description": "Glow effect surrounding the event icon. Transparent to disable"},
+  "event-width": {"type": "size"}
+}

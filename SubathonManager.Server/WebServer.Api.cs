@@ -219,8 +219,8 @@ public partial class WebServer
                         e.EventType != SubathonEventType.Unknown)
             .ToListAsync();
             
-        var simulated = events.Where(e => e.User == "SYSTEM" || e.User == "SIMULATED").ToList();
-        var real = events.Where(e => e.User != "SYSTEM" && e.User != "SIMULATED").ToList();
+        var simulated = events.Where(e => e.User != null && (e.User.StartsWith("SYSTEM") || e.User.StartsWith("SIMULATED"))).ToList();
+        var real = events.Where(e => e.User != null && !e.User.StartsWith("SYSTEM") && !e.User.StartsWith("SIMULATED")).ToList();
             
         object response = new
         {
@@ -249,20 +249,20 @@ public partial class WebServer
         int patched = await _valueHelper.PatchFromJsonAsync(body);
         int code;
         string msg;
-        if (patched == -1)
+        switch (patched)
         {
-            code = 400;
-            msg = "Error patching values";
-        }
-        else if (patched == 0)
-        {
-            code = 201;
-            msg = "No patches needed";
-        }
-        else
-        {
-            code = 200;
-            msg = $"Patched {patched} Values";
+            case -1:
+                code = 400;
+                msg = "Error patching values";
+                break;
+            case 0:
+                code = 201;
+                msg = "No patches needed";
+                break;
+            default:
+                code = 200;
+                msg = $"Patched {patched} Values";
+                break;
         }
         await ctx.WriteResponse(code, msg);
     }
@@ -318,6 +318,30 @@ public partial class WebServer
             else if (g.Key.IsCheerType())
             {
                 result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
+            }
+            else if (g.Key.IsOrderType())
+            {
+                var breakdown = g
+                    .Where(e => !string.IsNullOrWhiteSpace(e.Currency))  
+                    .GroupBy(e => e.Currency ?? "")
+                    .ToDictionary(
+                        t => t.Key,
+                        t =>
+                        {
+                            double sum = t.Sum(e =>
+                                double.TryParse(string.Equals(e.Value, "new", StringComparison.OrdinalIgnoreCase) 
+                                    ? "1" : e.Value, out var amount)
+                                    ? amount
+                                    : 0
+                            );
+                            return Math.Round(sum, 2);
+                        }
+                    );
+                result[key] = new Dictionary<string, object>
+                {
+                    ["count"] = g.Count(),
+                    ["breakdown"] = breakdown
+                };
             }
             else
             {
