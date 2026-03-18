@@ -1,8 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Diagnostics;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Data;
 using SubathonManager.Core;
@@ -140,7 +138,7 @@ namespace SubathonManager.UI.Views
                 hasUpdated = true;
             }
 
-            if (val != null && int.TryParse(tb2.Text, out var points) && !points.Equals(val.Points))
+            if (val != null && int.TryParse(tb2.Text, out var points) && !points.Equals((int)val.Points))
             {
                 val.Points = points;
                 hasUpdated = true;
@@ -175,31 +173,12 @@ namespace SubathonManager.UI.Views
             var newData = helper.GetAllAsJson();
             SubathonEvents.RaiseSubathonValueConfigRequested(newData);
         }
-        
-        public void UpdateSaveButtonBorder(bool hasPendingChanges)
+
+        private void UpdateSaveButtonBorder( bool hasPendingChanges)
         {
             Dispatcher.InvokeAsync(() =>
             {
-                if (hasPendingChanges)
-                {
-                    var pulse = new ColorAnimation
-                    {
-                        From = Color.FromRgb(0xF5, 0xC5, 0x18),  
-                        To   = Color.FromArgb(0x55, 0xF5, 0xC5, 0x18),
-                        Duration = new Duration(TimeSpan.FromSeconds(1.4)),
-                        AutoReverse = true,
-                        RepeatBehavior = RepeatBehavior.Forever
-                    };
-                    var brush = new SolidColorBrush(Color.FromRgb(0xF5, 0xC5, 0x18));
-                    SaveButtonBorder.BorderBrush = brush;
-                    brush.BeginAnimation(SolidColorBrush.ColorProperty, pulse);
-                }
-                else
-                {
-                    if (SaveButtonBorder.BorderBrush is SolidColorBrush b)
-                        b.BeginAnimation(SolidColorBrush.ColorProperty, null);
-                    SaveButtonBorder.BorderBrush = new SolidColorBrush(Colors.Transparent);
-                }
+                UiUtils.UiUtils.UpdateButtonPendingBorder(SaveButtonBorder, hasPendingChanges);
             });
         }
         

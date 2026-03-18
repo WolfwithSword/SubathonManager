@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
@@ -7,6 +8,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Data;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI.Views
 {
@@ -14,6 +16,7 @@ namespace SubathonManager.UI.Views
     {
         private SubathonGoalSet? _activeGoalSet;
         private readonly IDbContextFactory<AppDbContext> _factory;
+        private int _suppressCount = 0;
 
         public GoalsEditor()
         {
@@ -22,6 +25,16 @@ namespace SubathonManager.UI.Views
             GoalSetType.ItemsSource = Enum.GetNames<GoalsType>().ToList();
             LoadActiveGoalSet();
             SubathonEvents.SubathonDataUpdate += UpdatePointsCount;
+
+            Loaded += (_, __) =>
+            {
+                Dispatcher.Invoke(() =>
+                    {
+                        AttachChangeHandler(GoalSetType, new RoutedEventArgs());
+                        AttachChangeHandler(GoalSetNameBox, new RoutedEventArgs());
+                    }
+                );
+            };
         }
 
         private void UpdatePointsCount(SubathonData subathon, DateTime time)
@@ -79,7 +92,8 @@ namespace SubathonManager.UI.Views
                     ToolTip = "Goal Description",
                     PlaceholderText = "Goal Description..."
                 };
-
+                
+                AttachChangeHandler(textBox, new RoutedEventArgs());
                 var pointsBox = new Wpf.Ui.Controls.TextBox
                 {
                     Text = goal.Points.ToString(),
@@ -88,7 +102,7 @@ namespace SubathonManager.UI.Views
                     ToolTip = "Points/Money to achieve"
                 };
                 pointsBox.PreviewTextInput += NumberOnly_PreviewTextInput;
-                
+                AttachChangeHandler(pointsBox, new RoutedEventArgs());
 
                 var deleteBtn = new Wpf.Ui.Controls.Button
                 {
@@ -258,12 +272,61 @@ namespace SubathonManager.UI.Views
                     SaveGoalsBtn.Content = "Saved!";
                 } 
             );
+            UpdateSaveButtonBorder(false);
             await Task.Delay(delay);
             await Dispatcher.InvokeAsync(() => 
                 { 
                     SaveGoalsBtn.Content = "Save Changes";
                 } 
             );
+        }
+        
+        private void UpdateSaveButtonBorder(bool hasPendingChanges)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                UiUtils.UiUtils.UpdateButtonPendingBorder(SaveButtonBorder, hasPendingChanges);
+            });
+        }
+        
+        private void SuppressUnsavedChanges(Action action)
+        {
+            _suppressCount++;
+            try { action(); }
+            finally { _suppressCount--; }
+        }
+        
+        private void AttachChangeHandler(object sender, RoutedEventArgs routedEventArgs)
+        {
+            void Attach()
+            {
+                switch (sender)
+                {
+                    case TextBox tb:
+                        tb.TextChanged += Value_OnChanged;
+                        break;
+                    case ComboBox cb:
+                        cb.SelectionChanged += Value_OnChanged;
+                        break;
+                    case CheckBox chk:
+                        chk.Checked += Value_OnChanged;
+                        chk.Unchecked += Value_OnChanged;
+                        break;
+                    case ToggleButton tb2:
+                        tb2.Checked += Value_OnChanged;
+                        tb2.Unchecked += Value_OnChanged;
+                        break;
+                    case Slider sld:
+                        sld.ValueChanged += Value_OnChanged;
+                        break;
+                }
+            }
+            SuppressUnsavedChanges(Attach);
+        }
+        private void Value_OnChanged(object sender, RoutedEventArgs e)
+        {
+            if (_suppressCount > 0) return;
+            Dispatcher.Invoke( () => UiUtils.UiUtils.UpdateButtonPendingBorder(SaveButtonBorder, true));
         }
     }
 }
