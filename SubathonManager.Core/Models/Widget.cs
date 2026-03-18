@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Core.Models;
 
@@ -34,6 +35,30 @@ public class CssVariable
             Type = Type,
             Description = Description
         };
+    }
+    
+    public static CssVariable? FromJson(JsonElement json, Guid widgetId)
+    {
+        var name = json.GetProperty("name").GetString() ?? string.Empty;
+        var value = json.GetProperty("value").GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name)) return null;
+        return new CssVariable
+        {
+            Name = name,
+            Value = value,
+            WidgetId = widgetId
+        };
+    }
+    
+    public JsonElement ToJson()
+    {
+        var obj = new
+        {
+            name = Name,
+            value = Value
+        };
+
+        return JsonSerializer.SerializeToElement(obj);
     }
 }
 
@@ -69,9 +94,9 @@ public class JsVariable
             string val = Value.Split(',')[0].Trim();
             sb.Append($"\"{val}\"");
         }
-        else if (Type == WidgetVariableType.EventTypeList || 
-                 Type == WidgetVariableType.StringList ||
-                 Type == WidgetVariableType.EventSubTypeList)
+        else if (Type is WidgetVariableType.EventTypeList or
+                 WidgetVariableType.StringList or
+                 WidgetVariableType.EventSubTypeList)
         {
             string val = string.Join(",", Value.Split(',').Select(s =>
             {
@@ -109,6 +134,44 @@ public class JsVariable
             Type = Type,
             WidgetId = newWidgetId
         };
+    }
+    
+    public static JsVariable? FromJson(JsonElement json, Guid widgetId)
+    {
+        var name = json.GetProperty("name").GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name)) return null;
+ 
+        var typeEl = json.GetProperty("type");
+        WidgetVariableType type;
+        if (typeEl.ValueKind == JsonValueKind.Number
+            && typeEl.TryGetInt32(out var typeInt)
+            && Enum.IsDefined(typeof(WidgetVariableType), typeInt))
+        {
+            type = (WidgetVariableType)typeInt;
+        }
+        else if (!Enum.TryParse(typeEl.GetString() ?? string.Empty, out type))
+        {
+            return null;
+        }
+        return new JsVariable
+        {
+            Name = name,
+            Value = json.GetProperty("value").GetString() ?? string.Empty,
+            Type = type,
+            WidgetId = widgetId
+        };
+    }
+    
+    public JsonElement ToJson()
+    {
+        var obj = new
+        {
+            name = Name,
+            value = Value,
+            type = Type
+        };
+
+        return JsonSerializer.SerializeToElement(obj);
     }
 }
 
@@ -168,6 +231,8 @@ public partial class Widget
         
         return widget;
     }
+    
+    public string GetPath() => Path.GetDirectoryName(HtmlPath) ?? HtmlPath;
 
     public void ScanCssVariables()
     {
@@ -251,5 +316,85 @@ public partial class Widget
     private static partial Regex CssLinkRegex();
     
     [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
+    
     private static partial Regex CssVarRegex();
+
+    public JsonElement ToJson(string htmlRelPath)
+    {
+        var obj = new
+        {
+            name = Name,
+            htmlPath = htmlRelPath,
+
+            position = new
+            {
+                x = X,
+                y = Y,
+                z = Z
+            },
+
+            size = new
+            {
+                width = Width,
+                height = Height
+            },
+
+            scale = new
+            {
+                x = ScaleX,
+                y = ScaleY
+            },
+
+            visibility = Visibility,
+            docsUrl = DocsUrl,
+
+            cssVariables = CssVariables.Select(v => v.ToJson()).ToArray(),
+            jsVariables = JsVariables.Select(v => v.ToJson()).ToArray()
+        };
+
+        return JsonSerializer.SerializeToElement(obj);
+    }
+    
+    /*
+    public static Widget? FromJson(JsonElement json, string rootPath, Guid routeId)
+    {
+        var htmlPath = Path.Join(rootPath, json.GetProperty("htmlPath").GetString());
+        var name = json.GetProperty("name").GetString() ?? string.Empty;
+        if (string.IsNullOrEmpty(name)) return null;
+        
+        var widget = new Widget(name, htmlPath)
+        {
+            RouteId = routeId,
+            Visibility = json.GetProperty("visibility").GetBoolean(),
+            DocsUrl = json.TryGetProperty("docsUrl", out var d) ? d.GetString() : null
+        };
+
+        var pos = json.GetProperty("position");
+        widget.X = pos.GetProperty("x").GetSingle();
+        widget.Y = pos.GetProperty("y").GetSingle();
+        widget.Z = pos.GetProperty("z").GetInt32();
+
+        var size = json.GetProperty("size");
+        widget.Width = size.GetProperty("width").GetInt32();
+        widget.Height = size.GetProperty("height").GetInt32();
+
+        var scale = json.GetProperty("scale");
+        widget.ScaleX = scale.GetProperty("x").GetSingle();
+        widget.ScaleY = scale.GetProperty("y").GetSingle();
+
+        foreach (var cssVar in json.GetProperty("cssVariables").EnumerateArray().Select(css => 
+                     CssVariable.FromJson(css, widget.Id)).OfType<CssVariable>())
+        {
+            widget.CssVariables.Add(cssVar);
+        }
+
+        foreach (var jsVar in json.GetProperty("jsVariables").EnumerateArray().Select(js => 
+                     JsVariable.FromJson(js, widget.Id)).OfType<JsVariable>())
+        {
+            widget.JsVariables.Add(jsVar);
+        }
+
+        return widget;
+    }
+    */
 }

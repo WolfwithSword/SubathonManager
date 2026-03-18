@@ -13,12 +13,16 @@ public partial class CommandsSettings : SettingsControl
     public CommandsSettings()
     {
         InitializeComponent();
+        Loaded += (_, _) =>
+        {
+            RegisterUnsavedChangeHandlers();
+        };
     }
 
     public override void Init(SettingsView host)
     {
         Host = host;
-        InitCommandSettings();
+        SuppressUnsavedChanges(InitCommandSettings);
     }
 
     internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
@@ -117,6 +121,11 @@ public partial class CommandsSettings : SettingsControl
             entryPanel.Children.Add(enumWhitelist);
 
             CommandListPanel.Children.Add(entryPanel);
+            
+            WireControl(enumName);
+            WireControl(doMods);
+            WireControl(doVips);
+            WireControl(enumWhitelist);
         }
 
         if (hasNewCommands)
