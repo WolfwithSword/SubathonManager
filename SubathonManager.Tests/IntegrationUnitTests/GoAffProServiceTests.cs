@@ -9,25 +9,11 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("IntegrationEventTests")]
+[Collection("SharedEventBusTests")]
 public class GoAffProServiceTests
 {
-    private static SubathonEvent CaptureEvent(Action trigger)
-    {
-        SubathonEvent? captured = null;
-        void EventCaptureHandler(SubathonEvent e) => captured = e;
-
-        SubathonEvents.SubathonEventCreated += EventCaptureHandler;
-        try
-        {
-            trigger();
-            return captured!;
-        }
-        finally
-        {
-            SubathonEvents.SubathonEventCreated -= EventCaptureHandler;
-        }
-    }
+    private static SubathonEvent? CaptureEvent(Action trigger) =>
+        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
     
     private static async Task<(bool?, SubathonEventSource, string, string)> CaptureIntegrationEvent(Func<Task> trigger)
     {
@@ -82,8 +68,8 @@ public class GoAffProServiceTests
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
         var ev = CaptureEvent(() => service.SimulateOrder(total, quantity, commission, store));
-        
 
+        Assert.NotNull(ev);
         Assert.Equal(expectedEventType, ev.EventType);
         Assert.Equal(SubathonEventSubType.OrderLike, ev.EventType.GetSubType());
         Assert.Equal(expectedCurrency, ev.Currency);

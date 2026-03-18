@@ -24,6 +24,7 @@ public partial class YouTubeSettings : SettingsControl
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            RegisterUnsavedChangeHandlers();
         };
 
         Unloaded += (_, _) =>
@@ -40,6 +41,11 @@ public partial class YouTubeSettings : SettingsControl
     }
     
     public override void LoadValues(AppDbContext db)
+    {
+        SuppressUnsavedChanges(() => LoadValuesCore(db));
+    }
+    
+    private void LoadValuesCore(AppDbContext db)
     {
         var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.YouTubeMembership)
             .OrderBy(meta => meta)
@@ -134,6 +140,10 @@ public partial class YouTubeSettings : SettingsControl
         
         InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
         InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
+        
+        WireControl(nameBox);
+        WireControl(secondsBox);
+        WireControl(pointsBox);
         
         var deleteBtn = new Wpf.Ui.Controls.Button { ToolTip="Delete", 
             Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24,

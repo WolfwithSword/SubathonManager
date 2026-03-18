@@ -116,8 +116,14 @@
 
                     <ui:Button Padding="2" ToolTip="Open in browser"
                                Width="32" Height="32"
-                               Margin="4,0,194,0"
+                               Margin="4,0,4, 0"
                                Click="OpenOverlayInBrowser_Click"><ui:SymbolIcon Symbol="Open24"/>
+                    </ui:Button>
+
+                    <ui:Button Padding="2" ToolTip="Export"
+                               Width="32" Height="32"
+                               Margin="4,0,154,0"
+                               Click="ExportRoute_Click"><ui:SymbolIcon Symbol="ArrowExportUp24"/>
                     </ui:Button>
                     <ui:Button x:Name="SaveRouteButton" Content="Save" Width="80" Click="SaveRouteButton_Click"/>
                 </StackPanel>
@@ -260,7 +266,7 @@
                             <StackPanel Margin="0,8">
                                 <TextBlock Text="Name" FontWeight="SemiBold" Margin="2 2"/>
                                 <StackPanel Orientation="Horizontal">
-                                    <ui:TextBox x:Name="WidgetNameBox" PlaceholderText="Widget Name..." Width="315"/>
+                                    <ui:TextBox x:Name="WidgetNameBox" PlaceholderText="Widget Name..." Width="315" Loaded="AttachChangeHandler"/>
                                     <ui:Button x:Name="DocsLinkBtn" Icon="Globe24" Width="36" Height="36" 
                                                Padding="2 0"
                                                Click="OpenWidgetDocumentation_Click"
@@ -272,27 +278,34 @@
                             <UniformGrid Columns="2" Rows="2" Margin="0,8">
                                 <StackPanel>
                                     <TextBlock Text="Width" FontWeight="SemiBold" Margin="2 2"/>
-                                    <ui:TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput" PlaceholderText="400"/>
+                                    <ui:TextBox x:Name="WidgetWidthBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput" 
+                                                Loaded="AttachChangeHandler" PlaceholderText="400"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="Height" FontWeight="SemiBold" Margin="2 2"/>
-                                    <ui:TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput" PlaceholderText="200"/>
+                                    <ui:TextBox x:Name="WidgetHeightBox"  Margin="4 1" PreviewTextInput="NumberOnly_PreviewTextInput"
+                                                Loaded="AttachChangeHandler" PlaceholderText="200"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="X" FontWeight="SemiBold" Margin="2 2"/>
-                                    <ui:TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput" PlaceholderText="50"/>
+                                    <ui:TextBox x:Name="WidgetXBox" Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput" 
+                                                Loaded="AttachChangeHandler"
+                                                PlaceholderText="50"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="Y" FontWeight="SemiBold" Margin="2 2"/>
-                                    <ui:TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput" PlaceholderText="70"/>
+                                    <ui:TextBox x:Name="WidgetYBox"  Margin="4 1" PreviewTextInput="NumberOrNegativeOnly_PreviewTextInput" 
+                                                Loaded="AttachChangeHandler" PlaceholderText="70"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="ScaleX" FontWeight="SemiBold" Margin="2 2"/>
-                                    <ui:TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput" PlaceholderText="2.5"/>
+                                    <ui:TextBox x:Name="WidgetScaleXBox" Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput" Loaded="AttachChangeHandler"
+                                                PlaceholderText="2.5"/>
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="ScaleY" FontWeight="SemiBold" Margin="2 2"/>
-                                    <ui:TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput" PlaceholderText="2.5"/>
+                                    <ui:TextBox x:Name="WidgetScaleYBox"  Margin="4 1" PreviewTextInput="NumberOrDecimalOnly_PreviewTextInput" 
+                                                Loaded="AttachChangeHandler" PlaceholderText="2.5"/>
                                 </StackPanel>
                             </UniformGrid>
 
@@ -301,8 +314,17 @@
                         
                         <StackPanel  DockPanel.Dock="Bottom" VerticalAlignment="Bottom" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 4">
                             <Button Content="Reload Vars" Width="150" Margin="4,8,4,4" Click="ReloadVars_Click" HorizontalAlignment="Left"/>
-                            <Button x:Name="SaveWidgetButton" Content="Save" Width="150" Margin="4,8,4,4"
-                                    Click="SaveWidgetButton_Click" HorizontalAlignment="Right"/>
+                            <Border x:Name="SaveButtonBorder"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    CornerRadius="6"
+                                    BorderThickness="2"
+                                    BorderBrush="Transparent"
+                                    Margin="4,8,4,4">
+                                <Button x:Name="SaveWidgetButton" Content="Save" Width="150" 
+                                        Click="SaveWidgetButton_Click" HorizontalAlignment="Right"/>
+                            </Border>
+                            
                         </StackPanel>
                         
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -317,7 +339,10 @@
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
-                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" Width="150"/>
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
+                                                                         ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
+                                                                         Loaded="AttachChangeHandler"
+                                                                         Width="150"/>
                                                             </StackPanel>
                                                             <Separator Margin="16 1"/>
                                                         </StackPanel>
@@ -329,7 +354,8 @@
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <ui:TextBlock VerticalAlignment="Center" Text="{Binding Name}" 
                                                                            ToolTip="{Binding Name}" Width="180"/>
-                                                                <views:CssColorPicker CssColor="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                                <views:CssColorPicker CssColor="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                                        Loaded="AttachChangeHandler"
                                                                         Width="150" ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}"/>
                                                             </StackPanel>
                                                             <Separator Margin="16 1"/>
@@ -344,6 +370,7 @@
                                                                            ToolTip="{Binding Name}" Width="180"/>
                                                                 <ComboBox Width="150" ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}"
                                                                           ItemsSource="{Binding Type, Converter={StaticResource CssTypeOptionsConverter}}"
+                                                                          Loaded="AttachChangeHandler"
                                                                           SelectedItem="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                                                             </StackPanel>
                                                             <Separator Margin="16 1"/>
@@ -393,7 +420,8 @@
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150" ToolTip="{Binding Type}"/>
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150" 
+                                                                            Loaded="AttachChangeHandler" ToolTip="{Binding Type}"/>
                                                             </StackPanel>
                                                             <Separator Margin="16,2"/>
                                                         </StackPanel>
@@ -405,7 +433,7 @@
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
                                                                          Tag="{Binding}"  ToolTip="{Binding Type}"
                                                                          Loaded="JsIntBox_Loaded"/>
                                                             </StackPanel>
@@ -419,7 +447,7 @@
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                                <TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
                                                                          Tag="{Binding}" ToolTip="{Binding Type}"
                                                                          Loaded="JsFloatBox_Loaded"/>
                                                             </StackPanel>
@@ -435,7 +463,7 @@
                                                                 <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="170" 
                                                                               VerticalAlignment="Center" Margin="0,0,2,0"
                                                                               DockPanel.Dock="Left"/>
-                                                                <TextBox x:Name="PercentBox" Width="44" Margin="2,0,0,0"
+                                                                <ui:TextBox x:Name="PercentBox" Width="44" Margin="2,0,0,0"
                                                                          VerticalAlignment="Center" DockPanel.Dock="Right"
                                                                          Tag="{Binding}" ToolTip="{Binding Type}"
                                                                          Loaded="JsPercentBox_Loaded"/>
