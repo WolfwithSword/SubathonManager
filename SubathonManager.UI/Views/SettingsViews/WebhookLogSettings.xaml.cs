@@ -14,16 +14,12 @@ public partial class WebhookLogSettings : SettingsControl
     public WebhookLogSettings()
     {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
-            RegisterUnsavedChangeHandlers();
-        };
     }
 
     public override void Init(SettingsView host)
     {
         Host = host;
-        SuppressUnsavedChanges(InitWebhookSettings);
+        InitWebhookSettings();
     }
 
     internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
@@ -59,7 +55,6 @@ public partial class WebhookLogSettings : SettingsControl
                 VerticalAlignment = VerticalAlignment.Center
             };
             EventWebhookListPanel.Children.Add(typeCheckBox);
-            WireControl(typeCheckBox);
         }
             
         bool logSim = config.GetBool("Discord", $"Events.Log.Simulated", false);
@@ -68,11 +63,6 @@ public partial class WebhookLogSettings : SettingsControl
         LogRemoteConfigCbx.IsChecked = logRemote; 
         ErrorWebhookUrlBx.Text = config.Get("Discord", "WebhookUrl", string.Empty)!;
         EventWebhookUrlBx.Text = config.Get("Discord", "Events.WebhookUrl", string.Empty)!;
-        
-        WireControl(LogSimEventsCbx);
-        WireControl(LogRemoteConfigCbx);
-        WireControl(ErrorWebhookUrlBx);
-        WireControl(EventWebhookUrlBx);
     }
     
     public override bool UpdateConfigValueSettings()

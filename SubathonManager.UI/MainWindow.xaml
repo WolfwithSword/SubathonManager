@@ -346,15 +346,6 @@
                                    Width="130"
                                    Padding="2"
                                    Click="AddRoute_Click" />
-                        <ui:Button DockPanel.Dock="Right"
-                                   Icon="ArrowImport24"
-                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                                   Appearance="Secondary"
-                                   Content="Import .smo"
-                                   Width="130"
-                                   Padding="2"
-                                   Margin="0,0,6,0"
-                                   Click="ImportRoute_Click" />
 
                         <TextBlock Text="Overlays"
                                    FontWeight="Bold"
@@ -394,15 +385,6 @@
                                                     <ui:SymbolIcon Symbol="Edit24" />
                                                 </ui:Button>
                                                 <ui:Button ToolTip="Copy" Click="DuplicateRoute_Click" Padding="2" Style="{StaticResource OpaqueSecondaryButton}" Width="32" Height="32" Margin="4,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}"><ui:SymbolIcon Symbol="Copy24" /></ui:Button>
-                                                <ui:Button ToolTip="Export"
-                                                           Click="ExportRoute_Click"
-                                                           Padding="2"
-                                                           Style="{StaticResource OpaqueSecondaryButton}"
-                                                           Width="32" Height="32"
-                                                           Margin="4,0"
-                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}">
-                                                    <ui:SymbolIcon Symbol="ArrowExportUp24" />
-                                                </ui:Button>
                                                 <ui:Button ToolTip="Delete" Click="DeleteRoute_Click" Padding="2" Appearance="Danger" Width="32" Height="32" Margin="4,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}"><ui:SymbolIcon Symbol="Delete24" /></ui:Button>
                                             </StackPanel>
 
@@ -444,26 +426,14 @@
                         </TextBlock>
                         <StackPanel Orientation="Horizontal">
                             <ui:Button Click="SendRefreshRequest_Click" Width="184" Height="48" Margin="0 16 2 8">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="2 2 0 2"/>
-                                    <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="54" Margin="2 0"/>
-                                </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="2 2 0 2"/>
+                                        <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="54" Margin="2 0"/>
+                                    </StackPanel>
                             </ui:Button>
                             <ui:Button Content="Open Presets Folder" Width="180" VerticalAlignment="Center"
                                        Height="48"
                                        Click="OpenPresets_Click" FontSize="12" Margin="8,16,2,8"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal">
-                            <ui:Button Click="OpenImports_Click" Width="184" Height="48" Margin="0 8 2 8">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="Open Imports Folder" VerticalAlignment="Center" Margin="2 2 0 2"/>
-                                </StackPanel>
-                            </ui:Button>
-                            <ui:Button Click="OpenExports_Click" Width="184" Height="48" Margin="8 8 2 8">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="Open Exports Folder" VerticalAlignment="Center" Margin="2 2 0 2"/>
-                                </StackPanel>
-                            </ui:Button>
                         </StackPanel>
                     </StackPanel>
                 </Grid>

@@ -138,7 +138,7 @@ namespace SubathonManager.UI.Views
                 hasUpdated = true;
             }
 
-            if (val != null && int.TryParse(tb2.Text, out var points) && !points.Equals((int)val.Points))
+            if (val != null && int.TryParse(tb2.Text, out var points) && !points.Equals(val.Points))
             {
                 val.Points = points;
                 hasUpdated = true;
@@ -173,14 +173,6 @@ namespace SubathonManager.UI.Views
             var newData = helper.GetAllAsJson();
             SubathonEvents.RaiseSubathonValueConfigRequested(newData);
         }
-
-        private void UpdateSaveButtonBorder( bool hasPendingChanges)
-        {
-            Dispatcher.InvokeAsync(() =>
-            {
-                UiUtils.UiUtils.UpdateButtonPendingBorder(SaveButtonBorder, hasPendingChanges);
-            });
-        }
         
         private void SaveAllSubathonValuesButton_Click(object sender, RoutedEventArgs e)
         {
@@ -206,7 +198,6 @@ namespace SubathonManager.UI.Views
                 await Dispatcher.InvokeAsync(() => 
                     { 
                         SaveAllSubathonValuesButton.Content = "Saved!";
-                        UpdateSaveButtonBorder(false);
                     } 
                 );
                 await Task.Delay(1500);

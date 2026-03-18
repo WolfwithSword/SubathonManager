@@ -4,7 +4,6 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -17,11 +16,9 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
-using SubathonManager.UI.Views;
 using Wpf.Ui.Controls;
 using TextBox = Wpf.Ui.Controls.TextBox;
 // ReSharper disable NullableWarningSuppressionIsUsed
-// ReSharper disable UnusedVariable
 
 namespace SubathonManager.UI;
 
@@ -40,7 +37,7 @@ public partial class EditRouteWindow
         {
             if (_route == null) return;
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(config));
+            await UiUtils.UiUtils.TrySetClipboardTextAsync(_route.GetRouteUrl(config!));
         }
         catch (Exception ex)
         {
@@ -57,7 +54,7 @@ public partial class EditRouteWindow
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             Process.Start(new ProcessStartInfo
             {
-                FileName = _route.GetRouteUrl(config),
+                FileName = _route.GetRouteUrl(config!),
                 UseShellExecute = true
             });
         }
@@ -175,7 +172,6 @@ public partial class EditRouteWindow
             {
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }
                 );
-                UpdateSaveButtonBorder(SaveButtonBorder,false);
                 await Task.Delay(1500);
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Save"; }
                 );
@@ -387,7 +383,7 @@ public partial class EditRouteWindow
             return;
         }
 
-        if (sender is TextBox tb)
+        if (sender is Wpf.Ui.Controls.TextBox tb)
         {
             if (e.Text == "-" && tb.SelectionStart == 0 && !tb.Text.Contains('-'))
             {
@@ -421,7 +417,7 @@ public partial class EditRouteWindow
             return;
         }
 
-        if (sender is TextBox tb)
+        if (sender is Wpf.Ui.Controls.TextBox tb)
         {
             if (e.Text == "." && !tb.Text.Contains('.'))
             {
@@ -470,64 +466,7 @@ public partial class EditRouteWindow
         }
         catch { /**/ }
     }
-    
-    private void ExportRoute_Click(object sender, RoutedEventArgs e)
-    {
-        if (_route == null) return;
-        var dialog = new ExportOverlayDialog(_route)
-        {
-            Owner = Application.Current.Windows
-                .OfType<Window>()
-                .FirstOrDefault(w => w.IsActive),
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        dialog.ShowDialog();
-    }
-
-    private void SuppressUnsavedChanges(Action action)
-    {
-        _suppressCount++;
-        try { action(); }
-        finally { _suppressCount--; }
-    }
-
-    private void AttachChangeHandler(object sender, RoutedEventArgs routedEventArgs)
-    {
-        void Attach()
-        {
-            switch (sender)
-            {
-                case TextBox tb:
-                    tb.TextChanged += Value_OnChanged;
-                    break;
-                case ComboBox cb:
-                    cb.SelectionChanged += Value_OnChanged;
-                    break;
-                case CheckBox chk:
-                    chk.Checked += Value_OnChanged;
-                    chk.Unchecked += Value_OnChanged;
-                    break;
-                case ToggleButton tb2:
-                    tb2.Checked += Value_OnChanged;
-                    tb2.Unchecked += Value_OnChanged;
-                    break;
-                case Slider sld:
-                    sld.ValueChanged += Value_OnChanged;
-                    break;
-                case CssColorPicker csscp:
-                    csscp.ColorChanged += Value_OnChanged;
-                    break;
-            }
-        }
-        SuppressUnsavedChanges(Attach);
-    }
-    private void Value_OnChanged(object sender, RoutedEventArgs e)
-    {
-        if (_suppressCount > 0) return;
-        Dispatcher.Invoke( () => UpdateSaveButtonBorder(SaveButtonBorder, true));
-    }
-
-    #endregion GeneralHandlers
+#endregion GeneralHandlers
     
     
 #region CSSHandlers
@@ -535,7 +474,6 @@ public partial class EditRouteWindow
     {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
         tb.TextChanged += SizeValueBox_TextChanged;
-        AttachChangeHandler(sender, e);
     }
 
     private void SizeValueBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -548,10 +486,7 @@ public partial class EditRouteWindow
     private void SizeUnitBox_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is ComboBox cb)
-        {
             cb.SelectionChanged += SizeUnitBox_SelectionChanged;
-            AttachChangeHandler(sender, e);
-        }
     }
     
     private void SizeUnitBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -560,7 +495,7 @@ public partial class EditRouteWindow
         if (e.AddedItems.Count == 0) return;
     
         var unit = cb.SelectedItem as string ?? "px";
-        if (cssVar.Value.EndsWith(unit)) return;
+        if ((cssVar.Value ?? "").EndsWith(unit)) return;
     
         var numericPart = IsNumberRegex().Match(cssVar.Value ?? "").Value;
         cssVar.Value = numericPart + unit;
@@ -585,7 +520,6 @@ public partial class EditRouteWindow
             else
                 ev.Handled = true;
         };
-        AttachChangeHandler(sender, e);
     }
 
     private void JsFloatBox_Loaded(object sender, RoutedEventArgs e)
@@ -601,7 +535,6 @@ public partial class EditRouteWindow
             else
                 ev.Handled = true;
         };
-        AttachChangeHandler(sender, e);
     }
 
     private void JsBoolBox_Loaded(object sender, RoutedEventArgs e)
@@ -612,7 +545,6 @@ public partial class EditRouteWindow
             cb.Checked += (_, __) => jsVar.Value = "True";
             cb.Unchecked += (_, __) => jsVar.Value = "False";
         });
-        AttachChangeHandler(sender, e);
     }
 
     private void JsEventTypeSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -629,8 +561,6 @@ public partial class EditRouteWindow
         {
             cb.SelectionChanged += (_, __) => jsVar.Value = $"{cb.SelectedValue}";
         });
-        
-        AttachChangeHandler(sender, e);
     }
 
     private void JsEventSubTypeSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -646,7 +576,6 @@ public partial class EditRouteWindow
         {
             cb.SelectionChanged += (_, __) => jsVar.Value = $"{cb.SelectedValue}";
         });
-        AttachChangeHandler(sender, e);
     }
 
     private void JsStringSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -667,7 +596,6 @@ public partial class EditRouteWindow
                 jsVar.Value = string.Join(',', newVal);
             };
         });
-        AttachChangeHandler(sender, e);
     }
 
     private void JsFileVar_Loaded(object sender, RoutedEventArgs e)
@@ -692,12 +620,11 @@ public partial class EditRouteWindow
             jsVar.Value = path;
             valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
             valueBtn.ToolTip = path;
-            UpdateSaveButtonBorder(SaveButtonBorder,true);
         };
 
         var openBtn = new Wpf.Ui.Controls.Button
         {
-            Icon = new SymbolIcon { Symbol = SymbolRegular.Open24 },
+            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Open24 },
             ToolTip = "Open", Width = 40, Height = 30, Margin = new Thickness(0, 0, 55, 2), Padding = new Thickness(2)
         };
         openBtn.Click += (_, __) =>
@@ -711,7 +638,7 @@ public partial class EditRouteWindow
 
         var removeBtn = new Wpf.Ui.Controls.Button
         {
-            Icon = new SymbolIcon { Symbol = SymbolRegular.Delete24 },
+            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24 },
             Width = 40, Height = 30, ToolTip = "Clear Value",
             Foreground = Brushes.Red, Cursor = Cursors.Hand,
             Margin = new Thickness(15, 0, 0, 0), Padding = new Thickness(2)
@@ -767,7 +694,6 @@ public partial class EditRouteWindow
                 chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
                 chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
                 chkboxList.Children.Add(chkBox);
-                AttachChangeHandler(chkBox, e);
             }
             groupExpander.Content = chkboxList;
             outerPanel.Children.Add(groupExpander);
@@ -796,7 +722,6 @@ public partial class EditRouteWindow
             chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
             chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
             chkboxList.Children.Add(chkBox);
-            AttachChangeHandler(chkBox, e);
         }
         expander.Content = chkboxList;
     }
@@ -818,7 +743,6 @@ public partial class EditRouteWindow
                     tb.Text = intVal.ToString();
             };
         });
-        AttachChangeHandler(sender, e);
     }
 
     private void JsPercentBox_Loaded(object sender, RoutedEventArgs e)
@@ -843,7 +767,6 @@ public partial class EditRouteWindow
             if (FindPercentSiblingSlider(tb) is { } slider && (int)slider.Value != val)
                 slider.Value = val;
         };
-        AttachChangeHandler(sender, e);
     }
 
     private Slider? FindPercentSiblingSlider(System.Windows.Controls.TextBox tb)

@@ -12,10 +12,6 @@ riderModule.iml
 .idea/
 .idea/*
 
-exports/
-imports/
-*.smo
-
 # If we set this up
 !.idea/codeStyles/
 !.idea/inspectionProfiles/

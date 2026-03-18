@@ -10,7 +10,6 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Services;
-// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
@@ -22,6 +21,11 @@ public class YouTubeService : IDisposable, IAppService
     private bool _disposed = false;
     private string? _ytHandle;
     public bool Running;
+
+    // private readonly ILogger<YTLiveChat.Services.YTLiveChat> _chatLogger;
+    //NullLogger<YTLiveChat.Services.YTLiveChat>.Instance;
+    // private readonly ILogger<YTHttpClient> _httpClientLogger;
+    //NullLogger<YTHttpClient>.Instance;
 
     private readonly Utils.ServiceReconnectState _reconnectState = 
         new(TimeSpan.FromSeconds(5), maxRetries: 100, maxBackoff: TimeSpan.FromMinutes(2));
