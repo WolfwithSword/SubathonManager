@@ -59,8 +59,14 @@
 
             <Separator Margin="0,10,0,10"/>
 
-            <ui:Button x:Name="SaveGoalsBtn" Content="Save Changes" Click="SaveGoals_Click" Width="140" Height="50" Margin="0 4 0 4"/>
-
+            <Border x:Name="SaveButtonBorder"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    CornerRadius="6"
+                    BorderThickness="2"
+                    BorderBrush="Transparent" Margin="0 4 0 4">
+                <ui:Button x:Name="SaveGoalsBtn" Content="Save Changes" Click="SaveGoals_Click" Width="140" Height="50"/>
+            </Border>
             <TextBlock x:Name="StatusText" Foreground="Gray" FontSize="12" Margin="0,10,0,0"/>
         </StackPanel>
     </Grid>

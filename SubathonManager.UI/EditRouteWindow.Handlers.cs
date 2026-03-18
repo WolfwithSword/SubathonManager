@@ -175,7 +175,7 @@ public partial class EditRouteWindow
             {
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Saved!"; }
                 );
-                UpdateSaveButtonBorder(false);
+                UpdateSaveButtonBorder(SaveButtonBorder,false);
                 await Task.Delay(1500);
                 await Dispatcher.InvokeAsync(() => { SaveWidgetButton.Content = "Save"; }
                 );
@@ -524,7 +524,7 @@ public partial class EditRouteWindow
     private void Value_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_suppressCount > 0) return;
-        Dispatcher.Invoke( () => UpdateSaveButtonBorder(true));
+        Dispatcher.Invoke( () => UpdateSaveButtonBorder(SaveButtonBorder, true));
     }
 
     #endregion GeneralHandlers
@@ -692,7 +692,7 @@ public partial class EditRouteWindow
             jsVar.Value = path;
             valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
             valueBtn.ToolTip = path;
-            UpdateSaveButtonBorder(true);
+            UpdateSaveButtonBorder(SaveButtonBorder,true);
         };
 
         var openBtn = new Wpf.Ui.Controls.Button
