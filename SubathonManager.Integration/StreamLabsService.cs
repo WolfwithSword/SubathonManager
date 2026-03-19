@@ -101,12 +101,14 @@ public class StreamLabsService : IAppService
     
     private void OnDonation(object? o, DonationMessage message)
     {
-        SubathonEvent subathonEvent = new();
-        subathonEvent.User = message.Name;
-        subathonEvent.Currency = $"{message.Currency}".ToUpper();
-        subathonEvent.Value = $"{message.Amount}";
-        subathonEvent.Source = SubathonEventSource.StreamLabs;
-        subathonEvent.EventType = SubathonEventType.StreamLabsDonation;
+        SubathonEvent subathonEvent = new()
+        {
+            User = message.Name,
+            Currency = $"{message.Currency}".ToUpper(),
+            Value = $"{message.Amount}",
+            Source = SubathonEventSource.StreamLabs,
+            EventType = SubathonEventType.StreamLabsDonation
+        };
         if (Guid.TryParse(message.MessageId, out var tipGuid))
             subathonEvent.Id = tipGuid;
         

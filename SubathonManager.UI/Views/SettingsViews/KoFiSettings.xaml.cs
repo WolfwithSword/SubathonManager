@@ -29,6 +29,7 @@ public partial class KoFiSettings : SettingsControl
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            RegisterUnsavedChangeHandlers();
         };
 
         Unloaded += (_, _) =>
@@ -42,8 +43,12 @@ public partial class KoFiSettings : SettingsControl
         if (source != SubathonEventSource.KoFi || service != "Socket") return;
         Host.UpdateConnectionStatus(status, KoFiStatusText, null);
     }
-    
     public override void LoadValues(AppDbContext db)
+    {
+        SuppressUnsavedChanges(() => LoadValuesCore(db));
+    }
+    
+    private void LoadValuesCore(AppDbContext db)
     {
         var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.KoFiSub)
             .OrderBy(meta => meta)
@@ -168,6 +173,10 @@ public partial class KoFiSettings : SettingsControl
         
         InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
         InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
+        
+        WireControl(nameBox);
+        WireControl(secondsBox);
+        WireControl(pointsBox);
         
         panelRow.Children.Add(nameBox);
         panelRow.Children.Add(secondsBox);

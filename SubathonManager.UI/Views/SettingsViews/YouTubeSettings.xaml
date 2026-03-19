@@ -44,11 +44,11 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     PlaceholderText="10.00"  Height="34"
-                                    FontSize="12"
+                                    FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
                                     validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateSCAmt"/>
                         
                         <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
-                                  x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34"
+                                  x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
                                   Margin="4 0 4 0">
                         </ComboBox>
                         <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
@@ -89,7 +89,7 @@
                                                Click="AddMembership_Click"
                                                Width="160" Margin="4,5,4,5"/>
                                     <ComboBox Text="Tier" Width="150" Height="36" FontSize="12"
-                                              x:Name="SimTierSelection"
+                                              x:Name="SimTierSelection" views:SettingsProperties.ExcludeFromUnsaved="True"
                                               SelectedIndex="0" Margin="4 0 4 0">
                                         <ComboBoxItem Content="DEFAULT"/>
                                     </ComboBox>
@@ -128,7 +128,7 @@
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                     
                                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
-                                                Text="1" PlaceholderText="1" Height="35" FontSize="14"
+                                                Text="1" PlaceholderText="1" Height="35" FontSize="14" views:SettingsProperties.ExcludeFromUnsaved="True"
                                                 x:Name="SimGiftMembershipAmtInput"/>
                                     <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                                Content="Test"

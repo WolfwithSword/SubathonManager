@@ -30,7 +30,22 @@ namespace SubathonManager.UI
 
         private void OpenPresets_Click(object sender, RoutedEventArgs e)
         {
-            string path = Path.GetFullPath("./presets");
+            OpenRelativeFolder("presets");
+        }
+
+        private void OpenImports_Click(object sender, RoutedEventArgs e)
+        {
+            OpenRelativeFolder("imports");
+        }
+
+        private void OpenExports_Click(object sender, RoutedEventArgs e)
+        {
+            OpenRelativeFolder("exports");
+        }
+
+        private void OpenRelativeFolder(string name)
+        {
+            string path = Path.GetFullPath($"./{name}");
             try
             {
                 Process.Start(new ProcessStartInfo
@@ -42,7 +57,7 @@ namespace SubathonManager.UI
             }
             catch
             {
-                _logger?.LogWarning("Unable to locate presets folder: {Path}", path);
+                _logger?.LogWarning("Unable to locate {Name} folder: {Path}", name, path);
             }
         }
 
