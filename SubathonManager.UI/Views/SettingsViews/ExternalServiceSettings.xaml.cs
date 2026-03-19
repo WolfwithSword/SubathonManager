@@ -11,11 +11,17 @@ public partial class ExternalServiceSettings : SettingsControl
     public ExternalServiceSettings()
     {
         InitializeComponent();
+        
+        Loaded += (_, _) =>
+        {
+            RegisterUnsavedChangeHandlers();
+        };
     }
 
     public override void Init(SettingsView host)
     {
         Host = host;
+        RegisterUnsavedChangeHandlers();
     }
 
     internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)

@@ -23,6 +23,7 @@ public partial class StreamLabsSettings : SettingsControl
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            RegisterUnsavedChangeHandlers();
         };
 
         Unloaded += (_, _) =>
