@@ -524,7 +524,7 @@ public class EventService: IDisposable, IAppService
         if (goalSet?.Type == GoalsType.Money) pts = subathon.GetRoundedMoneySum();
         await CheckForGoalChange(db,  pts, initialPoints);
 
-        if (ev.Command is SubathonCommandType.AddMoney or SubathonCommandType.SubtractMoney)
+        if (ev.Command is SubathonCommandType.AddMoney or SubathonCommandType.SubtractMoney or SubathonCommandType.AddPoints or SubathonCommandType.SubtractPoints)
         {
             var totals = await GetSubathonTotalsAsync(db);
             if (totals != null)

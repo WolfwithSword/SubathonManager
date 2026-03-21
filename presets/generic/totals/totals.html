@@ -23,7 +23,7 @@ donatedHeader.String:Total Donated
 donatedOffset.Float:0
 showOrders.Boolean:True
 ordersHeaderShowOrdersTag.Boolean:True
-orderEvents.OrderEventTypeList:UwUMarketOrder,GamerSuppsOrder
+orderEvents.OrderEventTypeList:UwUMarketOrder,GamerSuppsOrder,OrchidEightOrder
 END_WIDGET_META
 -->
 <link rel="stylesheet" href="totals.css">
@@ -248,7 +248,6 @@ END_WIDGET_META
         state.subCount = 0;
         if (data.sub_like_by_type) {
             for (const [evType, count] of Object.entries(data.sub_like_by_type)) {
-                console.log(evType)
                 if (cfg.subEvents.includes(evType)) state.subCount += count;
             }
             if (cfg.includeSimulated && data.simulated?.sub_like_by_type) {

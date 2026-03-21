@@ -340,14 +340,42 @@
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
-                                                                         ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
-                                                                         Loaded="AttachChangeHandler"
-                                                                         Width="150"/>
+                                                                            ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
+                                                                            Loaded="AttachChangeHandler"
+                                                                            Width="150"/>
                                                             </StackPanel>
                                                             <Separator Margin="16 1"/>
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </uiUtils:CssVariableTemplateSelector.DefaultTemplate>
+                                                <uiUtils:CssVariableTemplateSelector.IntTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
+                                                                            ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
+                                                                            Loaded="IntBox_Loaded"
+                                                                            Width="150"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16 1"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:CssVariableTemplateSelector.IntTemplate>
+                                                <uiUtils:CssVariableTemplateSelector.FloatTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,2">
+                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
+                                                                            ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
+                                                                            Loaded="FloatBox_Loaded"
+                                                                            Width="150"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16 1"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:CssVariableTemplateSelector.FloatTemplate>
                                                 <uiUtils:CssVariableTemplateSelector.ColorTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical">
@@ -383,7 +411,7 @@
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <ui:TextBlock VerticalAlignment="Center" Text="{Binding Name}"
                                                                            ToolTip="{Binding Name}" Width="180"/>
-                                                                <ui:TextBox x:Name="SizeValueBox"
+                                                                <ui:TextBox x:Name="SizeValueBox" ClearButtonEnabled="False"
                                                                          Width="68"  ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}"
                                                                          validation:InputValidationBehavior.IsDecimalOnly="True"
                                                                          Text="{Binding Value, Converter={StaticResource CssSizeValueConverter}, Mode=OneWay}"
@@ -435,7 +463,7 @@
                                                                 <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
                                                                          Tag="{Binding}"  ToolTip="{Binding Type}"
-                                                                         Loaded="JsIntBox_Loaded"/>
+                                                                         Loaded="IntBox_Loaded"/>
                                                             </StackPanel>
                                                             <Separator Margin="16,2"/>
                                                         </StackPanel>
@@ -449,7 +477,7 @@
                                                                 <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
                                                                          Tag="{Binding}" ToolTip="{Binding Type}"
-                                                                         Loaded="JsFloatBox_Loaded"/>
+                                                                         Loaded="FloatBox_Loaded"/>
                                                             </StackPanel>
                                                             <Separator Margin="16,2"/>
                                                         </StackPanel>

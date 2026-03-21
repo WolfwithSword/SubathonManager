@@ -1,0 +1,195 @@
+﻿:root {
+    --timer-color: #9A1DDB;
+    --timer-font: "Fredoka", sans-serif;
+    --timer-font-size: 2.8rem;
+    --timer-outline-color: rgba(20,0,40,0.8);
+    --timer-outline-width: 2.5px;
+    --timer-paused-opacity: 0.35;
+    --timer-lock-color: #ff7eb3;
+
+    --stats-color: #e066ff;
+    --stats-font: "Fredoka", sans-serif;
+    --stats-font-size: 0.95rem;
+    --stats-label-color: #b388cc;
+    --stats-outline-color: rgba(20,0,40,0.8);
+    --stats-outline-width: 1.5px;
+    --stats-gap: 8px;
+    --stats-icon-color: #cc55ff;
+
+    --goal-color: #B61DDD;
+    --goal-font: "Nunito", sans-serif;
+    --goal-font-size: 0.85rem;
+    --goal-outline-color: rgba(20,0,40,0.8);
+    --goal-outline-width: 1.5px;
+    --goal-label-color: #A919CD;
+
+    --section-gap: 4px;
+    --timer-alignment: center;
+    --stats-alignment: center;
+    --goal-alignment: center;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: transparent;
+    width: 100vw;
+    height: 100%;
+    display: flex;
+    justify-content: var(--timer-alignment);
+}
+
+html {
+    width: 100%;
+    height: 100%;
+}
+
+.timer-root {
+    display: flex;
+    flex-direction: column;
+    gap: var(--section-gap);
+    align-items: var(--timer-alignment);
+    font-family: var(--stats-font);
+    width: 100%;
+}
+
+/* timer */
+.timer-row {
+    display: flex;
+    justify-content: var(--timer-alignment);
+    width: 100%;
+}
+
+.timer-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.timer-value {
+    font-family: var(--timer-font);
+    font-size: var(--timer-font-size);
+    font-weight: 700;
+    color: var(--timer-color);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    transition: opacity 0.4s ease;
+    -webkit-text-stroke: var(--timer-outline-width) var(--timer-outline-color);
+    paint-order: stroke fill;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+.timer-value.paused {
+    opacity: var(--timer-paused-opacity);
+}
+
+.timer-digit {
+    display: inline-block;
+    width: 0.6em;
+    text-align: center;
+}
+
+.timer-colon {
+    display: inline-block;
+    width: 0.25em;
+    text-align: center;
+}
+
+.lock-icon {
+    width: 0;
+    height: calc(var(--timer-font-size) * 0.7);
+    fill: var(--timer-lock-color);
+    flex-shrink: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: opacity 0.3s ease, width 0.3s ease;
+}
+
+.lock-icon.visible {
+    width: calc(var(--timer-font-size) * 0.7);
+    opacity: 1;
+}
+
+/* totals */
+.stats-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--stats-gap);
+    justify-content: var(--stats-alignment);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    align-items: baseline;
+}
+
+.stat-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--stats-icon-color);
+    align-self: center;
+    -webkit-text-stroke: var(--stats-outline-width) var(--stats-outline-color);
+    paint-order: stroke fill;
+}
+
+.stat-label {
+    font-size: calc(var(--stats-font-size) * 0.82);
+    color: var(--stats-label-color);
+    letter-spacing: 0.05em;
+    -webkit-text-stroke: var(--stats-outline-width) var(--stats-outline-color);
+    paint-order: stroke fill;
+}
+
+.stat-value {
+    font-size: var(--stats-font-size);
+    font-weight: 700;
+    color: var(--stats-color);
+    -webkit-text-stroke: var(--stats-outline-width) var(--stats-outline-color);
+    paint-order: stroke fill;
+}
+
+/* upcoming goal */
+.goal-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    justify-content: var(--goal-alignment);
+}
+
+.goal-label {
+    font-size: calc(var(--goal-font-size) * 0.85);
+    color: var(--goal-label-color);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-family: var(--goal-font);
+    flex-shrink: 0;
+    -webkit-text-stroke: var(--goal-outline-width) var(--goal-outline-color);
+    paint-order: stroke fill;
+}
+
+.goal-value {
+    font-size: var(--goal-font-size);
+    font-weight: 600;
+    color: var(--goal-color);
+    font-family: var(--goal-font);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 420px;
+    -webkit-text-stroke: var(--goal-outline-width) var(--goal-outline-color);
+    paint-order: stroke fill;
+}
+
+.goal-arrow {
+    width: calc(var(--goal-font-size) * 1.1);
+    height: calc(var(--goal-font-size) * 1.1);
+    color: var(--goal-label-color);
+    flex-shrink: 0;
+    align-self: center;
+    -webkit-text-stroke: var(--goal-outline-width) var(--goal-outline-color);
+    paint-order: stroke fill;
+}

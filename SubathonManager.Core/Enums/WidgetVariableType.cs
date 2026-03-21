@@ -92,7 +92,9 @@ public enum WidgetCssVariableType
     String, 
     Color,
     Alignment,
-    Size
+    Size,
+    Float,
+    Int
 }
 
 [ExcludeFromCodeCoverage]

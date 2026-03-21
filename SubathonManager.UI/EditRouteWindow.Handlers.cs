@@ -524,6 +524,37 @@ public partial class EditRouteWindow
         if (_suppressCount > 0) return;
         Dispatcher.Invoke( () => UpdateSaveButtonBorder(SaveButtonBorder, true));
     }
+    
+    
+    private void IntBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox tb) return;
+        tb.PreviewTextInput += (s, ev) =>
+        {
+            var box = (System.Windows.Controls.TextBox)s;
+            if (char.IsDigit(ev.Text, 0) || ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-'))
+                ev.Handled = false;
+            else
+                ev.Handled = true;
+        };
+        AttachChangeHandler(sender, e);
+    }
+
+    private void FloatBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox tb) return;
+        tb.PreviewTextInput += (s, ev) =>
+        {
+            var box = (System.Windows.Controls.TextBox)s;
+            if (char.IsDigit(ev.Text, 0) ||
+                ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-') ||
+                ev.Text == "." && !box.Text.Contains('.'))
+                ev.Handled = false;
+            else
+                ev.Handled = true;
+        };
+        AttachChangeHandler(sender, e);
+    }
 
     #endregion GeneralHandlers
     
@@ -572,35 +603,6 @@ public partial class EditRouteWindow
 #endregion CSSHandlers  
 
 #region JSHandlers
-    private void JsIntBox_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.TextBox tb) return;
-        tb.PreviewTextInput += (s, ev) =>
-        {
-            var box = (System.Windows.Controls.TextBox)s;
-            if (char.IsDigit(ev.Text, 0) || ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-'))
-                ev.Handled = false;
-            else
-                ev.Handled = true;
-        };
-        AttachChangeHandler(sender, e);
-    }
-
-    private void JsFloatBox_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.TextBox tb) return;
-        tb.PreviewTextInput += (s, ev) =>
-        {
-            var box = (System.Windows.Controls.TextBox)s;
-            if (char.IsDigit(ev.Text, 0) ||
-                ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-') ||
-                ev.Text == "." && !box.Text.Contains('.'))
-                ev.Handled = false;
-            else
-                ev.Handled = true;
-        };
-        AttachChangeHandler(sender, e);
-    }
 
     private void JsBoolBox_Loaded(object sender, RoutedEventArgs e)
     {
@@ -658,7 +660,7 @@ public partial class EditRouteWindow
             cb.SelectionChanged += (_, __) =>
             {
                 if (!jsVar.Value?.Contains(',') ?? true) return;
-                if (jsVar.Value.StartsWith($"{cb.SelectedValue},")) return;
+                if (jsVar.Value!.StartsWith($"{cb.SelectedValue},")) return;
                 var newVal = new List<string> { $"{cb.SelectedValue}" };
                 foreach (var v in values)
                     if (!newVal.Contains(v)) newVal.Add(v);
