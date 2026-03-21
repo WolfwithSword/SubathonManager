@@ -497,6 +497,8 @@ public partial class EditRouteWindow
         {
             switch (sender)
             {
+                case Expander:
+                    break;
                 case TextBox tb:
                     tb.TextChanged += Value_OnChanged;
                     break;
@@ -506,10 +508,6 @@ public partial class EditRouteWindow
                 case CheckBox chk:
                     chk.Checked += Value_OnChanged;
                     chk.Unchecked += Value_OnChanged;
-                    break;
-                case ToggleButton tb2:
-                    tb2.Checked += Value_OnChanged;
-                    tb2.Unchecked += Value_OnChanged;
                     break;
                 case Slider sld:
                     sld.ValueChanged += Value_OnChanged;
@@ -844,6 +842,54 @@ public partial class EditRouteWindow
                 slider.Value = val;
         };
         AttachChangeHandler(sender, e);
+    }
+    
+    private void JsFilteredEventTypeList_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+
+        var allowedTypes = jsVar.Type.GetFilteredEventTypes().ToHashSet();
+
+        var panelValues = (jsVar.Value ?? "").Split(',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var outerPanel = new StackPanel { Orientation = Orientation.Vertical };
+        var groupValues = Enum.GetValues<SubathonEventType>()
+            .Where(x => allowedTypes.Contains(x))
+            .Where(x => ((SubathonEventType?)x).IsEnabled())
+            .Where(x => x is not SubathonEventType.Command and not SubathonEventType.Unknown)
+            .GroupBy(x => ((SubathonEventType?)x).GetSource())
+            .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key))
+            .ThenBy(g => g.Key.ToString());
+
+        foreach (var group in groupValues)
+        {
+            var groupExpander = new Expander
+            {
+                BorderBrush = Brushes.DarkGray, BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 2, 0, 2),
+                IsExpanded = false, Header = group.Key.ToString()
+            };
+
+            var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
+            foreach (var eType in group.Select(x => x.ToString()).OrderBy(x => x))
+            {
+                var chkBox = new CheckBox
+                {
+                    Content = new Wpf.Ui.Controls.TextBlock { Text = eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
+                    IsChecked = panelValues.Contains(eType),
+                    Margin = new Thickness(2)
+                };
+                chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
+                chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
+                chkboxList.Children.Add(chkBox);
+                AttachChangeHandler(chkBox, e);
+            }
+            groupExpander.Content = chkboxList;
+            outerPanel.Children.Add(groupExpander);
+        }
+        expander.Content = outerPanel;
     }
 
     private Slider? FindPercentSiblingSlider(System.Windows.Controls.TextBox tb)

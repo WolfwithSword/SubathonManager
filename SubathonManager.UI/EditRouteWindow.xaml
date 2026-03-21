@@ -574,7 +574,20 @@
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </uiUtils:JsVariableTemplateSelector.EventSubTypeListTemplate>
-
+                                                
+                                                <uiUtils:JsVariableTemplateSelector.FilteredEventTypeListTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172"
+                                                                          VerticalAlignment="Top" Margin="0,0,8,4" HorizontalAlignment="Left"/>
+                                                            <Expander BorderBrush="Gray" BorderThickness="1" Padding="4"
+                                                                      Width="288" HorizontalAlignment="Center" ToolTip="{Binding Type}"
+                                                                      Margin="0,0,0,2" IsExpanded="False" Header="Select Event Types"
+                                                                      Tag="{Binding}" Loaded="JsFilteredEventTypeList_Loaded"/>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.FilteredEventTypeListTemplate>
                                             </uiUtils:JsVariableTemplateSelector>
                                         </ItemsControl.Resources>
                                         <ItemsControl.ItemTemplateSelector>

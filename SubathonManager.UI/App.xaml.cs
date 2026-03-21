@@ -14,6 +14,7 @@ using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.UI.Services;
 using Wpf.Ui.Markup;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI;
 
@@ -89,6 +90,8 @@ public partial class App
             }
 
             base.OnStartup(e);
+
+            SubathonEvents.SubathonDataUpdate += UpdateTickStateCache;
             
             var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
             
@@ -314,7 +317,12 @@ public partial class App
         {
             var amt = await currencyService.ConvertAsync((double)subathon.MoneySum, oldCurrency, currency);
             await db.UpdateSubathonMoney(amt, subathon.Id);
-            if (optionToggled != null && !(bool)optionToggled) return;
+            if (optionToggled != null && !(bool)optionToggled) {
+                var subathonTotals = await EventService.GetSubathonTotalsAsync(db);
+                if (subathonTotals != null)
+                    SubathonEvents.RaiseSubathonTotalsUpdated(subathonTotals);
+                return;
+            }
         }
 
         // reconvert everything, rarely called, unless toggling bits as donations
@@ -355,6 +363,9 @@ public partial class App
             sum += val;
         }
         await db.UpdateSubathonMoney(sum, subathon.Id);
+        var totals = await EventService.GetSubathonTotalsAsync(db);
+        if (totals != null)
+            SubathonEvents.RaiseSubathonTotalsUpdated(totals);
     }
 
 }

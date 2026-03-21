@@ -314,6 +314,7 @@ namespace SubathonManager.Data
                 // assuming defaults for order types are by Dollar, we set at 12s
                 new SubathonValue { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
+                new SubathonValue { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 
             };
 

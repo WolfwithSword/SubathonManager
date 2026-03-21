@@ -6,7 +6,8 @@ public enum GoAffProSource
 {
     Unknown,
     GamerSupps,
-    UwUMarket
+    UwUMarket,
+    OrchidEight
 }
 
 public enum GoAffProModes
@@ -25,6 +26,7 @@ public static class GoAffProSourceeHelper
         {
             GoAffProSource.GamerSupps => SubathonEventType.GamerSuppsOrder,
             GoAffProSource.UwUMarket => SubathonEventType.UwUMarketOrder,
+            GoAffProSource.OrchidEight => SubathonEventType.OrchidEightOrder,
             _ => SubathonEventType.Unknown
         };
     }

@@ -68,6 +68,8 @@ public partial class EditRouteWindow
             WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
             WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
+            if (WebViewContainer != null)
+                WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         }
     }
     
@@ -147,7 +149,6 @@ public partial class EditRouteWindow
             await db.SaveChangesAsync();
         }
 
-        WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -419,7 +420,8 @@ public partial class EditRouteWindow
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
         WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
         WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
-        WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
+        if (WebViewContainer != null)
+            WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
         Loaded -= EditRouteWindow_Loaded;
         
         if (_loadedWebView)

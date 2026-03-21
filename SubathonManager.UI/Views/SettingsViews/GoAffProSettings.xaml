@@ -149,6 +149,70 @@
                 </Grid>
             </StackPanel>
         </Expander>
+        
+        <Expander Header="Orchid Eight" IsExpanded="False" Margin="0,5,0,0">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
+                    <TextBlock x:Name="OEStatusText" Text="Disconnected" VerticalAlignment="Center" Width="120" FontSize="12" Margin="0 0 0 0"/>
+                    <TextBlock x:Name="OECurrency" Text="" VerticalAlignment="Center" FontSize="12" Width="60" Margin="14 0 0 0"/>
+                    <CheckBox x:Name="OEEnabled" Content="Enabled" Margin="14 0 0 0"/>
+                    <CheckBox x:Name="OECommission" Content="Add commission amount as donation?" Margin="14 0 0 0"/>
+                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="400"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Orders:" Width="100" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="60"
+                                    x:Name="OESecondsBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="90" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="1"
+                                    x:Name="OEPointsBox"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points" Width="70" VerticalAlignment="Center"/>
+                        
+                        <TextBlock Text="Per: " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"/>
+                        <ComboBox Text="Mode" Width="120" 
+                                  x:Name="OEMode"
+                                  SelectedIndex="0" Margin="4 0 4 0">
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right">
+                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="29.99"
+                                    PlaceholderText="1.00"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                    validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="OETotalSim"/>
+                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="2.99"
+                                    PlaceholderText="1.00"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                    validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="OECommSim"/>
+
+                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="1"
+                                    PlaceholderText="5"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    FontSize="12"
+                                    Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                    validation:InputValidationBehavior.IsNumberOnly="True" x:Name="OEQuantitySim"/>
+
+                        <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   Content="Test"
+                                   Click="TestOrder_Click"
+                                   x:Name="OEOrderTest"
+                                   Width="60" Padding="2"
+                                   Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                   Margin="4,0,0,0"></ui:Button>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Expander>
     </StackPanel>
 </Expander>
 </views:SettingsControl>

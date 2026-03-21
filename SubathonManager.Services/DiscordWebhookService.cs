@@ -40,7 +40,6 @@ public class DiscordWebhookService : IDisposable, IAppService
     private const string AppAvatarUrl =
         "https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.png";
 
-    // todo handle rate limit and retry_after
     public DiscordWebhookService(ILogger<DiscordWebhookService>? logger, IConfig config, CurrencyService currencyService)
     {
         _logger = logger;
@@ -324,7 +323,7 @@ public class DiscordWebhookService : IDisposable, IAppService
         return sb.ToString();
     }
     
-    private async Task SendWebhookAsync(object payload, string? url)
+    private async Task SendWebhookAsync(object payload, string? url, int retryCount = 0)
     {
         if (string.IsNullOrEmpty(url)) return;
         try
@@ -334,12 +333,34 @@ public class DiscordWebhookService : IDisposable, IAppService
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await http.PostAsync(url, content, _cts.Token);
+            string rc = "";
+
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests && retryCount < 3)
+            {
+                rc = await response.Content.ReadAsStringAsync();
+                double retryAfter = 1.0;
+                try
+                {
+                    using var doc = JsonDocument.Parse(rc);
+                    if (doc.RootElement.TryGetProperty("retry_after", out var ra))
+                        retryAfter = ra.GetDouble();
+                }
+                catch {/**/}
+
+                int delayMs = (int)(retryAfter * 1000) + 200;
+                _logger?.LogWarning("Discord rate limited, retrying in {DelayMs}ms, attempt #{Attempt}", delayMs, retryCount);
+                await Task.Delay(delayMs, _cts.Token);
+                await SendWebhookAsync(payload, url, retryCount + 1);
+                return;
+            }
+
             if (!response.IsSuccessStatusCode)
             {
-                var rc = await response.Content.ReadAsStringAsync();
+                rc = await response.Content.ReadAsStringAsync();
                 _logger?.LogError("Webhook failed: {ResponseStatusCode} - {Rc}", response.StatusCode, rc);
             }
         }
+        catch (OperationCanceledException) { /**/ }
         catch (Exception ex)
         {
             _logger?.LogError(ex, ex.Message);

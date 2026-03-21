@@ -1,7 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -10,6 +9,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
@@ -27,6 +27,8 @@ public partial class GoAffProSettings : SettingsControl
             GSMode, GSCommission, GSTotalSim, GSCommSim, GSQuantitySim, GSEnabled];
         _sourceUiElements[GoAffProSource.UwUMarket] = [UMStatusText, UMCurrency, UMSecondsBox, UMPointsBox,
             UMMode, UMCommission, UMTotalSim, UMCommSim, UMQuantitySim, UMEnabled];
+        _sourceUiElements[GoAffProSource.OrchidEight] = [OEStatusText, OECurrency, OESecondsBox, OEPointsBox,
+            OEMode, OECommission, OETotalSim, OECommSim, OEQuantitySim, OEEnabled];
         
         Dispatcher.Invoke(() =>
         {
@@ -156,6 +158,7 @@ public partial class GoAffProSettings : SettingsControl
         if (sender is not Button) return;
         if (Equals(sender, GSOrderTest)) source = GoAffProSource.GamerSupps;
         else if (Equals(sender, UMOrderTest)) source = GoAffProSource.UwUMarket;
+        else if (Equals(sender, OEOrderTest)) source = GoAffProSource.OrchidEight;
         else return;
         
         var elements = _sourceUiElements[source];
@@ -164,6 +167,7 @@ public partial class GoAffProSettings : SettingsControl
         decimal commTotal = Decimal.TryParse((elements[7] as TextBox)?.Text, out decimal result2) ? result2 : 0;
         int itemCount = Int32.TryParse((elements[8] as TextBox)?.Text, out int result3) ? result3 : 0;
         string currency = (elements[1] as TextBlock)?.Text.Replace("[", "").Replace("]", "") ?? "USD";
+        if (string.IsNullOrWhiteSpace(currency)) currency = "USD";
         
         ServiceManager.GoAffPro.SimulateOrder(total, itemCount, commTotal, source, currency);
     }

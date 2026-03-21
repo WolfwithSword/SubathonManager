@@ -9,6 +9,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Data;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 
 namespace SubathonManager.UI

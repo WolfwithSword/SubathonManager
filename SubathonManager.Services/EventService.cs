@@ -7,6 +7,8 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Services;
@@ -24,6 +26,7 @@ public class EventService: IDisposable, IAppService
     private readonly CurrencyService _currencyService;
     private readonly ILogger<EventService>? _logger;
     private readonly IConfig _config;
+    private record EventProjection(SubathonEventType? EventType, SubathonEventSource Source, int Amount, string Value, bool IsSimulated);
 
     public EventService(IDbContextFactory<AppDbContext> factory, ILogger<EventService>? logger, IConfig config,
         CurrencyService currencyService)
@@ -339,6 +342,14 @@ public class EventService: IDisposable, IAppService
             SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
         }
         db.Entry(subathon).State = EntityState.Detached;
+
+        if (affected > 0 || (ev.ProcessedToSubathon))
+        {
+            var totals = await GetSubathonTotalsAsync(db);
+            if (totals != null)
+                SubathonEvents.RaiseSubathonTotalsUpdated(totals);
+        }
+
         return (affected > 0 || (ev.ProcessedToSubathon), false);
     }
 
@@ -512,6 +523,13 @@ public class EventService: IDisposable, IAppService
         long pts = subathon.Points;
         if (goalSet?.Type == GoalsType.Money) pts = subathon.GetRoundedMoneySum();
         await CheckForGoalChange(db,  pts, initialPoints);
+
+        if (ev.Command is SubathonCommandType.AddMoney or SubathonCommandType.SubtractMoney)
+        {
+            var totals = await GetSubathonTotalsAsync(db);
+            if (totals != null)
+                SubathonEvents.RaiseSubathonTotalsUpdated(totals);
+        }
         return (true, false, true);
 
     }
@@ -647,6 +665,10 @@ public class EventService: IDisposable, IAppService
         events.Add(ev);
         SubathonEvents.RaiseSubathonEventsDeleted(events);
         
+        var totals = await GetSubathonTotalsAsync(db);
+        if (totals != null)
+            SubathonEvents.RaiseSubathonTotalsUpdated(totals);
+        
         if (affected > 0)
         {
             await db.Entry(subathon!).ReloadAsync();
@@ -760,7 +782,7 @@ public class EventService: IDisposable, IAppService
                 .ToListAsync();
 
             db.RemoveRange(trackedEvents);
-            
+
             await db.SaveChangesAsync();
             SubathonEvents.RaiseSubathonEventsDeleted(events);
 
@@ -774,6 +796,12 @@ public class EventService: IDisposable, IAppService
         catch (Exception ex)
         {
             _logger?.LogError("UndoSimulatedEvents failed: {Message}", ex.Message);
+        }
+        finally
+        {
+            var totals = await GetSubathonTotalsAsync(db);
+            if (totals != null)
+                SubathonEvents.RaiseSubathonTotalsUpdated(totals);
         }
     }
 
@@ -810,6 +838,116 @@ public class EventService: IDisposable, IAppService
                 }
             }
         }
+    }
+    
+    public static async Task<SubathonTotals?> GetSubathonTotalsAsync(AppDbContext db)
+    {
+        var subathon = await db.SubathonDatas
+            .AsNoTracking()
+            .Select(x => new { x.Id, x.IsActive, x.MoneySum, x.Currency })
+            .FirstOrDefaultAsync(x => x.IsActive);
+
+        if (subathon == null) return new SubathonTotals();
+
+        var allEvents = await db.SubathonEvents
+            .AsNoTracking()
+            .Where(e =>
+                e.SubathonId == subathon.Id &&
+                e.ProcessedToSubathon &&
+                e.EventType != SubathonEventType.Command)
+            .Select(e => new EventProjection(
+                e.EventType,
+                e.Source,
+                e.Amount,
+                e.Value,
+                e.Source == SubathonEventSource.Simulated ||
+                e.User!.StartsWith("SIMULATED") ||
+                e.User!.StartsWith("SYSTEM")
+            ))
+            .ToListAsync();
+
+        
+        var events= allEvents.Where(e => !e.IsSimulated).ToList();
+        var simEvents= allEvents.Where(e => e.IsSimulated).ToList();
+        static SubathonSimulatedTotals BuildSimulated(List<EventProjection> src)
+        {
+            var subLikeSim= src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.SubLike).ToList();
+            var giftSubLikeSim= src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.GiftSubLike).ToList();
+            var tokenLikeSim = src.Where(e => e.EventType.GetSubType() == SubathonEventSubType.TokenLike).ToList();
+            var orderLikeSim = src.Where(e => e.EventType.GetSubType() == SubathonEventSubType.OrderLike).ToList();
+            var followLikeSim= src.Where(e => e.EventType.GetSubType() == SubathonEventSubType.FollowLike).ToList();
+
+            return new SubathonSimulatedTotals
+            {
+                SubLikeTotal = subLikeSim.Count + giftSubLikeSim.Sum(e => e.Amount),
+                SubLikeByEvent = subLikeSim
+                    .GroupBy(e => e.EventType!.Value)
+                    .ToDictionary(g => g.Key, g => g.Count())
+                    .Concat(giftSubLikeSim
+                        .GroupBy(e => e.EventType!.Value)
+                        .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)))
+                    .ToDictionary(k => k.Key, v => v.Value),TokenLikeTotal = tokenLikeSim.Sum(e => long.TryParse(e.Value, out var v) ? v : 0),
+                TokenLikeByEvent = tokenLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Sum(e => long.TryParse(e.Value, out var v) ? v : 0)),
+                OrderCountByType = orderLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Count()),
+                FollowLikeTotal = followLikeSim.Count,
+                FollowLikeByEvent= followLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Count()),
+            };
+        }
+        
+        var subLike = events
+            .Where(e => e.EventType.GetSubType() is SubathonEventSubType.SubLike)
+            .ToList();
+        var giftSubLike = events
+            .Where(e => e.EventType.GetSubType() is SubathonEventSubType.GiftSubLike)
+            .ToList();
+
+        var tokenLike = events
+            .Where(e => e.EventType.GetSubType() == SubathonEventSubType.TokenLike)
+            .ToList();
+
+        var orderLike = events
+            .Where(e => e.EventType.GetSubType() == SubathonEventSubType.OrderLike)
+            .ToList();
+
+        var followLike = events
+            .Where(e => e.EventType.GetSubType() == SubathonEventSubType.FollowLike)
+            .ToList();
+
+        var simData = BuildSimulated(simEvents);
+        var totals = new SubathonTotals
+        {
+            MoneySum = subathon.MoneySum ?? 0,
+            Currency = subathon.Currency,
+
+            SubLikeTotal = subLike.Count + giftSubLike.Sum(e => e.Amount),
+            SubLikeByEvent = subLike
+                .GroupBy(e => e.EventType!.Value)
+                .ToDictionary(g => g.Key, g => g.Count())
+                .Concat(giftSubLike
+                    .GroupBy(e => e.EventType!.Value)
+                    .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)))
+                .ToDictionary(k => k.Key, v => v.Value),
+
+            TokenLikeTotal = tokenLike
+                .Sum(e => long.TryParse(e.Value, out var v) ? v : 0),
+            TokenLikeByEvent = tokenLike
+                .GroupBy(e => e.EventType!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Sum(e => long.TryParse(e.Value, out var v) ? v : 0)),
+
+            OrderCountByType = orderLike
+                .GroupBy(e => e.EventType!.Value)
+                .ToDictionary(g => g.Key, g => g.Count()),
+            
+            FollowLikeTotal = followLike.Count,
+            FollowLikeByEvent = followLike
+                .GroupBy(e => e.EventType!.Value)
+                .ToDictionary(g => g.Key, g => g.Count()),
+            
+            Simulated = simData
+        };
+        return totals;
     }
 
     public async Task StopAsync(CancellationToken ct = default)

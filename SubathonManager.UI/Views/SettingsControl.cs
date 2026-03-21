@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -80,10 +79,6 @@ public abstract class SettingsControl : UserControl
             case CheckBox chk:
                 chk.Checked += OnInputChanged;
                 chk.Unchecked += OnInputChanged;
-                break;
-            case ToggleButton tb2:
-                tb2.Checked += OnInputChanged;
-                tb2.Unchecked += OnInputChanged;
                 break;
             case Slider sld:
                 sld.ValueChanged += OnInputChanged;

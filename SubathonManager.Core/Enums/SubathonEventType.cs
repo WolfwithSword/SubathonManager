@@ -29,7 +29,8 @@ public enum SubathonEventType
     PicartoGiftSub,
     PicartoTip,
     GamerSuppsOrder,
-    UwUMarketOrder
+    UwUMarketOrder,
+    OrchidEightOrder,
     // any new must be added after the last
 }
 
@@ -42,8 +43,8 @@ public static class SubathonEventTypeHelper
         //SubathonEventType.UwUMarketOrder
     ];
     
-    private static readonly SubathonEventType[] CurrencyDonationEvents = new[]
-    {
+    private static readonly SubathonEventType[] CurrencyDonationEvents =
+    [
         SubathonEventType.YouTubeSuperChat,
         SubathonEventType.StreamElementsDonation,
         SubathonEventType.StreamLabsDonation,
@@ -51,80 +52,81 @@ public static class SubathonEventTypeHelper
         SubathonEventType.ExternalDonation,
         SubathonEventType.KoFiDonation,
         SubathonEventType.DonationAdjustment
-    };
+    ];
     
-    public static readonly SubathonEventType[] CheerTypes = new[]
-    {
+    public static readonly SubathonEventType[] CheerTypes =
+    [
         SubathonEventType.TwitchCheer,
         SubathonEventType.BlerpBeets,
         SubathonEventType.BlerpBits, // needs a modifier
         SubathonEventType.PicartoTip
-    };
+    ];
 
-    private static readonly SubathonEventType[] GiftTypes = new[]
-    {
+    private static readonly SubathonEventType[] GiftTypes =
+    [
 
         SubathonEventType.YouTubeGiftMembership,
         SubathonEventType.TwitchGiftSub,
-        SubathonEventType.PicartoGiftSub,
-    };
+        SubathonEventType.PicartoGiftSub
+    ];
     
-    private static readonly SubathonEventType[] MembershipTypes = new[]
-    {
+    private static readonly SubathonEventType[] MembershipTypes =
+    [
         SubathonEventType.YouTubeMembership,
         SubathonEventType.YouTubeGiftMembership,
         SubathonEventType.KoFiSub
-    };
+    ];
     
-    private static readonly SubathonEventType[] SubscriptionTypes = new[]
-    {
+    private static readonly SubathonEventType[] SubscriptionTypes =
+    [
         SubathonEventType.TwitchSub,
         SubathonEventType.TwitchGiftSub,
         SubathonEventType.ExternalSub,
         SubathonEventType.PicartoSub,
         SubathonEventType.PicartoGiftSub
-    };
+    ];
 
-    private static readonly SubathonEventType[] ExternalTypes = new[]
-    {
+    private static readonly SubathonEventType[] ExternalTypes =
+    [
         SubathonEventType.ExternalDonation,
         SubathonEventType.ExternalSub,
         SubathonEventType.KoFiSub,
-        SubathonEventType.KoFiDonation,
-    };
+        SubathonEventType.KoFiDonation
+    ];
 
-    private static readonly SubathonEventType[] NoValueConfigTypes = new[]
-    {
+    private static readonly SubathonEventType[] NoValueConfigTypes =
+    [
         SubathonEventType.Command,
         SubathonEventType.DonationAdjustment,
         SubathonEventType.ExternalSub,
         SubathonEventType.Unknown,
         SubathonEventType.TwitchHypeTrain
-    };
+    ];
 
-    private static readonly SubathonEventType[] ExtensionType = new[]
-    {
+    private static readonly SubathonEventType[] ExtensionType =
+    [
         SubathonEventType.BlerpBeets,
         SubathonEventType.BlerpBits
-    };
+    ];
     
-    private static readonly SubathonEventType[] FollowTypes = new[]
-    {
+    private static readonly SubathonEventType[] FollowTypes =
+    [
         SubathonEventType.PicartoFollow,
         SubathonEventType.TwitchFollow
-    };
+    ];
 
-    private static readonly SubathonEventType[] OrderTypes = new[]
-    {
+    private static readonly SubathonEventType[] OrderTypes =
+    [
         SubathonEventType.UwUMarketOrder,
-        SubathonEventType.GamerSuppsOrder
-    };
+        SubathonEventType.GamerSuppsOrder,
+        SubathonEventType.OrchidEightOrder
+    ];
 
     public static SubathonEventSubType GetSubType(this SubathonEventType? eventType)
     {
         if (!eventType.HasValue) return SubathonEventSubType.Unknown;
         if (eventType.IsGiftType()) return SubathonEventSubType.GiftSubLike;
-        if (eventType.IsSubOrMembershipType()) return SubathonEventSubType.SubLike;
+        if (eventType.IsSubOrMembershipType()) return SubathonEventSubType.SubLike; // important GiftType is above, so it has priority
         if (eventType.IsCheerType()) return SubathonEventSubType.TokenLike;
         if (eventType.IsCurrencyDonation()) return SubathonEventSubType.DonationLike;
         if (eventType.IsOrderType()) return SubathonEventSubType.OrderLike;
@@ -215,6 +217,7 @@ public static class SubathonEventTypeHelper
             
             SubathonEventType.GamerSuppsOrder => SubathonEventSource.GoAffPro,
             SubathonEventType.UwUMarketOrder => SubathonEventSource.GoAffPro,
+            SubathonEventType.OrchidEightOrder => SubathonEventSource.GoAffPro,
             
             _ => SubathonEventSource.Unknown
         };

@@ -6,7 +6,10 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
+using SubathonManager.Core.Objects;
 using SubathonManager.Integration;
+using SubathonManager.Services;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Server;
 
@@ -24,6 +27,7 @@ public partial class WebServer
         SubathonEvents.SubathonGoalListUpdated += SendGoalsUpdated;
         OverlayEvents.OverlayRefreshRequested += SendRefreshRequest;
         SubathonEvents.SubathonValueConfigRequested += SendSubathonValues;
+        SubathonEvents.SubathonTotalsUpdated += SendSubathonTotals;
     }
 
     private void StopWebsocketServer()
@@ -34,6 +38,7 @@ public partial class WebServer
         OverlayEvents.OverlayRefreshRequested -= SendRefreshRequest;
         SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
         SubathonEvents.SubathonValueConfigRequested -= SendSubathonValues;
+        SubathonEvents.SubathonTotalsUpdated -= SendSubathonTotals;
     }
 
     internal void SendSubathonValues(string jsonData)
@@ -100,12 +105,51 @@ public partial class WebServer
             {
                 type = "goals_list",
                 points = val,
-                goals = goalSet!.Goals.Select(goal => GoalToObject(goal, val)).ToArray(),
+                goals = goalSet.Goals.Select(goal => GoalToObject(goal, val)).ToArray(),
                 goals_type = $"{goalSet.Type}"
             };
             await SelectSendAsync(socket, data);
         }
         
+        var totals = await EventService.GetSubathonTotalsAsync(db);
+        
+        if (totals != null)
+            await SelectSendAsync(socket, SubathonTotalsToObject(totals));
+        
+    }
+
+    private object SubathonTotalsToObject(SubathonTotals totals)
+    {
+        return new
+        {
+            type = "subathon_totals",
+            currency = totals.Currency,
+            money_sum = totals.MoneySum,
+            sub_like_total = totals.SubLikeTotal,
+            sub_like_by_type = totals.SubLikeByEvent
+                .ToDictionary(k => k.Key.ToString(), k => k.Value),
+            token_like_total = totals.TokenLikeTotal,
+            token_like_by_type = totals.TokenLikeByEvent
+                .ToDictionary(k => k.Key.ToString(), k => k.Value),
+            order_count_by_type = totals.OrderCountByType
+                .ToDictionary(k => k.Key.ToString(), k => k.Value),
+            follow_count = totals.FollowLikeTotal,
+            follow_count_by_type = totals.FollowLikeByEvent
+                .ToDictionary(k => k.Key.ToString(), k => k.Value),
+            simulated = new {
+                sub_like_total = totals.Simulated.SubLikeTotal,
+                sub_like_by_type = totals.Simulated.SubLikeByEvent
+                    .ToDictionary(k => k.Key.ToString(), k => k.Value),
+                token_like_total = totals.Simulated.TokenLikeTotal,
+                token_like_by_type = totals.Simulated.TokenLikeByEvent
+                    .ToDictionary(k => k.Key.ToString(), k => k.Value),
+                order_count_by_type = totals.Simulated.OrderCountByType
+                    .ToDictionary(k => k.Key.ToString(), k => k.Value),
+                follow_count = totals.Simulated.FollowLikeTotal,
+                follow_count_by_type = totals.Simulated.FollowLikeByEvent
+                    .ToDictionary(k => k.Key.ToString(), k => k.Value),
+            }
+        };
     }
 
     private object SubathonEventToObject(SubathonEvent subathonEvent)
@@ -136,6 +180,11 @@ public partial class WebServer
         Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent), WebsocketClientTypeHelper.ConsumersList));
     }
 
+    internal void SendSubathonTotals(SubathonTotals totals)
+    {
+        Task.Run(() => BroadcastAsyncObject(SubathonTotalsToObject(totals), WebsocketClientTypeHelper.ConsumersList));
+    }
+
     internal void SendRefreshRequest(Guid id)
     {
         Task.Run(() =>
@@ -154,7 +203,7 @@ public partial class WebServer
             && subathon.Multiplier.Started != null)
         {
             DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
-            multiplierRemaining = multEndTime! - DateTime.Now;
+            multiplierRemaining = multEndTime - DateTime.Now;
         }
 
         long roundedMoney = subathon.GetRoundedMoneySum();
@@ -491,6 +540,8 @@ public partial class WebServer
                                             window.handleGoalCompleted(data);
                                         else if (typeof window.handleValueConfig === 'function' && data.type == 'value_config')
                                             window.handleValueConfig(data);
+                                        else if (typeof window.handleTotalsUpdate === 'function' && data.type == 'subathon_totals')
+                                            window.handleTotalsUpdate(data);
                                         else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && (document.title.includes(data.id) || data.id == '{Guid.Empty}')) {{
                                             // for only the merged page
                                             window.location.reload();

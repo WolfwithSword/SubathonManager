@@ -10,6 +10,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
@@ -27,7 +28,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     private static readonly Dictionary<int, GoAffProSource> SiteMapping = new() // supported sites
     {
         { 165328, GoAffProSource.GamerSupps },
-        { 132230, GoAffProSource.UwUMarket }
+        { 132230, GoAffProSource.UwUMarket },
+        { 7142837, GoAffProSource.OrchidEight}
     };
     private static readonly Dictionary<GoAffProSource, int> ReverseSiteMapping = 
         SiteMapping.ToDictionary(x => x.Value, x => x.Key);
@@ -37,7 +39,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     public static readonly Dictionary<GoAffProSource, SubathonEventType> OrderMapping = new()
     {
         { GoAffProSource.GamerSupps, SubathonEventType.GamerSuppsOrder},
-        { GoAffProSource.UwUMarket, SubathonEventType.UwUMarketOrder}
+        { GoAffProSource.UwUMarket, SubathonEventType.UwUMarketOrder},
+        { GoAffProSource.OrchidEight, SubathonEventType.OrchidEightOrder}
     };
     
 
@@ -100,7 +103,7 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
         foreach (var site in sitesResponse.Sites.Where(site => site is { Id: not null, Status: UserSite_status.Approved }))
         {
-            if (!SiteMapping.ContainsKey(site.Id!.Value) || !_siteIds.Add(site!.Id.Value)) continue;
+            if (!SiteMapping.ContainsKey(site.Id!.Value) || !_siteIds.Add(site.Id.Value)) continue;
             string currency = !string.IsNullOrWhiteSpace(site.Currency) ? site.Currency : "USD";
 
             IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.GoAffPro,
