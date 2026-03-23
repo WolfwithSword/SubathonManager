@@ -108,6 +108,12 @@ public class TwitchService : IDisposable, IAppService
             _logger?.LogInformation($"Twitch Token Valid for Scopes: {string.Join(',', validation.Scopes)}");
             return true;
         }
+        catch (HttpRequestException ex)
+        {
+            _logger?.LogError(ex, "Could not validate token. Internet connection may be down.");
+            // return true so we don't delete file
+            return true;
+        }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Twitch Token Validation Error");
