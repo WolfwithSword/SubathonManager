@@ -3,7 +3,6 @@
     --inner-border-color: #655fa0;
     --main-background-color: #d9d7fb;
     --font: beachday;
-    --event-width: 200px;
     --text-color: #8C46ED;
     --event-glow: rgba(180,50,240,0.45);
     --glow-color: #494475;
@@ -12,10 +11,9 @@
 .event-card {
   display: flex;
   align-items: center;
-  min-width: var(--event-width);
-  max-width: var(--event-width);
+  min-width: 200px;
+  width: 100%;
   justify-content: space-between;
-  width: var(--event-width);
 
   background: var(--main-background-color);
   border: 1px solid var(--border-color);
@@ -27,7 +25,7 @@
   
   backdrop-filter: blur(8px);
   border-radius: 4px 12px;
-  padding: 8px 12px;
+  padding: 8px 4px;
 
   color: var(--text-color);
   font-family: var(--font), sans-serif;
@@ -37,8 +35,8 @@
 
 .event-content {
   display: flex;
-  min-width: var(--event-width);
-  max-width: var(--event-width);
+  min-width: 200px;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -84,8 +82,8 @@
 .event-text {
   display: flex;
   flex-direction: column;
-  width: 80%;
-  max-width: 80%;
+  flex: 1;
+  min-width: 0;
   line-height: 1.2;
   max-height: 42px; /*62px*/
   overflow: hidden;
@@ -93,10 +91,10 @@
 
 .event-user {
   font-weight: 100;
-  max-width: 80%;
-  min-width: 80%;
-  width: 80%;
+  width: 100%;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;  
 }
 
 .event-value {

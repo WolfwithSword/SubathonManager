@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -9,6 +8,8 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.Views.SettingsViews.GoAffPro;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -16,29 +17,12 @@ namespace SubathonManager.UI.Views.SettingsViews;
 public partial class GoAffProSettings : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<GoAffProSettings>>();
-    private string _configSection = "GoAffPro";
-    
-    private readonly Dictionary<GoAffProSource, List<object>> _sourceUiElements = new();
+    private readonly string _configSection = "GoAffPro";
+    private readonly List<GoAffProSourceControl> _sourceControls = [];
+
     public GoAffProSettings()
     {
         InitializeComponent();
-        
-        _sourceUiElements[GoAffProSource.GamerSupps] = [GSStatusText, GSCurrency, GSSecondsBox, GSPointsBox,
-            GSMode, GSCommission, GSTotalSim, GSCommSim, GSQuantitySim, GSEnabled];
-        _sourceUiElements[GoAffProSource.UwUMarket] = [UMStatusText, UMCurrency, UMSecondsBox, UMPointsBox,
-            UMMode, UMCommission, UMTotalSim, UMCommSim, UMQuantitySim, UMEnabled];
-        _sourceUiElements[GoAffProSource.OrchidEight] = [OEStatusText, OECurrency, OESecondsBox, OEPointsBox,
-            OEMode, OECommission, OETotalSim, OECommSim, OEQuantitySim, OEEnabled];
-        
-        Dispatcher.Invoke(() =>
-        {
-            foreach (var elementSet in _sourceUiElements.Values)
-            {
-                if (elementSet[6] is TextBox box) box.ToolTip = "Order Total $";
-                if (elementSet[7] is TextBox box2) box2.ToolTip = "Commission Total $";
-                if (elementSet[8] is TextBox box3) box3.ToolTip = "Items Ordered";
-            }
-        });
         
         Loaded += (_, _) =>
         {
@@ -51,125 +35,48 @@ public partial class GoAffProSettings : SettingsControl
             IntegrationEvents.ConnectionUpdated -= UpdateStatus;
         };
     }
+    
+    public override void Init(SettingsView host)
+    {
+        Host = host;
+        Dispatcher.Invoke(() =>
+        {
+            foreach (var source in Enum.GetValues<GoAffProSource>()
+                         .Where(s => !s.IsDisabled()))
+            {
+                var control = new GoAffProSourceControl(host, source);
+                _sourceControls.Add(control);
+                SourcesPanel.Children.Add(control);
+            }
+        });
+    }
 
     internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
     {
         if (source != SubathonEventSource.GoAffPro) return;
-        
         Host.UpdateConnectionStatus(status, StatusText, ConnectBtn);
-        if (!Enum.TryParse(service, out GoAffProSource sourceEnum)) return;
-        if (sourceEnum == GoAffProSource.Unknown) return;
-        
-        TextBlock? statusLabel = null;
-        Dispatcher.Invoke(() =>
-        {
-            statusLabel = _sourceUiElements[sourceEnum][0] as TextBlock;
-            if (_sourceUiElements[sourceEnum][1] is TextBlock block)
-            {
-                block.Text = string.IsNullOrWhiteSpace(name) ? string.Empty : $"[{name}]";
-            }
-        });
-        
-        if (statusLabel != null)
-            Host.UpdateConnectionStatus(status, statusLabel, null);
+
+        if (!Enum.TryParse(service, out GoAffProSource goAffProSource)) return;
+
+        _sourceControls
+            .FirstOrDefault(c => c.Source == goAffProSource)
+            ?.UpdateStatus(status, name);
     }
 
     public override void LoadValues(AppDbContext db)
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        foreach (var goAffProSource in _sourceUiElements.Keys)
-        {
-            var eventType = goAffProSource.GetOrderEvent();
-            if (eventType == SubathonEventType.Unknown) continue;
-            
-            TextBox secondsBox = (_sourceUiElements[goAffProSource][2] as TextBox)!;
-            TextBox pointsBox = (_sourceUiElements[goAffProSource][3] as TextBox)!;
-            
-            var value = db.SubathonValues.AsNoTracking().FirstOrDefault(v => v.EventType == eventType);
-            if (value == null) continue;
-            
-            string v = $"{value.Seconds}"; 
-            string p = $"{value.Points}";
-            if (!string.IsNullOrWhiteSpace(v) && !string.IsNullOrWhiteSpace(p))
-            {
-                Host.UpdateTimePointsBoxes(secondsBox, pointsBox, v, p);
-            }
-
-            ComboBox modeBox = (_sourceUiElements[goAffProSource][4] as ComboBox)!;
-
-            
-            modeBox.ItemsSource = Enum.GetNames<GoAffProModes>().ToList();
-            modeBox.SelectedItem = config.Get(_configSection, $"{goAffProSource}.Mode", "Dollar")?.Trim() ?? "Dollar";
-
-            CheckBox asComm = (_sourceUiElements[goAffProSource][5] as CheckBox)!;
-            asComm.IsChecked = config.GetBool(_configSection, $"{goAffProSource}.CommissionAsDonation", false);
-
-            CheckBox enabledBox = (_sourceUiElements[goAffProSource][9] as CheckBox)!;
-            enabledBox.IsChecked = config.GetBool(_configSection, $"{goAffProSource}.Enabled", true);
-        }
+        foreach (var control in _sourceControls)
+            control.LoadValues(db, config, _configSection);
     }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        
-        foreach (var goAffProSource in _sourceUiElements.Keys)
-        {
-            var eventType = goAffProSource.GetOrderEvent();
-            if (eventType == SubathonEventType.Unknown) continue;
-            
-            TextBox secondsBox = (_sourceUiElements[goAffProSource][2] as TextBox)!;
-            TextBox pointsBox = (_sourceUiElements[goAffProSource][3] as TextBox)!;
-            
-            var value = db.SubathonValues.FirstOrDefault(x => x.EventType == eventType && x.Meta == "");
-            if (value != null && double.TryParse(secondsBox.Text, out var seconds) && !value.Seconds.Equals(seconds))
-            {
-                value.Seconds = seconds;
-                hasUpdated = true;
-            }
-            if (value != null && double.TryParse(pointsBox.Text, out var points) && !value.Points.Equals(points))
-            {
-                value.Points = points;
-                hasUpdated = true;
-            }
-        }
-        return hasUpdated;
-    }
+    public override bool UpdateValueSettings(AppDbContext db) =>
+        _sourceControls.Aggregate(false, (acc, c) => acc | c.UpdateValueSettings(db));
 
     public override bool UpdateConfigValueSettings()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool hasUpdated = false;
-        foreach (var source in _sourceUiElements.Keys)
-        {
-            string selectedModeTxt = $"{((_sourceUiElements[source][4] as ComboBox)?.SelectedItem)}";
-            hasUpdated |= config.Set(_configSection, $"{source}.Mode", selectedModeTxt);
-            bool asDono = (_sourceUiElements[source][5] as CheckBox)?.IsChecked ?? false; 
-            hasUpdated |= config.SetBool(_configSection, $"{source}.CommissionAsDonation", asDono);
-            bool enabled = (_sourceUiElements[source][9] as CheckBox)?.IsChecked ?? true; 
-            hasUpdated |= config.SetBool(_configSection, $"{source}.Enabled", enabled);
-        }
-        return hasUpdated;
-    }
-
-    private void TestOrder_Click(object sender, RoutedEventArgs routedEventArgs)
-    {
-        GoAffProSource source = GoAffProSource.Unknown;
-        if (sender is not Button) return;
-        if (Equals(sender, GSOrderTest)) source = GoAffProSource.GamerSupps;
-        else if (Equals(sender, UMOrderTest)) source = GoAffProSource.UwUMarket;
-        else if (Equals(sender, OEOrderTest)) source = GoAffProSource.OrchidEight;
-        else return;
-        
-        var elements = _sourceUiElements[source];
-        //6 total 7 comm 8 quant 
-        decimal total = Decimal.TryParse((elements[6] as TextBox)?.Text, out decimal result) ? result : 0;
-        decimal commTotal = Decimal.TryParse((elements[7] as TextBox)?.Text, out decimal result2) ? result2 : 0;
-        int itemCount = Int32.TryParse((elements[8] as TextBox)?.Text, out int result3) ? result3 : 0;
-        string currency = (elements[1] as TextBlock)?.Text.Replace("[", "").Replace("]", "") ?? "USD";
-        if (string.IsNullOrWhiteSpace(currency)) currency = "USD";
-        
-        ServiceManager.GoAffPro.SimulateOrder(total, itemCount, commTotal, source, currency);
+        return _sourceControls.Aggregate(false, (acc, c) => acc | c.UpdateConfigSettings(config, _configSection));
     }
 
     private async void OpenLogin_Click(object sender, RoutedEventArgs routedEventArgs)
@@ -256,6 +163,7 @@ public partial class GoAffProSettings : SettingsControl
             {
                 return;
             }
+            _sourceControls.ForEach(c => c.StrikeThrough());
             await ServiceManager.GoAffPro.StartAsync();
         }
         catch (Exception ex)
@@ -263,5 +171,4 @@ public partial class GoAffProSettings : SettingsControl
             _logger?.LogError(ex, "Error logging into GoAffPro");
         }
     }
-
 }

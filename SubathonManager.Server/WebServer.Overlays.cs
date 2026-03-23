@@ -216,6 +216,11 @@ public partial class WebServer
                     border-color: darkorange !important;
                 }}
 
+                .resize-handle.ctrl-dimension {{
+                    background: #50e890 !important;
+                    border-color: #20b860 !important;
+                }}
+
                 .handle-nw {{ top: -6px; left: -6px; cursor: nwse-resize; }}
                 .handle-ne {{ top: -6px; right: -6px; cursor: nesw-resize; }}
                 .handle-sw {{ bottom: -6px; left: -6px; cursor: nesw-resize; }}
@@ -401,27 +406,39 @@ public partial class WebServer
                 let baselineWidth, baselineHeight;
                 let startLeft, startTop;
                 let isShiftHeld = false;
+                let isCtrlHeld  = false;
+
+                const EDGE_HANDLES   = ['handle-n', 'handle-s', 'handle-e', 'handle-w'];
+                const CORNER_HANDLES = ['handle-nw', 'handle-ne', 'handle-sw', 'handle-se'];
+
+                function isEdgeHandle(handle) {{
+                    return EDGE_HANDLES.some(c => handle.classList.contains(c));
+                }}
+                function isCornerHandle(handle) {{
+                    return CORNER_HANDLES.some(c => handle.classList.contains(c));
+                }}
+
+                function updateHandleIndicators() {{
+                    wrapper.querySelectorAll('.resize-handle').forEach(h => {{
+                        h.classList.remove('shift-active', 'ctrl-dimension');
+                        if (isCtrlHeld && !isShiftHeld) {{
+                            h.classList.add('ctrl-dimension');
+                        }} else if (isShiftHeld && !isCtrlHeld) {{
+                            if (isCornerHandle(h)) h.classList.add('shift-active');
+                        }}
+                    }});
+                }}
+
+                document.addEventListener('keydown', (e) => {{
+                    if (e.key === 'Shift') {{ isShiftHeld = true; updateHandleIndicators(); }}
+                    if (e.key === 'Control') {{ isCtrlHeld = true; updateHandleIndicators(); }}
+                }});
+                document.addEventListener('keyup', (e) => {{
+                    if (e.key === 'Shift') {{ isShiftHeld = false; updateHandleIndicators(); }}
+                    if (e.key === 'Control') {{ isCtrlHeld = false; updateHandleIndicators(); }}
+                }});
 
                 wrapper.querySelectorAll('.resize-handle').forEach(handle => {{
-
-                    // aspect ratio mode on
-                    document.addEventListener('keydown', (e) => {{
-                        if (e.key === 'Shift') {{
-                            isShiftHeld = true;
-                            document.querySelectorAll('.handle-nw, .handle-ne, .handle-sw, .handle-se')
-                                    .forEach(handle => handle.classList.add('shift-active'));
-                        }}
-                    }});
-
-                    // aspect ratio mode off
-                    document.addEventListener('keyup', (e) => {{
-                        if (e.key === 'Shift') {{
-                            isShiftHeld = false;
-                            document.querySelectorAll('.handle-nw, .handle-ne, .handle-sw, .handle-se')
-                                    .forEach(handle => handle.classList.remove('shift-active'));
-                        }}
-                    }});
-
                     handle.addEventListener('mousedown', e => {{
                         e.stopPropagation();
                         isResizing = true;
@@ -438,8 +455,52 @@ public partial class WebServer
                 document.addEventListener('mousemove', e => {{
                     if (!isResizing) return;
 
-                    let dx = (e.clientX - startX) / scaleX;
-                    let dy = (e.clientY - startY) / scaleY;
+                    const dx = (e.clientX - startX) / scaleX;
+                    const dy = (e.clientY - startY) / scaleY;
+
+                    if (e.ctrlKey && !e.shiftKey) {{
+                        let newWidth  = baselineWidth;
+                        let newHeight = baselineHeight;
+                        let newLeft   = startLeft;
+                        let newTop    = startTop;
+
+                        if (activeHandle.classList.contains('handle-e') ||
+                            activeHandle.classList.contains('handle-ne') ||
+                            activeHandle.classList.contains('handle-se')) {{
+                            newWidth = Math.max(MIN_WIDTH, baselineWidth + dx);
+                        }}
+
+                        if (activeHandle.classList.contains('handle-w') ||
+                            activeHandle.classList.contains('handle-nw') ||
+                            activeHandle.classList.contains('handle-sw')) {{
+                            const clamped = Math.max(MIN_WIDTH, baselineWidth - dx);
+                            newLeft = startLeft + (baselineWidth - clamped) * scaleX;
+                            newWidth = clamped;
+                        }}
+
+                        if (activeHandle.classList.contains('handle-s') ||
+                            activeHandle.classList.contains('handle-se') ||
+                            activeHandle.classList.contains('handle-sw')) {{
+                            newHeight = Math.max(MIN_HEIGHT, baselineHeight + dy);
+                        }}
+
+                        if (activeHandle.classList.contains('handle-n') ||
+                            activeHandle.classList.contains('handle-nw') ||
+                            activeHandle.classList.contains('handle-ne')) {{
+                            const clamped = Math.max(MIN_HEIGHT, baselineHeight - dy);
+                            newTop = startTop + (baselineHeight - clamped) * scaleY;
+                            newHeight = clamped;
+                        }}
+
+                        iframe.style.width  = newWidth  + 'px';
+                        iframe.style.height = newHeight + 'px';
+                        iframe.style.transform = `scale(${{scaleX}}, ${{scaleY}})`;
+                        wrapper.style.width  = (newWidth  * scaleX) + 'px';
+                        wrapper.style.height = (newHeight * scaleY) + 'px';
+                        wrapper.style.left   = newLeft + 'px';
+                        wrapper.style.top    = newTop  + 'px';
+                        return;
+                    }}
 
                     let newWidth  = baselineWidth;
                     let newHeight = baselineHeight;
@@ -469,14 +530,8 @@ public partial class WebServer
                         newTop = startTop + dy * scaleY;
                     }}
 
-                    if (e.shiftKey && (
-                        activeHandle.classList.contains('handle-nw') ||
-                        activeHandle.classList.contains('handle-ne') ||
-                        activeHandle.classList.contains('handle-sw') ||
-                        activeHandle.classList.contains('handle-se')
-                    )) {{
+                    if (e.shiftKey && !e.ctrlKey && isCornerHandle(activeHandle)) {{
                         const aspectRatio = baselineWidth / baselineHeight;
-
                         let candidateWidth = newWidth;
                         let candidateHeight = newHeight;
 
@@ -486,14 +541,8 @@ public partial class WebServer
                             candidateWidth = candidateHeight * aspectRatio;
                         }}
 
-                        if (candidateWidth < MIN_WIDTH) {{
-                            candidateWidth = MIN_WIDTH;
-                            candidateHeight = candidateWidth / aspectRatio;
-                        }}
-                        if (candidateHeight < MIN_HEIGHT) {{
-                            candidateHeight = MIN_HEIGHT;
-                            candidateWidth = candidateHeight * aspectRatio;
-                        }}
+                        if (candidateWidth < MIN_WIDTH) {{ candidateWidth = MIN_WIDTH;  candidateHeight = candidateWidth / aspectRatio;}}
+                        if (candidateHeight < MIN_HEIGHT) {{ candidateHeight = MIN_HEIGHT; candidateWidth = candidateHeight * aspectRatio;}}
 
                         newWidth = candidateWidth;
                         newHeight = candidateHeight;
@@ -516,7 +565,6 @@ public partial class WebServer
                         }}
                         newWidth = MIN_WIDTH;
                     }}
-
                     if (newHeight < MIN_HEIGHT) {{
                         if (activeHandle.classList.contains('handle-n') ||
                             activeHandle.classList.contains('handle-nw') ||
@@ -542,13 +590,31 @@ public partial class WebServer
                     if (!isResizing) return;
                     isResizing = false;
 
+                    const id = wrapper.dataset.id;
+
+                    if (e.ctrlKey && !e.shiftKey) {{
+                        const newWidth  = Math.round(parseFloat(iframe.style.width));
+                        const newHeight = Math.round(parseFloat(iframe.style.height));
+                        const x = wrapper.offsetLeft;
+                        const y = wrapper.offsetTop;
+
+                        wrapper.dataset.origWidth  = newWidth;
+                        wrapper.dataset.origHeight = newHeight;
+
+                        fetch(`/api/update-dimensions/${{id}}`, {{
+                            method: 'POST',
+                            headers: {{ 'Content-Type': 'application/json' }},
+                            body: JSON.stringify({{ width: newWidth, height: newHeight, x, y }})
+                        }});
+                        return;
+                    }}
+
                     scaleX = parseFloat(iframe.style.transform.match(/scale\(([^,]+)/)[1]);
                     scaleY = parseFloat(iframe.style.transform.match(/scale\([^,]+,\s*([^)]+)/)[1]);
 
                     iframe.dataset.scalex = scaleX;
                     iframe.dataset.scaley = scaleY;
 
-                    const id = wrapper.dataset.id;
                     fetch(`/api/update-size/${{id}}`, {{
                         method: 'POST',
                         headers: {{ 'Content-Type': 'application/json' }},

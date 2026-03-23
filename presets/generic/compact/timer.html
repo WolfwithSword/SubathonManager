@@ -2,25 +2,25 @@
 WIDGET_META
 Width:500
 Height:160
-Url:NONE
+Url:https://github.com/WolfwithSword/SubathonManager/discussions/135#discussioncomment-16244827
 showIcons.Boolean:False
 showSubs.Boolean:True
-subsHeader.String:subs
+subsLabel.String:subs
 subEvents.SubEventTypeList:TwitchSub,TwitchGiftSub,YouTubeMembership,YouTubeGiftMembership
 subCountOffset.Int:0
 showBitsTokens.Boolean:True
-tokensHeader.String:bits
+tokensLabel.String:bits
 tokenEvents.TokenEventTypeList:TwitchCheer,BlerpBits,BlerpBeets
 tokensCountOffset.Int:0
 showTotalDonated.Boolean:True
-donatedHeader.String:NONE
+donatedLabel.String:NONE
 donatedOffset.Float:0
 showFollows.Boolean:True
-followsHeader.String:follows
+followsLabel.String:follows
 followEvents.FollowEventTypeList:TwitchFollow
 followCountOffset.Int:0
 showPoints.Boolean:True
-pointsHeader.String:pts
+pointsLabel.String:pts
 pointsOffset.Int:0
 includeSimulated.Boolean:False
 END_WIDGET_META
@@ -55,26 +55,26 @@ END_WIDGET_META
     const cfg = {
         showIcons: (typeof showIcons !== "undefined") ? showIcons : false,
         showSubs: (typeof showSubs !== "undefined") ? showSubs : true,
-        subsHeader: (typeof subsHeader !== "undefined") ? subsHeader : "subs",
+        subsLabel: (typeof subsLabel !== "undefined") ? subsLabel : "subs",
         subEvents: (typeof subEvents !== "undefined") ? subEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
         subCountOffset: (typeof subCountOffset !== "undefined") ? parseInt(subCountOffset) || 0 : 0,
 
         showBitsTokens: (typeof showBitsTokens !== "undefined") ? showBitsTokens : true,
-        tokensHeader: (typeof tokensHeader !== "undefined") ? tokensHeader : "bits",
+        tokensLabel: (typeof tokensLabel !== "undefined") ? tokensLabel : "bits",
         tokenEvents: (typeof tokenEvents !== "undefined") ? tokenEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
         tokensCountOffset: (typeof tokensCountOffset !== "undefined") ? parseInt(tokensCountOffset) || 0 : 0,
 
         showTotalDonated: (typeof showTotalDonated !== "undefined") ? showTotalDonated : true,
-        donatedHeader: (typeof donatedHeader !== "undefined") ? donatedHeader : "",
+        donatedLabel: (typeof donatedLabel !== "undefined") ? donatedLabel : "",
         donatedOffset: (typeof donatedOffset !== "undefined") ? parseFloat(donatedOffset) || 0 : 0,
 
         showFollows: (typeof showFollows !== "undefined") ? showFollows : true,
-        followsHeader: (typeof followsHeader !== "undefined") ? followsHeader : "follows",
+        followsLabel: (typeof followsLabel !== "undefined") ? followsLabel : "follows",
         followEvents: (typeof followEvents !== "undefined") ? followEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
         followCountOffset: (typeof followCountOffset !== "undefined") ? parseInt(followCountOffset) || 0 : 0,
 
         showPoints: (typeof showPoints !== "undefined") ? showPoints : true,
-        pointsHeader: (typeof pointsHeader !== "undefined") ? pointsHeader : "pts",
+        pointsLabel: (typeof pointsLabel !== "undefined") ? pointsLabel : "pts",
         pointsOffset: (typeof pointsOffset !== "undefined") ? parseInt(pointsOffset) || 0 : 0,
 
         includeSimulated: (typeof includeSimulated !== "undefined") ? includeSimulated : false,
@@ -133,31 +133,31 @@ END_WIDGET_META
         if (cfg.showPoints) items.push({
             key: "points",
             icon: "points",
-            label: cfg.pointsHeader,
+            label: cfg.pointsLabel,
             id: "stat-points"
         });
         if (cfg.showSubs) items.push({
             key: "sub",
             icon: "sub",
-            label: cfg.subsHeader,
+            label: cfg.subsLabel,
             id: "stat-sub"
         });
         if (cfg.showBitsTokens) items.push({
             key: "token",
             icon: "token",
-            label: cfg.tokensHeader,
+            label: cfg.tokensLabel,
             id: "stat-token"
         });
         if (cfg.showFollows) items.push({
             key: "follow",
             icon: "follow",
-            label: cfg.followsHeader,
+            label: cfg.followsLabel,
             id: "stat-follow"
         });
         if (cfg.showTotalDonated) items.push({
             key: "money",
             icon: "money",
-            label: cfg.donatedHeader,
+            label: cfg.donatedLabel,
             id: "stat-money"
         });
 
@@ -244,7 +244,7 @@ END_WIDGET_META
             return;
         }
         row.style.display = "flex";
-        val.textContent = `${state.goalPoints.toLocaleString()} - ${state.goalText}`;
+        val.textContent = `${state.goalPoints} - ${state.goalText}`;
     }
 
     function handleSubathonUpdate(data) {

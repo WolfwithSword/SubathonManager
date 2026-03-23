@@ -76,6 +76,20 @@ namespace SubathonManager.UI.Converters
             => throw new NotImplementedException();
     }
 
+    public class AmountFormatConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values[0] is not int amount) return string.Empty;
+            if (values[1] is SubathonEventType eventType && ((SubathonEventType?)eventType).IsOrderType())
+                return $"(x{amount} items)";
+            return $"x{amount}";
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) 
+            => throw new NotImplementedException();
+    }
+    
     public class GreaterThanOneToVisibilityConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)

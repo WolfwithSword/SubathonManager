@@ -14,7 +14,7 @@
   "stats-gap": {"type": "size", "description": "Gap between individual stat items"},
   "goal-color": {"type": "color"},
   "goal-font-size": {"type": "size"},
-  "goal-label-color": {"type": "color", "description": "Next goal arrow colour"},
+  "goal-arrow-color": {"type": "color", "description": "Next goal arrow colour"},
   "goal-outline-color": {"type": "color"},
   "goal-outline-width": {"type": "size"},
   "section-gap": {"type": "size", "description": "Vertical gap between timer, stats and goal sections"},

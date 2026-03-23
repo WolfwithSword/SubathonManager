@@ -30,8 +30,8 @@ public partial class WebServer
         _routes.Add((new RouteKey("GET", "/api/select"),HandleSelectAsync));
         
         _routes.Add((new RouteKey("POST", "/api/update-position/"),HandleWidgetUpdateAsync ));
-        
         _routes.Add((new RouteKey("POST", "/api/update-size/"),HandleWidgetUpdateAsync));
+        _routes.Add((new RouteKey("POST", "/api/update-dimensions/"),HandleWidgetUpdateAsync));
     }
     
     internal async Task HandleSelectAsync(IHttpContext ctx)
@@ -77,6 +77,8 @@ public partial class WebServer
                 success = await widgetHelper.UpdateWidgetScale(widgetId, data);
             else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
                 success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+            else if (path.StartsWith("/api/update-dimensions/", StringComparison.OrdinalIgnoreCase))
+                success = await widgetHelper.UpdateWidgetDimensions(widgetId, data);
 
             if (success)
             {

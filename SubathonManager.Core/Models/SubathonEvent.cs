@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Core.Models;
 
@@ -49,9 +50,14 @@ public class SubathonEvent
     public bool WasReversed { get; set; } = false;
     
     // do we want to later finetune power hour to be for selectable events?
+    private int GetAmountMultiplier()
+    {
+        return EventType.IsOrderType() ? 1 : Amount;
+    }
+    
     public double GetFinalSecondsValue() => Math.Ceiling(GetFinalSecondsValueRaw()); 
-    public double GetFinalSecondsValueRaw() => Amount * SecondsValue * (Source == SubathonEventSource.Command ? 1 : MultiplierSeconds) ?? 0; 
-    public double GetFinalPointsValue() => Math.Floor(Amount * PointsValue * (Source == SubathonEventSource.Command ? 1 : Math.Round(MultiplierPoints+0.001)) ?? 0);
+    public double GetFinalSecondsValueRaw() => GetAmountMultiplier() * SecondsValue * (Source == SubathonEventSource.Command ? 1 : MultiplierSeconds) ?? 0; 
+    public double GetFinalPointsValue() => Math.Floor(GetAmountMultiplier() * PointsValue * (Source == SubathonEventSource.Command ? 1 : Math.Round(MultiplierPoints+0.001)) ?? 0);
 
     public SubathonEvent ShallowClone()
     {

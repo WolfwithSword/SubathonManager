@@ -67,6 +67,7 @@ public partial class EditRouteWindow
         {
             WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
             WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
+            WidgetEvents.WidgetSizeUpdated += OnWidgetSizeUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
             if (WebViewContainer != null)
                 WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
@@ -98,6 +99,24 @@ public partial class EditRouteWindow
                 _selectedWidget.ScaleY = updatedWidget.ScaleY;
                 if (WidgetScaleXBox.Text != $"{updatedWidget.ScaleX}") WidgetScaleXBox.Text = $"{updatedWidget.ScaleX}";
                 if (WidgetScaleYBox.Text != $"{updatedWidget.ScaleY}") WidgetScaleYBox.Text = $"{updatedWidget.ScaleY}";
+            });
+        }
+    }
+    
+    private void OnWidgetSizeUpdated(Widget updatedWidget)
+    {
+        if (_selectedWidget != null && _selectedWidget.Id == updatedWidget.Id)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _selectedWidget.X = updatedWidget.X;
+                _selectedWidget.Y = updatedWidget.Y;
+                _selectedWidget.Width = updatedWidget.Width;
+                _selectedWidget.Height = updatedWidget.Height;
+                if (WidgetXBox.Text != $"{updatedWidget.X}") WidgetXBox.Text = $"{updatedWidget.X}";
+                if (WidgetYBox.Text != $"{updatedWidget.Y}") WidgetYBox.Text = $"{updatedWidget.Y}";
+                if (WidgetWidthBox.Text != $"{updatedWidget.Width}") WidgetWidthBox.Text = $"{updatedWidget.Width}";
+                if (WidgetHeightBox.Text != $"{updatedWidget.Height}") WidgetHeightBox.Text = $"{updatedWidget.Height}";
             });
         }
     }
@@ -420,6 +439,7 @@ public partial class EditRouteWindow
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
         WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
         WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
+        WidgetEvents.WidgetSizeUpdated -= OnWidgetSizeUpdated;
         if (WebViewContainer != null)
             WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
         Loaded -= EditRouteWindow_Loaded;

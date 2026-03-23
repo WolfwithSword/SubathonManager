@@ -31,6 +31,7 @@ public enum SubathonEventType
     GamerSuppsOrder,
     UwUMarketOrder,
     OrchidEightOrder,
+    KatDragonzOrder
     // any new must be added after the last
 }
 
@@ -39,8 +40,7 @@ public static class SubathonEventTypeHelper
 {
     private static readonly SubathonEventType[] DisabledEvents =
     [
-        //SubathonEventType.GamerSuppsOrder,
-        //SubathonEventType.UwUMarketOrder
+       // SubathonEventType.KatDragonzOrder
     ];
     
     private static readonly SubathonEventType[] CurrencyDonationEvents =
@@ -119,7 +119,8 @@ public static class SubathonEventTypeHelper
     [
         SubathonEventType.UwUMarketOrder,
         SubathonEventType.GamerSuppsOrder,
-        SubathonEventType.OrchidEightOrder
+        SubathonEventType.OrchidEightOrder,
+        SubathonEventType.KatDragonzOrder
     ];
 
     public static SubathonEventSubType GetSubType(this SubathonEventType? eventType)
@@ -218,6 +219,7 @@ public static class SubathonEventTypeHelper
             SubathonEventType.GamerSuppsOrder => SubathonEventSource.GoAffPro,
             SubathonEventType.UwUMarketOrder => SubathonEventSource.GoAffPro,
             SubathonEventType.OrchidEightOrder => SubathonEventSource.GoAffPro,
+            SubathonEventType.KatDragonzOrder => SubathonEventSource.GoAffPro,
             
             _ => SubathonEventSource.Unknown
         };

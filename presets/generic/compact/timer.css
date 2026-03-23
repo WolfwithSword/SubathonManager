@@ -21,7 +21,7 @@
     --goal-font-size: 0.85rem;
     --goal-outline-color: rgba(20,0,40,0.8);
     --goal-outline-width: 1.5px;
-    --goal-label-color: #A919CD;
+    --goal-arrow-color: #A919CD;
 
     --section-gap: 4px;
     --timer-alignment: center;
@@ -62,7 +62,7 @@ html {
 .timer-group {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 0;
 }
 
 .timer-value {
@@ -91,7 +91,7 @@ html {
 
 .timer-colon {
     display: inline-block;
-    width: 0.25em;
+    width: 0.28em;
     text-align: center;
 }
 
@@ -101,12 +101,14 @@ html {
     fill: var(--timer-lock-color);
     flex-shrink: 0;
     opacity: 0;
+    margin-right: 0px;
     overflow: hidden;
     transition: opacity 0.3s ease, width 0.3s ease;
 }
 
 .lock-icon.visible {
     width: calc(var(--timer-font-size) * 0.7);
+    margin-right: 10px;
     opacity: 1;
 }
 
@@ -160,9 +162,9 @@ html {
     justify-content: var(--goal-alignment);
 }
 
-.goal-label {
+.goal-arrow {
     font-size: calc(var(--goal-font-size) * 0.85);
-    color: var(--goal-label-color);
+    color: var(--goal-arrow-color);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-family: var(--goal-font);
@@ -187,7 +189,7 @@ html {
 .goal-arrow {
     width: calc(var(--goal-font-size) * 1.1);
     height: calc(var(--goal-font-size) * 1.1);
-    color: var(--goal-label-color);
+    color: var(--goal-arrow-color);
     flex-shrink: 0;
     align-self: center;
     -webkit-text-stroke: var(--goal-outline-width) var(--goal-outline-color);

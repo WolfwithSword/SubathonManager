@@ -49,4 +49,15 @@ public static class SubathonEventSourceHelper
 
         return SourceOrder.Count + endIdx;
     }
+
+    public static string GetGroupLabel(this SubathonEventSource source)
+    {
+        return source switch
+        {
+            SubathonEventSource.Blerp => "Chat Extensions",
+            SubathonEventSource.Command or SubathonEventSource.Unknown => "Misc",
+            SubathonEventSource.StreamElements or SubathonEventSource.StreamLabs => "Stream Extension",
+            _ => $"{source}"
+        };
+    }
 }

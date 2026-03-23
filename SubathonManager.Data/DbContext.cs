@@ -4,6 +4,7 @@ using System.Text;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data
 {
@@ -167,7 +168,7 @@ namespace SubathonManager.Data
 
             bool includeBits = Utils.DonationSettings.TryGetValue("BitsLikeAsDonation",  out bool bitslike) && bitslike ;
             List<SubathonEventType> orderTypesToInclude = new List<SubathonEventType>();
-            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
             {
                 bool asDonation = Utils.DonationSettings.TryGetValue($"{goAffProSource}", out  bool donation) && donation;
                 if (asDonation && Enum.TryParse($"{goAffProSource}Order", out SubathonEventType eventType))
@@ -315,6 +316,7 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
+                new SubathonValue { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
                 
             };
 

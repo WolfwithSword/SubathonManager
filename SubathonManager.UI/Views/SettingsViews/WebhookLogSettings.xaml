@@ -18,20 +18,18 @@
                     <ui:TextBox x:Name="EventWebhookUrlBx" Width="170" PlaceholderText="https://discord.com/api/webhooks/"/>
                 </StackPanel>
                 <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="16 4 2 4"/>
-                <CheckBox x:Name="LogRemoteConfigCbx" ToolTip = "Log remote config value patches"
+                <CheckBox x:Name="LogRemoteConfigCbx" ToolTip="Log remote config value patches"
                           Content="Log Patches?" Margin="12 4 4 4"/>
                 <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                            Content="Test"
                            Click="TestWebhook_Click"
                            Width="60" Padding="2"
                            Height="34"
-                           Margin="4,0,0,0"></ui:Button>
+                           Margin="4,0,0,0"/>
             </StackPanel>
             <Separator Margin="0,10"/>
-            <TextBlock HorizontalAlignment="Left" Margin="4  0 12 4">Logged Events</TextBlock>
-            <WrapPanel x:Name="EventWebhookListPanel" Orientation="Horizontal" HorizontalAlignment="Left"
-                       ItemWidth="280" ItemHeight="50" Margin="0 4 0 0">
-            </WrapPanel>
+            <TextBlock HorizontalAlignment="Left" Margin="4 0 12 4">Logged Events</TextBlock>
+            <Grid x:Name="EventWebhookListPanel" Margin="0 4 0 0"/>
         </StackPanel>
     </Expander>
 </views:SettingsControl>

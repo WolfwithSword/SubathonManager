@@ -217,44 +217,43 @@ public class WidgetEntityHelper
         }
         return result;
     }
+
+    private async Task<(Widget?, DbContext?)> GetWidgetForUpdate(string widgetId, Dictionary<string, JsonElement> data)
+    {
+        if (data.Count == 0 || !Guid.TryParse(widgetId, out var widgetGuid)) return (null, null);
+        var db = await _factory.CreateDbContextAsync();
+        var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
+        return widget == null ? (null, db) : (widget, db);
+    }
     
     public async Task<bool> UpdateWidgetScale(string widgetId, Dictionary<string, JsonElement> data)
     {
-        if (!data.Any()) return false;
+        (Widget?, DbContext?) result = await GetWidgetForUpdate(widgetId, data);
+        var widget = result.Item1;
+        await using var db = result.Item2;
+        if (widget == null || db == null) return false;
         
-        if (Guid.TryParse(widgetId, out var widgetGuid))
-        {
-            await using var db = await _factory.CreateDbContextAsync();
-            var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
-            if (widget != null)
-            {
-                float origX = widget.X;
-                float origY = widget.Y;
-                if (data.TryGetValue("scaleX", out var sxElem) && sxElem.TryGetSingle(out var sx)) widget.ScaleX = sx;
-                if (data.TryGetValue("scaleY", out var syElem) && syElem.TryGetSingle(out var sy)) widget.ScaleY = sy;
-                if (data.TryGetValue("x", out var xElem) && xElem.TryGetSingle(out var x)) widget.X = x;
-                if (data.TryGetValue("y", out var yElem) && yElem.TryGetSingle(out var y)) widget.Y = y;
+        float origX = widget.X;
+        float origY = widget.Y;
+        if (data.TryGetValue("scaleX", out var sxElem) && sxElem.TryGetSingle(out var sx)) widget.ScaleX = sx;
+        if (data.TryGetValue("scaleY", out var syElem) && syElem.TryGetSingle(out var sy)) widget.ScaleY = sy;
+        if (data.TryGetValue("x", out var xElem) && xElem.TryGetSingle(out var x)) widget.X = x;
+        if (data.TryGetValue("y", out var yElem) && yElem.TryGetSingle(out var y)) widget.Y = y;
                 
-                await db.SaveChangesAsync();
-                WidgetEvents.RaiseScaleUpdated(widget);
-                if (!origX.Equals(widget.X) || !origY.Equals(widget.Y))
-                    WidgetEvents.RaisePositionUpdated(widget);
-                await db.Entry(widget).ReloadAsync();
-                return true;
-            }
-        }
-        return false;
+        await db.SaveChangesAsync();
+        WidgetEvents.RaiseScaleUpdated(widget);
+        if (!origX.Equals(widget.X) || !origY.Equals(widget.Y))
+            WidgetEvents.RaisePositionUpdated(widget);
+        await db.Entry(widget).ReloadAsync();
+        return true;
     }
     
     public async Task<bool> UpdateWidgetPosition(string widgetId, Dictionary<string, JsonElement> data)
     {
-        if (!data.Any()) return false;
-
-        if (!Guid.TryParse(widgetId, out var widgetGuid)) return false;
-        
-        await using var db = await _factory.CreateDbContextAsync();
-        var widget = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetGuid);
-        if (widget == null) return false;
+        (Widget?, DbContext?) result = await GetWidgetForUpdate(widgetId, data);
+        var widget = result.Item1;
+        await using var db = result.Item2;
+        if (widget == null || db == null) return false;
             
         if (data.TryGetValue("x", out var xElem) && xElem.TryGetSingle(out var x)) widget.X = x;
         if (data.TryGetValue("y", out var yElem) && yElem.TryGetSingle(out var y)) widget.Y = y;
@@ -265,5 +264,23 @@ public class WidgetEntityHelper
         await db.Entry(widget).ReloadAsync();
         return true;
 
+    }
+    
+    public async Task<bool> UpdateWidgetDimensions(string widgetId, Dictionary<string, JsonElement> data)
+    {
+        (Widget?, DbContext?) result = await GetWidgetForUpdate(widgetId, data);
+        var widget = result.Item1;
+        await using var db = result.Item2;
+        if (widget == null || db == null) return false;
+        
+        if (data.TryGetValue("width", out var wEl) && wEl.TryGetInt32(out int w)) widget.Width  = w;
+        if (data.TryGetValue("height", out var hEl) && hEl.TryGetInt32(out int h)) widget.Height = h;
+        if (data.TryGetValue("x", out var xEl) && xEl.TryGetSingle(out float x)) widget.X = x;
+        if (data.TryGetValue("y", out var yEl) && yEl.TryGetSingle(out float y)) widget.Y = y;
+                
+        await db.SaveChangesAsync();
+        WidgetEvents.RaiseSizeUpdated(widget);
+        await db.Entry(widget).ReloadAsync();
+        return true;
     }
 }

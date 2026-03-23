@@ -255,7 +255,7 @@
 
                 <StackPanel x:Name="EmptyEditorPanel">
                     <TextBlock Text="Widget Editor" FontWeight="SemiBold" Margin="0,44,0,8"/>
-                    <TextBlock Text="Please select a widget to edit in the left column.&#10;When editing, hold shift to resize while preserving aspect ratio." 
+                    <TextBlock Text="Please select a widget to edit in the left column.&#10;When editing, hold shift to resize while preserving aspect ratio, and hold ctrl to change bounding size." 
                                Foreground="Gray" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
 

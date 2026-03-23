@@ -68,9 +68,9 @@ public partial class App
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
-            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
             {
-                Utils.DonationSettings[goAffProSource] =
+                Utils.DonationSettings[$"{goAffProSource}"] =
                     config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
             }
             
@@ -239,12 +239,12 @@ public partial class App
                 Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
             }
             
-            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
             {
                 bool asDonation = config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
                 if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
-                Utils.DonationSettings[goAffProSource] = asDonation;
+                Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
             }
 
             if (currencyChanged || optionToggled)
