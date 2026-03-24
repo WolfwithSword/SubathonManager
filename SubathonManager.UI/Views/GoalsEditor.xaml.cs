@@ -98,7 +98,8 @@ namespace SubathonManager.UI.Views
                     Text = goal.Points.ToString(),
                     Width = 80,
                     Margin = new Thickness(0, 0, 8, 0),
-                    ToolTip = "Points/Money to achieve"
+                    ToolTip = "Points/Money to achieve",
+                    ClearButtonEnabled = false
                 };
                 pointsBox.PreviewTextInput += NumberOnly_PreviewTextInput;
                 AttachChangeHandler(pointsBox, new RoutedEventArgs());

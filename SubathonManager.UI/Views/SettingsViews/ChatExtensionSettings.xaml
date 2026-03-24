@@ -33,6 +33,7 @@
                                     x:Name="Bits2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
                         <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.80"
+                                    ClearButtonEnabled="False"
                                     x:Name="BitsModifierTextBox" Margin="8 0"/>
                         <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center" ToolTip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
                         
@@ -48,6 +49,7 @@
                                     x:Name="Beets2TextBox"/>
                         <TextBlock Margin="8 0 0 0"  Text="Points/100" ToolTip="Rounded down" Width="140" VerticalAlignment="Center"/>
                         <ui:TextBox Width="70" validation:InputValidationBehavior.IsDecimalOnly="True" Text="1" PlaceholderText="0.8"
+                                    ClearButtonEnabled="False"
                                     x:Name="BeetsModifierTextBox" Margin="8 0"/>
                         <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center" ToolTip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
                         
@@ -58,6 +60,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     PlaceholderText="100"
+                                    ClearButtonEnabled="False"
                                     Height="34"
                                     FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
                                     validation:InputValidationBehavior.IsNumberOnly="True" x:Name="SimulateBlerpAmt"/>

@@ -56,8 +56,32 @@ public static class SubathonEventSourceHelper
         {
             SubathonEventSource.Blerp => "Chat Extensions",
             SubathonEventSource.Command or SubathonEventSource.Unknown => "Misc",
-            SubathonEventSource.StreamElements or SubathonEventSource.StreamLabs => "Stream Extension",
+            SubathonEventSource.StreamElements or SubathonEventSource.StreamLabs => "Stream Extensions",
             _ => $"{source}"
+        };
+    }
+
+    public static int GetGroupLabelOrder(this SubathonEventSource source)
+    {
+        return source switch
+        {
+            // Streaming Services
+            SubathonEventSource.Twitch => 10,
+            SubathonEventSource.YouTube => 11,
+            SubathonEventSource.Picarto => 12,
+            // Stream Extensions
+            SubathonEventSource.StreamElements => 20,
+            SubathonEventSource.StreamLabs => 21,
+            // Chat Extensions
+            SubathonEventSource.Blerp => 30,
+            // Solo
+            SubathonEventSource.KoFi => 40,
+            SubathonEventSource.GoAffPro => 50,
+            SubathonEventSource.External => 60,
+            // Misc
+            SubathonEventSource.Command => 100,
+            SubathonEventSource.Unknown => 101,
+            _ => 199
         };
     }
 }

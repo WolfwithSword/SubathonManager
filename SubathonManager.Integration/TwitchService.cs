@@ -20,6 +20,7 @@ using SubathonManager.Services;
 using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
@@ -766,7 +767,7 @@ public class TwitchService : IDisposable, IAppService
         Guid.TryParse(eventMeta!.MessageId, out var mId);
         if (mId == Guid.Empty) mId = Guid.NewGuid();
         var user = e.Payload.Event.UserName;
-        if (string.IsNullOrWhiteSpace(user))
+        if (e.Payload.Event.IsAnonymous || string.IsNullOrWhiteSpace(user))
             user = "Anonymous";
         SubathonEvent subathonEvent = new SubathonEvent
         {
@@ -831,13 +832,15 @@ public class TwitchService : IDisposable, IAppService
     {
         var eventMeta = e.Metadata as WebsocketEventSubMetadata;
         Guid.TryParse(eventMeta!.MessageId, out var mId);
+        var user = e.Payload.Event.UserName;
+        if (string.IsNullOrWhiteSpace(user)) user = "Anonymous";
         if (mId == Guid.Empty) mId = Guid.NewGuid();
         SubathonEvent subathonEvent = new SubathonEvent
         {
             Id = mId,
             Source = SubathonEventSource.Twitch,
             EventType = SubathonEventType.TwitchCheer,
-            User = e.Payload.Event.UserName,
+            User = user,
             Currency = "bits",
             Value = e.Payload.Event.Bits.ToString(),
             EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()

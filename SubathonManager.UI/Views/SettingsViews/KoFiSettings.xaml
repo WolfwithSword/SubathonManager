@@ -50,6 +50,7 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 FontSize="12"
+                                ClearButtonEnabled="False"
                                 Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
                                 validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateKFTipAmountBox"/>
                     

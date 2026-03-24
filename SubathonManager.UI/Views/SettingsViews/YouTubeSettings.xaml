@@ -43,6 +43,7 @@
                         <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
+                                    ClearButtonEnabled="False"
                                     PlaceholderText="10.00"  Height="34"
                                     FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
                                     validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateSCAmt"/>
