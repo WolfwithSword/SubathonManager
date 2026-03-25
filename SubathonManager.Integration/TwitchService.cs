@@ -343,7 +343,12 @@ public class TwitchService : IDisposable, IAppService
         try
         {
             _chat.Initialize(credentials, channel: UserName);
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+            await Task.Run(async () =>
+            {
+                await Task.Delay(1000);
+                IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+            }); 
+            _logger?.LogDebug("[Twitch] Authenticated Chat as {UserName}", UserName);
         }
         catch (Exception ex)
         {
@@ -572,6 +577,11 @@ public class TwitchService : IDisposable, IAppService
         _eventSubReconnect.Cts?.Cancel();
         _eventSubReconnect.Reset();
         _isConnected = true;
+        if (_chat is { IsConnected: true })
+        {
+            // eventsub disconnect can false-disconnect chat sometimes.
+            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+        }
         return Task.CompletedTask;
     }
     
@@ -962,7 +972,7 @@ public class TwitchService : IDisposable, IAppService
     {
         // api has no disconnect? 
         OnTeardown();
-        if (_chat != null) _chat.Disconnect();
+        _chat?.Disconnect();
         if (_eventSub != null) await _eventSub.DisconnectAsync();
     }
 
