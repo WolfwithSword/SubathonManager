@@ -169,7 +169,8 @@ public partial class WebServer
             event_timestamp = subathonEvent.EventTimestamp,
             reversed = subathonEvent.WasReversed,
             sub_type = subathonEvent.EventType.GetSubType().ToString(),
-            secondary_value = subathonEvent.SecondaryValue
+            secondary_value = subathonEvent.SecondaryValue,
+            type_true_source = subathonEvent.EventType.GetTypeTrueSource()
         };
         return data;
     }

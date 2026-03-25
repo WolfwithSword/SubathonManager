@@ -306,10 +306,11 @@
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                             <ui:TextBox PlaceholderText="Level" Width="100" Height="36"  Margin="8 0 2 0"
                                         validation:InputValidationBehavior.IsNumberOnly="True" FontSize="14" 
-                                        VerticalAlignment="Center"
+                                        VerticalAlignment="Center" views:SettingsProperties.ExcludeFromUnsaved="True"
                                         x:Name="HypeTrainLevel"/>
                             <ComboBox Text="Event" Width="120" Height="36" FontSize="12" 
                                       x:Name="HypeTrainTestSelection"
+                                      views:SettingsProperties.ExcludeFromUnsaved="True"
                                       VerticalAlignment="Center"
                                       SelectedIndex="0" Margin="4 0 4 0">
                                 <ComboBoxItem Content="Start"/>

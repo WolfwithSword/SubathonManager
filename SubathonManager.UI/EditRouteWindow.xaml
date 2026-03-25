@@ -376,6 +376,27 @@
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </uiUtils:CssVariableTemplateSelector.FloatTemplate>
+                                                <uiUtils:CssVariableTemplateSelector.OpacityTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <DockPanel >
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="170" 
+                                                                              VerticalAlignment="Center" Margin="0,0,2,0"
+                                                                              DockPanel.Dock="Left"/>
+                                                                <ui:TextBox x:Name="PercentBox" Width="54" Margin="2,0,0,0"
+                                                                         VerticalAlignment="Center" DockPanel.Dock="Right" ClearButtonEnabled="False"
+                                                                         Tag="{Binding}" ToolTip="{Binding Type}"
+                                                                         Loaded="OpacityBox_Loaded"/>
+                                                                <Slider x:Name="PercentSlider" Minimum="0" Maximum="1" Width="74"
+                                                                        VerticalAlignment="Center" DockPanel.Dock="Right"
+                                                                        IsSnapToTickEnabled="True" TickFrequency="0.01"
+                                                                        Tag="{Binding}" ToolTip="{Binding Type}"
+                                                                        Loaded="OpacitySlider_Loaded"/>
+                                                            </DockPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:CssVariableTemplateSelector.OpacityTemplate>
                                                 <uiUtils:CssVariableTemplateSelector.ColorTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical">

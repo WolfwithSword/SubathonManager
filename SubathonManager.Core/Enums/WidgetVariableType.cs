@@ -94,7 +94,8 @@ public enum WidgetCssVariableType
     Alignment,
     Size,
     Float,
-    Int
+    Int,
+    Opacity
 }
 
 [ExcludeFromCodeCoverage]

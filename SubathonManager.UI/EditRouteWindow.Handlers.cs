@@ -600,6 +600,52 @@ public partial class EditRouteWindow
         if (tb.Parent is not Panel parent) return null;
         return parent.Children.OfType<ComboBox>().FirstOrDefault();
     }
+    
+    
+    private void OpacitySlider_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Slider { Tag: CssVariable cssVar } slider) return;
+        if (float.TryParse(cssVar.Value, out var initial))
+            slider.Value = initial;
+
+        slider.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        {
+            slider.ValueChanged += (_, args) =>
+            {
+                var floatVal = (float)args.NewValue;
+                cssVar.Value = floatVal.ToString(CultureInfo.InvariantCulture);
+                // sync
+                if (FindPercentSiblingBox(slider) is { } tb && tb.Text != floatVal.ToString(CultureInfo.InvariantCulture))
+                    tb.Text = floatVal.ToString(CultureInfo.InvariantCulture);
+            };
+        });
+        AttachChangeHandler(sender, e);
+    }
+
+    private void OpacityBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox { Tag: CssVariable cssVar } tb) return;
+        tb.Text = float.TryParse(cssVar.Value, out var initial) ? initial.ToString(CultureInfo.InvariantCulture) : "0";
+
+        tb.PreviewTextInput += (_, ev) =>
+        {
+            var newText = tb.Text.Remove(tb.SelectionStart, tb.SelectionLength)
+                .Insert(tb.SelectionStart, ev.Text);
+            if (!float.TryParse(newText, out var val) || val < 0 || val > 1)
+                ev.Handled = true;
+        };
+
+        tb.TextChanged += (_, __) =>
+        {
+            if (string.IsNullOrWhiteSpace(tb.Text)) return;
+            if (!float.TryParse(tb.Text, out var val)) return;
+            val = Math.Clamp(val, 0, 1);
+            cssVar.Value = val.ToString(CultureInfo.InvariantCulture);
+            if (FindPercentSiblingSlider(tb) is { } slider && Math.Abs((float)slider.Value - val) > 0.001)
+                slider.Value = val;
+        };
+        AttachChangeHandler(sender, e);
+    }
 #endregion CSSHandlers  
 
 #region JSHandlers

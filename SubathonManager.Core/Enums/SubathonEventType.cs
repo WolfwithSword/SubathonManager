@@ -177,6 +177,14 @@ public static class SubathonEventTypeHelper
     
     public static bool HasNoValueConfig(this SubathonEventType? eventType) =>
         eventType.HasValue && !NoValueConfigTypes.Contains(eventType.Value);
+
+    public static string? GetTypeTrueSource(this SubathonEventType? eventType)
+    {
+        if (eventType == null) return "Unknown";
+        if (eventType == SubathonEventType.Command) return "Manual";
+        if (eventType.GetSource() == SubathonEventSource.GoAffPro) return $"{eventType.ToString()?.Replace("Order", "")}";
+        return eventType.GetSource().ToString();
+    }
     
     public static SubathonEventSource GetSource(this SubathonEventType? eventType) {
         if (!eventType.HasValue) return SubathonEventSource.Unknown;

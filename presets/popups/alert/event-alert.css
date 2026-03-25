@@ -1,0 +1,325 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=DM+Sans:wght@400;500&display=swap');
+
+:root {
+    --accent: #ffcc00;
+    --accent-glow-opacity: 0.35;
+    --dropshadow-opacity: 0.5;
+    --bg: rgba(10, 10, 14, 0.92);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255,255,255,0.65);
+    --font-display: "Outfit", sans-serif;
+    --font-body: "DM Sans", sans-serif;
+    --alert-width: 460px;
+    --sub-color: #ffcc00;
+    --giftsub-color: #ff6eb4;
+    --token-color: #00d4ff;
+    --donation-color: #4dff91;
+    --follow-color: #a78bfa;
+    --raid-color: #ff7043;
+    --order-color: #f97316;
+    --hypetrain-color: #f94216;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0;}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    /*overflow: hidden;*/
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+#alertRoot {
+    position: relative;
+    width: var(--alert-width);
+    pointer-events: none;
+    opacity: 0;
+    margin: 2px;
+    padding-top: 12px;
+}
+
+#alertRoot.in[data-anim="fade"][data-direction="top"] {
+    animation: fadeInTop 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+#alertRoot.out[data-animexit="fade"][data-directionexit="top"] {
+    animation: fadeOutTop 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+#alertRoot.in[data-anim="fade"][data-direction="bottom"] {
+    animation: fadeInBottom 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+#alertRoot.out[data-animexit="fade"][data-directionexit="bottom"] {
+    animation: fadeOutBottom 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+#alertRoot.in[data-anim="fade"][data-direction="left"] {
+    animation: fadeInLeft 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+#alertRoot.out[data-animexit="fade"][data-directionexit="left"] {
+    animation: fadeOutLeft 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+#alertRoot.in[data-anim="fade"][data-direction="right"] {
+    animation: fadeInRight 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+#alertRoot.out[data-animexit="fade"][data-directionexit="right"] {
+    animation: fadeOutRight 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+#alertRoot.in[data-anim="slide"][data-direction="top"] {
+    animation: slideInTop 0.4s ease forwards;
+}
+#alertRoot.out[data-animexit="slide"][data-directionexit="top"] {
+    animation: slideOutTop 0.3s ease forwards;
+}
+#alertRoot.in[data-anim="slide"][data-direction="bottom"] {
+    animation: slideInBottom 0.4s ease forwards;
+}
+#alertRoot.out[data-animexit="slide"][data-directionexit="bottom"] {
+    animation: slideOutBottom 0.3s ease forwards;
+}
+#alertRoot.in[data-anim="slide"][data-direction="left"] {
+    animation: slideInLeft 0.4s ease forwards;
+}
+#alertRoot.out[data-animexit="slide"][data-directionexit="left"] {
+    animation: slideOutLeft 0.3s ease forwards;
+}
+#alertRoot.in[data-anim="slide"][data-direction="right"] {
+    animation: slideInRight 0.4s ease forwards;
+}
+#alertRoot.out[data-animexit="slide"][data-directionexit="right"] {
+    animation: slideOutRight 0.3s ease forwards;
+}
+
+@keyframes fadeInTop {
+    0%   { opacity: 0; transform: translateY(-24px) scale(0.94);}
+    100% { opacity: 1; transform: translateY(0) scale(1);}
+}
+
+@keyframes fadeOutTop {
+    0%   { opacity: 1; transform: translateY(0) scale(1);}
+    100% { opacity: 0; transform: translateY(-16px) scale(0.96);}
+}
+@keyframes fadeInBottom {
+    0%   { opacity: 0; transform: translateY(24px) scale(0.94);}
+    100% { opacity: 1; transform: translateY(0) scale(1);}
+}
+
+@keyframes fadeOutBottom {
+    0%   { opacity: 1; transform: translateY(0) scale(1);}
+    100% { opacity: 0; transform: translateY(16px) scale(0.96);}
+}
+@keyframes fadeInLeft {
+    0%   { opacity: 0; transform: translateX(-24px) scale(0.94)}; 
+    100% { opacity: 1; transform: translateX(0) scale(1);}
+}
+
+@keyframes fadeOutLeft {
+    0%   { opacity: 1; transform: translateX(0) scale(1);}
+    100% { opacity: 0; transform: translateX(-16px) scale(0.96);}
+}
+@keyframes fadeInRight {
+    0%   { opacity: 0; transform: translateX(24px) scale(0.94);}
+    100% { opacity: 1; transform: translateX(0) scale(1);}
+}
+
+@keyframes fadeOutRight {
+    0%   { opacity: 1; transform: translateX(0) scale(1);}
+    100% { opacity: 0; transform: translateX(16px) scale(0.96);}
+}
+
+@keyframes slideInTop {
+    0%   { opacity: 0; transform: translateY(-100%);}
+    100% { opacity: 1; transform: translateY(0);}
+}
+
+@keyframes slideOutTop {
+    0%   { opacity: 1; transform: translateY(0);}
+    100% { opacity: 0; transform: translateY(-100%);}
+}
+@keyframes slideInBottom {
+    0%   { opacity: 0; transform: translateY(100%);}
+    100% { opacity: 1; transform: translateY(0);}
+}
+
+@keyframes slideOutBottom {
+    0%   { opacity: 1; transform: translateY(0);}
+    100% { opacity: 0; transform: translateY(100%);}
+}
+@keyframes slideInLeft {
+    0%   { opacity: 0; transform: translateX(-100%);}
+    100% { opacity: 1; transform: translateX(0);}
+}
+
+@keyframes slideOutLeft {
+    0%   { opacity: 1; transform: translateX(0);}
+    100% { opacity: 0; transform: translateX(-100%);}
+}
+@keyframes slideInRight {
+    0%   { opacity: 0; transform: translateX(100%);}
+    100% { opacity: 1; transform: translateX(0);}
+}
+
+@keyframes slideOutRight {
+    0%   { opacity: 1; transform: translateX(0);}
+    100% { opacity: 0; transform: translateX(100%);}
+}
+
+#alertRoot.in:not([data-anim]) {
+    animation: fadeInTop 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+#alertRoot.out:not([data-animexit]) {
+    animation: fadeOutTop 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+/* card */
+.alert-card {
+    background: var(--bg);
+    border: 1.5px solid var(--accent);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 14px;
+    align-items: center;
+    backdrop-filter: blur(12px);
+    box-shadow:
+            0 0 0 1px rgba(255,255,255,0.04),
+            0 8px 12px rgba(0,0,0, var(--dropshadow-opacity)),
+            0 0 16px color-mix(in srgb, var(--accent) calc(var(--accent-glow-opacity) * 100%), transparent);
+    position: relative;
+    overflow: hidden;
+}
+
+
+.alert-card::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    width: 100%;
+    height: 4px;
+    opacity: 0;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    z-index: 50;
+}
+
+#alertRoot.in .alert-card::before {
+    animation: shimmer 8s ease;
+}
+
+@keyframes shimmer {
+    0%   { left: -100%; opacity: 0;}
+    20%  { opacity: 1;}
+    50%  { left: 100%; opacity: 0;}
+}
+
+/* icon stuff */
+.alert-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08), transparent);
+    border: 1.5px solid var(--accent);
+    flex-shrink: 0;
+    box-shadow: 0 0 16px color-mix(in srgb, var(--accent) calc(var(--accent-glow-opacity) * 100%), transparent);
+    animation: iconPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes iconPop {
+    0%   { transform: scale(0.4); opacity: 0;}
+    100% { transform: scale(1); opacity: 1;}
+}
+
+.alert-icon-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 26px;
+    height: 26px;
+    transform: translate(-50%, -50%);
+}
+
+.alert-icon,
+.alert-icon-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.alert-icon {
+    color: var(--accent);
+    filter: drop-shadow(
+            0 0 6px color-mix(in srgb, var(--accent) calc(var(--accent-glow-opacity) * 100%), transparent)
+    );
+}
+
+
+.alert-icon-img {
+    object-fit: contain;
+    display: none;
+}
+
+/* text */
+.alert-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    overflow: hidden;
+}
+
+.alert-label {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    opacity: 0;
+    animation: fadeUp 0.3s ease 0.2s forwards;
+}
+
+.alert-user {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    animation: fadeUp 0.3s ease 0.28s forwards;
+    line-height: 1.15;
+}
+
+.alert-detail {
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    animation: fadeUp 0.3s ease 0.36s forwards;
+    min-height: 1.1em;
+}
+
+@keyframes fadeUp {
+    0%   { opacity: 0; transform: translateY(6px);}
+    100% { opacity: 1; transform: translateY(0);}
+}
+
+/* fancy flare cause bored */
+.alert-progress {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    transform-origin: left;
+    transform: scaleX(1);
+    border-radius: 0 0 14px 14px;
+}

@@ -13,6 +13,7 @@ public class CssVariableTemplateSelector : DataTemplateSelector
     public DataTemplate? OptionsTemplate { get; set; }
     public DataTemplate? FloatTemplate { get; set; }
     public DataTemplate? IntTemplate { get; set; }
+    public DataTemplate? OpacityTemplate { get; set; }
 
     public override DataTemplate? SelectTemplate(object? item, DependencyObject container)
     {
@@ -22,6 +23,7 @@ public class CssVariableTemplateSelector : DataTemplateSelector
             if (cssVar.Type == WidgetCssVariableType.Size) return SizeTemplate;
             if (cssVar.Type == WidgetCssVariableType.Int) return IntTemplate;
             if (cssVar.Type == WidgetCssVariableType.Float) return FloatTemplate;
+            if (cssVar.Type == WidgetCssVariableType.Opacity) return OpacityTemplate;
             if (cssVar.Type.GetOptions().Count > 0) return OptionsTemplate;
         }
         return DefaultTemplate;
