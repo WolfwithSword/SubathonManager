@@ -216,7 +216,7 @@ public partial class ExportOverlayDialog
             if (child.Header is StackPanel sp)
             {
                 var cb = sp.Children.OfType<CheckBox>().FirstOrDefault();
-                if (cb != null && cb.IsEnabled)
+                if (cb is { IsEnabled: true })
                     cb.IsChecked = isChecked;
             }
             SetDescendantLeaves(child, isChecked);

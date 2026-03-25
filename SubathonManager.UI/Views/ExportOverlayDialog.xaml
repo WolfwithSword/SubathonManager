@@ -75,7 +75,7 @@
                 <TextBlock TextWrapping="Wrap"
                            MaxWidth="440"
                            FontSize="12"
-                           Text="This export may not include all required files. Files referenced by hardcoded paths inside widget HTML/JS/CSS sources, or assets outside each widget's folder, may not be bundled automatically." />
+                           Text="This export may not include all required files, and may include many not required. Files referenced by hardcoded paths inside widget HTML/JS/CSS sources, or assets outside each widget's folder, may not be bundled automatically." />
             </StackPanel>
         </Border>
 
