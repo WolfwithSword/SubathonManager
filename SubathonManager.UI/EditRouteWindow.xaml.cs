@@ -188,24 +188,28 @@ public partial class EditRouteWindow
 
     private void SelectWidgetFromEvent(Guid widgetId)
     {
-        if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
-        using var db = _factory.CreateDbContext();
-        var widget = db.Widgets.Include(wX => wX.JsVariables)
-            .Include(wX => wX.CssVariables).FirstOrDefault(wX => wX.Id == widgetId);
-        Dispatcher.Invoke(() =>
+        Dispatcher.InvokeAsync(async () =>
         {
+            if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
+            await using var db = await _factory.CreateDbContextAsync();
+            var widget = await db.Widgets.Include(wX => wX.JsVariables)
+                .Include(wX => wX.CssVariables).FirstOrDefaultAsync(wX => wX.Id == widgetId);
             PopulateWidgetEditor(widget);
+            
         });
+        
     }
     
     private void PopulateWidgetEditor(Widget? widget)
     {
+        CssVarsList.ItemsSource = null;
+        JsVarsList.ItemsSource = null;
+        _editingCssVars.Clear();
         UpdateSaveButtonBorder(SaveButtonBorder, false);
         if (widget == null)
         {
             WidgetEditPanel.Visibility = Visibility.Collapsed;
             EmptyEditorPanel.Visibility = Visibility.Visible;
-            _editingCssVars = new ObservableCollection<CssVariable>();
             _selectedWidget = null;
             return;
         }
@@ -246,7 +250,7 @@ public partial class EditRouteWindow
            WidgetNameBox.Width = 315;
         }
         
-        _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
+        foreach (var v in widget.CssVariables) _editingCssVars.Add(v);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
         UpdateSaveButtonBorder(SaveButtonBorder, false);

@@ -12,8 +12,25 @@ animationDirection.StringSelect:top,bottom,left,right
 animationStyle.StringSelect:fade,slide
 exitAnimationDirection.StringSelect:top,bottom,left,right
 exitAnimationStyle.StringSelect:fade,slide
+followSound.SoundFile:NONE
+followVolume.Percent:50
+subSound.SoundFile:NONE
+subVolume.Percent:50
+giftSubSound.SoundFile:NONE
+giftSubVolume.Percent:50
+tokenSound.SoundFile:NONE
+tokenVolume.Percent:50
+raidSound.SoundFile:NONE
+raidVolume.Percent:50
+donationSound.SoundFile:NONE
+donationVolume.Percent:50
+trainSound.SoundFile:NONE
+trainVolume.Percent:50
+orderSound.SoundFile:NONE
+orderVolume.Percent:50
 END_WIDGET_META
 -->
+
 <link rel="stylesheet" href="event-alert.css">
 
 <div id="alertRoot">
@@ -94,7 +111,41 @@ END_WIDGET_META
         OrchidEightOrder: "./icons/orchideight.webp"
     }
 
+    const SOUND_CONFIG = {
+        SubLike:      { file: () => subSound,      volume: () => subVolume },
+        DonationLike: { file: () => donationSound, volume: () => donationVolume },
+        GiftSubLike:  { file: () => giftSubSound,  volume: () => giftSubVolume },
+        FollowLike:   { file: () => followSound,   volume: () => followVolume },
+        TrainLike:    { file: () => trainSound,    volume: () => trainVolume },
+        RaidLike:     { file: () => raidSound,     volume: () => raidVolume },
+        OrderLike:    { file: () => orderSound,    volume: () => orderVolume },
+        TokenLike:    { file: () => tokenSound,    volume: () => tokenVolume }
+    };
+
+    const soundCache = {};
     /////////////////////
+    function playEventSound(sub) {
+        const config = SOUND_CONFIG[sub];
+        if (!config) return;
+
+        const soundFile = config.file?.();
+        const soundVolume = config.volume?.() ?? 50;
+
+        if (!soundFile) return;
+
+        let audio = soundCache[soundFile];
+        if (!audio) {
+            audio = new Audio(soundFile);
+            soundCache[soundFile] = audio;
+        }
+
+        const player = audio.paused ? audio : audio.cloneNode();
+
+        player.currentTime = 0;
+        player.volume = soundVolume / 100;
+        player.play().catch(() => {});
+    }
+    
     function buildDetail(data) {
         const sub = data.sub_type;
         let value = data.value ?? "";
@@ -209,6 +260,7 @@ END_WIDGET_META
 
         if (hideTimer) clearTimeout(hideTimer);
         hideTimer = setTimeout(hideAlert, displayMs);
+        playEventSound(data.sub_type);
     }
 
     function hideAlert() {
@@ -240,6 +292,19 @@ END_WIDGET_META
         queue.push(data);
         processQueue();
     }
+
+    function preloadSounds() {
+        Object.values(SOUND_CONFIG).forEach(cfg => {
+            const file = cfg.file?.();
+            if (file && !soundCache[file]) {
+                const audio = new Audio(file);
+                audio.preload = "auto";
+                soundCache[file] = audio;
+            }
+        });
+    }
+    
+    preloadSounds();
 
     if (typeof animationDirection !== "undefined") {
         root.dataset.direction = animationDirection;

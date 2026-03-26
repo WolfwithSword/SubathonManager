@@ -120,7 +120,9 @@ public partial class EditRouteWindow
             .FirstOrDefault(wX => wX.Id == _selectedWidget.Id);
         _selectedWidget = widget;
         
-        _editingCssVars = new ObservableCollection<CssVariable>(_selectedWidget!.CssVariables);
+        CssVarsList.ItemsSource = null;
+        _editingCssVars.Clear();
+        foreach (var v in _selectedWidget!.CssVariables) _editingCssVars.Add(v);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
     }
@@ -164,9 +166,10 @@ public partial class EditRouteWindow
             foreach(var cssVar in _selectedWidget.CssVariables)
                 _editingCssVars.Add(cssVar);
 
-            await LoadRouteAsync();
+            // await LoadRouteAsync();
             RefreshWebView();
-
+            var listEntry = _widgets.FirstOrDefault(wi => wi.Id == _selectedWidget.Id);
+            if (listEntry != null) listEntry.Name = _selectedWidget.Name;
             WidgetsList.Items.Refresh();
             OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
             
@@ -522,7 +525,7 @@ public partial class EditRouteWindow
     private void Value_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_suppressCount > 0) return;
-        Dispatcher.Invoke( () => UpdateSaveButtonBorder(SaveButtonBorder, true));
+        UpdateSaveButtonBorder(SaveButtonBorder, true);
     }
     
     
@@ -576,11 +579,9 @@ public partial class EditRouteWindow
 
     private void SizeUnitBox_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is ComboBox cb)
-        {
-            cb.SelectionChanged += SizeUnitBox_SelectionChanged;
-            AttachChangeHandler(sender, e);
-        }
+        if (sender is not ComboBox cb) return;
+        cb.SelectionChanged += SizeUnitBox_SelectionChanged;
+        AttachChangeHandler(sender, e);
     }
     
     private void SizeUnitBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -608,17 +609,15 @@ public partial class EditRouteWindow
         if (float.TryParse(cssVar.Value, out var initial))
             slider.Value = initial;
 
-        slider.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+        void OpacitySliderValueChanged(object o, RoutedPropertyChangedEventArgs<double> args)
         {
-            slider.ValueChanged += (_, args) =>
-            {
-                var floatVal = (float)args.NewValue;
-                cssVar.Value = floatVal.ToString(CultureInfo.InvariantCulture);
-                // sync
-                if (FindPercentSiblingBox(slider) is { } tb && tb.Text != floatVal.ToString(CultureInfo.InvariantCulture))
-                    tb.Text = floatVal.ToString(CultureInfo.InvariantCulture);
-            };
-        });
+            var floatVal = (float)args.NewValue;
+            cssVar.Value = floatVal.ToString(CultureInfo.InvariantCulture);
+            if (FindPercentSiblingBox(slider) is { } tb && tb.Text != floatVal.ToString(CultureInfo.InvariantCulture))
+                tb.Text = floatVal.ToString(CultureInfo.InvariantCulture);
+        }
+        
+        slider.ValueChanged += OpacitySliderValueChanged;
         AttachChangeHandler(sender, e);
     }
 
@@ -653,11 +652,19 @@ public partial class EditRouteWindow
     private void JsBoolBox_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox { Tag: JsVariable jsVar } cb) return;
-        cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+
+        void BoxChecked(object o, RoutedEventArgs routedEventArgs)
         {
-            cb.Checked += (_, __) => jsVar.Value = "True";
-            cb.Unchecked += (_, __) => jsVar.Value = "False";
-        });
+            jsVar.Value = "True";
+        }
+
+        void BoxUnchecked(object o, RoutedEventArgs routedEventArgs)
+        {
+            jsVar.Value = "False";
+        }
+        
+        cb.Checked += BoxChecked;
+        cb.Unchecked += BoxUnchecked;
         AttachChangeHandler(sender, e);
     }
 
@@ -779,6 +786,7 @@ public partial class EditRouteWindow
     private void JsEventTypeList_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+        if (expander.Content != null) return; 
 
         var panelValues = (jsVar.Value ?? "").Split(',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -824,6 +832,7 @@ public partial class EditRouteWindow
     private void JsEventSubTypeList_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+        if (expander.Content != null) return; 
 
         var panelValues = (jsVar.Value ?? "").Split(',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -895,6 +904,7 @@ public partial class EditRouteWindow
     private void JsFilteredEventTypeList_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+        if (expander.Content != null) return; 
 
         var allowedTypes = jsVar.Type.GetFilteredEventTypes().ToHashSet();
 
