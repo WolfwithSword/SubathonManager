@@ -177,10 +177,8 @@ namespace SubathonManager.Data
 
             events = events.Where(e => e.EventType != null && 
                                        (e.EventType.IsCurrencyDonation() ||
-                                        (e.EventType.IsOrderType() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
-                                        (includeBits &&
-                                         SubathonEventTypeHelper.CheerTypes.Contains
-                                             ((SubathonEventType)e.EventType)))).ToList();
+                                        (e.EventType.IsOrder() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
+                                        (includeBits && e.EventType.IsToken()))).ToList();
             return events;
         }
 

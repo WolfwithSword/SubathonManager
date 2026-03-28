@@ -45,13 +45,13 @@ public partial class WebhookLogSettings : SettingsControl
         var config = AppServices.Provider.GetRequiredService<IConfig>();
 
         var rawGroups = Enum.GetValues<SubathonEventType>()
-            .Where(e => ((SubathonEventType?)e).IsEnabled())
-            .GroupBy(e => ((SubathonEventType?)e).GetSource().GetGroupLabel())
-            .OrderBy(g => g.Min(e => ((SubathonEventType?)e).GetSource().GetGroupLabelOrder()))
+            .Where(e => e.IsEnabled())
+            .GroupBy(e => e.GetSource().GetGroupLabel())
+            .OrderBy(g => g.Min(e => e.GetSource().GetGroupLabelOrder()))
             .Select(g => (
                 Label: g.Key,
                 BySource: g
-                    .GroupBy(e => ((SubathonEventType?)e).GetSource())
+                    .GroupBy(e => e.GetSource())
                     .OrderBy(sg => sg.Key.GetGroupLabelOrder())
                     .Select(sg => (
                         SourceName: sg.Key.GetDescription(),
@@ -78,7 +78,7 @@ public partial class WebhookLogSettings : SettingsControl
                     bool isChecked = config.GetBool("Discord", $"Events.Log.{eventType}", false);
                     var cb = new CheckBox
                     {
-                        Content = eventType.ToString(),
+                        Content = ((SubathonEventType?)eventType).GetLabel(),
                         IsChecked = isChecked,
                         Margin = new Thickness(0, 4, 8, 4),
                         VerticalAlignment = VerticalAlignment.Center,

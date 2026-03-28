@@ -69,7 +69,8 @@ public partial class CommandsSettings : SettingsControl
             
             TextBlock enumType = new TextBlock
             {
-                Text = commandType.ToString(),
+                Text = commandType.GetDescription(),
+                Tag = commandType,
                 Width = 200,
                 Margin = new Thickness(0, 0, 30, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -137,7 +138,7 @@ public partial class CommandsSettings : SettingsControl
         {
             if (child is not StackPanel entry) continue;
             if (entry.Children[0] is not TextBlock enumType) continue;
-            string key = $"Commands.{enumType.Text}";
+            string key = $"Commands.{enumType.Tag}";
                         
             if (entry.Children[1] is TextBox enumName)
             {

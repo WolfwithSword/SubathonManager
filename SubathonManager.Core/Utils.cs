@@ -200,7 +200,7 @@ public static class Utils
     public static (bool, double) GetAltCurrencyUseAsDonation(IConfig config, SubathonEventType? eventType)
     {
         double modifier = 1;
-        if (!eventType.IsCheerType())
+        if (!eventType.IsToken())
             return (false, 1);
         if (eventType != SubathonEventType.TwitchCheer && eventType != SubathonEventType.PicartoTip)
         {

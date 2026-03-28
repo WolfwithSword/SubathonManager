@@ -133,7 +133,7 @@ public class SettingsGroupControl : SettingsControl
 
     public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
     {
-        var source = ((SubathonEventType?)(val.EventType)).GetSource();
+        var source = val.EventType.GetSource();
         var control = GetSettingsControl(source);
         return control?.GetValueBoxes(val) ?? ("", "", null, null);
     }

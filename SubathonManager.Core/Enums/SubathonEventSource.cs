@@ -6,105 +6,48 @@ namespace SubathonManager.Core.Enums;
 public enum SubathonEventSource
 {
     // some may not actually be event sources in the future, but also integration sources
-    [Description("Twitch")]
+    [EventSourceMeta(Description = "Twitch", SourceGroup = SubathonSourceGroup.Stream, SourceOrder=1, Order=10)]
     Twitch,
-    [Description("StreamElements")]
+    [EventSourceMeta(Description = "StreamElements", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=21, Order=20)]
     StreamElements,
-    [Description("KoFi")]
+    [EventSourceMeta(Description = "KoFi", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=41, Order=40)]
     KoFi,
-    [Description("YouTube")]
+    [EventSourceMeta(Description = "YouTube", SourceGroup = SubathonSourceGroup.Stream, SourceOrder=2, Order=11)]
     YouTube,
-    [Description("Commands")]
+    [EventSourceMeta(Description = "Commands", SourceGroup = SubathonSourceGroup.Misc, SourceOrder=2000, Order=100)]
     Command, // can be from any chat
-    [Description("Simulated")]
+    [EventSourceMeta(Description = "Simulated", SourceOrder=8000, Order=199)]
     Simulated, // buttons to test in UI?
-    [Description("Unknown")]
+    [EventSourceMeta(Description = "Unknown", SourceGroup=SubathonSourceGroup.Misc, SourceOrder=9000, Order=101)]
     Unknown, // default
-    [Description("StreamLabs")]
+    [EventSourceMeta(Description = "StreamLabs", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=22, Order=21)]
     StreamLabs,
-    [Description("Generic External Services")]
+    [EventSourceMeta(Description = "Generic External Services", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=1000, Order=99)]
     External,
-    [Description("Blerp")]
+    [EventSourceMeta(Description = "Blerp", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=81, Order=30)]
     Blerp,
-    [Description("Picarto")]
+    [EventSourceMeta(Description = "Picarto", SourceGroup = SubathonSourceGroup.Stream, SourceOrder=3, Order=12)]
     Picarto,
-    [Description("GoAffPro Affiliate Stores")]
+    [EventSourceMeta(Description = "GoAffPro Affiliate Stores", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=61, Order=50)]
     GoAffPro
 }
 
 [ExcludeFromCodeCoverage]
 public static class SubathonEventSourceHelper
 {
-    private static readonly List<SubathonEventSource> SourceOrder =
-    [
-        SubathonEventSource.Twitch,
-        SubathonEventSource.YouTube,
-        SubathonEventSource.Picarto,
-        SubathonEventSource.StreamElements,
-        SubathonEventSource.StreamLabs,
-        SubathonEventSource.KoFi,
-        SubathonEventSource.GoAffPro,
-        SubathonEventSource.Blerp
-    ];
-
-    private static readonly List<SubathonEventSource> SourceOrderEnd =
-    [
-        SubathonEventSource.External, SubathonEventSource.Command
-    ];
-
-    public static int GetSourceOrder(SubathonEventSource source)
+    public static int GetSourceOrder(SubathonEventSource source) => ((SubathonEventSource?)source).Meta()?.SourceOrder ?? 99999;
+    
+    private static EventSourceMetaAttribute? Meta(this SubathonEventSource? value)
     {
-        var idx = SourceOrder.IndexOf(source);
-        if (idx >= 0) return idx;
-
-        var endIdx = SourceOrderEnd.IndexOf(source);
-        if (endIdx >= 0) return SourceOrder.Count + 1000 + endIdx;
-
-        return SourceOrder.Count + endIdx;
+        if (!value.HasValue) return null;
+        var meta = EnumMetaCache.Get<EventSourceMetaAttribute>(value);
+        return meta;
     }
 
-    public static SubathonSourceGroup GetGroup(this SubathonEventSource source)
-    {
-        return source switch
-        {
-            SubathonEventSource.Blerp => SubathonSourceGroup.StreamExtension,
-            SubathonEventSource.Command or SubathonEventSource.Unknown => SubathonSourceGroup.Misc,
-            SubathonEventSource.StreamElements or SubathonEventSource.StreamLabs => SubathonSourceGroup.StreamExtension,
-            SubathonEventSource.Twitch or SubathonEventSource.YouTube or SubathonEventSource.Picarto => SubathonSourceGroup.Stream,
-            SubathonEventSource.KoFi or  SubathonEventSource.GoAffPro or SubathonEventSource.External => SubathonSourceGroup.ExternalService,
-            _ => SubathonSourceGroup.UseSource
-        };
-    }
+    public static SubathonSourceGroup GetGroup(this SubathonEventSource source) =>
+        ((SubathonEventSource?)source).Meta()?.SourceGroup ?? SubathonSourceGroup.Unknown;
 
-    public static string GetGroupLabel(this SubathonEventSource source)
-    {
-        var group = source.GetGroup();
-        return group is SubathonSourceGroup.UseSource or SubathonSourceGroup.Unknown
-            ? $"{source}"
-            : group.GetDescription();
-    }
-
-    public static int GetGroupLabelOrder(this SubathonEventSource source)
-    {
-        return source switch
-        {
-            // Streaming Services
-            SubathonEventSource.Twitch => 10,
-            SubathonEventSource.YouTube => 11,
-            SubathonEventSource.Picarto => 12,
-            // Stream Extensions
-            SubathonEventSource.StreamElements => 20,
-            SubathonEventSource.StreamLabs => 21,
-            // Chat Extensions (Still stream extensions
-            SubathonEventSource.Blerp => 30,
-            // Solo
-            SubathonEventSource.KoFi => 40,
-            SubathonEventSource.GoAffPro => 50,
-            SubathonEventSource.External => 99,
-            // Misc
-            SubathonEventSource.Command => 100,
-            SubathonEventSource.Unknown => 101,
-            _ => 199
-        };
-    }
+    public static string GetGroupLabel(this SubathonEventSource source) => ((SubathonEventSource?)source).Meta()?.Label ?? source.ToString();
+    
+    public static int GetGroupLabelOrder(this SubathonEventSource source) => ((SubathonEventSource?)source).Meta()?.Order ?? 99999;
 }

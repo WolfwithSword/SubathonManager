@@ -400,13 +400,13 @@ public partial class WebServer
                                 .EnumerateObject()
                                 .ToDictionary(p => p.Name, p => p.Value);
                     
-                        if (((SubathonEventType?)seType).IsCurrencyDonation() && ((SubathonEventType?)seType).IsExternalType())
+                        if (((SubathonEventType?)seType).IsCurrencyDonation() && ((SubathonEventType?)seType).IsExternal())
                         {
                             if (!socket.IntegrationSources.Contains(((SubathonEventType?)seType).GetSource()))
                                 socket.IntegrationSources.Add(((SubathonEventType?)seType).GetSource());
                             ExternalEventService.ProcessExternalDonation(data);
                         }
-                        else if (((SubathonEventType?)seType).IsSubOrMembershipType() && ((SubathonEventType?)seType).IsExternalType())
+                        else if (((SubathonEventType?)seType).IsSubscription() && ((SubathonEventType?)seType).IsExternal())
                         {
                             if (!socket.IntegrationSources.Contains(((SubathonEventType?)seType).GetSource()))
                                 socket.IntegrationSources.Add(((SubathonEventType?)seType).GetSource());

@@ -4,18 +4,18 @@ namespace SubathonManager.Core.Enums;
 
 public enum SubathonSourceGroup
 {
-    [Description("Unknown")]
+    [EnumMeta(Description="Unknown", Label="Unknown")]
     Unknown,
-    [Description("Stream Services")]
+    [EnumMeta(Description="Stream Services", Label="Stream Services")]
     Stream,
-    [Description("Stream Extensions")]
+    [EnumMeta(Description="Stream Extensions", Label="Stream Extensions")]
     StreamExtension,
     // [Description("Chat Extension")]
     // ChatExtension,
-    [Description("Misc")]
+    [EnumMeta(Description="Misc", Label="Misc")]
     Misc,
-    [Description("External Services")]
+    [EnumMeta(Description="External Services", Label="External Services")]
     ExternalService,
-    [Description("")]
+    [EnumMeta(Label="")]
     UseSource
 }

@@ -340,7 +340,7 @@ public partial class App
         foreach (var e in events)
         {
             (bool isBitsLike, double modifier) = Utils.GetAltCurrencyUseAsDonation(config, e.EventType);
-            if (e.EventType.IsCheerType() && isBitsLike)
+            if (e.EventType.IsToken() && isBitsLike)
             {
                 bits += (int.Parse(e.Value) * modifier);
                 continue;
@@ -348,7 +348,7 @@ public partial class App
             if (string.IsNullOrWhiteSpace(e.Currency)) continue;
             var value = e.Value;
             var curr = e.Currency;
-            if (e.EventType.IsOrderType())
+            if (e.EventType.IsOrder())
             {
                 value = e.SecondaryValue.Split('|')[0];
                 curr = e.SecondaryValue.Split('|')[1];

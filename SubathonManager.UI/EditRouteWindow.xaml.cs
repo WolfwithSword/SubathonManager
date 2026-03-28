@@ -331,7 +331,7 @@ public partial class EditRouteWindow
     {
         var selected = GetAllCheckBoxes(container)
             .Where(c => c.IsChecked == true)
-            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Text)
+            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Tag)
             .ToList();
         variable.Value = string.Join(',', selected);
     }

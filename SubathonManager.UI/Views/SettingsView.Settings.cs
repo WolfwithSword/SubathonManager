@@ -225,7 +225,7 @@ namespace SubathonManager.UI.Views
                 
                 TextBox? box = null;
                 TextBox? box2 = null;
-                var source = ((SubathonEventType?)val.EventType).GetSource();
+                var source = val.EventType.GetSource();
                 if (source.GetGroup() == SubathonSourceGroup.Stream)
                 {
                     

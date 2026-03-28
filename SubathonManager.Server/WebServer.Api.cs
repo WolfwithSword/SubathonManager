@@ -130,11 +130,11 @@ public partial class WebServer
         {
             success = ExternalEventService.ProcessExternalCommand(data);
         }
-        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternalType())
+        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternal())
         {
             success = ExternalEventService.ProcessExternalDonation(data);
         }
-        else if (((SubathonEventType?)type).IsSubOrMembershipType() && ((SubathonEventType?)type).IsExternalType())
+        else if (((SubathonEventType?)type).IsSubscription() && ((SubathonEventType?)type).IsExternal())
         {
             success = ExternalEventService.ProcessExternalSub(data);
         }
@@ -310,7 +310,7 @@ public partial class WebServer
                         }
                     );
             }
-            else if (g.Key.IsSubOrMembershipType())
+            else if (g.Key.IsSubscription())
             {
                 result[key] = g.GroupBy(e => NormalizeTier(e.Value))
                     .ToDictionary(
@@ -318,11 +318,11 @@ public partial class WebServer
                         t => t.Sum(x => x.Amount)
                     );
             }
-            else if (g.Key.IsCheerType())
+            else if (g.Key.IsToken())
             {
                 result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
             }
-            else if (g.Key.IsOrderType())
+            else if (g.Key.IsOrder())
             {
                 var breakdown = g
                     .Where(e => !string.IsNullOrWhiteSpace(e.Currency))  

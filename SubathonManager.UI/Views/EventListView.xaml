@@ -17,6 +17,7 @@
         <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter"/>
         <conv:AmountFormatConverter x:Key="AmountFormatConverter"/>
         <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter"/>
+        <conv:EnumDescriptionConverter x:Key="EnumDescriptionConverter"/>
         <Style x:Key="NoHoverOverlayButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource SolidOverlayButtonColor}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
@@ -133,7 +134,7 @@
                                             <ColumnDefinition Width="200"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding EventType}" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
+                                        <TextBlock Grid.Column="0" Text="{Binding EventType, Converter={StaticResource EnumDescriptionConverter}}" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
                                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1" Text="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedTextConverter}}"
                                                    Foreground="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedColorConverter}}"

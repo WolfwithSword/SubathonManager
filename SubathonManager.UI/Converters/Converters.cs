@@ -40,6 +40,7 @@ namespace SubathonManager.UI.Converters
             {
                 return type.IsControlTypeCommand() ? Visibility.Hidden : Visibility.Visible;
             }
+
             return Visibility.Visible;
         }
 
@@ -52,7 +53,7 @@ namespace SubathonManager.UI.Converters
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             bool b = value as bool? ?? false;
-            return b ?  Visibility.Collapsed : Visibility.Visible;
+            return b ? Visibility.Collapsed : Visibility.Visible;
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -65,13 +66,14 @@ namespace SubathonManager.UI.Converters
         {
             if (value is SubathonCommandType type)
             {
-                return type is SubathonCommandType.None or SubathonCommandType.Unknown 
-                    ? Visibility.Visible : Visibility.Collapsed;
+                return type is SubathonCommandType.None or SubathonCommandType.Unknown
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
             }
 
             return Visibility.Visible;
         }
-        
+
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
@@ -81,15 +83,15 @@ namespace SubathonManager.UI.Converters
         public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
             if (values[0] is not int amount) return string.Empty;
-            if (values[1] is SubathonEventType eventType && ((SubathonEventType?)eventType).IsOrderType())
+            if (values[1] is SubathonEventType eventType && ((SubathonEventType?)eventType).IsOrder())
                 return $"(x{amount} items)";
             return $"x{amount}";
         }
 
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) 
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
-    
+
     public class GreaterThanOneToVisibilityConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -98,6 +100,7 @@ namespace SubathonManager.UI.Converters
             if (value is int i) return i > 1 ? Visibility.Visible : Visibility.Collapsed;
             return Visibility.Collapsed;
         }
+
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
@@ -110,6 +113,7 @@ namespace SubathonManager.UI.Converters
             if (value is int i) return i > 0 ? Visibility.Visible : Visibility.Collapsed;
             return Visibility.Collapsed;
         }
+
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
@@ -120,7 +124,7 @@ namespace SubathonManager.UI.Converters
         {
             if (values.Length == 0) return null;
             if (values.Length < 3) return values[0];
-            
+
             var val = values[0]?.ToString();
             var type = "";
             var curr = values[2]?.ToString() ?? "";
@@ -128,8 +132,8 @@ namespace SubathonManager.UI.Converters
             {
                 type = eventType == SubathonEventType.TwitchRaid ? "viewers" : curr;
             }
-            
-            
+
+
             if (curr == "sub")
             {
                 val = val switch
@@ -143,10 +147,11 @@ namespace SubathonManager.UI.Converters
 
             return string.IsNullOrEmpty(type.Trim()) ? val! : $"{val} {type}";
         }
+
         public object[] ConvertBack(object value, Type[] targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
-    
+
     public partial class CssColorStringToColorConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -166,7 +171,7 @@ namespace SubathonManager.UI.Converters
                         : (byte)255;
                     return Color.FromArgb(a, r, g, b);
                 }
-            
+
                 return (Color)ColorConverter.ConvertFromString(str);
             }
             catch
@@ -183,13 +188,15 @@ namespace SubathonManager.UI.Converters
                     return $"#{c.R:X2}{c.G:X2}{c.B:X2}";
                 return $"rgba({c.R},{c.G},{c.B},{c.A / 255.0:F2})";
             }
+
             return string.Empty;
         }
 
-        [GeneratedRegex(@"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)", RegexOptions.IgnoreCase, "en-CA")]
+        [GeneratedRegex(@"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)", RegexOptions.IgnoreCase,
+            "en-CA")]
         private static partial Regex IsRgbaColourParseRegex();
     }
-    
+
     public class CssVariableTypeOptionsConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -202,7 +209,7 @@ namespace SubathonManager.UI.Converters
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
-    
+
     public partial class CssSizeValueConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -214,6 +221,7 @@ namespace SubathonManager.UI.Converters
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
+
         [GeneratedRegex(@"^-?[\d.]+")]
         private static partial Regex IsNumberRegex();
     }
@@ -229,11 +237,11 @@ namespace SubathonManager.UI.Converters
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
-        
+
         [GeneratedRegex(@"[a-zA-Z%]+$")]
         private static partial Regex SizeUnitRegex();
     }
-    
+
     public class NullOrEmptyToNullConverter : IValueConverter
     {
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -242,12 +250,27 @@ namespace SubathonManager.UI.Converters
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
-    
+
     public class StringToBoolConverter : IValueConverter
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
             => bool.TryParse(value as string, out var b) && b;
+
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => (value is bool ? value.ToString() : "False") ?? "False";
+    }
+
+    public class EnumDescriptionConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is Enum e)
+                return EnumMetaCache.Get<EnumMetaAttribute>(e)?.Description ?? e.ToString();
+
+            return value?.ToString() ?? "";
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 }

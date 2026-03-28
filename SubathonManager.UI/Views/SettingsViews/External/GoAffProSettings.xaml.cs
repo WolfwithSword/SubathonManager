@@ -61,7 +61,7 @@ public partial class GoAffProSettings : SettingsControl
                 
                 var navBtn = new Wpf.Ui.Controls.Button
                 {
-                    Content = source.ToString(),
+                    Content = source.GetDescription(),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(0, 1, 0, -12),
@@ -81,6 +81,16 @@ public partial class GoAffProSettings : SettingsControl
                 {
                     SelectGroup(source.ToString());
                 }
+            }
+        });
+
+        Dispatcher.InvokeAsync(async () =>
+        {
+            await Task.Delay(5000);
+            foreach (var source in _sources)
+            {
+                SetNavButtonStatus(source,
+                    Utils.GetConnection(SubathonEventSource.GoAffPro, source.ToString()).Status);
             }
         });
     }
@@ -125,8 +135,18 @@ public partial class GoAffProSettings : SettingsControl
 
         _sourceControls.TryGetValue(goAffProSource, out var control);
         control?.UpdateStatus(connection.Status, connection.Name);
+        SetNavButtonStatus(goAffProSource, connection.Status);
     }
 
+    private void SetNavButtonStatus(GoAffProSource source, bool status)
+    {
+        var btn = SourceList?.Children
+            .OfType<Wpf.Ui.Controls.Button>()
+            .FirstOrDefault(b => Equals(b.Tag, source.ToString()));
+        if (btn == null) return;
+        btn.Opacity = status ? 1.0 : 0.6;
+    }
+    
     protected internal override void LoadValues(AppDbContext db)
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -237,7 +257,6 @@ public partial class GoAffProSettings : SettingsControl
             {
                 return;
             }
-            _sourceControls.Values.ToList().ForEach(c => c.StrikeThrough());
             await ServiceManager.GoAffPro.StartAsync();
         }
         catch (Exception ex)

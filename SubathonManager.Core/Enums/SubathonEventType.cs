@@ -3,34 +3,68 @@ namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventType
 {
+    [EventTypeMeta(Label="Subscription", Source=SubathonEventSource.Twitch, IsSubscription = true, Order = 1)]
     TwitchSub, // remember subs can be of Value: 1000, 2000, 3000, Prime iirc... damnit looks like the TwitchLib doesnt separate Prime??
+    [EventTypeMeta(Label="Bits", Source=SubathonEventSource.Twitch, IsToken = true, Order = 3)]
     TwitchCheer, // remember 100 is 1$, either in UI we say per 100 bits and divide, or we make em divide
+    [EventTypeMeta(Label="Gift Subscription", Source=SubathonEventSource.Twitch, IsGift = true, Order = 2)]
     TwitchGiftSub,
+    [EventTypeMeta(Label="Raid", Source=SubathonEventSource.Twitch, IsRaid = true, Order = 5)]
     TwitchRaid,
+    [EventTypeMeta(Label="Follow", Source=SubathonEventSource.Twitch, IsFollow = true, Order = 4)]
     TwitchFollow,
+    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.StreamElements, IsCurrencyDonation = true, Order = 1)]
     StreamElementsDonation,
+    
+    [EventTypeMeta(Label="Commands", Source=SubathonEventSource.Command, HasValueConfig = false, IsCommand = true, IsOther = true, Order =1)]
     Command, // from any chat or ui
+    [EventTypeMeta(Label="Unknown", Source=SubathonEventSource.Unknown, HasValueConfig = false, IsOther = true, Order =1)]
     Unknown,
+    
+    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.StreamLabs, IsCurrencyDonation = true, Order =2)]
     StreamLabsDonation,
+    
+    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.YouTube, IsMembership = true, Order =1)]
     YouTubeMembership,
+    [EventTypeMeta(Label="Gift Membership", Source=SubathonEventSource.YouTube, IsMembership = true, IsGift = true, Order =2)]
     YouTubeGiftMembership,
+    [EventTypeMeta(Label="SuperChat", Source=SubathonEventSource.YouTube, IsCurrencyDonation = true, Order =3)]
     YouTubeSuperChat,
+    [EventTypeMeta(Label="Hype Train", Source=SubathonEventSource.Twitch, IsTrain = true, HasValueConfig = false, Order = 6)]
     TwitchHypeTrain, // value is start, progress, end. Alt type event. Amount is level.
+    
+    [EventTypeMeta(Label="Charity Donation", Source=SubathonEventSource.Twitch, IsCurrencyDonation = true, Order = 7)]
     TwitchCharityDonation,
+    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.External, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
     ExternalDonation,
+    [EventTypeMeta(Label="Subscription", Source=SubathonEventSource.External, IsSubscription = true, IsExternal = true, Order = 2)]
     ExternalSub,
+    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.KoFi, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
     KoFiDonation,
+    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.KoFi, IsMembership = true, IsExternal=true, Order = 2)]
     KoFiSub,
+    [EventTypeMeta(Label="Donation Adjustment", Source=SubathonEventSource.Command, IsCurrencyDonation = true, 
+        IsOther = true, IsCommand=true, HasValueConfig = false, Order = 1)]
     DonationAdjustment,
+    [EventTypeMeta(Label="Bits", Source=SubathonEventSource.Blerp, IsToken = true, Order = 1)]
     BlerpBits, // twitch only
+    [EventTypeMeta(Label="Beets", Source=SubathonEventSource.Blerp, IsToken = true, IsExtension=true, Order = 2)]
     BlerpBeets,
+    [EventTypeMeta(Label="Follow", Source=SubathonEventSource.Picarto, IsFollow = true, IsExtension=true, Order = 4)]
     PicartoFollow,
+    [EventTypeMeta(Label="Subscription", Source=SubathonEventSource.Picarto, IsSubscription = true, Order = 1)]
     PicartoSub,
+    [EventTypeMeta(Label="Gift Subscription", Source=SubathonEventSource.Picarto, IsGift = true, Order = 2)]
     PicartoGiftSub,
+    [EventTypeMeta(Label="Kudos Tip", Source=SubathonEventSource.Picarto, IsToken = true, Order = 3)]
     PicartoTip,
+    [GoAffProTypeMetaAttribute(Label="GamerSupps Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 1, StoreSource = GoAffProSource.GamerSupps)]
     GamerSuppsOrder,
+    [GoAffProTypeMetaAttribute(Label="UwUMarket Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 2, StoreSource = GoAffProSource.UwUMarket)]
     UwUMarketOrder,
+    [GoAffProTypeMetaAttribute(Label="Orchid Eight Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 3, StoreSource = GoAffProSource.OrchidEight)]
     OrchidEightOrder,
+    [GoAffProTypeMetaAttribute(Label="KatDragonz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 4, StoreSource = GoAffProSource.KatDragonz)]
     KatDragonzOrder
     // any new must be added after the last
 }
@@ -38,199 +72,80 @@ public enum SubathonEventType
 [ExcludeFromCodeCoverage]
 public static class SubathonEventTypeHelper
 {
-    private static readonly SubathonEventType[] DisabledEvents =
-    [
-       // SubathonEventType.KatDragonzOrder
-    ];
+
+    private static EventTypeMetaAttribute? Meta(this SubathonEventType? value)
+    {
+        if (!value.HasValue) return null;
+        var meta = EnumMetaCache.Get<EventTypeMetaAttribute>(value);
+        if (meta?.Source == SubathonEventSource.GoAffPro)
+            return GoAffProMeta(value);
+        return meta;
+    }
     
-    private static readonly SubathonEventType[] CurrencyDonationEvents =
-    [
-        SubathonEventType.YouTubeSuperChat,
-        SubathonEventType.StreamElementsDonation,
-        SubathonEventType.StreamLabsDonation,
-        SubathonEventType.TwitchCharityDonation,
-        SubathonEventType.ExternalDonation,
-        SubathonEventType.KoFiDonation,
-        SubathonEventType.DonationAdjustment
-    ];
+    private static GoAffProTypeMetaAttribute? GoAffProMeta(this SubathonEventType? value)
+        => EnumMetaCache.Get<GoAffProTypeMetaAttribute>(value);
+
+    public static bool IsCurrencyDonation(this SubathonEventType? value)
+        => value.Meta()?.IsCurrencyDonation == true;
     
-    public static readonly SubathonEventType[] CheerTypes =
-    [
-        SubathonEventType.TwitchCheer,
-        SubathonEventType.BlerpBeets,
-        SubathonEventType.BlerpBits, // needs a modifier
-        SubathonEventType.PicartoTip
-    ];
+    public static bool IsSubscription(this SubathonEventType? value)
+        => value.Meta()?.IsSubscriptionLike == true;
 
-    private static readonly SubathonEventType[] GiftTypes =
-    [
-
-        SubathonEventType.YouTubeGiftMembership,
-        SubathonEventType.TwitchGiftSub,
-        SubathonEventType.PicartoGiftSub
-    ];
+    public static bool IsGift(this SubathonEventType? value)
+        => value.Meta()?.IsGift == true;
     
-    private static readonly SubathonEventType[] MembershipTypes =
-    [
-        SubathonEventType.YouTubeMembership,
-        SubathonEventType.YouTubeGiftMembership,
-        SubathonEventType.KoFiSub
-    ];
+    public static bool IsToken(this SubathonEventType? value)
+        => value.Meta()?.IsToken == true;
     
-    private static readonly SubathonEventType[] SubscriptionTypes =
-    [
-        SubathonEventType.TwitchSub,
-        SubathonEventType.TwitchGiftSub,
-        SubathonEventType.ExternalSub,
-        SubathonEventType.PicartoSub,
-        SubathonEventType.PicartoGiftSub
-    ];
-
-    private static readonly SubathonEventType[] ExternalTypes =
-    [
-        SubathonEventType.ExternalDonation,
-        SubathonEventType.ExternalSub,
-        SubathonEventType.KoFiSub,
-        SubathonEventType.KoFiDonation
-    ];
-
-    private static readonly SubathonEventType[] NoValueConfigTypes =
-    [
-        SubathonEventType.Command,
-        SubathonEventType.DonationAdjustment,
-        SubathonEventType.ExternalSub,
-        SubathonEventType.Unknown,
-        SubathonEventType.TwitchHypeTrain
-    ];
-
-    private static readonly SubathonEventType[] ExtensionType =
-    [
-        SubathonEventType.BlerpBeets,
-        SubathonEventType.BlerpBits
-    ];
+    public static bool IsCommand(this SubathonEventType? value)
+        => value.Meta()?.IsCommand == true;
     
-    private static readonly SubathonEventType[] FollowTypes =
-    [
-        SubathonEventType.PicartoFollow,
-        SubathonEventType.TwitchFollow
-    ];
+    public static bool IsExternal(this SubathonEventType? value)
+        => value.Meta()?.IsExternal == true;
+    
+    public static bool IsRaid(this SubathonEventType? value)
+        => value.Meta()?.IsRaid == true;
+    public static bool IsFollow(this SubathonEventType? value)
+        => value.Meta()?.IsFollow == true;
 
-    private static readonly SubathonEventType[] OrderTypes =
-    [
-        SubathonEventType.UwUMarketOrder,
-        SubathonEventType.GamerSuppsOrder,
-        SubathonEventType.OrchidEightOrder,
-        SubathonEventType.KatDragonzOrder
-    ];
+    public static bool IsTrain(this SubathonEventType? value) => value.Meta()?.IsTrain == true;
+    public static bool IsOrder(this SubathonEventType? value) => value.Meta()?.IsOrder == true;
+    public static bool IsExtension(this SubathonEventType? value) => value.Meta()?.IsExtension == true;
+    public static bool IsOther(this SubathonEventType? value)
+        => value.Meta()?.IsOther == true;
 
+    public static bool HasNoValueConfig(this SubathonEventType? value) => value.Meta()?.HasValueConfig == true;
+
+    public static SubathonEventSource GetSource(this SubathonEventType value) =>
+        ((SubathonEventType?)value).GetSource();
+    public static SubathonEventSource GetSource(this SubathonEventType? value)
+        => value.Meta()?.Source ?? SubathonEventSource.Unknown;
+
+    public static string GetLabel(this SubathonEventType? value) => value.Meta()?.Label ?? value.ToString() ?? string.Empty;
+    
+    public static SubathonEventSubType? GetSubType(this SubathonEventType eventType) => GetSubType((SubathonEventType?)eventType);
     public static SubathonEventSubType GetSubType(this SubathonEventType? eventType)
     {
-        if (!eventType.HasValue) return SubathonEventSubType.Unknown;
-        if (eventType.IsGiftType()) return SubathonEventSubType.GiftSubLike;
-        if (eventType.IsSubOrMembershipType()) return SubathonEventSubType.SubLike; // important GiftType is above, so it has priority
-        if (eventType.IsCheerType()) return SubathonEventSubType.TokenLike;
+        if (eventType == null) return SubathonEventSubType.Unknown;
+        if (eventType.IsGift()) return SubathonEventSubType.GiftSubLike;
+        if (eventType.IsSubscription()) return SubathonEventSubType.SubLike; // important GiftType is above, so it has priority
+        if (eventType.IsToken()) return SubathonEventSubType.TokenLike;
         if (eventType.IsCurrencyDonation()) return SubathonEventSubType.DonationLike;
-        if (eventType.IsOrderType()) return SubathonEventSubType.OrderLike;
-        if (eventType.IsFollowType()) return SubathonEventSubType.FollowLike;
-            
-        return eventType.Value switch
-        {
-            SubathonEventType.TwitchRaid => SubathonEventSubType.RaidLike,
-            SubathonEventType.TwitchHypeTrain =>  SubathonEventSubType.TrainLike,
-            SubathonEventType.Command => SubathonEventSubType.CommandLike,
-            _ => SubathonEventSubType.Unknown
-        };
+        if (eventType.IsOrder()) return SubathonEventSubType.OrderLike;
+        if (eventType.IsFollow()) return SubathonEventSubType.FollowLike;
+        if (eventType.IsRaid()) return SubathonEventSubType.RaidLike;
+        if (eventType.IsTrain()) return SubathonEventSubType.TrainLike;
+        if (eventType.IsCommand()) return SubathonEventSubType.CommandLike;
+        return SubathonEventSubType.Unknown;
     }
     
-    public static bool IsFollowType(this SubathonEventType? eventType) => 
-        eventType.HasValue && FollowTypes.Contains(eventType.Value);
-
-    public static bool IsOrderType(this SubathonEventType? eventType) => 
-        eventType.HasValue && OrderTypes.Contains(eventType.Value);
-
-    public static bool IsEnabled(this SubathonEventType? eventType) => 
-        eventType.HasValue && !DisabledEvents.Contains(eventType.Value);
+    public static string? GetTypeTrueSource(this SubathonEventType eventType) => GetTypeTrueSource((SubathonEventType?)eventType);
     
-    public static bool IsExtensionType(this SubathonEventType? eventType) => 
-        eventType.HasValue && ExtensionType.Contains(eventType.Value);
-    
-    public static bool IsCurrencyDonation(this SubathonEventType? eventType) => 
-        eventType.HasValue && CurrencyDonationEvents.Contains(eventType.Value);
-    
-    public static bool IsGiftType(this SubathonEventType? eventType) => 
-        eventType.HasValue && GiftTypes.Contains(eventType.Value);
-    
-    public static bool IsMembershipType(this SubathonEventType? eventType) => 
-        eventType.HasValue && MembershipTypes.Contains(eventType.Value);
-    
-    public static bool IsSubscriptionType(this SubathonEventType? eventType) => 
-        eventType.HasValue && SubscriptionTypes.Contains(eventType.Value);
-
-    public static bool IsSubOrMembershipType(this SubathonEventType? eventType) =>
-        eventType.IsMembershipType() || eventType.IsSubscriptionType();
-    
-    public static bool IsExternalType(this SubathonEventType? eventType) =>
-        eventType.HasValue && ExternalTypes.Contains(eventType.Value);
-    
-    public static bool IsCheerType(this SubathonEventType? eventType) =>
-        eventType.HasValue && CheerTypes.Contains(eventType.Value);
-    
-    public static bool HasNoValueConfig(this SubathonEventType? eventType) =>
-        eventType.HasValue && !NoValueConfigTypes.Contains(eventType.Value);
-
     public static string? GetTypeTrueSource(this SubathonEventType? eventType)
     {
-        if (eventType == null) return "Unknown";
-        if (eventType == SubathonEventType.Command) return "Manual";
-        if (eventType.GetSource() == SubathonEventSource.GoAffPro) return $"{eventType.ToString()?.Replace("Order", "")}";
+        if (eventType is null or SubathonEventType.Command) return "Manual";
+        if (eventType.GetSource() == SubathonEventSource.GoAffPro) return eventType.GoAffProMeta()?.StoreSource.ToString();
         return eventType.GetSource().ToString();
-    }
-    
-    public static SubathonEventSource GetSource(this SubathonEventType? eventType) {
-        if (!eventType.HasValue) return SubathonEventSource.Unknown;
-
-        return eventType.Value switch
-        {
-            SubathonEventType.TwitchHypeTrain => SubathonEventSource.Twitch,
-            SubathonEventType.TwitchCharityDonation => SubathonEventSource.Twitch,
-            SubathonEventType.TwitchGiftSub => SubathonEventSource.Twitch,
-            SubathonEventType.TwitchRaid => SubathonEventSource.Twitch,
-            SubathonEventType.TwitchFollow => SubathonEventSource.Twitch,
-            SubathonEventType.TwitchSub => SubathonEventSource.Twitch,
-            SubathonEventType.TwitchCheer => SubathonEventSource.Twitch,
-            
-            SubathonEventType.BlerpBits => SubathonEventSource.Blerp, // but twitch only
-            SubathonEventType.BlerpBeets => SubathonEventSource.Blerp,
-            
-            SubathonEventType.StreamElementsDonation => SubathonEventSource.StreamElements,
-            SubathonEventType.StreamLabsDonation => SubathonEventSource.StreamLabs,
-            
-            SubathonEventType.ExternalDonation => SubathonEventSource.External,
-            SubathonEventType.ExternalSub => SubathonEventSource.External,
-            
-            SubathonEventType.KoFiSub => SubathonEventSource.KoFi,
-            SubathonEventType.KoFiDonation => SubathonEventSource.KoFi,
-            
-            SubathonEventType.Command => SubathonEventSource.Command,
-            
-            SubathonEventType.YouTubeGiftMembership => SubathonEventSource.YouTube,
-            SubathonEventType.YouTubeMembership => SubathonEventSource.YouTube,
-            SubathonEventType.YouTubeSuperChat => SubathonEventSource.YouTube,
-            
-            SubathonEventType.PicartoFollow => SubathonEventSource.Picarto,
-            SubathonEventType.PicartoSub => SubathonEventSource.Picarto,
-            SubathonEventType.PicartoGiftSub => SubathonEventSource.Picarto,
-            SubathonEventType.PicartoTip => SubathonEventSource.Picarto,
-            
-            SubathonEventType.DonationAdjustment => SubathonEventSource.Command,
-            
-            SubathonEventType.GamerSuppsOrder => SubathonEventSource.GoAffPro,
-            SubathonEventType.UwUMarketOrder => SubathonEventSource.GoAffPro,
-            SubathonEventType.OrchidEightOrder => SubathonEventSource.GoAffPro,
-            SubathonEventType.KatDragonzOrder => SubathonEventSource.GoAffPro,
-            
-            _ => SubathonEventSource.Unknown
-        };
     }
     
 }

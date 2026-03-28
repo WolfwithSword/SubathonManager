@@ -198,8 +198,7 @@ public class EventService: IDisposable, IAppService
             }
             else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency)
                                                         && (ev.EventType.IsCurrencyDonation() ||
-                                                            ev.EventType
-                                                                .IsOrderType())) // includes orders when parsed as money mode
+                                                            ev.EventType.IsOrder())) // includes orders when parsed as money mode
             {
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency)).Result;
@@ -219,7 +218,7 @@ public class EventService: IDisposable, IAppService
                     ev.Currency = "???";
             }
 
-            if (ev.EventType.IsCheerType() && double.TryParse(ev.Value, out var parsedBitsLikeValue))
+            if (ev.EventType.IsToken() && double.TryParse(ev.Value, out var parsedBitsLikeValue))
             {
                 ev.PointsValue = (int) Math.Floor(((parsedBitsLikeValue / 100)) * subathonValue!.Points);
             }
@@ -273,16 +272,16 @@ public class EventService: IDisposable, IAppService
         }
         
         if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment || 
-            (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
+            (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
                                             $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
                                         && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|')))
         {
             ev.ProcessedToSubathon = true;
             (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
             
-            if (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                                    $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
-                && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
+            if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
+                                           $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                                       && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
             {
                 var value = ev.SecondaryValue.Split('|')[0];
                 var currency = ev.SecondaryValue.Split('|')[1];
@@ -605,7 +604,7 @@ public class EventService: IDisposable, IAppService
             }
         }
 
-        if (ev.EventType.IsOrderType() && ev.ProcessedToSubathon && _config.GetBool(ev.EventType.GetSource().ToString(),
+        if (ev.EventType.IsOrder() && ev.ProcessedToSubathon && _config.GetBool(ev.EventType.GetSource().ToString(),
                 $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
             && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
         {
@@ -725,11 +724,11 @@ public class EventService: IDisposable, IAppService
                     moneyToRemove +=
                         await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
                 }
-                else if (ev.EventType.IsOrderType() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                                        $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-                                                        false)
-                                                    && !string.IsNullOrWhiteSpace(ev.SecondaryValue) &&
-                                                    ev.SecondaryValue.Contains('|'))
+                else if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
+                                                    $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
+                                                    false)
+                                                && !string.IsNullOrWhiteSpace(ev.SecondaryValue) &&
+                                                ev.SecondaryValue.Contains('|'))
                 {
                     var value = ev.SecondaryValue.Split('|')[0];
                     var currency = ev.SecondaryValue.Split('|')[1];
@@ -877,9 +876,9 @@ public class EventService: IDisposable, IAppService
         {
             var subLikeSim= src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.SubLike).ToList();
             var giftSubLikeSim= src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.GiftSubLike).ToList();
-            var tokenLikeSim = src.Where(e => e.EventType.GetSubType() == SubathonEventSubType.TokenLike).ToList();
-            var orderLikeSim = src.Where(e => e.EventType.GetSubType() == SubathonEventSubType.OrderLike).ToList();
-            var followLikeSim= src.Where(e => e.EventType.GetSubType() == SubathonEventSubType.FollowLike).ToList();
+            var tokenLikeSim = src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.TokenLike).ToList();
+            var orderLikeSim = src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.OrderLike).ToList();
+            var followLikeSim= src.Where(e => e.EventType.GetSubType() is SubathonEventSubType.FollowLike).ToList();
 
             return new SubathonSimulatedTotals
             {
@@ -909,15 +908,15 @@ public class EventService: IDisposable, IAppService
             .ToList();
 
         var tokenLike = events
-            .Where(e => e.EventType.GetSubType() == SubathonEventSubType.TokenLike)
+            .Where(e => e.EventType.GetSubType() is SubathonEventSubType.TokenLike)
             .ToList();
 
         var orderLike = events
-            .Where(e => e.EventType.GetSubType() == SubathonEventSubType.OrderLike)
+            .Where(e => e.EventType.GetSubType() is SubathonEventSubType.OrderLike)
             .ToList();
 
         var followLike = events
-            .Where(e => e.EventType.GetSubType() == SubathonEventSubType.FollowLike)
+            .Where(e => e.EventType.GetSubType() is SubathonEventSubType.FollowLike)
             .ToList();
 
         var simData = BuildSimulated(simEvents);

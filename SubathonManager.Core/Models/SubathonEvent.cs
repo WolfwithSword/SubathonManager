@@ -52,7 +52,7 @@ public class SubathonEvent
     // do we want to later finetune power hour to be for selectable events?
     private int GetAmountMultiplier()
     {
-        return EventType.IsOrderType() ? 1 : Amount;
+        return EventType.IsOrder() ? 1 : Amount;
     }
     
     public double GetFinalSecondsValue() => Math.Ceiling(GetFinalSecondsValueRaw()); 
