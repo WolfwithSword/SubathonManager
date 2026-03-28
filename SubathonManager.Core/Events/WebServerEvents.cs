@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core.Events;
 
@@ -17,9 +18,14 @@ public static class WebServerEvents
     public static void RaiseWebSocketIntegrationSourceChange(string integrationSource, bool status)
     {
         WebSocketIntegrationSourceChange?.Invoke(integrationSource, status);
-        if (Enum.TryParse(integrationSource, out SubathonEventSource subathonEventSource))
+        if (!Enum.TryParse(integrationSource, out SubathonEventSource subathonEventSource)) return;
+        IntegrationConnection conn = new IntegrationConnection
         {
-            IntegrationEvents.RaiseConnectionUpdate(status, subathonEventSource, "External", "Socket");
-        }
+            Name = "External",
+            Status = status,
+            Source = subathonEventSource,
+            Service = "Socket"
+        };
+        IntegrationEvents.RaiseConnectionUpdate(conn);
     }
 }

@@ -24,6 +24,7 @@ donatedOffset.Float:0
 showOrders.Boolean:True
 ordersHeaderShowOrdersTag.Boolean:True
 orderEvents.OrderEventTypeList:UwUMarketOrder,GamerSuppsOrder,OrchidEightOrder
+ordersCountType.StringSelect:Orders,Items
 END_WIDGET_META
 -->
 <link rel="stylesheet" href="totals.css">
@@ -56,6 +57,7 @@ END_WIDGET_META
         showOrders: (typeof showOrders !== "undefined") ? showOrders : true,
         ordersHeaderShowOrdersTag: (typeof ordersHeaderShowOrdersTag != "undefined") ? ordersHeaderShowOrdersTag : true,
         orderEvents: (typeof orderEvents !== "undefined") ? orderEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        ordersCountType: (typeof ordersCountType !== "undefined") ? ordersCountType : "Orders"
     };
 
     let state = {
@@ -64,7 +66,8 @@ END_WIDGET_META
         followCount: 0,
         moneySum: 0,
         currency: "",
-        orderCounts: {}
+        orderCounts: {},
+        orderItemCounts: {}
     };
 
     const svgNS = "http://www.w3.org/2000/svg";
@@ -220,7 +223,10 @@ END_WIDGET_META
     }
 
     function formatOrders(evType) {
+        if (cfg.ordersCountType == "Items")
+            return String(state.orderItemCounts[evType] || 0);            
         return String(state.orderCounts[evType] || 0);
+        
     }
 
     function refreshValues() {
@@ -293,6 +299,18 @@ END_WIDGET_META
                 for (const evType of cfg.orderEvents) {
                     state.orderCounts[evType] = (state.orderCounts[evType] || 0)
                         + (data.simulated.order_count_by_type[evType] || 0);
+                }
+            }
+        }
+        state.orderItemCounts = {};
+        if (data.order_items_count_by_type) {
+            for (const evType of cfg.orderEvents) {
+                state.orderItemCounts[evType] = data.order_items_count_by_type[evType] || 0;
+            }
+            if (cfg.includeSimulated && data.simulated?.order_items_count_by_type) {
+                for (const evType of cfg.orderEvents) {
+                    state.orderItemCounts[evType] = (state.orderItemCounts[evType] || 0)
+                        + (data.simulated.order_items_count_by_type[evType] || 0);
                 }
             }
         }

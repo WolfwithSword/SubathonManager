@@ -16,6 +16,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 using SubathonManager.Services;
 using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
@@ -323,12 +324,24 @@ public class TwitchService : IDisposable, IAppService
             UserId = user.Id;
             _logger?.LogDebug($"Authenticated as {UserName}");
             
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "API");
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Twitch,
+                Service = "API",
+                Name = UserName!,
+                Status = true
+            });
         }
         else
         {
-            Login = string.Empty;
-            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, "", "API");
+            Login = string.Empty;        
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Twitch,
+                Service = "API",
+                Name = "",
+                Status = false
+            });
         }
     }
 
@@ -346,14 +359,26 @@ public class TwitchService : IDisposable, IAppService
             await Task.Run(async () =>
             {
                 await Task.Delay(1000);
-                IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+                IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+                {
+                    Source = SubathonEventSource.Twitch,
+                    Service = "Chat",
+                    Name = UserName!,
+                    Status = true
+                });
             }); 
             _logger?.LogDebug("[Twitch] Authenticated Chat as {UserName}", UserName);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, ex.Message);
-            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, UserName!, "Chat");
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Twitch,
+                Service = "Chat",
+                Name = UserName!,
+                Status = false
+            });
         }
 
         _chat.OnMessageReceived += HandleMessageCmdReceived;
@@ -368,8 +393,14 @@ public class TwitchService : IDisposable, IAppService
         if ((DateTime.Now - _lastChatDisconnectLog).TotalSeconds > 60)
         {
             _logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
-            _lastChatDisconnectLog = DateTime.Now;
-            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Twitch, UserName!, "Chat");
+            _lastChatDisconnectLog = DateTime.Now;    
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Twitch,
+                Service = "Chat",
+                Name = UserName!,
+                Status = false
+            });
         }
         Task.Run(TryReconnectChatAsync);
     }
@@ -408,7 +439,13 @@ public class TwitchService : IDisposable, IAppService
                     if (_chat.IsConnected)
                     {
                         _logger?.LogDebug("Twitch Chat reconnect successful.");
-                        IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+                        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+                        {
+                            Source = SubathonEventSource.Twitch,
+                            Service = "Chat",
+                            Name = UserName!,
+                            Status = true
+                        });
                         return;
                     }
 
@@ -442,7 +479,13 @@ public class TwitchService : IDisposable, IAppService
         _logger?.LogInformation("Twitch Chat Reconnected");
         _chatReconnect.Cts?.Cancel();
         _chatReconnect.Reset();
-        IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "Chat",
+            Name = UserName!,
+            Status = true
+        });
     }
     
     
@@ -563,7 +606,14 @@ public class TwitchService : IDisposable, IAppService
             _eventSubReconnect.Cts?.Cancel();
             _eventSubReconnect.Reset();
         }
-        IntegrationEvents.RaiseConnectionUpdate(IsEventSubConnected(), SubathonEventSource.Twitch, UserName!, "EventSub");
+        
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "EventSub",
+            Name = UserName!,
+            Status = IsEventSubConnected()
+        });
     }
 
 
@@ -580,7 +630,13 @@ public class TwitchService : IDisposable, IAppService
         if (_chat is { IsConnected: true })
         {
             // eventsub disconnect can false-disconnect chat sometimes.
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.Twitch, UserName!, "Chat");
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Twitch,
+                Service = "Chat",
+                Name = UserName!,
+                Status = true
+            });
         }
         return Task.CompletedTask;
     }
@@ -594,7 +650,13 @@ public class TwitchService : IDisposable, IAppService
             "Twitch EventSub has disconnected", DateTime.Now.ToLocalTime());
         
         _isConnected = false;
-        IntegrationEvents.RaiseConnectionUpdate(_isConnected, SubathonEventSource.Twitch, UserName!, "EventSub");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "EventSub",
+            Name = UserName!,
+            Status = _isConnected
+        });
         _ = Task.Run(TryReconnectEventSubAsync);
         return Task.CompletedTask;
     }

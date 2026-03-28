@@ -3,6 +3,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Services;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
@@ -42,8 +43,8 @@ public static class ExternalEventService
         data.TryGetValue("value", out JsonElement elemValue);
         
         string value = elemValue.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(elemValue.GetString()) 
-            ? elemValue.GetString()! : "External";
-        if (string.IsNullOrWhiteSpace(value)) value = "External";
+            ? elemValue.GetString()! : "DEFAULT";
+        if (string.IsNullOrWhiteSpace(value)) value = "DEFAULT";
         
         data.TryGetValue("amount", out JsonElement elemAmount);
         
@@ -57,10 +58,13 @@ public static class ExternalEventService
         {
             data.TryGetValue("seconds", out JsonElement elemSeconds);
             data.TryGetValue("points", out JsonElement elemPoints);
-            if (elemSeconds.ValueKind != JsonValueKind.Number || elemPoints.ValueKind != JsonValueKind.Number)
-                return false;
-            subathonEvent.SecondsValue = elemSeconds.GetDouble();
-            subathonEvent.PointsValue = elemPoints.GetInt16();
+            if (elemSeconds.ValueKind == JsonValueKind.Number)
+            {
+                subathonEvent.SecondsValue = elemSeconds.GetDouble();
+            }
+            if (elemPoints.ValueKind == JsonValueKind.Number) {
+                subathonEvent.PointsValue = elemPoints.GetInt16();
+            }
         }
 
         subathonEvent.Amount = elemAmount.ValueKind == JsonValueKind.Number ? elemAmount.GetInt16() : 1;

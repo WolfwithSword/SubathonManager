@@ -38,8 +38,8 @@
                     </ScrollViewer>
                 </Border>
                 <Grid Grid.Column="1" MaxHeight="500">
-                    <WrapPanel x:Name="WebhookDetailPanel" Orientation="Horizontal"
-                               Margin="12,6,8,6"/>
+                    <StackPanel x:Name="WebhookDetailPanel" Orientation="Vertical"
+                                Margin="12,6,8,6"/>
                 </Grid>
             </Grid>
         </StackPanel>

@@ -10,6 +10,8 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
@@ -49,8 +51,14 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
                 email: email,
                 password: password, cancellationToken: ct);
             
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.GoAffPro,
-                "", nameof(SubathonEventSource.GoAffPro));
+            IntegrationConnection conn = new IntegrationConnection
+            {
+                Name = "",
+                Status = true,
+                Source = SubathonEventSource.GoAffPro,
+                Service = nameof(SubathonEventSource.GoAffPro)
+            };
+            IntegrationEvents.RaiseConnectionUpdate(conn);
         }
         catch (Exception e)
         {
@@ -90,9 +98,15 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             if (source == GoAffProSource.Unknown || source.IsDisabled()) continue;
             if (!_siteIds.Add(site.Id.Value)) continue;
             string currency = !string.IsNullOrWhiteSpace(site.Currency) ? site.Currency : "USD";
-
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.GoAffPro,
-                currency, source.ToString());
+            
+            IntegrationConnection conn = new IntegrationConnection
+            {
+                Name = currency,
+                Status = true,
+                Source = SubathonEventSource.GoAffPro,
+                Service = source.ToString()
+            };
+            IntegrationEvents.RaiseConnectionUpdate(conn);
         }
         
         _detectorCts = new CancellationTokenSource();
@@ -223,12 +237,25 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     public Task StopAsync(CancellationToken ct = default)
     {
         foreach (var integ in Enum.GetNames<GoAffProSource>())
+        {           
+            IntegrationConnection conn = new IntegrationConnection
+            {
+                Name = "",
+                Status = false,
+                Source = SubathonEventSource.GoAffPro,
+                Service = integ
+            };
+            IntegrationEvents.RaiseConnectionUpdate(conn);
+        }        
+        
+        IntegrationConnection connection = new IntegrationConnection
         {
-            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.GoAffPro,
-                "", integ);
-        }
-        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.GoAffPro,
-            "", nameof(SubathonEventSource.GoAffPro));
+            Name = "",
+            Status = false,
+            Source = SubathonEventSource.GoAffPro,
+            Service = nameof(SubathonEventSource.GoAffPro)
+        };
+        IntegrationEvents.RaiseConnectionUpdate(connection);
         
         if (_client != null && _detectorCts is { IsCancellationRequested: false })
             _detectorCts.Cancel();

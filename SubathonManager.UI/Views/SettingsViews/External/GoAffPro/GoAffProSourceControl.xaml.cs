@@ -9,7 +9,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 
-namespace SubathonManager.UI.Views.SettingsViews.GoAffPro;
+namespace SubathonManager.UI.Views.SettingsViews.External.GoAffPro;
 
 public partial class GoAffProSourceControl : UserControl
 {
@@ -23,7 +23,7 @@ public partial class GoAffProSourceControl : UserControl
         Source = source;
         InitializeComponent();
     
-        SourceExpander.Header = source.ToString();
+        //SourceExpander.Header = source.ToString();
         TotalSimBox.ToolTip = "Order Total $";
         CommSimBox.ToolTip = "Commission Total $";
         QuantitySimBox.ToolTip = "Items Ordered";

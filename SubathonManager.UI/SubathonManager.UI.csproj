@@ -78,12 +78,6 @@
         <NoWarn>IDE1006</NoWarn>
         <NoWarn>CS8981</NoWarn>
       </Compile>
-      <Compile Update="Views\SettingsViews\TwitchSettings.Simulate.cs">
-        <DependentUpon>TwitchSettings.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="Views\SettingsViews\YouTubeSettings.Simulate.cs">
-        <DependentUpon>YouTubeSettings.xaml</DependentUpon>
-      </Compile>
       <Compile Update="EditRouteWindow.Handlers.cs">
         <DependentUpon>EditRouteWindow.xaml</DependentUpon>
       </Compile>
@@ -104,6 +98,59 @@
             <Generator>MSBuild:Compile</Generator>
             <XamlRuntime>Wpf</XamlRuntime>
             <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\Streaming\TwitchSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\Streaming\YouTubeSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\Streaming\PicartoSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\StreamingSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\External\GoAffPro\GoAffProSourceControl.xaml">
+          <Generator>MSBuild:Compile</Generator>
+        </Page>
+        <Page Update="Views\SettingsViews\External\GoAffProSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\Extensions\ChatExtensionSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\External\ExternalServiceSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\External\KoFiSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\Extensions\StreamElementsSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
+        </Page>
+        <Page Update="Views\SettingsViews\Extensions\StreamLabsSettings.xaml">
+          <Generator>MSBuild:Compile</Generator>
+          <XamlRuntime>Wpf</XamlRuntime>
+          <SubType>Designer</SubType>
         </Page>
     </ItemGroup>
 

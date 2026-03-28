@@ -1,17 +1,18 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
+using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
-using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.Validation;
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class YouTubeSettings : SettingsControl
 {
@@ -25,6 +26,7 @@ public partial class YouTubeSettings : SettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.YouTube, "Chat"));
         };
 
         Unloaded += (_, _) =>
@@ -40,7 +42,7 @@ public partial class YouTubeSettings : SettingsControl
         YTUserHandle.Text = config.Get("YouTube", "Handle", string.Empty)!;
     }
     
-    public override void LoadValues(AppDbContext db)
+    protected internal override void LoadValues(AppDbContext db)
     {
         SuppressUnsavedChanges(() => LoadValuesCore(db));
     }
@@ -230,13 +232,13 @@ public partial class YouTubeSettings : SettingsControl
         }
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
-        if (source != SubathonEventSource.YouTube) return;
+        if (connection is not { Source: SubathonEventSource.YouTube }) return;
         Dispatcher.Invoke(() =>
         {
-            if (YTUserHandle.Text != name && name != "None") YTUserHandle.Text = name; 
-            Host.UpdateConnectionStatus(status, YTStatusText, ConnectYTBtn);
+            if (YTUserHandle.Text != connection.Name && connection.Name != "None") YTUserHandle.Text = connection.Name; 
+            Host.UpdateConnectionStatus(connection.Status, YTStatusText, ConnectYTBtn);
         });
     }
 
@@ -335,9 +337,24 @@ public partial class YouTubeSettings : SettingsControl
         return hasUpdated;
     }
 
-    public override bool UpdateConfigValueSettings()
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
     {
-        throw new NotImplementedException();
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.YouTubeGiftMembership:
+                box = GiftMemberDefaultTextBox;
+                box2 = GiftMemberDefaultTextBox2;
+                break;
+            case SubathonEventType.YouTubeSuperChat:
+                box = DonoBox;
+                box2 = DonoBox2;
+                break;
+        }
+        return (v, p, box, box2);
     }
 
     private void ConnectYouTubeButton_Click(object sender, RoutedEventArgs e)

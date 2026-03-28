@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using SubathonManager.Integration;
-namespace SubathonManager.UI.Views.SettingsViews;
+
+namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class TwitchSettings
 {

@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -25,12 +27,7 @@ public partial class CommandsSettings : SettingsControl
         SuppressUnsavedChanges(InitCommandSettings);
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override void LoadValues(AppDbContext db)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
         throw new NotImplementedException();
     }
@@ -132,7 +129,7 @@ public partial class CommandsSettings : SettingsControl
             config.Save();
     }
     
-    public override bool UpdateConfigValueSettings()
+    protected internal override bool UpdateConfigValueSettings()
     {
         bool hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -164,5 +161,15 @@ public partial class CommandsSettings : SettingsControl
         }
 
         return hasUpdated;
+    }
+
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+    {
+        throw new NotImplementedException();
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
+    {
+        throw new NotImplementedException();
     }
 }

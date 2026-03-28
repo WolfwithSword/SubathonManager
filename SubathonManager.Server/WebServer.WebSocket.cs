@@ -133,6 +133,8 @@ public partial class WebServer
                 .ToDictionary(k => k.Key.ToString(), k => k.Value),
             order_count_by_type = totals.OrderCountByType
                 .ToDictionary(k => k.Key.ToString(), k => k.Value),
+            order_items_count_by_type = totals.OrderItemsCountByType
+                .ToDictionary(k => k.Key.ToString(), k => k.Value),
             follow_count = totals.FollowLikeTotal,
             follow_count_by_type = totals.FollowLikeByEvent
                 .ToDictionary(k => k.Key.ToString(), k => k.Value),
@@ -144,6 +146,8 @@ public partial class WebServer
                 token_like_by_type = totals.Simulated.TokenLikeByEvent
                     .ToDictionary(k => k.Key.ToString(), k => k.Value),
                 order_count_by_type = totals.Simulated.OrderCountByType
+                    .ToDictionary(k => k.Key.ToString(), k => k.Value),
+                order_items_count_by_type = totals.Simulated.OrderItemsCountByType
                     .ToDictionary(k => k.Key.ToString(), k => k.Value),
                 follow_count = totals.Simulated.FollowLikeTotal,
                 follow_count_by_type = totals.Simulated.FollowLikeByEvent

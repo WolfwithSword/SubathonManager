@@ -8,6 +8,7 @@ using SubathonManager.Services;
 using YTLiveChat.Contracts.Models;
 using YTLiveChat.Contracts.Services;
 using System.Reflection;
+using SubathonManager.Core.Objects;
 using SubathonManager.Tests.Utility;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -70,12 +71,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
 
             bool eventRaised = false;
-            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (source == SubathonEventSource.YouTube)
+                if (conn.Source == SubathonEventSource.YouTube)
                 {
                     eventRaised = true;
-                    Assert.True(running);
+                    Assert.True(conn.Status);
                 }
             };
             IntegrationEvents.ConnectionUpdated += handler;
@@ -112,12 +113,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
 
             bool eventRaised = false;
-            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (source == SubathonEventSource.YouTube)
+                if (conn.Source == SubathonEventSource.YouTube)
                 {
                     eventRaised = true;
-                    Assert.False(running);
+                    Assert.False(conn.Status);
                 }
             };
 
@@ -319,12 +320,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
 
             bool eventRaised = false;
-            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (source == SubathonEventSource.YouTube)
+                if (conn.Source == SubathonEventSource.YouTube)
                 {
                     eventRaised = true;
-                    Assert.False(running);
+                    Assert.False(conn.Status);
                 }
             };
             IntegrationEvents.ConnectionUpdated += handler;
@@ -359,12 +360,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             bool eventRaised = false;
             bool ranNone = false;
-            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (source != SubathonEventSource.YouTube) return;
+                if (conn.Source != SubathonEventSource.YouTube) return;
                 if (!ranNone)
                 {
-                    Assert.Equal("None", handle);
+                    Assert.Equal("None", conn.Name);
                     ranNone = true;
                     eventRaised = true;
                     return;
@@ -372,9 +373,11 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
                 Assert.True(ranNone);
                 eventRaised = true;
-                Assert.False(running);
-                Assert.Equal("@TestChannel", handle);
-                Assert.True(service.Running);
+                Assert.False(conn.Status);
+                Assert.Equal("@TestChannel", conn.Name);
+                Assert.Equal("@TestChannel", Utils.GetConnection(SubathonEventSource.YouTube, "Chat").Name);
+                Assert.False(Utils.GetConnection(SubathonEventSource.YouTube, "Chat").Status);
+                Assert.False(service.Running);
             };
             IntegrationEvents.ConnectionUpdated += handler;
 
@@ -383,8 +386,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 //bool result = service.Start(null);
                 await service.StartAsync(CancellationToken.None);
                 Assert.False(service.Running); // happens during events
-                await Task.Delay(100);
+                await Task.Delay(300);
                 Assert.True(eventRaised);
+                Assert.Equal("@TestChannel", Utils.GetConnection(SubathonEventSource.YouTube, "Chat").Name);
+                Assert.False(Utils.GetConnection(SubathonEventSource.YouTube, "Chat").Status);
                 await service.StopAsync(CancellationToken.None);
             }
             finally
@@ -528,10 +533,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             service.Running = false; //
 
             bool connectionEventRaised = false;
-            Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, svc) =>
+            
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (source == SubathonEventSource.YouTube && running)
+                if (conn is { Source: SubathonEventSource.YouTube })
+                {
                     connectionEventRaised = true;
+                }
             };
             IntegrationEvents.ConnectionUpdated += handler;
 

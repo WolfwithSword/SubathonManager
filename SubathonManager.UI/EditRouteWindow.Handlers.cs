@@ -169,7 +169,13 @@ public partial class EditRouteWindow
             // await LoadRouteAsync();
             RefreshWebView();
             var listEntry = _widgets.FirstOrDefault(wi => wi.Id == _selectedWidget.Id);
-            if (listEntry != null) listEntry.Name = _selectedWidget.Name;
+            if (listEntry != null)
+            {
+                // listEntry.Name = _selectedWidget.Name;
+                int index = _widgets.IndexOf(listEntry);
+                _widgets.Remove(listEntry);
+                _widgets.Insert(index, _selectedWidget);
+            }
             WidgetsList.Items.Refresh();
             OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
             

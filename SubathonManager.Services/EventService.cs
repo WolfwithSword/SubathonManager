@@ -160,7 +160,9 @@ public class EventService: IDisposable, IAppService
         ev.WasReversed = subathon.IsSubathonReversed();
         
         SubathonValue? subathonValue = null;
-        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
+        if (ev.EventType != SubathonEventType.Command && 
+            (ev.EventType != SubathonEventType.ExternalSub || 
+             ev is { EventType: SubathonEventType.ExternalSub, SecondsValue: 0, PointsValue: 0 }) && 
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
@@ -176,7 +178,9 @@ public class EventService: IDisposable, IAppService
                 return (false, false);
         }
 
-        if (ev.EventType != SubathonEventType.Command && ev.EventType != SubathonEventType.ExternalSub && 
+        if (ev.EventType != SubathonEventType.Command && 
+            (ev.EventType != SubathonEventType.ExternalSub || 
+             ev is { EventType: SubathonEventType.ExternalSub, SecondsValue: 0, PointsValue: 0 }) && 
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
             ///////////////////////////////////////////////////////////////
@@ -889,6 +893,9 @@ public class EventService: IDisposable, IAppService
                     .ToDictionary(k => k.Key, v => v.Value),TokenLikeTotal = tokenLikeSim.Sum(e => long.TryParse(e.Value, out var v) ? v : 0),
                 TokenLikeByEvent = tokenLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Sum(e => long.TryParse(e.Value, out var v) ? v : 0)),
                 OrderCountByType = orderLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Count()),
+                OrderItemsCountByType = orderLikeSim
+                    .GroupBy(e => e.EventType!.Value)
+                    .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)),
                 FollowLikeTotal = followLikeSim.Count,
                 FollowLikeByEvent= followLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Count()),
             };
@@ -939,6 +946,10 @@ public class EventService: IDisposable, IAppService
             OrderCountByType = orderLike
                 .GroupBy(e => e.EventType!.Value)
                 .ToDictionary(g => g.Key, g => g.Count()),
+            
+            OrderItemsCountByType = orderLike
+                .GroupBy(e => e.EventType!.Value)
+                .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)),
             
             FollowLikeTotal = followLike.Count,
             FollowLikeByEvent = followLike

@@ -1,20 +1,21 @@
-﻿using System.Windows.Controls;
-using System.Windows;
-using System.Text.Json;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net.Http;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
-using SubathonManager.Integration;
-using SubathonManager.Core.Enums;
-using SubathonManager.Data;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
+using SubathonManager.Data;
+using SubathonManager.Integration;
 using SubathonManager.UI.Validation;
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.External;
 
 public partial class KoFiSettings : SettingsControl
 {
@@ -30,6 +31,7 @@ public partial class KoFiSettings : SettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.KoFi, "Socket"));
         };
 
         Unloaded += (_, _) =>
@@ -38,12 +40,12 @@ public partial class KoFiSettings : SettingsControl
         };
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
-        if (source != SubathonEventSource.KoFi || service != "Socket") return;
-        Host.UpdateConnectionStatus(status, KoFiStatusText, null);
+        if (connection is not { Source: SubathonEventSource.KoFi } || connection.Service != "Socket") return;
+        Host.UpdateConnectionStatus(connection.Status, KoFiStatusText, null);
     }
-    public override void LoadValues(AppDbContext db)
+    protected internal override void LoadValues(AppDbContext db)
     {
         SuppressUnsavedChanges(() => LoadValuesCore(db));
     }
@@ -358,10 +360,27 @@ public partial class KoFiSettings : SettingsControl
         }
         return hasUpdated;
     }
-
-    public override bool UpdateConfigValueSettings()
+    
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
     {
-        throw new NotImplementedException();
+        CurrencyBox.ItemsSource = currencies;
+        CurrencyBox.SelectedItem = selected;
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
+    {
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.KoFiDonation:
+                box = DonoBox;
+                box2 = DonoBox2;
+                break;
+        }
+        return (v, p, box, box2);
     }
 
     private void OpenKoFiSetup_Click(object sender, RoutedEventArgs e)

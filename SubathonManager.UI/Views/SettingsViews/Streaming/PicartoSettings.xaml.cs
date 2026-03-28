@@ -1,16 +1,19 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PicartoEventsLib.Abstractions.Models;
-using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class PicartoSettings : SettingsControl
 {
@@ -23,6 +26,8 @@ public partial class PicartoSettings : SettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Chat"));
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Alerts"));
         };
 
         Unloaded += (_, _) =>
@@ -36,33 +41,87 @@ public partial class PicartoSettings : SettingsControl
         Host = host;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         PicartoUserBox.Text = config.Get("Picarto", "Username", string.Empty)!;
-    }
-
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
-    {
-        if (source != SubathonEventSource.Picarto) return;
+                
         Dispatcher.Invoke(() =>
-        { 
-            if (service == "Chat")
-                Host.UpdateConnectionStatus(status, PicartoChatStatusText, ConnectPicartoBtn);
-            else if (service == "Alerts")
-                Host.UpdateConnectionStatus(status, PicartoClientStatusText, ConnectPicartoBtn);
+        {
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Chat"));
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Alerts"));
         });
     }
 
-    public override void LoadValues(AppDbContext db)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
-        throw new NotImplementedException();
+        if (connection is not { Source: SubathonEventSource.Picarto }) return;
+        Dispatcher.Invoke(() =>
+        { 
+            if (connection.Service == "Chat")
+                Host.UpdateConnectionStatus(connection.Status, PicartoChatStatusText, ConnectPicartoBtn);
+            else if (connection.Service == "Alerts")
+                Host.UpdateConnectionStatus(connection.Status, PicartoClientStatusText, ConnectPicartoBtn);
+        });
     }
-
-    public override bool UpdateConfigValueSettings()
+    protected internal override bool UpdateConfigValueSettings()
     {
         bool hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         hasUpdated |= config.Set("Picarto", "Username", $"{PicartoUserBox.Text}");
         return hasUpdated;
     }
-    
+
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+    {
+        return;
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
+    {
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.PicartoFollow:
+                box = FollowTextBox;
+                box2 = Follow2TextBox;
+                break;
+            case SubathonEventType.PicartoTip:
+                v = $"{Math.Round(val.Seconds * 100)}";
+                box = KudosTextBox;
+                box2 = Kudos2TextBox;
+                break;
+            case SubathonEventType.PicartoSub:
+                switch (val.Meta)
+                {
+                    case "T1":
+                        box = SubT1TextBox;
+                        box2 = SubT1TextBox2;
+                        break;
+                    case "T2":
+                        box = SubT2TextBox;
+                        box2 = SubT2TextBox2;
+                        break;
+                    case "T3":
+                        box = SubT3TextBox;
+                        box2 = SubT3TextBox2;
+                        break;
+                }
+
+                break;
+            case SubathonEventType.PicartoGiftSub:
+                switch (val.Meta)
+                {
+                    case "T1":
+                        box = GiftSubTextBox;
+                        box2 = GiftSubTextBox2;
+                        break;
+                }
+
+                break;
+        }
+        return (v, p, box, box2);
+    }
+
     private async void ConnectPicartoButton_Click(object sender, RoutedEventArgs e)
     {
         try

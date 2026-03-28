@@ -1,21 +1,34 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventSource
 {
     // some may not actually be event sources in the future, but also integration sources
+    [Description("Twitch")]
     Twitch,
+    [Description("StreamElements")]
     StreamElements,
+    [Description("KoFi")]
     KoFi,
+    [Description("YouTube")]
     YouTube,
+    [Description("Commands")]
     Command, // can be from any chat
-    Simulated, // buttons to test in UI? 
+    [Description("Simulated")]
+    Simulated, // buttons to test in UI?
+    [Description("Unknown")]
     Unknown, // default
+    [Description("StreamLabs")]
     StreamLabs,
+    [Description("Generic External Services")]
     External,
+    [Description("Blerp")]
     Blerp,
+    [Description("Picarto")]
     Picarto,
+    [Description("GoAffPro Affiliate Stores")]
     GoAffPro
 }
 
@@ -50,15 +63,25 @@ public static class SubathonEventSourceHelper
         return SourceOrder.Count + endIdx;
     }
 
-    public static string GetGroupLabel(this SubathonEventSource source)
+    public static SubathonSourceGroup GetGroup(this SubathonEventSource source)
     {
         return source switch
         {
-            SubathonEventSource.Blerp => "Chat Extensions",
-            SubathonEventSource.Command or SubathonEventSource.Unknown => "Misc",
-            SubathonEventSource.StreamElements or SubathonEventSource.StreamLabs => "Stream Extensions",
-            _ => $"{source}"
+            SubathonEventSource.Blerp => SubathonSourceGroup.StreamExtension,
+            SubathonEventSource.Command or SubathonEventSource.Unknown => SubathonSourceGroup.Misc,
+            SubathonEventSource.StreamElements or SubathonEventSource.StreamLabs => SubathonSourceGroup.StreamExtension,
+            SubathonEventSource.Twitch or SubathonEventSource.YouTube or SubathonEventSource.Picarto => SubathonSourceGroup.Stream,
+            SubathonEventSource.KoFi or  SubathonEventSource.GoAffPro or SubathonEventSource.External => SubathonSourceGroup.ExternalService,
+            _ => SubathonSourceGroup.UseSource
         };
+    }
+
+    public static string GetGroupLabel(this SubathonEventSource source)
+    {
+        var group = source.GetGroup();
+        return group is SubathonSourceGroup.UseSource or SubathonSourceGroup.Unknown
+            ? $"{source}"
+            : group.GetDescription();
     }
 
     public static int GetGroupLabelOrder(this SubathonEventSource source)
@@ -72,12 +95,12 @@ public static class SubathonEventSourceHelper
             // Stream Extensions
             SubathonEventSource.StreamElements => 20,
             SubathonEventSource.StreamLabs => 21,
-            // Chat Extensions
+            // Chat Extensions (Still stream extensions
             SubathonEventSource.Blerp => 30,
             // Solo
             SubathonEventSource.KoFi => 40,
             SubathonEventSource.GoAffPro => 50,
-            SubathonEventSource.External => 60,
+            SubathonEventSource.External => 99,
             // Misc
             SubathonEventSource.Command => 100,
             SubathonEventSource.Unknown => 101,

@@ -1,12 +1,15 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
 public partial class ChatExtensionSettings : SettingsControl
 {
@@ -25,12 +28,7 @@ public partial class ChatExtensionSettings : SettingsControl
         LoadConfigValues();
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override void LoadValues(AppDbContext db)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
         throw new NotImplementedException();
     }
@@ -76,9 +74,31 @@ public partial class ChatExtensionSettings : SettingsControl
         return hasUpdated;
     }
 
-    public override bool UpdateConfigValueSettings()
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
     {
-        throw new NotImplementedException();
+        return;
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
+    {
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.BlerpBits:
+                v = $"{Math.Round(val.Seconds * 100)}";
+                box = BitsTextBox;
+                box2 = Bits2TextBox; 
+                break;
+            case SubathonEventType.BlerpBeets:
+                v = $"{Math.Round(val.Seconds * 100)}";
+                box = BeetsTextBox;
+                box2 = Beets2TextBox; 
+                break;
+        }
+        return (v, p, box, box2);
     }
 
     public bool SaveConfigValues()

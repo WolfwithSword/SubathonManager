@@ -1,24 +1,34 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
-using SubathonManager.UI.Views.SettingsViews.GoAffPro;
+using SubathonManager.UI.Views.SettingsViews.External.GoAffPro;
+using Wpf.Ui.Controls;
+using TextBox = System.Windows.Controls.TextBox;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.External;
 
 public partial class GoAffProSettings : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<GoAffProSettings>>();
     private readonly string _configSection = "GoAffPro";
-    private readonly List<GoAffProSourceControl> _sourceControls = [];
+    private readonly Dictionary<GoAffProSource, GoAffProSourceControl> _sourceControls = new();
+
+    private IEnumerable<GoAffProSource> _sources => Enum.GetValues<GoAffProSource>()
+        .Where(s => !s.IsDisabled());
+    private GoAffProSource _activeSource = GoAffProSource.Unknown;
+    
 
     public GoAffProSettings()
     {
@@ -28,6 +38,7 @@ public partial class GoAffProSettings : SettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.GoAffPro, nameof(SubathonEventSource.GoAffPro)));
         };
 
         Unloaded += (_, _) =>
@@ -41,42 +52,105 @@ public partial class GoAffProSettings : SettingsControl
         Host = host;
         Dispatcher.Invoke(() =>
         {
-            foreach (var source in Enum.GetValues<GoAffProSource>()
-                         .Where(s => !s.IsDisabled()))
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.GoAffPro, nameof(SubathonEventSource.GoAffPro)));
+            foreach (var source in _sources)
             {
                 var control = new GoAffProSourceControl(host, source);
-                _sourceControls.Add(control);
-                SourcesPanel.Children.Add(control);
+                _sourceControls[source] = control;
+                UpdateStatus(Utils.GetConnection(SubathonEventSource.GoAffPro, source.ToString()));
+                
+                var navBtn = new Wpf.Ui.Controls.Button
+                {
+                    Content = source.ToString(),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(0, 1, 0, -12),
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Appearance = ControlAppearance.Transparent,
+                    FontSize = 20,
+                    MinWidth = 100,
+                    Tag = source.ToString(),
+                    BorderThickness = new Thickness(1, 1, 1, 2),
+                    CornerRadius = new CornerRadius(4, 4, 0, 0)
+                };
+                navBtn.Click += GroupNav_Click;
+                SourceList?.Children.Add(navBtn);
+
+                _sourceControls.TryGetValue(source, out var cachedControl);
+                if (cachedControl != null && _activeSource == GoAffProSource.Unknown)
+                {
+                    SelectGroup(source.ToString());
+                }
             }
         });
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    
+    private void GroupNav_Click(object sender, RoutedEventArgs e)
     {
-        if (source != SubathonEventSource.GoAffPro) return;
-        Host.UpdateConnectionStatus(status, StatusText, ConnectBtn);
+        if (sender is Wpf.Ui.Controls.Button { Tag: string label })
+            SelectGroup(label);
+    }
+    
+    private void SelectGroup(string label)
+    {
+        if (SourceList == null) return;
+        foreach (var child in SourceList.Children)
+        {
+            if (child is not Wpf.Ui.Controls.Button btn) continue;
+            
+            btn.Appearance = btn.Tag as string == label
+                ? ControlAppearance.Secondary
+                : ControlAppearance.Transparent;
+        }
 
-        if (!Enum.TryParse(service, out GoAffProSource goAffProSource)) return;
+        if (!Enum.TryParse(label, out GoAffProSource source)) return;
+        if (source == _activeSource) return;
 
-        _sourceControls
-            .FirstOrDefault(c => c.Source == goAffProSource)
-            ?.UpdateStatus(status, name);
+        _sourceControls.TryGetValue(source, out var control);
+            
+        SourcesPanel?.Children.Clear();
+        if(control != null)
+            SourcesPanel?.Children.Add(control);
+        _activeSource = source;
     }
 
-    public override void LoadValues(AppDbContext db)
+    
+    internal override void UpdateStatus(IntegrationConnection? connection)
+    {
+        if (connection is not { Source: SubathonEventSource.GoAffPro }) return;
+        Host.UpdateConnectionStatus(connection.Status, StatusText, ConnectBtn);
+
+        if (!Enum.TryParse(connection.Service, out GoAffProSource goAffProSource)) return;
+
+        _sourceControls.TryGetValue(goAffProSource, out var control);
+        control?.UpdateStatus(connection.Status, connection.Name);
+    }
+
+    protected internal override void LoadValues(AppDbContext db)
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        foreach (var control in _sourceControls)
+        foreach (var control in _sourceControls.Values)
             control.LoadValues(db, config, _configSection);
     }
 
     public override bool UpdateValueSettings(AppDbContext db) =>
-        _sourceControls.Aggregate(false, (acc, c) => acc | c.UpdateValueSettings(db));
+        _sourceControls.Values.Aggregate(false, (acc, c) => acc | c.UpdateValueSettings(db));
 
-    public override bool UpdateConfigValueSettings()
+    protected internal override bool UpdateConfigValueSettings()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        return _sourceControls.Aggregate(false, (acc, c) => acc | c.UpdateConfigSettings(config, _configSection));
+        return _sourceControls.Values.Aggregate(false, (acc, c) => acc | c.UpdateConfigSettings(config, _configSection));
+    }
+
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+    {
+        return;
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
+    {
+        return ("", "", null, null);
     }
 
     private async void OpenLogin_Click(object sender, RoutedEventArgs routedEventArgs)
@@ -163,7 +237,7 @@ public partial class GoAffProSettings : SettingsControl
             {
                 return;
             }
-            _sourceControls.ForEach(c => c.StrikeThrough());
+            _sourceControls.Values.ToList().ForEach(c => c.StrikeThrough());
             await ServiceManager.GoAffPro.StartAsync();
         }
         catch (Exception ex)

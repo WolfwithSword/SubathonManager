@@ -1,8 +1,8 @@
-﻿using System.Windows.Controls;
-using System.Windows;
+﻿using System.Windows;
+using System.Windows.Controls;
 using SubathonManager.Integration;
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class YouTubeSettings : SettingsControl
 {
@@ -28,4 +28,11 @@ public partial class YouTubeSettings : SettingsControl
         if (amount > 0)
             YouTubeService.SimulateGiftMemberships(amount);
     }
+    
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+    {
+        CurrencyBox.ItemsSource = currencies;
+        CurrencyBox.SelectedItem = selected;
+    }
+    
 }

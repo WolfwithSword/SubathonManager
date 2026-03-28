@@ -14,6 +14,7 @@ public class SubathonTotals
     public Dictionary<SubathonEventType, long> TokenLikeByEvent { get; init; } = new();
 
     public Dictionary<SubathonEventType, int> OrderCountByType { get; init; } = new();
+    public Dictionary<SubathonEventType, int> OrderItemsCountByType { get; init; } = new();
     
     public int FollowLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> FollowLikeByEvent { get; init; } = new();
@@ -30,6 +31,7 @@ public class SubathonSimulatedTotals
     public Dictionary<SubathonEventType, long> TokenLikeByEvent { get; init; } = new();
 
     public Dictionary<SubathonEventType, int> OrderCountByType { get; init; } = new();
+    public Dictionary<SubathonEventType, int> OrderItemsCountByType { get; init; } = new();
     
     public int FollowLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> FollowLikeByEvent { get; init; } = new();

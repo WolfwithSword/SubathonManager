@@ -10,6 +10,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Services;
 using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Integration;
 
@@ -66,8 +67,20 @@ public class PicartoService : IDisposable, IAppService
         if (string.IsNullOrWhiteSpace(_picartoUsername))
             return;
         
-        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Picarto, _picartoUsername, "Chat");
-        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.Picarto, _picartoUsername, "Alerts");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Picarto,
+            Service = "Chat",
+            Name = _picartoUsername,
+            Status = false
+        });   
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Picarto,
+            Service = "Alerts",
+            Name = _picartoUsername,
+            Status = false
+        });
         
         _logger?.LogInformation("Picarto Service Starting for " + _picartoUsername);
         Opts.Channel = _picartoUsername;
@@ -179,8 +192,14 @@ public class PicartoService : IDisposable, IAppService
             _chatConnected = true;
             _chatReconnect.Reset();
             _chatReconnect.Cts?.Cancel();
-            IntegrationEvents.RaiseConnectionUpdate(
-                true, SubathonEventSource.Picarto, _picartoUsername ?? "", "Chat");
+            
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Picarto,
+                Service = "Chat",
+                Name = _picartoUsername ?? "",
+                Status = _chatConnected
+            });
             
         }
         else if (sender is PicartoEventsClient)
@@ -188,8 +207,13 @@ public class PicartoService : IDisposable, IAppService
             _eventsConnected = true;
             _eventsReconnect.Reset();
             _eventsReconnect.Cts?.Cancel();
-            IntegrationEvents.RaiseConnectionUpdate(
-                _eventsConnected, SubathonEventSource.Picarto, _picartoUsername ?? "", "Alerts");
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Picarto,
+                Service = "Alerts",
+                Name = _picartoUsername ?? "",
+                Status = _eventsConnected 
+            });
         }
     }
 
@@ -272,8 +296,14 @@ public class PicartoService : IDisposable, IAppService
         if (sender is PicartoChatClient)
         {
             _chatConnected = false;
-            IntegrationEvents.RaiseConnectionUpdate(
-                _chatConnected, SubathonEventSource.Picarto, _picartoUsername ?? "", "Chat");
+            
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Picarto,
+                Service = "Chat",
+                Name = _picartoUsername ?? "",
+                Status = _chatConnected
+            });
 
             if (shouldReconnect && sender is PicartoWebSocketConnection ws)
             {
@@ -287,8 +317,13 @@ public class PicartoService : IDisposable, IAppService
         else if (sender is PicartoEventsClient)
         {
             _eventsConnected = false;
-            IntegrationEvents.RaiseConnectionUpdate(
-                _eventsConnected, SubathonEventSource.Picarto, _picartoUsername ?? "", "Alerts");
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.Picarto,
+                Service = "Alerts",
+                Name = _picartoUsername ?? "",
+                Status = _eventsConnected
+            });
 
             if (shouldReconnect && sender is PicartoWebSocketConnection ws)
             {

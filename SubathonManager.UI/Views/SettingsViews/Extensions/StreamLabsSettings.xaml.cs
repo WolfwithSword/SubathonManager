@@ -1,17 +1,22 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics;
 using System.Windows;
-using System.Diagnostics;
-using SubathonManager.Core.Events;
+using System.Windows.Controls;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
 
+// ReSharper disable NullableWarningSuppressionIsUsed
 
-namespace SubathonManager.UI.Views.SettingsViews;
+
+namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
 public partial class StreamLabsSettings : SettingsControl
 {
@@ -24,6 +29,7 @@ public partial class StreamLabsSettings : SettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.StreamLabs, "Socket"));
         };
 
         Unloaded += (_, _) =>
@@ -37,9 +43,7 @@ public partial class StreamLabsSettings : SettingsControl
         Host = host;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         SLTokenBox.Text = config.Get("StreamLabs", "SocketToken", string.Empty)!;
-
-        if (ServiceManager.StreamLabsOrNull != null)
-            Host.UpdateConnectionStatus(ServiceManager.StreamLabsOrNull.Connected, SLStatusText, ConnectSLBtn);
+        UpdateStatus(Utils.GetConnection(SubathonEventSource.StreamLabs, "Socket"));
     }
     
     public override bool UpdateValueSettings(AppDbContext db)
@@ -65,20 +69,32 @@ public partial class StreamLabsSettings : SettingsControl
         return hasUpdated;
     }
 
-    public override bool UpdateConfigValueSettings()
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
     {
-        throw new NotImplementedException();
+        CurrencyBox.ItemsSource = currencies;
+        CurrencyBox.SelectedItem = selected;
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
     {
-        if (source != SubathonEventSource.StreamLabs) return;
-        Host.UpdateConnectionStatus(status, SLStatusText, ConnectSLBtn);
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.StreamLabsDonation:
+                box = DonoBox;
+                box2 = DonoBox2;
+                break;
+        }
+        return (v, p, box, box2);
     }
 
-    public override void LoadValues(AppDbContext db)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
-        throw new NotImplementedException();
+        if (connection is not { Source: SubathonEventSource.StreamLabs }) return;
+        Host.UpdateConnectionStatus(connection.Status, SLStatusText, ConnectSLBtn);
     }
 
     private async void ConnectSLButton_Click(object sender, RoutedEventArgs e)

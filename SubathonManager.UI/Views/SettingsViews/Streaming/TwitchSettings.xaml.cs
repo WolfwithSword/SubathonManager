@@ -1,14 +1,17 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Core.Events;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 
-namespace SubathonManager.UI.Views.SettingsViews;
+namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class TwitchSettings : SettingsControl
 {
@@ -21,6 +24,9 @@ public partial class TwitchSettings : SettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Twitch, "Chat"));
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Twitch, "EventSub"));
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Twitch, "API"));
         };
 
         Unloaded += (_, _) =>
@@ -31,28 +37,36 @@ public partial class TwitchSettings : SettingsControl
     public override void Init(SettingsView host)
     {
         Host = host;
+        
+        Dispatcher.Invoke(() =>
+        {
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Twitch, "Chat"));
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Twitch, "EventSub"));
+            UpdateStatus(Utils.GetConnection(SubathonEventSource.Twitch, "API"));
+        });
+        
         InitTwitchAutoSettings();
         LoadHypeTrainValues();
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
-        if (source != SubathonEventSource.Twitch)
+        if (connection is not { Source: SubathonEventSource.Twitch })
             return;
         // we only care to show for event sub mostly, if it fails, the rest may also fail
         Dispatcher.Invoke(() =>
         {
-            string conStat = status ? "Connected" : "Disconnected";
-            switch (service)
+            string conStat = connection.Status ? "Connected" : "Disconnected";
+            switch (connection.Service)
             {
                 case "EventSub":
                 {
-                    string username = name != string.Empty ? name : "Disconnected";
-                    if (!status)
+                    string username = connection.Name != string.Empty ? connection.Name : "Disconnected";
+                    if (!connection.Status)
                         username = "Disconnected";
                     if (TwitchStatusText.Text != username) TwitchStatusText.Text = username;
-                    string connectBtn = name != string.Empty ? "Reconnect" : "Connect";
-                    if (!status) connectBtn = "Connect";
+                    string connectBtn = connection.Name != string.Empty ? "Reconnect" : "Connect";
+                    if (!connection.Status) connectBtn = "Connect";
                     if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
                     if (EventSubStatusText.Text != conStat) EventSubStatusText.Text = conStat;
                     break;
@@ -64,11 +78,6 @@ public partial class TwitchSettings : SettingsControl
                 }
             }
         });
-    }
-
-    public override void LoadValues(AppDbContext db)
-    {
-        throw new NotImplementedException();
     }
 
     public override bool UpdateValueSettings(AppDbContext db)
@@ -149,7 +158,7 @@ public partial class TwitchSettings : SettingsControl
         return hasUpdated;
     }
 
-    public override bool UpdateConfigValueSettings()
+    protected internal override bool UpdateConfigValueSettings()
     {
         bool hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -163,7 +172,77 @@ public partial class TwitchSettings : SettingsControl
         hasUpdated |= config.Set("Twitch", "HypeTrainMultiplier.Multiplier",  HypeTrainMultAmt.Text);
         return hasUpdated;
     }
-    
+
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+    {
+        CurrencyBox.ItemsSource = currencies;
+        CurrencyBox.SelectedItem = selected;
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
+    {
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.TwitchCharityDonation:
+                box = DonoBox;
+                box2 = DonoBox2;
+                break;
+            case SubathonEventType.TwitchFollow:
+                box = FollowTextBox;
+                box2 = Follow2TextBox;
+                break;
+            case SubathonEventType.TwitchCheer:
+                v = $"{Math.Round(val.Seconds * 100)}";
+                box = CheerTextBox;
+                box2 = Cheer2TextBox; // in backend when adding, need to round down when adding for odd bits
+                break;
+            
+            case SubathonEventType.TwitchSub:
+                switch (val.Meta)
+                {
+                    case "1000":
+                        box = SubT1TextBox;
+                        box2 = SubT1TextBox2;
+                        break;
+                    case "2000":
+                        box = SubT2TextBox;
+                        box2 = SubT2TextBox2;
+                        break;
+                    case "3000":
+                        box = SubT3TextBox;
+                        box2 = SubT3TextBox2;
+                        break;
+                }
+                break;;
+            case SubathonEventType.TwitchGiftSub:
+                switch (val.Meta)
+                {
+                    case "1000":
+                        box = GiftSubT1TextBox;
+                        box2 = GiftSubT1TextBox2;
+                        break;
+                    case "2000":
+                        box = GiftSubT2TextBox;
+                        box2 = GiftSubT2TextBox2;
+                        break;
+                    case "3000":
+                        box = GiftSubT3TextBox;
+                        box2 = GiftSubT3TextBox2;
+                        break;
+                }
+                break;
+            case SubathonEventType.TwitchRaid:
+                box = RaidTextBox;
+                box2 = Raid2TextBox;
+                break;
+        }
+        return (v, p, box, box2);
+    }
+
     private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)
     {
         try
