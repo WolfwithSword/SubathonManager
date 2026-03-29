@@ -21,6 +21,7 @@
         <conv:CssSizeUnitConverter x:Key="CssSizeUnitConverter"/>
         <conv:NullOrEmptyToNullConverter x:Key="NullOrEmptyToNull"/>
         <conv:StringToBoolConverter x:Key="StringToBoolConverter"/>
+        <conv:VarTooltipConverter x:Key="VarTooltipConverter"/>
         <Style x:Key="OpaqueSecondaryButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Appearance" Value="Secondary"/>
             <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
@@ -338,7 +339,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="180"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
                                                                             ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
                                                                             Loaded="AttachChangeHandler"
@@ -352,7 +353,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="180"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
                                                                             ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
                                                                             Loaded="IntBox_Loaded"
@@ -366,7 +367,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Name}" Width="180"/>
+                                                                <TextBlock VerticalAlignment="Center" Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="180"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" 
                                                                             ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}" 
                                                                             Loaded="FloatBox_Loaded"
@@ -380,7 +381,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <DockPanel >
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="170" 
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="170" 
                                                                               VerticalAlignment="Center" Margin="0,0,2,0"
                                                                               DockPanel.Dock="Left"/>
                                                                 <ui:TextBox x:Name="PercentBox" Width="54" Margin="2,0,0,0"
@@ -402,7 +403,7 @@
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <ui:TextBlock VerticalAlignment="Center" Text="{Binding Name}" 
-                                                                           ToolTip="{Binding Name}" Width="180"/>
+                                                                           ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="180"/>
                                                                 <views:CssColorPicker CssColor="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                         Loaded="AttachChangeHandler"
                                                                         Width="150" ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}"/>
@@ -416,7 +417,7 @@
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <ui:TextBlock VerticalAlignment="Center" Text="{Binding Name}"
-                                                                           ToolTip="{Binding Name}" Width="180"/>
+                                                                           ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="180"/>
                                                                 <ComboBox Width="150" ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}"
                                                                           ItemsSource="{Binding Type, Converter={StaticResource CssTypeOptionsConverter}}"
                                                                           Loaded="AttachChangeHandler"
@@ -431,7 +432,7 @@
                                                         <StackPanel Orientation="Vertical">
                                                             <StackPanel Orientation="Horizontal" Margin="0,2">
                                                                 <ui:TextBlock VerticalAlignment="Center" Text="{Binding Name}"
-                                                                           ToolTip="{Binding Name}" Width="180"/>
+                                                                           ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="180"/>
                                                                 <ui:TextBox x:Name="SizeValueBox" ClearButtonEnabled="False"
                                                                          Width="68"  ToolTip="{Binding Description, Converter={StaticResource NullOrEmptyToNull}}"
                                                                          validation:InputValidationBehavior.IsDecimalOnly="True"
@@ -468,7 +469,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150" 
                                                                             Loaded="AttachChangeHandler" ToolTip="{Binding Type}"/>
                                                             </StackPanel>
@@ -481,7 +482,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
                                                                          Tag="{Binding}"  ToolTip="{Binding Type}"
                                                                          Loaded="IntBox_Loaded"/>
@@ -495,7 +496,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150"
                                                                          Tag="{Binding}" ToolTip="{Binding Type}"
                                                                          Loaded="FloatBox_Loaded"/>
@@ -509,7 +510,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <DockPanel >
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="170" 
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="170" 
                                                                               VerticalAlignment="Center" Margin="0,0,2,0"
                                                                               DockPanel.Dock="Left"/>
                                                                 <ui:TextBox x:Name="PercentBox" Width="44" Margin="2,0,0,0"
@@ -531,7 +532,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="196" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="196" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <CheckBox Tag="{Binding}" Margin="2" Loaded="JsBoolBox_Loaded" ToolTip="{Binding Type}">
                                                                     <CheckBox.IsChecked>
                                                                         <Binding Path="Value" Converter="{StaticResource StringToBoolConverter}"/>
@@ -547,7 +548,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ComboBox Width="146" IsEditable="True" IsTextSearchEnabled="True" StaysOpenOnEdit="True" ToolTip="{Binding Type}"
                                                                           Tag="{Binding}"
                                                                           Loaded="JsEventTypeSelectBox_Loaded"/>
@@ -561,7 +562,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ComboBox Width="146" IsEditable="True" IsTextSearchEnabled="True" StaysOpenOnEdit="True" ToolTip="{Binding Type}"
                                                                           Tag="{Binding}"
                                                                           Loaded="JsEventSubTypeSelectBox_Loaded"/>
@@ -575,7 +576,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                                                 <ComboBox Width="146" Tag="{Binding}" Loaded="JsStringSelectBox_Loaded" ToolTip="{Binding Type}"/>
                                                             </StackPanel>
                                                             <Separator Margin="16,2"/>
@@ -587,7 +588,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
                                                             <StackPanel Orientation="Horizontal">
-                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" VerticalAlignment="Top" Margin="0,0,8,0"/>
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Top" Margin="0,0,8,0"/>
                                                                 <StackPanel Orientation="Vertical" Tag="{Binding}" Loaded="JsFileVar_Loaded" ToolTip="{Binding Type}"/>
                                                             </StackPanel>
                                                             <Separator Margin="16,2"/>
@@ -598,7 +599,7 @@
                                                 <uiUtils:JsVariableTemplateSelector.EventTypeListTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
-                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172" 
+                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" 
                                                                           HorizontalAlignment="Left"
                                                                           VerticalAlignment="Top" Margin="0,0,8,4"/>
                                                             <Expander BorderBrush="Gray" BorderThickness="1" Padding="4" 
@@ -613,7 +614,7 @@
                                                 <uiUtils:JsVariableTemplateSelector.EventSubTypeListTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
-                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172"
+                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172"
                                                                           VerticalAlignment="Top" Margin="0,0,8,4" HorizontalAlignment="Left"/>
                                                             <Expander BorderBrush="Gray" BorderThickness="1" Padding="4"
                                                                       Width="288" HorizontalAlignment="Center" ToolTip="{Binding Type}"
@@ -627,7 +628,7 @@
                                                 <uiUtils:JsVariableTemplateSelector.FilteredEventTypeListTemplate>
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Vertical" Margin="0,4,0,4">
-                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" Width="172"
+                                                            <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172"
                                                                           VerticalAlignment="Top" Margin="0,0,8,4" HorizontalAlignment="Left"/>
                                                             <Expander BorderBrush="Gray" BorderThickness="1" Padding="4"
                                                                       Width="288" HorizontalAlignment="Center" ToolTip="{Binding Type}"

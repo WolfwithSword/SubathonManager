@@ -18,6 +18,7 @@
     --raid-color: #ff7043;
     --order-color: #f97316;
     --hypetrain-color: #f94216;
+    --border-thickness: 1.5px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0;}
@@ -177,7 +178,7 @@ html, body {
 /* card */
 .alert-card {
     background: var(--bg);
-    border: 1.5px solid var(--accent);
+    border: var(--border-thickness) solid var(--accent);
     border-radius: 14px;
     padding: 18px 22px;
     display: grid;
@@ -221,7 +222,7 @@ html, body {
     height: 52px;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(255,255,255,0.08), transparent);
-    border: 1.5px solid var(--accent);
+    border: var(--border-thickness)  solid var(--accent);
     flex-shrink: 0;
     box-shadow: 0 0 16px color-mix(in srgb, var(--accent) calc(var(--accent-glow-opacity) * 100%), transparent);
     animation: iconPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;

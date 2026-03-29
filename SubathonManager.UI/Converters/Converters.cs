@@ -4,6 +4,7 @@ using System.Windows.Media;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.Converters
 {
@@ -268,6 +269,30 @@ namespace SubathonManager.UI.Converters
                 return EnumMetaCache.Get<EnumMetaAttribute>(e)?.Description ?? e.ToString();
 
             return value?.ToString() ?? "";
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+    
+    
+    public class VarTooltipConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            switch (value)
+            {
+                case CssVariable e:
+                {
+                    var type = e.Type == WidgetCssVariableType.Default ? WidgetCssVariableType.String : e.Type;
+                    var description = string.IsNullOrWhiteSpace(e.Description) ? "" : $"\n{e.Description}";
+                    return $"{e.Name}\nType: {type}{description}";
+                }
+                case JsVariable r:
+                    return $"{r.Name}\nType: {r.Type}";
+                default:
+                    return value?.ToString() ?? "";
+            }
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

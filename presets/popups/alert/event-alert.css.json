@@ -5,6 +5,8 @@
   "bg": {"type": "color", "description": "Card background"},
   "text-primary": {"type": "color", "description": "Username/Primary text colour"},
   "text-secondary": {"type": "color", "description": "Details text colour"},
+  "font-display": {"type": "string", "description": "Font for the primary text"},
+  "font-body": {"type": "string", "description": "Font for the secondary details text"},
   "border-color": {"type": "color", "description": "Card border colour"},
   "alert-width": {"type": "size",  "description": "Width of the alert card"},
   "sub-color": {"type": "color", "description": "Accent override for subs/memberships"},
@@ -14,5 +16,6 @@
   "follow-color": {"type": "color", "description": "Accent override for follows"},
   "raid-color": {"type": "color", "description": "Accent override for raids"},
   "order-color": {"type": "color", "description": "Accent override for orders"},
-  "hypetrain-color": {"type": "color", "description": "Accent override for hype trains"}
+  "hypetrain-color": {"type": "color", "description": "Accent override for hype trains"},
+  "border-thickness": {"type":  "size", "description":  "Thickness of outer card border and icon circle border"}
 }
