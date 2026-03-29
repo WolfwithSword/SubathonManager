@@ -255,8 +255,8 @@ public partial class ExportOverlayDialog
 
         string safeFileName = string.Concat(exportName.Select(c =>
             Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
-
-        string exportsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "exports");
+        string exportsDir = Path.GetFullPath($"./exports");
+        //string exportsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "exports");
         Directory.CreateDirectory(exportsDir);
 
         var dialog = new SaveFileDialog
