@@ -58,13 +58,13 @@ public enum SubathonEventType
     PicartoGiftSub,
     [EventTypeMeta(Label="Kudos Tip", Source=SubathonEventSource.Picarto, IsToken = true, Order = 3)]
     PicartoTip,
-    [GoAffProTypeMetaAttribute(Label="GamerSupps Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 1, StoreSource = GoAffProSource.GamerSupps)]
+    [GoAffProTypeMeta(Label="GamerSupps Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 1, StoreSource = GoAffProSource.GamerSupps)]
     GamerSuppsOrder,
-    [GoAffProTypeMetaAttribute(Label="UwUMarket Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 2, StoreSource = GoAffProSource.UwUMarket)]
+    [GoAffProTypeMeta(Label="UwUMarket Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 2, StoreSource = GoAffProSource.UwUMarket)]
     UwUMarketOrder,
-    [GoAffProTypeMetaAttribute(Label="Orchid Eight Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 3, StoreSource = GoAffProSource.OrchidEight)]
+    [GoAffProTypeMeta(Label="Orchid Eight Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 3, StoreSource = GoAffProSource.OrchidEight)]
     OrchidEightOrder,
-    [GoAffProTypeMetaAttribute(Label="KatDragonz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 4, StoreSource = GoAffProSource.KatDragonz)]
+    [GoAffProTypeMeta(Label="KatDragonz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 4, StoreSource = GoAffProSource.KatDragonz)]
     KatDragonzOrder
     // any new must be added after the last
 }
@@ -83,7 +83,9 @@ public static class SubathonEventTypeHelper
     }
     
     private static GoAffProTypeMetaAttribute? GoAffProMeta(this SubathonEventType? value)
-        => EnumMetaCache.Get<GoAffProTypeMetaAttribute>(value);
+    {
+        return value != null ? EnumMetaCache.Get<GoAffProTypeMetaAttribute>(value) : null;
+    }
 
     public static bool IsCurrencyDonation(this SubathonEventType? value)
         => value.Meta()?.IsCurrencyDonation == true;

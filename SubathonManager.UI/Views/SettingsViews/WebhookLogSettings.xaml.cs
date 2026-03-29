@@ -55,7 +55,7 @@ public partial class WebhookLogSettings : SettingsControl
                     .OrderBy(sg => sg.Key.GetGroupLabelOrder())
                     .Select(sg => (
                         SourceName: sg.Key.GetDescription(),
-                        Events: sg.OrderBy(e => e.ToString(), StringComparer.OrdinalIgnoreCase).ToList()
+                        Events: sg.OrderBy(e => e.GetOrderNumber()).ToList()
                     ))
                     .ToList()
             ))

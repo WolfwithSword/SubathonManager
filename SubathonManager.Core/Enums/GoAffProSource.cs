@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Core.Enums;
 
@@ -37,7 +38,7 @@ public static class GoAffProSourceeHelper
         new(() =>
             Enum.GetValues<GoAffProSource>()
                 .Select(e => (Source: e, Meta: ((GoAffProSource?)e).Meta()))
-                .Where(x => x.Meta?.SiteId > 0)
+                .Where(x => x.Meta?.SiteId > 0 && x.Meta != null)
                 .ToDictionary(x => x.Meta!.SiteId, x => x.Source)
             );
     

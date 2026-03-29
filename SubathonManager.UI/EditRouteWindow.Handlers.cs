@@ -678,9 +678,9 @@ public partial class EditRouteWindow
         var values = Enum.GetValues<SubathonEventType>()
             .Where(x => x.IsEnabled())
             .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
-            .Select(x => x.ToString()).OrderBy(x => x);
+            .Select(x => x).OrderBy(x => x.GetOrderNumber());
         cb.Items.Add(string.Empty);
-        foreach (var val in values) cb.Items.Add(val);
+        foreach (var val in values) cb.Items.Add(val.ToString());
         cb.SelectedValue = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
         cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
@@ -695,9 +695,9 @@ public partial class EditRouteWindow
         if (sender is not ComboBox { Tag: JsVariable jsVar } cb) return;
         var values = Enum.GetValues<SubathonEventSubType>()
             .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
-            .Select(x => x.ToString()).OrderBy(x => x);
+            .Select(x => x).OrderBy(x => x.GetOrderNumber());
         cb.Items.Add(string.Empty);
-        foreach (var val in values) cb.Items.Add(val);
+        foreach (var val in values) cb.Items.Add(val.ToString());
         cb.SelectedValue = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
         cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
@@ -802,7 +802,7 @@ public partial class EditRouteWindow
             .Where(x => x is not SubathonEventType.Command and not SubathonEventType.Unknown)
             .GroupBy(x => x.GetSource())
             .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key))
-            .ThenBy(g => g.Key.ToString());
+            .ThenBy(g => g.Key.GetOrderNumber());
 
         foreach (var group in groupValues)
         {
@@ -814,7 +814,7 @@ public partial class EditRouteWindow
             };
             
             var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-            foreach (var eType in group.Select(x => x).OrderBy(x => x))
+            foreach (var eType in group.Select(x => x).OrderBy(x => x.GetOrderNumber()))
             {
                 var chkBox = new CheckBox
                 {
@@ -843,7 +843,7 @@ public partial class EditRouteWindow
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-        foreach (var eType in Enum.GetValues<SubathonEventSubType>().OrderBy(x => x))
+        foreach (var eType in Enum.GetValues<SubathonEventSubType>().OrderBy(x => x.GetOrderNumber()))
         {
             if (eType is SubathonEventSubType.CommandLike or SubathonEventSubType.Unknown) continue;
             var chkBox = new CheckBox
@@ -923,7 +923,7 @@ public partial class EditRouteWindow
             .Where(x => x is not SubathonEventType.Command and not SubathonEventType.Unknown)
             .GroupBy(x => x.GetSource())
             .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key))
-            .ThenBy(g => g.Key.ToString());
+            .ThenBy(g => g.Key.GetOrderNumber());
 
         foreach (var group in groupValues)
         {
@@ -935,7 +935,7 @@ public partial class EditRouteWindow
             };
 
             var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-            foreach (var eType in group.Select(x => x).OrderBy(x => x))
+            foreach (var eType in group.Select(x => x).OrderBy(x => x.GetOrderNumber()))
             {
                 var chkBox = new CheckBox
                 {

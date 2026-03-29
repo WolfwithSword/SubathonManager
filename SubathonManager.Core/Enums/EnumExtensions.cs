@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using System.Collections.Concurrent;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Core.Enums;
 
@@ -35,6 +36,14 @@ public static class EnumExtensions
     {
         return !IsDisabled(value);
     }
+    
+    public static int GetOrderNumber(this Enum value)
+    {
+        var field = value.GetType().GetField(value.ToString());
+        if (field == null) return 99999;
+        var attr = field.GetCustomAttribute<EnumMetaAttribute>();
+        return attr?.Order ?? 99999;
+    }   
     
 }
 
@@ -102,22 +111,22 @@ public class CommandMetaAttribute : EnumMetaAttribute
 
 public static class EnumMetaCache
 {
-    private static readonly ConcurrentDictionary<Type, Dictionary<object, EnumMetaAttribute?>> _cache = new();
+    private static readonly ConcurrentDictionary<Type, Dictionary<object, EnumMetaAttribute?>> Cache = new();
 
     public static T? Get<T>(Enum value) where T : EnumMetaAttribute
     {
         var type = value.GetType();
 
-        var map = _cache.GetOrAdd(type, t =>
+        var map = Cache.GetOrAdd(type, t =>
         {
             var dict = new Dictionary<object, EnumMetaAttribute?>();
 
             foreach (var field in t.GetFields(BindingFlags.Public | BindingFlags.Static))
             {
                 var enumValue = field.GetValue(null)!;
-                var attr = field.GetCustomAttribute<EnumMetaAttribute>();
+                var attr2 = field.GetCustomAttribute<EnumMetaAttribute>();
 
-                dict[enumValue] = attr;
+                dict[enumValue] = attr2;
             }
 
             return dict;
