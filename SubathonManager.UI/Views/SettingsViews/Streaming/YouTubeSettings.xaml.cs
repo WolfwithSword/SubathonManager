@@ -133,7 +133,7 @@ public partial class YouTubeSettings : SettingsControl
         
         var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
         var nameBox = new Wpf.Ui.Controls.TextBox { Width = 154, Text = subathonValue.Meta ?? "", 
-            ToolTip = "Tier Name. If your tier includes a !, only include everything before the first ! symbol", PlaceholderText = "Tier Name", // TODO monitor. Will be fixed in next YTLiveChat update
+            ToolTip = "Tier Name. If your tier includes a !, only include everything before the first ! symbol. This will be fixed soon", PlaceholderText = "Tier Name", // TODO monitor. Will be fixed in next YTLiveChat update
             Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
         var secondsBox = new Wpf.Ui.Controls.TextBox { Width = 100, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
             VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)};
