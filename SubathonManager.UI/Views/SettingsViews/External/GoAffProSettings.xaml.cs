@@ -151,7 +151,12 @@ public partial class GoAffProSettings : SettingsControl
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         foreach (var control in _sourceControls.Values)
-            control.LoadValues(db, config, _configSection);
+        {
+            SuppressUnsavedChanges(() => control.LoadValues(db, config, _configSection));
+        }
+
+        if(!int.TryParse(config.Get(_configSection, "DaysOffset", "0"), out var offsetDays)) offsetDays = 0;
+        LookbackDaysBox.Text = offsetDays.ToString();
     }
 
     public override bool UpdateValueSettings(AppDbContext db) =>
@@ -160,7 +165,12 @@ public partial class GoAffProSettings : SettingsControl
     protected internal override bool UpdateConfigValueSettings()
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        return _sourceControls.Values.Aggregate(false, (acc, c) => acc | c.UpdateConfigSettings(config, _configSection));
+        var offsetDays = 0;
+        if (string.IsNullOrWhiteSpace(LookbackDaysBox.Text) || !int.TryParse(LookbackDaysBox.Text, out offsetDays)) offsetDays = 0;
+        bool hasUpdated = config.Set(_configSection, "DaysOffset", offsetDays.ToString());
+        hasUpdated |=
+            _sourceControls.Values.Aggregate(false, (acc, c) => acc | c.UpdateConfigSettings(config, _configSection));
+        return hasUpdated;
     }
 
     public override void UpdateCurrencyBoxes(List<string> currencies, string selected)

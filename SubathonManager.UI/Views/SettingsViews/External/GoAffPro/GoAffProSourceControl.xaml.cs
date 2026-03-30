@@ -6,12 +6,14 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews.External.GoAffPro;
 
-public partial class GoAffProSourceControl : UserControl
+public partial class GoAffProSourceControl : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<GoAffProSettings>>();
     private readonly SettingsView _host;
@@ -27,6 +29,7 @@ public partial class GoAffProSourceControl : UserControl
         TotalSimBox.ToolTip = "Order Total $";
         CommSimBox.ToolTip = "Commission Total $";
         QuantitySimBox.ToolTip = "Items Ordered";
+        SuppressUnsavedChanges(() => WireControl(SourcePanel));
     }
 
     public void UpdateStatus(bool status, string currencyName)
@@ -38,7 +41,6 @@ public partial class GoAffProSourceControl : UserControl
                 ? string.Empty 
                 : $"[{currencyName}]";
             
-            if (status) SetHeaderStrikethrough(false);
         });
     }
 
@@ -57,9 +59,15 @@ public partial class GoAffProSourceControl : UserControl
         ModeBox.SelectedItem = config.Get(configSection, $"{Source}.Mode", "Dollar")?.Trim() ?? "Dollar";
         CommissionBox.IsChecked = config.GetBool(configSection, $"{Source}.CommissionAsDonation", false);
         EnabledBox.IsChecked = config.GetBool(configSection, $"{Source}.Enabled", true);
+        
     }
 
-    public bool UpdateValueSettings(AppDbContext db)
+    internal override void UpdateStatus(IntegrationConnection? connection)
+    {
+        return;
+    }
+
+    public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var eventType = Source.GetOrderEvent();
@@ -79,6 +87,16 @@ public partial class GoAffProSourceControl : UserControl
         return hasUpdated;
     }
 
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+    {
+        return;
+    }
+
+    public override (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(SubathonValue val)
+    {
+        return ("", "", null, null);
+    }
+
     public bool UpdateConfigSettings(IConfig config, string configSection)
     {
         bool hasUpdated = false;
@@ -88,21 +106,6 @@ public partial class GoAffProSourceControl : UserControl
         return hasUpdated;
     }
     
-    public void StrikeThrough() => Dispatcher.Invoke(() => SetHeaderStrikethrough(true));
-    
-    private void SetHeaderStrikethrough(bool strikethrough)
-    {
-        // Not used for now, may add as feature in future
-        
-        /*
-         SourceExpander.Header = new TextBlock
-        {
-            Text = Source.ToString(),
-            TextDecorations = strikethrough ? TextDecorations.Strikethrough : null
-        };
-        */
-        return;
-    }
 
     public void SimulateOrder()
     {

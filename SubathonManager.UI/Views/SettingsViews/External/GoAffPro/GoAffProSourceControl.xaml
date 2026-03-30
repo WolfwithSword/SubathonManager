@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="SubathonManager.UI.Views.SettingsViews.External.GoAffPro.GoAffProSourceControl"
+﻿<views:SettingsControl x:Class="SubathonManager.UI.Views.SettingsViews.External.GoAffPro.GoAffProSourceControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -8,7 +8,7 @@
              xmlns:views="clr-namespace:SubathonManager.UI.Views"
              mc:Ignorable="d">
     <!-- <Expander x:Name="SourceExpander" IsExpanded="False" Margin="0,5,0,0"> -->
-        <StackPanel>
+        <StackPanel x:Name="SourcePanel">
             <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
                 <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" Width="120" FontSize="12" Margin="0 0 0 0"/>
                 <TextBlock x:Name="CurrencyText" Text="" VerticalAlignment="Center" FontSize="12" Width="60" Margin="14 0 0 0"/>
@@ -65,4 +65,4 @@
             </Grid>
         </StackPanel>
     <!-- </Expander> -->
-</UserControl>
+</views:SettingsControl>

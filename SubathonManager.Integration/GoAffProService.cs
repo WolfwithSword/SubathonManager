@@ -94,7 +94,11 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
         foreach (var site in sitesResponse.Sites.Where(site => site is { Id: not null, Status: UserSite_status.Approved }))
         {
-            if (!GoAffProSourceeHelper.TryGetSource(site.Id!.Value, out GoAffProSource source)) continue;
+            if (!GoAffProSourceeHelper.TryGetSource(site.Id!.Value, out GoAffProSource source))
+            {
+                logger?.LogInformation("[GoAffPro] Site {Id} ({Name}) detected on account, but not integrated. Please create an integration request if you would like it supported", site.Id!.Value, site.Name);
+                continue;
+            }
             if (source == GoAffProSource.Unknown || source.IsDisabled()) continue;
             if (!_siteIds.Add(site.Id.Value)) continue;
             string currency = !string.IsNullOrWhiteSpace(site.Currency) ? site.Currency : "USD";
@@ -110,9 +114,13 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
         }
         
         _detectorCts = new CancellationTokenSource();
-        _client.OrderObserverStartTime = DateTimeOffset.UtcNow;
+        if (!int.TryParse(config.Get(_configSection, "DaysOffset", "0"), out var daysOffset)) daysOffset = 0;
+        
+        _client.OrderObserverStartTime = DateTimeOffset.UtcNow - TimeSpan.FromDays(daysOffset);
+        logger?.LogInformation("[GoAffPro] Started GoAffPro service with {Count} connected sites", _siteIds.Count);
         
         _ = Task.Run(async() => {
+            logger?.LogInformation("[GoAffPro] GoAffPro is now polling for orders...");
             await foreach (var order in _client.NewOrdersAsync(
                                pollingInterval: TimeSpan.FromSeconds(30),
                                pageSize: 100,
@@ -120,6 +128,7 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             {
                 HandleOrder(order);
             }
+            logger?.LogInformation("[GoAffPro] GoAffPro polling finished");
         }, _detectorCts.Token);
     }
 

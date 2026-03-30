@@ -5,7 +5,8 @@
                        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                        xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
                        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-                       xmlns:views="clr-namespace:SubathonManager.UI.Views">
+                       xmlns:views="clr-namespace:SubathonManager.UI.Views"
+                       xmlns:validation="clr-namespace:SubathonManager.UI.Validation">
     <!-- <Expander Header="GoAffPro" IsExpanded="False"> -->
         <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
@@ -18,7 +19,9 @@
                            x:Name="ConnectBtn"
                            VerticalAlignment="Center"
                            Margin="0,0,6,0"/>
-                <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 0"/>
+                <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 0" Width="140"/>
+                <TextBlock Text="Lookback Days" ToolTip="Number of days to look back on connect for orders that were missed" VerticalAlignment="Center"  Margin="48 0 0 0"/>
+                <ui:TextBox ClearButtonEnabled="False" x:Name="LookbackDaysBox" Margin="8 0 4 0 " Width="60" Text="0" PlaceholderText="0" validation:InputValidationBehavior.IsNumberOnly="True" />
             </StackPanel>
 
             <StackPanel Margin="4,2,0,5">
