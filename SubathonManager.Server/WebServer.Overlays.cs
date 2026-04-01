@@ -127,7 +127,7 @@ public partial class WebServer
                 }
             }
         }
-        await ctx.WriteResponse(404, "Route not found");
+        await ctx.WriteResponse(404, "Route/Overlay not found");
     }
 
     private string GenerateMergedPage(Core.Models.Route route, bool isEditor = false)
