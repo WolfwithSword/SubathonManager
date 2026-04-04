@@ -4,6 +4,7 @@ using System.Text;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data
 {
@@ -167,7 +168,7 @@ namespace SubathonManager.Data
 
             bool includeBits = Utils.DonationSettings.TryGetValue("BitsLikeAsDonation",  out bool bitslike) && bitslike ;
             List<SubathonEventType> orderTypesToInclude = new List<SubathonEventType>();
-            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
             {
                 bool asDonation = Utils.DonationSettings.TryGetValue($"{goAffProSource}", out  bool donation) && donation;
                 if (asDonation && Enum.TryParse($"{goAffProSource}Order", out SubathonEventType eventType))
@@ -176,10 +177,8 @@ namespace SubathonManager.Data
 
             events = events.Where(e => e.EventType != null && 
                                        (e.EventType.IsCurrencyDonation() ||
-                                        (e.EventType.IsOrderType() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
-                                        (includeBits &&
-                                         SubathonEventTypeHelper.CheerTypes.Contains
-                                             ((SubathonEventType)e.EventType)))).ToList();
+                                        (e.EventType.IsOrder() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
+                                        (includeBits && e.EventType.IsToken()))).ToList();
             return events;
         }
 
@@ -314,7 +313,9 @@ namespace SubathonManager.Data
                 // assuming defaults for order types are by Dollar, we set at 12s
                 new SubathonValue { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
-                
+                new SubathonValue { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
+                new SubathonValue { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
+                new SubathonValue { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1}
             };
 
             foreach (var def in defaults)

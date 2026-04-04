@@ -1,0 +1,18 @@
+﻿{
+  "background-color": {"type": "color"},
+  "border-color": {"type": "color"},
+  "border-thickness": {"type": "size"},
+  "font-size": {"type": "size", "description": "Main value text size"},
+  "small-font-size": {"type": "size", "description": "Label text size"},
+  "font-family": {"type": "string"},
+  "text-color": {"type": "color"},
+  "accent-color": {"type": "color", "description": "Glow and border accent"},
+  "icon-color": {"type": "color"},
+  "label-color": {"type": "color", "description": "Row label text color"},
+  "row-gap": {"type": "size", "description": "Space between rows"},
+  "col-gap": {"type": "size", "description": "Space between columns"},
+  "widget-width": {"type": "size"},
+  "base-width": {"type": "size", "description": "Base width of the widget when in vertical mode"},
+  "header-alignment": {"type": "alignment"},
+  "value-alignment": {"type": "alignment"}
+}

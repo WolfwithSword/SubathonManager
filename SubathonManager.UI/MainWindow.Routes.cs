@@ -48,6 +48,8 @@ namespace SubathonManager.UI
             string path = Path.GetFullPath($"./{name}");
             try
             {
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = path,

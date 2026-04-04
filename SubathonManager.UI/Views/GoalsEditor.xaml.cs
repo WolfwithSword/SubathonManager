@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Events;
@@ -99,7 +98,8 @@ namespace SubathonManager.UI.Views
                     Text = goal.Points.ToString(),
                     Width = 80,
                     Margin = new Thickness(0, 0, 8, 0),
-                    ToolTip = "Points/Money to achieve"
+                    ToolTip = "Points/Money to achieve",
+                    ClearButtonEnabled = false
                 };
                 pointsBox.PreviewTextInput += NumberOnly_PreviewTextInput;
                 AttachChangeHandler(pointsBox, new RoutedEventArgs());
@@ -311,10 +311,6 @@ namespace SubathonManager.UI.Views
                     case CheckBox chk:
                         chk.Checked += Value_OnChanged;
                         chk.Unchecked += Value_OnChanged;
-                        break;
-                    case ToggleButton tb2:
-                        tb2.Checked += Value_OnChanged;
-                        tb2.Unchecked += Value_OnChanged;
                         break;
                     case Slider sld:
                         sld.ValueChanged += Value_OnChanged;

@@ -7,6 +7,7 @@ using Moq;
 using StreamElements.WebSocket.Models.Tip;
 using StreamElements.WebSocket.Models.Internal;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core.Objects;
 using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
@@ -166,12 +167,12 @@ public class StreamElementsServiceTests
 
         bool eventRaised = false;
         
-        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
+        Action<IntegrationConnection> handler = (conn) =>
         {
-            if (source == SubathonEventSource.StreamElements)
+            if (conn.Source == SubathonEventSource.StreamElements)
             {
                 eventRaised = true;
-                Assert.False(running);
+                Assert.False(conn.Status);
             }
         };
         
@@ -208,13 +209,13 @@ public class StreamElementsServiceTests
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-
-        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
+        
+        Action<IntegrationConnection> handler = (conn) =>
         {
-            if (source == SubathonEventSource.StreamElements)
+            if (conn.Source == SubathonEventSource.StreamElements)
             {
                 eventRaised = true;
-                Assert.True(running);
+                Assert.True(conn.Status);
             }
         };
 
@@ -260,12 +261,12 @@ public class StreamElementsServiceTests
             ?.SetValue(null, null);
 
         bool eventRaised = false;
-        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, service) =>
+        Action<IntegrationConnection> handler = (conn) =>
         {
-            if (source == SubathonEventSource.StreamElements)
+            if (conn.Source == SubathonEventSource.StreamElements)
             {
                 eventRaised = true;
-                Assert.False(running);
+                Assert.False(conn.Status);
             }
         };
         IntegrationEvents.ConnectionUpdated += handler;

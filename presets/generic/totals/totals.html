@@ -1,0 +1,322 @@
+<!--
+WIDGET_META
+Width:800
+Height:500
+Author:WolfwithSword
+Url:https://github.com/WolfwithSword/SubathonManager/discussions/135#discussioncomment-16241757
+orientation.StringSelect:vertical,horizontal
+includeSimulated.Boolean:False
+showSubs.Boolean:True
+subsHeader.String:Subs
+subEvents.SubEventTypeList:TwitchSub,TwitchGiftSub,YouTubeMembership,YouTubeGiftMembership
+subCountOffset.Int:0
+showBitsTokens.Boolean:True
+tokensHeader.String:Bits
+tokenEvents.TokenEventTypeList:TwitchCheer,BlerpBits,BlerpBeets
+tokensCountOffset.Int:0
+showFollows.Boolean:True
+followsHeader.String:Follows
+followEvents.FollowEventTypeList:TwitchFollow
+followCountOffset.Int:0
+showTotalDonated.Boolean:True
+donatedHeader.String:Total Donated
+donatedOffset.Float:0
+showOrders.Boolean:True
+ordersHeaderShowOrdersTag.Boolean:True
+orderEvents.OrderEventTypeList:UwUMarketOrder,GamerSuppsOrder,OrchidEightOrder
+ordersCountType.StringSelect:Orders,Items
+END_WIDGET_META
+-->
+<link rel="stylesheet" href="totals.css">
+
+<div class="totals-root" id="totals-root"></div>
+
+<script>
+    const cfg = {
+        includeSimulated: (typeof includeSimulated !== "undefined") ? includeSimulated : false,
+        orientation: (typeof orientation !== "undefined") ? orientation : "vertical",
+        subsHeader: (typeof subsHeader !== "undefined") ? subsHeader : "Subs / Members",
+        showSubs: (typeof showSubs !== "undefined") ? showSubs : true,
+        subEvents: (typeof subEvents !== "undefined") ? subEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        subCountOffset: (typeof subCountOffset !== "undefined") ? parseInt(subCountOffset) || 0 : 0,
+
+        showBitsTokens: (typeof showBitsTokens !== "undefined") ? showBitsTokens : true,
+        tokensHeader: (typeof tokensHeader !== "undefined") ? tokensHeader : "Bits",
+        tokenEvents: (typeof tokenEvents !== "undefined") ? tokenEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        tokensCountOffset: (typeof tokensCountOffset !== "undefined") ? parseInt(tokensCountOffset) || 0 : 0,
+
+        showFollows: (typeof showFollows !== "undefined") ? showFollows : true,
+        followsHeader: (typeof followsHeader !== "undefined") ? followsHeader : "Follows",
+        followEvents: (typeof followEvents !== "undefined") ? followEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        followCountOffset: (typeof followCountOffset !== "undefined") ? parseInt(followCountOffset) || 0 : 0,
+
+        showTotalDonated: (typeof showTotalDonated !== "undefined") ? showTotalDonated : true,
+        donatedHeader: (typeof donatedHeader !== "undefined") ? donatedHeader : "Total Donated",
+        donatedOffset: (typeof donatedOffset !== "undefined") ? parseFloat(donatedOffset) || 0 : 0,
+
+        showOrders: (typeof showOrders !== "undefined") ? showOrders : true,
+        ordersHeaderShowOrdersTag: (typeof ordersHeaderShowOrdersTag != "undefined") ? ordersHeaderShowOrdersTag : true,
+        orderEvents: (typeof orderEvents !== "undefined") ? orderEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        ordersCountType: (typeof ordersCountType !== "undefined") ? ordersCountType : "Orders"
+    };
+
+    let state = {
+        subCount: 0,
+        tokenSum: 0,
+        followCount: 0,
+        moneySum: 0,
+        currency: "",
+        orderCounts: {},
+        orderItemCounts: {}
+    };
+
+    const svgNS = "http://www.w3.org/2000/svg";
+
+    function makeIcon(pathData) {
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.classList.add("total-icon");
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", pathData);
+        path.setAttribute("fill", "currentColor");
+        svg.appendChild(path);
+        return svg;
+    }
+
+    const ICONS = {
+        sub: "M12 17.3l6.18 3.7-1.64-7.03 5.46-4.73-7.19-.61L12 2 9.19 8.63l-7.19.61 5.46 4.73L5.82 21z",
+        token: "M12 2l10 10-10 10L2 12 12 2z",
+        follow: "M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z",
+        money: "M12 2c5 0 9 1.79 9 4s-4 4-9 4-9-1.79-9-4 4-4 9-4zm-9 7v3c0 2.21 4 4 9 4s9-1.79 9-4V9c-2 2-6 3-9 3s-7-1-9-3zm0 6v3c0 2.21 4 4 9 4s9-1.79 9-4v-3c-2 2-6 3-9 3s-7-1-9-3z",
+        order: "M7 18a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm10 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2zM7.16 14h9.45a2 2 0 0 0 1.92-1.43L21 6H6.21l-.94-2H1v2h3l3.6 7.59-1.35 2.44A2 2 0 0 0 8 18h12v-2H8l1.16-2z"
+    };
+
+    function makeRow(iconOrBadge, label, value, id) {
+        const row = document.createElement("div");
+        row.className = "total-row";
+        if (id) row.id = id;
+
+        row.appendChild(iconOrBadge);
+
+        const text = document.createElement("div");
+        text.className = "total-text";
+
+        const labelEl = document.createElement("div");
+        labelEl.className = "total-label";
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement("div");
+        valueEl.className = "total-value";
+        valueEl.textContent = value;
+
+        text.appendChild(labelEl);
+        text.appendChild(valueEl);
+        row.appendChild(text);
+
+        return {row, valueEl};
+    }
+
+    function makeDivider() {
+        const d = document.createElement("div");
+        d.className = "totals-divider";
+        return d;
+    }
+
+    const valueRefs = {};
+
+    function buildTotalsBox() {
+        const root = document.getElementById("totals-root");
+        root.innerHTML = "";
+        root.classList.toggle("horizontal", cfg.orientation === "horizontal");
+        root.classList.toggle("vertical", cfg.orientation !== "horizontal");
+        valueRefs.sub = null;
+        valueRefs.token = null;
+        valueRefs.follow = null;
+        valueRefs.money = null;
+
+        let firstRow = true;
+
+        function addDivider() {
+            if (!firstRow) root.appendChild(makeDivider());
+            firstRow = false;
+        }
+
+        // subs
+        if (cfg.showSubs) {
+            addDivider();
+            const {
+                row,
+                valueEl
+            } = makeRow(makeIcon(ICONS.sub), cfg.subsHeader, formatSubs(), "row-subs");
+            root.appendChild(row);
+            valueRefs.sub = valueEl;
+        }
+
+        // tokens, like bits
+        if (cfg.showBitsTokens) {
+            addDivider();
+            const {
+                row,
+                valueEl
+            } = makeRow(makeIcon(ICONS.token), cfg.tokensHeader, formatTokens(), "row-tokens");
+            root.appendChild(row);
+            valueRefs.token = valueEl;
+        }
+
+        // follows
+        if (cfg.showFollows) {
+            addDivider();
+            const {
+                row,
+                valueEl
+            } = makeRow(makeIcon(ICONS.follow), cfg.followsHeader, formatFollows(), "row-follows");
+            root.appendChild(row);
+            valueRefs.follow = valueEl;
+        }
+
+        // money sum
+        if (cfg.showTotalDonated) {
+            addDivider();
+            const {
+                row,
+                valueEl
+            } = makeRow(makeIcon(ICONS.money), cfg.donatedHeader, formatMoney(), "row-money");
+            root.appendChild(row);
+            valueRefs.money = valueEl;
+        }
+
+        // orders
+        if (cfg.showOrders && cfg.orderEvents.length > 0) {
+            for (const evType of cfg.orderEvents) {
+                addDivider();
+                const label = evType.replace(/\Order$/, '') + ( cfg.ordersHeaderShowOrdersTag ? " Orders" : "");
+                const {
+                    row,
+                    valueEl
+                } = makeRow(makeIcon(ICONS.order), label, formatOrders(evType), "row-order-" + evType);
+                root.appendChild(row);
+                if (!valueRefs.orders) valueRefs.orders = {};
+                valueRefs.orders[evType] = valueEl;
+            }
+        }
+    }
+
+    function formatSubs() {
+        return String(Math.max(0, state.subCount + cfg.subCountOffset));
+    }
+
+    function formatTokens() {
+        return Number((Math.max(0, state.tokenSum + cfg.tokensCountOffset))).toLocaleString();
+    }
+
+    function formatFollows() {
+        return String(Math.max(0, state.followCount + cfg.followCountOffset));
+    }
+
+    function formatMoney() {
+        const val = Math.max(0, state.moneySum + cfg.donatedOffset);
+        return (state.currency ? state.currency + " " : "") + val.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatOrders(evType) {
+        if (cfg.ordersCountType == "Items")
+            return String(state.orderItemCounts[evType] || 0);            
+        return String(state.orderCounts[evType] || 0);
+        
+    }
+
+    function refreshValues() {
+        if (valueRefs.sub) valueRefs.sub.textContent = formatSubs();
+        if (valueRefs.token) valueRefs.token.textContent = formatTokens();
+        if (valueRefs.follow) valueRefs.follow.textContent = formatFollows();
+        if (valueRefs.money) {
+            valueRefs.money.textContent = formatMoney();
+        }
+        if (valueRefs.orders) {
+            for (const [evType, el] of Object.entries(valueRefs.orders)) {
+                el.textContent = formatOrders(evType);
+            }
+        }
+    }
+
+    function handleTotalsUpdate(data) {
+        if (data.type !== "subathon_totals") return;
+        
+        // money
+        state.moneySum = data.money_sum || 0;
+        state.currency = data.currency || "";
+
+        // SubLike (incls giftsublike)
+        state.subCount = 0;
+        if (data.sub_like_by_type) {
+            for (const [evType, count] of Object.entries(data.sub_like_by_type)) {
+                if (cfg.subEvents.includes(evType)) state.subCount += count;
+            }
+            if (cfg.includeSimulated && data.simulated?.sub_like_by_type) {
+                for (const [evType, count] of Object.entries(data.simulated.sub_like_by_type)) {
+                    if (cfg.subEvents.includes(evType)) state.subCount += count;
+                }
+            }
+        }
+
+        // TokenLike
+        state.tokenSum = 0;
+        if (data.token_like_by_type) {
+            for (const [evType, count] of Object.entries(data.token_like_by_type)) {
+                if (cfg.tokenEvents.includes(evType)) state.tokenSum += count;
+            }
+            if (cfg.includeSimulated && data.simulated?.token_like_by_type) {
+                for (const [evType, count] of Object.entries(data.simulated.token_like_by_type)) {
+                    if (cfg.tokenEvents.includes(evType)) state.tokenSum += count;
+                }
+            }
+        }
+        
+        // FollowLike
+        state.followCount = 0;
+        if (data.follow_count_by_type) {
+            for (const [evType, count] of Object.entries(data.follow_count_by_type)) {
+                if (cfg.followEvents.includes(evType)) state.followCount += count;
+            }
+            if (cfg.includeSimulated && data.simulated?.follow_count_by_type) {
+                for (const [evType, count] of Object.entries(data.simulated.follow_count_by_type)) {
+                    if (cfg.followEvents.includes(evType)) state.followCount += count;
+                }
+            }
+        }
+
+        // OrderLike
+        state.orderCounts = {};
+        if (data.order_count_by_type) {
+            for (const evType of cfg.orderEvents) {
+                state.orderCounts[evType] = data.order_count_by_type[evType] || 0;
+            }
+            if (cfg.includeSimulated && data.simulated?.order_count_by_type) {
+                for (const evType of cfg.orderEvents) {
+                    state.orderCounts[evType] = (state.orderCounts[evType] || 0)
+                        + (data.simulated.order_count_by_type[evType] || 0);
+                }
+            }
+        }
+        state.orderItemCounts = {};
+        if (data.order_items_count_by_type) {
+            for (const evType of cfg.orderEvents) {
+                state.orderItemCounts[evType] = data.order_items_count_by_type[evType] || 0;
+            }
+            if (cfg.includeSimulated && data.simulated?.order_items_count_by_type) {
+                for (const evType of cfg.orderEvents) {
+                    state.orderItemCounts[evType] = (state.orderItemCounts[evType] || 0)
+                        + (data.simulated.order_items_count_by_type[evType] || 0);
+                }
+            }
+        }
+
+        refreshValues();
+    }
+
+    buildTotalsBox();
+</script>

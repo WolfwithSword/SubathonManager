@@ -18,6 +18,7 @@ using TwitchLib.Client.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core.Objects;
 using SubathonManager.Tests.Utility;
 using UserType = TwitchLib.Client.Enums.UserType;
 // ReSharper disable NullableWarningSuppressionIsUsed
@@ -1188,9 +1189,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            void Handler(bool b, SubathonEventSource source, string name, string svc)
+            void Handler(IntegrationConnection conn)
             {
-                if (svc == "EventSub") tcs.TrySetResult(b);
+                if (conn.Service == "EventSub") tcs.TrySetResult(conn.Status);
             }
 
             IntegrationEvents.ConnectionUpdated += Handler;
@@ -1221,6 +1222,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             finally
             {
                 IntegrationEvents.ConnectionUpdated -= Handler;
+                Assert.True(Utils.GetConnection(SubathonEventSource.Twitch, "EventSub").Status);
             }
         }
     }

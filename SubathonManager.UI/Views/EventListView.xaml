@@ -15,7 +15,9 @@
         <conv:EventTypeValueConverter x:Key="EventTypeValueConverter"/>
         <conv:IsNotMetaCommandConverter x:Key="IsNotMetaCommandConverter"/>
         <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter"/>
+        <conv:AmountFormatConverter x:Key="AmountFormatConverter"/>
         <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter"/>
+        <conv:EnumDescriptionConverter x:Key="EnumDescriptionConverter"/>
         <Style x:Key="NoHoverOverlayButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource SolidOverlayButtonColor}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
@@ -132,7 +134,7 @@
                                             <ColumnDefinition Width="200"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding EventType}" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
+                                        <TextBlock Grid.Column="0" Text="{Binding EventType, Converter={StaticResource EnumDescriptionConverter}}" FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
                                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1" Text="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedTextConverter}}"
                                                    Foreground="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedColorConverter}}"
@@ -178,9 +180,15 @@
                                         </StackPanel>
                                         
                                         <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,2,0,0">
-                                            <TextBlock Text="{Binding Amount, StringFormat={}x{0}}" 
-                                                       Visibility="{Binding Amount, Converter={StaticResource GreaterThanOneToVisibilityConverter}}"
-                                                       Margin="0 0 0 0" />
+                                            <TextBlock Margin="0 0 0 0"
+                                                       Visibility="{Binding Amount, Converter={StaticResource GreaterThanOneToVisibilityConverter}}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource AmountFormatConverter}">
+                                                        <Binding Path="Amount"/>
+                                                        <Binding Path="EventType"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>

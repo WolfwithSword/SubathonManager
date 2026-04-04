@@ -25,18 +25,9 @@ namespace SubathonManager.UI.Views
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             DefaultCurrencyBox.SelectedItem = config.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
             
-            StreamElementsSettingsControl.CurrencyBox.ItemsSource = currencies;
-            StreamElementsSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
-            KoFiSettingsControl.CurrencyBox.ItemsSource = currencies;
-            KoFiSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
-            StreamLabsSettingsControl.CurrencyBox.ItemsSource = currencies;
-            StreamLabsSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
-            YouTubeSettingsControl.CurrencyBox.ItemsSource = currencies;
-            YouTubeSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
-            TwitchSettingsControl.CurrencyBox.ItemsSource = currencies;
-            TwitchSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
-            ExternalSettingsControl.CurrencyBox.ItemsSource = currencies;
-            ExternalSettingsControl.CurrencyBox.SelectedItem = DefaultCurrencyBox.Text;
+            ExtensionSettingsControl.UpdateCurrencyBoxes(currencies, DefaultCurrencyBox.Text);
+            ExternalServiceSettingsControl.UpdateCurrencyBoxes(currencies, DefaultCurrencyBox.Text);
+            StreamingSettingsControl.UpdateCurrencyBoxes(currencies, DefaultCurrencyBox.Text);
         }
         
         private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
@@ -107,7 +98,7 @@ namespace SubathonManager.UI.Views
             {
                 hasUpdated |= config.Set("App", "Theme", selectedTheme);
             }
-            hasUpdated |= ChatExtSettingsControl.SaveConfigValues();
+            hasUpdated |= ExtensionSettingsControl.SaveConfigValues();
             return hasUpdated;
         }
 
@@ -153,15 +144,9 @@ namespace SubathonManager.UI.Views
 
             var updaters = new Func<AppDbContext, bool>[]
             {
-                ExternalSettingsControl.UpdateValueSettings,
-                YouTubeSettingsControl.UpdateValueSettings,
-                TwitchSettingsControl.UpdateValueSettings,
-                StreamElementsSettingsControl.UpdateValueSettings,
-                StreamLabsSettingsControl.UpdateValueSettings,
-                KoFiSettingsControl.UpdateValueSettings,
-                ChatExtSettingsControl.UpdateValueSettings,
-                PicartoSettingsControl.UpdateValueSettings,
-                GoAffProSettingsControl.UpdateValueSettings
+                StreamingSettingsControl.UpdateValueSettings,
+                ExtensionSettingsControl.UpdateValueSettings,
+                ExternalServiceSettingsControl.UpdateValueSettings
             };
             
             bool hasUpdated = updaters.Aggregate(false, (current, updater) => current | updater(db));
@@ -187,11 +172,11 @@ namespace SubathonManager.UI.Views
             bool hasUpdated = false;
             hasUpdated |= SaveTopAppSettings();
             UpdateSubathonValues();
-            hasUpdated |= TwitchSettingsControl.UpdateConfigValueSettings();
-            KoFiSettingsControl.RefreshTierCombo();
-            YouTubeSettingsControl.RefreshTierCombo();
-            hasUpdated |= PicartoSettingsControl.UpdateConfigValueSettings();
-            hasUpdated |= GoAffProSettingsControl.UpdateConfigValueSettings();
+            hasUpdated |= StreamingSettingsControl.UpdateConfigValueSettings();
+            ExternalServiceSettingsControl.RefreshTierCombo(SubathonEventSource.KoFi); 
+            ExternalServiceSettingsControl.RefreshTierCombo(SubathonEventSource.External);
+            StreamingSettingsControl.RefreshTierCombo(SubathonEventSource.YouTube);
+            hasUpdated |= ExternalServiceSettingsControl.UpdateConfigValueSettings();
             hasUpdated |= CommandsSettingsControl.UpdateConfigValueSettings();
             hasUpdated |= WebhookLogSettingsControl.UpdateConfigValueSettings();
 
@@ -233,7 +218,6 @@ namespace SubathonManager.UI.Views
         {
             using var db = _factory.CreateDbContext();
             var values = db.SubathonValues.ToList();
-            // todo consider moving to other controls
             foreach (var val in values)
             {
                 var v = $"{val.Seconds}";
@@ -241,129 +225,21 @@ namespace SubathonManager.UI.Views
                 
                 TextBox? box = null;
                 TextBox? box2 = null;
-                switch (val.EventType) 
-                { 
-                    case SubathonEventType.ExternalDonation:
-                        box = ExternalSettingsControl.DonoBox;
-                        box2 = ExternalSettingsControl.DonoBox2;
-                        break;
-                    case SubathonEventType.KoFiDonation:
-                        box = KoFiSettingsControl.DonoBox;
-                        box2 = KoFiSettingsControl.DonoBox2;
-                        break;
-                    case SubathonEventType.YouTubeGiftMembership:
-                        box = YouTubeSettingsControl.GiftMemberDefaultTextBox;
-                        box2 = YouTubeSettingsControl.GiftMemberDefaultTextBox2;
-                        break;
-                    case SubathonEventType.YouTubeSuperChat:
-                        box = YouTubeSettingsControl.DonoBox;
-                        box2 = YouTubeSettingsControl.DonoBox2;
-                        break;
-                    case SubathonEventType.TwitchCharityDonation:
-                        box = TwitchSettingsControl.DonoBox;
-                        box2 = TwitchSettingsControl.DonoBox2;
-                        break;
-                    case SubathonEventType.TwitchFollow:
-                        box = TwitchSettingsControl.FollowTextBox;
-                        box2 = TwitchSettingsControl.Follow2TextBox;
-                        break;
-                    case SubathonEventType.PicartoFollow:
-                        box = PicartoSettingsControl.FollowTextBox;
-                        box2 = PicartoSettingsControl.Follow2TextBox;
-                        break;
-                    case SubathonEventType.TwitchCheer:
-                        v = $"{Math.Round(val.Seconds * 100)}";
-                        box = TwitchSettingsControl.CheerTextBox;
-                        box2 = TwitchSettingsControl.Cheer2TextBox; // in backend when adding, need to round down when adding for odd bits
-                        break;
-                    case SubathonEventType.PicartoTip:
-                        v = $"{Math.Round(val.Seconds * 100)}";
-                        box = PicartoSettingsControl.KudosTextBox;
-                        box2 = PicartoSettingsControl.Kudos2TextBox; 
-                        break;
-                    case SubathonEventType.BlerpBits:
-                        v = $"{Math.Round(val.Seconds * 100)}";
-                        box = ChatExtSettingsControl.BitsTextBox;
-                        box2 = ChatExtSettingsControl.Bits2TextBox; 
-                        break;
-                    case SubathonEventType.BlerpBeets:
-                        v = $"{Math.Round(val.Seconds * 100)}";
-                        box = ChatExtSettingsControl.BeetsTextBox;
-                        box2 = ChatExtSettingsControl.Beets2TextBox; 
-                        break;
-                    case SubathonEventType.TwitchSub:
-                        switch (val.Meta)
-                        {
-                            case "1000":
-                                box = TwitchSettingsControl.SubT1TextBox;
-                                box2 = TwitchSettingsControl.SubT1TextBox2;
-                                break;
-                            case "2000":
-                                box = TwitchSettingsControl.SubT2TextBox;
-                                box2 = TwitchSettingsControl.SubT2TextBox2;
-                                break;
-                            case "3000":
-                                box = TwitchSettingsControl.SubT3TextBox;
-                                box2 = TwitchSettingsControl.SubT3TextBox2;
-                                break;
-                        }
-                        break;
-                    case SubathonEventType.PicartoSub:
-                        switch (val.Meta)
-                        {
-                            case "T1":
-                                box = PicartoSettingsControl.SubT1TextBox;
-                                box2 = PicartoSettingsControl.SubT1TextBox2;
-                                break;
-                            case "T2":
-                                box = PicartoSettingsControl.SubT2TextBox;
-                                box2 = PicartoSettingsControl.SubT2TextBox2;
-                                break;
-                            case "T3":
-                                box = PicartoSettingsControl.SubT3TextBox;
-                                box2 = PicartoSettingsControl.SubT3TextBox2;
-                                break;
-                        }
-                        break;
-                    case SubathonEventType.PicartoGiftSub:
-                        switch (val.Meta)
-                        {
-                            case "T1":
-                                box = PicartoSettingsControl.GiftSubTextBox;
-                                box2 = PicartoSettingsControl.GiftSubTextBox2;
-                                break;
-                        }
-                        break;
-                    case SubathonEventType.TwitchGiftSub:
-                        switch (val.Meta)
-                        {
-                            case "1000":
-                                box = TwitchSettingsControl.GiftSubT1TextBox;
-                                box2 = TwitchSettingsControl.GiftSubT1TextBox2;
-                                break;
-                            case "2000":
-                                box = TwitchSettingsControl.GiftSubT2TextBox;
-                                box2 = TwitchSettingsControl.GiftSubT2TextBox2;
-                                break;
-                            case "3000":
-                                box = TwitchSettingsControl.GiftSubT3TextBox;
-                                box2 = TwitchSettingsControl.GiftSubT3TextBox2;
-                                break;
-                        }
-                        break;
-                    case SubathonEventType.TwitchRaid:
-                        box = TwitchSettingsControl.RaidTextBox;
-                        box2 = TwitchSettingsControl.Raid2TextBox;
-                        break;
-                    case SubathonEventType.StreamElementsDonation:
-                        box = StreamElementsSettingsControl.DonoBox;
-                        box2 = StreamElementsSettingsControl.DonoBox2;
-                        break;
-                    case SubathonEventType.StreamLabsDonation:
-                        box = StreamLabsSettingsControl.DonoBox;
-                        box2 = StreamLabsSettingsControl.DonoBox2;
-                        break;
+                var source = val.EventType.GetSource();
+                if (source.GetGroup() == SubathonSourceGroup.Stream)
+                {
+                    
+                    (v, p, box, box2) = StreamingSettingsControl.GetValueBoxes(val);
                 }
+                else if (source.GetGroup() == SubathonSourceGroup.StreamExtension)
+                {
+                    (v, p, box, box2) = ExtensionSettingsControl.GetValueBoxes(val);
+                }
+                else if (source.GetGroup() == SubathonSourceGroup.ExternalService)
+                {
+                    (v, p, box, box2) = ExternalServiceSettingsControl.GetValueBoxes(val);
+                }
+
                 if (box != null && box2 != null)
                     UpdateTimePointsBoxes(box, box2, v, p);
             }
@@ -383,12 +259,16 @@ namespace SubathonManager.UI.Views
                         break;
                     }
                 }
-                ChatExtSettingsControl.LoadConfigValues();
+                ExtensionSettingsControl.LoadConfigValues();
             }
 
-            KoFiSettingsControl.LoadValues(db);
-            YouTubeSettingsControl.LoadValues(db);
-            GoAffProSettingsControl.LoadValues(db);
+            StreamingSettingsControl.LoadValues(db);
+            ExternalServiceSettingsControl.LoadValues(db);
+        }
+
+        public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
+        {
+            return;
         }
     }
 }

@@ -10,6 +10,9 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
+
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
@@ -23,24 +26,9 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     
     internal Uri Endpoint = new Uri("https://api.goaffpro.com/v1/", UriKind.Absolute);
     internal int MaxRetries = 20;
-    
-    private static readonly Dictionary<int, GoAffProSource> SiteMapping = new() // supported sites
-    {
-        { 165328, GoAffProSource.GamerSupps },
-        { 132230, GoAffProSource.UwUMarket }
-    };
-    private static readonly Dictionary<GoAffProSource, int> ReverseSiteMapping = 
-        SiteMapping.ToDictionary(x => x.Value, x => x.Key);
-    
+
     private HashSet<int> _siteIds = new();
-
-    public static readonly Dictionary<GoAffProSource, SubathonEventType> OrderMapping = new()
-    {
-        { GoAffProSource.GamerSupps, SubathonEventType.GamerSuppsOrder},
-        { GoAffProSource.UwUMarket, SubathonEventType.UwUMarketOrder}
-    };
     
-
     public async Task StartAsync(CancellationToken ct = default)
     {
         await StopAsync(ct);
@@ -63,8 +51,14 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
                 email: email,
                 password: password, cancellationToken: ct);
             
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.GoAffPro,
-                "", nameof(SubathonEventSource.GoAffPro));
+            IntegrationConnection conn = new IntegrationConnection
+            {
+                Name = "",
+                Status = true,
+                Source = SubathonEventSource.GoAffPro,
+                Service = nameof(SubathonEventSource.GoAffPro)
+            };
+            IntegrationEvents.RaiseConnectionUpdate(conn);
         }
         catch (Exception e)
         {
@@ -100,17 +94,33 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
         foreach (var site in sitesResponse.Sites.Where(site => site is { Id: not null, Status: UserSite_status.Approved }))
         {
-            if (!SiteMapping.ContainsKey(site.Id!.Value) || !_siteIds.Add(site!.Id.Value)) continue;
+            if (!GoAffProSourceeHelper.TryGetSource(site.Id!.Value, out GoAffProSource source))
+            {
+                logger?.LogInformation("[GoAffPro] Site {Id} ({Name}) detected on account, but not integrated. Please create an integration request if you would like it supported", site.Id!.Value, site.Name);
+                continue;
+            }
+            if (source == GoAffProSource.Unknown || source.IsDisabled()) continue;
+            if (!_siteIds.Add(site.Id.Value)) continue;
             string currency = !string.IsNullOrWhiteSpace(site.Currency) ? site.Currency : "USD";
-
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.GoAffPro,
-                currency, SiteMapping[(int)site.Id].ToString());
+            
+            IntegrationConnection conn = new IntegrationConnection
+            {
+                Name = currency,
+                Status = true,
+                Source = SubathonEventSource.GoAffPro,
+                Service = source.ToString()
+            };
+            IntegrationEvents.RaiseConnectionUpdate(conn);
         }
         
         _detectorCts = new CancellationTokenSource();
-        _client.OrderObserverStartTime = DateTimeOffset.UtcNow;
+        if (!int.TryParse(config.Get(_configSection, "DaysOffset", "0"), out var daysOffset)) daysOffset = 0;
+        
+        _client.OrderObserverStartTime = DateTimeOffset.UtcNow - TimeSpan.FromDays(daysOffset);
+        logger?.LogInformation("[GoAffPro] Started GoAffPro service with {Count} connected sites", _siteIds.Count);
         
         _ = Task.Run(async() => {
+            logger?.LogInformation("[GoAffPro] GoAffPro is now polling for orders...");
             await foreach (var order in _client.NewOrdersAsync(
                                pollingInterval: TimeSpan.FromSeconds(30),
                                pageSize: 100,
@@ -118,6 +128,7 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             {
                 HandleOrder(order);
             }
+            logger?.LogInformation("[GoAffPro] GoAffPro polling finished");
         }, _detectorCts.Token);
     }
 
@@ -127,7 +138,7 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
         // id is meant to be a long but w/e
         
         UserOrderFeedItem order = new UserOrderFeedItem();
-        int idInt = ReverseSiteMapping.TryGetValue(affilStore, out var idParse) ? idParse : int.MaxValue;
+        int idInt = affilStore.TryGetSiteId(out var idParse) ? idParse : int.MaxValue;
         order.SiteId = new UserOrderFeedItem.UserOrderFeedItem_site_id() { Integer = idInt };
         order.Id = new UserOrderFeedItem.UserOrderFeedItem_id() { String = id};
         order.Number = "SIMULATED";
@@ -177,8 +188,9 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             }
 
             var site = order.SiteId!.Integer;
-            if (site == null || !SiteMapping.TryGetValue((int)site, out GoAffProSource source)) return;
-
+            if (site == null || !GoAffProSourceeHelper.TryGetSource((int)site, out GoAffProSource source)) return;
+            if (source == GoAffProSource.Unknown || source.IsDisabled()) return;
+            
             // we will listen for these sites regardless in orders, but will ignore if not enabled.
             var enabled = config.GetBool(_configSection, $"{source}.Enabled", true);
             if (!enabled) return;
@@ -193,7 +205,13 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
                 GoAffProModes.Order => "order",
                 _ => order.Currency
             };
-
+            int itemCount = 0;
+            foreach (var item in order.LineItems)
+            {
+                itemCount += item.Quantity ?? 0;
+                itemCount -= item.RefundQuantity ?? 0;
+            }
+            ev.Amount = itemCount;
             switch (sourceMode)
             {
                 case GoAffProModes.Dollar:
@@ -204,20 +222,13 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
                     break;
                 default:
                 {
-                    int itemCount = 0;
-                    foreach (var item in order.LineItems)
-                    {
-                        itemCount += item.Quantity ?? 0;
-                        itemCount -= item.RefundQuantity ?? 0;
-                    }
-
                     ev.Value = $"{itemCount}";
                     break;
                 }
             }
 
             ev.SecondaryValue = $"{order.Commission}|{order.Currency}";
-            ev.EventType = OrderMapping.GetValueOrDefault(source, SubathonEventType.Unknown);
+            ev.EventType = source.GetOrderEvent();
             if (ev.EventType == SubathonEventType.Unknown) return;
 
             ev.User = $"New {source}";
@@ -235,12 +246,25 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     public Task StopAsync(CancellationToken ct = default)
     {
         foreach (var integ in Enum.GetNames<GoAffProSource>())
+        {           
+            IntegrationConnection conn = new IntegrationConnection
+            {
+                Name = "",
+                Status = false,
+                Source = SubathonEventSource.GoAffPro,
+                Service = integ
+            };
+            IntegrationEvents.RaiseConnectionUpdate(conn);
+        }        
+        
+        IntegrationConnection connection = new IntegrationConnection
         {
-            IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.GoAffPro,
-                "", integ);
-        }
-        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.GoAffPro,
-            "", nameof(SubathonEventSource.GoAffPro));
+            Name = "",
+            Status = false,
+            Source = SubathonEventSource.GoAffPro,
+            Service = nameof(SubathonEventSource.GoAffPro)
+        };
+        IntegrationEvents.RaiseConnectionUpdate(connection);
         
         if (_client != null && _detectorCts is { IsCancellationRequested: false })
             _detectorCts.Cancel();

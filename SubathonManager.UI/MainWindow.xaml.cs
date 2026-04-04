@@ -109,7 +109,8 @@ namespace SubathonManager.UI
  
             if (openDialog.ShowDialog() != true) return;
  
-            string importsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "imports");
+            string importsDir = Path.GetFullPath($"./imports");
+            //string importsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "imports");
  
             try
             {

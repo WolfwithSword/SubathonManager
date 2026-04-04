@@ -1,13 +1,15 @@
 ﻿using System.Windows;
 using System.Diagnostics;
+using System.Windows.Controls;
 using System.Windows.Documents;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; 
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
-using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 
@@ -36,17 +38,11 @@ public partial class SettingsView : SettingsControl
             RegisterUnsavedChangeHandlers();
         };
 
-        TwitchSettingsControl.Init(this);
-        YouTubeSettingsControl.Init(this);
-        PicartoSettingsControl.Init(this);
+        StreamingSettingsControl.Init(this);
         WebhookLogSettingsControl.Init(this);
-        StreamLabsSettingsControl.Init(this);
-        StreamElementsSettingsControl.Init(this);
-        KoFiSettingsControl.Init(this);
-        GoAffProSettingsControl.Init(this);
-        ExternalSettingsControl.Init(this);
+        ExternalServiceSettingsControl.Init(this);
         CommandsSettingsControl.Init(this);
-        ChatExtSettingsControl.Init(this);
+        ExtensionSettingsControl.Init(this);
         
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         ServerPortTextBox.Text = config.Get("Server", "Port", string.Empty) ?? string.Empty;
@@ -168,12 +164,7 @@ public partial class SettingsView : SettingsControl
         }
     }
 
-    internal override void UpdateStatus(bool status, SubathonEventSource source, string name, string service)
-    {
-        return;
-    }
-
-    public override void LoadValues(AppDbContext db)
+    internal override void UpdateStatus(IntegrationConnection? connection)
     {
         return;
     }
@@ -183,8 +174,8 @@ public partial class SettingsView : SettingsControl
         return false;
     }
 
-    public override bool UpdateConfigValueSettings()
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
     {
-        return false;
+        throw new NotImplementedException();
     }
 }

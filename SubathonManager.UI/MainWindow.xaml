@@ -284,6 +284,7 @@
                                            <ui:TextBox x:Name="AdjustSubathonMoney" Margin="5,10,0,5" 
                                                        Text="5.00" Height="34" Width="84" VerticalAlignment="Center"
                                                        PlaceholderText="5.00" ToolTip="Amount"
+                                                       ClearButtonEnabled="False"
                                                        PreviewTextInput="DecimalOnly_PreviewTextInput" />
                                            <ComboBox Text="Currency" Width="84" IsEditable="True" IsTextSearchEnabled="True" 
                                                      StaysOpenOnEdit="True" Height="34" ToolTip="Currency"

@@ -81,6 +81,7 @@ public class OverlayPorter
             var widget = widgets[i];
             string widgetRoot = widgetRoots[i];
             string zipWidgetRoot = zipRoots[i];
+            var baseFolder = GetWidgetBaseFolder(zipWidgetRoot);
 
             plan.WidgetFolderMap[widget.Id] = zipWidgetRoot;
 
@@ -109,14 +110,14 @@ public class OverlayPorter
                     foreach (var file in Directory.EnumerateFiles(jsVar.Value, "*", SearchOption.AllDirectories))
                     {
                         string relative = Path.GetRelativePath(jsVar.Value, file).Replace('\\', '/');
-                        plan.FileCopies.Add((file, $"{zipWidgetRoot}/{ExternalFolder}/{varFolderName}/{relative}"));
+                        plan.FileCopies.Add((file, $"{baseFolder}/{ExternalFolder}/{varFolderName}/{relative}"));
                     }
                     SetRewrite(plan.VariableRewrites, widget.Id, jsVar.Name, $"./{ExternalFolder}/{varFolderName}");
                 }
                 else if (!isFolderType && File.Exists(jsVar.Value))
                 {
                     string fileName = Path.GetFileName(jsVar.Value);
-                    plan.FileCopies.Add((jsVar.Value, $"{zipWidgetRoot}/{ExternalFolder}/{fileName}"));
+                    plan.FileCopies.Add((jsVar.Value, $"{baseFolder}/{ExternalFolder}/{fileName}"));
                     SetRewrite(plan.VariableRewrites, widget.Id, jsVar.Name, $"./{ExternalFolder}/{fileName}");
                 }
             }
@@ -362,6 +363,12 @@ public class OverlayPorter
         inner[varName] = value;
     }
 
+    private static string GetWidgetBaseFolder(string zipWidgetRoot)
+    {
+        int lastSlash = zipWidgetRoot.LastIndexOf('/');
+        return lastSlash > 0 ? zipWidgetRoot[..lastSlash] : zipWidgetRoot;
+    }
+
     public static List<string> GetZipWidgetRoots(List<string> absoluteFolderPaths)
     {
         if (absoluteFolderPaths.Count == 0) return new();
@@ -370,51 +377,60 @@ public class OverlayPorter
             .Select(p => p.Replace('\\', '/').TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries))
             .ToList();
 
-        var ancestors = segmentSets.Select(s => s[..^1]).ToList();
-
-        int commonLength = ancestors[0].Length;
-        for (int i = 1; i < ancestors.Count; i++)
+        static bool IsPrefix(string[] parent, string[] child)
         {
-            int shared = 0;
-            int max = Math.Min(commonLength, ancestors[i].Length);
-            for (int j = 0; j < max; j++)
-            {
-                if (string.Equals(ancestors[0][j], ancestors[i][j], StringComparison.OrdinalIgnoreCase))
-                    shared++;
-                else
-                    break;
-            }
-            commonLength = shared;
+            if (parent.Length > child.Length) return false;
+            return !parent.Where((t, i) => !string.Equals(t, child[i], StringComparison.OrdinalIgnoreCase)).Any();
         }
 
-        var results = new List<string>(absoluteFolderPaths.Count);
-        foreach (var segment in segmentSets)
-        {
-            string leaf = SanitizeName(segment[^1]);
-            var unique = segment[..^1][commonLength..];
+        var roots = new List<string[]>(segmentSets.Count);
 
-            var sb = new StringBuilder("widgets");
-            if (unique.Length > 0)
+        foreach (var current in segmentSets)
+        {
+            string[]? bestRoot = null;
+
+            foreach (var candidate in segmentSets)
             {
-                sb.Append('/');
-                sb.Append(HashSegment(unique[0]));
-                for (int j = 1; j < unique.Length; j++)
+                if (ReferenceEquals(candidate, current)) continue;
+
+                if (IsPrefix(candidate, current))
                 {
-                    sb.Append('/');
-                    sb.Append(SanitizeName(unique[j]));
+                    if (bestRoot == null || candidate.Length > bestRoot.Length)
+                        bestRoot = candidate;
                 }
             }
-            else
-            {
-                string bucketSource = commonLength > 0
-                    ? ancestors[0][commonLength - 1]
-                    : leaf;
-                sb.Append('/');
-                sb.Append(HashSegment(bucketSource));
-            }
+
+            roots.Add(bestRoot ?? current);
+        }
+
+        var results = new List<string>(segmentSets.Count);
+
+        for (int i = 0; i < segmentSets.Count; i++)
+        {
+            var segment = segmentSets[i];
+            var root = roots[i];
+
+            string leaf = SanitizeName(segment[^1]);
+
+            var sb = new StringBuilder("widgets");
+
+            var parentParts = root.SkipLast(1).ToArray();
+
+            string bucketSource = parentParts.Length > 0
+                ? string.Join("/", parentParts).ToLowerInvariant()
+                : root[^1].ToLowerInvariant();
 
             sb.Append('/');
-            sb.Append(leaf);
+            sb.Append(HashSegment(bucketSource));
+
+            int start = root.Length - 1;
+
+            for (int j = start; j < segment.Length; j++)
+            {
+                sb.Append('/');
+                sb.Append(SanitizeName(segment[j]));
+            }
+
             results.Add(sb.ToString());
         }
 

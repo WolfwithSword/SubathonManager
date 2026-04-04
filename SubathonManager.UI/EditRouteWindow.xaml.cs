@@ -67,7 +67,10 @@ public partial class EditRouteWindow
         {
             WidgetEvents.WidgetPositionUpdated += OnWidgetPositionUpdated;
             WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
+            WidgetEvents.WidgetSizeUpdated += OnWidgetSizeUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
+            if (WebViewContainer != null)
+                WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         }
     }
     
@@ -96,6 +99,24 @@ public partial class EditRouteWindow
                 _selectedWidget.ScaleY = updatedWidget.ScaleY;
                 if (WidgetScaleXBox.Text != $"{updatedWidget.ScaleX}") WidgetScaleXBox.Text = $"{updatedWidget.ScaleX}";
                 if (WidgetScaleYBox.Text != $"{updatedWidget.ScaleY}") WidgetScaleYBox.Text = $"{updatedWidget.ScaleY}";
+            });
+        }
+    }
+    
+    private void OnWidgetSizeUpdated(Widget updatedWidget)
+    {
+        if (_selectedWidget != null && _selectedWidget.Id == updatedWidget.Id)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _selectedWidget.X = updatedWidget.X;
+                _selectedWidget.Y = updatedWidget.Y;
+                _selectedWidget.Width = updatedWidget.Width;
+                _selectedWidget.Height = updatedWidget.Height;
+                if (WidgetXBox.Text != $"{updatedWidget.X}") WidgetXBox.Text = $"{updatedWidget.X}";
+                if (WidgetYBox.Text != $"{updatedWidget.Y}") WidgetYBox.Text = $"{updatedWidget.Y}";
+                if (WidgetWidthBox.Text != $"{updatedWidget.Width}") WidgetWidthBox.Text = $"{updatedWidget.Width}";
+                if (WidgetHeightBox.Text != $"{updatedWidget.Height}") WidgetHeightBox.Text = $"{updatedWidget.Height}";
             });
         }
     }
@@ -147,7 +168,6 @@ public partial class EditRouteWindow
             await db.SaveChangesAsync();
         }
 
-        WebViewContainer.SizeChanged += WebViewContainer_SizeChanged;
         try
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -168,24 +188,28 @@ public partial class EditRouteWindow
 
     private void SelectWidgetFromEvent(Guid widgetId)
     {
-        if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
-        using var db = _factory.CreateDbContext();
-        var widget = db.Widgets.Include(wX => wX.JsVariables)
-            .Include(wX => wX.CssVariables).FirstOrDefault(wX => wX.Id == widgetId);
-        Dispatcher.Invoke(() =>
+        Dispatcher.InvokeAsync(async () =>
         {
+            if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
+            await using var db = await _factory.CreateDbContextAsync();
+            var widget = await db.Widgets.Include(wX => wX.JsVariables)
+                .Include(wX => wX.CssVariables).FirstOrDefaultAsync(wX => wX.Id == widgetId);
             PopulateWidgetEditor(widget);
+            
         });
+        
     }
     
     private void PopulateWidgetEditor(Widget? widget)
     {
+        CssVarsList.ItemsSource = null;
+        JsVarsList.ItemsSource = null;
+        _editingCssVars.Clear();
         UpdateSaveButtonBorder(SaveButtonBorder, false);
         if (widget == null)
         {
             WidgetEditPanel.Visibility = Visibility.Collapsed;
             EmptyEditorPanel.Visibility = Visibility.Visible;
-            _editingCssVars = new ObservableCollection<CssVariable>();
             _selectedWidget = null;
             return;
         }
@@ -226,7 +250,7 @@ public partial class EditRouteWindow
            WidgetNameBox.Width = 315;
         }
         
-        _editingCssVars = new ObservableCollection<CssVariable>(widget.CssVariables);
+        foreach (var v in widget.CssVariables) _editingCssVars.Add(v);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
         UpdateSaveButtonBorder(SaveButtonBorder, false);
@@ -307,7 +331,7 @@ public partial class EditRouteWindow
     {
         var selected = GetAllCheckBoxes(container)
             .Where(c => c.IsChecked == true)
-            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Text)
+            .Select(c => ((Wpf.Ui.Controls.TextBlock)c.Content).Tag)
             .ToList();
         variable.Value = string.Join(',', selected);
     }
@@ -419,7 +443,9 @@ public partial class EditRouteWindow
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
         WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
         WidgetEvents.SelectEditorWidget -= SelectWidgetFromEvent;
-        WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
+        WidgetEvents.WidgetSizeUpdated -= OnWidgetSizeUpdated;
+        if (WebViewContainer != null)
+            WebViewContainer.SizeChanged -= WebViewContainer_SizeChanged;
         Loaded -= EditRouteWindow_Loaded;
         
         if (_loadedWebView)

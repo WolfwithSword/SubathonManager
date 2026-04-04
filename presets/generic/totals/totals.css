@@ -1,0 +1,104 @@
+﻿:root {
+    --background-color: #192318;
+    --border-color: #D59B33;
+    --border-thickness: 3px;
+    --font-size: 1rem;
+    --small-font-size: 0.78rem;
+    --font-family: "Segoe UI", sans-serif;
+    --text-color: #E0F0EA;
+    --accent-color: #72B899;
+    --icon-color: #D59B33;
+    --label-color: #90B8A5;
+    --row-gap: 10px;
+    --col-gap: 20px;
+    --base-width: 250px;
+    --header-alignment: left;
+    --value-alignment: left;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: transparent;
+}
+
+.totals-root {
+    display: flex;
+    flex-direction: column;
+    gap: var(--row-gap) var(--col-gap);
+    width: var(--base-width);
+    padding: 10px 14px;
+    background: var(--background-color);
+    border: var(--border-thickness) solid var(--border-color);
+    border-radius: 10px;
+    font-family: var(--font-family);
+    color: var(--text-color);
+    font-size: var(--font-size);
+}
+
+.total-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.total-icon {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    color: var(--icon-color);
+}
+
+
+.total-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    width: 100%;
+}
+
+.total-label {
+    font-size: var(--small-font-size);
+    color: var(--label-color);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: var(--header-alignment);
+    width: 100%;
+}
+
+.total-value {
+    font-size: var(--font-size);
+    font-weight: 600;
+    color: var(--text-color);
+    text-align: var(--value-alignment);
+    width: 100%;
+}
+
+.totals-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border-color), transparent);
+    margin: 2px 0;
+}
+
+.totals-root.horizontal {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: fit-content;
+    align-items: center;
+}
+
+.totals-root.horizontal .total-row {
+    flex: 0 1 auto;
+    min-width: 120px;
+}
+
+.totals-root.horizontal .totals-divider {
+    width: 1px;
+    height: 28px;
+    align-self: center;
+    background: linear-gradient(to bottom, transparent, var(--border-color), transparent);
+}

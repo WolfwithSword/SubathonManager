@@ -9,6 +9,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Services;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -79,7 +80,13 @@ public class YouTubeService : IDisposable, IAppService
     {
         Running = false;
         _reconnectState.Reset();
-        IntegrationEvents.RaiseConnectionUpdate(Running, SubathonEventSource.YouTube, "None", "Chat");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.YouTube,
+            Service = "Chat",
+            Name = "None",
+            Status = Running
+        });
 
         _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
@@ -91,6 +98,13 @@ public class YouTubeService : IDisposable, IAppService
         if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
         _logger?.LogInformation("Youtube Service Starting for " + _ytHandle);
         
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.YouTube,
+            Service = "Chat",
+            Name = _ytHandle!,
+            Status = Running
+        });
         _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
         return true;
     }
@@ -117,15 +131,26 @@ public class YouTubeService : IDisposable, IAppService
         Running = true;
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
-
-        IntegrationEvents.RaiseConnectionUpdate(Running, SubathonEventSource.YouTube, _ytHandle!, "Chat");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.YouTube,
+            Service = "Chat",
+            Name = _ytHandle!,
+            Status = Running
+        });
         _logger?.LogInformation($"Successfully loaded YouTube Live ID: {e.LiveId}");
     }
     private void OnChatStopped(object? sender, ChatStoppedEventArgs e)
     {
         Running = false;
         _logger?.LogWarning("YT Chat stopped");
-        IntegrationEvents.RaiseConnectionUpdate(Running, SubathonEventSource.YouTube, _ytHandle!, "Chat");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.YouTube,
+            Service = "Chat",
+            Name = _ytHandle!,
+            Status = Running
+        });
         TryReconnectLoop();
     }
 
@@ -157,7 +182,13 @@ public class YouTubeService : IDisposable, IAppService
                 _logger?.LogWarning(ex, "YT Error Occurred");
         }
 
-        IntegrationEvents.RaiseConnectionUpdate(Running, SubathonEventSource.YouTube, _ytHandle!, "Chat");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.YouTube,
+            Service = "Chat",
+            Name = _ytHandle!,
+            Status = Running
+        });
     }
     
     private void OnChatReceived(object? sender, ChatReceivedEventArgs e)
@@ -167,7 +198,13 @@ public class YouTubeService : IDisposable, IAppService
         
         if (!Running)
         {
-            IntegrationEvents.RaiseConnectionUpdate(true, SubathonEventSource.YouTube, _ytHandle!, "Chat");
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.YouTube,
+                Service = "Chat",
+                Name = _ytHandle!,
+                Status = true
+            });
             _reconnectState.Cts?.Cancel();
             _reconnectState.Reset();
         }

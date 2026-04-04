@@ -8,6 +8,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              Background="{DynamicResource UiBrushPrimary}"
              xmlns:views="clr-namespace:SubathonManager.UI.Views.SettingsViews"
+             xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
              d:DesignHeight="800" d:DesignWidth="1200">
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -53,7 +54,7 @@
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5" HorizontalAlignment="Left">
                                 <TextBlock Text="Port:" Width="120" 
                                            Margin="0 0 4 0" VerticalAlignment="Center"/>
-                                <ui:TextBox x:Name="ServerPortTextBox" Width="100" PlaceholderText="14040"/>
+                                <ui:TextBox x:Name="ServerPortTextBox" Width="100" PlaceholderText="14040" validation:InputValidationBehavior.IsNumberOnly="True" />
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                                     <TextBlock Text="WebServer: " VerticalAlignment="Center" FontSize="12" Margin="14 0 2 0"/>
                                     <TextBlock x:Name="ServerStatusText" VerticalAlignment="Center" FontSize="12" Margin="0 0 0 0"/>
@@ -155,32 +156,14 @@
                     <Separator Margin="0 5 0 5"/>
                     <TextBlock Text="Values and Connections" FontWeight="Bold" FontSize="16" Margin="0,5,0,15"/>
                     
-                     <!-- Twitch --> 
-                     <views:TwitchSettings x:Name="TwitchSettingsControl" />
-                    
-                     <!-- YouTube --> 
-                     <views:YouTubeSettings x:Name="YouTubeSettingsControl" />
+                     <!-- Streaming --> 
+                     <views:StreamingSettings x:Name="StreamingSettingsControl" />
                      
-                     <!-- Picarto --> 
-                     <views:PicartoSettings x:Name="PicartoSettingsControl" />
-
-                     <!-- StreamElements --> 
-                     <views:StreamElementsSettings x:Name="StreamElementsSettingsControl" />
-                    
-                     <!-- StreamLabs --> 
-                     <views:StreamLabsSettings x:Name="StreamLabsSettingsControl" />
+                     <!-- Extensions -->
+                     <views:ExtensionSettings x:Name="ExtensionSettingsControl" />
                      
-                     <!-- Chat Extensions -->
-                     <views:ChatExtensionSettings x:Name="ChatExtSettingsControl" />
-                     
-                     <!-- KoFi -->
-                     <views:KoFiSettings x:Name="KoFiSettingsControl" />
-                     
-                     <!-- GoAffPro --> 
-                     <views:GoAffProSettings x:Name="GoAffProSettingsControl" />
-                    
-                     <!-- External Events/Services -->
-                     <views:ExternalServiceSettings x:Name="ExternalSettingsControl" />
+                     <!-- External -->
+                     <views:ExternalSettings x:Name="ExternalServiceSettingsControl" />
                      
                      <!-- Commands --> 
                      <views:CommandsSettings x:Name="CommandsSettingsControl" />

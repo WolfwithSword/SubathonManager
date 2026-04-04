@@ -14,6 +14,7 @@ using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.UI.Services;
 using Wpf.Ui.Markup;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI;
 
@@ -67,9 +68,9 @@ public partial class App
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
-            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
             {
-                Utils.DonationSettings[goAffProSource] =
+                Utils.DonationSettings[$"{goAffProSource}"] =
                     config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
             }
             
@@ -89,6 +90,8 @@ public partial class App
             }
 
             base.OnStartup(e);
+
+            SubathonEvents.SubathonDataUpdate += UpdateTickStateCache;
             
             var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
             
@@ -236,12 +239,12 @@ public partial class App
                 Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
             }
             
-            foreach (var goAffProSource in Enum.GetNames<GoAffProSource>())
+            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
             {
                 bool asDonation = config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
                 if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
-                Utils.DonationSettings[goAffProSource] = asDonation;
+                Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
             }
 
             if (currencyChanged || optionToggled)
@@ -314,7 +317,12 @@ public partial class App
         {
             var amt = await currencyService.ConvertAsync((double)subathon.MoneySum, oldCurrency, currency);
             await db.UpdateSubathonMoney(amt, subathon.Id);
-            if (optionToggled != null && !(bool)optionToggled) return;
+            if (optionToggled != null && !(bool)optionToggled) {
+                var subathonTotals = await EventService.GetSubathonTotalsAsync(db);
+                if (subathonTotals != null)
+                    SubathonEvents.RaiseSubathonTotalsUpdated(subathonTotals);
+                return;
+            }
         }
 
         // reconvert everything, rarely called, unless toggling bits as donations
@@ -332,7 +340,7 @@ public partial class App
         foreach (var e in events)
         {
             (bool isBitsLike, double modifier) = Utils.GetAltCurrencyUseAsDonation(config, e.EventType);
-            if (e.EventType.IsCheerType() && isBitsLike)
+            if (e.EventType.IsToken() && isBitsLike)
             {
                 bits += (int.Parse(e.Value) * modifier);
                 continue;
@@ -340,7 +348,7 @@ public partial class App
             if (string.IsNullOrWhiteSpace(e.Currency)) continue;
             var value = e.Value;
             var curr = e.Currency;
-            if (e.EventType.IsOrderType())
+            if (e.EventType.IsOrder())
             {
                 value = e.SecondaryValue.Split('|')[0];
                 curr = e.SecondaryValue.Split('|')[1];
@@ -355,6 +363,9 @@ public partial class App
             sum += val;
         }
         await db.UpdateSubathonMoney(sum, subathon.Id);
+        var totals = await EventService.GetSubathonTotalsAsync(db);
+        if (totals != null)
+            SubathonEvents.RaiseSubathonTotalsUpdated(totals);
     }
 
 }

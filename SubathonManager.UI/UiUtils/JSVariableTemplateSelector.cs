@@ -20,11 +20,18 @@ public class JsVariableTemplateSelector : DataTemplateSelector
     public DataTemplate? PercentTemplate { get; set; }
     public DataTemplate? FloatTemplate { get; set; }
     
+    public DataTemplate? FilteredEventTypeListTemplate { get; set; }
+    
     public override DataTemplate? SelectTemplate(object? item, DependencyObject container)
     {
         if (item is not JsVariable jsVar) return DefaultTemplate;
         
         if (((WidgetVariableType?)jsVar.Type).IsFileVariable()) return FileVarTemplate;
+        
+        if (jsVar.Type.GetFilteredEventTypes() is { Count: > 0 } &&
+         jsVar.Type != WidgetVariableType.EventTypeList)
+            return FilteredEventTypeListTemplate;
+        
         return jsVar.Type switch
         {
             WidgetVariableType.String => DefaultTemplate,

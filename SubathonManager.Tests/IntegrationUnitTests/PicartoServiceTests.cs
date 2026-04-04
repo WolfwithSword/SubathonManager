@@ -13,6 +13,7 @@ using IniParser.Model;
 using PicartoEventsLib.Clients;
 using PicartoEventsLib.Options;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 using SubathonManager.Tests.Utility;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
@@ -295,21 +296,21 @@ public class PicartoServiceTests
         bool eventAlertsConnectRaised = false;
         bool eventChatDisconnectRaised = false;
         bool eventAlertsDisconnectRaised = false;
-        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
+        Action<IntegrationConnection> handler = (conn) =>
         {
-            if (source == SubathonEventSource.Picarto)
+            if (conn.Source == SubathonEventSource.Picarto)
             {
-                if (serviceType == "Chat")
-                    if (running)
+                if (conn.Service == "Chat")
+                    if (conn.Status)
                         eventChatConnectRaised = true;
                     else
                         eventChatDisconnectRaised = true;
-                else if (serviceType == "Alerts")
-                    if (running)
+                else if (conn.Service == "Alerts")
+                    if (conn.Status)
                         eventAlertsConnectRaised = true;
                     else
                         eventAlertsDisconnectRaised = true;
-                Assert.Equal("TestChannel", handle);
+                Assert.Equal("TestChannel", conn.Name);
             }
         };
         IntegrationEvents.ConnectionUpdated += handler;
@@ -363,17 +364,18 @@ public class PicartoServiceTests
         bool eventAlertsConnectRaised = false;
         bool eventChatDisconnectRaised = false;
         bool eventAlertsDisconnectRaised = false;
-        Action<bool, SubathonEventSource, string, string> handler = (running, source, handle, serviceType) =>
+
+        Action<IntegrationConnection> handler = (conn) =>
         {
-            if (source == SubathonEventSource.Picarto)
+            if (conn.Source == SubathonEventSource.Picarto)
             {
-                if (serviceType == "Chat")
-                    if (running)
+                if (conn.Service == "Chat")
+                    if (conn.Status)
                         eventChatConnectRaised = true;
                     else
                         eventChatDisconnectRaised = true;
-                else if (serviceType == "Alerts")
-                    if (running)
+                else if (conn.Service == "Alerts")
+                    if (conn.Status)
                         eventAlertsConnectRaised = true;
                     else
                         eventAlertsDisconnectRaised = true;

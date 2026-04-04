@@ -222,6 +222,37 @@ public class ExternalEventServiceTests
     
     
     [Fact]
+    public void ProcessExternalSub_ShouldRaiseEvent_ReliesOnValueMeta()
+    {
+        var json = """
+                   {
+                               "type": "ExternalSub",
+                               "user": "",
+                               "value": "subt1",
+                               "amount": 3,
+                               "id": "b3e1f7e2-1234-4a5b-9e8f-123456789abc"
+                           }
+                   """;
+
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalSub(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("EXTERNAL", ev!.User);
+        Assert.Equal("subt1", ev.Value);
+        Assert.Equal(3, ev.Amount);
+        Assert.Equal(0, ev.SecondsValue);
+        Assert.Equal(0, ev.PointsValue);
+        Assert.Equal(SubathonEventSource.External, ev.Source);
+        Assert.Equal(SubathonEventType.ExternalSub, ev.EventType);
+        Assert.Equal(Guid.Parse("b3e1f7e2-1234-4a5b-9e8f-123456789abc"), ev.Id);
+    }
+    
+    
+    [Fact]
     public void ProcessKoFiSub_ShouldRaiseEvent_WithDefaults()
     {
         var json = """
@@ -373,7 +404,7 @@ public class ExternalEventServiceTests
     }
     
     [Fact]
-    public void ProcessExternalSub_ShouldReturnFalse_WhenSecondsOrPointsMissing()
+    public void ProcessExternalSub_ShouldReturnTrue_WhenSecondsOrPointsMissing()
     {
         var json = """
                    {
@@ -387,11 +418,11 @@ public class ExternalEventServiceTests
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
         bool result = ExternalEventService.ProcessExternalSub(data);
 
-        Assert.False(result);
+        Assert.True(result);
     }
     
     [Fact]
-    public void ProcessExternalSub_ShouldReturnFalse_WhenPointsMissingButSecondsPresent()
+    public void ProcessExternalSub_ShouldReturnTrue_WhenPointsMissingButSecondsPresent()
     {
         var json = """
                    {
@@ -406,7 +437,7 @@ public class ExternalEventServiceTests
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
         bool result = ExternalEventService.ProcessExternalSub(data);
 
-        Assert.False(result);
+        Assert.True(result);
     }
     
     [Fact]
@@ -450,7 +481,7 @@ public class ExternalEventServiceTests
         SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
-        Assert.Equal("External", ev!.Value);
+        Assert.Equal("DEFAULT", ev!.Value);
     }
     
     [Fact]

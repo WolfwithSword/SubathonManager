@@ -1,10 +1,8 @@
-﻿using System.Collections.ObjectModel;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -120,7 +118,9 @@ public partial class EditRouteWindow
             .FirstOrDefault(wX => wX.Id == _selectedWidget.Id);
         _selectedWidget = widget;
         
-        _editingCssVars = new ObservableCollection<CssVariable>(_selectedWidget!.CssVariables);
+        CssVarsList.ItemsSource = null;
+        _editingCssVars.Clear();
+        foreach (var v in _selectedWidget!.CssVariables) _editingCssVars.Add(v);
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
     }
@@ -164,9 +164,16 @@ public partial class EditRouteWindow
             foreach(var cssVar in _selectedWidget.CssVariables)
                 _editingCssVars.Add(cssVar);
 
-            await LoadRouteAsync();
+            // await LoadRouteAsync();
             RefreshWebView();
-
+            var listEntry = _widgets.FirstOrDefault(wi => wi.Id == _selectedWidget.Id);
+            if (listEntry != null)
+            {
+                // listEntry.Name = _selectedWidget.Name;
+                int index = _widgets.IndexOf(listEntry);
+                _widgets.Remove(listEntry);
+                _widgets.Insert(index, _selectedWidget);
+            }
             WidgetsList.Items.Refresh();
             OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
             
@@ -497,6 +504,8 @@ public partial class EditRouteWindow
         {
             switch (sender)
             {
+                case Expander:
+                    break;
                 case TextBox tb:
                     tb.TextChanged += Value_OnChanged;
                     break;
@@ -506,10 +515,6 @@ public partial class EditRouteWindow
                 case CheckBox chk:
                     chk.Checked += Value_OnChanged;
                     chk.Unchecked += Value_OnChanged;
-                    break;
-                case ToggleButton tb2:
-                    tb2.Checked += Value_OnChanged;
-                    tb2.Unchecked += Value_OnChanged;
                     break;
                 case Slider sld:
                     sld.ValueChanged += Value_OnChanged;
@@ -524,7 +529,38 @@ public partial class EditRouteWindow
     private void Value_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_suppressCount > 0) return;
-        Dispatcher.Invoke( () => UpdateSaveButtonBorder(SaveButtonBorder, true));
+        UpdateSaveButtonBorder(SaveButtonBorder, true);
+    }
+    
+    
+    private void IntBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox tb) return;
+        tb.PreviewTextInput += (s, ev) =>
+        {
+            var box = (System.Windows.Controls.TextBox)s;
+            if (char.IsDigit(ev.Text, 0) || ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-'))
+                ev.Handled = false;
+            else
+                ev.Handled = true;
+        };
+        AttachChangeHandler(sender, e);
+    }
+
+    private void FloatBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox tb) return;
+        tb.PreviewTextInput += (s, ev) =>
+        {
+            var box = (System.Windows.Controls.TextBox)s;
+            if (char.IsDigit(ev.Text, 0) ||
+                ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-') ||
+                ev.Text == "." && !box.Text.Contains('.'))
+                ev.Handled = false;
+            else
+                ev.Handled = true;
+        };
+        AttachChangeHandler(sender, e);
     }
 
     #endregion GeneralHandlers
@@ -547,11 +583,9 @@ public partial class EditRouteWindow
 
     private void SizeUnitBox_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is ComboBox cb)
-        {
-            cb.SelectionChanged += SizeUnitBox_SelectionChanged;
-            AttachChangeHandler(sender, e);
-        }
+        if (sender is not ComboBox cb) return;
+        cb.SelectionChanged += SizeUnitBox_SelectionChanged;
+        AttachChangeHandler(sender, e);
     }
     
     private void SizeUnitBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -571,47 +605,70 @@ public partial class EditRouteWindow
         if (tb.Parent is not Panel parent) return null;
         return parent.Children.OfType<ComboBox>().FirstOrDefault();
     }
+    
+    
+    private void OpacitySlider_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Slider { Tag: CssVariable cssVar } slider) return;
+        if (float.TryParse(cssVar.Value, out var initial))
+            slider.Value = initial;
+
+        void OpacitySliderValueChanged(object o, RoutedPropertyChangedEventArgs<double> args)
+        {
+            var floatVal = (float)args.NewValue;
+            cssVar.Value = floatVal.ToString(CultureInfo.InvariantCulture);
+            if (FindPercentSiblingBox(slider) is { } tb && tb.Text != floatVal.ToString(CultureInfo.InvariantCulture))
+                tb.Text = floatVal.ToString(CultureInfo.InvariantCulture);
+        }
+        
+        slider.ValueChanged += OpacitySliderValueChanged;
+        AttachChangeHandler(sender, e);
+    }
+
+    private void OpacityBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.TextBox { Tag: CssVariable cssVar } tb) return;
+        tb.Text = float.TryParse(cssVar.Value, out var initial) ? initial.ToString(CultureInfo.InvariantCulture) : "0";
+
+        tb.PreviewTextInput += (_, ev) =>
+        {
+            var newText = tb.Text.Remove(tb.SelectionStart, tb.SelectionLength)
+                .Insert(tb.SelectionStart, ev.Text);
+            if (!float.TryParse(newText, out var val) || val < 0 || val > 1)
+                ev.Handled = true;
+        };
+
+        tb.TextChanged += (_, __) =>
+        {
+            if (string.IsNullOrWhiteSpace(tb.Text)) return;
+            if (!float.TryParse(tb.Text, out var val)) return;
+            val = Math.Clamp(val, 0, 1);
+            cssVar.Value = val.ToString(CultureInfo.InvariantCulture);
+            if (FindPercentSiblingSlider(tb) is { } slider && Math.Abs((float)slider.Value - val) > 0.001)
+                slider.Value = val;
+        };
+        AttachChangeHandler(sender, e);
+    }
 #endregion CSSHandlers  
 
 #region JSHandlers
-    private void JsIntBox_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.TextBox tb) return;
-        tb.PreviewTextInput += (s, ev) =>
-        {
-            var box = (System.Windows.Controls.TextBox)s;
-            if (char.IsDigit(ev.Text, 0) || ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-'))
-                ev.Handled = false;
-            else
-                ev.Handled = true;
-        };
-        AttachChangeHandler(sender, e);
-    }
-
-    private void JsFloatBox_Loaded(object sender, RoutedEventArgs e)
-    {
-        if (sender is not System.Windows.Controls.TextBox tb) return;
-        tb.PreviewTextInput += (s, ev) =>
-        {
-            var box = (System.Windows.Controls.TextBox)s;
-            if (char.IsDigit(ev.Text, 0) ||
-                ev.Text == "-" && box.SelectionStart == 0 && !box.Text.Contains('-') ||
-                ev.Text == "." && !box.Text.Contains('.'))
-                ev.Handled = false;
-            else
-                ev.Handled = true;
-        };
-        AttachChangeHandler(sender, e);
-    }
 
     private void JsBoolBox_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not CheckBox { Tag: JsVariable jsVar } cb) return;
-        cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+
+        void BoxChecked(object o, RoutedEventArgs routedEventArgs)
         {
-            cb.Checked += (_, __) => jsVar.Value = "True";
-            cb.Unchecked += (_, __) => jsVar.Value = "False";
-        });
+            jsVar.Value = "True";
+        }
+
+        void BoxUnchecked(object o, RoutedEventArgs routedEventArgs)
+        {
+            jsVar.Value = "False";
+        }
+        
+        cb.Checked += BoxChecked;
+        cb.Unchecked += BoxUnchecked;
         AttachChangeHandler(sender, e);
     }
 
@@ -619,11 +676,11 @@ public partial class EditRouteWindow
     {
         if (sender is not ComboBox { Tag: JsVariable jsVar } cb) return;
         var values = Enum.GetValues<SubathonEventType>()
-            .Where(x => ((SubathonEventType?)x).IsEnabled())
+            .Where(x => x.IsEnabled())
             .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
-            .Select(x => x.ToString()).OrderBy(x => x);
+            .Select(x => x).OrderBy(x => x.GetOrderNumber());
         cb.Items.Add(string.Empty);
-        foreach (var val in values) cb.Items.Add(val);
+        foreach (var val in values) cb.Items.Add(val.ToString());
         cb.SelectedValue = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
         cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
@@ -638,9 +695,9 @@ public partial class EditRouteWindow
         if (sender is not ComboBox { Tag: JsVariable jsVar } cb) return;
         var values = Enum.GetValues<SubathonEventSubType>()
             .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
-            .Select(x => x.ToString()).OrderBy(x => x);
+            .Select(x => x).OrderBy(x => x.GetOrderNumber());
         cb.Items.Add(string.Empty);
-        foreach (var val in values) cb.Items.Add(val);
+        foreach (var val in values) cb.Items.Add(val.ToString());
         cb.SelectedValue = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
         cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
         {
@@ -660,7 +717,7 @@ public partial class EditRouteWindow
             cb.SelectionChanged += (_, __) =>
             {
                 if (!jsVar.Value?.Contains(',') ?? true) return;
-                if (jsVar.Value.StartsWith($"{cb.SelectedValue},")) return;
+                if (jsVar.Value!.StartsWith($"{cb.SelectedValue},")) return;
                 var newVal = new List<string> { $"{cb.SelectedValue}" };
                 foreach (var v in values)
                     if (!newVal.Contains(v)) newVal.Add(v);
@@ -733,6 +790,7 @@ public partial class EditRouteWindow
     private void JsEventTypeList_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+        if (expander.Content != null) return; 
 
         var panelValues = (jsVar.Value ?? "").Split(',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -740,11 +798,11 @@ public partial class EditRouteWindow
 
         var outerPanel = new StackPanel { Orientation = Orientation.Vertical };
         var groupValues = Enum.GetValues<SubathonEventType>()
-            .Where(x => ((SubathonEventType?)x).IsEnabled())
+            .Where(x => x.IsEnabled())
             .Where(x => x is not SubathonEventType.Command and not SubathonEventType.Unknown)
-            .GroupBy(x => ((SubathonEventType?)x).GetSource())
+            .GroupBy(x => x.GetSource())
             .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key))
-            .ThenBy(g => g.Key.ToString());
+            .ThenBy(g => g.Key.GetOrderNumber());
 
         foreach (var group in groupValues)
         {
@@ -756,12 +814,12 @@ public partial class EditRouteWindow
             };
             
             var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-            foreach (var eType in group.Select(x => x.ToString()).OrderBy(x => x))
+            foreach (var eType in group.Select(x => x).OrderBy(x => x.GetOrderNumber()))
             {
                 var chkBox = new CheckBox
                 {
-                    Content = new Wpf.Ui.Controls.TextBlock { Text = eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
-                    IsChecked = panelValues.Contains(eType),
+                    Content = new Wpf.Ui.Controls.TextBlock { Text = ((SubathonEventType?)eType).GetLabel(), Tag=eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
+                    IsChecked = panelValues.Contains(eType.ToString()),
                     Margin = new Thickness(2)
                 };
                 chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
@@ -778,19 +836,20 @@ public partial class EditRouteWindow
     private void JsEventSubTypeList_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+        if (expander.Content != null) return; 
 
         var panelValues = (jsVar.Value ?? "").Split(',',
                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-        foreach (var eType in Enum.GetNames<SubathonEventSubType>().OrderBy(x => x))
+        foreach (var eType in Enum.GetValues<SubathonEventSubType>().OrderBy(x => x.GetOrderNumber()))
         {
-            if (eType is nameof(SubathonEventSubType.CommandLike) or nameof(SubathonEventSubType.Unknown)) continue;
+            if (eType is SubathonEventSubType.CommandLike or SubathonEventSubType.Unknown) continue;
             var chkBox = new CheckBox
             {
-                Content = new Wpf.Ui.Controls.TextBlock { Text = eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 278 },
-                IsChecked = panelValues.Contains(eType),
+                Content = new Wpf.Ui.Controls.TextBlock { Text = eType.GetDescription(), Tag=eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 278 },
+                IsChecked = panelValues.Contains(eType.ToString()),
                 Margin = new Thickness(2)
             };
             chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, chkboxList);
@@ -844,6 +903,55 @@ public partial class EditRouteWindow
                 slider.Value = val;
         };
         AttachChangeHandler(sender, e);
+    }
+    
+    private void JsFilteredEventTypeList_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Expander { Tag: JsVariable jsVar } expander) return;
+        if (expander.Content != null) return; 
+
+        var allowedTypes = jsVar.Type.GetFilteredEventTypes().ToHashSet();
+
+        var panelValues = (jsVar.Value ?? "").Split(',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var outerPanel = new StackPanel { Orientation = Orientation.Vertical };
+        var groupValues = Enum.GetValues<SubathonEventType>()
+            .Where(x => allowedTypes.Contains(x))
+            .Where(x => x.IsEnabled())
+            .Where(x => x is not SubathonEventType.Command and not SubathonEventType.Unknown)
+            .GroupBy(x => x.GetSource())
+            .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key))
+            .ThenBy(g => g.Key.GetOrderNumber());
+
+        foreach (var group in groupValues)
+        {
+            var groupExpander = new Expander
+            {
+                BorderBrush = Brushes.DarkGray, BorderThickness = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 2, 0, 2),
+                IsExpanded = false, Header = group.Key.ToString()
+            };
+
+            var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
+            foreach (var eType in group.Select(x => x).OrderBy(x => x.GetOrderNumber()))
+            {
+                var chkBox = new CheckBox
+                {
+                    Content = new Wpf.Ui.Controls.TextBlock { Text = ((SubathonEventType?)eType).GetLabel(), Tag=eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
+                    IsChecked = panelValues.Contains(eType.ToString()),
+                    Margin = new Thickness(2)
+                };
+                chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
+                chkBox.Unchecked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
+                chkboxList.Children.Add(chkBox);
+                AttachChangeHandler(chkBox, e);
+            }
+            groupExpander.Content = chkboxList;
+            outerPanel.Children.Add(groupExpander);
+        }
+        expander.Content = outerPanel;
     }
 
     private Slider? FindPercentSiblingSlider(System.Windows.Controls.TextBox tb)
