@@ -24,7 +24,7 @@
 
 ## [Download Latest](https://github.com/WolfwithSword/SubathonManager/releases/latest)
 
-### [Check the Wiki](https://github.com/WolfwithSword/SubathonManager/wiki)
+### [Check the Wiki](https://wolfwithsword.github.io/SubathonManager-docs)
 
 
 ## Supported Integrations 

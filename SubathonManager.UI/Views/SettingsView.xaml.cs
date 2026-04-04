@@ -82,7 +82,7 @@ public partial class SettingsView : SettingsControl
     {
         Process.Start(new ProcessStartInfo
         {
-            FileName = "https://github.com/WolfwithSword/SubathonManager/wiki",
+            FileName = "https://wolfwithsword.github.io/SubathonManager-docs",
             UseShellExecute = true
         });
     }
