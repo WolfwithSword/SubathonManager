@@ -7,6 +7,7 @@ on:
       release_tag:
         type: string
         required: false
+        default: nightly
 
 jobs:
   update:
@@ -17,7 +18,7 @@ jobs:
         id: wiki-check
         run: |
           set -e
-          WIKI_URL="https://github.com/${{ github.repository }}.wiki.git"
+          WIKI_URL="https://github.com/${{ github.repository }}-docs.git"
           if git ls-remote "$WIKI_URL" &>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
@@ -32,20 +33,20 @@ jobs:
         if: steps.wiki-check.outputs.exists == 'true'
         uses: actions/checkout@v6
         with:
-          repository: ${{ github.repository }}.wiki
-          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}-docs
+          token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           
       - name: Download draw.io file from Nextcloud
         if: steps.wiki-check.outputs.exists == 'true'
         run: |
           mkdir -p docs
           curl -L "${{ vars.NEXTCLOUD_DRAWIO_URL }}" \
-            -o "docs/SubathonManager_Design.drawio"
+            -o "wiki/docs/SubathonManager_Design.drawio"
           
       - name: Render drawio to svg
         uses: rlespinasse/drawio-export-action@v2
         with:
-          path: "docs/SubathonManager_Design.drawio"
+          path: "wiki/docs/SubathonManager_Design.drawio"
           format: svg
           output: ./
           all-pages: true
@@ -60,18 +61,36 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
-          mv "docs/SubathonManager_Design.drawio" "docs/SubathonManager Design.drawio"
-
           echo "===Listing docs files==="
-          ls docs
+          ls wiki/docs
           echo "========================"
           
-          git add "docs/SubathonManager Design.drawio"
-          git add "docs/*.svg"
+          git add "wiki/docs/SubathonManager_Design.drawio"
+          git add "wiki/docs/*.svg"
 
           if git diff --cached --quiet; then
             echo "No changes detected, skipping commit."
           else
-            git commit -m "Update Subathon Manager.drawio for release ${{ inputs.release_tag || 'manual run' }}"
+            git commit -m "Update Subathon_Manager.drawio for release ${{ inputs.release_tag || 'nightly' }}"
             git push
           fi
+
+  
+  trigger-docs-release:
+    runs-on: ubuntu-latest
+    needs: update
+    if: ${{ (inputs.release_tag || 'nightly') != 'nightly' }}
+    steps:
+      - name: Dispatch docs release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'WolfwithSword',
+              repo:  'SubathonManager-docs',
+              event_type: 'docs-release',
+              client_payload: {
+                version: ${{ inputs.release_tag }}
+              }
+            });
