@@ -79,7 +79,7 @@ jobs:
   trigger-docs-release:
     runs-on: ubuntu-latest
     needs: update
-    if: ${{ inputs.release_tag || 'nightly' }} != 'nightly'
+    if: ${{ (inputs.release_tag || 'nightly') != 'nightly' }}
     steps:
       - name: Dispatch docs release
         uses: actions/github-script@v7
