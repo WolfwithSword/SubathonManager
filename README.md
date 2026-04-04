@@ -7,7 +7,7 @@
 ![GitHub Release Date](https://img.shields.io/github/release-date-pre/WolfwithSword/SubathonManager?style=for-the-badge&label=Latest%20Release) ![GitHub Release](https://img.shields.io/github/v/release/WolfwithSword/SubathonManager?include_prereleases&style=for-the-badge)
 
 ![Static Badge](https://img.shields.io/badge/OPENSOURCE-g?style=flat-square)
-[![License: MIT](https://img.shields.io/badge/License-APGL-yellow.svg?style=flat-square)](https://opensource.org/licenses/AGPL)
+[![License: AGPL](https://img.shields.io/badge/License-APGL-yellow.svg?style=flat-square)](https://opensource.org/licenses/AGPL)
 ![Static Badge](https://img.shields.io/badge/NO%20AI-orange?style=flat-square)
 
 <img src="assets/icon_base.png" width="160" align="left" alt="icon" style="margin-right: 4px;"/>
@@ -24,7 +24,7 @@
 
 ## [Download Latest](https://github.com/WolfwithSword/SubathonManager/releases/latest)
 
-### [Check the Wiki](https://github.com/WolfwithSword/SubathonManager/wiki)
+### [Check the Wiki](https://wolfwithsword.github.io/SubathonManager-docs)
 
 
 ## Supported Integrations 
