@@ -1,0 +1,378 @@
+﻿<!--
+WIDGET_META
+Width:500
+Height:160
+Url:https://github.com/WolfwithSword/SubathonManager/discussions/135#discussioncomment-16244827
+showIcons.Boolean:False
+showSubs.Boolean:True
+subsLabel.String:subs
+subEvents.SubEventTypeList:TwitchSub,TwitchGiftSub,YouTubeMembership,YouTubeGiftMembership
+subCountOffset.Int:0
+showBitsTokens.Boolean:True
+tokensLabel.String:bits
+tokenEvents.TokenEventTypeList:TwitchCheer,BlerpBits,BlerpBeets
+tokensCountOffset.Int:0
+showTotalDonated.Boolean:True
+donatedLabel.String:NONE
+donatedOffset.Float:0
+showFollows.Boolean:True
+followsLabel.String:follows
+followEvents.FollowEventTypeList:TwitchFollow
+followCountOffset.Int:0
+showPoints.Boolean:True
+pointsLabel.String:pts
+pointsOffset.Int:0
+includeSimulated.Boolean:False
+finishSound.SoundFile:./bell.mp3
+playSoundOnFinish.Boolean:True
+soundVolume.Percent:50
+END_WIDGET_META
+-->
+<!-- 
+bell.mp3 -> https://freesound.org/people/milesperhour425/sounds/424342/
+-->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="timer.css">
+
+<div class="timer-root" id="timer-root">
+    <div class="timer-row" id="timer-row">
+        <div class="timer-group">
+            <svg class="lock-icon" id="lock-icon" viewBox="0 0 24 24">
+                <path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v3H9V6z"/>
+            </svg>
+            <div class="timer-value" id="timer-value">0:00:00</div>
+        </div>
+    </div>
+
+    <div class="stats-row" id="stats-row"></div>
+
+    <div class="goal-row" id="goal-row" style="display:none">
+        <svg class="goal-arrow" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="goal-value" id="goal-value"></span>
+    </div>
+</div>
+
+<script>
+    const cfg = {
+        showIcons: (typeof showIcons !== "undefined") ? showIcons : false,
+        showSubs: (typeof showSubs !== "undefined") ? showSubs : true,
+        subsLabel: (typeof subsLabel !== "undefined") ? subsLabel : "subs",
+        subEvents: (typeof subEvents !== "undefined") ? subEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        subCountOffset: (typeof subCountOffset !== "undefined") ? parseInt(subCountOffset) || 0 : 0,
+
+        showBitsTokens: (typeof showBitsTokens !== "undefined") ? showBitsTokens : true,
+        tokensLabel: (typeof tokensLabel !== "undefined") ? tokensLabel : "bits",
+        tokenEvents: (typeof tokenEvents !== "undefined") ? tokenEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        tokensCountOffset: (typeof tokensCountOffset !== "undefined") ? parseInt(tokensCountOffset) || 0 : 0,
+
+        showTotalDonated: (typeof showTotalDonated !== "undefined") ? showTotalDonated : true,
+        donatedLabel: (typeof donatedLabel !== "undefined") ? donatedLabel : "",
+        donatedOffset: (typeof donatedOffset !== "undefined") ? parseFloat(donatedOffset) || 0 : 0,
+
+        showFollows: (typeof showFollows !== "undefined") ? showFollows : true,
+        followsLabel: (typeof followsLabel !== "undefined") ? followsLabel : "follows",
+        followEvents: (typeof followEvents !== "undefined") ? followEvents.split(",").map(s => s.trim()).filter(Boolean) : [],
+        followCountOffset: (typeof followCountOffset !== "undefined") ? parseInt(followCountOffset) || 0 : 0,
+
+        showPoints: (typeof showPoints !== "undefined") ? showPoints : true,
+        pointsLabel: (typeof pointsLabel !== "undefined") ? pointsLabel : "pts",
+        pointsOffset: (typeof pointsOffset !== "undefined") ? parseInt(pointsOffset) || 0 : 0,
+
+        includeSimulated: (typeof includeSimulated !== "undefined") ? includeSimulated : false,
+        finishSound: (typeof finishSound !== "undefined") ? finishSound : "",
+        playSoundOnFinish: (typeof playSoundOnFinish !== "undefined") ? playSoundOnFinish : false,
+        soundVolume: (typeof soundVolume !== "undefined") ? soundVolume : 75
+        
+    };
+
+    var hasPlayedFinish = false;
+    var completedSound;
+    
+    let goalsList = [];
+
+    let state = {
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+        isPaused: false,
+        isLocked: false,
+        subCount: 0,
+        tokenSum: 0,
+        moneySum: 0,
+        currency: "",
+        followCount: 0,
+        goalText: null,
+        goalPoints: null,
+        points: 0
+    };
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const ICON_PATHS = {
+        points: "M17 3H7v2H3v3c0 3.87 3.13 7 7 7h1v2H8v2h8v-2h-3v-2h1c3.87 0 7-3.13 7-7V5h-4V3zM5 8V7h2v3c-1.1 0-2-.9-2-2zm14 0c0 1.1-.9 2-2 2V7h2v1z",
+        sub: "M12 17.3l6.18 3.7-1.64-7.03 5.46-4.73-7.19-.61L12 2 9.19 8.63l-7.19.61 5.46 4.73L5.82 21z",
+        token: "M12 2l10 10-10 10L2 12 12 2z",
+        follow: "M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z",
+        money: "M12 2c5 0 9 1.79 9 4s-4 4-9 4-9-1.79-9-4 4-4 9-4zm-9 7v3c0 2.21 4 4 9 4s9-1.79 9-4V9c-2 2-6 3-9 3s-7-1-9-3zm0 6v3c0 2.21 4 4 9 4s9-1.79 9-4v-3c-2 2-6 3-9 3s-7-1-9-3z"
+    };
+
+    function makeStatIcon(key) {
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.classList.add("stat-icon");
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", ICON_PATHS[key]);
+        path.setAttribute("fill", "currentColor");
+        svg.appendChild(path);
+        return svg;
+    }
+
+    const statRefs = {};
+
+    function buildStatsRow() {
+        const row = document.getElementById("stats-row");
+        row.innerHTML = "";
+        statRefs.sub = null;
+        statRefs.token = null;
+        statRefs.money = null;
+        statRefs.follow = null;
+
+        const items = [];
+
+        if (cfg.showPoints) items.push({
+            key: "points",
+            icon: "points",
+            label: cfg.pointsLabel,
+            id: "stat-points"
+        });
+        if (cfg.showSubs) items.push({
+            key: "sub",
+            icon: "sub",
+            label: cfg.subsLabel,
+            id: "stat-sub"
+        });
+        if (cfg.showBitsTokens) items.push({
+            key: "token",
+            icon: "token",
+            label: cfg.tokensLabel,
+            id: "stat-token"
+        });
+        if (cfg.showFollows) items.push({
+            key: "follow",
+            icon: "follow",
+            label: cfg.followsLabel,
+            id: "stat-follow"
+        });
+        if (cfg.showTotalDonated) items.push({
+            key: "money",
+            icon: "money",
+            label: cfg.donatedLabel,
+            id: "stat-money"
+        });
+
+
+        items.forEach((item, idx) => {
+            const wrap = document.createElement("div");
+            wrap.className = "stat-item";
+            wrap.id = item.id;
+
+            if (cfg.showIcons) wrap.appendChild(makeStatIcon(item.icon));
+
+            const label = document.createElement("span");
+            label.className = "stat-label";
+            label.textContent = item.label;
+
+            const value = document.createElement("span");
+            value.className = "stat-value";
+            value.textContent = item.isMoney ? `${state.currency || "?"} 0` : "0";
+
+            wrap.appendChild(value);
+            wrap.appendChild(label);
+            row.appendChild(wrap);
+
+            statRefs[item.key] = value;
+        });
+    }
+
+    function formatTimer() {
+        const h = state.hours;
+        const m = String(state.minutes).padStart(2, "0");
+        const s = String(state.seconds).padStart(2, "0");
+        return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
+    }
+
+    function formatPoints() {
+        return Number(Math.max(0, state.points + cfg.pointsOffset));
+    }
+
+    function formatSubs() {
+        return String(Math.max(0, state.subCount + cfg.subCountOffset));
+    }
+
+    function formatTokens() {
+        return Number(Math.max(0, state.tokenSum + cfg.tokensCountOffset));
+    }
+
+    function formatMoney() {
+        const val = Math.max(0, state.moneySum + cfg.donatedOffset);
+        return (state.currency ? state.currency + " " : "") + val.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatFollows() {
+        return String(Math.max(0, state.followCount + cfg.followCountOffset));
+    }
+
+    function refreshTimer() {
+        const el = document.getElementById("timer-value");
+        const str = formatTimer();
+        el.innerHTML = str.split("").map(ch =>
+            ch === ":" ?
+                `<span class="timer-colon">:</span>` :
+                `<span class="timer-digit">${ch}</span>`
+        ).join("");
+        el.classList.toggle("paused", state.isPaused);
+        document.getElementById("lock-icon").classList.toggle("visible", state.isLocked);
+    }
+
+    function refreshStats() {
+        if (statRefs.sub) statRefs.sub.textContent = formatSubs();
+        if (statRefs.token) statRefs.token.textContent = formatTokens();
+        if (statRefs.money) statRefs.money.textContent = formatMoney();
+        if (statRefs.follow) statRefs.follow.textContent = formatFollows();
+        if (statRefs.points) statRefs.points.textContent = formatPoints();
+    }
+
+    function refreshGoal() {
+        const row = document.getElementById("goal-row");
+        const val = document.getElementById("goal-value");
+        if (state.goalText == null) {
+            row.style.display = "none";
+            return;
+        }
+        row.style.display = "flex";
+        val.textContent = `${state.goalPoints} - ${state.goalText}`;
+    }
+
+    function handleSubathonUpdate(data) {
+        if (data.type !== "subathon_timer") return;
+        state.hours = (data.days || 0) * 24 + (data.hours || 0);
+        state.minutes = data.minutes || 0;
+        state.seconds = data.seconds || 0;
+        state.isPaused = !!data.is_paused;
+        state.isLocked = !!data.is_locked;
+        state.points = data.total_points || 0;
+        refreshTimer();
+        if (!hasPlayedFinish && data.total_seconds <= 0){
+            hasPlayedFinish = true;
+            playFinish();
+        }
+        else if (data.total_seconds > 0){
+            hasPlayedFinish = false;
+        }
+    }
+
+    function handleTotalsUpdate(data) {
+        if (data.type !== "subathon_totals") return;
+
+        state.moneySum = data.money_sum || 0;
+        state.currency = data.currency || "";
+
+        state.subCount = 0;
+        if (data.sub_like_by_type) {
+            for (const [evType, count] of Object.entries(data.sub_like_by_type)) {
+                if (cfg.subEvents.includes(evType)) state.subCount += count;
+            }
+            if (cfg.includeSimulated && data.simulated?.sub_like_by_type) {
+                for (const [evType, count] of Object.entries(data.simulated.sub_like_by_type)) {
+                    if (cfg.subEvents.includes(evType)) state.subCount += count;
+                }
+            }
+        }
+
+        state.tokenSum = 0;
+        if (data.token_like_by_type) {
+            for (const [evType, count] of Object.entries(data.token_like_by_type)) {
+                if (cfg.tokenEvents.includes(evType)) state.tokenSum += count;
+            }
+            if (cfg.includeSimulated && data.simulated?.token_like_by_type) {
+                for (const [evType, count] of Object.entries(data.simulated.token_like_by_type)) {
+                    if (cfg.tokenEvents.includes(evType)) state.tokenSum += count;
+                }
+            }
+        }
+
+        state.followCount = 0;
+        if (data.follow_count_by_type) {
+            for (const [evType, count] of Object.entries(data.follow_count_by_type)) {
+                if (cfg.followEvents.includes(evType)) state.followCount += count;
+            }
+            if (cfg.includeSimulated && data.simulated?.follow_count_by_type) {
+                for (const [evType, count] of Object.entries(data.simulated.follow_count_by_type)) {
+                    if (cfg.followEvents.includes(evType)) state.followCount += count;
+                }
+            }
+        }
+        refreshStats();
+    }
+
+    function handleGoalsUpdate(data) {
+        if (data.type !== "goals_list") return;
+        goalsList = data.goals || [];
+        const next = goalsList.find(g => !g.completed);
+        if (next) {
+            state.goalText = next.text;
+            state.goalPoints = next.points;
+        } else {
+            state.goalText = null;
+            state.goalPoints = null;
+        }
+        refreshGoal();
+    }
+
+    function handleGoalCompleted(data) {
+        if (data.type !== "goal_completed") return;
+        const index = goalsList.findIndex(g => g.text === data.goal_text);
+        if (index >= 0) {
+            for (let i = 0; i <= index; i++) {
+                goalsList[i].completed = true;
+            }
+        }
+        const next = goalsList.find(g => !g.completed);
+        if (next) {
+            state.goalText = next.text;
+            state.goalPoints = next.points;
+        } else {
+            state.goalText = null;
+            state.goalPoints = null;
+        }
+        refreshGoal();
+    }
+
+    function handleSubathonDisconnect() {
+        state.isPaused = true;
+        refreshTimer();
+    }
+
+    function playFinish(){
+        if (typeof(cfg.playSoundOnFinish) != "undefined" && cfg.playSoundOnFinish) {
+            if (typeof(cfg.finishSound) != "undefined" && cfg.finishSound != "") {
+                if (completedSound == undefined)
+                    completedSound = new Audio(cfg.finishSound);
+                completedSound.currentTime = 0;
+                completedSound.volume = soundVolume / 100;
+                completedSound.play().catch(() => {});
+            }
+        }
+    }
+
+    buildStatsRow();
+    refreshTimer();
+    refreshGoal();
+</script>

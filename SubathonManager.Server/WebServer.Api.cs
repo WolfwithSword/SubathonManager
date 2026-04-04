@@ -6,6 +6,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using SubathonManager.Integration;
 using SubathonManager.Data;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Server;
 
@@ -29,8 +30,8 @@ public partial class WebServer
         _routes.Add((new RouteKey("GET", "/api/select"),HandleSelectAsync));
         
         _routes.Add((new RouteKey("POST", "/api/update-position/"),HandleWidgetUpdateAsync ));
-        
         _routes.Add((new RouteKey("POST", "/api/update-size/"),HandleWidgetUpdateAsync));
+        _routes.Add((new RouteKey("POST", "/api/update-dimensions/"),HandleWidgetUpdateAsync));
     }
     
     internal async Task HandleSelectAsync(IHttpContext ctx)
@@ -76,6 +77,8 @@ public partial class WebServer
                 success = await widgetHelper.UpdateWidgetScale(widgetId, data);
             else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
                 success = await widgetHelper.UpdateWidgetPosition(widgetId, data);
+            else if (path.StartsWith("/api/update-dimensions/", StringComparison.OrdinalIgnoreCase))
+                success = await widgetHelper.UpdateWidgetDimensions(widgetId, data);
 
             if (success)
             {
@@ -127,11 +130,11 @@ public partial class WebServer
         {
             success = ExternalEventService.ProcessExternalCommand(data);
         }
-        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternalType())
+        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternal())
         {
             success = ExternalEventService.ProcessExternalDonation(data);
         }
-        else if (((SubathonEventType?)type).IsSubOrMembershipType() && ((SubathonEventType?)type).IsExternalType())
+        else if (((SubathonEventType?)type).IsSubscription() && ((SubathonEventType?)type).IsExternal())
         {
             success = ExternalEventService.ProcessExternalSub(data);
         }
@@ -307,7 +310,7 @@ public partial class WebServer
                         }
                     );
             }
-            else if (g.Key.IsSubOrMembershipType())
+            else if (g.Key.IsSubscription())
             {
                 result[key] = g.GroupBy(e => NormalizeTier(e.Value))
                     .ToDictionary(
@@ -315,11 +318,11 @@ public partial class WebServer
                         t => t.Sum(x => x.Amount)
                     );
             }
-            else if (g.Key.IsCheerType())
+            else if (g.Key.IsToken())
             {
                 result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
             }
-            else if (g.Key.IsOrderType())
+            else if (g.Key.IsOrder())
             {
                 var breakdown = g
                     .Where(e => !string.IsNullOrWhiteSpace(e.Currency))  

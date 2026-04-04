@@ -1,0 +1,333 @@
+﻿<!--
+WIDGET_META
+Width:500
+Height:140
+Url:https://github.com/WolfwithSword/SubathonManager/discussions/135#discussioncomment-16315973
+displaySeconds.Float:4
+applicableEvents.EventTypeList:TwitchSub,TwitchGiftSub,TwitchCheer,StreamElementsDonation,StreamLabsDonation,YouTubeMembership,YouTubeGiftMembership,YouTubeSuperChat,ExternalDonation,ExternalSub,KoFiSub,KoFiDonation,BlerpBits,BlerpBeets,UwUMarketOrder,GamerSuppsOrder,TwitchRaid,TwitchFollow,TwitchHypeTrain
+minDonationAmount.Float:5.00
+minTokensAmount.Int:100
+minRaidersAmount.Int:0
+animationDirection.StringSelect:top,bottom,left,right
+animationStyle.StringSelect:fade,slide
+exitAnimationDirection.StringSelect:top,bottom,left,right
+exitAnimationStyle.StringSelect:fade,slide
+followSound.SoundFile:NONE
+followVolume.Percent:50
+subSound.SoundFile:NONE
+subVolume.Percent:50
+giftSubSound.SoundFile:NONE
+giftSubVolume.Percent:50
+tokenSound.SoundFile:NONE
+tokenVolume.Percent:50
+raidSound.SoundFile:NONE
+raidVolume.Percent:50
+donationSound.SoundFile:NONE
+donationVolume.Percent:50
+trainSound.SoundFile:NONE
+trainVolume.Percent:50
+orderSound.SoundFile:NONE
+orderVolume.Percent:50
+END_WIDGET_META
+-->
+
+<link rel="stylesheet" href="event-alert.css">
+
+<div id="alertRoot">
+    <div class="alert-card">
+        <div class="alert-icon-wrap" id="alertIconWrap">
+            <div class="alert-icon-inner" id="alertIconInner">
+                <svg class="alert-icon" id="alertIcon" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+                <img id="alertIconImg" class="alert-icon-img"/>
+            </div>
+        </div>
+        <div class="alert-body">
+            <div class="alert-label" id="alertLabel">New Event</div>
+            <div class="alert-user" id="alertUser">Username</div>
+            <div class="alert-detail" id="alertDetail"></div>
+        </div>
+        <div class="alert-progress" id="alertProgress"></div>
+    </div>
+</div>
+
+<script>
+    const displayMs = ((typeof displaySeconds !== "undefined") ? parseFloat(displaySeconds) : 4) * 1000;
+
+    const root = document.getElementById("alertRoot");
+    const iconEl = document.getElementById("alertIcon");
+    const iconPathEl = iconEl.querySelector("path");
+    const iconImgEl = document.getElementById("alertIconImg");
+    const iconWrap = document.getElementById("alertIconWrap");
+    const labelEl = document.getElementById("alertLabel");
+    const userEl = document.getElementById("alertUser");
+    const detailEl = document.getElementById("alertDetail");
+    const progressEl= document.getElementById("alertProgress");
+
+    const queue = [];
+    let isPlaying = false;
+    let hideTimer = null;
+    let progressTimer = null;
+
+    // accent colour overrides by subtype
+    const SUBTYPE_COLOR = {
+        SubLike: "var(--sub-color)",
+        GiftSubLike: "var(--giftsub-color)",
+        TokenLike: "var(--token-color)",
+        DonationLike: "var(--donation-color)",
+        FollowLike: "var(--follow-color)",
+        RaidLike: "var(--raid-color)",
+        OrderLike: "var(--order-color)",
+        TrainLike: "var(--hypetrain-color)",
+    };
+
+    const SUBTYPE_LABEL = {
+        SubLike: "New [source] [currency]",
+        GiftSubLike: "[source] Gift [currency]",
+        TokenLike: "[source] [currency]",
+        DonationLike: "[source] Donation",
+        FollowLike: "New [source] Follower",
+        RaidLike: "[source] Raid",
+        OrderLike: "New Order",
+        TrainLike: "[source] Hype Train",
+    };
+
+    const ICON_PATHS = {
+        SubLike: "M12 17.3l6.18 3.7-1.64-7.03 5.46-4.73-7.19-.61L12 2 9.19 8.63l-7.19.61 5.46 4.73L5.82 21z",
+        GiftSubLike: "M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8h16zm0-2H4V8a2 2 0 0 1 2-2h3.17a3 3 0 1 1 0 2H15a3 3 0 1 1 0-2H18a2 2 0 0 1 2 2v2zm-8-5a1 1 0 1 0 0 2h1V7a1 1 0 0 0-1-1z",
+        TokenLike: "M12 2l10 10-10 10L2 12 12 2z",
+        DonationLike: "M12 2c5 0 9 1.79 9 4s-4 4-9 4-9-1.79-9-4 4-4 9-4zm-9 7v3c0 2.21 4 4 9 4s9-1.79 9-4V9c-2 2-6 3-9 3s-7-1-9-3zm0 6v3c0 2.21 4 4 9 4s9-1.79 9-4v-3c-2 2-6 3-9 3s-7-1-9-3z",
+        FollowLike: "M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.42 0-8 2.24-8 5v3h16v-3c0-2.76-3.58-5-8-5z",
+        RaidLike: "M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3zm0 2c-2.67 0-8 1.34-8 4v3h8zm8-2c-3.33 0-10 1.67-10 5v4h20v-4c0-3.33-6.67-5-10-5z",
+        OrderLike: "M7 18a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm10 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2zM7.16 14h9.45a2 2 0 0 0 1.92-1.43L21 6H6.21l-.94-2H1v2h3l3.6 7.59-1.35 2.44A2 2 0 0 0 8 18h12v-2H8l1.16-2z",
+        TrainLike: "M4 15.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V5c0-3.5-3.58-4-8-4s-8 .5-8 4zm8 1.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7H6V5h12z",
+        default: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+    };
+    
+    const ICON_PNG_OVERRIDE = {
+        UwUMarketOrder: "./icons/uwumarket.png",
+        GamerSuppsOrder: "./icons/gamersupps.avif",
+        OrchidEightOrder: "./icons/orchideight.webp"
+    }
+
+    const SOUND_CONFIG = {
+        SubLike:      { file: () => subSound,      volume: () => subVolume },
+        DonationLike: { file: () => donationSound, volume: () => donationVolume },
+        GiftSubLike:  { file: () => giftSubSound,  volume: () => giftSubVolume },
+        FollowLike:   { file: () => followSound,   volume: () => followVolume },
+        TrainLike:    { file: () => trainSound,    volume: () => trainVolume },
+        RaidLike:     { file: () => raidSound,     volume: () => raidVolume },
+        OrderLike:    { file: () => orderSound,    volume: () => orderVolume },
+        TokenLike:    { file: () => tokenSound,    volume: () => tokenVolume }
+    };
+
+    const soundCache = {};
+    /////////////////////
+    function playEventSound(sub) {
+        const config = SOUND_CONFIG[sub];
+        if (!config) return;
+
+        const soundFile = config.file?.();
+        const soundVolume = config.volume?.() ?? 50;
+
+        if (!soundFile) return;
+
+        let audio = soundCache[soundFile];
+        if (!audio) {
+            audio = new Audio(soundFile);
+            soundCache[soundFile] = audio;
+        }
+
+        const player = audio.paused ? audio : audio.cloneNode();
+
+        player.currentTime = 0;
+        player.volume = soundVolume / 100;
+        player.play().catch(() => {});
+    }
+    
+    function buildDetail(data) {
+        const sub = data.sub_type;
+        let value = data.value ?? "";
+        const currency = data.currency ?? "";
+        const amount = data.amount ?? 1;
+
+        if (sub == "SubLike" || sub == "GiftSubLike") {
+            if (value == "1000") value = "T1";
+            else if (value == "2000") value = "T2";
+            else if (value == "3000") value = "T3";
+        }
+
+        if (sub == "GiftSubLike") {
+            const label = data.event_type?.includes("YouTube") ? "memberships" : "subs";
+            if (data.event_type?.includes("Picarto")) {
+                return `gifted ${amount} total months of ${value} ${label}`.trim();
+            }
+            else if (data.event_type?.includes("YouTube")) {
+                return `gifted ${amount} ${label}`.trim();                
+            }
+            return `gifted ${amount} ${value} ${label}`.trim();
+        }
+
+        if (sub == "TrainLike") {
+            if (value == "end") {
+                return "Ended! Thank you!"
+            }
+            else if (value == "progress") {
+                return "";
+            }
+            else if (value == "start") {
+                return "Started!";
+            }
+            else if (value.includes("start")) {
+                value = value.replace("start | ", "Started! ");
+                value = value.replace("Points Time", "Points & Time");    
+            }
+        }
+        if (sub == "RaidLike") return `raided with ${value} viewers`;
+        if (sub == "TokenLike") return `${value} ${currency}`.trim();
+        if (sub == "DonationLike") return `${value} ${currency}`.trim();
+        if (sub == "FollowLike") return "";
+        if (sub == "OrderLike") return `${data.amount} item${data.amount > 1 ? "s" : ""} ordered`;
+        if (value) return currency ? `${value} ${currency}` : value;
+        return "";
+    }
+
+    // override accent by subtype
+    function setAccent(subtype) {
+        const color = SUBTYPE_COLOR[subtype] ?? "var(--accent)";
+        const glow = color.replace("var(--", "var(--").replace("color)", "color)");
+        root.style.setProperty("--accent", color);
+        iconWrap.style.borderColor = color;
+        iconWrap.style.boxShadow = `0 0 16px color-mix(in srgb, ${color} calc(0.64 * 100%), transparent)`;
+        iconEl.style.color = color;
+        labelEl.style.color = color;
+        progressEl.style.background = `linear-gradient(90deg, ${color}, transparent)`;
+    }
+    
+    function capitalize(s)
+    {
+        return String(s[0]).toUpperCase() + String(s).slice(1);
+    }
+    
+    function showAlert(data) {
+        const sub = data.sub_type ?? "default";
+        const eventType = data.event_type;
+        const imageUrl = ICON_PNG_OVERRIDE[eventType];
+
+        // icon or img
+        if (imageUrl) {
+            iconImgEl.src = imageUrl;
+            iconImgEl.style.display = "block";
+
+            iconEl.style.display = "none";
+        }
+        else {
+            iconImgEl.style.display = "none";
+            iconEl.style.display = "block";
+            iconPathEl.setAttribute("d", "");
+            const path = ICON_PATHS[sub] ?? ICON_PATHS.default;
+            iconPathEl.setAttribute("d", path);
+        }
+
+        setAccent(sub);
+
+        let label = SUBTYPE_LABEL[sub] ?? "Event";
+        label = label.replaceAll("[currency]", capitalize(data.currency));
+        label = label.replaceAll("[source]", data.type_true_source);
+        if (data.type_true_source.toLowerCase() == "youtube" && label.includes("Donation")) label = label.replaceAll("Donation", "SuperChat");
+        
+        labelEl.textContent = label;
+        userEl.textContent = data.user ?? "";
+        detailEl.textContent = buildDetail(data);
+        if (data.sub_type == 'OrderLike') {
+            userEl.textContent = data.event_type?.replace(/Order$/, "") ?? "";
+        }
+        else if (data.sub_type == "TrainLike") {
+            userEl.textContent = `Level ${data.amount}!`
+        }
+
+        root.classList.remove("in", "out");
+        // apparently this forces a recalc
+        void root.offsetWidth;
+        root.classList.add("in");
+
+        progressEl.style.transition = "none";
+        progressEl.style.transform = "scaleX(1)";
+        void progressEl.offsetWidth;
+        progressEl.style.transition = `transform ${displayMs}ms linear`;
+        progressEl.style.transform = "scaleX(0)";
+
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(hideAlert, displayMs);
+        playEventSound(data.sub_type);
+    }
+
+    function hideAlert() {
+        root.classList.remove("in");
+        root.classList.add("out");
+        root.addEventListener("animationend", onHideComplete, { once: true });
+    }
+
+    function onHideComplete() {
+        root.classList.remove("out");
+        isPlaying = false;
+        processQueue();
+    }
+    
+    function processQueue() {
+        if (isPlaying || queue.length == 0) return;
+        isPlaying = true;
+        const data = queue.shift();
+        showAlert(data);
+    }
+
+    function handleSubathonEvent(data) {
+        if (data.type !== "event") return;
+        const events = (typeof applicableEvents !== "undefined") ? applicableEvents : [];
+        if (!events.includes(data.event_type)) return;
+        if (data.sub_type == "DonationLike" && (typeof minDonationAmount !== "undefined") && minDonationAmount > parseFloat(data.value)) return;
+        if (data.sub_type == "TokenLike" && (typeof minTokensAmount !== "undefined") && minTokensAmount > parseInt(data.value)) return;
+        if (data.sub_type == "RaidLike" && (typeof minRaidersAmount !== "undefined") && minRaidersAmount > parseInt(data.value)) return;
+        queue.push(data);
+        processQueue();
+    }
+
+    function preloadSounds() {
+        Object.values(SOUND_CONFIG).forEach(cfg => {
+            const file = cfg.file?.();
+            if (file && !soundCache[file]) {
+                const audio = new Audio(file);
+                audio.preload = "auto";
+                soundCache[file] = audio;
+            }
+        });
+    }
+    
+    preloadSounds();
+
+    if (typeof animationDirection !== "undefined") {
+        root.dataset.direction = animationDirection;
+    }
+    else {
+        root.dataset.direction = "top";
+    }
+    if (typeof animationStyle !== "undefined") {
+        root.dataset.anim = animationStyle;
+    }
+    else {
+        root.dataset.anim = "fade";
+    }
+    if (typeof exitAnimationDirection !== "undefined") {
+        root.dataset.directionexit = exitAnimationDirection;
+    }
+    else {
+        root.dataset.directionexit = "top";
+    }
+    if (typeof exitAnimationStyle !== "undefined") {
+        root.dataset.animexit = exitAnimationStyle;
+    }
+    else {
+        root.dataset.animexit = "fade";
+    }
+</script>

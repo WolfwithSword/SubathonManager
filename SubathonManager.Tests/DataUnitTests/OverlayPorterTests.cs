@@ -117,6 +117,28 @@ public class OverlayPorterTests : IDisposable
         var paths = new List<string>
         {
             @"C:\stream\widgets\timer",
+            @"C:\stream\widgets\timer\alerts"
+        };
+        var result = OverlayPorter.GetZipWidgetRoots(paths);
+
+        Assert.Equal(2, result.Count);
+        
+        var timerParts = result[0].Split('/');
+        var alertsParts = result[1].Split('/');
+
+        Assert.Equal("widgets", timerParts[0]);
+        Assert.Equal("widgets", alertsParts[0]);
+        Assert.Equal(timerParts[1], alertsParts[1]);
+        Assert.Equal("timer", timerParts[^1]);
+        Assert.Equal("alerts", alertsParts[^1]);
+    }
+
+    [Fact]
+    public void GetZipWidgetRoots_SameParent_ButBothRoots_SameHash()
+    {
+        var paths = new List<string>
+        {
+            @"C:\stream\widgets\timer",
             @"C:\stream\widgets\alerts"
         };
         var result = OverlayPorter.GetZipWidgetRoots(paths);
@@ -153,7 +175,7 @@ public class OverlayPorterTests : IDisposable
     }
 
     [Fact]
-    public void GetZipWidgetRoots_SharedPrefixWithDifferentLeafs_SameParentDifferentLeafs()
+    public void GetZipWidgetRoots_SharedPrefixWithDifferentLeafs_SameParentDifferentLeafsAsRoots_SameHash()
     {
         var paths = new List<string>
         {
@@ -189,7 +211,59 @@ public class OverlayPorterTests : IDisposable
         Assert.NotEqual(cBucket, g1Bucket);
         Assert.Equal(g1Bucket, g2Bucket);
     }
+    
+    [Fact]
+    public void GetZipWidgetRoots_TwoPaths_TwoDrivesOtherwiseSame()
+    {
+        var paths = new List<string>
+        {
+            @"G:\My\Path\steampunk",
+            @"C:\My\Path\steampunk"
+        };
+        var result = OverlayPorter.GetZipWidgetRoots(paths);
 
+        Assert.Equal(2, result.Count);
+        var g1Bucket = result[0].Split('/')[1];
+        var g2Bucket = result[1].Split('/')[1];
+
+        Assert.NotEqual(g1Bucket, g2Bucket);
+    }
+    
+        
+    [Fact]
+    public void GetZipWidgetRoots_TwoPathsAndDrives_AtRoots()
+    {
+        var paths = new List<string>
+        {
+            @"G:\steampunk",
+            @"C:\steampunk"
+        };
+        var result = OverlayPorter.GetZipWidgetRoots(paths);
+
+        Assert.Equal(2, result.Count);
+        var g1Bucket = result[0].Split('/')[1];
+        var g2Bucket = result[1].Split('/')[1];
+
+        Assert.NotEqual(g1Bucket, g2Bucket);
+    }
+
+        
+    [Fact]
+    public void GetZipWidgetRoots_TwoPaths_AtDriveRoots_AwkwardButDiff()
+    {
+        var paths = new List<string>
+        {
+            @"G:\",
+            @"C:\"
+        };
+        var result = OverlayPorter.GetZipWidgetRoots(paths);
+
+        Assert.Equal(2, result.Count);
+        var g1Bucket = result[0].Split('/')[1];
+        var g2Bucket = result[1].Split('/')[1];
+        Assert.NotEqual(g1Bucket, g2Bucket);
+    }
+    
     [Fact]
     public void GetZipWidgetRoots_AlwaysStartsWithWidgets()
     {

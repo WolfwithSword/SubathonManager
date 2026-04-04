@@ -1,6 +1,7 @@
 ﻿using SubathonManager.Core.Models;
 using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core.Events;
 
@@ -19,6 +20,13 @@ public static class SubathonEvents
     public static event Action? SubathonValueConfigUpdatedRemote;
     
     public static event Action<List<SubathonValueDto>>? SubathonValuesPatched;
+    
+    public static event Action<SubathonTotals>? SubathonTotalsUpdated;
+
+    public static void RaiseSubathonTotalsUpdated(SubathonTotals totals)
+    {
+        SubathonTotalsUpdated?.Invoke(totals);
+    }
 
     public static void RaiseSubathonValuesPatched(List<SubathonValueDto> values)
     {

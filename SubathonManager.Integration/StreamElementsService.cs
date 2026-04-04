@@ -8,6 +8,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Integration;
 
@@ -97,8 +98,14 @@ public class StreamElementsService : IAppService
     {
         _logger?.LogWarning("[StreamElementsService] Disconnected");
         Connected = false;
-        
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
+         
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.StreamElements,
+            Service = "Socket",
+            Name = "User",
+            Status = Connected
+        });
         if (_hasAuthError) return;
         
         _ = Task.Run(ReconnectWithBackoffAsync);
@@ -187,8 +194,14 @@ public class StreamElementsService : IAppService
         _hasAuthError = false;
 
         _reconnectState.Cts?.Cancel();
-        _reconnectState.Reset();
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
+        _reconnectState.Reset(); 
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.StreamElements,
+            Service = "Socket",
+            Name = "User",
+            Status = Connected
+        });
     }
 
     private void _OnAuthenticateError(object? sender, EventArgs e)
@@ -196,8 +209,14 @@ public class StreamElementsService : IAppService
         _logger?.LogError("[StreamElementsService] Authentication Error");
         Connected = false;
         _hasAuthError = true;
-        _reconnectState.Cts?.Cancel();
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamElements, "User", "Socket");
+        _reconnectState.Cts?.Cancel();   
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.StreamElements,
+            Service = "Socket",
+            Name = "User",
+            Status = Connected
+        });
         ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
             "StreamElements Token could not be validated", DateTime.Now.ToLocalTime());
     }

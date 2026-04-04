@@ -8,6 +8,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Integration;
 
@@ -52,7 +53,13 @@ public class StreamLabsService : IAppService
     {
         GetTokenFromConfig();
         
-        IntegrationEvents.RaiseConnectionUpdate(false, SubathonEventSource.StreamLabs, "User", "Socket");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.StreamLabs,
+            Service = "Socket",
+            Name = "User",
+            Status = false
+        });
         
         if (_secretToken.Equals(string.Empty))
         {
@@ -76,8 +83,13 @@ public class StreamLabsService : IAppService
             ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
                 message, DateTime.Now);
         }
-        
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.StreamLabs,
+            Service = "Socket",
+            Name = "User",
+            Status = Connected
+        });
         _logger?.LogInformation("StreamLabs Service Connected");
         return Connected;
     }
@@ -139,8 +151,14 @@ public class StreamLabsService : IAppService
         if (_client == null) return;
         
         _client.OnDonation -= OnDonation;
-        await _client.DisconnectAsync();
-        IntegrationEvents.RaiseConnectionUpdate(Connected, SubathonEventSource.StreamLabs, "User", "Socket");
+        await _client.DisconnectAsync();  
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.StreamLabs,
+            Service = "Socket",
+            Name = "User",
+            Status = Connected
+        });
         _logger?.LogInformation("StreamLabsService Disconnected");
     }
 }

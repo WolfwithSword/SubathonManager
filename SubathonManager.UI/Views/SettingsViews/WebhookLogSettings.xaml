@@ -18,20 +18,30 @@
                     <ui:TextBox x:Name="EventWebhookUrlBx" Width="170" PlaceholderText="https://discord.com/api/webhooks/"/>
                 </StackPanel>
                 <CheckBox x:Name="LogSimEventsCbx" Content="Log Simulated Events?" Margin="16 4 2 4"/>
-                <CheckBox x:Name="LogRemoteConfigCbx" ToolTip = "Log remote config value patches"
+                <CheckBox x:Name="LogRemoteConfigCbx" ToolTip="Log remote config value patches"
                           Content="Log Patches?" Margin="12 4 4 4"/>
                 <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                           Content="Test"
-                           Click="TestWebhook_Click"
-                           Width="60" Padding="2"
-                           Height="34"
-                           Margin="4,0,0,0"></ui:Button>
+                           Content="Test" Click="TestWebhook_Click"
+                           Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
             </StackPanel>
             <Separator Margin="0,10"/>
-            <TextBlock HorizontalAlignment="Left" Margin="4  0 12 4">Logged Events</TextBlock>
-            <WrapPanel x:Name="EventWebhookListPanel" Orientation="Horizontal" HorizontalAlignment="Left"
-                       ItemWidth="280" ItemHeight="50" Margin="0 4 0 0">
-            </WrapPanel>
+            <TextBlock HorizontalAlignment="Left" Margin="4 0 12 4">Logged Events</TextBlock>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="180"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderThickness="0,0,1,0"
+                        BorderBrush="{DynamicResource ControlElevationBorderBrush}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+                        <StackPanel x:Name="WebhookGroupList" Orientation="Vertical" Margin="0,2,0,2"/>
+                    </ScrollViewer>
+                </Border>
+                <Grid Grid.Column="1" MaxHeight="500">
+                    <StackPanel x:Name="WebhookDetailPanel" Orientation="Vertical"
+                                Margin="12,6,8,6"/>
+                </Grid>
+            </Grid>
         </StackPanel>
     </Expander>
 </views:SettingsControl>

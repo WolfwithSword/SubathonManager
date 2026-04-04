@@ -1,15 +1,17 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core.Events;
 
 [ExcludeFromCodeCoverage]
 public static class IntegrationEvents
 {
-    public static event Action<bool, SubathonEventSource, string, string>? ConnectionUpdated; // status, src, acc name, service
+    public static event Action<IntegrationConnection>? ConnectionUpdated; // status, src, acc name, service
     
-    public static void RaiseConnectionUpdate(bool status, SubathonEventSource source, string name, string service)
+    public static void RaiseConnectionUpdate(IntegrationConnection connection)
     {
-        ConnectionUpdated?.Invoke(status, source, name, service);
+        Utils.UpdateConnection(connection);
+        ConnectionUpdated?.Invoke(connection);
     }
 }

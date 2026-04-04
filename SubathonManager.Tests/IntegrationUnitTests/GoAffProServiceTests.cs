@@ -4,6 +4,7 @@ using Moq;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
 
@@ -17,18 +18,18 @@ public class GoAffProServiceTests
     
     private static async Task<(bool?, SubathonEventSource, string, string)> CaptureIntegrationEvent(Func<Task> trigger)
     {
-
+        
         bool? status = null;
         SubathonEventSource source = SubathonEventSource.Unknown;
         string name = string.Empty;
         string service = string.Empty;
         
-        void EventCaptureHandler(bool b, SubathonEventSource s, string n, string se)
+        void EventCaptureHandler(IntegrationConnection conn)
         {
-            status = b;
-            source = s;
-            name = n;
-            service = se;
+            status = conn.Status;
+            source = conn.Source;
+            name = conn.Name;
+            service = conn.Service;
         }
 
         IntegrationEvents.ConnectionUpdated += EventCaptureHandler;

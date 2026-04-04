@@ -68,6 +68,9 @@
 
 - UwuMarket
 - GamerSupps
+- Orchid Eight
+- KatDragonz
+
 </details>
 <details> <summary><strong>KoFi</strong></summary>
 

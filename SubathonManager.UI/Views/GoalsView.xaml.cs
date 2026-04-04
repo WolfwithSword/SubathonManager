@@ -31,8 +31,8 @@ public partial class GoalsView
 
     private void OnGoalsUpdate(List<SubathonGoal> goals, long points, GoalsType type)
     {
-        // Dispatcher.InvokeAsync(LoadGoals);
-        LoadGoals();
+        Dispatcher.InvokeAsync(LoadGoals);
+        //LoadGoals();
     }
 
     private void OnSubathonUpdate(SubathonData subathon, DateTime timestamp)

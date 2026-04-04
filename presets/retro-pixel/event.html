@@ -94,7 +94,8 @@ END_WIDGET_META
             else if (e.value == "2000") e.value = "T2";
             else if (e.value == "3000") e.value = "T3";
             
-            if (e.sub_type == "GiftSubLike") e.value = `x${e.amount} ${e.value}`;
+            if (e.sub_type == "GiftSubLike" && e.event_type.includes("YouTube")) e.value = `x${e.amount}`;
+            else if (e.sub_type == "GiftSubLike") e.value = `x${e.amount} ${e.value}`;
         }
 
         iconWrap.innerHTML = "";
@@ -102,6 +103,7 @@ END_WIDGET_META
         
         await typeText(userEl, e.user, 18)
         await typeText(valueEl, e.value, 14);
+        if (e.currency == "member" && e.amount > 1) e.currency += "s";
         await typeText(currencyEl, e.currency ?? "", 14);
     }
     

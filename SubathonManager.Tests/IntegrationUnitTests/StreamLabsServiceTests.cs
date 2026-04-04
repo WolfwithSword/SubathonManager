@@ -9,6 +9,7 @@ using System.Reflection;
 using Streamlabs.SocketClient;
 using Streamlabs.SocketClient.Messages.DataTypes;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
@@ -127,14 +128,20 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var (service, _) = MakeService("valid_token");
 
             bool? lastStatus = null;
-            IntegrationEvents.ConnectionUpdated += (b, _, _, svc) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (svc == "Socket") lastStatus = b;
+                if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" })
+                {
+                    lastStatus = conn.Status;
+                }
             };
+            IntegrationEvents.ConnectionUpdated += handler;
 
             await service.InitClientAsync();
 
             Assert.True(lastStatus);
+            IntegrationEvents.ConnectionUpdated -= handler;
+            Assert.True(Utils.GetConnection(SubathonEventSource.StreamLabs, "Socket").Status);
         }
         
         [Fact]
@@ -159,14 +166,19 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 .ThrowsAsync(new Exception("fail"));
 
             bool? lastStatus = null;
-            IntegrationEvents.ConnectionUpdated += (b, _, _, svc) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (svc == "Socket") lastStatus = b;
+                if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" })
+                {
+                    lastStatus = conn.Status;
+                }
             };
+            IntegrationEvents.ConnectionUpdated += handler;
 
             await service.InitClientAsync();
 
             Assert.False(lastStatus);
+            IntegrationEvents.ConnectionUpdated -= handler;
         }
         
         [Fact]
@@ -194,15 +206,20 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.True(service.Connected);
 
             bool? lastStatus = null;
-            IntegrationEvents.ConnectionUpdated += (b, _, _, svc) =>
+            Action<IntegrationConnection> handler = (conn) =>
             {
-                if (svc == "Socket") lastStatus = b;
+                if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" })
+                {
+                    lastStatus = conn.Status;
+                }
             };
+            IntegrationEvents.ConnectionUpdated += handler;
 
             await service.DisconnectAsync();
 
             Assert.False(service.Connected);
             Assert.False(lastStatus);
+            IntegrationEvents.ConnectionUpdated -= handler;
             mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
         }
 

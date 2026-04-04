@@ -1,16 +1,46 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core;
 
 public static class Utils
 {
     
-    public static readonly Dictionary<string, bool> DonationSettings = new Dictionary<string, bool>(); 
+    public static readonly Dictionary<string, bool> DonationSettings = new();
+    private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection> ConnectionDetails = new();
+    
+    public static IntegrationConnection GetConnection(SubathonEventSource source, string service)
+    {
+        ConnectionDetails.TryGetValue((source, service), out var conn);
+        if (conn != null) return conn;
+        conn = new IntegrationConnection()
+        {
+            Source = source,
+            Service = service,
+            Name = "",
+            Status = false
+        };
+        UpdateConnection(conn);
+
+        return conn;
+    }
+    
+    public static void UpdateConnection(IntegrationConnection connection)
+    {
+        var key = (connection.Source, connection.Service);
+
+        ConnectionDetails.AddOrUpdate(
+            key,
+            connection,
+            (_, _) => connection
+        );
+    }
     
     public static TimeSpan ParseDurationString(string input)
     {
@@ -170,7 +200,7 @@ public static class Utils
     public static (bool, double) GetAltCurrencyUseAsDonation(IConfig config, SubathonEventType? eventType)
     {
         double modifier = 1;
-        if (!eventType.IsCheerType())
+        if (!eventType.IsToken())
             return (false, 1);
         if (eventType != SubathonEventType.TwitchCheer && eventType != SubathonEventType.PicartoTip)
         {

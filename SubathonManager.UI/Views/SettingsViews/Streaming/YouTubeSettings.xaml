@@ -1,0 +1,148 @@
+﻿<views:SettingsControl x:Class="SubathonManager.UI.Views.SettingsViews.Streaming.YouTubeSettings"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:SubathonManager.UI.Views.SettingsViews"
+             xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:SubathonManager.UI.Views">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <ui:Button x:Name="ConnectYTBtn"
+                           Content="Connect"
+                           Width="120" VerticalAlignment="Center"
+                           Height="35"
+                           Margin="0,5,0,10"
+                           Click="ConnectYouTubeButton_Click"/>
+                <ui:TextBox x:Name="YTUserHandle" PlaceholderText="@handle"
+                            VerticalAlignment="Center" FontSize="12" Width="250" Margin="14 5 12 10"/>
+                <TextBlock x:Name="YTStatusText" VerticalAlignment="Center" FontSize="12" Margin="4 0 0 10"/>
+            </StackPanel>
+            
+            <StackPanel Margin="10,5,0,5">
+                
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="SuperChats:" Width="100" VerticalAlignment="Center" ToolTip="Includes SuperStickers"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="12"
+                                    x:Name="DonoBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
+                                    x:Name="DonoBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <ui:TextBox Margin="10 0 4 0" Width="80" Text="10.00"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    ClearButtonEnabled="False"
+                                    PlaceholderText="10.00"  Height="34"
+                                    FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                    validation:InputValidationBehavior.IsDecimalOnly="True" x:Name="SimulateSCAmt"/>
+                        
+                        <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" 
+                                  x:Name="CurrencyBox" StaysOpenOnEdit="True"   Height="34" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                  Margin="4 0 4 0">
+                        </ComboBox>
+                        <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   Content="Test"
+                                   Click="TestYTSuperChat_Click"
+                                   Width="60" Padding="2"  Height="34"
+                                   Margin="4,0,0,0"></ui:Button>
+                    </StackPanel>
+                </Grid>
+
+                
+                
+                <!-- Memberships -->
+                <Expander Header="Memberships" IsExpanded="False" Margin="0,5,0,0">
+                    <StackPanel  Margin="10,5,0,5">
+                        <StackPanel x:Name="MembershipsPanel">
+                            <Grid x:Name="DefaultMember" Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="400"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Up to six can be defined, with custom names -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="Default:" Width="172" VerticalAlignment="Center"/>
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                                Height="36" PlaceholderText="60"
+                                                x:Name="MemberDefaultTextBox"/>
+                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                                Height="36" PlaceholderText="1"
+                                                x:Name="MemberDefaultTextBox2"/>
+                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36"
+                                               Content="Add Membership Tier" x:Name="AddBtn"
+                                               Click="AddMembership_Click"
+                                               Width="160" Margin="4,5,4,5"/>
+                                    <ComboBox Text="Tier" Width="150" Height="36" FontSize="12"
+                                              x:Name="SimTierSelection" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                              SelectedIndex="0" Margin="4 0 4 0">
+                                        <ComboBoxItem Content="DEFAULT"/>
+                                    </ComboBox>
+                                      <!-- populate also for gifted when adding, and won't be editable -->
+                                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                               Content="Test"
+                                               Click="TestYTMembership_Click"
+                                               Width="60" Padding="2"
+                                               Height="36"
+                                               Margin="4,0,0,0"></ui:Button>
+                                </StackPanel>
+                                
+                            </Grid>
+                        </StackPanel>
+                        
+                        <Separator Margin="0,8"/>
+                        <StackPanel x:Name="GiftMembershipsPanel">
+                            <Grid Margin="0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="400"/>
+                                </Grid.ColumnDefinitions>
+                              <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="Default Gift:" Width="172" VerticalAlignment="Center"/>
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                                Height="36" PlaceholderText="60"
+                                                x:Name="GiftMemberDefaultTextBox"/>
+                                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                                Height="36" PlaceholderText="1"
+                                                x:Name="GiftMemberDefaultTextBox2"/>
+                                    <TextBlock Margin="8 0 0 0"  Text="Points" Width="100" VerticalAlignment="Center"/>
+                                    
+                                </StackPanel>
+                                                                             
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                    
+                                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True"
+                                                Text="1" PlaceholderText="1" Height="35" FontSize="14" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                                x:Name="SimGiftMembershipAmtInput"/>
+                                    <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                               Content="Test"
+                                               Click="TestYTGiftMembership_Click"
+                                               Width="60" Padding="2"
+                                               Height="35"
+                                               Margin="4,0,0,0"></ui:Button>
+                                </StackPanel>
+                                
+                            </Grid>
+                            
+                        </StackPanel>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </StackPanel>
+</views:SettingsControl>

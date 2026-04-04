@@ -18,7 +18,12 @@ public enum WidgetVariableType
     SoundFile,
     EventSubTypeList,
     EventSubTypeSelect,
-    FolderPath
+    FolderPath,
+    OrderEventTypeList,
+    TokenEventTypeList,
+    SubEventTypeList,
+    FollowEventTypeList,
+    DonationEventTypeList
 }
 
 [ExcludeFromCodeCoverage]
@@ -38,6 +43,17 @@ public static class WidgetVariableTypeHelper
 
     public static bool IsEnumVariable(this WidgetVariableType? varType) =>
         varType.HasValue && GetClsSingleType(varType.Value).IsEnum;
+
+    public static List<SubathonEventType> GetFilteredEventTypes(this WidgetVariableType varType) => varType switch
+    {
+        WidgetVariableType.OrderEventTypeList => SubathonEventSubTypeHelper.OrderEventTypes,
+        WidgetVariableType.SubEventTypeList => SubathonEventSubTypeHelper.SubEventTypes,
+        WidgetVariableType.TokenEventTypeList =>  SubathonEventSubTypeHelper.TokenEventTypes,
+        WidgetVariableType.FollowEventTypeList =>  SubathonEventSubTypeHelper.FollowEventTypes,
+        WidgetVariableType.DonationEventTypeList =>  SubathonEventSubTypeHelper.DonationEventTypes,
+        WidgetVariableType.EventTypeList => Enum.GetValues<SubathonEventType>().ToList(),
+        _ => []
+    };
 
     public static Type GetClsSingleType(this WidgetVariableType varType) => varType switch
     {
@@ -60,7 +76,13 @@ public static class WidgetVariableTypeHelper
         WidgetVariableType.SoundFile => typeof(string),
         WidgetVariableType.FolderPath => typeof(string),
         
-        _ => throw new ArgumentOutOfRangeException(nameof(varType), varType, null)
+        WidgetVariableType.OrderEventTypeList => typeof(SubathonEventType), 
+        WidgetVariableType.TokenEventTypeList => typeof(SubathonEventType), 
+        WidgetVariableType.SubEventTypeList => typeof(SubathonEventType), 
+        WidgetVariableType.FollowEventTypeList => typeof(SubathonEventType), 
+        WidgetVariableType.DonationEventTypeList => typeof(SubathonEventType), 
+        
+        _ => typeof(string)
     };
 }
 
@@ -70,8 +92,10 @@ public enum WidgetCssVariableType
     String, 
     Color,
     Alignment,
-    Size
-    
+    Size,
+    Float,
+    Int,
+    Opacity
 }
 
 [ExcludeFromCodeCoverage]
