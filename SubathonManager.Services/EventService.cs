@@ -191,8 +191,9 @@ public class EventService: IDisposable, IAppService
                 && !string.IsNullOrEmpty(ev.Value.Trim()))
             {
                 ev.SecondsValue = parsedValue * subathonValue.Seconds;
+                ev.PointsValue = (int?)(parsedValue *  Math.Floor(subathonValue!.Points)); // i went through 21k+ lines of changes to find this missing
             }
-            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets,order".Split(",").Contains(ev.Currency)) // flat orders 
+            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets,order".Split(",").Contains(ev.Currency.ToLower())) // flat orders 
             {
                 ev.SecondsValue = subathonValue.Seconds;
             }
