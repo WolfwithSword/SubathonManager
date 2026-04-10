@@ -167,8 +167,6 @@ public class EventService: IDisposable, IAppService
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
                 v.EventType == ev.EventType && (v.Meta.ToLower() == ev.Value.ToLower() || 
-                                                //v.Meta.ToLower().Replace("!", string.Empty) == ev.Value.ToLower().Replace("!", string.Empty) ||
-                                                // Youtube has an issue where memberships with ! in it will include everything before the ! and nother else
                                                 v.Meta == string.Empty));
 
             subathonValue ??= await db.SubathonValues.FirstOrDefaultAsync(v =>
@@ -190,9 +188,10 @@ public class EventService: IDisposable, IAppService
                 && !_currencyService.IsValidCurrency(ev.Currency)
                 && !string.IsNullOrEmpty(ev.Value.Trim()))
             {
-                ev.SecondsValue = parsedValue * subathonValue.Seconds;
+                ev.SecondsValue = parsedValue * subathonValue.Seconds; // also handles tokens, but points overwritten later
+                ev.PointsValue = (int?)(parsedValue *  Math.Floor(subathonValue!.Points)); // i went through 21k+ lines of changes to find this missing
             }
-            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets,order".Split(",").Contains(ev.Currency)) // flat orders 
+            else if (!string.IsNullOrEmpty(ev.Currency) && "sub,member,viewers,bits,beets,order".Split(",").Contains(ev.Currency.ToLower())) // flat orders 
             {
                 ev.SecondsValue = subathonValue.Seconds;
             }
@@ -220,6 +219,7 @@ public class EventService: IDisposable, IAppService
 
             if (ev.EventType.IsToken() && double.TryParse(ev.Value, out var parsedBitsLikeValue))
             {
+                // seconds in sub value are stored as 0.12 so it is done above
                 ev.PointsValue = (int) Math.Floor(((parsedBitsLikeValue / 100)) * subathonValue!.Points);
             }
         }

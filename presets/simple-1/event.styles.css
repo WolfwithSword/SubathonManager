@@ -77,6 +77,7 @@
   overflow:visible;
   vertical-align: middle; 
   filter: drop-shadow(0 0 4px var(--event-glow));
+  margin-right: 4px;
 }
 
 .event-text {
@@ -87,6 +88,7 @@
   line-height: 1.2;
   max-height: 42px; /*62px*/
   overflow: hidden;
+  margin-left: 2px;  
 }
 
 .event-user {
@@ -94,11 +96,13 @@
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;  
+  white-space: nowrap;
+  margin-left: 2px;
 }
 
 .event-value {
   font-size: 0.9rem;
   opacity: 0.85;
   min-height: 1.2rem;
+  margin-left: 2px;
 }
