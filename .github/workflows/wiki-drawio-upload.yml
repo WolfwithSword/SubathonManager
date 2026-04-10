@@ -86,11 +86,10 @@ jobs:
         with:
           github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           script: |
+            const version = context.payload.inputs?.release_tag || 'nightly';
             await github.rest.repos.createDispatchEvent({
               owner: 'WolfwithSword',
               repo:  'SubathonManager-docs',
               event_type: 'docs-release',
-              client_payload: {
-                version: ${{ inputs.release_tag }}
-              }
+              client_payload: { version }
             });
