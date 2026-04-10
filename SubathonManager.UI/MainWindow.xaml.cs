@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Interop;
 using Wpf.Ui.Appearance;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,10 +70,10 @@ namespace SubathonManager.UI
             return IntPtr.Zero;
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LoadRoutes();
-            Task.Run(() =>
+            await Task.Run(() =>
             {
                 Task.Delay(500);
                 OverlayEvents.RaiseOverlayRefreshAllRequested();
@@ -81,7 +83,8 @@ namespace SubathonManager.UI
             AdjustCurrencyBox.ItemsSource = currencies;
             AdjustCurrencyBox.SelectedItem = config.Get("Currency", "Primary", "USD")?
                 .Trim().ToUpperInvariant() ?? "USD";
-
+            
+            await ShowTelemetryPromptAsync();
         }
         
         private void ExportRoute_Click(object sender, RoutedEventArgs e)
@@ -149,6 +152,63 @@ namespace SubathonManager.UI
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Import of overlay failed");
+            }
+        }
+        
+        private async Task ShowTelemetryPromptAsync()
+        {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            var installId = config.Get("Telemetry", "InstallId", "");
+            if (!string.IsNullOrWhiteSpace(installId)) return;
+
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Help Improve Subathon Manager",
+                PrimaryButtonText = "Confirm",
+                CloseButtonText = "No Thanks",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Width = 340
+            };
+
+            var textBlock = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(4, 4, 4, 12),
+            };
+            
+            textBlock.Inlines.Add(new Run("Would you like to send anonymous usage data to help guide development?"));
+            textBlock.Inlines.Add(new LineBreak());
+            textBlock.Inlines.Add(new LineBreak());
+            textBlock.Inlines.Add(new Run("Only information on which integrations are active is collected - no usernames, keys, or personal information of any kind."));
+
+            var checkBox = new CheckBox
+            {
+                Content = "Enable anonymous data collection",
+                IsChecked = true,
+                Margin = new Thickness(4, 0, 4, 4)
+            };
+
+            panel.Children.Add(textBlock);
+            panel.Children.Add(checkBox);
+            msgBox.Content = panel;
+
+            var result = await msgBox.ShowDialogAsync();
+            bool enabled = result == Wpf.Ui.Controls.MessageBoxResult.Primary && (checkBox.IsChecked ?? false);
+            if (config.SetBool("Telemetry", "Enabled", enabled))
+                config.Save();
+            if (!enabled && string.IsNullOrWhiteSpace(installId))
+            {
+                // if enabled, the service will create the id itself
+                config.Set("Telemetry", "InstallId", Guid.NewGuid().ToString());
+                config.SetBool("Telemetry", "Enabled", enabled);
+                config.Save();
             }
         }
     }

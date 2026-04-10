@@ -15,6 +15,9 @@ public static class Utils
     public static readonly Dictionary<string, bool> DonationSettings = new();
     private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection> ConnectionDetails = new();
     
+    
+    public static IEnumerable<IntegrationConnection> GetAllConnections() 
+        => ConnectionDetails.Values;
     public static IntegrationConnection GetConnection(SubathonEventSource source, string service)
     {
         ConnectionDetails.TryGetValue((source, service), out var conn);

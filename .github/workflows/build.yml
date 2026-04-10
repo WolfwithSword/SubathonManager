@@ -141,6 +141,12 @@ jobs:
         shell: bash
         run: |
           echo "CopyrightYear=$(date +%Y)" >> $GITHUB_ENV
+          
+      - name: Inject telemetry key
+        shell: bash
+        run: |
+          sed -i 's/BUILD_TELEMETRY_KEY/${{ secrets.TELEMETRY_KEY }}/g' \
+            SubathonManager.Services/TelemetryService.cs     
 
       - name: Build project
         run: >

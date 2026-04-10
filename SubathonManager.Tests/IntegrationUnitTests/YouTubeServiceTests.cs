@@ -772,12 +772,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         }
 
         [Theory]
-        [InlineData(MembershipEventType.New, "Gold", "New Member", SubathonEventType.YouTubeMembership)]
-        [InlineData(MembershipEventType.Milestone, "DEFAULT", "Special guy", SubathonEventType.YouTubeMembership)]
-        [InlineData(MembershipEventType.Unknown, "Gold", "Some subtext", SubathonEventType.YouTubeMembership)]
-        [InlineData(MembershipEventType.Unknown, "Gold", "Welcome new member!", SubathonEventType.YouTubeMembership)]
+        [InlineData(MembershipEventType.New, "Gold", "New Member", SubathonEventType.YouTubeMembership, "Gold")]
+        [InlineData(MembershipEventType.Milestone, "DEFAULT", "Special guy", SubathonEventType.YouTubeMembership, "DEFAULT")]
+        [InlineData(MembershipEventType.Unknown, "Gold", "Some subtext", SubathonEventType.YouTubeMembership, "Some subtext")] // not true case
+        [InlineData(MembershipEventType.Unknown, "Gold", "Welcome new member!", SubathonEventType.YouTubeMembership, "Gold")]
+        [InlineData(MembershipEventType.Unknown, "Upgraded membership to MyTier!!", "Upgraded membership to MyTier!!", SubathonEventType.YouTubeMembership, "MyTier!")]
         public void OnChatReceived_Membership_RaisesYouTubeMembership(
-            MembershipEventType eventType, string levelName, string headerSubtext, SubathonEventType expectedEventType)
+            MembershipEventType eventType, string levelName, string headerSubtext, SubathonEventType expectedEventType, string expectedLevel)
         {
             var logger = new Mock<ILogger<YouTubeService>>();
             var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
@@ -813,6 +814,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.NotNull(captured);
             Assert.Equal(expectedEventType, captured!.EventType);
             Assert.Equal(SubathonEventSource.YouTube, captured.Source);
+            Assert.Equal(expectedLevel, captured.Value);
             Assert.Equal("MemberUser", captured.User);
         }
    

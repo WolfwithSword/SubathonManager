@@ -59,6 +59,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<TimerService>();
         await StopAsync<EventService>();
         await StopAsync<WebServer>();
+        await StopAsync<TelemetryService>();
     }
     
     private SemaphoreSlim GetLock(Type t) => 
@@ -106,6 +107,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public bool IsRunning<T>() => _running.Contains(typeof(T));
     
     // Core Services //
+    // TelemetryService
     // CurrencyService
     // EventService
     // WebServer
