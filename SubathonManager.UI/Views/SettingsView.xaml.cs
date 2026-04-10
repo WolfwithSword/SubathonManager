@@ -229,7 +229,7 @@ public partial class SettingsView : SettingsControl
                 if (config.SetBool("Telemetry", "Enabled", enabled))
                     config.Save();
             }
-            catch (Exception ex)
+            catch
             {
                 /****/
             }
