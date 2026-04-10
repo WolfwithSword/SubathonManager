@@ -273,7 +273,7 @@ public class YouTubeService : IDisposable, IAppService
             subathonEvent.Value = tier;
             subathonEvent.Currency = "member";
             
-            if (tier.ToLower().Contains("new") && details.EventType == MembershipEventType.Unknown)
+            if (tier.Contains("new", StringComparison.CurrentCultureIgnoreCase) && details.EventType == MembershipEventType.Unknown)
                 details.EventType = MembershipEventType.New;
             
             switch (details.EventType)
@@ -306,6 +306,13 @@ public class YouTubeService : IDisposable, IAppService
             
             if (tier.Equals("Member", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(tier))
                 tier = "DEFAULT";
+            if (tier.StartsWith("Upgraded membership to")) // upgrade type
+            {
+                // levelname might be correct here, but incredibly hard to test
+                tier = tier.Replace("Upgraded membership to", "");
+                tier =  tier[..^1]; // remove end ! 
+                
+            }
             subathonEvent.Value = tier.Trim();
             
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);

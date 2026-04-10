@@ -113,6 +113,11 @@ public partial class App
                 TimerEvents.TimerTickEvent += UpdateSubathonTimers;
                 
                 await sm.StartIntegrationsAsync();
+
+                if (config.GetBool("Telemetry", "Enabled", false))
+                {
+                    await sm.StartAsync<TelemetryService>();
+                }
             });
             
             WatchConfig();
@@ -200,6 +205,21 @@ public partial class App
             var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
             int newPort = int.Parse(config.Get("Server", "Port", "14040")!);
             int currentPort = ServiceManager.Server?.Port ?? newPort;
+
+            if (config.GetBool("Telemetry", "Enabled", false) && !sm.IsRunning<TelemetryService>())
+            {
+                Task.Run(async () =>
+                {
+                    await sm.StartAsync<TelemetryService>();
+                });
+            }
+            else if (!config.GetBool("Telemetry", "Enabled", false) && sm.IsRunning<TelemetryService>())
+            {
+                Task.Run(async () =>
+                {
+                    await sm.StopAsync<TelemetryService>();
+                });
+            }
             
             if (currentPort != newPort)
             {

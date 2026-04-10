@@ -165,5 +165,16 @@ namespace SubathonManager.Core
             var bytes = System.Text.Encoding.UTF8.GetBytes(value);
             return Set(section, key, Convert.ToBase64String(bytes));
         }
+
+        public string GetInstallId()
+        {
+            var id = Get("Telemetry", "InstallId", "");
+            if (!string.IsNullOrWhiteSpace(id)) return id;
+            
+            id = Guid.NewGuid().ToString();
+            Set("Telemetry", "InstallId", id);
+            Save();
+            return id;
+        }
     }
 }

@@ -18,4 +18,6 @@ public interface IConfig
 
     bool SetBool(string section, string key, bool? value);
     bool SetEncoded(string section, string key, string value);
+
+    string GetInstallId();
 }

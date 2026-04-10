@@ -29,6 +29,7 @@ public static class ServiceRegistration
         services.AddSingleton<CurrencyService>(BuildCurrencyService);
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
+        services.AddSingleton<TelemetryService>();
 
     }
     

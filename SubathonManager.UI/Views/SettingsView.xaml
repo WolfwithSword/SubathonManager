@@ -49,6 +49,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,5" HorizontalAlignment="Left">
@@ -81,6 +82,9 @@
                                     <ComboBoxItem Content="Dark"/>
                                     <ComboBoxItem Content="Light"/>
                                 </ComboBox>
+                            </StackPanel>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
+                                <Button x:Name="TelemetryBtn" Content="Data Collection" Margin="2 0 4 0" Width = "222" Click="ShowTelemetryPromptAsync"/>
                             </StackPanel>
                         </Grid>
                         

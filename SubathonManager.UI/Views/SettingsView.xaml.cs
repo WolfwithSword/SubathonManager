@@ -27,6 +27,8 @@ public partial class SettingsView : SettingsControl
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();     
         
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue; // needed outside of loaded to actually capture first fire
         Loaded += (_, _) =>
         {
@@ -44,7 +46,6 @@ public partial class SettingsView : SettingsControl
         CommandsSettingsControl.Init(this);
         ExtensionSettingsControl.Init(this);
         
-        var config = AppServices.Provider.GetRequiredService<IConfig>();
         ServerPortTextBox.Text = config.Get("Server", "Port", string.Empty) ?? string.Empty;
         LoadValues();
         InitCurrencySelects();
@@ -178,4 +179,59 @@ public partial class SettingsView : SettingsControl
     {
         throw new NotImplementedException();
     }
+    
+    private async void ShowTelemetryPromptAsync(object sender, RoutedEventArgs routedEventArgs)
+        {
+            try
+            {
+                var config = AppServices.Provider.GetRequiredService<IConfig>();
+
+                var msgBox = new Wpf.Ui.Controls.MessageBox
+                {
+                    Title = "Help Improve Subathon Manager",
+                    PrimaryButtonText = "Confirm",
+                    Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+
+                var panel = new StackPanel
+                {
+                    Orientation = Orientation.Vertical,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Width = 340
+                };
+
+                var textBlock = new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(4, 4, 4, 12),
+                };
+                textBlock.Inlines.Add(new Run("Would you like to send anonymous usage data to help guide development?"));
+                textBlock.Inlines.Add(new LineBreak());
+                textBlock.Inlines.Add(new LineBreak());
+                textBlock.Inlines.Add(new Run("Only information on which integrations are active is collected - no usernames, keys, or personal information of any kind."));
+
+
+                var checkBox = new CheckBox
+                {
+                    Content = "Enable anonymous data collection",
+                    IsChecked = config.GetBool("Telemetry", "Enabled", false),
+                    Margin = new Thickness(4, 0, 4, 4)
+                };
+
+                panel.Children.Add(textBlock);
+                panel.Children.Add(checkBox);
+                msgBox.Content = panel;
+
+                var result = await msgBox.ShowDialogAsync();
+                if (result != Wpf.Ui.Controls.MessageBoxResult.Primary) return;
+                bool enabled = (checkBox.IsChecked ?? false);
+                if (config.SetBool("Telemetry", "Enabled", enabled))
+                    config.Save();
+            }
+            catch (Exception ex)
+            {
+                /****/
+            }
+        }
 }

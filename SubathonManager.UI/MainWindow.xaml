@@ -446,11 +446,11 @@
                         <StackPanel Orientation="Horizontal">
                             <ui:Button Click="SendRefreshRequest_Click" Width="184" Height="48" Margin="0 16 2 8">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="2 2 0 2"/>
-                                    <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="54" Margin="2 0"/>
+                                    <TextBlock Text="Refresh Overlays" VerticalAlignment="Center" Margin="6 2 0 2"/>
+                                    <ui:SymbolIcon Symbol="Recycle32" Width="34" VerticalAlignment="Center" Height="54" Margin="2 0 0 0"/>
                                 </StackPanel>
                             </ui:Button>
-                            <ui:Button Content="Open Presets Folder" Width="180" VerticalAlignment="Center"
+                            <ui:Button Content="Open Presets Folder" Width="184" VerticalAlignment="Center"
                                        Height="48"
                                        Click="OpenPresets_Click" FontSize="12" Margin="8,16,2,8"/>
                         </StackPanel>
