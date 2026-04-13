@@ -82,7 +82,7 @@ jobs:
     if: ${{ (inputs.release_tag || 'nightly') != 'nightly' }}
     steps:
       - name: Dispatch docs release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           script: |
