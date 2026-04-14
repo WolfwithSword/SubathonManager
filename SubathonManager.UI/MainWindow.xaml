@@ -105,7 +105,7 @@
             </ui:TitleBar.Icon>
         </ui:TitleBar>
         <Border Grid.Row="1"  Background="{DynamicResource AppHeaderBackground}" Height="36" VerticalAlignment="Top"/>
-        <TabControl Grid.Row="1" Background="Transparent">
+        <TabControl Grid.Row="1" Background="Transparent" x:Name="MainWindowTabs">
             <!-- Home Tab -->
             <TabItem Header="Home" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <Grid>
@@ -326,7 +326,7 @@
             </TabItem>
 
             <!-- Overlays Tab -->
-            <TabItem Header="Overlays" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4"  Width="140">
+            <TabItem Header="Overlays" x:Name="OverlayTabItem" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4"  Width="140">
                 <Grid Margin="10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>

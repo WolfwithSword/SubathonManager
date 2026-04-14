@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Appearance;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using SubathonManager.Server;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -31,6 +32,7 @@ public partial class App
     
     protected override void OnStartup(StartupEventArgs e)
     {
+        Directory.SetCurrentDirectory(AppContext.BaseDirectory);
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         
         AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
@@ -43,10 +45,14 @@ public partial class App
         
         if (!createdNew)
         {
-            FocusRunningInstance();
+            ParseImportFile(e);
+            string? filePath = Utils.PendingOverlayImportPath;
+            FocusRunningInstance(filePath);
             Shutdown();
             return;
         }
+
+        SetFileAssociations();
         
         var services = new ServiceCollection();
         
@@ -90,6 +96,12 @@ public partial class App
             }
 
             base.OnStartup(e);
+            
+            var window = new MainWindow();
+            Current.MainWindow = window;
+            window.Show();
+            
+            ParseImportFile(e);
 
             SubathonEvents.SubathonDataUpdate += UpdateTickStateCache;
             
@@ -130,6 +142,32 @@ public partial class App
         }
     }
 
+    private static void ParseImportFile(StartupEventArgs e)
+    {
+        if (e.Args.Length > 0 && File.Exists(e.Args[0]) && 
+            e.Args[0].EndsWith(".smo", StringComparison.OrdinalIgnoreCase))
+        {
+            Utils.PendingOverlayImportPath = e.Args[0];
+        }
+        else if (e.Args.Length > 0)
+        {
+            var arg = e.Args[0];
+
+            if (arg.StartsWith("subathonmanager://"))
+            {
+                var uri = new Uri(arg);
+
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var url = query["url"];
+
+                if (!string.IsNullOrEmpty(url))
+                {
+                    Utils.PendingOverlayImportPath = url;
+                }
+            }
+        }
+    }
+
     private void SetStartupTheme(IConfig config)
     {
         string theme = config.Get("App", "Theme", "Dark")!.Trim();
@@ -151,16 +189,21 @@ public partial class App
                 : ApplicationTheme.Light;
     }
     
-    private void FocusRunningInstance()
+    private void FocusRunningInstance(string? filePath = null)
     {
         var current = Process.GetCurrentProcess();
         foreach (var proc in Process.GetProcessesByName(current.ProcessName))
         {
             if (proc.Id == current.Id)
                 continue;
-
+            
             if (proc.MainWindowHandle != IntPtr.Zero)
             {
+                if (!string.IsNullOrEmpty(filePath))
+                {
+                    Utils.SingleInstanceHelper.SendStringMessage(proc.MainWindowHandle, filePath);
+                }
+
                 Utils.SingleInstanceHelper.PostMessage(
                     proc.MainWindowHandle,
                     Utils.SingleInstanceHelper.WM_SHOWAPP,
@@ -386,6 +429,76 @@ public partial class App
         var totals = await EventService.GetSubathonTotalsAsync(db);
         if (totals != null)
             SubathonEvents.RaiseSubathonTotalsUpdated(totals);
+    }
+
+    private void SetFileAssociations()
+    {
+        var exePath = Environment.ProcessPath!;
+
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smo", "", "SubathonManager.Overlay");
+
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay", "", "Subathon Manager Overlay");
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\DefaultIcon",
+            "",
+            $"{exePath},0"
+        );
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\shell\open\command",
+            "",
+            $"\"{exePath}\" \"%1\""
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\subathonmanager",
+            "",
+            "URL:Subathon Manager Protocol");
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\subathonmanager",
+            "URL Protocol",
+            "");
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\subathonmanager\shell\open\command",
+            "",
+            $"\"{exePath}\" \"%1\"");
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\shell\import",
+            "",
+            "Import into Subathon Manager"
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\shell\import",
+            "Icon",
+            $"{exePath},0"
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\Applications\SubathonManager.exe",
+            "FriendlyAppName",
+            "Subathon Manager"
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\.smo\OpenWithProgids",
+            "SubathonManager.Overlay",
+            ""
+        );
+    }
+    
+    private void EnsureRegistryValue(string keyPath, string name, string expectedValue)
+    {
+        var currentValue = Registry.GetValue(keyPath, name, null) as string;
+
+        if (currentValue == expectedValue)
+            return;
+
+        Registry.SetValue(keyPath, name, expectedValue);
     }
 
 }

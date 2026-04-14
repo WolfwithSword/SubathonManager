@@ -215,7 +215,9 @@ public partial class EditRouteWindow
         {
             var widget = GetWidgetFromSender(sender);
             if (widget == null) return;
-
+            bool visibility = !widget.Visibility;
+            widget.Visibility = visibility;
+            
             await using var db = await _factory.CreateDbContextAsync();
             var wa = await db.Widgets.Include(w => w.CssVariables)
                 .Include(w => w.JsVariables)
@@ -223,7 +225,8 @@ public partial class EditRouteWindow
             if (wa == null) return;
 
             widget = wa;
-            widget.Visibility = !widget.Visibility;
+            widget.Visibility = visibility;
+            if (_selectedWidget?.Id == widget.Id) _selectedWidget.Visibility = visibility;
 
             await db.SaveChangesAsync();
             RefreshWebView();
