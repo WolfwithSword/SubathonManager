@@ -32,7 +32,9 @@ public partial class App
     
     protected override void OnStartup(StartupEventArgs e)
     {
-        Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+        string exeDir = Path.GetDirectoryName(Environment.ProcessPath 
+                                           ?? AppContext.BaseDirectory)!;
+        Directory.SetCurrentDirectory(exeDir);
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         
         AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
