@@ -147,11 +147,18 @@ namespace SubathonManager.UI
             if (filePath.StartsWith("http"))
             {
                 using var client = new HttpClient();
-                var tempFile = Path.GetTempFileName() + ".smo";
+                using var response = await client.GetAsync(filePath);
+                response.EnsureSuccessStatusCode();
+        
+                string fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                                  ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                                  ?? Path.GetFileNameWithoutExtension(new Uri(filePath).AbsolutePath);
+        
+                if (string.IsNullOrWhiteSpace(fileName)) fileName = "imported_overlay";
+                if (!fileName.EndsWith(".smo", StringComparison.OrdinalIgnoreCase)) fileName += ".smo";
 
-                var data = await client.GetByteArrayAsync(filePath);
-                await File.WriteAllBytesAsync(tempFile, data);
-
+                string tempFile = Path.Combine(Path.GetTempPath(), fileName);
+                await File.WriteAllBytesAsync(tempFile, await response.Content.ReadAsByteArrayAsync());
                 filePath = tempFile;
             }
             
