@@ -15,6 +15,8 @@ public static class Utils
     public static readonly Dictionary<string, bool> DonationSettings = new();
     private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection> ConnectionDetails = new();
     
+    public static string? PendingOverlayImportPath { get; set; }
+    
     
     public static IEnumerable<IntegrationConnection> GetAllConnections() 
         => ConnectionDetails.Values;
@@ -267,6 +269,7 @@ public static class Utils
     public static class SingleInstanceHelper
     {
         public const int WM_SHOWAPP = 0x0400 + 1;
+        public const int WM_COPYDATA = 0x004A;
 
         [DllImport("user32")]
         public static extern bool PostMessage(
@@ -274,6 +277,36 @@ public static class Utils
             int msg,
             IntPtr wparam,
             IntPtr lparam);
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct COPYDATASTRUCT
+        {
+            public IntPtr dwData;
+            public int cbData;
+            public IntPtr lpData;
+        }
+        
+        [DllImport("user32")]
+        public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
+
+        public static void SendStringMessage(IntPtr hWnd, string message)
+        {
+            var bytes = Encoding.Unicode.GetBytes(message);
+
+            var cds = new COPYDATASTRUCT
+            {
+                cbData = bytes.Length,
+                lpData = Marshal.AllocHGlobal(bytes.Length)
+            };
+
+            Marshal.Copy(bytes, 0, cds.lpData, bytes.Length);
+
+            SendMessage(hWnd, WM_COPYDATA, IntPtr.Zero, ref cds);
+
+            Marshal.FreeHGlobal(cds.lpData);
+        }
+        
+        
     }
 
 }

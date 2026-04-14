@@ -78,7 +78,7 @@ public class WidgetEntityHelper
     public void SyncJsVariables(Widget widget)
     {
         Dictionary<string, string> metadata = ExtractWidgetMetadataSync(widget.HtmlPath);
-        
+        var oldUrl = widget.DocsUrl;
         widget.DocsUrl = metadata.TryGetValue("Url", out var u) && !string.IsNullOrWhiteSpace(u)
                                                                 && Uri.IsWellFormedUriString(u, UriKind.Absolute)
                                                                 && !u.Trim().Equals(widget.DocsUrl)
@@ -88,6 +88,10 @@ public class WidgetEntityHelper
         var (jsVars, extractedNames, updatedVars) = LoadNewJsVariables(widget, metadata);
         
         using var db = _factory.CreateDbContext();
+        if (oldUrl != widget.DocsUrl)
+        {
+            db.Widgets.First(w => w.Id == widget.Id).DocsUrl =  widget.DocsUrl;
+        }
         db.JsVariables.AddRange(jsVars);
         // db.JsVariables.UpdateRange(updatedVars);
         foreach (var updated in updatedVars)
