@@ -12,6 +12,7 @@ valuePrefix.String:NONE
 valueSuffix.String:NONE
 formatWithCommas.Boolean:False
 goalMax.Int:10000
+goalOffset.Int:0
 goalText.String:Total
 END_WIDGET_META
 -->
@@ -118,6 +119,9 @@ END_WIDGET_META
         }
         if (includeSimulated && simd && simd[eventType] != undefined) {
             currentValue += (simd[eventType] || 0);
+        }
+        if (typeof(goalOffset) != "undefined") {
+            currentValue += goalOffset;
         }
 
         updateGoalBar();
