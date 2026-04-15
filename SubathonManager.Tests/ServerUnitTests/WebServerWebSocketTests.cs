@@ -10,7 +10,6 @@ using SubathonManager.Data;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Tests.Utility;
-using Xunit.Abstractions;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServerUnitTests;
