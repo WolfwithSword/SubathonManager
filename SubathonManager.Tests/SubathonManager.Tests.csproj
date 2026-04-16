@@ -8,6 +8,7 @@
     <NoWarn>$(NoWarn);NU1701</NoWarn>
     <NoWarn>$(NoWarn);CS8981</NoWarn>
     <AssemblyName>SubathonManager.Tests</AssemblyName>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,8 +20,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.6" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
   </ItemGroup>
 
   <ItemGroup>
