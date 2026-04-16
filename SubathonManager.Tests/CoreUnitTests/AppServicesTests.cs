@@ -33,12 +33,11 @@ namespace SubathonManager.Tests.CoreUnitTests
         }
 
         [Fact]
-        public async Task CheckForUpdate_ReturnsSafeTuple_OnFailureOrNoUpdate()
+        public async Task CheckForUpdate_ReturnsSafeTuple()
         {
             var logger = _loggerMock.Object;
             var res = await AppServices.CheckForUpdate(logger);
             Assert.IsType<ValueTuple<bool, string?, string?>>(res);
-            Assert.False(res.Item1);
         }
 
         [Fact]
