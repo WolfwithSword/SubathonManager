@@ -102,7 +102,7 @@ namespace SubathonManager.Core {
                     UseShellExecute = true,
                     Verb = "open"
                 });
-                await AppUpdater.InstallUpdateAsync(asset, true, UpdatumManager.NoRunAfterUpgradeToken);
+                await AppUpdater.InstallUpdateAsync(asset, true);//, UpdatumManager.NoRunAfterUpgradeToken);
                 return true;
             }
             catch (Exception ex)
