@@ -261,7 +261,25 @@ public partial class YouTubeSettings : SettingsControl
             superchatValue.Points = scPoints;
             hasUpdated = true;
         }
+        
+        
+        var redirectValue = db.SubathonValues.FirstOrDefault(sv =>
+            sv.EventType == SubathonEventType.YouTubeRedirect
+            && sv.Meta == "");
+        if (redirectValue != null && double.TryParse(DonoBox.Text, out var rdSeconds)
+                                  && !rdSeconds.Equals(redirectValue.Seconds))
+        {
+            redirectValue.Seconds = rdSeconds;
+            hasUpdated = true;
+        }
 
+        if (redirectValue != null && double.TryParse(DonoBox2.Text, out var rdPoints)
+                                  && !rdPoints.Equals(redirectValue.Points))
+        {
+            redirectValue.Points = rdPoints;
+            hasUpdated = true;
+        }
+        
         hasUpdated |= Host.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberDefaultTextBox2);
         hasUpdated |= Host.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
         
@@ -352,6 +370,10 @@ public partial class YouTubeSettings : SettingsControl
             case SubathonEventType.YouTubeSuperChat:
                 box = DonoBox;
                 box2 = DonoBox2;
+                break;
+            case SubathonEventType.TwitchRaid:
+                box = RaidBox;
+                box2 = RaidBox2;
                 break;
         }
         return (v, p, box, box2);

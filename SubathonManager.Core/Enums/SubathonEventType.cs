@@ -65,7 +65,9 @@ public enum SubathonEventType
     [GoAffProTypeMeta(Label="Orchid Eight Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 3, StoreSource = GoAffProSource.OrchidEight)]
     OrchidEightOrder,
     [GoAffProTypeMeta(Label="KatDragonz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 4, StoreSource = GoAffProSource.KatDragonz)]
-    KatDragonzOrder
+    KatDragonzOrder,
+    [EventTypeMeta(Label="Redirect/Raid", Source=SubathonEventSource.YouTube, IsRaid = true, Order = 5)]
+    YouTubeRedirect
     // any new must be added after the last
 }
 

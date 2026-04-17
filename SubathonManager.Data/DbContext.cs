@@ -326,7 +326,8 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
-                new SubathonValue { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1}
+                new SubathonValue { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new SubathonValue { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 }
             };
 
             foreach (var def in defaults)

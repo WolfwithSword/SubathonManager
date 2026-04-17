@@ -60,7 +60,30 @@
                 </Grid>
 
                 
-                
+                <Grid Margin="0,2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="Redirects:" Width="100" VerticalAlignment="Center" ToolTip="YT Does not expose number of raiders"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="0"
+                                    x:Name="RaidBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds per raid" Width="150" VerticalAlignment="Center" ToolTip="YT Does not expose number of raiders"/>
+                        <ui:TextBox Width="100" validation:InputValidationBehavior.IsNumberOnly="True" PlaceholderText="0"
+                                    x:Name="RaidBox2"/>
+                        <TextBlock Margin="8 0 0 0"  Text="Points per raid" Width="180" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                   Content="Test"
+                                   Click="TestYTRaid_Click"
+                                   Width="60" Padding="2"  Height="34"
+                                   Margin="4,0,0,0"></ui:Button>
+                    </StackPanel>
+                </Grid>
                 <!-- Memberships -->
                 <Expander Header="Memberships" IsExpanded="False" Margin="0,5,0,0">
                     <StackPanel  Margin="10,5,0,5">
