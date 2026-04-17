@@ -103,13 +103,6 @@ namespace SubathonManager.Core {
                     Verb = "open"
                 });
                 await AppUpdater.InstallUpdateAsync(asset, true, UpdatumManager.NoRunAfterUpgradeToken);
-                await Task.Delay(3000);
-
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = Path.Combine(Config.AppFolder, "SubathonManager.exe"),
-                    UseShellExecute = true
-                });
                 return true;
             }
             catch (Exception ex)
