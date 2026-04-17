@@ -61,7 +61,7 @@ public class EventServiceTests
     }
 
     internal static async Task<(EventService, DbContextOptions<AppDbContext>,
-        Microsoft.Data.Sqlite.SqliteConnection)> SetupServiceWithDb(int initialPoints = 10, bool isLocked = true)
+        Microsoft.Data.Sqlite.SqliteConnection)> SetupServiceWithDb(int initialPoints = 10, bool isLocked = true, bool showEventsState = false, bool allowPointsLocked = true)
     {
         var dbName = $"test_{Guid.NewGuid():N}";
         var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared";
@@ -122,6 +122,8 @@ public class EventServiceTests
                 { ("Twitch", "HypeTrainMultiplier.Points"), "True" },
                 { ("Twitch", "HypeTrainMultiplier.Time"), "True" },
                 { ("Twitch", "HypeTrainMultiplier.Multiplier"), "2" },
+                { ("App", "OtherValuesWhenLocked"), allowPointsLocked.ToString()},
+                { ("App", "ShowLockedEvents"), showEventsState.ToString()}
             }), SetupCurrencyService());
         await service.StartAsync();
 
@@ -280,7 +282,7 @@ public class EventServiceTests
     [Fact]
     public async Task DonationEvent_CalculatesPointsAndSeconds()
     {
-        var (service, options, conn) = await SetupServiceWithDb();
+        var (service, options, conn) = await SetupServiceWithDb(allowPointsLocked: false);
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
@@ -554,7 +556,7 @@ public class EventServiceTests
     [Fact]
     public async Task Event_WithLockedSubathon_DoesNotUpdatePoints()
     {
-        var (service, options, conn) = await SetupServiceWithDb();
+        var (service, options, conn) = await SetupServiceWithDb(allowPointsLocked: false);
 
         await using var db = new AppDbContext(options);
         var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -1118,10 +1120,13 @@ public class EventServiceTests
         await conn.CloseAsync();
     }
 
-    [Fact]
-    public async Task ProcessSubathonEvent_SubathonLocked_NonHypeTrain_SavesButReturnsFalse()
+    [Theory]
+    
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ProcessSubathonEvent_SubathonLocked_NonHypeTrain_SavesButReturnsFalse(bool allowValuesWhenLocked)
     {
-        var (service, options, conn) = await SetupServiceWithDb(0, true);
+        var (service, options, conn) = await SetupServiceWithDb(0, true, false, allowValuesWhenLocked);
 
         var ev = new SubathonEvent
         {
@@ -1132,13 +1137,13 @@ public class EventServiceTests
         };
 
         var (processed, dupe) = await service.ProcessSubathonEvent(ev);
-        Assert.False(processed);
+        Assert.Equal(processed, allowValuesWhenLocked);
         Assert.False(dupe);
 
         await using var db = new AppDbContext(options);
         var stored = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(stored);
-        Assert.False(stored.ProcessedToSubathon);
+        Assert.Equal(stored.ProcessedToSubathon, allowValuesWhenLocked);
         Assert.NotNull(stored.SubathonId);
         Assert.True(stored.CurrentTime >= 0);
         Assert.True(stored.CurrentPoints >= 0);
@@ -1212,14 +1217,14 @@ public class EventServiceTests
         };
 
         var (processed, dupe) = await service.ProcessSubathonEvent(ev);
-        Assert.True(processed);
+        Assert.False(processed);
 
         await using var db = new AppDbContext(options);
         var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.Equal(0, saved.PointsValue);
         Assert.Equal(0, saved.SecondsValue);
-        Assert.True(saved.ProcessedToSubathon);
+        Assert.False(saved.ProcessedToSubathon);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
@@ -1544,7 +1549,7 @@ public class EventServiceSequentialTests
 
         var (processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
-        Assert.True(processed); // will have 0 values
+        Assert.False(processed); // will have 0 values
 
         await using var db = new AppDbContext(options);
         var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
@@ -1553,7 +1558,7 @@ public class EventServiceSequentialTests
 
         var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("EEE", ev2.Currency);
-        Assert.True(ev2.ProcessedToSubathon);
+        Assert.False(ev2.ProcessedToSubathon);
         Assert.Equal(0, ev2.PointsValue);
         Assert.Equal(0, ev2.SecondsValue);
 

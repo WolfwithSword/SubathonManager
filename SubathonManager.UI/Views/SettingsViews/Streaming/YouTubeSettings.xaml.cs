@@ -266,14 +266,14 @@ public partial class YouTubeSettings : SettingsControl
         var redirectValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.YouTubeRedirect
             && sv.Meta == "");
-        if (redirectValue != null && double.TryParse(DonoBox.Text, out var rdSeconds)
+        if (redirectValue != null && double.TryParse(RaidBox.Text, out var rdSeconds)
                                   && !rdSeconds.Equals(redirectValue.Seconds))
         {
             redirectValue.Seconds = rdSeconds;
             hasUpdated = true;
         }
 
-        if (redirectValue != null && double.TryParse(DonoBox2.Text, out var rdPoints)
+        if (redirectValue != null && double.TryParse(RaidBox2.Text, out var rdPoints)
                                   && !rdPoints.Equals(redirectValue.Points))
         {
             redirectValue.Points = rdPoints;
@@ -371,7 +371,7 @@ public partial class YouTubeSettings : SettingsControl
                 box = DonoBox;
                 box2 = DonoBox2;
                 break;
-            case SubathonEventType.TwitchRaid:
+            case SubathonEventType.YouTubeRedirect:
                 box = RaidBox;
                 box2 = RaidBox2;
                 break;

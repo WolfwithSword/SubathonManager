@@ -274,8 +274,17 @@ public class EventService: IDisposable, IAppService
         {
             ev.ProcessedToSubathon = true;
         }
+
+        if (ev.EventType.IsCurrencyDonation() && !_currencyService.IsValidCurrency(ev.Currency))
+        {
+            ev.ProcessedToSubathon = false;
+            // discord push error donation
+            ErrorMessageEvents.RaiseErrorEvent("WARN", ev.Source.ToString(), 
+                $"{ev.EventType} invalid currency donated. Amt: [{ev.Value}] Currency: [{ev.Currency}]", ev.EventTimestamp);
+        }
         
-        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment || (processPointsIfLocked && subathon.IsLocked && ev.EventType.IsCurrencyDonation()) ||
+        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment ||
+            (processPointsIfLocked && subathon.IsLocked && ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency)) ||
             (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
                                             $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
                                         && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|')))
