@@ -1447,12 +1447,12 @@ public class EventServiceTests
         var (processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
+        await service.StopAsync(TestContext.Current.CancellationToken);
         await using var db = new AppDbContext(options);
         var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.True(double.Parse(saved.Value) < 0);
 
-        await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
 
