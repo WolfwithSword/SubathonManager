@@ -27,6 +27,12 @@ public partial class ExternalSettings : SettingsGroupControl
             case SubathonEventSource.KoFi:
                 _settingsControls[eventSource] = new KoFiSettings();
                 break;
+            case SubathonEventSource.KoFiWebhook:
+                _settingsControls[eventSource] = new KoFiWebhookSettings();
+                break;
+            case SubathonEventSource.DevTunnels:
+                _settingsControls[eventSource] = new DevTunnelsSettings();
+                break;
             case SubathonEventSource.GoAffPro:
                 _settingsControls[eventSource] = new GoAffProSettings();
                 break;

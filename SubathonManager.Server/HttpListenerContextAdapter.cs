@@ -21,6 +21,21 @@ public sealed class HttpListenerContextAdapter : IHttpContext
     public string QueryString => _ctx.Request.Url!.Query.TrimStart('?');
     public Encoding Encoding => _ctx.Request.ContentEncoding;
     public bool IsWebSocket => _ctx.Request.IsWebSocketRequest;
+
+    public IReadOnlyDictionary<string, string> Headers
+    {
+        get
+        {
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var headers = _ctx.Request.Headers;
+            foreach (string? key in headers.AllKeys)
+            {
+                if (key != null)
+                    dict[key] = headers[key] ?? string.Empty;
+            }
+            return dict;
+        }
+    }
     
     public Task<WebSocket>? AcceptWebSocketAsync(string? subProtocol = null)
     {
