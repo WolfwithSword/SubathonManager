@@ -47,8 +47,6 @@
       <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.6" />
       <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
       <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3912.50" />
-      <PackageReference Include="System.Net.Security" Version="4.3.2" />
-      <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
       <PackageReference Include="WPF-UI" Version="4.2.0" />
     </ItemGroup>
 

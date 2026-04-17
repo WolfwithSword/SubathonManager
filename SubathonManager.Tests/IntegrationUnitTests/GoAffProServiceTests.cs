@@ -128,17 +128,14 @@ public class GoAffProServiceTests
         typeof(IntegrationEvents)
             .GetField("RaiseConnectionUpdate", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        (status, source, name, serviceName) = await CaptureIntegrationEvent(  () => service.StartAsync());
+        bool? status = null;
+        (status, _, _, _) = await CaptureIntegrationEvent(  () => service.StartAsync());
         
         // no true should ever raise, but falses for all of the others
         Assert.NotNull(status);
         Assert.False(status);
         
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Theory]
@@ -210,16 +207,13 @@ public class GoAffProServiceTests
             ?.SetValue(null, null);
         
         
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        
-        (status, source, name, serviceName) = await CaptureIntegrationEvent( () => service.StartAsync());
+        bool? status = null;
+
+        (status, _, _, _) = await CaptureIntegrationEvent( () => service.StartAsync());
         
         Assert.NotNull(status);
         Assert.True(status);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, webserver.PostCallCount);
         Assert.Equal(1, webserver.GetCallCount);
     }
@@ -247,16 +241,13 @@ public class GoAffProServiceTests
             ?.SetValue(null, null);
         
         
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        
-        (status, source, name, serviceName) = await CaptureIntegrationEvent( () => service.StartAsync());
+        bool? status = null;
+
+        (status, _, _, _) = await CaptureIntegrationEvent( () => service.StartAsync());
         
         Assert.NotNull(status);
         Assert.False(status);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, webserver.PostCallCount);
     }
     
@@ -289,16 +280,13 @@ public class GoAffProServiceTests
             ?.SetValue(null, null);
         
         
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        
-        (status, source, name, serviceName) = await CaptureIntegrationEvent( () => service.StartAsync());
+        bool? status = null;
+
+        (status, _, _, _) = await CaptureIntegrationEvent( () => service.StartAsync());
         
         Assert.NotNull(status);
         Assert.False(status);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, webserver.PostCallCount);
         Assert.Equal(2, webserver.GetCallCount);
     }

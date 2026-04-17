@@ -343,7 +343,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Resume, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -367,7 +367,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Unlock, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -391,7 +391,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Pause, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -415,7 +415,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Lock, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -452,7 +452,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventType.TwitchFollow, ev.EventType);
             Assert.Equal("Follower123", ev.User);
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -483,7 +483,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             ChatMessage MakeMessage(string message, bool isVip, bool isMod, bool isBroadcaster, string userName,
                 string displayName)
             {
-                TwitchLib.Client.Enums.UserType type = UserType.Viewer;
+                UserType type = UserType.Viewer;
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
 
@@ -613,7 +613,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             );
 
             Assert.Null(ev);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -622,11 +622,11 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
             var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            await File.WriteAllTextAsync(filePath, "{}");
+            await File.WriteAllTextAsync(filePath, "{}", TestContext.Current.CancellationToken);
             Assert.True(service.HasTokenFile());
             File.Delete(filePath);
             Assert.False(service.HasTokenFile());
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -634,11 +634,11 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         {
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
-            await File.WriteAllTextAsync(filePath, "{}");
+            await File.WriteAllTextAsync(filePath, "{}", TestContext.Current.CancellationToken);
             var service = new TwitchService(null,MockConfig.MakeMockConfig());
             service.RevokeTokenFile();
             Assert.False(File.Exists(filePath));
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -652,7 +652,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             bool result = await service.ValidateTokenAsync();
 
             Assert.False(result);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -661,13 +661,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var filePath = Path.GetFullPath(Path.Combine(string.Empty
                 , "data/twitch_token.json"));
             var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(new { access_token = "badtoken" }));
+            await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(new { access_token = "badtoken" }), TestContext.Current.CancellationToken);
 
             bool result = await service.ValidateTokenAsync();
 
             Assert.False(result);
             File.Delete(filePath);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -692,7 +692,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal(3, ev.Amount);
             Assert.Equal("gifter", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -717,7 +717,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("cheerer", ev.User);
             Assert.Equal("500", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -751,7 +751,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("subscriber", ev.User);
             Assert.Equal("1000", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
 
@@ -784,7 +784,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("subscriber", ev.User);
             Assert.Equal("2000", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -816,7 +816,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("raider", ev.User);
             Assert.Equal("42", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -849,7 +849,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("start", ev.Value);
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(1, ev.Amount);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -898,7 +898,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("progress", ev.Value);
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(2, ev.Amount);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -931,7 +931,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("end", ev.Value);
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(5, ev.Amount);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -969,7 +969,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("donor", ev.User);
             Assert.Equal("25.50", ev.Value);
             Assert.Equal("CAD", ev.Currency);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -1050,7 +1050,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventType.BlerpBits, ev.EventType);
             Assert.Equal(SubathonEventSource.Blerp, ev.Source);
             Assert.Equal("SomeGuy", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -1117,7 +1117,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             );
 
             Assert.Null(ev);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -1163,7 +1163,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     {
                     }
                 }
-            });
+            }, TestContext.Current.CancellationToken);
 
             var oauthMethod = typeof(TwitchService)
                 .GetMethod("StartOAuthFlowAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
@@ -1174,12 +1174,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             );
 
             Assert.True(File.Exists(tokenFilePath));
-            var json = await File.ReadAllTextAsync(tokenFilePath);
+            var json = await File.ReadAllTextAsync(tokenFilePath, TestContext.Current.CancellationToken);
             var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
             Assert.Equal(fakeToken, data!["access_token"]);
 
             File.Delete(tokenFilePath);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
         
         [Fact]
@@ -1212,9 +1212,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     {
                         tcs.TrySetException(ex);
                     }
-                });
+                }, TestContext.Current.CancellationToken);
 
-                var result = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                var result = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
                 Assert.True(result == tcs.Task, "Timed out — EventSub ConnectionUpdated never fired");
                 Assert.True(await tcs.Task, "EventSub connected=false, expected true");
                 service.Dispose();
