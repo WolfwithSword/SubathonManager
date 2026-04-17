@@ -733,7 +733,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
                 Meta = "1000"
             });
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             db.ChangeTracker.Clear();
 
             var ctx = new MockHttpContext
