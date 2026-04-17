@@ -77,11 +77,11 @@ public class WidgetEntityHelperTests
     {
         SetupServices();
         var widget = new Widget("TestWidget", "x.html");
-        widget.JsVariables = new List<JsVariable>
-        {
+        widget.JsVariables =
+        [
             new JsVariable
                 { Name = "selectVar", Type = WidgetVariableType.StringSelect, Value = "b,c", WidgetId = Guid.NewGuid() }
-        };
+        ];
 
         var helper = new WidgetEntityHelper(null, null);
 
@@ -144,7 +144,7 @@ public class WidgetEntityHelperTests
                                                            keyA: valueA
                                                            END_WIDGET_META -->
                                                        
-                                               """);
+                                               """, TestContext.Current.CancellationToken);
 
         var helper = new WidgetEntityHelper(null, null);
         var dict = await helper.ExtractWidgetMetadata(tempFile);
@@ -511,8 +511,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetPosition(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
         Assert.Equal(99f, updated!.X);
         Assert.Equal(0f, updated.Y);
         AppServices.Provider = null!;
@@ -529,8 +529,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetPosition(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
         Assert.Equal(0f, updated!.X);
         Assert.Equal(42f, updated.Y);
         AppServices.Provider = null!;
@@ -547,8 +547,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetPosition(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync(new object?[] { widget.Id }, TestContext.Current.CancellationToken);
         Assert.Equal(5, updated!.Z);
         AppServices.Provider = null!;
     }
@@ -569,8 +569,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetPosition(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
         Assert.Equal(10f, updated!.X);
         Assert.Equal(20f, updated.Y);
         Assert.Equal(3, updated.Z);
@@ -591,8 +591,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetScale(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync(new object?[] { widget.Id }, TestContext.Current.CancellationToken);
         Assert.Equal(2f, updated!.ScaleX);
         AppServices.Provider = null!;
     }
@@ -647,8 +647,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetScale(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync(new object?[] { widget.Id }, TestContext.Current.CancellationToken);
         Assert.Equal(3.5f, updated!.ScaleX);
         Assert.Equal(1f, updated.ScaleY);
         AppServices.Provider = null!;
@@ -665,8 +665,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetScale(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync(widget.Id).ConfigureAwait(false);
         Assert.Equal(1f, updated!.ScaleX);
         Assert.Equal(2.0f, updated.ScaleY);
         AppServices.Provider = null!;
@@ -687,8 +687,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetScale(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync(widget.Id).ConfigureAwait(false);
         Assert.Equal(100f, updated!.X);
         Assert.Equal(200f, updated.Y);
         AppServices.Provider = null!;
@@ -711,8 +711,8 @@ public class WidgetEntityHelperTests
         var result = await helper.UpdateWidgetScale(widget.Id.ToString(), data);
 
         Assert.True(result);
-        await using var db = await factory.CreateDbContextAsync();
-        var updated = await db.Widgets.FindAsync(widget.Id);
+        await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        var updated = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
         Assert.Equal(1.5f, updated!.ScaleX);
         Assert.Equal(2.5f, updated.ScaleY);
         Assert.Equal(50f, updated.X);

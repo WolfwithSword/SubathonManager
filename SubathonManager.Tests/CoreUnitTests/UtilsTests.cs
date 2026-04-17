@@ -6,10 +6,6 @@ namespace SubathonManager.Tests.CoreUnitTests;
 public class UtilsTests
 {
 
-    public UtilsTests()
-    {
-    }
-
     [Fact]
     public void ParseDurationString()
     {

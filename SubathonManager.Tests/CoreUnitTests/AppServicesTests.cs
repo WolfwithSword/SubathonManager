@@ -5,12 +5,7 @@ namespace SubathonManager.Tests.CoreUnitTests
 {
     public class AppServicesTests
     {
-        private readonly Mock<Microsoft.Extensions.Logging.ILogger> _loggerMock;
-
-        public AppServicesTests()
-        {
-            _loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger>();
-        }
+        private readonly Mock<Microsoft.Extensions.Logging.ILogger> _loggerMock = new();
 
         [Fact]
         public void AppVersion_IsNotNullOrEmpty()
@@ -24,7 +19,7 @@ namespace SubathonManager.Tests.CoreUnitTests
         {
             MethodInfo? mi = typeof(AppServices).GetMethod("GetVersion", BindingFlags.NonPublic | BindingFlags.Static);
             Assert.NotNull(mi);
-            var result = mi!.Invoke(null, Array.Empty<object?>());
+            var result = mi!.Invoke(null, []);
             Assert.IsType<Version>(result);
             var ver = (Version)result!;
             Assert.True(ver.Major >= 0);

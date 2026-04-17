@@ -1,10 +1,7 @@
 ﻿using System.Text.Json;
-using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Integration;
-using System.Reflection;
-using Moq;
 using SubathonManager.Tests.Utility;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
