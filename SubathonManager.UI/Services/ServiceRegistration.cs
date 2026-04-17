@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Net.Http;
+using DevTunnels.Client.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -46,7 +47,16 @@ public static class ServiceRegistration
         
         // Order Sales //
         services.AddSingleton<GoAffProService>();
-        
+
+        // Webhooks (shared tunnel infrastructure) //
+        services.AddDevTunnelsClient();
+        services.AddSingleton<DevTunnelsService>();
+
+        // Webhooks //
+        services.AddHttpClient(nameof(KoFiService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<KoFiService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
+
         // Other //
         services.AddSingleton<DiscordWebhookService>();
     }
