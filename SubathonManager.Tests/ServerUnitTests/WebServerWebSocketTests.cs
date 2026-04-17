@@ -14,6 +14,36 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.ServerUnitTests;
 
+[Collection("NonParallel")]
+public class WebServerWebSocketEventBusEnforcedSequentialTests
+{
+    
+    [Fact]
+    public async Task WebSocket_SendRefreshRequest_NoConsumers()
+    {
+        /*
+         * Fails 1 in like 10 runs due to parallel stuff
+         */
+        var server = WebServerWebSocketTests.CreateServer();
+        WebServerWebSocketTests.SetupServices();
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+        
+        await server.HandleWebSocketRequestAsync(ctx);
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client);
+        Guid guid = Guid.Empty;
+        server.SendRefreshRequest(guid);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        Assert.Empty(ctx.Socket.SentMessages);
+        AppServices.Provider = null!;
+        await server.StopAsync(TestContext.Current.CancellationToken);
+    }
+}
+
 [Collection("SharedEventBusTests")]
 public class WebServerWebSocketEventBusTests
 {
@@ -465,31 +495,6 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("refresh_request"));
         Assert.Equal($"{{\"type\":\"refresh_request\",\"id\":\"{guid}\"}}", sent);
-        AppServices.Provider = null!;
-        await server.StopAsync(TestContext.Current.CancellationToken);
-    }
-    
-    [Fact]
-    public async Task WebSocket_SendRefreshRequest_NoConsumers()
-    {
-        /*
-         * Fails 1 in like 10 runs due to parallel stuff
-         */
-        var server = CreateServer();
-        SetupServices();
-        var ctx = new MockHttpContext
-        {
-            IsWebSocket = true
-        };
-        
-        await server.HandleWebSocketRequestAsync(ctx);
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
-        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
-        server.AddSocketClient(client);
-        Guid guid = Guid.Empty;
-        server.SendRefreshRequest(guid);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-        Assert.Empty(ctx.Socket.SentMessages);
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }

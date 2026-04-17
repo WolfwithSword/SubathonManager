@@ -288,7 +288,9 @@ END_WIDGET_META
         if (!events.includes(data.event_type)) return;
         if (data.sub_type == "DonationLike" && (typeof minDonationAmount !== "undefined") && minDonationAmount > parseFloat(data.value)) return;
         if (data.sub_type == "TokenLike" && (typeof minTokensAmount !== "undefined") && minTokensAmount > parseInt(data.value)) return;
-        if (data.sub_type == "RaidLike" && (typeof minRaidersAmount !== "undefined") && minRaidersAmount > parseInt(data.value)) return;
+        
+        // if empty value, still goes through, which would be a bug except youtube we want to pass so, happy accident
+        if (data.sub_type == "RaidLike" && (typeof minRaidersAmount !== "undefined") && minRaidersAmount > parseInt(data.value)) return; 
         queue.push(data);
         processQueue();
     }

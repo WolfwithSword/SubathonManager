@@ -10,7 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Agash.YTLiveChat" Version="4.1.0" />
+      <PackageReference Include="Agash.YTLiveChat" Version="4.2.0-dev3" />
       <PackageReference Include="GoAffPro.Client" Version="0.4.0" />
       <PackageReference Include="StreamElements.WebSocket" Version="1.0.2" />
       <PackageReference Include="Streamlabs.SocketClient" Version="3.0.0" />

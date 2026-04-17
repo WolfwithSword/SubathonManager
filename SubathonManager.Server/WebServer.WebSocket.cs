@@ -181,7 +181,8 @@ public partial class WebServer
 
     internal void SendSubathonEventProcessed(SubathonEvent subathonEvent, bool effective)
     {
-        if (!subathonEvent.ProcessedToSubathon) return;
+        bool showOverride = _config.GetBool("App", "ShowLockedEvents", false);
+        if (!showOverride && !subathonEvent.ProcessedToSubathon) return;
         Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent), WebsocketClientTypeHelper.ConsumersList));
     }
 
