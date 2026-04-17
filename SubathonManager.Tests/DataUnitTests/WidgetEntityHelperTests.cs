@@ -666,7 +666,7 @@ public class WidgetEntityHelperTests
 
         Assert.True(result);
         await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
-        var updated = await db.Widgets.FindAsync(widget.Id).ConfigureAwait(false);
+        var updated = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
         Assert.Equal(1f, updated!.ScaleX);
         Assert.Equal(2.0f, updated.ScaleY);
         AppServices.Provider = null!;
@@ -688,7 +688,7 @@ public class WidgetEntityHelperTests
 
         Assert.True(result);
         await using var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
-        var updated = await db.Widgets.FindAsync(widget.Id).ConfigureAwait(false);
+        var updated = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
         Assert.Equal(100f, updated!.X);
         Assert.Equal(200f, updated.Y);
         AppServices.Provider = null!;

@@ -28,12 +28,12 @@ public class StreamElementsServiceTests
 
         var service = new StreamElementsService(logger.Object, config.Object);
 
-        await service.StartAsync();
+        await service.StartAsync(TestContext.Current.CancellationToken);
         
         Assert.False(service.Connected);
         Assert.True(service.IsTokenEmpty());
         
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]
@@ -147,7 +147,7 @@ public class StreamElementsServiceTests
         var method = typeof(StreamElementsService)
             .GetMethod("_OnConnected", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        method?.Invoke(service, new object?[] { null, EventArgs.Empty });
+        method?.Invoke(service, [null, EventArgs.Empty]);
 
         logger.Verify(l => l.Log(
             LogLevel.Information,
@@ -181,8 +181,8 @@ public class StreamElementsServiceTests
         var method = typeof(StreamElementsService)
             .GetMethod("_OnDisconnected", BindingFlags.NonPublic | BindingFlags.Instance);
         
-        method?.Invoke(service, new object?[] { null, EventArgs.Empty });
-        await Task.Delay(100);
+        method?.Invoke(service, [null, EventArgs.Empty]);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
         Assert.False(service.Connected);
         Assert.True(eventRaised);
 
@@ -226,7 +226,7 @@ public class StreamElementsServiceTests
             var method = typeof(StreamElementsService)
                 .GetMethod("_OnAuthenticated", BindingFlags.NonPublic | BindingFlags.Instance);
 
-            method?.Invoke(service, new object?[] { null, new Authenticated("testId", "testId2") });
+            method?.Invoke(service, [null, new Authenticated("testId", "testId2")]);
 
             Assert.True(service.Connected);
             Assert.True(eventRaised);
@@ -284,7 +284,7 @@ public class StreamElementsServiceTests
             var method = typeof(StreamElementsService)
                 .GetMethod("_OnAuthenticateError", BindingFlags.NonPublic | BindingFlags.Instance);
 
-            method?.Invoke(service, new object?[] { null, EventArgs.Empty });
+            method?.Invoke(service, [null, EventArgs.Empty]);
 
             Assert.False(service.Connected);
             Assert.True(eventRaised);

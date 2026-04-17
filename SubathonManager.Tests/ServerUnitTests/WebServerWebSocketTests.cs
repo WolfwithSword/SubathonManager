@@ -472,6 +472,9 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
     [Fact]
     public async Task WebSocket_SendRefreshRequest_NoConsumers()
     {
+        /*
+         * Fails 1 in like 10 runs due to parallel stuff
+         */
         var server = CreateServer();
         SetupServices();
         var ctx = new MockHttpContext

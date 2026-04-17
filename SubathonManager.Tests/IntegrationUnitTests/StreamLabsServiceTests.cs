@@ -153,9 +153,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             var service = new StreamLabsService(logger.Object, config.Object);
 
-            await service.StartAsync();
+            await service.StartAsync(TestContext.Current.CancellationToken);
             Assert.False(service.Connected);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -239,7 +239,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var (service, mockClient) = MakeService();
             await service.InitClientAsync();
 
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
 
             Assert.False(service.Connected);
             mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
@@ -301,7 +301,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 .GetMethod("OnDonation", BindingFlags.NonPublic | BindingFlags.Instance);
 
             SubathonEvent? capturedEvent = CaptureEvent( () => 
-                method?.Invoke(service, new object?[] { null, donation }));
+                method?.Invoke(service, [null, donation]));
 
             Assert.NotNull(capturedEvent);
             Assert.Equal("Donor", capturedEvent.User);
