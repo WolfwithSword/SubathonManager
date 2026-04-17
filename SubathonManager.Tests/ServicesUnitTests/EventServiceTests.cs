@@ -1215,7 +1215,7 @@ public class EventServiceTests
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id);
+        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.Equal(0, saved.PointsValue);
         Assert.Equal(0, saved.SecondsValue);
@@ -1245,7 +1245,7 @@ public class EventServiceTests
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id);
+        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.True(saved.ProcessedToSubathon);
 
@@ -1443,7 +1443,7 @@ public class EventServiceTests
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id);
+        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.True(double.Parse(saved.Value) < 0);
 
@@ -1689,7 +1689,7 @@ public class EventServiceSequentialTests
         Assert.True(errorRaised);
 
         await using var checkDb = new AppDbContext(options);
-        var stillExists = await checkDb.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id);
+        var stillExists = await checkDb.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(stillExists);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -1892,7 +1892,7 @@ public class EventServiceSequentialTests
         await using var checkDb = new AppDbContext(options);
         var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
         var remaining = await checkDb.SubathonEvents
-            .Where(e => e.Source == SubathonEventSource.Simulated).ToListAsync();
+            .Where(e => e.Source == SubathonEventSource.Simulated).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(remaining);
         Assert.Equal(5, subUpdated.Points);
@@ -2010,7 +2010,7 @@ public class EventServiceSequentialTests
         
         var (processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
-        await Task.Delay(25).ConfigureAwait(true);
+        await Task.Delay(25, TestContext.Current.CancellationToken).ConfigureAwait(true);
         await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(sub.Points, initialSubPoints + 1);
         Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (60 * 1000));
