@@ -125,6 +125,7 @@ public partial class DevTunnelsSettings : SettingsControl
         bool cliInstalled = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
         bool loggedIn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Login").Status;
         StartTunnelBtn.IsEnabled = !running && cliInstalled && loggedIn;
+        StopTunnelBtn.IsEnabled = running;
 
         TunnelUrlPanel.Visibility = running && !string.IsNullOrWhiteSpace(url) ? Visibility.Visible : Visibility.Collapsed;
         if (!string.IsNullOrWhiteSpace(url))
