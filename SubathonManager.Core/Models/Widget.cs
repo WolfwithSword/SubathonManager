@@ -327,13 +327,10 @@ public partial class Widget
     }
 
     [GeneratedRegex(@"<link[^>]+href\s*=\s*[""']((?!https?:|\/\/)[^""']+\.css)[""']", RegexOptions.IgnoreCase, "en-CA")]
-    private static Regex CssLinkRegex()
-    {
-        throw new NotImplementedException();
-    }
+    private static partial Regex CssLinkRegex();
 
     [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
-    public static partial Regex CssVarRegex();
+    private static partial Regex CssVarRegex();
 
     public JsonElement ToJson(string htmlRelPath)
     {
