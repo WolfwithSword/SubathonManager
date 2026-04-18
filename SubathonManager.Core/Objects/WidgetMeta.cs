@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core.Objects;
@@ -14,6 +15,7 @@ public class WidgetMeta
 
 public class WidgetMetaVar
 {
+    [JsonIgnore]
     public string Name { get; set; } = string.Empty;
     public WidgetVariableType Type { get; set; } = WidgetVariableType.String;
     public string Description { get; set; } = string.Empty;

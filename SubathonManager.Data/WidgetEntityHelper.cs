@@ -19,6 +19,8 @@ public class WidgetEntityHelper
     private readonly ILogger? _logger;
     private readonly IDbContextFactory<AppDbContext> _factory;
 
+    private readonly List<string> _protectedVarNames = ["height", "width", "url", "author", "version"];
+
     public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
     {
         _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
@@ -294,6 +296,7 @@ public class WidgetEntityHelper
         {
             var parts = key.Split('.');
             var varName = parts[0];
+            if (_protectedVarNames.Contains(varName.ToLower())) continue; 
             if (parts.Length < 2)
             {
                 parts = [varName, "String"]; // default case if missing
