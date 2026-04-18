@@ -62,7 +62,7 @@
         </StackPanel>
 
         <TextBlock Margin="0,10,0,0" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                   Text="Paste the Webhook URL above into Ko-fi → My Account → API → Webhooks. Timer values (seconds/points per donation or membership) are configured in the Ko-fi tab."/>
+                   Text="Paste the Webhook URL above into Ko-fi → My Account → API → Webhooks."/>
 
     </StackPanel>
 

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventType
@@ -69,7 +69,9 @@ public enum SubathonEventType
     [EventTypeMeta(Label="Redirect/Raid", Source=SubathonEventSource.YouTube, IsRaid = true, Order = 5)]
     YouTubeRedirect,
     [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 3)]
-    KoFiShopOrder
+    KoFiShopOrder,
+    [EventTypeMeta(Label="Commission", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 4)]
+    KoFiCommissionOrder
     // any new must be added after the last
 }
 
