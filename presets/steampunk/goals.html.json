@@ -1,0 +1,22 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/#goals",
+  "Width": 400,
+  "Height": 600,
+  "Vars": {
+    "showLastCompleted": {
+      "Name": "showLastCompleted",
+      "Type": "Boolean",
+      "Description": "Show last completed goal, but faded",
+      "Value": true,
+      "Options": null
+    },
+    "maxGoalsToShow": {
+      "Name": "maxGoalsToShow",
+      "Type": "Int",
+      "Description": "Max number of goals to show, including last completed if true",
+      "Value": 3,
+      "Options": null
+    }
+  }
+}

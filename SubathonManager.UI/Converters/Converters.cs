@@ -289,7 +289,8 @@ namespace SubathonManager.UI.Converters
                     return $"{e.Name}\nType: {type}{description}";
                 }
                 case JsVariable r:
-                    return $"{r.Name}\nType: {r.Type}";
+                    var jsDescription = string.IsNullOrWhiteSpace(r.Description) ? "" : $"\n{r.Description}";
+                    return $"{r.Name}\nType: {r.Type}{jsDescription}";
                 default:
                     return value?.ToString() ?? "";
             }

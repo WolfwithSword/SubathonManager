@@ -494,6 +494,7 @@ public class EventServiceTests
     [Fact]
     public async Task OrderEvent_ByOrderNoCommission()
     {
+        //
         var (service, options, conn) = await SetupServiceWithDb(0, false);
         var ev = new SubathonEvent
         {
@@ -607,12 +608,12 @@ public class EventServiceTests
         await using var serviceDb = new AppDbContext(options);
         await service.DeleteSubathonEvent(serviceDb, ev);
         await Task.Delay(50, TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
         var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
-        await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
     

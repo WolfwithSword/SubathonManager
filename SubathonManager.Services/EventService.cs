@@ -278,9 +278,10 @@ public class EventService: IDisposable, IAppService
         if (ev.EventType.IsCurrencyDonation() && !_currencyService.IsValidCurrency(ev.Currency))
         {
             ev.ProcessedToSubathon = false;
+            var msg = $"{ev.EventType} invalid currency donated. Amt: [{ev.Value}] Currency: [{ev.Currency}]";
             // discord push error donation
-            ErrorMessageEvents.RaiseErrorEvent("WARN", ev.Source.ToString(), 
-                $"{ev.EventType} invalid currency donated. Amt: [{ev.Value}] Currency: [{ev.Currency}]", ev.EventTimestamp);
+            ErrorMessageEvents.RaiseErrorEvent("WARN", ev.Source.ToString(), msg, ev.EventTimestamp);
+            _logger?.LogWarning(msg);
         }
         
         if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment ||

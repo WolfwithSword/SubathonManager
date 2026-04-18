@@ -1,0 +1,29 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#goals",
+  "Width": 400,
+  "Height": 90,
+  "Vars": {
+    "playSoundOnCompletedGoal": {
+      "Name": "playSoundOnCompletedGoal",
+      "Type": "Boolean",
+      "Description": "Play a sound if goals are completed?",
+      "Value": true,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 30,
+      "Options": null
+    },
+    "completionSound": {
+      "Name": "completionSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "./complete.mp3",
+      "Options": null
+    }
+  }
+}
