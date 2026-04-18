@@ -84,10 +84,12 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
             ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
             : null;
 
+        // Only report as connected when both the token is configured and the tunnel
+        // is actually up with a public URL. A token alone means nothing without reachability.
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Name = fullUrl ?? "",
-            Status = enabled,
+            Status = enabled && fullUrl != null,
             Source = SubathonEventSource.KoFiWebhook,
             Service = nameof(SubathonEventSource.KoFiWebhook)
         });

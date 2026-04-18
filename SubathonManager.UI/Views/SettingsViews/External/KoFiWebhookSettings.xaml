@@ -29,14 +29,15 @@
                                VerticalAlignment="Center" FontSize="11"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                 </StackPanel>
-                <StackPanel x:Name="WebhookUrlRow" Orientation="Horizontal" Margin="0,6,0,0" Visibility="Collapsed">
+                <StackPanel x:Name="WebhookUrlRow" Orientation="Horizontal" Margin="0,8,0,2" Visibility="Collapsed"
+                            MinHeight="36">
                     <TextBlock Text="Webhook URL:" Width="110" VerticalAlignment="Center" FontSize="12"/>
-                    <ui:TextBox x:Name="WebhookUrlBox" Width="420" Height="28" IsReadOnly="True"
+                    <ui:TextBox x:Name="WebhookUrlBox" Width="420" Height="34" IsReadOnly="True"
                                 views:SettingsProperties.ExcludeFromUnsaved="True"
                                 FontSize="11" VerticalAlignment="Center"/>
                     <ui:Button Content="Copy"
                                Click="CopyWebhookUrl_Click"
-                               Width="56" Height="28" Padding="4,2"
+                               Width="56" Height="34" Padding="4,2"
                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                                Margin="6,0,0,0"/>
                 </StackPanel>
