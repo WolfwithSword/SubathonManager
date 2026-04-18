@@ -107,6 +107,16 @@ public partial class DevTunnelsSettings : SettingsControl
             return;
         }
 
+        if (url == "(stopping…)")
+        {
+            TunnelStatusText.Text = "Stopping…";
+            StopTunnelBtn.IsEnabled = false;
+            StopTunnelBtn.Visibility = Visibility.Visible;
+            StartTunnelBtn.Visibility = Visibility.Collapsed;
+            TunnelUrlPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         TunnelStatusText.Text = running ? "Running" : "Stopped";
 
         StartTunnelBtn.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
@@ -200,15 +210,7 @@ public partial class DevTunnelsSettings : SettingsControl
 
     private async void StopTunnel_Click(object sender, RoutedEventArgs e)
     {
-        StopTunnelBtn.IsEnabled = false;
-        try
-        {
-            await ServiceManager.DevTunnels.StopTunnelAsync();
-        }
-        finally
-        {
-            StopTunnelBtn.IsEnabled = true;
-        }
+        await ServiceManager.DevTunnels.StopTunnelAsync();
     }
 
     private async void CopyTunnelUrl_Click(object sender, RoutedEventArgs e)

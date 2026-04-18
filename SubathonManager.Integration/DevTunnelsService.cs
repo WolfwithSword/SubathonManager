@@ -192,15 +192,16 @@ public class DevTunnelsService(
 
     public async Task StopTunnelAsync()
     {
+        if (_session == null) return;
+
+        BroadcastTunnelStatus(false, null, stopping: true);
+
         PublicBaseUrl = null;
         IsTunnelRunning = false;
 
-        if (_session != null)
-        {
-            try { await _session.StopAsync(); } catch { /**/ }
-            await _session.DisposeAsync();
-            _session = null;
-        }
+        try { await _session.StopAsync(); } catch { /**/ }
+        await _session.DisposeAsync();
+        _session = null;
 
         _cts?.Cancel();
         _cts?.Dispose();
@@ -250,14 +251,14 @@ public class DevTunnelsService(
         });
     }
 
-    private void BroadcastTunnelStatus(bool running, string? url, bool starting = false)
+    private void BroadcastTunnelStatus(bool running, string? url, bool starting = false, bool stopping = false)
     {
         IsTunnelRunning = running;
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.DevTunnels,
             Service = "Tunnel",
-            Name = starting ? "(starting…)" : (url ?? ""),
+            Name = starting ? "(starting…)" : stopping ? "(stopping…)" : (url ?? ""),
             Status = running
         });
     }
