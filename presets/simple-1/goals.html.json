@@ -1,0 +1,15 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#goals",
+  "Width": 400,
+  "Height": 600,
+  "Vars": {
+    "showLastCompleted": {
+      "Name": "showLastCompleted",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#events",
+  "Width": 420,
+  "Height": 110,
+  "Vars": {
+    "minDisplaySeconds": {
+      "Name": "minDisplaySeconds",
+      "Type": "Float",
+      "Description": "",
+      "Value": 2,
+      "Options": null
+    },
+    "applicableEvents": {
+      "Name": "applicableEvents",
+      "Type": "EventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "TwitchGiftSub",
+        "TwitchCheer",
+        "StreamElementsDonation",
+        "StreamLabsDonation",
+        "YouTubeMembership",
+        "YouTubeGiftMembership",
+        "YouTubeSuperChat",
+        "TwitchCharityDonation",
+        "ExternalDonation",
+        "ExternalSub",
+        "KoFiSub",
+        "KoFiDonation",
+        "BlerpBits",
+        "BlerpBeets",
+        "UwUMarketOrder",
+        "GamerSuppsOrder"
+      ],
+      "Options": null
+    }
+  }
+}

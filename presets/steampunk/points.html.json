@@ -1,0 +1,15 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/#points",
+  "Width": 520,
+  "Height": 170,
+  "Vars": {
+    "useForMoney": {
+      "Name": "useForMoney",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    }
+  }
+}

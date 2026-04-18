@@ -93,7 +93,7 @@ public class WidgetEntityHelperTests
             { "eventVar2.EventTypeSelect", $"{SubathonEventType.KoFiSub}" }
         };
 
-        var (added, names, updated) = helper.LoadNewJsVariables(widget, metadata);
+        var (added, names, updated) = helper.LoadNewJsVariables(widget, helper.ConvertHtmlMetaToJsonMeta(metadata));
 
         // new vars
         Assert.Contains(added, v => v is { Name: "newVar", Value: "val1" });
@@ -113,10 +113,10 @@ public class WidgetEntityHelperTests
         File.WriteAllText(tempFile, """
                                     
                                                 <!-- WIDGET_META
-                                                key1: value1
-                                                key2:value2
+                                                key1.String: value1
+                                                key2.String:value2
                                                 invalidLine
-                                                key3: value3
+                                                key3.String: value3
                                                 END_WIDGET_META -->
                                                 
                                     """);
@@ -124,10 +124,13 @@ public class WidgetEntityHelperTests
         var helper = new WidgetEntityHelper(null, null);
         var dict = helper.ExtractWidgetMetadataSync(tempFile);
 
-        Assert.Equal(3, dict.Count);
-        Assert.Equal("value1", dict["key1"]);
-        Assert.Equal("value2", dict["key2"]);
-        Assert.Equal("value3", dict["key3"]);
+        Assert.Equal(3, dict.Vars.Count);
+        dict.Vars.TryGetValue("key1", out var value);
+        Assert.Equal("value1", (value!.ValueToString()));
+        dict.Vars.TryGetValue("key2", out var value2);
+        Assert.Equal("value2",  value2!.ValueToString());
+        dict.Vars.TryGetValue("key3", out var value3);
+        Assert.Equal("value3",  value3!.ValueToString());
 
         File.Delete(tempFile);
         AppServices.Provider = null!;
@@ -147,10 +150,11 @@ public class WidgetEntityHelperTests
                                                """, TestContext.Current.CancellationToken);
 
         var helper = new WidgetEntityHelper(null, null);
-        var dict = await helper.ExtractWidgetMetadata(tempFile);
+        var meta = await helper.ExtractWidgetMetadata(tempFile);
 
-        Assert.Single(dict);
-        Assert.Equal("valueA", dict["keyA"]);
+        Assert.Single(meta.Vars);
+        var valueA = meta.Vars["keyA"];
+        Assert.Equal("valueA", valueA.ValueToString());
 
         File.Delete(tempFile);
         AppServices.Provider = null!;

@@ -1,0 +1,180 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/compact-timer/",
+  "Width": 500,
+  "Height": 160,
+  "Vars": {
+    "showIcons": {
+      "Name": "showIcons",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "showSubs": {
+      "Name": "showSubs",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "subsLabel": {
+      "Name": "subsLabel",
+      "Type": "String",
+      "Description": "",
+      "Value": "subs",
+      "Options": null
+    },
+    "subEvents": {
+      "Name": "subEvents",
+      "Type": "SubEventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "YouTubeMembership",
+        "YouTubeGiftMembership"
+      ],
+      "Options": null
+    },
+    "subCountOffset": {
+      "Name": "subCountOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showBitsTokens": {
+      "Name": "showBitsTokens",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "tokensLabel": {
+      "Name": "tokensLabel",
+      "Type": "String",
+      "Description": "",
+      "Value": "bits",
+      "Options": null
+    },
+    "tokenEvents": {
+      "Name": "tokenEvents",
+      "Type": "TokenEventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchCheer",
+        "BlerpBits",
+        "BlerpBeets"
+      ],
+      "Options": null
+    },
+    "tokensCountOffset": {
+      "Name": "tokensCountOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showTotalDonated": {
+      "Name": "showTotalDonated",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "donatedLabel": {
+      "Name": "donatedLabel",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "donatedOffset": {
+      "Name": "donatedOffset",
+      "Type": "Float",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showFollows": {
+      "Name": "showFollows",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "followsLabel": {
+      "Name": "followsLabel",
+      "Type": "String",
+      "Description": "",
+      "Value": "follows",
+      "Options": null
+    },
+    "followEvents": {
+      "Name": "followEvents",
+      "Type": "FollowEventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchFollow"
+      ],
+      "Options": null
+    },
+    "followCountOffset": {
+      "Name": "followCountOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showPoints": {
+      "Name": "showPoints",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "pointsLabel": {
+      "Name": "pointsLabel",
+      "Type": "String",
+      "Description": "",
+      "Value": "pts",
+      "Options": null
+    },
+    "pointsOffset": {
+      "Name": "pointsOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "includeSimulated": {
+      "Name": "includeSimulated",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "finishSound": {
+      "Name": "finishSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "./bell.mp3",
+      "Options": null
+    },
+    "playSoundOnFinish": {
+      "Name": "playSoundOnFinish",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    }
+  }
+}

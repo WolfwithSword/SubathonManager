@@ -1,0 +1,219 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/event-alerts/",
+  "Width": 500,
+  "Height": 140,
+  "Vars": {
+    "displaySeconds": {
+      "Name": "displaySeconds",
+      "Type": "Float",
+      "Description": "",
+      "Value": 4,
+      "Options": null
+    },
+    "applicableEvents": {
+      "Name": "applicableEvents",
+      "Type": "EventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "TwitchCheer",
+        "StreamElementsDonation",
+        "StreamLabsDonation",
+        "YouTubeMembership",
+        "YouTubeGiftMembership",
+        "YouTubeSuperChat",
+        "ExternalDonation",
+        "ExternalSub",
+        "KoFiSub",
+        "KoFiDonation",
+        "BlerpBits",
+        "BlerpBeets",
+        "UwUMarketOrder",
+        "GamerSuppsOrder",
+        "TwitchRaid",
+        "TwitchFollow",
+        "TwitchHypeTrain"
+      ],
+      "Options": null
+    },
+    "minDonationAmount": {
+      "Name": "minDonationAmount",
+      "Type": "Float",
+      "Description": "",
+      "Value": 5,
+      "Options": null
+    },
+    "minTokensAmount": {
+      "Name": "minTokensAmount",
+      "Type": "Int",
+      "Description": "",
+      "Value": 100,
+      "Options": null
+    },
+    "minRaidersAmount": {
+      "Name": "minRaidersAmount",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "animationDirection": {
+      "Name": "animationDirection",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "top",
+      "Options": [
+        "top",
+        "bottom",
+        "left",
+        "right"
+      ]
+    },
+    "animationStyle": {
+      "Name": "animationStyle",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "fade",
+      "Options": [
+        "fade",
+        "slide"
+      ]
+    },
+    "exitAnimationDirection": {
+      "Name": "exitAnimationDirection",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "top",
+      "Options": [
+        "top",
+        "bottom",
+        "left",
+        "right"
+      ]
+    },
+    "exitAnimationStyle": {
+      "Name": "exitAnimationStyle",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "fade",
+      "Options": [
+        "fade",
+        "slide"
+      ]
+    },
+    "followSound": {
+      "Name": "followSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "followVolume": {
+      "Name": "followVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "subSound": {
+      "Name": "subSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "subVolume": {
+      "Name": "subVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "giftSubSound": {
+      "Name": "giftSubSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "giftSubVolume": {
+      "Name": "giftSubVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "tokenSound": {
+      "Name": "tokenSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "tokenVolume": {
+      "Name": "tokenVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "raidSound": {
+      "Name": "raidSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "raidVolume": {
+      "Name": "raidVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "donationSound": {
+      "Name": "donationSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "donationVolume": {
+      "Name": "donationVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "trainSound": {
+      "Name": "trainSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "trainVolume": {
+      "Name": "trainVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "orderSound": {
+      "Name": "orderSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "orderVolume": {
+      "Name": "orderVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    }
+  }
+}

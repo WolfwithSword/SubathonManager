@@ -1,0 +1,29 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#progress",
+  "Width": 350,
+  "Height": 120,
+  "Vars": {
+    "pulseOnFull": {
+      "Name": "pulseOnFull",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "showMarkers": {
+      "Name": "showMarkers",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "useForMoney": {
+      "Name": "useForMoney",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    }
+  }
+}

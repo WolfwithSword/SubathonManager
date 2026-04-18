@@ -1,0 +1,85 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/total-goal-bar/",
+  "Width": 600,
+  "Height": 80,
+  "Vars": {
+    "eventGroup": {
+      "Name": "eventGroup",
+      "Type": "EventSubTypeSelect",
+      "Description": "",
+      "Value": [
+        "OrderLike"
+      ],
+      "Options": null
+    },
+    "eventType": {
+      "Name": "eventType",
+      "Type": "EventTypeSelect",
+      "Description": "",
+      "Value": [
+        "GamerSuppsOrder"
+      ],
+      "Options": null
+    },
+    "eventCountType": {
+      "Name": "eventCountType",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Count",
+      "Options": [
+        "Count",
+        "Sum"
+      ]
+    },
+    "includeSimulated": {
+      "Name": "includeSimulated",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "valuePrefix": {
+      "Name": "valuePrefix",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "valueSuffix": {
+      "Name": "valueSuffix",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "formatWithCommas": {
+      "Name": "formatWithCommas",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "goalMax": {
+      "Name": "goalMax",
+      "Type": "Int",
+      "Description": "",
+      "Value": 10000,
+      "Options": null
+    },
+    "goalOffset": {
+      "Name": "goalOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "goalText": {
+      "Name": "goalText",
+      "Type": "String",
+      "Description": "",
+      "Value": "Total",
+      "Options": null
+    }
+  }
+}

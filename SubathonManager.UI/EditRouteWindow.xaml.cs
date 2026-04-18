@@ -386,20 +386,11 @@ public partial class EditRouteWindow
         newWidget.Y = 0;
         newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
 
-        newWidget.Width = metadata.TryGetValue("Width", out var w) &&
-                          int.TryParse(w, out var parsedW)
-            ? parsedW
-            : 400;
+        newWidget.Width = metadata.Width;
 
-        newWidget.Height = metadata.TryGetValue("Height", out var h) &&
-                           int.TryParse(h, out var parsedH)
-            ? parsedH
-            : 200;
+        newWidget.Height = metadata.Height;
 
-        newWidget.DocsUrl = metadata.TryGetValue("Url", out var u) && !string.IsNullOrWhiteSpace(u)
-            && Uri.IsWellFormedUriString(u, UriKind.Absolute)
-            ? u.Trim()
-            : string.Empty;
+        newWidget.DocsUrl = metadata.Url;
 
         db.Widgets.Add(newWidget);
         await db.SaveChangesAsync();

@@ -1,0 +1,29 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#timer",
+  "Width": 460,
+  "Height": 110,
+  "Vars": {
+    "finishSound": {
+      "Name": "finishSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "./done.mp3",
+      "Options": null
+    },
+    "playSoundOnFinish": {
+      "Name": "playSoundOnFinish",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    }
+  }
+}

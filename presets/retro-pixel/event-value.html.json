@@ -1,0 +1,50 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#event-value",
+  "Width": 200,
+  "Height": 200,
+  "Vars": {
+    "eventType": {
+      "Name": "eventType",
+      "Type": "EventTypeSelect",
+      "Description": "",
+      "Value": [],
+      "Options": null
+    },
+    "optionalTier": {
+      "Name": "optionalTier",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "valueType": {
+      "Name": "valueType",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Seconds",
+      "Options": [
+        "Seconds",
+        "Points"
+      ]
+    },
+    "showSuffix": {
+      "Name": "showSuffix",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "alignment": {
+      "Name": "alignment",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Center",
+      "Options": [
+        "Center",
+        "Left",
+        "Right"
+      ]
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#timer",
+  "Width": 440,
+  "Height": 180,
+  "Vars": {
+    "showLeadingEmptyTime": {
+      "Name": "showLeadingEmptyTime",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "minimumTimeUnitsShown": {
+      "Name": "minimumTimeUnitsShown",
+      "Type": "Int",
+      "Description": "",
+      "Value": 2,
+      "Options": null
+    },
+    "alignment": {
+      "Name": "alignment",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Center",
+      "Options": [
+        "Center",
+        "Left",
+        "Right"
+      ]
+    },
+    "finishSound": {
+      "Name": "finishSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "./done.mp3",
+      "Options": null
+    },
+    "playSoundOnFinish": {
+      "Name": "playSoundOnFinish",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 80,
+      "Options": null
+    },
+    "showDays": {
+      "Name": "showDays",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    }
+  }
+}

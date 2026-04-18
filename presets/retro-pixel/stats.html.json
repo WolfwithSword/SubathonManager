@@ -1,0 +1,61 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#stats",
+  "Width": 300,
+  "Height": 320,
+  "Vars": {
+    "iconMode": {
+      "Name": "iconMode",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "showPoints": {
+      "Name": "showPoints",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "showMoney": {
+      "Name": "showMoney",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "showTimeMultiplier": {
+      "Name": "showTimeMultiplier",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "showHypeTrains": {
+      "Name": "showHypeTrains",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "pointsName": {
+      "Name": "pointsName",
+      "Type": "String",
+      "Description": "",
+      "Value": "Points",
+      "Options": null
+    },
+    "alignment": {
+      "Name": "alignment",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Center",
+      "Options": [
+        "Center",
+        "Left",
+        "Right"
+      ]
+    }
+  }
+}

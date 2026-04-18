@@ -1,0 +1,74 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/goal-bar/",
+  "Width": 600,
+  "Height": 80,
+  "Vars": {
+    "goalType": {
+      "Name": "goalType",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Money",
+      "Options": [
+        "Money",
+        "Points"
+      ]
+    },
+    "valuePrefix": {
+      "Name": "valuePrefix",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "valueSuffix": {
+      "Name": "valueSuffix",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    },
+    "formatWithCommas": {
+      "Name": "formatWithCommas",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "showDecimalsForMoney": {
+      "Name": "showDecimalsForMoney",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "overrideMax": {
+      "Name": "overrideMax",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "maxGoalOverride": {
+      "Name": "maxGoalOverride",
+      "Type": "Int",
+      "Description": "",
+      "Value": 10000,
+      "Options": null
+    },
+    "overrideGoalText": {
+      "Name": "overrideGoalText",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "goalTextOverride": {
+      "Name": "goalTextOverride",
+      "Type": "String",
+      "Description": "",
+      "Value": "",
+      "Options": null
+    }
+  }
+}

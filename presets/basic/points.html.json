@@ -1,0 +1,22 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/basic/#points",
+  "Width": 230,
+  "Height": 70,
+  "Vars": {
+    "useForMoney": {
+      "Name": "useForMoney",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "suffix": {
+      "Name": "suffix",
+      "Type": "String",
+      "Description": "",
+      "Value": "pts",
+      "Options": null
+    }
+  }
+}

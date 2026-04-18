@@ -1,0 +1,176 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/subathon-totals/",
+  "Width": 800,
+  "Height": 500,
+  "Vars": {
+    "orientation": {
+      "Name": "orientation",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "vertical",
+      "Options": [
+        "vertical",
+        "horizontal"
+      ]
+    },
+    "includeSimulated": {
+      "Name": "includeSimulated",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "showSubs": {
+      "Name": "showSubs",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "subsHeader": {
+      "Name": "subsHeader",
+      "Type": "String",
+      "Description": "",
+      "Value": "Subs",
+      "Options": null
+    },
+    "subEvents": {
+      "Name": "subEvents",
+      "Type": "SubEventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "YouTubeMembership",
+        "YouTubeGiftMembership"
+      ],
+      "Options": null
+    },
+    "subCountOffset": {
+      "Name": "subCountOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showBitsTokens": {
+      "Name": "showBitsTokens",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "tokensHeader": {
+      "Name": "tokensHeader",
+      "Type": "String",
+      "Description": "",
+      "Value": "Bits",
+      "Options": null
+    },
+    "tokenEvents": {
+      "Name": "tokenEvents",
+      "Type": "TokenEventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchCheer",
+        "BlerpBits",
+        "BlerpBeets"
+      ],
+      "Options": null
+    },
+    "tokensCountOffset": {
+      "Name": "tokensCountOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showFollows": {
+      "Name": "showFollows",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "followsHeader": {
+      "Name": "followsHeader",
+      "Type": "String",
+      "Description": "",
+      "Value": "Follows",
+      "Options": null
+    },
+    "followEvents": {
+      "Name": "followEvents",
+      "Type": "FollowEventTypeList",
+      "Description": "",
+      "Value": [
+        "TwitchFollow"
+      ],
+      "Options": null
+    },
+    "followCountOffset": {
+      "Name": "followCountOffset",
+      "Type": "Int",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showTotalDonated": {
+      "Name": "showTotalDonated",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "donatedHeader": {
+      "Name": "donatedHeader",
+      "Type": "String",
+      "Description": "",
+      "Value": "Total Donated",
+      "Options": null
+    },
+    "donatedOffset": {
+      "Name": "donatedOffset",
+      "Type": "Float",
+      "Description": "",
+      "Value": 0,
+      "Options": null
+    },
+    "showOrders": {
+      "Name": "showOrders",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "ordersHeaderShowOrdersTag": {
+      "Name": "ordersHeaderShowOrdersTag",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "orderEvents": {
+      "Name": "orderEvents",
+      "Type": "OrderEventTypeList",
+      "Description": "",
+      "Value": [
+        "UwUMarketOrder",
+        "GamerSuppsOrder",
+        "OrchidEightOrder"
+      ],
+      "Options": null
+    },
+    "ordersCountType": {
+      "Name": "ordersCountType",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Orders",
+      "Options": [
+        "Orders",
+        "Items"
+      ]
+    }
+  }
+}

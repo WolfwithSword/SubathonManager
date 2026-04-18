@@ -1,0 +1,60 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/event-popups/",
+  "Width": 480,
+  "Height": 200,
+  "Vars": {
+    "applicableEvents": {
+      "Name": "applicableEvents",
+      "Type": "EventSubTypeList",
+      "Description": "",
+      "Value": [
+        "SubLike",
+        "GiftSubLike",
+        "DonationLike",
+        "TokenLike",
+        "OrderLike"
+      ],
+      "Options": null
+    },
+    "showSeconds": {
+      "Name": "showSeconds",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "showPoints": {
+      "Name": "showPoints",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "showMoney": {
+      "Name": "showMoney",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": false,
+      "Options": null
+    },
+    "animation": {
+      "Name": "animation",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "float-up",
+      "Options": [
+        "float-up",
+        "float-down",
+        "popup"
+      ]
+    },
+    "groupGifts": {
+      "Name": "groupGifts",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    }
+  }
+}

@@ -55,6 +55,21 @@ public static class WidgetVariableTypeHelper
         _ => []
     };
 
+    public static bool IsListType(this WidgetVariableType varType) => varType switch
+    {
+        WidgetVariableType.OrderEventTypeList => true,
+        WidgetVariableType.SubEventTypeList => true,
+        WidgetVariableType.TokenEventTypeList => true,
+        WidgetVariableType.FollowEventTypeList => true,
+        WidgetVariableType.DonationEventTypeList => true,
+        WidgetVariableType.EventTypeList => true,
+        WidgetVariableType.StringList => true,
+        WidgetVariableType.EventSubTypeList => true,
+        WidgetVariableType.StringSelect => true,
+        WidgetVariableType.EventTypeSelect => true,
+        WidgetVariableType.EventSubTypeSelect => true,
+        _ => false
+    };
     public static Type GetClsSingleType(this WidgetVariableType varType) => varType switch
     {
         WidgetVariableType.Int => typeof(int),

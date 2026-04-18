@@ -1,0 +1,22 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/#goals",
+  "Width": 400,
+  "Height": 600,
+  "Vars": {
+    "showLastCompleted": {
+      "Name": "showLastCompleted",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "maxGoalsToShow": {
+      "Name": "maxGoalsToShow",
+      "Type": "Int",
+      "Description": "",
+      "Value": 3,
+      "Options": null
+    }
+  }
+}

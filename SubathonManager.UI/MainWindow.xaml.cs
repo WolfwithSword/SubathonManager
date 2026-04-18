@@ -152,7 +152,7 @@ namespace SubathonManager.UI
         
                 string fileName = response.Content.Headers.ContentDisposition?.FileNameStar
                                   ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
-                                  ?? Path.GetFileNameWithoutExtension(new Uri(filePath).AbsolutePath);
+                                  ?? Uri.UnescapeDataString(Path.GetFileNameWithoutExtension(new Uri(filePath).AbsolutePath));
         
                 if (string.IsNullOrWhiteSpace(fileName)) fileName = "imported_overlay";
                 if (!fileName.EndsWith(".smo", StringComparison.OrdinalIgnoreCase)) fileName += ".smo";
