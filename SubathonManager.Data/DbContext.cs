@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Text;
 using SubathonManager.Core.Models;
@@ -311,7 +311,9 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.ExternalDonation, Seconds = 12}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.KoFiDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new SubathonValue { EventType = SubathonEventType.KoFiShopOrder, Seconds = 12}, // per 1 unit/dollar of default currency
+                new SubathonValue { EventType = SubathonEventType.KoFiCommissionOrder, Seconds = 12}, // per 1 unit/dollar of default currency
                 new SubathonValue { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
                 new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T1", Seconds = 60, Points = 1 },

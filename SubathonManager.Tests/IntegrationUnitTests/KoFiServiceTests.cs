@@ -327,6 +327,38 @@ public class KoFiServiceTests
     }
 
     [Fact]
+    public async Task HandleWebhookAsync_ValidCommission_RaisesKoFiCommissionEvent()
+    {
+        const string token = "test-token";
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
+        {
+            { ("KoFi", "VerificationToken"), token },
+        });
+        await service.StartAsync(TestContext.Current.CancellationToken);
+
+        typeof(SubathonEvents)
+            .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+
+        byte[] body = BuildKoFiBody(token, "Commission", "Artist", "50.00", "USD", Guid.NewGuid().ToString());
+
+        SubathonEvent? captured = null;
+        void EventHandler(SubathonEvent e) => captured = e;
+        SubathonEvents.SubathonEventCreated += EventHandler;
+        await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
+        SubathonEvents.SubathonEventCreated -= EventHandler;
+
+        Assert.NotNull(captured);
+        Assert.Equal(SubathonEventType.KoFiCommissionOrder, captured.EventType);
+        Assert.Equal(SubathonEventSource.KoFiWebhook, captured.Source);
+        Assert.Equal("Artist", captured.User);
+        Assert.Equal("50.00", captured.Value);
+        Assert.Equal("USD", captured.Currency);
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task HandleWebhookAsync_ForwardsToConfiguredUrl()
     {
         const string token = "test-token";
