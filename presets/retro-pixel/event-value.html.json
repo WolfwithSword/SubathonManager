@@ -7,21 +7,21 @@
     "eventType": {
       "Name": "eventType",
       "Type": "EventTypeSelect",
-      "Description": "",
+      "Description": "Which event to display the value of",
       "Value": [],
       "Options": null
     },
     "optionalTier": {
       "Name": "optionalTier",
       "Type": "String",
-      "Description": "",
+      "Description": "For certain events, you can define which variation to display. For example, TwitchSub has tier 1000, 2000, 3000",
       "Value": "",
       "Options": null
     },
     "valueType": {
       "Name": "valueType",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "Show the seconds or points value of the event?",
       "Value": "Seconds",
       "Options": [
         "Seconds",
@@ -31,14 +31,14 @@
     "showSuffix": {
       "Name": "showSuffix",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show the suffix for the value type? s for Seconds, pts for Points",
       "Value": true,
       "Options": null
     },
     "alignment": {
       "Name": "alignment",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "Alignment of the widget",
       "Value": "Center",
       "Options": [
         "Center",

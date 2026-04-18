@@ -7,14 +7,14 @@
     "displaySeconds": {
       "Name": "displaySeconds",
       "Type": "Float",
-      "Description": "",
+      "Description": "How long to display the event in seconds",
       "Value": 4,
       "Options": null
     },
     "applicableEvents": {
       "Name": "applicableEvents",
       "Type": "EventTypeList",
-      "Description": "",
+      "Description": "Which events to display the alert for",
       "Value": [
         "TwitchSub",
         "TwitchGiftSub",
@@ -41,28 +41,28 @@
     "minDonationAmount": {
       "Name": "minDonationAmount",
       "Type": "Float",
-      "Description": "",
+      "Description": "For donation events, minimum whole amount to allow displaying",
       "Value": 5,
       "Options": null
     },
     "minTokensAmount": {
       "Name": "minTokensAmount",
       "Type": "Int",
-      "Description": "",
+      "Description": "For bits/token events, minimum to allow displaying",
       "Value": 100,
       "Options": null
     },
     "minRaidersAmount": {
       "Name": "minRaidersAmount",
       "Type": "Int",
-      "Description": "",
+      "Description": "For raid events, minimum raiders to display. YouTube Redirects will always display",
       "Value": 0,
       "Options": null
     },
     "animationDirection": {
       "Name": "animationDirection",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "What direction to animate the event entering from",
       "Value": "top",
       "Options": [
         "top",
@@ -74,7 +74,7 @@
     "animationStyle": {
       "Name": "animationStyle",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "What style should the entrance animation be?",
       "Value": "fade",
       "Options": [
         "fade",
@@ -84,7 +84,7 @@
     "exitAnimationDirection": {
       "Name": "exitAnimationDirection",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "What direction to animate the event exiting to",
       "Value": "top",
       "Options": [
         "top",
@@ -96,7 +96,7 @@
     "exitAnimationStyle": {
       "Name": "exitAnimationStyle",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "What style should the exit animation be?",
       "Value": "fade",
       "Options": [
         "fade",
@@ -106,7 +106,7 @@
     "followSound": {
       "Name": "followSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for follows",
       "Value": "",
       "Options": null
     },
@@ -120,7 +120,7 @@
     "subSound": {
       "Name": "subSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for subs",
       "Value": "",
       "Options": null
     },
@@ -134,7 +134,7 @@
     "giftSubSound": {
       "Name": "giftSubSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for giftsubs",
       "Value": "",
       "Options": null
     },
@@ -148,7 +148,7 @@
     "tokenSound": {
       "Name": "tokenSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for bits/tokens",
       "Value": "",
       "Options": null
     },
@@ -162,7 +162,7 @@
     "raidSound": {
       "Name": "raidSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for raids",
       "Value": "",
       "Options": null
     },
@@ -176,7 +176,7 @@
     "donationSound": {
       "Name": "donationSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for donations",
       "Value": "",
       "Options": null
     },
@@ -190,7 +190,7 @@
     "trainSound": {
       "Name": "trainSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for hype train start/level-up/end",
       "Value": "",
       "Options": null
     },
@@ -204,7 +204,7 @@
     "orderSound": {
       "Name": "orderSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play for order events",
       "Value": "",
       "Options": null
     },

@@ -7,7 +7,7 @@
     "applicableEvents": {
       "Name": "applicableEvents",
       "Type": "EventSubTypeList",
-      "Description": "",
+      "Description": "Which event groups to display values for",
       "Value": [
         "SubLike",
         "GiftSubLike",
@@ -20,28 +20,28 @@
     "showSeconds": {
       "Name": "showSeconds",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show seconds added?",
       "Value": true,
       "Options": null
     },
     "showPoints": {
       "Name": "showPoints",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show points added?",
       "Value": false,
       "Options": null
     },
     "showMoney": {
       "Name": "showMoney",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show money or bits/tokens donated?",
       "Value": false,
       "Options": null
     },
     "animation": {
       "Name": "animation",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "What animation to play?",
       "Value": "float-up",
       "Options": [
         "float-up",
@@ -52,7 +52,7 @@
     "groupGifts": {
       "Name": "groupGifts",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "If true, 10 gifted will be a single popup. If false, it will be 10 separate popups",
       "Value": true,
       "Options": null
     }

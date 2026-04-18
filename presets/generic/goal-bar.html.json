@@ -7,7 +7,7 @@
     "goalType": {
       "Name": "goalType",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "Track bar progress using Money donated or Points",
       "Value": "Money",
       "Options": [
         "Money",
@@ -17,56 +17,56 @@
     "valuePrefix": {
       "Name": "valuePrefix",
       "Type": "String",
-      "Description": "",
+      "Description": "Prefix for the values, such as USD",
       "Value": "",
       "Options": null
     },
     "valueSuffix": {
       "Name": "valueSuffix",
       "Type": "String",
-      "Description": "",
+      "Description": "Suffix for the values, such as Pts",
       "Value": "",
       "Options": null
     },
     "formatWithCommas": {
       "Name": "formatWithCommas",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Display numbers with a well formatted comma",
       "Value": false,
       "Options": null
     },
     "showDecimalsForMoney": {
       "Name": "showDecimalsForMoney",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show fractional amounts (only applies if Money)",
       "Value": false,
       "Options": null
     },
     "overrideMax": {
       "Name": "overrideMax",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "If true, overrides the max goal with the override below",
       "Value": false,
       "Options": null
     },
     "maxGoalOverride": {
       "Name": "maxGoalOverride",
       "Type": "Int",
-      "Description": "",
+      "Description": "Override the max value to untie it from highest Goal",
       "Value": 10000,
       "Options": null
     },
     "overrideGoalText": {
       "Name": "overrideGoalText",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "If true, overrides the text inside the bar. If false, uses your next upcoming goal",
       "Value": false,
       "Options": null
     },
     "goalTextOverride": {
       "Name": "goalTextOverride",
       "Type": "String",
-      "Description": "",
+      "Description": "Text to override the goal bar with",
       "Value": "",
       "Options": null
     }

@@ -7,7 +7,7 @@
     "useForMoney": {
       "Name": "useForMoney",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Display money donated (rounded) if true. If false, display current points",
       "Value": false,
       "Options": null
     }

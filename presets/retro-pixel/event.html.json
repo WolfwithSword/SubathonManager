@@ -7,14 +7,14 @@
     "minDisplaySeconds": {
       "Name": "minDisplaySeconds",
       "Type": "Float",
-      "Description": "",
+      "Description": "How long to display the event (in seconds) if multiple are queued",
       "Value": 2,
       "Options": null
     },
     "applicableEvents": {
       "Name": "applicableEvents",
       "Type": "EventTypeList",
-      "Description": "",
+      "Description": "Which events to display",
       "Value": [
         "TwitchSub",
         "TwitchGiftSub",

@@ -105,7 +105,10 @@ public class WidgetEntityHelper
             var tracked = db.JsVariables
                 .FirstOrDefault(v => v.WidgetId == widget.Id && v.Name == updated.Name);
             if (tracked != null)
+            {
                 tracked.Value = updated.Value;
+                tracked.Description = updated.Description;
+            }
         }
 
         db.SaveChanges();
@@ -153,6 +156,7 @@ public class WidgetEntityHelper
             extractedNames.Add(varName);
 
             var existingVar = widget.JsVariables.Find(v => v.Name == varName);
+            var description = metaVar.Description;
 
             if (metaVar.Type == WidgetVariableType.StringSelect && existingVar != null)
             {
@@ -162,11 +166,25 @@ public class WidgetEntityHelper
                     if (!oldVals.Contains(v)) oldVals.Add(v);
                 oldVals.RemoveAll(v => !newVals.Contains(v));
                 existingVar.Value = string.Join(",", oldVals);
+                if (!string.Equals(description, existingVar.Description))
+                {
+                    existingVar.Description = description;
+                }
                 updatedVars.Add(existingVar);
                 continue;
             }
 
-            if (existingVar != null && existingVar.Type != WidgetVariableType.StringSelect) continue;
+
+            if (existingVar != null && existingVar.Type != WidgetVariableType.StringSelect)
+            {
+                if (!string.Equals(description, existingVar.Description))
+                {
+                    existingVar.Description = description;
+                    updatedVars.Add(existingVar);
+                }
+
+                continue;
+            }
 
             var value = metaVar.ValueToString();
             
@@ -184,7 +202,8 @@ public class WidgetEntityHelper
                 Name = varName,
                 WidgetId = widget.Id,
                 Type = metaVar.Type,
-                Value = value
+                Value = value,
+                Description = description
             });
         }
 

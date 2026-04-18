@@ -7,14 +7,14 @@
     "finishSound": {
       "Name": "finishSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play when timer hits 00:00",
       "Value": "./done.mp3",
       "Options": null
     },
     "playSoundOnFinish": {
       "Name": "playSoundOnFinish",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Play finish sound?",
       "Value": false,
       "Options": null
     },

@@ -17,28 +17,28 @@
     "includeSimulated": {
       "Name": "includeSimulated",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Whether or not to include simulated test events in all counts",
       "Value": false,
       "Options": null
     },
     "showSubs": {
       "Name": "showSubs",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total subs",
       "Value": true,
       "Options": null
     },
     "subsHeader": {
       "Name": "subsHeader",
       "Type": "String",
-      "Description": "",
+      "Description": "Header/label for subs",
       "Value": "Subs",
       "Options": null
     },
     "subEvents": {
       "Name": "subEvents",
       "Type": "SubEventTypeList",
-      "Description": "",
+      "Description": "Which subscription events to count",
       "Value": [
         "TwitchSub",
         "TwitchGiftSub",
@@ -50,28 +50,28 @@
     "subCountOffset": {
       "Name": "subCountOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for sub count",
       "Value": 0,
       "Options": null
     },
     "showBitsTokens": {
       "Name": "showBitsTokens",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show bits/tokens count",
       "Value": true,
       "Options": null
     },
     "tokensHeader": {
       "Name": "tokensHeader",
       "Type": "String",
-      "Description": "",
+      "Description": "Header/label for bits/tokens",
       "Value": "Bits",
       "Options": null
     },
     "tokenEvents": {
       "Name": "tokenEvents",
       "Type": "TokenEventTypeList",
-      "Description": "",
+      "Description": "Which bits/token events to count",
       "Value": [
         "TwitchCheer",
         "BlerpBits",
@@ -82,28 +82,28 @@
     "tokensCountOffset": {
       "Name": "tokensCountOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for bits/tokens",
       "Value": 0,
       "Options": null
     },
     "showFollows": {
       "Name": "showFollows",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show follows gained",
       "Value": true,
       "Options": null
     },
     "followsHeader": {
       "Name": "followsHeader",
       "Type": "String",
-      "Description": "",
+      "Description": "Header/label for follows",
       "Value": "Follows",
       "Options": null
     },
     "followEvents": {
       "Name": "followEvents",
       "Type": "FollowEventTypeList",
-      "Description": "",
+      "Description": "Which follow events to count",
       "Value": [
         "TwitchFollow"
       ],
@@ -112,49 +112,49 @@
     "followCountOffset": {
       "Name": "followCountOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for follow count",
       "Value": 0,
       "Options": null
     },
     "showTotalDonated": {
       "Name": "showTotalDonated",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total donated",
       "Value": true,
       "Options": null
     },
     "donatedHeader": {
       "Name": "donatedHeader",
       "Type": "String",
-      "Description": "",
+      "Description": "Header/label for donated amount",
       "Value": "Total Donated",
       "Options": null
     },
     "donatedOffset": {
       "Name": "donatedOffset",
       "Type": "Float",
-      "Description": "",
+      "Description": "Offset for donated amount",
       "Value": 0,
       "Options": null
     },
     "showOrders": {
       "Name": "showOrders",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total orders from stores",
       "Value": true,
       "Options": null
     },
     "ordersHeaderShowOrdersTag": {
       "Name": "ordersHeaderShowOrdersTag",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show 'Order' in the header/label",
       "Value": true,
       "Options": null
     },
     "orderEvents": {
       "Name": "orderEvents",
       "Type": "OrderEventTypeList",
-      "Description": "",
+      "Description": "Which order events to display",
       "Value": [
         "UwUMarketOrder",
         "GamerSuppsOrder",
@@ -165,7 +165,7 @@
     "ordersCountType": {
       "Name": "ordersCountType",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "Display either total Order count, or sum of all Items across orders",
       "Value": "Orders",
       "Options": [
         "Orders",

@@ -7,7 +7,7 @@
     "eventGroup": {
       "Name": "eventGroup",
       "Type": "EventSubTypeSelect",
-      "Description": "",
+      "Description": "Select which group of events to configure this bar for",
       "Value": [
         "OrderLike"
       ],
@@ -16,7 +16,7 @@
     "eventType": {
       "Name": "eventType",
       "Type": "EventTypeSelect",
-      "Description": "",
+      "Description": "Select which event to count totals for - must belong to the eventGroup above",
       "Value": [
         "GamerSuppsOrder"
       ],
@@ -25,7 +25,7 @@
     "eventCountType": {
       "Name": "eventCountType",
       "Type": "StringSelect",
-      "Description": "",
+      "Description": "How to count the totals. For all events, Count is the default. For OrderLike events, Sum will be sum of items instead of order count",
       "Value": "Count",
       "Options": [
         "Count",
@@ -35,49 +35,49 @@
     "includeSimulated": {
       "Name": "includeSimulated",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Include simulated test data or not in counts",
       "Value": false,
       "Options": null
     },
     "valuePrefix": {
       "Name": "valuePrefix",
       "Type": "String",
-      "Description": "",
+      "Description": "Prefix for the values, such as USD",
       "Value": "",
       "Options": null
     },
     "valueSuffix": {
       "Name": "valueSuffix",
       "Type": "String",
-      "Description": "",
+      "Description": "Suffix for the values, such as Pts",
       "Value": "",
       "Options": null
     },
     "formatWithCommas": {
       "Name": "formatWithCommas",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Display numbers with a well formatted comma",
       "Value": false,
       "Options": null
     },
     "goalMax": {
       "Name": "goalMax",
       "Type": "Int",
-      "Description": "",
+      "Description": "Target goal amount",
       "Value": 10000,
       "Options": null
     },
     "goalOffset": {
       "Name": "goalOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset current count/sum by this amount",
       "Value": 0,
       "Options": null
     },
     "goalText": {
       "Name": "goalText",
       "Type": "String",
-      "Description": "",
+      "Description": "What text to display in the bar, if any",
       "Value": "Total",
       "Options": null
     }

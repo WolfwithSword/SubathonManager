@@ -7,14 +7,14 @@
     "useForMoney": {
       "Name": "useForMoney",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Display current money donated total instead of points.",
       "Value": false,
       "Options": null
     },
     "suffix": {
       "Name": "suffix",
       "Type": "String",
-      "Description": "",
+      "Description": "Suffix for the value, such as pts",
       "Value": "pts",
       "Options": null
     }

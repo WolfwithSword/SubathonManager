@@ -7,42 +7,42 @@
     "iconMode": {
       "Name": "iconMode",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Display icons instead of labels",
       "Value": false,
       "Options": null
     },
     "showPoints": {
       "Name": "showPoints",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show current points?",
       "Value": true,
       "Options": null
     },
     "showMoney": {
       "Name": "showMoney",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show current donated?",
       "Value": true,
       "Options": null
     },
     "showTimeMultiplier": {
       "Name": "showTimeMultiplier",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show the multiplier for time if active?",
       "Value": true,
       "Options": null
     },
     "showHypeTrains": {
       "Name": "showHypeTrains",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show hype train progress?",
       "Value": true,
       "Options": null
     },
     "pointsName": {
       "Name": "pointsName",
       "Type": "String",
-      "Description": "",
+      "Description": "Label for points, ex: XP, Points",
       "Value": "Points",
       "Options": null
     },

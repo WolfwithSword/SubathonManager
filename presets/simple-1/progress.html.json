@@ -7,21 +7,21 @@
     "pulseOnFull": {
       "Name": "pulseOnFull",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Play a pulse animation when all goals are reached or surpassed",
       "Value": true,
       "Options": null
     },
     "showMarkers": {
       "Name": "showMarkers",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show markers for where each goal is on the bar",
       "Value": true,
       "Options": null
     },
     "useForMoney": {
       "Name": "useForMoney",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Track total donated for goal progress instead of points, if true",
       "Value": false,
       "Options": null
     }

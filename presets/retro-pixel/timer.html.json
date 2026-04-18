@@ -7,14 +7,14 @@
     "showLeadingEmptyTime": {
       "Name": "showLeadingEmptyTime",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show the leading 00 in 00:45:22",
       "Value": true,
       "Options": null
     },
     "minimumTimeUnitsShown": {
       "Name": "minimumTimeUnitsShown",
       "Type": "Int",
-      "Description": "",
+      "Description": "If time is 30 seconds left, display 00:30 if set to 2",
       "Value": 2,
       "Options": null
     },
@@ -32,14 +32,14 @@
     "finishSound": {
       "Name": "finishSound",
       "Type": "SoundFile",
-      "Description": "",
+      "Description": "Sound to play when timer hits 00:00",
       "Value": "./done.mp3",
       "Options": null
     },
     "playSoundOnFinish": {
       "Name": "playSoundOnFinish",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Play finish sound?",
       "Value": true,
       "Options": null
     },
@@ -53,7 +53,7 @@
     "showDays": {
       "Name": "showDays",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show days as a separate box if true. If false, will add them into hours",
       "Value": true,
       "Options": null
     }

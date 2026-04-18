@@ -7,7 +7,7 @@
     "playSoundOnCompletedGoal": {
       "Name": "playSoundOnCompletedGoal",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Play a sound if goals are completed?",
       "Value": true,
       "Options": null
     },

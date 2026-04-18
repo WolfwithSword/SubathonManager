@@ -7,7 +7,7 @@
     "showLastCompleted": {
       "Name": "showLastCompleted",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show last completed goal but faded",
       "Value": true,
       "Options": null
     }

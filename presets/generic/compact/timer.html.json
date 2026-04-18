@@ -7,28 +7,28 @@
     "showIcons": {
       "Name": "showIcons",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Display icons next to each statistic",
       "Value": false,
       "Options": null
     },
     "showSubs": {
       "Name": "showSubs",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total subscriptions",
       "Value": true,
       "Options": null
     },
     "subsLabel": {
       "Name": "subsLabel",
       "Type": "String",
-      "Description": "",
+      "Description": "Label for subscriptions",
       "Value": "subs",
       "Options": null
     },
     "subEvents": {
       "Name": "subEvents",
       "Type": "SubEventTypeList",
-      "Description": "",
+      "Description": "Which subscription events to count",
       "Value": [
         "TwitchSub",
         "TwitchGiftSub",
@@ -40,28 +40,28 @@
     "subCountOffset": {
       "Name": "subCountOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for sub count on display",
       "Value": 0,
       "Options": null
     },
     "showBitsTokens": {
       "Name": "showBitsTokens",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total bits/tokens",
       "Value": true,
       "Options": null
     },
     "tokensLabel": {
       "Name": "tokensLabel",
       "Type": "String",
-      "Description": "",
+      "Description": "Label for bits/tokens",
       "Value": "bits",
       "Options": null
     },
     "tokenEvents": {
       "Name": "tokenEvents",
       "Type": "TokenEventTypeList",
-      "Description": "",
+      "Description": "Which token events to count",
       "Value": [
         "TwitchCheer",
         "BlerpBits",
@@ -72,49 +72,49 @@
     "tokensCountOffset": {
       "Name": "tokensCountOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for token count on display",
       "Value": 0,
       "Options": null
     },
     "showTotalDonated": {
       "Name": "showTotalDonated",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total amount donated in configured currency",
       "Value": true,
       "Options": null
     },
     "donatedLabel": {
       "Name": "donatedLabel",
       "Type": "String",
-      "Description": "",
+      "Description": "Label for total donated",
       "Value": "",
       "Options": null
     },
     "donatedOffset": {
       "Name": "donatedOffset",
       "Type": "Float",
-      "Description": "",
+      "Description": "Offset for total donated display",
       "Value": 0,
       "Options": null
     },
     "showFollows": {
       "Name": "showFollows",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total follows gained",
       "Value": true,
       "Options": null
     },
     "followsLabel": {
       "Name": "followsLabel",
       "Type": "String",
-      "Description": "",
+      "Description": "Label for follows",
       "Value": "follows",
       "Options": null
     },
     "followEvents": {
       "Name": "followEvents",
       "Type": "FollowEventTypeList",
-      "Description": "",
+      "Description": "Which follow events to count",
       "Value": [
         "TwitchFollow"
       ],
@@ -123,35 +123,35 @@
     "followCountOffset": {
       "Name": "followCountOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for follow count on display",
       "Value": 0,
       "Options": null
     },
     "showPoints": {
       "Name": "showPoints",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Show total points",
       "Value": true,
       "Options": null
     },
     "pointsLabel": {
       "Name": "pointsLabel",
       "Type": "String",
-      "Description": "",
+      "Description": "Label for points",
       "Value": "pts",
       "Options": null
     },
     "pointsOffset": {
       "Name": "pointsOffset",
       "Type": "Int",
-      "Description": "",
+      "Description": "Offset for points on display",
       "Value": 0,
       "Options": null
     },
     "includeSimulated": {
       "Name": "includeSimulated",
       "Type": "Boolean",
-      "Description": "",
+      "Description": "Whether or not to include simulated test events in all counts",
       "Value": false,
       "Options": null
     },

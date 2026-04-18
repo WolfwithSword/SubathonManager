@@ -7,7 +7,7 @@
     "applicableEvents": {
       "Name": "applicableEvents",
       "Type": "EventTypeList",
-      "Description": "",
+      "Description": "Which events to display",
       "Value": [
         "TwitchSub",
         "TwitchGiftSub",
