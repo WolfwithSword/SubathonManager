@@ -180,6 +180,16 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                     Currency = "member",
                     EventTimestamp = r.Timestamp.LocalDateTime,
                 },
+                KoFiShopOrderEvent shop => new SubathonEvent
+                {
+                    Id = TryParseGuid(shop.MessageId),
+                    Source = SubathonEventSource.KoFiWebhook,
+                    EventType = SubathonEventType.KoFiShopOrder,
+                    User = shop.FromName ?? "Ko-fi Supporter",
+                    Value = shop.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                    Currency = shop.Currency ?? "USD",
+                    EventTimestamp = shop.Timestamp.LocalDateTime,
+                },
                 _ => null
             };
         }
