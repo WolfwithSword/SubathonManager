@@ -114,8 +114,10 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task StartAsync_WithToken_BroadcastsEnabled()
+    public async Task StartAsync_WithToken_NoTunnel_BroadcastsDisconnected()
     {
+        // Token configured but no tunnel running — status must be false until the
+        // tunnel is actually up and we have a reachable public URL.
         (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
         {
             { ("KoFi", "VerificationToken"), "my-token" },
@@ -140,7 +142,7 @@ public class KoFiServiceTests
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 
-        Assert.True(status);
+        Assert.False(status);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
 
