@@ -199,9 +199,16 @@ public class DevTunnelsService(
         PublicBaseUrl = null;
         IsTunnelRunning = false;
 
-        try { await _session.StopAsync(); } catch { /**/ }
-        await _session.DisposeAsync();
-        _session = null;
+        // Kill(entireProcessTree:true) is synchronous and blocks until all Win32 API
+        // calls complete — offload to thread pool so the UI can render "Stopping…".
+        var session = _session;
+        try { await Task.Run(async () => await session.StopAsync()); }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "[DevTunnels] Failed to stop tunnel");
+        }
+        await session.DisposeAsync();
+        if (ReferenceEquals(_session, session)) _session = null;
 
         _cts?.Cancel();
         _cts?.Dispose();
