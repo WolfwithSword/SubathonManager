@@ -86,7 +86,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 var method = typeof(YouTubeService)
                     .GetMethod("OnInitialPageLoaded", BindingFlags.NonPublic | BindingFlags.Instance);
 
-                var args = new YTLiveChat.Contracts.Services.InitialPageLoadedEventArgs
+                var args = new InitialPageLoadedEventArgs
                 {
                     LiveId = "TEST_LIVE_ID"
                 };
@@ -129,7 +129,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 var method = typeof(YouTubeService)
                     .GetMethod("OnErrorOccurred", BindingFlags.NonPublic | BindingFlags.Instance);
 
-                var errorArgs = new YTLiveChat.Contracts.Services.ErrorOccurredEventArgs(new Exception("Test error"));
+                var errorArgs = new ErrorOccurredEventArgs(new Exception("Test error"));
                 method?.Invoke(service, [null, errorArgs]);
 
                 Assert.True(eventRaised);
@@ -273,7 +273,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var config = new Mock<Config>();
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
             
-            var configCs = MockConfig.MakeMockConfig(new()
+            var configCs = MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
             {
                 { ("Chat", "Commands.Pause"), "pause" },
                 { ("Chat", "Commands.Pause.permissions.Mods"), "true" },
@@ -386,7 +386,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 //bool result = service.Start(null);
                 await service.StartAsync(CancellationToken.None);
                 Assert.False(service.Running); // happens during events
-                await Task.Delay(300);
+                await Task.Delay(300, TestContext.Current.CancellationToken);
                 Assert.True(eventRaised);
                 Assert.Equal("@TestChannel", Utils.GetConnection(SubathonEventSource.YouTube, "Chat").Name);
                 Assert.False(Utils.GetConnection(SubathonEventSource.YouTube, "Chat").Status);

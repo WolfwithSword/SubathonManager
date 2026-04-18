@@ -2,6 +2,11 @@ name: Update Wiki Drawio
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        type: string
+        required: false
+        default: nightly
   workflow_call:
     inputs:
       release_tag:
@@ -86,11 +91,10 @@ jobs:
         with:
           github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           script: |
+            const version = context.payload.inputs?.release_tag || 'nightly';
             await github.rest.repos.createDispatchEvent({
               owner: 'WolfwithSword',
               repo:  'SubathonManager-docs',
               event_type: 'docs-release',
-              client_payload: {
-                version: ${{ inputs.release_tag }}
-              }
+              client_payload: { version }
             });

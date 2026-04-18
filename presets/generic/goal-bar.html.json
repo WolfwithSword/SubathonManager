@@ -1,0 +1,74 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/goal-bar/",
+  "Width": 600,
+  "Height": 80,
+  "Vars": {
+    "goalType": {
+      "Name": "goalType",
+      "Type": "StringSelect",
+      "Description": "Track bar progress using Money donated or Points",
+      "Value": "Money",
+      "Options": [
+        "Money",
+        "Points"
+      ]
+    },
+    "valuePrefix": {
+      "Name": "valuePrefix",
+      "Type": "String",
+      "Description": "Prefix for the values, such as USD",
+      "Value": "",
+      "Options": null
+    },
+    "valueSuffix": {
+      "Name": "valueSuffix",
+      "Type": "String",
+      "Description": "Suffix for the values, such as Pts",
+      "Value": "",
+      "Options": null
+    },
+    "formatWithCommas": {
+      "Name": "formatWithCommas",
+      "Type": "Boolean",
+      "Description": "Display numbers with a well formatted comma",
+      "Value": false,
+      "Options": null
+    },
+    "showDecimalsForMoney": {
+      "Name": "showDecimalsForMoney",
+      "Type": "Boolean",
+      "Description": "Show fractional amounts (only applies if Money)",
+      "Value": false,
+      "Options": null
+    },
+    "overrideMax": {
+      "Name": "overrideMax",
+      "Type": "Boolean",
+      "Description": "If true, overrides the max goal with the override below",
+      "Value": false,
+      "Options": null
+    },
+    "maxGoalOverride": {
+      "Name": "maxGoalOverride",
+      "Type": "Int",
+      "Description": "Override the max value to untie it from highest Goal",
+      "Value": 10000,
+      "Options": null
+    },
+    "overrideGoalText": {
+      "Name": "overrideGoalText",
+      "Type": "Boolean",
+      "Description": "If true, overrides the text inside the bar. If false, uses your next upcoming goal",
+      "Value": false,
+      "Options": null
+    },
+    "goalTextOverride": {
+      "Name": "goalTextOverride",
+      "Type": "String",
+      "Description": "Text to override the goal bar with",
+      "Value": "",
+      "Options": null
+    }
+  }
+}

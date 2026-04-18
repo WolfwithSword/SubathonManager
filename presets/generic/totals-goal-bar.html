@@ -1,0 +1,131 @@
+﻿<!--
+WIDGET_META
+Width:600
+Height:80
+Author:WolfwithSword
+Url:https://docs.subathonmanager.app/latest/widgets/presets/single/total-goal-bar/
+eventGroup.EventSubTypeSelect:OrderLike
+eventType.EventTypeSelect:GamerSuppsOrder
+eventCountType.StringSelect:Count,Sum
+includeSimulated.Boolean:False
+valuePrefix.String:NONE
+valueSuffix.String:NONE
+formatWithCommas.Boolean:False
+goalMax.Int:10000
+goalOffset.Int:0
+goalText.String:Total
+END_WIDGET_META
+-->
+<link rel="stylesheet" href="goal-bar.css">
+
+<div class="goal-root">
+    <div class="goal-bar">
+        <div class="goal-fill" id="goalFill"></div>
+
+        <div class="goal-overlay">
+            <div class="goal-text" id="goalText"></div>
+            <div class="goal-current" id="goalCurrent"></div>
+            <div class="goal-max" id="goalMax"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentValue = 0;
+
+    function getProgressValue() {
+        return Number(v) || 0;
+    }
+    
+    function updateGoalBar() {
+        let max = typeof(goalMax) != "undefined" ? goalMax : max;
+        let current = currentValue;
+        
+        const pct = max > 0 ? Math.min(current / max, 1) * 100 : 100;
+
+        var showCommas = false;
+        if (typeof(formatWithCommas) != "undefined") {
+            showCommas = formatWithCommas;    
+        }
+
+        current = Intl.NumberFormat(undefined, {useGrouping: formatWithCommas,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0}).format(current);
+        if (pct < 100) {
+            max = Intl.NumberFormat(undefined, {
+                useGrouping: formatWithCommas,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(max);
+        }
+        
+        if (typeof(valuePrefix) != "undefined")
+        {
+            current = valuePrefix + current;
+            max = valuePrefix + max;
+        }
+        if (typeof(valueSuffix) != "undefined")
+        {
+            current = current + valueSuffix;
+            max = max + valueSuffix;
+        }
+        if (pct >= 100) {
+            //text = "";
+            max = "";
+        }
+        
+        let text = typeof(goalText) != "undefined" ? goalText : text;
+        
+        document.getElementById("goalText").textContent = text;
+        document.getElementById("goalCurrent").textContent = current;
+        document.getElementById("goalMax").textContent = max;
+
+        document.getElementById("goalFill").style.width = `${pct}%`;
+    }
+
+    function handleTotalsUpdate(data) {
+        if (data.type !== "subathon_totals") return;
+
+        if (typeof(eventGroup) == "undefined") return;
+
+        currentValue = 0;
+        var d = {};
+        var simd = {};
+        
+        if (eventGroup == "SubLike") {
+            // SubLike (incls giftsublike)
+            d = data.sub_like_by_type;
+            simd = data.simulated?.sub_like_by_type;
+        }
+        else if (eventGroup == "TokenLike") {
+            d = data.token_like_by_type;
+            simd = data.simulated?.token_like_by_type;
+        }
+        else if (eventGroup == "FollowLike") {
+            d = data.follow_count_by_type;
+            simd = data.simulated?.follow_count_by_type;
+        }
+        else if (eventGroup == "OrderLike") {
+            d = data.order_count_by_type;
+            simd = data.simulated?.order_count_by_type;
+            if (eventCountType == "Sum") {
+                d = data.order_items_count_by_type;
+                simd = data.simulated?.order_items_count_by_type;                
+            }
+        }
+        
+        if (d && d[eventType] != undefined) {
+            currentValue = d[eventType] || 0;
+        }
+        if (includeSimulated && simd && simd[eventType] != undefined) {
+            currentValue += (simd[eventType] || 0);
+        }
+        if (typeof(goalOffset) != "undefined") {
+            currentValue += goalOffset;
+        }
+
+        updateGoalBar();
+    }
+    
+
+</script>

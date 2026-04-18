@@ -1,0 +1,29 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/basic/#timer",
+  "Width": 540,
+  "Height": 120,
+  "Vars": {
+    "finishSound": {
+      "Name": "finishSound",
+      "Type": "SoundFile",
+      "Description": "A sound which can play when the timer hits 0:00",
+      "Value": "./done.mp3",
+      "Options": null
+    },
+    "playSoundOnFinish": {
+      "Name": "playSoundOnFinish",
+      "Type": "Boolean",
+      "Description": "Whether or not to play the finish sound",
+      "Value": false,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 100,
+      "Options": null
+    }
+  }
+}

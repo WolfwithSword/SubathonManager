@@ -324,7 +324,7 @@ public class OverlayPorterTests : IDisposable
 
         await OverlayPorter.ExportRouteAsync(route, outPath, "Export");
 
-        using var zip = ZipFile.OpenRead(outPath);
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         Assert.NotNull(zip.GetEntry("overlay.json"));
     }
 
@@ -343,9 +343,9 @@ public class OverlayPorterTests : IDisposable
 
         await OverlayPorter.ExportRouteAsync(route, outPath, "Export");
 
-        using var zip = ZipFile.OpenRead(outPath);
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         using var ms = new MemoryStream();
-        zip.GetEntry("overlay.json")!.Open().CopyTo(ms);
+        await (await zip.GetEntry("overlay.json")!.OpenAsync(TestContext.Current.CancellationToken)).CopyToAsync(ms, TestContext.Current.CancellationToken);
         var doc = JsonDocument.Parse(ms.ToArray());
         var widgets = doc.RootElement.GetProperty("widgets").EnumerateArray().ToList();
 
@@ -370,9 +370,9 @@ public class OverlayPorterTests : IDisposable
 
         await OverlayPorter.ExportRouteAsync(route, outPath, "Custom Export Name");
 
-        using var zip = ZipFile.OpenRead(outPath);
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         using var ms = new MemoryStream();
-        zip.GetEntry("overlay.json")!.Open().CopyTo(ms);
+        await (await zip.GetEntry("overlay.json")!.OpenAsync(TestContext.Current.CancellationToken)).CopyToAsync(ms, TestContext.Current.CancellationToken);
         var doc = JsonDocument.Parse(ms.ToArray());
         var name = doc.RootElement.GetProperty("route").GetProperty("name").GetString();
         Assert.Equal("Custom Export Name", name);
@@ -384,7 +384,7 @@ public class OverlayPorterTests : IDisposable
         SetupServices();
         var htmlPath = MakeTempWidget("mytimer");
         var assetPath = Path.Combine(Path.GetDirectoryName(htmlPath)!, "bg.png");
-        await File.WriteAllBytesAsync(assetPath, [0x89, 0x50]);
+        await File.WriteAllBytesAsync(assetPath, [0x89, 0x50], TestContext.Current.CancellationToken);
 
         var route = new Route { Name = "Test", Width = 1920, Height = 1080 };
         route.Widgets.Add(new Widget("Timer", htmlPath) { RouteId = route.Id });
@@ -401,7 +401,7 @@ public class OverlayPorterTests : IDisposable
         var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { bgZipEntry };
         await OverlayPorter.ExportRouteAsync(route, outPath, "Export", excluded);
 
-        using var zip = ZipFile.OpenRead(outPath);
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         Assert.Null(zip.GetEntry(bgZipEntry));
         Assert.NotNull(zip.GetEntry($"{zipRoots[0]}/widget.html"));
     }
@@ -412,7 +412,7 @@ public class OverlayPorterTests : IDisposable
         SetupServices();
         var htmlPath = MakeTempWidget("mytimer");
         var extraFile = Path.Combine(Path.GetDirectoryName(htmlPath)!, "style.css");
-        await File.WriteAllTextAsync(extraFile, "body { color: red; }");
+        await File.WriteAllTextAsync(extraFile, "body { color: red; }", TestContext.Current.CancellationToken);
 
         var route = new Route { Name = "Test", Width = 1920, Height = 1080 };
         route.Widgets.Add(new Widget("Timer", htmlPath) { RouteId = route.Id });
@@ -424,7 +424,7 @@ public class OverlayPorterTests : IDisposable
 
         await OverlayPorter.ExportRouteAsync(route, outPath, "Export");
 
-        using var zip = ZipFile.OpenRead(outPath);
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         var entries = zip.Entries.Select(e => e.FullName).ToList();
         Assert.Contains(entries, e => e.EndsWith("widget.html"));
         Assert.Contains(entries, e => e.EndsWith("style.css"));
@@ -439,7 +439,7 @@ public class OverlayPorterTests : IDisposable
         _tempDirs.Add(dir);
 
         var smoPath = Path.Combine(dir, "empty.smo");
-        using (var zip = ZipFile.Open(smoPath, ZipArchiveMode.Create))
+        await using (var zip = await ZipFile.OpenAsync(smoPath, ZipArchiveMode.Create, TestContext.Current.CancellationToken))
             zip.CreateEntry("dummy.txt");
 
         var result = await OverlayPorter.ImportRouteAsync(smoPath, MakeTempExtractRoot(), factory);
@@ -585,11 +585,11 @@ public class OverlayPorterTests : IDisposable
         //seed
         var first = await OverlayPorter.ImportRouteAsync(smo, extractRoot, factory);
         Assert.True(first.RouteIsNew);
-        await using (var db = await factory.CreateDbContextAsync())
+        await using (var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(first.Route!);
             db.Widgets.AddRange(first.NewWidgets);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var second = await OverlayPorter.ImportRouteAsync(smo, extractRoot, factory);
@@ -629,11 +629,11 @@ public class OverlayPorterTests : IDisposable
 
         var smo1 = MakeSmoFile(MakeManifest([]), new Dictionary<string, string> { [htmlZipPath] = "" });
         var first = await OverlayPorter.ImportRouteAsync(smo1, extractRoot, factory);
-        await using (var db = await factory.CreateDbContextAsync())
+        await using (var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(first.Route!);
             db.Widgets.AddRange(first.NewWidgets);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var smo2 = MakeSmoFile(MakeManifest([
@@ -829,14 +829,14 @@ public class OverlayPorterTests : IDisposable
         Directory.CreateDirectory(extDir);
         _tempDirs.Add(Path.GetDirectoryName(extDir)!);
         var soundFile = Path.Combine(extDir, "alert.mp3");
-        await File.WriteAllBytesAsync(soundFile, [0x49, 0x44, 0x33]);
+        await File.WriteAllBytesAsync(soundFile, [0x49, 0x44, 0x33], TestContext.Current.CancellationToken);
  
         var route = new Route { Name = "Test", Width = 1920, Height = 1080 };
         var widget = new Widget("FX", htmlPath)
         {
             RouteId = route.Id,
-            JsVariables = new List<JsVariable>
-            {
+            JsVariables =
+            [
                 new JsVariable
                 {
                     Name = "alertSound",
@@ -844,7 +844,7 @@ public class OverlayPorterTests : IDisposable
                     Type = WidgetVariableType.SoundFile,
                     WidgetId = Guid.NewGuid()
                 }
-            }
+            ]
         };
         route.Widgets.Add(widget);
  
@@ -854,10 +854,10 @@ public class OverlayPorterTests : IDisposable
         _tempDirs.Add(Path.GetDirectoryName(outPath)!);
  
         await OverlayPorter.ExportRouteAsync(route, outPath, "FX");
- 
-        using var zip = ZipFile.OpenRead(outPath);
+
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         using var ms = new MemoryStream();
-        await zip.GetEntry("overlay.json")!.Open().CopyToAsync(ms);
+        await (await zip.GetEntry("overlay.json")!.OpenAsync(TestContext.Current.CancellationToken)).CopyToAsync(ms, TestContext.Current.CancellationToken);
         var doc = JsonDocument.Parse(ms.ToArray());
         var jsVars = doc.RootElement
             .GetProperty("widgets")[0]
@@ -882,7 +882,7 @@ public class OverlayPorterTests : IDisposable
         Directory.CreateDirectory(extDir);
         _tempDirs.Add(Path.GetDirectoryName(extDir)!);
         var imageFile = Path.Combine(extDir, "logo.png");
-        await File.WriteAllBytesAsync(imageFile, [0x89, 0x50]);
+        await File.WriteAllBytesAsync(imageFile, [0x89, 0x50], TestContext.Current.CancellationToken);
  
         var route = new Route { Name = "Test", Width = 1920, Height = 1080 };
         var widget = new Widget("FX2", htmlPath)
@@ -907,8 +907,8 @@ public class OverlayPorterTests : IDisposable
         _tempDirs.Add(Path.GetDirectoryName(outPath)!);
  
         await OverlayPorter.ExportRouteAsync(route, outPath, "FX2");
- 
-        using var zip = ZipFile.OpenRead(outPath);
+
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         var entries = zip.Entries.Select(e => e.FullName).ToList();
         Assert.Contains(entries, e => e.Contains("_external") && e.EndsWith("logo.png"));
     }
@@ -922,8 +922,8 @@ public class OverlayPorterTests : IDisposable
         var extDir = Path.Combine(Path.GetTempPath(), "OverlayPorterTests", Guid.NewGuid().ToString(), "media");
         Directory.CreateDirectory(extDir);
         _tempDirs.Add(Path.GetDirectoryName(extDir)!);
-        await File.WriteAllTextAsync(Path.Combine(extDir, "a.mp4"), "fake");
-        await File.WriteAllTextAsync(Path.Combine(extDir, "b.mp4"), "fake");
+        await File.WriteAllTextAsync(Path.Combine(extDir, "a.mp4"), "fake", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(extDir, "b.mp4"), "fake", TestContext.Current.CancellationToken);
  
         var route = new Route { Name = "Test", Width = 1920, Height = 1080 };
         var widget = new Widget("Folder", htmlPath)
@@ -948,14 +948,14 @@ public class OverlayPorterTests : IDisposable
         _tempDirs.Add(Path.GetDirectoryName(outPath)!);
  
         await OverlayPorter.ExportRouteAsync(route, outPath, "Folder");
- 
-        using var zip = ZipFile.OpenRead(outPath);
+
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         var entries = zip.Entries.Select(e => e.FullName).ToList();
         
         Assert.Contains(entries, e => e.Contains("_external/videoFolder") && e.EndsWith("a.mp4"));
         Assert.Contains(entries, e => e.Contains("_external/videoFolder") && e.EndsWith("b.mp4"));
         using var ms = new MemoryStream();
-        await zip.GetEntry("overlay.json")!.Open().CopyToAsync(ms);
+        await (await zip.GetEntry("overlay.json")!.OpenAsync(TestContext.Current.CancellationToken)).CopyToAsync(ms, TestContext.Current.CancellationToken);
         var doc = JsonDocument.Parse(ms.ToArray());
         var folderVar = doc.RootElement
             .GetProperty("widgets")[0]
@@ -971,7 +971,7 @@ public class OverlayPorterTests : IDisposable
         SetupServices();
         var htmlPath = MakeTempWidget("relvar");
         var assetPath = Path.Combine(Path.GetDirectoryName(htmlPath)!, "asset.png");
-        await File.WriteAllBytesAsync(assetPath, [0x89, 0x50]);
+        await File.WriteAllBytesAsync(assetPath, [0x89, 0x50], TestContext.Current.CancellationToken);
  
         var route = new Route { Name = "Test", Width = 1920, Height = 1080 };
         var widget = new Widget("Rel", htmlPath)
@@ -996,8 +996,8 @@ public class OverlayPorterTests : IDisposable
         _tempDirs.Add(Path.GetDirectoryName(outPath)!);
  
         await OverlayPorter.ExportRouteAsync(route, outPath, "Rel");
- 
-        using var zip = ZipFile.OpenRead(outPath);
+
+        await using var zip = await ZipFile.OpenReadAsync(outPath, TestContext.Current.CancellationToken);
         var entries = zip.Entries.Select(e => e.FullName).ToList();
         
         Assert.Contains(entries, e => e.EndsWith("asset.png") && !e.Contains("_external"));
@@ -1033,11 +1033,11 @@ public class OverlayPorterTests : IDisposable
  
         var smo1 = MakeSmoFile(MakeManifest([]), new Dictionary<string, string> { [htmlZipPath] = "" });
         var first = await OverlayPorter.ImportRouteAsync(smo1, extractRoot, factory);
-        await using (var db = await factory.CreateDbContextAsync())
+        await using (var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(first.Route!);
             db.Widgets.AddRange(first.NewWidgets);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
  
         var smo2 = MakeSmoFile(MakeManifest([
@@ -1082,12 +1082,12 @@ public class OverlayPorterTests : IDisposable
         var smo = MakeSmoFile(manifest, new Dictionary<string, string> { [htmlZipPath] = "" });
  
         var first = await OverlayPorter.ImportRouteAsync(smo, extractRoot, factory);
-        await using (var db = await factory.CreateDbContextAsync())
+        await using (var db = await factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(first.Route!);
             db.Widgets.AddRange(first.NewWidgets);
             db.CssVariables.AddRange(first.NewWidgets.SelectMany(w => w.CssVariables));
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
  
         var second = await OverlayPorter.ImportRouteAsync(smo, extractRoot, factory);

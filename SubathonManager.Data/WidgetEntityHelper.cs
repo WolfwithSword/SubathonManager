@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Data;
 
@@ -16,12 +19,14 @@ public class WidgetEntityHelper
     private readonly ILogger? _logger;
     private readonly IDbContextFactory<AppDbContext> _factory;
 
+    private readonly List<string> _protectedVarNames = ["height", "width", "url", "author", "version"];
+
     public WidgetEntityHelper(IDbContextFactory<AppDbContext>? factory, ILogger? logger)
     {
         _factory = factory ?? AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         _logger = logger ?? AppServices.Provider?.GetRequiredService<ILogger<WidgetEntityHelper>>();
     }
-    
+
     public void SyncCssVariables(Widget widget)
     {
         using var db = _factory.CreateDbContext();
@@ -32,7 +37,7 @@ public class WidgetEntityHelper
         {
             var cssVar = db.CssVariables
                 .FirstOrDefault(v => v.WidgetId == widget.Id && v.Name == variable.Name);
-            
+
             if (cssVar == null)
             {
                 db.CssVariables.Add(variable);
@@ -50,6 +55,7 @@ public class WidgetEntityHelper
                     cssVar.Description = variable.Description;
                 }
             }
+
             extractedNames.Add(variable.Name);
         }
 
@@ -60,7 +66,7 @@ public class WidgetEntityHelper
         {
             db.CssVariables.Remove(variable);
         }
-        
+
         //dedupe
         var seenNames = new HashSet<string>();
         foreach (var variable in db.CssVariables.AsNoTracking()
@@ -72,22 +78,28 @@ public class WidgetEntityHelper
                 db.CssVariables.Remove(variable);
             }
         }
+
         db.SaveChanges();
     }
 
     public void SyncJsVariables(Widget widget)
     {
-        Dictionary<string, string> metadata = ExtractWidgetMetadataSync(widget.HtmlPath);
-        
-        widget.DocsUrl = metadata.TryGetValue("Url", out var u) && !string.IsNullOrWhiteSpace(u)
-                                                                && Uri.IsWellFormedUriString(u, UriKind.Absolute)
-                                                                && !u.Trim().Equals(widget.DocsUrl)
-            ? u.Trim()
-            : widget.DocsUrl;
-        
+        WidgetMeta metadata = ExtractWidgetMetadataSync(widget.HtmlPath);
+        var oldUrl = widget.DocsUrl;
+        widget.DocsUrl =
+            !string.IsNullOrWhiteSpace(metadata.Url) && Uri.IsWellFormedUriString(metadata.Url, UriKind.Absolute)
+                                                     && !metadata.Url.Trim().Equals(widget.DocsUrl)
+                ? metadata.Url.Trim()
+                : widget.DocsUrl;
+
         var (jsVars, extractedNames, updatedVars) = LoadNewJsVariables(widget, metadata);
-        
+
         using var db = _factory.CreateDbContext();
+        if (oldUrl != widget.DocsUrl)
+        {
+            db.Widgets.First(w => w.Id == widget.Id).DocsUrl = widget.DocsUrl;
+        }
+
         db.JsVariables.AddRange(jsVars);
         // db.JsVariables.UpdateRange(updatedVars);
         foreach (var updated in updatedVars)
@@ -95,19 +107,23 @@ public class WidgetEntityHelper
             var tracked = db.JsVariables
                 .FirstOrDefault(v => v.WidgetId == widget.Id && v.Name == updated.Name);
             if (tracked != null)
+            {
                 tracked.Value = updated.Value;
+                tracked.Description = updated.Description;
+            }
         }
+
         db.SaveChanges();
 
         _logger?.LogDebug($"[Widget {widget.Name}] Added new JS variables: {jsVars.Count}");
-        
+
         foreach (var variable in db.JsVariables
                      .Where(v => v.WidgetId == widget.Id && !extractedNames.Contains(v.Name))
                      .ToList())
         {
             db.JsVariables.Remove(variable);
         }
-        
+
         var seenNames = new HashSet<string>();
         foreach (var variable in db.JsVariables.AsNoTracking()
                      .Where(v => v.WidgetId == widget.Id)
@@ -121,75 +137,225 @@ public class WidgetEntityHelper
 
         db.SaveChanges();
     }
-    
+
+
     public (List<JsVariable>, List<string>, List<JsVariable>) LoadNewJsVariables(Widget widget, Dictionary<string, string> metadata)
+    {
+        return LoadNewJsVariables(widget, ConvertHtmlMetaToJsonMeta(metadata));
+    }
+
+
+    public (List<JsVariable>, List<string>, List<JsVariable>) LoadNewJsVariables(Widget widget, WidgetMeta metadata)
     {
         var extractedVars = new List<JsVariable>();
         var extractedNames = new List<string>();
         var updatedVars = new List<JsVariable>();
-        foreach (var key in metadata.Keys)
-        {
-            if (key.Count(c => c == '.') != 1) continue;
-            JsVariable jVar = new JsVariable
-            {
-                Name = key.Split('.')[0]
-            };
-            if (string.IsNullOrEmpty(jVar.Name) || "/?<>~!@#$%^&*()_+=-{}|\\]['\";:,.".Contains(jVar.Name[0])) continue;
-            if (extractedNames.Contains(jVar.Name)) continue;
-            extractedNames.Add(jVar.Name);
-            if (widget.JsVariables.Any(v => v.Name == jVar.Name 
-                                            && v.Type != WidgetVariableType.StringSelect)) continue;
-            
-            jVar.Value = metadata[key];
-            if (Enum.TryParse<WidgetVariableType>(key.Split('.')[1], ignoreCase: true, out var type))
-                jVar.Type = type;
-            if (jVar.Value == "NONE") jVar.Value = string.Empty;
-            if (jVar.Type is WidgetVariableType.EventTypeSelect or WidgetVariableType.EventSubTypeSelect)
-            {
-                if (!string.IsNullOrWhiteSpace(jVar.Value) &&
-                    !Enum.TryParse(jVar.Type.GetClsSingleType(), jVar.Value, true, out _))
-                {
-                    jVar.Value = string.Empty;
-                }
-            }
-            else if (jVar.Type == WidgetVariableType.StringSelect && widget.JsVariables.Any(v => v.Name == jVar.Name))
-            {
-                var oldJVar = widget.JsVariables.Find(v => v.Name == jVar.Name);
-                if (oldJVar != null)
-                {
-                    var oldVals = oldJVar.Value.Split(',').ToList();
-                    var newVals = jVar.Value.Split(',').ToList();
-                    foreach (var v in newVals)
-                    {
-                        if (!oldVals.Contains(v)) oldVals.Add(v);
-                    }
 
-                    oldVals.RemoveAll(v => !newVals.Contains(v));
-                    oldJVar.Value = string.Join(",", oldVals);
-                    updatedVars.Add(oldJVar);
-                    continue;
+        foreach (var (varName, metaVar) in metadata.Vars)
+        {
+            if (string.IsNullOrEmpty(varName) || "/?<>~!@#$%^&*()_+=-{}|\\]['\";:,.".Contains(varName[0])) continue;
+            if (extractedNames.Contains(varName)) continue;
+            extractedNames.Add(varName);
+
+            var existingVar = widget.JsVariables.Find(v => v.Name == varName);
+            var description = metaVar.Description;
+
+            if (metaVar.Type == WidgetVariableType.StringSelect && existingVar != null)
+            {
+                var oldVals = existingVar.Value.Split(',').Select(v => v.Trim()).ToList();
+                var newVals = metaVar.Options ?? ((string)metaVar.Value).Split(',').Select(v => v.Trim()).ToList();
+                foreach (var v in newVals)
+                    if (!oldVals.Contains(v)) oldVals.Add(v);
+                oldVals.RemoveAll(v => !newVals.Contains(v));
+                existingVar.Value = string.Join(",", oldVals);
+                if (!string.Equals(description, existingVar.Description))
+                {
+                    existingVar.Description = description;
+                }
+                updatedVars.Add(existingVar);
+                continue;
+            }
+
+
+            if (existingVar != null && existingVar.Type != WidgetVariableType.StringSelect)
+            {
+                if (!string.Equals(description, existingVar.Description))
+                {
+                    existingVar.Description = description;
+                    updatedVars.Add(existingVar);
+                }
+
+                continue;
+            }
+
+            var value = metaVar.ValueToString();
+            
+            if (metaVar.Type is WidgetVariableType.EventTypeSelect or WidgetVariableType.EventSubTypeSelect)
+            {
+                if (!string.IsNullOrWhiteSpace(value) &&
+                    !Enum.TryParse(metaVar.Type.GetClsSingleType(), value, true, out _))
+                {
+                    value = string.Empty;
                 }
             }
-            jVar.WidgetId = widget.Id;
-            extractedVars.Add(jVar);
+            
+            extractedVars.Add(new JsVariable
+            {
+                Name = varName,
+                WidgetId = widget.Id,
+                Type = metaVar.Type,
+                Value = value,
+                Description = description
+            });
         }
+
         return (extractedVars, extractedNames, updatedVars);
     }
-
-    public Dictionary<string, string> ExtractWidgetMetadataSync(string htmlpath)
+    
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        var html = File.ReadAllText(htmlpath);
-        return GetMetaData(html);
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    public WidgetMeta ExtractWidgetMetadataSync(string htmlpath)
+    {
+        var jsonPath = htmlpath + ".json";
+        if (!File.Exists(jsonPath))
+        {
+            var html = File.ReadAllText(htmlpath);
+            Dictionary<string, string> data = GetMetaDataHtml(html);
+            try
+            {
+                File.WriteAllText(jsonPath, JsonSerializer.Serialize(ConvertHtmlMetaToJsonMeta(data), JsonOptions));
+                _logger?.LogDebug("Wrote widget meta JSON to {Path}", jsonPath);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to write widget meta JSON to {Path}", jsonPath);
+                return new WidgetMeta();
+            }
+            
+        }
+        try
+        {
+            var json = File.ReadAllText(jsonPath);
+            return JsonSerializer.Deserialize<WidgetMeta>(json, JsonOptions) ?? new WidgetMeta();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to read widget meta JSON at {Path}", jsonPath);
+        }
+
+        return new WidgetMeta();
     }
 
-    public async Task<Dictionary<string, string>> ExtractWidgetMetadata(string htmlpath)
+    public async Task<WidgetMeta> ExtractWidgetMetadata(string htmlpath)
     {
+        var jsonPath = htmlpath + ".json";
+        if (!File.Exists(jsonPath))
+        {
+            var html = await File.ReadAllTextAsync(htmlpath);
+            Dictionary<string, string> data = GetMetaDataHtml(html);
+            try
+            {
+                await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(ConvertHtmlMetaToJsonMeta(data), JsonOptions));
+                _logger?.LogDebug("Wrote widget meta JSON to {Path}", jsonPath);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to write widget meta JSON to {Path}", jsonPath);
+                return new WidgetMeta();
+            }
+        }
+        
+        try
+        {
+            var json = await File.ReadAllTextAsync(jsonPath);
+            return JsonSerializer.Deserialize<WidgetMeta>(json, JsonOptions) ?? new WidgetMeta();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to read widget meta JSON at {Path}", jsonPath);
+        }
 
-        var html = await File.ReadAllTextAsync(htmlpath);
-        return GetMetaData(html);
+        return new WidgetMeta();
+    }
+
+   internal WidgetMeta ConvertHtmlMetaToJsonMeta(Dictionary<string, string> data)
+    {
+        WidgetMeta meta = new()
+        {
+            Author = data.GetValueOrDefault("Author", string.Empty),
+            Url = data.GetValueOrDefault("Url", string.Empty),
+            Width = int.TryParse(data.GetValueOrDefault("Width", "400"), out var width) ? width : 400,
+            Height = int.TryParse(data.GetValueOrDefault("Height", "200"), out var height) ? height : 200
+        };
+
+        foreach (var key in data.Keys)//.Where(x => x.Contains('.')))
+        {
+            var parts = key.Split('.');
+            var varName = parts[0];
+            if (_protectedVarNames.Contains(varName.ToLower())) continue; 
+            if (parts.Length < 2)
+            {
+                parts = [varName, "String"]; // default case if missing
+            }
+            if (string.IsNullOrEmpty(varName) || parts.Length < 2) continue;
+
+            if (!Enum.TryParse(parts[1], true, out WidgetVariableType type)) continue;
+
+            var rawValue = data.GetValueOrDefault(key, string.Empty);
+            if (string.Equals(rawValue, "NONE", StringComparison.OrdinalIgnoreCase))
+                rawValue = string.Empty;
+
+            WidgetMetaVar wVar = new()
+            {
+                Name = varName,
+                Type = type,
+            };
+
+            if (type is WidgetVariableType.StringSelect)
+            {
+                var options = rawValue.Split(',')
+                    .Select(v => v.Trim())
+                    .Where(v => !string.IsNullOrEmpty(v) && v != "NONE")
+                    .ToList();
+                wVar.Options = options;
+                wVar.Value = options.Count > 0 ? options[0] : string.Empty;
+            }
+            else if (type is WidgetVariableType.EventSubTypeSelect or WidgetVariableType.EventTypeSelect)
+            {
+                wVar.Value = rawValue;
+            }
+            else if (type.IsListType())
+            {
+                var items = rawValue.Split(',')
+                    .Select(v => v.Trim())
+                    .Where(v => !string.IsNullOrEmpty(v) && v != "NONE")
+                    .ToList();
+                wVar.Value = items;
+            }
+            else
+            {
+                wVar.Value = type switch
+                {
+                    WidgetVariableType.Boolean => bool.TryParse(rawValue, out var b) && b,
+                    WidgetVariableType.Int => int.TryParse(rawValue, out var i) ? i : 0,
+                    WidgetVariableType.Percent => int.TryParse(rawValue, out var i) ? i : 0,
+                    WidgetVariableType.Float => float.TryParse(rawValue, out var d) ? d : 0,
+                    _ => rawValue
+                };
+            }
+
+            meta.Vars[varName] = wVar;
+        }
+
+        return meta;
     }
     
-    private Dictionary<string, string> GetMetaData(string html) {
+    
+    private Dictionary<string, string> GetMetaDataHtml(string html) {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var pattern = @"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->";
         var match  = Regex.Match(html, pattern, RegexOptions.Singleline);
@@ -283,4 +449,5 @@ public class WidgetEntityHelper
         await db.Entry(widget).ReloadAsync();
         return true;
     }
+    
 }

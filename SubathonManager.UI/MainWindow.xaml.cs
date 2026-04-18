@@ -1,6 +1,8 @@
 ﻿using System.Windows;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Interop;
@@ -66,6 +68,23 @@ namespace SubathonManager.UI
 
                 handled = true;
             }
+            
+            if (msg == Utils.SingleInstanceHelper.WM_COPYDATA)
+            {
+                var cds = Marshal.PtrToStructure<Utils.SingleInstanceHelper.COPYDATASTRUCT>(lParam);
+                var path = Marshal.PtrToStringUni(cds.lpData, cds.cbData / 2);
+
+                if (!string.IsNullOrWhiteSpace(path) && (File.Exists(path) || path.StartsWith("http", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Dispatcher.Invoke(async () =>
+                    {
+                        MainWindowTabs.SelectedItem = OverlayTabItem;
+                        await ImportRouteFromFile(path);
+                    });
+                }
+
+                handled = true;
+            }
 
             return IntPtr.Zero;
         }
@@ -85,6 +104,14 @@ namespace SubathonManager.UI
                 .Trim().ToUpperInvariant() ?? "USD";
             
             await ShowTelemetryPromptAsync();
+            
+            if (!string.IsNullOrWhiteSpace(Utils.PendingOverlayImportPath))
+            {
+                MainWindowTabs.SelectedItem = OverlayTabItem;
+                await Task.Delay(500); 
+                await ImportRouteFromFile(Utils.PendingOverlayImportPath);
+                Utils.PendingOverlayImportPath = null;
+            }
         }
         
         private void ExportRoute_Click(object sender, RoutedEventArgs e)
@@ -112,24 +139,44 @@ namespace SubathonManager.UI
  
             if (openDialog.ShowDialog() != true) return;
  
+            await ImportRouteFromFile(openDialog.FileName);
+        }
+
+        private async Task<bool> ImportRouteFromFile(string filePath)
+        {
+            if (filePath.StartsWith("http"))
+            {
+                using var client = new HttpClient();
+                using var response = await client.GetAsync(filePath);
+                response.EnsureSuccessStatusCode();
+        
+                string fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                                  ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                                  ?? Uri.UnescapeDataString(Path.GetFileNameWithoutExtension(new Uri(filePath).AbsolutePath));
+        
+                if (string.IsNullOrWhiteSpace(fileName)) fileName = "imported_overlay";
+                if (!fileName.EndsWith(".smo", StringComparison.OrdinalIgnoreCase)) fileName += ".smo";
+
+                string tempFile = Path.Combine(Path.GetTempPath(), fileName);
+                await File.WriteAllBytesAsync(tempFile, await response.Content.ReadAsByteArrayAsync());
+                filePath = tempFile;
+            }
+            
             string importsDir = Path.GetFullPath($"./imports");
-            //string importsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "imports");
- 
             try
             {
-                var result = await OverlayPorter.ImportRouteAsync(
-                    openDialog.FileName, importsDir, _factory);
+                var result = await OverlayPorter.ImportRouteAsync(filePath, importsDir, _factory);
  
                 if (result.Failed)
                 {
                     _logger?.LogError("Import failed: {Reason}", result.FailReason);
-                    return;
+                    return false;
                 }
  
                 if (!result.HasAnythingNew)
                 {
                     _logger?.LogInformation("Import: everything already exists, nothing to add");
-                    return;
+                    return false;
                 }
  
                 await using var db = await _factory.CreateDbContextAsync();
@@ -148,10 +195,12 @@ namespace SubathonManager.UI
  
                 await db.SaveChangesAsync();
                 await Dispatcher.InvokeAsync(LoadRoutes);
+                return true;
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, "Import of overlay failed");
+                return false;
             }
         }
         

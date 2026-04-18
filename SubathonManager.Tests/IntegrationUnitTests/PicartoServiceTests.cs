@@ -64,13 +64,9 @@ public class PicartoServiceTests
     }
     
     
-    private class TestEventClient : PicartoEventsClient
+    private class TestEventClient(PicartoClientOptions options, ILogger<PicartoEventsClient>? logger)
+        : PicartoEventsClient(options, (ILogger<PicartoEventsClient>?)logger)
     {
-        public TestEventClient(PicartoClientOptions options, ILogger<PicartoEventsClient>? logger)
-            : base(options, (ILogger<PicartoEventsClient>?) logger)
-        {
-        }
-
         public override async Task ConnectAsync()
         {
             await Task.Delay(1);
@@ -85,13 +81,9 @@ public class PicartoServiceTests
         }
     }
     
-    private class TestChatClient : PicartoChatClient
+    private class TestChatClient(PicartoClientOptions options, ILogger<PicartoChatClient>? logger)
+        : PicartoChatClient(options, (ILogger<PicartoChatClient>?)logger)
     {
-        public TestChatClient(PicartoClientOptions options, ILogger<PicartoChatClient>? logger)
-            : base(options, (ILogger<PicartoChatClient>?) logger)
-        {
-        }
-
         public new async Task ConnectAsync()
         {
             await Task.Delay(1);
@@ -234,9 +226,9 @@ public class PicartoServiceTests
         if (output)
         {
             Assert.NotNull(captured);
-            Assert.Equal(SubathonEventSource.Picarto, captured!.Source);
-            Assert.Equal(SubathonEventType.Command, captured!.EventType);
-            Assert.Equal(SubathonCommandType.Pause, captured!.Command);
+            Assert.Equal(SubathonEventSource.Picarto, captured.Source);
+            Assert.Equal(SubathonEventType.Command, captured.EventType);
+            Assert.Equal(SubathonCommandType.Pause, captured.Command);
             Assert.Equal(user, captured.User);
         }
         else
@@ -249,7 +241,7 @@ public class PicartoServiceTests
     public void OnDisposedProperlyTest()
     {
                 
-        var configCs = MockConfig(new()
+        var configCs = MockConfig(new Dictionary<(string, string), string>
         {
             { ("Chat", "Commands.Pause"), "pause" },
             { ("Chat", "Commands.Pause.permissions.Mods"), "false" },
@@ -315,9 +307,9 @@ public class PicartoServiceTests
         };
         IntegrationEvents.ConnectionUpdated += handler;
         
-        await service.StartAsync();
+        await service.StartAsync(TestContext.Current.CancellationToken);
         
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         
         Assert.True(eventChatConnectRaised);
         Assert.True(eventAlertsConnectRaised);
@@ -328,10 +320,10 @@ public class PicartoServiceTests
         service.Dispose();
         Assert.True(service._disposed);
         
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         Assert.True(eventChatDisconnectRaised);
         Assert.True(eventAlertsDisconnectRaised);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
     }
     
         
@@ -383,9 +375,9 @@ public class PicartoServiceTests
         };
         IntegrationEvents.ConnectionUpdated += handler;
         
-        await service.StartAsync();
+        await service.StartAsync(TestContext.Current.CancellationToken);
         
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         
         Assert.True(eventChatConnectRaised);
         Assert.True(eventAlertsConnectRaised);
@@ -393,7 +385,7 @@ public class PicartoServiceTests
         // configCs.Set("Picarto", "Username", "NewChannel");
         await service.UpdateChannel();
         
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         Assert.True(eventChatDisconnectRaised);
         Assert.True(eventAlertsDisconnectRaised);
         

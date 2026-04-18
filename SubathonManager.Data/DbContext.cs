@@ -197,6 +197,17 @@ namespace SubathonManager.Data
             sb.AppendLine("Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp,Secondary Value");
             foreach (var e in events)
             {
+                var val = e.Value;
+                if (e.EventType is SubathonEventType.TwitchGiftSub or SubathonEventType.TwitchSub)
+                {
+                    val = e.Value switch
+                    {
+                        "1000" => "T1",
+                        "2000" => "T2",
+                        "3000" => "T3",
+                        _ => val
+                    };
+                }
                 sb.AppendLine(string.Join(",",
                     e.Id,
                     Utils.EscapeCsv(e.Source.ToString()),
@@ -205,7 +216,7 @@ namespace SubathonManager.Data
                     Utils.EscapeCsv(e.User),
                     e.SecondsValue,
                     e.PointsValue,
-                    Utils.EscapeCsv(e.Value),
+                    Utils.EscapeCsv(val),
                     Utils.EscapeCsv(e.Currency),
                     e.Amount,
                     e.MultiplierSeconds,
@@ -315,7 +326,8 @@ namespace SubathonManager.Data
                 new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 new SubathonValue { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
-                new SubathonValue { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1}
+                new SubathonValue { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new SubathonValue { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 }
             };
 
             foreach (var def in defaults)

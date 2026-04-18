@@ -82,9 +82,13 @@
                                     <ComboBoxItem Content="Dark"/>
                                     <ComboBoxItem Content="Light"/>
                                 </ComboBox>
+                                <CheckBox x:Name="ShowEventsWhenLockedBox" Margin="4 0 4 0" ToolTip="When the timer is locked, still show events that come in"
+                                          Content="Events when Locked?"/>
                             </StackPanel>
                             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
                                 <Button x:Name="TelemetryBtn" Content="Data Collection" Margin="2 0 4 0" Width = "222" Click="ShowTelemetryPromptAsync"/>
+                                <CheckBox x:Name="AddOtherWhenLockedBox" Margin="4 0 4 0" ToolTip="When the timer is locked, still add points and donations amounts"
+                                          Content="Values when Locked?"/>
                             </StackPanel>
                         </Grid>
                         

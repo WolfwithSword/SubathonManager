@@ -1,0 +1,22 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#goals-list",
+  "Width": 420,
+  "Height": 600,
+  "Vars": {
+    "showLastCompleted": {
+      "Name": "showLastCompleted",
+      "Type": "Boolean",
+      "Description": "Show last completed goal or not",
+      "Value": true,
+      "Options": null
+    },
+    "maxGoalsToShow": {
+      "Name": "maxGoalsToShow",
+      "Type": "Int",
+      "Description": "Max number of goals to show, including last completed if true",
+      "Value": 3,
+      "Options": null
+    }
+  }
+}

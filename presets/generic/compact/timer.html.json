@@ -1,0 +1,180 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/compact-timer/",
+  "Width": 500,
+  "Height": 160,
+  "Vars": {
+    "showIcons": {
+      "Name": "showIcons",
+      "Type": "Boolean",
+      "Description": "Display icons next to each statistic",
+      "Value": false,
+      "Options": null
+    },
+    "showSubs": {
+      "Name": "showSubs",
+      "Type": "Boolean",
+      "Description": "Show total subscriptions",
+      "Value": true,
+      "Options": null
+    },
+    "subsLabel": {
+      "Name": "subsLabel",
+      "Type": "String",
+      "Description": "Label for subscriptions",
+      "Value": "subs",
+      "Options": null
+    },
+    "subEvents": {
+      "Name": "subEvents",
+      "Type": "SubEventTypeList",
+      "Description": "Which subscription events to count",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "YouTubeMembership",
+        "YouTubeGiftMembership"
+      ],
+      "Options": null
+    },
+    "subCountOffset": {
+      "Name": "subCountOffset",
+      "Type": "Int",
+      "Description": "Offset for sub count on display",
+      "Value": 0,
+      "Options": null
+    },
+    "showBitsTokens": {
+      "Name": "showBitsTokens",
+      "Type": "Boolean",
+      "Description": "Show total bits/tokens",
+      "Value": true,
+      "Options": null
+    },
+    "tokensLabel": {
+      "Name": "tokensLabel",
+      "Type": "String",
+      "Description": "Label for bits/tokens",
+      "Value": "bits",
+      "Options": null
+    },
+    "tokenEvents": {
+      "Name": "tokenEvents",
+      "Type": "TokenEventTypeList",
+      "Description": "Which token events to count",
+      "Value": [
+        "TwitchCheer",
+        "BlerpBits",
+        "BlerpBeets"
+      ],
+      "Options": null
+    },
+    "tokensCountOffset": {
+      "Name": "tokensCountOffset",
+      "Type": "Int",
+      "Description": "Offset for token count on display",
+      "Value": 0,
+      "Options": null
+    },
+    "showTotalDonated": {
+      "Name": "showTotalDonated",
+      "Type": "Boolean",
+      "Description": "Show total amount donated in configured currency",
+      "Value": true,
+      "Options": null
+    },
+    "donatedLabel": {
+      "Name": "donatedLabel",
+      "Type": "String",
+      "Description": "Label for total donated",
+      "Value": "",
+      "Options": null
+    },
+    "donatedOffset": {
+      "Name": "donatedOffset",
+      "Type": "Float",
+      "Description": "Offset for total donated display",
+      "Value": 0,
+      "Options": null
+    },
+    "showFollows": {
+      "Name": "showFollows",
+      "Type": "Boolean",
+      "Description": "Show total follows gained",
+      "Value": true,
+      "Options": null
+    },
+    "followsLabel": {
+      "Name": "followsLabel",
+      "Type": "String",
+      "Description": "Label for follows",
+      "Value": "follows",
+      "Options": null
+    },
+    "followEvents": {
+      "Name": "followEvents",
+      "Type": "FollowEventTypeList",
+      "Description": "Which follow events to count",
+      "Value": [
+        "TwitchFollow"
+      ],
+      "Options": null
+    },
+    "followCountOffset": {
+      "Name": "followCountOffset",
+      "Type": "Int",
+      "Description": "Offset for follow count on display",
+      "Value": 0,
+      "Options": null
+    },
+    "showPoints": {
+      "Name": "showPoints",
+      "Type": "Boolean",
+      "Description": "Show total points",
+      "Value": true,
+      "Options": null
+    },
+    "pointsLabel": {
+      "Name": "pointsLabel",
+      "Type": "String",
+      "Description": "Label for points",
+      "Value": "pts",
+      "Options": null
+    },
+    "pointsOffset": {
+      "Name": "pointsOffset",
+      "Type": "Int",
+      "Description": "Offset for points on display",
+      "Value": 0,
+      "Options": null
+    },
+    "includeSimulated": {
+      "Name": "includeSimulated",
+      "Type": "Boolean",
+      "Description": "Whether or not to include simulated test events in all counts",
+      "Value": false,
+      "Options": null
+    },
+    "finishSound": {
+      "Name": "finishSound",
+      "Type": "SoundFile",
+      "Description": "",
+      "Value": "./bell.mp3",
+      "Options": null
+    },
+    "playSoundOnFinish": {
+      "Name": "playSoundOnFinish",
+      "Type": "Boolean",
+      "Description": "",
+      "Value": true,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    }
+  }
+}
