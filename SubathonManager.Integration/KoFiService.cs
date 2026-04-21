@@ -34,6 +34,15 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
 
     public async Task StartAsync(CancellationToken ct = default)
     {
+        bool updatedConfig = false;
+        foreach (var subathonEventType in Enum.GetValues<SubathonEventType>().Where(x =>
+                     x.GetSource() == SubathonEventSource.KoFi && ((SubathonEventType?)x).IsOrder()))
+        {
+            updatedConfig |= config.SetBool( nameof(SubathonEventSource.KoFi),
+                $"{subathonEventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
+        }
+        if (updatedConfig) config.Save();
+        
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
 
         var token = config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);
@@ -41,14 +50,14 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
 
         if (enabled)
         {
-            logger?.LogInformation("[Ko-fi] Webhook listener ready at {Path}", WebhookPath);
+            logger?.LogInformation("[Ko-Fi] Webhook listener ready at {Path}", WebhookPath);
             // Start tunnel on demand; no need to open a public endpoint if no token is set.
             // Fire-and-forget: OnTunnelUpdated will broadcast the composed URL once ready.
             _ = devTunnels.StartTunnelAsync(ct);
         }
         else
         {
-            logger?.LogInformation("[Ko-fi] No verification token configured; Ko-fi integration is disabled");
+            logger?.LogInformation("[Ko-Fi] No verification token configured; Ko-Fi integration is disabled");
         }
 
         // Seed status; include public URL if the tunnel is already running
@@ -90,12 +99,12 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
         {
             Name = fullUrl ?? "",
             Status = enabled && fullUrl != null,
-            Source = SubathonEventSource.KoFiWebhook,
-            Service = nameof(SubathonEventSource.KoFiWebhook)
+            Source = SubathonEventSource.KoFiTunnel,
+            Service = nameof(SubathonEventSource.KoFiTunnel)
         });
 
         if (fullUrl != null)
-            logger?.LogInformation("[Ko-fi] Public webhook URL: {Url}", fullUrl);
+            logger?.LogInformation("[Ko-Fi] Public webhook URL: {Url}", fullUrl);
     }
 
     public async Task HandleWebhookAsync(byte[] rawBody, IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
@@ -107,12 +116,12 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
         var token = config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);
         if (string.IsNullOrWhiteSpace(token))
         {
-            logger?.LogWarning("[Ko-fi] Received webhook but no verification token is configured");
+            logger?.LogWarning("[Ko-Fi] Received webhook but no verification token is configured");
             return;
         }
 
-        // Ko-fi always sends application/x-www-form-urlencoded; use the inbound
-        // Content-Type if present, fall back to the known Ko-fi value.
+        // Ko-Fi always sends application/x-www-form-urlencoded; use the inbound
+        // Content-Type if present, fall back to the known Ko-Fi value.
         var contentType = headers.TryGetValue("Content-Type", out var ct2) ? ct2
             : "application/x-www-form-urlencoded";
 
@@ -128,13 +137,13 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
 
         if (!result.IsAuthenticated)
         {
-            logger?.LogWarning("[Ko-fi] Webhook authentication failed: {Reason}", result.FailureReason);
+            logger?.LogWarning("[Ko-Fi] Webhook authentication failed: {Reason}", result.FailureReason);
             return;
         }
 
         if (!result.IsKnownEvent || result.Event is null)
         {
-            logger?.LogDebug("[Ko-fi] Received unknown/unsupported Ko-fi event type");
+            logger?.LogDebug("[Ko-Fi] Received unknown/unsupported Ko-Fi event type");
             return;
         }
 
@@ -142,7 +151,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
         if (ev != null)
         {
             SubathonEvents.RaiseSubathonEventCreated(ev);
-            logger?.LogDebug("[Ko-fi] Raised {EventType} from {User}", ev.EventType, ev.User);
+            logger?.LogDebug("[Ko-Fi] Raised {EventType} from {User}", ev.EventType, ev.User);
         }
     }
 
@@ -150,56 +159,75 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
     {
         try
         {
+            var mode = config.Get(_configSection, $"{SubathonEventType.KoFiShopOrder}.Mode", "Dollar");
+            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
+            var defaultCurrency = "USD";
+            string username = koFiEvent.FromName ?? "Ko-Fi Supporter";
+            if (!koFiEvent.IsPublic) username = "Ko-Fi Supporter";
             return koFiEvent switch
             {
                 KoFiDonationEvent d => new SubathonEvent
                 {
                     Id = TryParseGuid(d.MessageId),
-                    Source = SubathonEventSource.KoFiWebhook,
+                    Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiDonation,
-                    User = d.FromName ?? "Ko-fi Supporter",
+                    User = username,
                     Value = d.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
-                    Currency = d.Currency ?? "USD",
+                    Currency = string.IsNullOrWhiteSpace(d.Currency) ? d.Currency : defaultCurrency,
                     EventTimestamp = d.Timestamp.LocalDateTime,
                 },
                 KoFiSubscriptionStartedEvent s => new SubathonEvent
                 {
                     Id = TryParseGuid(s.MessageId),
-                    Source = SubathonEventSource.KoFiWebhook,
+                    Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiSub,
-                    User = s.FromName ?? "Ko-fi Supporter",
-                    Value = s.TierName ?? "1000",
+                    User = username,
+                    Value = s.TierName ?? "DEFAULT",
                     Currency = "member",
                     EventTimestamp = s.Timestamp.LocalDateTime,
                 },
                 KoFiSubscriptionRenewedEvent r => new SubathonEvent
                 {
                     Id = TryParseGuid(r.MessageId),
-                    Source = SubathonEventSource.KoFiWebhook,
+                    Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiSub,
-                    User = r.FromName ?? "Ko-fi Supporter",
-                    Value = r.TierName ?? "1000",
+                    User = username,
+                    Value = r.TierName ?? "DEFAULT",
                     Currency = "member",
                     EventTimestamp = r.Timestamp.LocalDateTime,
                 },
                 KoFiShopOrderEvent shop => new SubathonEvent
                 {
                     Id = TryParseGuid(shop.MessageId),
-                    Source = SubathonEventSource.KoFiWebhook,
+                    Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiShopOrder,
-                    User = shop.FromName ?? "Ko-fi Supporter",
-                    Value = shop.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
-                    Currency = shop.Currency ?? "USD",
+                    User = username,
+                    Value = sourceMode switch
+                                {
+                                    OrderTypeModes.Item => $"{shop.ShopItems?.Count ?? 1}",
+                                    OrderTypeModes.Order => "New",
+                                    _ => shop.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)
+                                },
+                    Currency = sourceMode switch
+                                {
+                                    OrderTypeModes.Item => "items",
+                                    OrderTypeModes.Order => "order",
+                                    _ =>  string.IsNullOrWhiteSpace(shop.Currency) ? shop.Currency : defaultCurrency
+                                },
+                    Amount = shop.ShopItems?.Count ?? 1,
+                    SecondaryValue = $"{shop.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}|{
+                        (string.IsNullOrWhiteSpace(shop.Currency) ? shop.Currency : defaultCurrency)}",
                     EventTimestamp = shop.Timestamp.LocalDateTime,
                 },
                 KoFiCommissionEvent comm => new SubathonEvent
                 {
                     Id = TryParseGuid(comm.MessageId),
-                    Source = SubathonEventSource.KoFiWebhook,
+                    Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiCommissionOrder,
-                    User = comm.FromName ?? "Ko-fi Supporter",
+                    User = username,
                     Value = comm.Amount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
-                    Currency = comm.Currency ?? "USD",
+                    Currency = string.IsNullOrWhiteSpace(comm.Currency) ? comm.Currency : defaultCurrency,
+                    Amount = 1,
                     EventTimestamp = comm.Timestamp.LocalDateTime,
                 },
                 _ => null
@@ -207,7 +235,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
         }
         catch (Exception ex)
         {
-            logger?.LogWarning(ex, "[Ko-fi] Failed to map Ko-fi event to SubathonEvent");
+            logger?.LogWarning(ex, "[Ko-Fi] Failed to map Ko-Fi event to SubathonEvent");
             return null;
         }
     }
@@ -256,11 +284,11 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                 };
 
                 var response = await client.PostAsync(url, content, ct);
-                logger?.LogDebug("[Ko-fi] Forwarded webhook to {Url}: {Status}", url, response.StatusCode);
+                logger?.LogDebug("[Ko-Fi] Forwarded webhook to {Url}: {Status}", url, response.StatusCode);
             }
             catch (Exception ex)
             {
-                logger?.LogWarning(ex, "[Ko-fi] Failed to forward webhook to {Url}", url);
+                logger?.LogWarning(ex, "[Ko-Fi] Failed to forward webhook to {Url}", url);
             }
         }
     }

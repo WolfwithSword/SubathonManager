@@ -174,7 +174,14 @@ namespace SubathonManager.Data
                 if (asDonation && Enum.TryParse($"{goAffProSource}Order", out SubathonEventType eventType))
                     orderTypesToInclude.Add(eventType);
             }
-
+            foreach (var kofiOrderEvent in Enum.GetValues<SubathonEventType>().Where(et =>
+                         ((SubathonEventType?)et).IsOrder() && et.GetSource() == SubathonEventSource.KoFi && !et.IsDisabled()))
+            {
+                bool asDonation = Utils.DonationSettings.TryGetValue($"{kofiOrderEvent.ToString()?.Split("Order")[0]}", out  bool donation) && donation;
+                if (asDonation)
+                    orderTypesToInclude.Add(kofiOrderEvent);
+            }
+            
             events = events.Where(e => e.EventType != null && 
                                        (e.EventType.IsCurrencyDonation() ||
                                         (e.EventType.IsOrder() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||

@@ -30,9 +30,9 @@ public enum SubathonEventSource
     Picarto,
     [EventSourceMeta(Description = "GoAffPro Affiliate Stores", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=61, Order=50)]
     GoAffPro,
-    [EventSourceMeta(Description = "Ko-fi Webhook", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=42, Order=41)]
-    KoFiWebhook,
-    [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=70, Order=60)]
+    [EventSourceMeta(Description = "Ko-Fi (Tunnel)", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=42, Visible=false, TrueSource=KoFi, Order=41)]
+    KoFiTunnel,
+    [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=70, Visible=false, Order=120)]
     DevTunnels
 }
 

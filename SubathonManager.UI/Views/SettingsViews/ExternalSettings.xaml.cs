@@ -1,5 +1,6 @@
 ﻿using System.Windows.Controls;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.UI.Views.SettingsViews.External;
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -8,7 +9,7 @@ public partial class ExternalSettings : SettingsGroupControl
 {
     protected override IEnumerable<SubathonEventSource> _eventSources =>
         Enum.GetValues<SubathonEventSource>()
-            .Where(s => s.GetGroup() == SubathonSourceGroup.ExternalService && s != SubathonEventSource.KoFiWebhook)
+            .Where(s => s.GetGroup() == SubathonSourceGroup.ExternalService && s != SubathonEventSource.KoFiTunnel)
             .OrderBy(g => g.GetGroupLabelOrder());
 
     protected override StackPanel? GetSourceContents => SourceContents;
@@ -17,6 +18,7 @@ public partial class ExternalSettings : SettingsGroupControl
     public ExternalSettings()
     {
         InitializeComponent();
+        SettingsEvents.HotLinkToDevTunnelsRequested += HotLinkToDevTunnels;
     }
 
     protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
@@ -28,7 +30,7 @@ public partial class ExternalSettings : SettingsGroupControl
             case SubathonEventSource.KoFi:
                 _settingsControls[eventSource] = new KoFiCombinedSettings();
                 break;
-            case SubathonEventSource.KoFiWebhook:
+            case SubathonEventSource.KoFiTunnel:
                 // merged into KoFi tab — return the shared instance without registering again
                 return _settingsControls.TryGetValue(SubathonEventSource.KoFi, out var kofi) ? kofi : null;
             case SubathonEventSource.DevTunnels:
@@ -55,6 +57,11 @@ public partial class ExternalSettings : SettingsGroupControl
             ((KoFiCombinedSettings?) control)?.RefreshTierCombo();
         if (source == SubathonEventSource.External)
             ((ExternalServiceSettings?) control)?.RefreshTierCombo();
+    }
+    
+    private void HotLinkToDevTunnels()
+    {
+        TryHotLinkToSource(SubathonEventSource.DevTunnels);
     }
     
 }

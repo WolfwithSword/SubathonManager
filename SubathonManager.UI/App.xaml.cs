@@ -81,6 +81,12 @@ public partial class App
                 Utils.DonationSettings[$"{goAffProSource}"] =
                     config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
             }
+            foreach (var kofiOrderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
+                         && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
+            {
+                Utils.DonationSettings[$"{kofiOrderSource.ToString()?.Split("Order")[0]}"] =
+                    config.GetBool(nameof(SubathonEventSource.KoFi), $"{kofiOrderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
+            }
             
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
 
@@ -310,6 +316,14 @@ public partial class App
                 if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
                 Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
+            }
+            foreach (var kofiOrderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
+                         && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
+            {
+                bool asDonation = config.GetBool(nameof(SubathonEventSource.KoFi), $"{kofiOrderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
+                if (Utils.DonationSettings.TryGetValue($"{kofiOrderSource.ToString()?.Split("Order")[0]}", out bool hasVal) && hasVal == asDonation) continue;
+                optionToggled = true;
+                Utils.DonationSettings[$"{kofiOrderSource.ToString()?.Split("Order")[0]}"] = asDonation;
             }
 
             if (currencyChanged || optionToggled)

@@ -17,6 +17,7 @@
         <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter"/>
         <conv:AmountFormatConverter x:Key="AmountFormatConverter"/>
         <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter"/>
+        <conv:IsNotZeroToVisibilityConverter x:Key="IsNotZeroToVisibilityConverter"/>
         <conv:EnumDescriptionConverter x:Key="EnumDescriptionConverter"/>
         <Style x:Key="NoHoverOverlayButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource SolidOverlayButtonColor}"/>
@@ -170,13 +171,13 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                             <TextBlock Text = "Values: "/>
                                             <TextBlock Text="{Binding SecondsValue, StringFormat={}{0}s}"
-                                                       Visibility="{Binding SecondsValue, Converter={StaticResource GreaterThanZeroToVisibilityConverter}}"/>
+                                                       Visibility="{Binding SecondsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
                                             <TextBlock Text="{Binding MultiplierSeconds, StringFormat={} x{0}\ \ \ \ }"
-                                                       Visibility="{Binding SecondsValue, Converter={StaticResource GreaterThanZeroToVisibilityConverter}}"/>
+                                                       Visibility="{Binding SecondsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
                                             <TextBlock Text="{Binding PointsValue, StringFormat={}{0}pts}" 
-                                                       Visibility="{Binding PointsValue, Converter={StaticResource GreaterThanZeroToVisibilityConverter}}"/>
+                                                       Visibility="{Binding PointsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
                                             <TextBlock Text="{Binding MultiplierPoints, StringFormat={} x{0}}"
-                                                       Visibility="{Binding PointsValue, Converter={StaticResource GreaterThanZeroToVisibilityConverter}}"/>
+                                                       Visibility="{Binding PointsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
                                         </StackPanel>
                                         
                                         <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,2,0,0">

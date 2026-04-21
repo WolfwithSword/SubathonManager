@@ -13,12 +13,13 @@
         <!-- Connection type toggle -->
         <StackPanel Orientation="Horizontal" Margin="0,0,0,10"
                     views:SettingsProperties.ExcludeFromUnsaved="True">
-            <RadioButton x:Name="SocketRadio" Content="Socket" IsChecked="True"
+            <TextBlock Text="Method: " Margin="0 0 12 0" TextAlignment="Center" VerticalAlignment="Center"/>
+            <RadioButton x:Name="WebhookRadio" Content="DevTunnel" IsChecked="True"
                          GroupName="KoFiConn" Checked="ConnectionType_Checked"
                          VerticalAlignment="Center"/>
-            <RadioButton x:Name="WebhookRadio" Content="Webhook"
+            <RadioButton x:Name="SocketRadio" Content="StreamerBot" Margin="16,0,0,0"
                          GroupName="KoFiConn" Checked="ConnectionType_Checked"
-                         VerticalAlignment="Center" Margin="16,0,0,0"/>
+                         VerticalAlignment="Center"/>
         </StackPanel>
 
         <!-- Socket sub-control slot -->
@@ -71,37 +72,6 @@
                     <ColumnDefinition Width="300"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Shop Orders:" Width="100" VerticalAlignment="Center"
-                               ToolTip="Direct shop orders from the Ko-fi store (webhook only)"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="12" x:Name="ShopOrderBox"/>
-                    <TextBlock Margin="8,0,0,0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="0" x:Name="ShopOrderBox2"/>
-                    <TextBlock Margin="8,0,0,0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <ui:TextBox Margin="10,0,4,0" Width="80" Text="10.00" PlaceholderText="1.00"
-                                HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"
-                                ClearButtonEnabled="False" Height="34"
-                                views:SettingsProperties.ExcludeFromUnsaved="True"
-                                validation:InputValidationBehavior.IsDecimalOnly="True"
-                                x:Name="SimulateKFOrderAmountBox"/>
-                    <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True"
-                              x:Name="OrderCurrencyBox" StaysOpenOnEdit="True" Height="34"
-                              views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
-                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                               Content="Test" Click="TestKoFiShopOrder_Click"
-                               Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
-                </StackPanel>
-            </Grid>
-
-            <Grid Margin="0,4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="300"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="Commissions:" Width="100" VerticalAlignment="Center"
                                ToolTip="Commission services offered via Ko-fi (webhook only)"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
@@ -126,7 +96,62 @@
                                Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
                 </StackPanel>
             </Grid>
+            
+            <Grid Margin="0 0 0 0 ">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="400"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Orders:" Width="100" VerticalAlignment="Center" x:Name="KoFiOrdersText"
+                               ToolTip="Direct shop orders from the Ko-Fi store (webhook only)"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                PlaceholderText="12" x:Name="ShopOrderBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
+                                PlaceholderText="0" x:Name="ShopOrderBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"/>
+                    <TextBlock Text="Per: " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"/>
+                    <ComboBox Text="Mode" Width="100"
+                              x:Name="ModeBox"
+                              SelectedIndex="0" Margin="4 0 4 0"/>
+                </StackPanel>
 
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0 0 0 0">
+                    <ui:TextBox Margin="10 0 4 0" Width="50" Text="1"
+                                PlaceholderText="5" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                FontSize="12" Height="34" ToolTip="Number of items in the order to sum the amount"
+                                views:SettingsProperties.ExcludeFromUnsaved="True"
+                                validation:InputValidationBehavior.IsNumberOnly="True"
+                                ClearButtonEnabled="False"
+                                x:Name="OrderQuantitySimBox"/>
+                    <ui:TextBox Margin="4 0 4 0" Width="80" Text="29.99"
+                                PlaceholderText="1.00" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                FontSize="12" Height="34"
+                                views:SettingsProperties.ExcludeFromUnsaved="True"
+                                validation:InputValidationBehavior.IsDecimalOnly="True"
+                                ClearButtonEnabled="False"
+                                x:Name="OrderTotalSimBox"/>
+                    <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True"
+                              x:Name="OrderCurrencyBox" StaysOpenOnEdit="True" Height="34"
+                              views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                               Content="Test" Click="TestKoFiShopOrder_Click"
+                               Width="60" Padding="2" Height="34"
+                               views:SettingsProperties.ExcludeFromUnsaved="True"
+                               Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+            <Grid Margin="0 4 0 0 ">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="400"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <CheckBox x:Name="OrderCommissionBox" Content="Add order value as donation?" Margin="-10 0 0 0"/>
+                    <CheckBox x:Name="CommCommissionBox" Content="Add commission value as donation?" Margin="14 0 0 0"/>
+                </StackPanel>
+            </Grid>
         </StackPanel>
 
         <!-- Memberships -->

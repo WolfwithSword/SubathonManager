@@ -4,8 +4,8 @@ using DevTunnels.Client.Authentication;
 using DevTunnels.Client.Hosting;
 using DevTunnels.Client.Ports;
 using DevTunnels.Client.Tunnels;
+using DevTunnels.Client.Installer;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
@@ -69,6 +69,32 @@ public class DevTunnelsService(
         // This avoids opening a public tunnel when no integration actually requires it.
         logger?.LogInformation("[DevTunnels] CLI ready and logged in; tunnel will start on demand");
         BroadcastTunnelStatus(false, null);
+    }
+
+    public async Task<bool> TryInstallAsync(CancellationToken ct = default)
+    {
+        var probe = await client.ProbeCliAsync(ct);
+        if (probe.IsInstalled)
+        {
+            logger?.LogInformation("[DevTunnels] Install requested but already installed...");
+            return true;
+        }
+        var installer = new DevTunnelCliInstaller();
+        logger?.LogInformation("[DevTunnels] Installing detected installer...");
+        string? detected = await installer.DetectInstallerAsync(ct);
+        logger?.LogInformation("[DevTunnels] Installer: {Detected}", detected ?? "none");
+        
+        var result = await installer.InstallAsync(ct);
+        if (result.Success)
+        {
+            logger?.LogInformation("[DevTunnels] Installed successfully via {Method}. Path: {Path}", result.InstallerUsed, result.InstalledPath);
+        }
+        else
+        {
+            logger?.LogError("[DevTunnels] Install failed: {Reason}", result.FailureReason);
+        }
+
+        return result.Success;
     }
 
     public async Task StopAsync(CancellationToken ct = default)

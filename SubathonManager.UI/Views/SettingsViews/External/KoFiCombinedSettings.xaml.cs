@@ -6,12 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
-using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Validation;
+using SubathonManager.UI.Views.SettingsViews.External.KoFi;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
@@ -23,6 +23,7 @@ public partial class KoFiCombinedSettings : SettingsControl
 
     private KoFiSettings? _socket;
     private KoFiWebhookSettings? _webhook;
+    private readonly SubathonEventSource _source = SubathonEventSource.KoFi;
 
     public KoFiCombinedSettings()
     {
@@ -100,11 +101,25 @@ public partial class KoFiCombinedSettings : SettingsControl
                 AddMembershipRow(value);
         }
 
+        ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
+        ModeBox.SelectedItem = config.Get(_source.ToString(), $"{SubathonEventType.KoFiShopOrder}.Mode", "Dollar")?.Trim() ?? "Dollar";
+        OrderCommissionBox.IsChecked = config.GetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiShopOrder)?.Split("Order")[0]}.CommissionAsDonation", true);
+        CommCommissionBox.IsChecked = config.GetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiCommissionOrder)?.Split("Order")[0]}.CommissionAsDonation", true);
         RefreshTierCombo();
     }
 
     protected internal override bool UpdateConfigValueSettings()
-        => _webhook?.UpdateConfigValueSettings() ?? false;
+    {
+        bool hasUpdated = false;
+        hasUpdated |= _webhook?.UpdateConfigValueSettings() ?? false;
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        hasUpdated |= config.SetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiShopOrder)?.Split("Order")[0]}.CommissionAsDonation",
+            OrderCommissionBox.IsChecked);
+        hasUpdated |= config.SetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiCommissionOrder)?.Split("Order")[0]}.CommissionAsDonation",
+            CommCommissionBox.IsChecked);
+        hasUpdated |= config.Set(_source.ToString(), $"{SubathonEventType.KoFiShopOrder}.Mode", $"{ModeBox.SelectedItem}");
+        return hasUpdated;
+    }
 
     public override bool UpdateValueSettings(AppDbContext db)
     {
@@ -350,7 +365,7 @@ public partial class KoFiCombinedSettings : SettingsControl
             { "user", JsonSerializer.SerializeToElement("SYSTEM") },
             { "type", JsonSerializer.SerializeToElement(nameof(SubathonEventType.KoFiDonation)) },
             { "currency", JsonSerializer.SerializeToElement(CurrencyBox.Text) },
-            { "amount", JsonSerializer.SerializeToElement(SimulateKFTipAmountBox.Text) }
+            { "amount", JsonSerializer.SerializeToElement(string.IsNullOrWhiteSpace(SimulateKFTipAmountBox.Text) ? "10.00" : SimulateKFTipAmountBox.Text) }
         };
         ExternalEventService.ProcessExternalDonation(data);
     }
@@ -362,9 +377,10 @@ public partial class KoFiCombinedSettings : SettingsControl
             { "user", JsonSerializer.SerializeToElement("SYSTEM") },
             { "type", JsonSerializer.SerializeToElement(nameof(SubathonEventType.KoFiShopOrder)) },
             { "currency", JsonSerializer.SerializeToElement(OrderCurrencyBox.Text) },
-            { "amount", JsonSerializer.SerializeToElement(SimulateKFOrderAmountBox.Text) }
+            { "quantity", JsonSerializer.SerializeToElement(string.IsNullOrWhiteSpace(OrderQuantitySimBox.Text) ? 1: int.Parse(OrderQuantitySimBox.Text)) },
+            { "amount", JsonSerializer.SerializeToElement(string.IsNullOrWhiteSpace(OrderTotalSimBox.Text) ? "10.00" : OrderTotalSimBox.Text)  }
         };
-        ExternalEventService.ProcessExternalDonation(data);
+        ExternalEventService.ProcessExternalOrder(data);
     }
 
     private void TestKoFiCommission_Click(object sender, RoutedEventArgs e)
@@ -374,9 +390,10 @@ public partial class KoFiCombinedSettings : SettingsControl
             { "user", JsonSerializer.SerializeToElement("SYSTEM") },
             { "type", JsonSerializer.SerializeToElement(nameof(SubathonEventType.KoFiCommissionOrder)) },
             { "currency", JsonSerializer.SerializeToElement(CommissionCurrencyBox.Text) },
-            { "amount", JsonSerializer.SerializeToElement(SimulateKFCommissionAmountBox.Text) }
+            { "quantity", JsonSerializer.SerializeToElement("1")},
+            { "amount", JsonSerializer.SerializeToElement(string.IsNullOrWhiteSpace(SimulateKFCommissionAmountBox.Text) ? "10.00" : SimulateKFCommissionAmountBox.Text) }
         };
-        ExternalEventService.ProcessExternalDonation(data);
+        ExternalEventService.ProcessExternalOrder(data);
     }
 
     private void TestKoFiSub_Click(object sender, RoutedEventArgs e)

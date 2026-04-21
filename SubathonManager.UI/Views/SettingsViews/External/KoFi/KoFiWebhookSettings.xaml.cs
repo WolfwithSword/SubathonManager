@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using System.Windows;
-using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -11,7 +11,7 @@ using SubathonManager.Data;
 using SubathonManager.Integration;
 using TextBox = System.Windows.Controls.TextBox;
 
-namespace SubathonManager.UI.Views.SettingsViews.External;
+namespace SubathonManager.UI.Views.SettingsViews.External.KoFi;
 
 public partial class KoFiWebhookSettings : SettingsControl
 {
@@ -39,8 +39,8 @@ public partial class KoFiWebhookSettings : SettingsControl
     private void RefreshFromStoredState()
     {
         // KoFiService owns its own connection entry (Status + public URL in Name).
-        UpdateStatus(Utils.GetConnection(SubathonEventSource.KoFiWebhook,
-            nameof(SubathonEventSource.KoFiWebhook)));
+        UpdateStatus(Utils.GetConnection(SubathonEventSource.KoFiTunnel,
+            nameof(SubathonEventSource.KoFiTunnel)));
 
         // DevTunnels prereq banner: read the last-known tunnel state from the shared dict.
         UpdateStatus(Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel"));
@@ -55,7 +55,7 @@ public partial class KoFiWebhookSettings : SettingsControl
         Dispatcher.Invoke(() =>
         {
             // KoFiService composes and owns the full public URL; we just display Name.
-            if (connection.Source == SubathonEventSource.KoFiWebhook)
+            if (connection.Source == SubathonEventSource.KoFiTunnel)
             {
                 Host.UpdateConnectionStatus(connection.Status, KoFiWebhookStatusText, null);
                 ApplyWebhookUrl(connection.Name);
@@ -79,7 +79,7 @@ public partial class KoFiWebhookSettings : SettingsControl
         bool starting = nameOrHint == "(starting…)";
         TunnelPrereqStatusText.Text = starting ? "Starting…" : (running ? "Running" : "Not running");
         TunnelPrereqHint.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
-        // The URL row is driven by the KoFiWebhook connection (Name field), not here.
+        // The URL row is driven by the KoFiTunnel connection (Name field), not here.
     }
 
     // Config persistence
@@ -98,7 +98,7 @@ public partial class KoFiWebhookSettings : SettingsControl
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         bool hasUpdated = false;
-        hasUpdated |= config.SetEncoded(ConfigSection, "VerificationToken", KoFiWebhookTokenBox.Text.Trim());
+        hasUpdated |= config.SetEncoded(ConfigSection, "VerificationToken", KoFiWebhookTokenBox.Password.Trim());
         hasUpdated |= config.Set(ConfigSection, "ForwardUrls", KoFiWebhookForwardUrlsBox.Text.Trim());
 
         if (hasUpdated)
@@ -127,7 +127,7 @@ public partial class KoFiWebhookSettings : SettingsControl
 
     private async void CopyWebhookUrl_Click(object sender, RoutedEventArgs e)
     {
-        var url = WebhookUrlBox.Text;
+        var url = WebhookUrlBox.Password;
         if (string.IsNullOrWhiteSpace(url)) return;
         var result = await UiUtils.UiUtils.TrySetClipboardTextAsync(url);
         if (!result) return;
@@ -136,5 +136,53 @@ public partial class KoFiWebhookSettings : SettingsControl
         btn.Content = "Copied!";
         await Task.Delay(1500);
         btn.Content = original;
+    }
+
+    private void GoToDevTunnels_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsEvents.RaiseHotLinkToDevTunnelsRequest();
+    }
+
+    private void OpenKoFiTokenLink_Click(object sender, RoutedEventArgs e)
+    {        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://ko-fi.com/manage/webhooks",
+                UseShellExecute = true
+            });
+        }
+        catch { /**/ }
+        
+    }
+    
+    private void EditForwardUrls_Click(object sender, RoutedEventArgs e)
+    {
+        var urls = KoFiWebhookForwardUrlsBox.Text
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        ForwardUrlsMultiBox.Text = string.Join(Environment.NewLine, urls);
+
+        ForwardUrlsPopup.IsOpen = true;
+        ForwardUrlsMultiBox.Focus();
+
+        var text = ForwardUrlsMultiBox.Text;
+        if (!string.IsNullOrWhiteSpace(text) && !text.EndsWith(Environment.NewLine))
+            ForwardUrlsMultiBox.Text = text + Environment.NewLine;
+
+        ForwardUrlsMultiBox.CaretIndex = ForwardUrlsMultiBox.Text.Length;
+    }
+
+    private void ForwardUrlsApply_Click(object sender, RoutedEventArgs e)
+    {
+        var urls = ForwardUrlsMultiBox.Text
+            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(u => !string.IsNullOrWhiteSpace(u));
+        KoFiWebhookForwardUrlsBox.Text = string.Join(", ", urls);
+        ForwardUrlsPopup.IsOpen = false;
+    }
+
+    private void ForwardUrlsCancel_Click(object sender, RoutedEventArgs e)
+    {
+        ForwardUrlsPopup.IsOpen = false;
     }
 }

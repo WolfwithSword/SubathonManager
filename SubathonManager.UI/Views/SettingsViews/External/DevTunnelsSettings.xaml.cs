@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Media;
 using DevTunnels.Client.Authentication;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -70,6 +70,26 @@ public partial class DevTunnelsSettings : SettingsControl
         CliStatusText.Text = installed
             ? (string.IsNullOrWhiteSpace(version) ? "Installed" : $"Installed (v{version})")
             : "Not installed";
+        if (installed)
+        {
+            CliStatusText.Foreground = Brushes.ForestGreen;
+            InstallCliBtn.Content = "Installed";
+            InstallCliBtn.IsEnabled = false;
+            InstallCliBtn.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            Brush brush = Brushes.Gray;
+            if (Application.Current.Resources.Contains("TextFillColorPrimaryBrush"))
+            {
+                // ReSharper disable once NullableWarningSuppressionIsUsed
+                brush = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]!;
+            }
+            CliStatusText.Foreground = brush;
+            InstallCliBtn.IsEnabled = true;
+            InstallCliBtn.Visibility = Visibility.Visible;
+            InstallCliBtn.Content = "Install";
+        }
 
         LoginButtonsPanel.IsEnabled = installed;
 
@@ -82,17 +102,35 @@ public partial class DevTunnelsSettings : SettingsControl
 
     private void ApplyLoginState(bool loggedIn, string? username)
     {
-        LoginStatusText.Text = loggedIn
-            ? (string.IsNullOrWhiteSpace(username) ? "Logged in" : $"Logged in as {username}")
-            : "Not logged in";
+        LoginStatusText.Text = loggedIn ? "Logged in:" : "Not logged in";
+
+        UsernamePanel.Visibility = loggedIn && !string.IsNullOrWhiteSpace(username)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        if (!string.IsNullOrWhiteSpace(username))
+            UsernameRevealed.Text = username;
+
+        // Reset to hidden state whenever login state changes
+        UsernameHidden.Visibility = Visibility.Visible;
+        UsernameRevealed.Visibility = Visibility.Collapsed;
 
         LoginMicrosoftBtn.Visibility = loggedIn ? Visibility.Collapsed : Visibility.Visible;
-        LoginGithubBtn.Visibility = loggedIn ? Visibility.Collapsed : Visibility.Visible;
-        LogoutBtn.Visibility = loggedIn ? Visibility.Visible : Visibility.Collapsed;
+        LoginGithubBtn.Visibility    = loggedIn ? Visibility.Collapsed : Visibility.Visible;
+        LogoutBtn.Visibility         = loggedIn ? Visibility.Visible   : Visibility.Collapsed;
 
-        bool cliInstalled = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
+        bool cliInstalled  = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
         bool tunnelRunning = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel").Status;
         StartTunnelBtn.IsEnabled = loggedIn && cliInstalled && !tunnelRunning;
+    }
+
+    private void ToggleUsername_Click(object sender, RoutedEventArgs e)
+    {
+        bool currentlyRevealed = UsernameRevealed.Visibility == Visibility.Visible;
+        UsernameHidden.Visibility   = currentlyRevealed ? Visibility.Visible    : Visibility.Collapsed;
+        UsernameRevealed.Visibility = currentlyRevealed ? Visibility.Collapsed  : Visibility.Visible;
+        ToggleUsernameIcon.Symbol   = currentlyRevealed ? Wpf.Ui.Controls.SymbolRegular.Eye24 
+            : Wpf.Ui.Controls.SymbolRegular.EyeOff24;
     }
 
     private void ApplyTunnelState(bool running, string? url)
@@ -139,6 +177,11 @@ public partial class DevTunnelsSettings : SettingsControl
         CheckCliBtn.IsEnabled = false;
         try
         {
+            Brush brush = Brushes.Gray;
+            if (Application.Current.Resources.Contains("TextFillColorPrimaryBrush"))
+                // ReSharper disable once NullableWarningSuppressionIsUsed
+                brush = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]!;
+            CliStatusText.Foreground = brush;
             CliStatusText.Text = "Checking…";
             await ServiceManager.DevTunnels.RefreshCliStatusAsync();
         }
@@ -148,10 +191,22 @@ public partial class DevTunnelsSettings : SettingsControl
         }
     }
 
-    private void GetCli_Click(object sender, RoutedEventArgs e)
+    private async void GetCli_Click(object sender, RoutedEventArgs e)
     {
         try
         {
+            InstallCliBtn.IsEnabled = false;
+            InstallCliBtn.Content = "Installing...";
+            bool result = await ServiceManager.DevTunnels.TryInstallAsync();
+            if (result)
+            {
+                InstallCliBtn.Content = "Installed";
+                await ServiceManager.DevTunnels.RefreshCliStatusAsync();
+                await Task.Delay(2500);
+                return;
+            }
+            InstallCliBtn.IsEnabled = true;
+            InstallCliBtn.Content = "Install";
             Process.Start(new ProcessStartInfo
             {
                 FileName = "https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows#install",
@@ -216,7 +271,7 @@ public partial class DevTunnelsSettings : SettingsControl
 
     private async void CopyTunnelUrl_Click(object sender, RoutedEventArgs e)
     {
-        var url = TunnelUrlBox.Text;
+        var url = TunnelUrlBox.Password;
         if (string.IsNullOrWhiteSpace(url)) return;
         var result = await UiUtils.UiUtils.TrySetClipboardTextAsync(url);
         if (!result) return;

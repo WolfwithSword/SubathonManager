@@ -197,12 +197,12 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
             var mode = config.Get(_configSection, $"{source}.Mode", "Dollar");
 
-            var sourceMode = Enum.TryParse(mode, out GoAffProModes m) ? m : GoAffProModes.Dollar;
+            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
 
             ev.Currency = sourceMode switch
             {
-                GoAffProModes.Item => "items",
-                GoAffProModes.Order => "order",
+                OrderTypeModes.Item => "items",
+                OrderTypeModes.Order => "order",
                 _ => order.Currency
             };
             int itemCount = 0;
@@ -214,10 +214,10 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             ev.Amount = itemCount;
             switch (sourceMode)
             {
-                case GoAffProModes.Dollar:
+                case OrderTypeModes.Dollar:
                     ev.Value = $"{order.Subtotal}";
                     break;
-                case GoAffProModes.Order:
+                case OrderTypeModes.Order:
                     ev.Value = "New";
                     break;
                 default:

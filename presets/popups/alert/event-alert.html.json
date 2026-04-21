@@ -32,7 +32,10 @@
         "GamerSuppsOrder",
         "TwitchRaid",
         "TwitchFollow",
-        "TwitchHypeTrain"
+        "TwitchHypeTrain",
+        "KoFiShopOrder",
+        "KoFiCommissionOrder",
+        "OrchidEightOrder"
       ],
       "Options": null
     },

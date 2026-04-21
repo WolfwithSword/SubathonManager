@@ -93,7 +93,7 @@ public class KoFiServiceTests
         bool? status = null;
         void Handler(IntegrationConnection conn)
         {
-            if (conn.Source == SubathonEventSource.KoFiWebhook)
+            if (conn.Source == SubathonEventSource.KoFiTunnel)
             {
                 status = conn.Status;
             }
@@ -126,7 +126,7 @@ public class KoFiServiceTests
         bool? status = null;
         void Handler(IntegrationConnection conn)
         {
-            if (conn.Source == SubathonEventSource.KoFiWebhook)
+            if (conn.Source == SubathonEventSource.KoFiTunnel)
             {
                 status = conn.Status;
             }
@@ -159,7 +159,7 @@ public class KoFiServiceTests
         bool? status = null;
         void Handler(IntegrationConnection conn)
         {
-            if (conn.Source == SubathonEventSource.KoFiWebhook)
+            if (conn.Source == SubathonEventSource.KoFiTunnel)
             {
                 status = conn.Status;
             }
@@ -249,7 +249,7 @@ public class KoFiServiceTests
 
         Assert.NotNull(captured);
         Assert.Equal(SubathonEventType.KoFiDonation, captured.EventType);
-        Assert.Equal(SubathonEventSource.KoFiWebhook, captured.Source);
+        Assert.Equal(SubathonEventSource.KoFi, captured.Source);
         Assert.Equal("Wolf", captured.User);
         Assert.Equal("10.00", captured.Value);
         Assert.Equal("USD", captured.Currency);
@@ -288,7 +288,7 @@ public class KoFiServiceTests
 
         Assert.NotNull(captured);
         Assert.Equal(SubathonEventType.KoFiSub, captured.EventType);
-        Assert.Equal(SubathonEventSource.KoFiWebhook, captured.Source);
+        Assert.Equal(SubathonEventSource.KoFi, captured.Source);
         Assert.Equal("Supporter", captured.User);
         Assert.Equal(tierName, captured.Value);
         Assert.Equal("member", captured.Currency);
@@ -320,7 +320,7 @@ public class KoFiServiceTests
 
         Assert.NotNull(captured);
         Assert.Equal(SubathonEventType.KoFiShopOrder, captured.EventType);
-        Assert.Equal(SubathonEventSource.KoFiWebhook, captured.Source);
+        Assert.Equal(SubathonEventSource.KoFi, captured.Source);
         Assert.Equal("Buyer", captured.User);
         Assert.Equal("25.00", captured.Value);
         Assert.Equal("USD", captured.Currency);
@@ -352,7 +352,7 @@ public class KoFiServiceTests
 
         Assert.NotNull(captured);
         Assert.Equal(SubathonEventType.KoFiCommissionOrder, captured.EventType);
-        Assert.Equal(SubathonEventSource.KoFiWebhook, captured.Source);
+        Assert.Equal(SubathonEventSource.KoFi, captured.Source);
         Assert.Equal("Artist", captured.User);
         Assert.Equal("50.00", captured.Value);
         Assert.Equal("USD", captured.Currency);

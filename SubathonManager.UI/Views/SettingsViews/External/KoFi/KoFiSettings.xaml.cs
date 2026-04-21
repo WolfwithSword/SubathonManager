@@ -11,7 +11,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 
-namespace SubathonManager.UI.Views.SettingsViews.External;
+namespace SubathonManager.UI.Views.SettingsViews.External.KoFi;
 
 public partial class KoFiSettings : SettingsControl
 {
@@ -45,7 +45,7 @@ public partial class KoFiSettings : SettingsControl
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = "https://github.com/WolfwithSword/SubathonManager/discussions/108",
+                FileName = "https://docs.subathonmanager.app/latest/config/setup/KoFi/", // TODO update for sb specific
                 UseShellExecute = true
             });
         }
