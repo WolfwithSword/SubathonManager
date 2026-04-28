@@ -406,91 +406,6 @@ public class EventServiceTests
         await conn.CloseAsync();
     }
 
-
-    [Theory]
-    [InlineData(0, 300, 0)]
-    [InlineData(1, 300, 3)]
-    [InlineData(1, 50, 0)]
-    public async Task BitsCheerEvent_WithPoints(int pointsValue, int bitsCount, int expectedPoints)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
-            Id = Guid.NewGuid(),
-            EventType = SubathonEventType.TwitchCheer,
-            Currency = "bits",
-            Value = bitsCount.ToString(),
-        };
-        await using var db = new AppDbContext(options);
-        var value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.TwitchCheer).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        value.Points = pointsValue;
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        db.ChangeTracker.Clear();
-        
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
-        Assert.True(processed);
-
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        sub.IsLocked = false;
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        db.ChangeTracker.Clear();
-
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        if (expectedPoints > 0)
-            Assert.True(sub.Points > 0);
-        else
-            Assert.False(sub.Points > 0);
-        Assert.True(sub.MillisecondsCumulative > 0);
-        Assert.True(sub.MoneySum > 0);
-
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("bits", ev2.Currency);
-        Assert.True(ev2.ProcessedToSubathon);
-        Assert.Equal(expectedPoints, ev2.PointsValue);
-        Assert.True(ev2.SecondsValue > 0);
-        Assert.True(ev2.SecondsValue < 100);
-
-        await service.StopAsync(TestContext.Current.CancellationToken);
-        await conn.CloseAsync();
-    }
-
-    [Fact]
-    public async Task BitsCheerEvent_AsDonation()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
-            Id = Guid.NewGuid(),
-            EventType = SubathonEventType.TwitchCheer,
-            Currency = "bits",
-            Value = "30",
-        };
-
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
-        Assert.True(processed);
-
-        await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        sub.IsLocked = false;
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        db.ChangeTracker.Clear();
-
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.False(sub.Points > 0);
-        Assert.True(sub.MillisecondsCumulative > 0);
-        Assert.True(sub.MoneySum > 0);
-
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("bits", ev2.Currency);
-        Assert.True(ev2.ProcessedToSubathon);
-        Assert.Equal(0, ev2.PointsValue);
-        Assert.True(ev2.SecondsValue > 0);
-        Assert.True(ev2.SecondsValue < 10);
-
-        await service.StopAsync(TestContext.Current.CancellationToken);
-        await conn.CloseAsync();
-    }
-
     [Fact]
     public async Task OrderEvent_ByOrderNoCommission()
     {
@@ -1536,6 +1451,53 @@ public class EventServiceTests
 public class EventServiceSequentialTests
 {
     
+    [Theory]
+    [InlineData(0, 300, 0)]
+    [InlineData(1, 300, 3)]
+    [InlineData(1, 50, 0)]
+    public async Task BitsCheerEvent_WithPoints(int pointsValue, int bitsCount, int expectedPoints)
+    {
+        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchCheer,
+            Currency = "bits",
+            Value = bitsCount.ToString(),
+        };
+        await using var db = new AppDbContext(options);
+        var value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.TwitchCheer).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        value.Points = pointsValue;
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        db.ChangeTracker.Clear();
+        
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+
+        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub.IsLocked = false;
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        db.ChangeTracker.Clear();
+
+        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        if (expectedPoints > 0)
+            Assert.True(sub.Points > 0);
+        else
+            Assert.False(sub.Points > 0);
+        Assert.True(sub.MillisecondsCumulative > 0);
+        Assert.True(sub.MoneySum > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal("bits", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(expectedPoints, ev2.PointsValue);
+        Assert.True(ev2.SecondsValue > 0);
+        Assert.True(ev2.SecondsValue < 100);
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+    
     [Fact]
     public async Task DonationEvent_InvalidCurrency()
     {
@@ -2110,5 +2072,44 @@ public class EventServiceSequentialTests
         await db.Entry(sub.Multiplier).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, sub.Multiplier.Multiplier);
     }
+    
+    
+    [Fact]
+    public async Task BitsCheerEvent_AsDonation()
+    {
+        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+        {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchCheer,
+            Currency = "bits",
+            Value = "30",
+        };
+
+        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+
+        await using var db = new AppDbContext(options);
+        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub.IsLocked = false;
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        db.ChangeTracker.Clear();
+
+        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.False(sub.Points > 0);
+        Assert.True(sub.MillisecondsCumulative > 0);
+        Assert.True(sub.MoneySum > 0);
+
+        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal("bits", ev2.Currency);
+        Assert.True(ev2.ProcessedToSubathon);
+        Assert.Equal(0, ev2.PointsValue);
+        Assert.True(ev2.SecondsValue > 0);
+        Assert.True(ev2.SecondsValue < 10);
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+
 
 }

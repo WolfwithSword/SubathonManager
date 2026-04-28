@@ -18,13 +18,11 @@ namespace SubathonManager.UI.Views;
 public partial class SettingsView : SettingsControl
 {
     private DateTime? _lastUpdatedTimerAt;
-    private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SettingsView>>();
     
 
     public SettingsView()
     {
-        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();     
         
         var config = AppServices.Provider.GetRequiredService<IConfig>();

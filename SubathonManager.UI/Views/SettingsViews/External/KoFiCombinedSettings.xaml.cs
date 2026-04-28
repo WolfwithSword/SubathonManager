@@ -10,7 +10,6 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
-using SubathonManager.UI.Validation;
 using SubathonManager.UI.Views.SettingsViews.External.KoFi;
 using TextBox = System.Windows.Controls.TextBox;
 
@@ -18,16 +17,15 @@ namespace SubathonManager.UI.Views.SettingsViews.External;
 
 public partial class KoFiCombinedSettings : SettingsControl
 {
-    private readonly IDbContextFactory<AppDbContext> _factory;
-    private List<KoFiSubRow> _dynamicSubRows = new();
 
     private KoFiSettings? _socket;
     private KoFiWebhookSettings? _webhook;
     private readonly SubathonEventSource _source = SubathonEventSource.KoFi;
+    protected override SubathonEventType? _membershipEventType => SubathonEventType.KoFiSub; 
+    protected override StackPanel? _MembershipsPanel => MembershipsPanel;
 
     public KoFiCombinedSettings()
     {
-        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
 
         Loaded += (_, _) =>
@@ -260,102 +258,6 @@ public partial class KoFiCombinedSettings : SettingsControl
         SimKoFiTierSelection.SelectedItem ??= SimKoFiTierSelection.Items[0];
     }
 
-    private KoFiSubRow AddMembershipRow(SubathonValue subathonValue)
-    {
-        var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
-
-        var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-        var nameBox = new Wpf.Ui.Controls.TextBox
-        {
-            Width = 154, Text = subathonValue.Meta ?? "",
-            ToolTip = "Tier Name", PlaceholderText = "Tier Name",
-            Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center
-        };
-        var secondsBox = new Wpf.Ui.Controls.TextBox
-        {
-            Width = 100, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)
-        };
-        var pointsBox = new Wpf.Ui.Controls.TextBox
-        {
-            Width = 100, Text = $"{subathonValue.Points}", PlaceholderText = "Points",
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(128, 0, 0, 0)
-        };
-        var deleteBtn = new Wpf.Ui.Controls.Button
-        {
-            ToolTip = "Delete",
-            Icon = new Wpf.Ui.Controls.SymbolIcon
-            {
-                Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24,
-                Margin = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Center
-            },
-            Foreground = System.Windows.Media.Brushes.Red,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Width = 36, Height = 36, Margin = new Thickness(64, 0, 0, 0)
-        };
-
-        InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
-        InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
-
-        WireControl(nameBox);
-        WireControl(secondsBox);
-        WireControl(pointsBox);
-
-        panelRow.Children.Add(nameBox);
-        panelRow.Children.Add(secondsBox);
-        panelRow.Children.Add(pointsBox);
-        panelRow.Children.Add(deleteBtn);
-        row.Children.Add(panelRow);
-        MembershipsPanel.Children.Add(row);
-
-        var subRow = new KoFiSubRow
-        {
-            SubValue = subathonValue,
-            NameBox = nameBox,
-            TimeBox = secondsBox,
-            PointsBox = pointsBox,
-            RowGrid = row
-        };
-        _dynamicSubRows.Add(subRow);
-
-        deleteBtn.Click += (_, _) => DeleteRow(subathonValue, subRow);
-        return subRow;
-    }
-
-    private void DeleteRow(SubathonValue subathonValue, KoFiSubRow subRow)
-    {
-        using var db = _factory.CreateDbContext();
-        var dbRow = db.SubathonValues.FirstOrDefault(x =>
-            x.Meta == subathonValue.Meta && x.EventType == subathonValue.EventType);
-        if (dbRow != null) { db.SubathonValues.Remove(dbRow); db.SaveChanges(); }
-        _dynamicSubRows.Remove(subRow);
-        MembershipsPanel.Children.Remove(subRow.RowGrid);
-    }
-
-    private void AddMembership_Click(object sender, RoutedEventArgs e)
-    {
-        var name = $"New {_dynamicSubRows.Count}";
-        var allNames = _dynamicSubRows.Select(x => x.NameBox.Text.Trim()).ToArray();
-        while (allNames.Contains(name)) name = $"New {name}";
-        allNames = _dynamicSubRows.Select(x => x.SubValue.Meta.Trim()).ToArray();
-        while (allNames.Contains(name)) name = $"New {name}";
-        AddMembershipRow(new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = name, Seconds = 0, Points = 0 });
-    }
-
-    private static void EnsureUniqueName(List<KoFiSubRow> rows)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in rows)
-        {
-            string current = row.NameBox.Text.Trim();
-            while (!seen.Add(current.ToLower()))
-                current = "New " + current;
-            row.NameBox.Text = current;
-        }
-    }
-
     // Test buttons
 
     private void TestKoFiTip_Click(object sender, RoutedEventArgs e)
@@ -410,13 +312,4 @@ public partial class KoFiCombinedSettings : SettingsControl
         };
         ExternalEventService.ProcessExternalSub(data);
     }
-}
-
-public class KoFiSubRow
-{
-    public required SubathonValue SubValue { get; set; }
-    public required Wpf.Ui.Controls.TextBox NameBox { get; set; }
-    public required Wpf.Ui.Controls.TextBox TimeBox { get; set; }
-    public required Wpf.Ui.Controls.TextBox PointsBox { get; set; }
-    public required Grid RowGrid { get; set; }
 }

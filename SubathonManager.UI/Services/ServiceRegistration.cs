@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Net.Http;
+using DevTunnels.Client;
 using DevTunnels.Client.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +50,17 @@ public static class ServiceRegistration
         services.AddSingleton<GoAffProService>();
 
         // Webhooks (shared tunnel infrastructure) //
+        var wingetPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft", "WinGet", "Links", "devtunnel.exe");
+        if (File.Exists(wingetPath))
+        {
+            services.Configure<DevTunnelsClientOptions>(opts =>
+            {
+                opts.CliPathOverride = wingetPath;
+            });
+        }
+        
         services.AddDevTunnelsClient();
         services.AddSingleton<DevTunnelsService>();
 
@@ -56,8 +68,12 @@ public static class ServiceRegistration
         services.AddHttpClient(nameof(KoFiService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<KoFiService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
+        services.AddHttpClient(nameof(FourthWallService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<FourthWallService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
 
         // Other //
+        services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;
         services.AddSingleton<DiscordWebhookService>();
     }
 

@@ -214,7 +214,11 @@ public class DiscordWebhookServiceTests
             { ("Discord", "Events.Log.Command"), "true" },
         });
         
-        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
+        var httpFactory = new Mock<IHttpClientFactory>();
+        httpFactory.Setup(f => f.CreateClient(nameof(DiscordWebhookService)))
+            .Returns(new HttpClient());
+        
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService(), httpFactory.Object);
 
         Exception? ex = Record.Exception(() => service.SendErrorEvent("ERROR", 
             "TestSource", "Test message", DateTime.UtcNow));

@@ -1,4 +1,3 @@
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using Agash.Webhook.Abstractions;
@@ -34,15 +33,6 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
 
     public async Task StartAsync(CancellationToken ct = default)
     {
-        bool updatedConfig = false;
-        foreach (var subathonEventType in Enum.GetValues<SubathonEventType>().Where(x =>
-                     x.GetSource() == SubathonEventSource.KoFi && ((SubathonEventType?)x).IsOrder()))
-        {
-            updatedConfig |= config.SetBool( nameof(SubathonEventSource.KoFi),
-                $"{subathonEventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
-        }
-        if (updatedConfig) config.Save();
-        
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
 
         var token = config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);

@@ -71,7 +71,15 @@ public enum SubathonEventType
     [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 3)]
     KoFiShopOrder,
     [EventTypeMeta(Label="Commission", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 4)]
-    KoFiCommissionOrder
+    KoFiCommissionOrder,
+    [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 3)]
+    FourthWallOrder,
+    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.FourthWall, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
+    FourthWallDonation,
+    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.FourthWall, IsMembership = true, IsExternal=true, Order = 2)] // tier names to be fetched and synced, maybe delete old, and new use default vals
+    FourthWallMembership,
+    [EventTypeMeta(Label="Gift Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 4)]
+    FourthWallGiftOrder,
     // any new must be added after the last
 }
 

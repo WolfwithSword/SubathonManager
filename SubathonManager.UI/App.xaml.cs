@@ -11,6 +11,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.UI.Services;
@@ -47,9 +48,17 @@ public partial class App
         
         if (!createdNew)
         {
-            ParseImportFile(e);
-            string? filePath = Utils.PendingOverlayImportPath;
-            FocusRunningInstance(filePath);
+            ProtocolMessageType type = ParseProtocolRequest(e);
+            if (type == ProtocolMessageType.SmoFile)
+            {
+                string? filePath = Utils.PendingOverlayImportPath;
+                FocusRunningInstance(type, filePath);
+            } else if (type == ProtocolMessageType.OAuth)
+            {
+                string? uri = e.Args[0];
+                FocusRunningInstance(type, uri);
+            }
+
             Shutdown();
             return;
         }
@@ -81,11 +90,11 @@ public partial class App
                 Utils.DonationSettings[$"{goAffProSource}"] =
                     config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
             }
-            foreach (var kofiOrderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is SubathonEventSource.KoFi or SubathonEventSource.FourthWall
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
-                Utils.DonationSettings[$"{kofiOrderSource.ToString()?.Split("Order")[0]}"] =
-                    config.GetBool(nameof(SubathonEventSource.KoFi), $"{kofiOrderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
+                Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] =
+                    config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
             }
             
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
@@ -109,7 +118,8 @@ public partial class App
             Current.MainWindow = window;
             window.Show();
             
-            ParseImportFile(e);
+            var type = ParseProtocolRequest(e);
+            if (type == ProtocolMessageType.OAuth) Shutdown(); // an oauth should never open the app
 
             SubathonEvents.SubathonDataUpdate += UpdateTickStateCache;
             
@@ -150,20 +160,23 @@ public partial class App
         }
     }
 
-    private static void ParseImportFile(StartupEventArgs e)
+    private static ProtocolMessageType ParseProtocolRequest(StartupEventArgs e)
     {
-        if (e.Args.Length > 0 && File.Exists(e.Args[0]) && 
-            e.Args[0].EndsWith(".smo", StringComparison.OrdinalIgnoreCase))
+        ProtocolMessageType type = ProtocolMessageType.Unknown;
+        if (e.Args.Length > 0 && e.Args[0].EndsWith(".smo", StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(e.Args[0]) && !e.Args[0].Contains("subathonmanager://oauth", StringComparison.CurrentCultureIgnoreCase))
         {
             Utils.PendingOverlayImportPath = e.Args[0];
+            type = ProtocolMessageType.SmoFile;
         }
         else if (e.Args.Length > 0)
         {
             var arg = e.Args[0];
+            if (!arg.StartsWith("subathonmanager://")) return type; 
 
-            if (arg.StartsWith("subathonmanager://"))
+            var uri = new Uri(arg);
+            if (arg.Contains(".smo", StringComparison.OrdinalIgnoreCase) && uri.Host != "oauth")
             {
-                var uri = new Uri(arg);
 
                 var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
                 var url = query["url"];
@@ -171,9 +184,31 @@ public partial class App
                 if (!string.IsNullOrEmpty(url))
                 {
                     Utils.PendingOverlayImportPath = url;
+                    type = ProtocolMessageType.SmoFile;
                 }
             }
+            else if (uri.Host == "oauth")
+            {
+                var provider = uri.AbsolutePath.TrimStart('/'); // "twitch" or "fourthwall"
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var accessToken = query["access_token"] ?? "";
+                var code =  query["code"] ?? "";
+                var refreshToken = query["refresh_token"] ?? "";
+                var error = query["error"] ?? "";
+                type = ProtocolMessageType.OAuth;
+
+                Utils.PendingOAuthCallback = new OAuthCallback
+                {
+                    Provider = provider,
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    Code = code,
+                    Error = error
+                };
+            }
         }
+
+        return type;
     }
 
     private void SetStartupTheme(IConfig config)
@@ -197,7 +232,7 @@ public partial class App
                 : ApplicationTheme.Light;
     }
     
-    private void FocusRunningInstance(string? filePath = null)
+    private void FocusRunningInstance(ProtocolMessageType type, string? data = null)
     {
         var current = Process.GetCurrentProcess();
         foreach (var proc in Process.GetProcessesByName(current.ProcessName))
@@ -207,9 +242,9 @@ public partial class App
             
             if (proc.MainWindowHandle != IntPtr.Zero)
             {
-                if (!string.IsNullOrEmpty(filePath))
+                if (!string.IsNullOrEmpty(data))
                 {
-                    Utils.SingleInstanceHelper.SendStringMessage(proc.MainWindowHandle, filePath);
+                    Utils.SingleInstanceHelper.SendStringMessage(proc.MainWindowHandle, type, data);
                 }
 
                 Utils.SingleInstanceHelper.PostMessage(
@@ -317,13 +352,14 @@ public partial class App
                 optionToggled = true;
                 Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
             }
-            foreach (var kofiOrderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
+
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
-                bool asDonation = config.GetBool(nameof(SubathonEventSource.KoFi), $"{kofiOrderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
-                if (Utils.DonationSettings.TryGetValue($"{kofiOrderSource.ToString()?.Split("Order")[0]}", out bool hasVal) && hasVal == asDonation) continue;
+                bool asDonation = config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
+                if (Utils.DonationSettings.TryGetValue($"{orderSource.ToString()?.Split("Order")[0]}", out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
-                Utils.DonationSettings[$"{kofiOrderSource.ToString()?.Split("Order")[0]}"] = asDonation;
+                Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] = asDonation;
             }
 
             if (currencyChanged || optionToggled)

@@ -11,12 +11,13 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Services;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
-public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) : IDisposable, IAppService
+public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, TimerService? timerService = null) : IDisposable, IAppService
 {
     private bool _disposed = false;
 
@@ -27,11 +28,13 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     internal Uri Endpoint = new Uri("https://api.goaffpro.com/v1/", UriKind.Absolute);
     internal int MaxRetries = 20;
 
+
     private HashSet<int> _siteIds = new();
-    
+
     public async Task StartAsync(CancellationToken ct = default)
     {
         await StopAsync(ct);
+        timerService?.Register("goaffpro-auth-check", TimeSpan.FromHours(48), ReconnectCheck);
 
         var email = config.GetFromEncoded(_configSection, "Email",string.Empty);
         var password = config.GetFromEncoded(_configSection, "Password", string.Empty);
@@ -245,6 +248,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
     public Task StopAsync(CancellationToken ct = default)
     {
+        timerService?.Unregister("goaffpro-auth-check");
+
         foreach (var integ in Enum.GetNames<GoAffProSource>())
         {           
             IntegrationConnection conn = new IntegrationConnection
@@ -271,7 +276,17 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
         _client = null;
         return Task.CompletedTask;
     }
-    
+
+    public async Task ReconnectCheck(CancellationToken ct = default)
+    {
+        var conn = Utils.GetConnection(SubathonEventSource.GoAffPro, nameof(SubathonEventSource.GoAffPro));
+        if (!conn.Status) return;
+
+        await StopAsync(ct);
+        await Task.Delay(50, ct);
+        await StartAsync(ct);
+    }
+
     [ExcludeFromCodeCoverage]
     public void Dispose()
     {

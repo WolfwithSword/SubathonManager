@@ -35,7 +35,7 @@
         <!-- Shared: conversion settings -->
         <StackPanel Margin="10,5,0,5">
 
-            <Grid Margin="0,2">
+            <Grid Margin="0,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="300"/>
@@ -97,7 +97,7 @@
                 </StackPanel>
             </Grid>
             
-            <Grid Margin="0 0 0 0 ">
+            <Grid Margin="0 4 ">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="400"/>
@@ -142,7 +142,7 @@
                                Margin="4,0,0,0"/>
                 </StackPanel>
             </Grid>
-            <Grid Margin="0 4 0 0 ">
+            <Grid Margin="0 2 0 0 ">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="400"/>

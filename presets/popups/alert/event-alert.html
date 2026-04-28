@@ -194,7 +194,7 @@ END_WIDGET_META
             if (data.event_type?.toLowerCase().includes("commission")) {
                 return `${data.amount} new commission${data.amount > 1 ? "s" : ""}`;
             }
-            return `${data.amount} item${data.amount > 1 ? "s" : ""} ordered`;
+            return `${data.amount} item${data.amount > 1 ? "s" : ""} ${data.event_type?.toLowerCase().includes("gift") ? "gifted" : "ordered"}`;
         }
         if (value) return currency ? `${value} ${currency}` : value;
         return "";
@@ -247,12 +247,15 @@ END_WIDGET_META
         if (label == "New Order" && eventType.toLowerCase().includes("commission")) {
             label = "New Commission";
         }
+        else if (label == "New Order" && eventType.toLowerCase().includes("gift")) {
+            label = "New Gift Order";
+        }
         if (data.type_true_source.toLowerCase() == "youtube" && label.includes("Donation")) label = label.replaceAll("Donation", "SuperChat");
         
         labelEl.textContent = label;
         userEl.textContent = data.user ?? "";
         detailEl.textContent = buildDetail(data);
-        if (data.sub_type == 'OrderLike' && source.toLowerCase() != "kofi") {
+        if (data.sub_type == 'OrderLike' && !"kofi|fourthwall|".includes(source.toLowerCase())) {
             userEl.textContent = data.event_type?.replace(/Order$/, "") ?? "";
         }
         else if (data.sub_type == "TrainLike") {

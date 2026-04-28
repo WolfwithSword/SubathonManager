@@ -15,6 +15,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.Views;
 
@@ -68,22 +69,39 @@ namespace SubathonManager.UI
 
                 handled = true;
             }
-            
+
             if (msg == Utils.SingleInstanceHelper.WM_COPYDATA)
             {
                 var cds = Marshal.PtrToStructure<Utils.SingleInstanceHelper.COPYDATASTRUCT>(lParam);
-                var path = Marshal.PtrToStringUni(cds.lpData, cds.cbData / 2);
+                var data = Marshal.PtrToStringUni(cds.lpData, cds.cbData / 2);
 
-                if (!string.IsNullOrWhiteSpace(path) && (File.Exists(path) || path.StartsWith("http", StringComparison.OrdinalIgnoreCase)))
-                {
-                    Dispatcher.Invoke(async () =>
+                if (!string.IsNullOrWhiteSpace(data))
+                {      
+                    if (data.StartsWith("subathonmanager://oauth/", StringComparison.OrdinalIgnoreCase))
                     {
-                        MainWindowTabs.SelectedItem = OverlayTabItem;
-                        await ImportRouteFromFile(path);
-                    });
+                        var uri = new Uri(data);
+                        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                        Utils.PendingOAuthCallback = new OAuthCallback
+                        {
+                            Provider = uri.AbsolutePath.TrimStart('/'),
+                            Code = query["code"] ?? "",
+                            AccessToken = query["access_token"] ?? "",
+                            RefreshToken = query["refresh_token"] ?? "",
+                            Error = query["error"] ?? ""
+                        };
+                        handled = true;
+                        return IntPtr.Zero;
+                    }
+                    if ((File.Exists(data) || data.StartsWith("http", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Dispatcher.Invoke(async () =>
+                        {
+                            MainWindowTabs.SelectedItem = OverlayTabItem;
+                            await ImportRouteFromFile(data);
+                        });
+                    }
+                    handled = true;
                 }
-
-                handled = true;
             }
 
             return IntPtr.Zero;

@@ -461,7 +461,7 @@
                                 </Expander>
 
                                 <!-- JS Variables -->
-                                <Expander Header="JS Variables" IsExpanded="False" Margin="0 0 4 6">
+                                <Expander Header="JS Variables" IsExpanded="False" Margin="0 0 4 0">
                                     <ItemsControl x:Name="JsVarsList" ItemsSource="{Binding}">
                                         <ItemsControl.Resources>
                                             <uiUtils:JsVariableTemplateSelector x:Key="JsVarSelector">
@@ -639,6 +639,32 @@
                                                         </StackPanel>
                                                     </DataTemplate>
                                                 </uiUtils:JsVariableTemplateSelector.FilteredEventTypeListTemplate>
+                                            </uiUtils:JsVariableTemplateSelector>
+                                        </ItemsControl.Resources>
+                                        <ItemsControl.ItemTemplateSelector>
+                                            <StaticResource ResourceKey="JsVarSelector"/>
+                                        </ItemsControl.ItemTemplateSelector>
+                                    </ItemsControl>
+                                </Expander>
+                                
+                                <!-- Font JS Variables -->
+                                <Expander Header="Custom Fonts" IsExpanded="False" Margin="0 0 4 6">
+                                    <ItemsControl x:Name="JsVarFontList" ItemsSource="{Binding}">
+                                        <ItemsControl.Resources>
+                                            <uiUtils:JsVariableTemplateSelector x:Key="JsVarSelector">
+
+                                                <uiUtils:JsVariableTemplateSelector.DefaultTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Vertical" Margin="0,4,0,4">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <ui:TextBlock Text="{Binding Name}" ToolTip="{Binding Converter={StaticResource VarTooltipConverter}}" Width="172" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <ui:TextBox Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" Width="150" 
+                                                                            Loaded="AttachChangeHandler" ToolTip="{Binding Type}"/>
+                                                            </StackPanel>
+                                                            <Separator Margin="16,2"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </uiUtils:JsVariableTemplateSelector.DefaultTemplate>
                                             </uiUtils:JsVariableTemplateSelector>
                                         </ItemsControl.Resources>
                                         <ItemsControl.ItemTemplateSelector>

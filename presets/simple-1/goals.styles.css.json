@@ -4,5 +4,8 @@
   "main-background-color": {"type": "color"},
   "goal-text-color": {"type": "color"},
   "goal-height": {"type": "size"},
-  "goal-gap": {"type": "size", "description": "Vertical gap between goal items"}
+  "goal-gap": {"type": "size", "description": "Vertical gap between goal items"},
+  "goal-font": {"type":  "string", "description":  "The font used for goal text and points"},
+  "goal-font-weight": {"type": "weight", "description":  "The font weight"},
+  "goal-font-size": {"type": "size"}
 }

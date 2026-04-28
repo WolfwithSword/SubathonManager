@@ -12,7 +12,7 @@ namespace SubathonManager.Integration;
 
 public static class ExternalEventService
 {
-
+    
     public static bool ProcessExternalCommand(Dictionary<string, JsonElement> data)
     {
         data.TryGetValue("command", out JsonElement elemCmd);
