@@ -1126,50 +1126,27 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var tokenFilePath = Path.GetFullPath("data/twitch_token.json");
             if (File.Exists(tokenFilePath)) File.Delete(tokenFilePath);
 
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            service.TwitchOAuthUrl = "http://localhost/fake";
+            var service = new TwitchService(null, MockConfig.MakeMockConfig());
+    
             service.OpenBrowser = _ => { };
-            service.CallbackPort = MockEventSubServer.GetFreePort();
 
             var fakeToken = "test_access_token_abc123";
 
-            var browserSim = Task.Run(async () =>
+            var callbackSim = Task.Run(async () =>
             {
                 await Task.Delay(200);
-
-                using (var tcp = new System.Net.Sockets.TcpClient())
+                Utils.PendingOAuthCallback = new OAuthCallback
                 {
-                    await tcp.ConnectAsync(IPAddress.Loopback, service.CallbackPort);
-                    var stream = tcp.GetStream();
-                    var req = "GET /auth/twitch/callback/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-                    await stream.WriteAsync(Encoding.UTF8.GetBytes(req));
-                    var buf = new byte[4096];
-                    while (await stream.ReadAsync(buf) > 0)
-                    {
-                    }
-                }
-
-                await Task.Delay(50);
-
-                using (var tcp = new System.Net.Sockets.TcpClient())
-                {
-                    await tcp.ConnectAsync(IPAddress.Loopback, service.CallbackPort);
-                    var stream = tcp.GetStream();
-                    var req =
-                        $"GET /token?access_token={fakeToken}&token_type=bearer HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-                    await stream.WriteAsync(Encoding.UTF8.GetBytes(req));
-                    var buf = new byte[4096];
-                    while (await stream.ReadAsync(buf) > 0)
-                    {
-                    }
-                }
+                    Provider = "twitch",
+                    AccessToken = fakeToken
+                };
             }, TestContext.Current.CancellationToken);
 
             var oauthMethod = typeof(TwitchService)
                 .GetMethod("StartOAuthFlowAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             await Task.WhenAll(
-                browserSim,
+                callbackSim,
                 (Task)oauthMethod.Invoke(service, null)!
             );
 

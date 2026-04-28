@@ -287,7 +287,7 @@ public class EventService: IDisposable, IAppService
         if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment ||
             (processPointsIfLocked && subathon.IsLocked && ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency)) ||
             (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                                            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
                                         && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|')))
         {
             ev.ProcessedToSubathon = true;
@@ -297,7 +297,7 @@ public class EventService: IDisposable, IAppService
             if (subathon.IsLocked && processPointsIfLocked) lockVal = 1;
             
             if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                           $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                                           $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
                                        && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
             {
                 var value = ev.SecondaryValue.Split('|')[0];
@@ -622,7 +622,7 @@ public class EventService: IDisposable, IAppService
         }
 
         if (ev.EventType.IsOrder() && ev.ProcessedToSubathon && _config.GetBool(ev.EventType.GetSource().ToString(),
-                $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
             && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
         {
             var value = ev.SecondaryValue.Split('|')[0];
@@ -743,7 +743,7 @@ public class EventService: IDisposable, IAppService
                 }
                 else if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
                                                     $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-                                                    false)
+                                                    ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
                                                 && !string.IsNullOrWhiteSpace(ev.SecondaryValue) &&
                                                 ev.SecondaryValue.Contains('|'))
                 {

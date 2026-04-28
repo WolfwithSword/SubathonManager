@@ -204,6 +204,7 @@ public partial class EditRouteWindow
     {
         CssVarsList.ItemsSource = null;
         JsVarsList.ItemsSource = null;
+        JsVarFontList.ItemsSource = null;
         _editingCssVars.Clear();
         UpdateSaveButtonBorder(SaveButtonBorder, false);
         if (widget == null)
@@ -259,7 +260,8 @@ public partial class EditRouteWindow
     private void PopulateJsVars()
     {
         if (_selectedWidget == null) return;
-        JsVarsList.ItemsSource = _selectedWidget.JsVariables;
+        JsVarsList.ItemsSource = _selectedWidget.JsVariables.Where(x => !x.Type.IsFontVariable());
+        JsVarFontList.ItemsSource = _selectedWidget.JsVariables.Where(x => x.Type.IsFontVariable());
     }
     
     private string SelectFileVarPathDialog(WidgetVariableType type)

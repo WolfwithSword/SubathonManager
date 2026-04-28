@@ -67,7 +67,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                             <ui:Button Icon="Add24" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36"
                                        Content="Add Subscription" x:Name="AddBtn"
-                                       Click="AddSub_Click"
+                                       Click="AddMembership_Click"
                                        Width="160" Margin="4,5,4,5"/>
                             <ComboBox Text="Tier" Width="150" Height="36" FontSize="12" 
                                       x:Name="SimTierSelection" ToolTip="Select Sub Tier"

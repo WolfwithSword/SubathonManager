@@ -40,6 +40,9 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StartAsync<StreamElementsService>();
         await StartAsync<StreamLabsService>();
         await StartAsync<GoAffProService>();//(fireAndForget: true);
+        await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
+        await StartAsync<KoFiService>();
+        await StartAsync<FourthWallService>();
         await StartAsync<DiscordWebhookService>();
     }
 
@@ -51,6 +54,9 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<StreamElementsService>();
         await StopAsync<StreamLabsService>();
         await StopAsync<GoAffProService>();
+        await StopAsync<KoFiService>();
+        await StopAsync<FourthWallService>();
+        await StopAsync<DevTunnelsService>();
         await StopAsync<DiscordWebhookService>();
     }
 
@@ -124,9 +130,12 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     // BlerpChatService
     // CommandService (Dependency for many)
     
-    public static EventService Events => Provider.GetRequiredService<EventService>(); 
+    public static EventService Events => Provider.GetRequiredService<EventService>();
     public static DiscordWebhookService DiscordWebhooks => Provider.GetRequiredService<DiscordWebhookService>();
     public static GoAffProService GoAffPro => Provider.GetRequiredService<GoAffProService>();
+    public static FourthWallService FourthWall => Provider.GetRequiredService<FourthWallService>();
+    public static DevTunnelsService DevTunnels => Provider.GetRequiredService<DevTunnelsService>();
+    public static KoFiService KoFi => Provider.GetRequiredService<KoFiService>();
     public static TwitchService Twitch => Provider.GetRequiredService<TwitchService>(); 
     public static YouTubeService YouTube => Provider.GetRequiredService<YouTubeService>();
     public static PicartoService Picarto => Provider.GetRequiredService<PicartoService>();

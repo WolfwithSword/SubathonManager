@@ -9,6 +9,7 @@ public class MockHttpContext: IHttpContext
     public string Method { get; set; } = "GET";
     public string Path { get; set; } = "/";
     public string QueryString { get; set; } = "";
+    public IReadOnlyDictionary<string, string> Headers { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     public Stream Body { get; set; } = new MemoryStream();
     public Encoding Encoding { get; set; } = Encoding.UTF8;
     public bool IsWebSocket { get; set; }

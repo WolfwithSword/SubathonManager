@@ -47,13 +47,13 @@ public class GoAffProServiceTests
     
     [Theory]
     [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
-        GoAffProModes.Dollar, "USD", "2.99|USD", "10.99", SubathonEventType.UwUMarketOrder)]
+        OrderTypeModes.Dollar, "USD", "2.99|USD", "10.99", SubathonEventType.UwUMarketOrder)]
     [InlineData(GoAffProSource.GamerSupps, 20.99, 6.99, 3, 
-        GoAffProModes.Item, "items", "6.99|USD", "3", SubathonEventType.GamerSuppsOrder)]
+        OrderTypeModes.Item, "items", "6.99|USD", "3", SubathonEventType.GamerSuppsOrder)]
     [InlineData(GoAffProSource.GamerSupps, 20.99, 6.99, 3, 
-        GoAffProModes.Order, "order", "6.99|USD", "New", SubathonEventType.GamerSuppsOrder)]
+        OrderTypeModes.Order, "order", "6.99|USD", "New", SubathonEventType.GamerSuppsOrder)]
     public void SimulateOrder_RaisesEvent(GoAffProSource store, decimal total, decimal commission, int quantity, 
-        GoAffProModes type, string expectedCurrency, string expectedSecondaryValue, string expectedValue, SubathonEventType expectedEventType)
+        OrderTypeModes type, string expectedCurrency, string expectedSecondaryValue, string expectedValue, SubathonEventType expectedEventType)
     {
         var logger = new Mock<ILogger<GoAffProService>>();
         Dictionary<(string, string), string> values = new()
@@ -82,13 +82,13 @@ public class GoAffProServiceTests
         
     [Theory]
     [InlineData(GoAffProSource.Unknown, 10.99, 2.99, 1, 
-        GoAffProModes.Dollar,  "True")]
+        OrderTypeModes.Dollar,  "True")]
     [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
-        GoAffProModes.Dollar, "False")]
+        OrderTypeModes.Dollar, "False")]
     [InlineData(GoAffProSource.GamerSupps, 10.99, 2.99, 1, 
-        GoAffProModes.Item, "False")]
+        OrderTypeModes.Item, "False")]
     public void SimulateOrder_BadPath_DoesNotRaiseEvent(GoAffProSource store, decimal total, decimal commission, int quantity, 
-        GoAffProModes type, string enabledString)
+        OrderTypeModes type, string enabledString)
     {
         var logger = new Mock<ILogger<GoAffProService>>();
         Dictionary<(string, string), string> values = new()

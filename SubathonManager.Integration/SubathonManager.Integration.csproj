@@ -10,6 +10,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Agash.Webhook.Abstractions" Version="1.0.1" />
+      <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0-dev1" />
+      <PackageReference Include="DevTunnels.Client.Installer" Version="1.1.0-dev1" />
+      <PackageReference Include="Fourthwall.Client" Version="0.1.0-dev2" />
+      <PackageReference Include="KoFi.Client" Version="0.1.1-dev1" />
       <PackageReference Include="Agash.YTLiveChat" Version="4.2.0-dev3" />
       <PackageReference Include="GoAffPro.Client" Version="0.4.0" />
       <PackageReference Include="StreamElements.WebSocket" Version="1.0.2" />

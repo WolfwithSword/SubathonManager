@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventType
@@ -67,7 +67,19 @@ public enum SubathonEventType
     [GoAffProTypeMeta(Label="KatDragonz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 4, StoreSource = GoAffProSource.KatDragonz)]
     KatDragonzOrder,
     [EventTypeMeta(Label="Redirect/Raid", Source=SubathonEventSource.YouTube, IsRaid = true, Order = 5)]
-    YouTubeRedirect
+    YouTubeRedirect,
+    [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 3)]
+    KoFiShopOrder,
+    [EventTypeMeta(Label="Commission", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 4)]
+    KoFiCommissionOrder,
+    [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 3)]
+    FourthWallOrder,
+    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.FourthWall, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
+    FourthWallDonation,
+    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.FourthWall, IsMembership = true, IsExternal=true, Order = 2)] // tier names to be fetched and synced, maybe delete old, and new use default vals
+    FourthWallMembership,
+    [EventTypeMeta(Label="Gift Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 4)]
+    FourthWallGiftOrder,
     // any new must be added after the last
 }
 

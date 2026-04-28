@@ -80,6 +80,21 @@ public class JsVariable
     public string GetInjectLine()
     {
         StringBuilder sb = new();
+        if (Type.IsFontVariable())
+        {
+            var fnName = Type switch
+            {
+                WidgetVariableType.GoogleFont => "loadGoogleFont",
+                WidgetVariableType.CdnFont => "loadCdnFont",
+                _ => ""
+            };
+            if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(fnName)) return "\n";
+            foreach (var font in Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                sb.Append($"{fnName}(\"{font.Trim()}\");\n");
+            }
+            return sb.ToString();
+        }
         sb.Append($"const {Name.Replace(' ', '_')} = ");
         if (string.IsNullOrEmpty(Value) || string.IsNullOrWhiteSpace(Value))
             sb.Append("\"\"");

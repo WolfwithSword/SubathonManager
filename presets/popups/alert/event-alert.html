@@ -105,10 +105,12 @@ END_WIDGET_META
         default: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
     };
     
-    const ICON_PNG_OVERRIDE = {
-        UwUMarketOrder: "./icons/uwumarket.png",
-        GamerSuppsOrder: "./icons/gamersupps.avif",
-        OrchidEightOrder: "./icons/orchideight.webp"
+    var ICON_PNG_OVERRIDE = {
+        "uwumarket": "./icons/uwumarket.png",
+        "gamersupps": "./icons/gamersupps.avif",
+        "orchideight": "./icons/orchideight.webp",
+        "kofi": "./icons/kofi.png",
+        "fourthwall": "./icons/fourthwall.png",
     }
 
     const SOUND_CONFIG = {
@@ -188,7 +190,12 @@ END_WIDGET_META
         if (sub == "TokenLike") return `${value} ${currency}`.trim();
         if (sub == "DonationLike") return `${value} ${currency}`.trim();
         if (sub == "FollowLike") return "";
-        if (sub == "OrderLike") return `${data.amount} item${data.amount > 1 ? "s" : ""} ordered`;
+        if (sub == "OrderLike") {
+            if (data.event_type?.toLowerCase().includes("commission")) {
+                return `${data.amount} new commission${data.amount > 1 ? "s" : ""}`;
+            }
+            return `${data.amount} item${data.amount > 1 ? "s" : ""} ${data.event_type?.toLowerCase().includes("gift") ? "gifted" : "ordered"}`;
+        }
         if (value) return currency ? `${value} ${currency}` : value;
         return "";
     }
@@ -213,8 +220,10 @@ END_WIDGET_META
     function showAlert(data) {
         const sub = data.sub_type ?? "default";
         const eventType = data.event_type;
-        const imageUrl = ICON_PNG_OVERRIDE[eventType];
-
+        
+        const source = data.type_true_source;
+        
+        const imageUrl = ICON_PNG_OVERRIDE[source.toLowerCase()];
         // icon or img
         if (imageUrl) {
             iconImgEl.src = imageUrl;
@@ -235,12 +244,18 @@ END_WIDGET_META
         let label = SUBTYPE_LABEL[sub] ?? "Event";
         label = label.replaceAll("[currency]", capitalize(data.currency));
         label = label.replaceAll("[source]", data.type_true_source);
+        if (label == "New Order" && eventType.toLowerCase().includes("commission")) {
+            label = "New Commission";
+        }
+        else if (label == "New Order" && eventType.toLowerCase().includes("gift")) {
+            label = "New Gift Order";
+        }
         if (data.type_true_source.toLowerCase() == "youtube" && label.includes("Donation")) label = label.replaceAll("Donation", "SuperChat");
         
         labelEl.textContent = label;
         userEl.textContent = data.user ?? "";
         detailEl.textContent = buildDetail(data);
-        if (data.sub_type == 'OrderLike') {
+        if (data.sub_type == 'OrderLike' && !"kofi|fourthwall|".includes(source.toLowerCase())) {
             userEl.textContent = data.event_type?.replace(/Order$/, "") ?? "";
         }
         else if (data.sub_type == "TrainLike") {

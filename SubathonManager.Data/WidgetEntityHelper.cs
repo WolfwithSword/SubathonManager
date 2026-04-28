@@ -58,7 +58,7 @@ public class WidgetEntityHelper
 
             extractedNames.Add(variable.Name);
         }
-
+        
         db.SaveChanges();
         foreach (var variable in db.CssVariables.AsNoTracking()
                      .Where(v => v.WidgetId == widget.Id && !extractedNames.Contains(v.Name))
@@ -110,6 +110,7 @@ public class WidgetEntityHelper
             {
                 tracked.Value = updated.Value;
                 tracked.Description = updated.Description;
+                tracked.Type = updated.Type;
             }
         }
 
@@ -121,6 +122,10 @@ public class WidgetEntityHelper
                      .Where(v => v.WidgetId == widget.Id && !extractedNames.Contains(v.Name))
                      .ToList())
         {
+            if (variable.Type.IsFontVariable() && string.Equals(variable.Name, $"{variable.Type}s"))
+            {
+                continue;
+            }
             db.JsVariables.Remove(variable);
         }
 
@@ -129,6 +134,7 @@ public class WidgetEntityHelper
                      .Where(v => v.WidgetId == widget.Id)
                      .ToList())
         {
+            // dupe check
             if (!seenNames.Add(variable.Name))
             {
                 db.JsVariables.Remove(variable);
@@ -179,9 +185,10 @@ public class WidgetEntityHelper
 
             if (existingVar != null && existingVar.Type != WidgetVariableType.StringSelect)
             {
-                if (!string.Equals(description, existingVar.Description))
+                if (!string.Equals(description, existingVar.Description) || existingVar.Type != metaVar.Type)
                 {
                     existingVar.Description = description;
+                    existingVar.Type = metaVar.Type;
                     updatedVars.Add(existingVar);
                 }
 
@@ -215,6 +222,7 @@ public class WidgetEntityHelper
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() }
     };
 
