@@ -399,7 +399,21 @@ public partial class EditRouteWindow
 
         (List<JsVariable> jsVars, _, _) =
             helper.LoadNewJsVariables(newWidget, metadata);
-
+        
+        var allVarTypes = jsVars.Select(j => j.Type).Distinct().ToList();
+        var missingFontTypes = WidgetVariableTypeHelper.FontVariables.ToList().Where(x => !allVarTypes.Contains(x)).ToList();
+        foreach (var fontVar in missingFontTypes)
+        {
+            jsVars.Add(new JsVariable
+            {
+                WidgetId = newWidget.Id,
+                Type = fontVar,
+                Name = $"{fontVar}s",
+                Description = $"Custom font names to include from {fontVar}s, comma separated",
+                Value = string.Empty
+            });
+        }
+        
         if (jsVars.Count > 0)
         {
             newWidget.JsVariables = jsVars;
