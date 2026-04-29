@@ -41,6 +41,7 @@ namespace SubathonManager.UI
             SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
             SubathonEvents.SubathonDataUpdate += UpdateMultiplierUi;
             Task.Run(App.InitSubathonTimer);
+            InitObsIntegration();
         }
 
         protected override void OnSourceInitialized(EventArgs e)

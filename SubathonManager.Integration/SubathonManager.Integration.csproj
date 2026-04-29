@@ -17,6 +17,7 @@
       <PackageReference Include="KoFi.Client" Version="0.1.1-dev1" />
       <PackageReference Include="Agash.YTLiveChat" Version="4.2.0-dev3" />
       <PackageReference Include="GoAffPro.Client" Version="0.4.0" />
+      <PackageReference Include="obs-websocket-dotnet" Version="5.0.1" />
       <PackageReference Include="StreamElements.WebSocket" Version="1.0.2" />
       <PackageReference Include="Streamlabs.SocketClient" Version="3.0.0" />
       <PackageReference Include="TwitchLib.Api" Version="3.9.0" />

@@ -35,6 +35,7 @@ public partial class SettingsView : SettingsControl
             UpdateServerStatus(ServiceManager.Server?.Running ?? false);
             SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
             SettingsEvents.SettingsUnsavedChanges += UpdateSaveButtonBorder;
+            InitOBSSettings();
             RegisterUnsavedChangeHandlers();
         };
 
@@ -53,6 +54,7 @@ public partial class SettingsView : SettingsControl
             //SubathonEvents.SubathonDataUpdate -= UpdateTimerValue;
             WebServerEvents.WebServerStatusChanged -= UpdateServerStatus;
             SubathonEvents.SubathonValueConfigUpdatedRemote -= RefreshSubathonValues;
+            UnloadOBSSettings();
         };
         
         Task.Run(CheckForUpdateOnBoot);

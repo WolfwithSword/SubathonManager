@@ -75,6 +75,7 @@ public static class ServiceRegistration
         // Other //
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;
         services.AddSingleton<DiscordWebhookService>();
+        services.AddSingleton<OBSService>();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder)

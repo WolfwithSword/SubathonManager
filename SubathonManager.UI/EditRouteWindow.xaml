@@ -19,6 +19,7 @@
         <conv:CssVariableTypeOptionsConverter x:Key="CssTypeOptionsConverter"/>
         <conv:CssSizeValueConverter x:Key="CssSizeValueConverter"/>
         <conv:CssSizeUnitConverter x:Key="CssSizeUnitConverter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <conv:NullOrEmptyToNullConverter x:Key="NullOrEmptyToNull"/>
         <conv:StringToBoolConverter x:Key="StringToBoolConverter"/>
         <conv:VarTooltipConverter x:Key="VarTooltipConverter"/>
@@ -107,27 +108,42 @@
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                    <ui:Button Padding="2"
-                               ToolTip="Copy URL to clipboard"
-                               Width="32" Height="32"
-                               Margin="4,0,4,0"
-                               Click="CopyOverlayUrl_Click"><ui:SymbolIcon Symbol="Link24" />
-                    </ui:Button>
+                <Grid Margin="0,10,0,0">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <ui:Button Padding="2"
+                                   ToolTip="Copy URL to clipboard"
+                                   Width="32" Height="32"
+                                   Margin="0,0,4,0"
+                                   Click="CopyOverlayUrl_Click">
+                            <ui:SymbolIcon Symbol="Link24"/>
+                        </ui:Button>
+                        <ui:Button Padding="2" ToolTip="Open in browser"
+                                   Width="32" Height="32"
+                                   Margin="0,0,4,0"
+                                   Click="OpenOverlayInBrowser_Click">
+                            <ui:SymbolIcon Symbol="Open24"/>
+                        </ui:Button>
+                        <ui:Button Padding="2" ToolTip="Export"
+                                   Width="32" Height="32"
+                                   Margin="0,0,4,0"
+                                   Click="ExportRoute_Click">
+                            <ui:SymbolIcon Symbol="ArrowExportUp24"/>
+                        </ui:Button>
+                        <ui:Button Padding="2" ToolTip="Add to OBS as Browser Source"
+                                   Width="32" Height="32"
+                                   Click="AddToObs_Click">
+                            <ui:Button.Visibility>
+                                <Binding Path="ObsConnected"
+                                         RelativeSource="{RelativeSource AncestorType=Window}"
+                                         Converter="{StaticResource BooleanToVisibilityConverter}"/>
+                            </ui:Button.Visibility>
+                            <ui:SymbolIcon Symbol="VideoAdd24"/>
+                        </ui:Button>
+                    </StackPanel>
 
-                    <ui:Button Padding="2" ToolTip="Open in browser"
-                               Width="32" Height="32"
-                               Margin="4,0,4, 0"
-                               Click="OpenOverlayInBrowser_Click"><ui:SymbolIcon Symbol="Open24"/>
-                    </ui:Button>
-
-                    <ui:Button Padding="2" ToolTip="Export"
-                               Width="32" Height="32"
-                               Margin="4,0,154,0"
-                               Click="ExportRoute_Click"><ui:SymbolIcon Symbol="ArrowExportUp24"/>
-                    </ui:Button>
-                    <ui:Button x:Name="SaveRouteButton" Content="Save" Width="80" Click="SaveRouteButton_Click"/>
-                </StackPanel>
+                    <ui:Button x:Name="SaveRouteButton" HorizontalAlignment="Right"
+                               Content="Save" Width="80" Click="SaveRouteButton_Click"/>
+                </Grid>
             </StackPanel>
 
             <StackPanel Grid.Row="1">

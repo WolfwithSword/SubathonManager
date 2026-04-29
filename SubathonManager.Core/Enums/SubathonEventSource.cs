@@ -35,7 +35,9 @@ public enum SubathonEventSource
     [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=70, Visible=false, Order=120)]
     DevTunnels,
     [EventSourceMeta(Description="FourthWall", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=62, Order=51)]
-    FourthWall
+    FourthWall,
+    [EventSourceMeta(Description="OBS Websocket", SourceGroup = SubathonSourceGroup.Unknown, SourceOrder=999, Order=999, Visible = false)]
+    OBS
 }
 
 [ExcludeFromCodeCoverage]
