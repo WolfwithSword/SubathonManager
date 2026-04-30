@@ -11,10 +11,12 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
-public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClientFactory httpClientFactory, DevTunnelsService devTunnels)
+public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClientFactory httpClientFactory, DevTunnelsService devTunnels, ISecureStorage secureStorage)
     : IWebhookIntegration
 {
     private readonly string _configSection = "KoFi";
@@ -35,7 +37,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
     {
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
 
-        var token = config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);
+        var token = secureStorage.Get(StorageKeys.KoFiVerificationToken); // config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);
         bool enabled = !string.IsNullOrWhiteSpace(token);
 
         if (enabled)
@@ -70,7 +72,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
     private void OnTunnelUpdated(IntegrationConnection connection)
     {
         if (connection is not { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" }) return;
-        var token = config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);
+        var token = secureStorage.Get(StorageKeys.KoFiVerificationToken);
         bool enabled = !string.IsNullOrWhiteSpace(token);
         BroadcastStatus(enabled, connection.Status ? connection.Name : null);
     }
@@ -103,7 +105,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
         // forwarded service (e.g. StreamerBot) needs the same unmodified payload.
         await ForwardRequestAsync(rawBody, headers, ct);
 
-        var token = config.GetFromEncoded(_configSection, "VerificationToken", string.Empty);
+        var token = secureStorage.Get(StorageKeys.KoFiVerificationToken);
         if (string.IsNullOrWhiteSpace(token))
         {
             logger?.LogWarning("[Ko-Fi] Received webhook but no verification token is configured");

@@ -6,9 +6,10 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
-using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
@@ -41,8 +42,8 @@ public partial class StreamLabsSettings : SettingsControl
     public override void Init(SettingsView host)
     {
         Host = host;
-        var config = AppServices.Provider.GetRequiredService<IConfig>();
-        SLTokenBox.Text = config.Get("StreamLabs", "SocketToken", string.Empty)!;
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+        SLTokenBox.Text = secureStorage.GetOrDefault(StorageKeys.StreamLabsSocketToken, string.Empty)!;
         UpdateStatus(Utils.GetConnection(SubathonEventSource.StreamLabs, "Socket"));
     }
     

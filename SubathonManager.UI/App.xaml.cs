@@ -12,6 +12,8 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.UI.Services;
@@ -82,6 +84,7 @@ public partial class App
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             config.LoadOrCreateDefault();
             config.MigrateConfig();
+            MigrateSecureStore(config);
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
@@ -158,6 +161,52 @@ public partial class App
             _logger?.LogError(ex, "Error occurred when starting Subathon Manager");
             Current.Shutdown();
         }
+    }
+
+    private void MigrateSecureStore(IConfig config)
+    {
+        bool hasUpdated = false;
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+
+        var value = "";
+        value = config.Get("StreamElements", "JWT", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.StreamElementsJwt, value);
+            hasUpdated |= config.Set("StreamElements", "JWT", string.Empty);
+        }      
+        value = config.Get("StreamLabs", "SocketToken", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.StreamLabsSocketToken, value);
+            hasUpdated |= config.Set("StreamLabs", "SocketToken", string.Empty);
+        }  
+        value = config.GetFromEncoded("KoFi", "VerificationToken", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.KoFiVerificationToken, value);
+            hasUpdated |= config.Set("KoFi", "VerificationToken", string.Empty);
+        }
+        value = config.GetFromEncoded("OBS", "Password", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.OBSWebSocketPassword, value);
+            hasUpdated |= config.Set("OBS", "Password", string.Empty);
+        }
+        value = config.GetFromEncoded("GoAffPro", "Email", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.GoAffProEmail, value);
+            hasUpdated |= config.Set("GoAffPro", "Email", string.Empty);
+        }
+        value = config.GetFromEncoded("GoAffPro", "Password", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.GoAffProPassword, value);
+            hasUpdated |= config.Set("GoAffPro", "Password", string.Empty);
+        }
+
+        if (hasUpdated) config.Save();
     }
 
     private static ProtocolMessageType ParseProtocolRequest(StartupEventArgs e)

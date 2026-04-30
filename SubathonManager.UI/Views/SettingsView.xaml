@@ -179,27 +179,27 @@
                      <!-- OBS -->
                      <Expander Header="OBS WebSocket" IsExpanded="False">
                          <StackPanel Orientation="Vertical">
-                             <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
-                                 <TextBlock Text="Host:" Width="80" VerticalAlignment="Center"/>
-                                 <ui:TextBox x:Name="ObsHostBox" Width="140" PlaceholderText="localhost" Margin="0 0 8 0"
-                                             local:SettingsProperties.ExcludeFromUnsaved="True"/>
-                                 <TextBlock Text="Port:" Width="40" VerticalAlignment="Center"/>
-                                 <ui:TextBox x:Name="ObsPortBox" Width="80" PlaceholderText="4455" Margin="0 0 8 0"
-                                             local:SettingsProperties.ExcludeFromUnsaved="True"
-                                             PreviewTextInput="NumberOnly_PreviewTextInput"/>
-                             </StackPanel>
-                             <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
-                                 <TextBlock Text="Password:" Width="80" VerticalAlignment="Center"/>
-                                 <PasswordBox x:Name="ObsPasswordBox" Width="220" Height="30" Margin="0 0 8 0"/>
-                                 <TextBlock Text="(leave blank if none)" VerticalAlignment="Center" FontSize="11"
-                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                             </StackPanel>
-                             <StackPanel Orientation="Horizontal" Margin="0 4 0 0">
+                             <StackPanel Orientation="Horizontal" Margin="0 4 0 6">
                                  <ui:Button x:Name="ObsConnectBtn" Content="Connect" Width="100" Height="30"
                                             Margin="0 0 8 0" Click="ObsConnect_Click"
                                             local:SettingsProperties.ExcludeFromUnsaved="True"/>
                                  <TextBlock Text="Status:" VerticalAlignment="Center" Margin="0 0 4 0" FontSize="12"/>
                                  <TextBlock x:Name="ObsStatusText" VerticalAlignment="Center" FontSize="12" Text="Disconnected"/>
+                             </StackPanel>
+                             <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+                                 <TextBlock Text="Host:" Width="120" VerticalAlignment="Center"/>
+                                 <ui:TextBox x:Name="ObsHostBox" Width="140" PlaceholderText="localhost" Margin="0 0 32 0"
+                                             local:SettingsProperties.ExcludeFromUnsaved="True"/>
+                                 <TextBlock Text="Port:" Width="32" VerticalAlignment="Center"/>
+                                 <ui:TextBox x:Name="ObsPortBox" Width="80" PlaceholderText="4455" Margin="12 0 8 0"
+                                             local:SettingsProperties.ExcludeFromUnsaved="True" ClearButtonEnabled="False"
+                                             PreviewTextInput="NumberOnly_PreviewTextInput"/>
+                             </StackPanel>
+                             <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+                                 <TextBlock Text="Password:" Width="120" VerticalAlignment="Center"/>
+                                 <ui:PasswordBox x:Name="ObsPasswordBox" Width="220" Height="36" Margin="0 0 8 0" />
+                                 <TextBlock Text="(leave blank if none)" VerticalAlignment="Center" FontSize="11"
+                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                              </StackPanel>
                          </StackPanel>
                      </Expander>

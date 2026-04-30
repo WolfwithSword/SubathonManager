@@ -20,6 +20,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
 using Amounts = Fourthwall.Client.Generated.Models.Openapi.Model.DonationV1.Amounts;
@@ -59,7 +60,13 @@ public class FourthWallServiceTests
         httpFactory.Setup(f => f.CreateClient(nameof(FourthWallService))).Returns(new HttpClient());
 
         IConfig config = MockConfig.MakeMockConfig(configValues);
-        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels);
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.FourthWallAccessToken] = "123456abcdef",
+            [StorageKeys.FourthWallRefreshToken] = "D34DBEEF",
+        });
+        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels, storage);
 
         service.OpenBrowser = _ => { };
 
@@ -615,8 +622,12 @@ public class FourthWallServiceTests
         {
             { ("FourthWall", "ForwardUrls"), mockServer.BaseUrl.TrimEnd('/') + "/fw-forward" },
         });
-
-        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels);
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.FourthWallAccessToken] = "123456abcdef",
+            [StorageKeys.FourthWallRefreshToken] = "D34DBEEF",
+        });
+        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels, storage);
         service.OpenBrowser = _ => { };
 
         var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { type = "DONATION" }));

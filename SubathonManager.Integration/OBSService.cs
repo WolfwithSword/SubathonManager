@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;
 using SubathonManager.Core;
@@ -6,6 +7,9 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
@@ -13,16 +17,18 @@ public class OBSService : IAppService
 {
     private readonly ILogger? _logger;
     private readonly IConfig _config;
+    private readonly ISecureStorage _secureStorage;
     private readonly OBSWebsocket _obs = new();
     private readonly Utils.ServiceReconnectState _reconnectState =
         new(TimeSpan.FromSeconds(5), maxRetries: 1000, maxBackoff: TimeSpan.FromMinutes(5));
 
     public bool Connected => _obs.IsConnected;
 
-    public OBSService(ILogger<OBSService>? logger, IConfig config)
+    public OBSService(ILogger<OBSService>? logger, IConfig config, ISecureStorage secureStorage)
     {
         _logger = logger;
         _config = config;
+        _secureStorage = secureStorage;
 
         _obs.Connected += OnConnected;
         _obs.Disconnected += OnDisconnected;
@@ -57,7 +63,7 @@ public class OBSService : IAppService
     {
         var host = _config.Get("OBS", "Host", "localhost")!;
         var port = _config.Get("OBS", "Port", "4455")!;
-        var password = _config.GetFromEncoded("OBS", "Password", "")!;
+        var password = _secureStorage.GetOrDefault(StorageKeys.OBSWebSocketPassword, string.Empty);
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port)) return;
 
@@ -109,7 +115,8 @@ public class OBSService : IAppService
             _ = Task.Run(ReconnectWithBackoffAsync);
         }
     }
-
+    
+    [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync()
     {
         if (!await _reconnectState.Lock.WaitAsync(0)) return;
@@ -169,7 +176,7 @@ public class OBSService : IAppService
         bool hasUpdated = false;
         hasUpdated |= _config.Set("OBS", "Host", host);
         hasUpdated |= _config.Set("OBS", "Port", port);
-        hasUpdated |= _config.SetEncoded("OBS", "Password", password);
+        hasUpdated |= _secureStorage.Set(StorageKeys.OBSWebSocketPassword, password);
         if (hasUpdated && forceSave)
             _config.Save();
         return hasUpdated;
@@ -180,7 +187,7 @@ public class OBSService : IAppService
         return (
             _config.Get("OBS", "Host", "localhost")!,
             _config.Get("OBS", "Port", "4455")!,
-            _config.GetFromEncoded("OBS", "Password", "")!
+            _secureStorage.GetOrDefault(StorageKeys.OBSWebSocketPassword, string.Empty)!
         );
     }
 

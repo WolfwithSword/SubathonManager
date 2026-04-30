@@ -9,6 +9,8 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
@@ -16,19 +18,21 @@ public class StreamLabsService : IAppService
 {
     internal Func<string, IStreamlabsClient> ClientFactory;
     private IStreamlabsClient? _client;
-    private string _secretToken = "";
     public bool Connected { get; private set; } = false;
 
     private readonly ILogger? _logger;
     private readonly IConfig _config;
+    private readonly ISecureStorage _secureStorage;
 
     internal string BaseUrl = "https://sockets.streamlabs.com";
+    private string? SecretToken => _secureStorage.GetOrDefault(StorageKeys.StreamLabsSocketToken, string.Empty);
 
-    public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config)
+    public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config, ISecureStorage secureStorage)
     {
         _logger = logger;
         _config = config;
-        
+        _secureStorage = secureStorage;
+
         ClientFactory = token =>
         {
             var options = new OptionsWrapper<StreamlabsOptions>(
@@ -51,8 +55,6 @@ public class StreamLabsService : IAppService
     // todo cleanup all names in test for inits
     public async Task<bool> InitClientAsync()
     {
-        GetTokenFromConfig();
-        
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.StreamLabs,
@@ -61,7 +63,7 @@ public class StreamLabsService : IAppService
             Status = false
         });
         
-        if (_secretToken.Equals(string.Empty))
+        if (string.IsNullOrWhiteSpace(SecretToken))
         {
             Connected = false; 
             return false;
@@ -69,7 +71,7 @@ public class StreamLabsService : IAppService
 
         if (_client != null) await DisconnectAsync();
         
-        _client = ClientFactory(_secretToken);
+        _client = ClientFactory(SecretToken);
         _client.OnDonation += OnDonation;
         try
         {
@@ -94,21 +96,14 @@ public class StreamLabsService : IAppService
         return Connected;
     }
     
-    private void GetTokenFromConfig()
-    {
-        _secretToken = _config.Get("StreamLabs", "SocketToken", string.Empty)!;
-    }  
-    
     public bool IsTokenEmpty()
     {
-        return string.IsNullOrEmpty(_secretToken);
+        return !_secureStorage.Exists(StorageKeys.StreamLabsSocketToken) || string.IsNullOrWhiteSpace(SecretToken);
     }
-    
-    public void SetSocketToken(string token)
+
+    public bool SetSocketToken(string token)
     {
-        _secretToken = token;
-        if (_config.Set("StreamLabs", "SocketToken", token))
-            _config.Save();
+       return _secureStorage.Set(StorageKeys.StreamLabsSocketToken, token);
     }
     
     private void OnDonation(object? o, DonationMessage message)

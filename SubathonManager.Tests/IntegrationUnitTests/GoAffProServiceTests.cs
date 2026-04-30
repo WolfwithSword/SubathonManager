@@ -5,6 +5,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
 
@@ -63,7 +64,12 @@ public class GoAffProServiceTests
             { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
         };
 
-        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "",
+            [StorageKeys.GoAffProPassword] = "",
+        });
+        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -98,7 +104,12 @@ public class GoAffProServiceTests
             { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
         };
 
-        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "",
+            [StorageKeys.GoAffProPassword] = "",
+        });
+        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -119,11 +130,14 @@ public class GoAffProServiceTests
         {
             { ("GoAffPro", "UwUMarket.Enabled"), "True"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
-            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), email},
-            { ("GoAffPro", "Password"), password},
+            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" }
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = email,
+            [StorageKeys.GoAffProPassword] = password,
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         
         typeof(IntegrationEvents)
             .GetField("RaiseConnectionUpdate", BindingFlags.Static | BindingFlags.NonPublic)
@@ -196,10 +210,13 @@ public class GoAffProServiceTests
             { ("GoAffPro", "GamerSupps.Enabled"), "False"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
             { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), email},
-            { ("GoAffPro", "Password"), password},
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = email,
+            [StorageKeys.GoAffProPassword] = password,
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         service.Endpoint = new Uri(webserver.BaseUrl);
         
         typeof(IntegrationEvents)
@@ -229,11 +246,15 @@ public class GoAffProServiceTests
             { ("GoAffPro", "UwUMarket.Enabled"), "True"},
             { ("GoAffPro", "GamerSupps.Enabled"), "False"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
-            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), "test@example.com"},
-            { ("GoAffPro", "Password"),  "p4$$w0rd"},
+            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" }
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "test@example.com",
+            [StorageKeys.GoAffProPassword] = "p4$$w0rd",
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         service.Endpoint = new Uri(webserver.BaseUrl);
         
         typeof(IntegrationEvents)
@@ -268,10 +289,14 @@ public class GoAffProServiceTests
             { ("GoAffPro", "GamerSupps.Enabled"), "False"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
             { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), "test@example.com"},
-            { ("GoAffPro", "Password"),  "p4$$w0rd"},
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "test@example.com",
+            [StorageKeys.GoAffProPassword] = "p4$$w0rd",
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         service.MaxRetries = 1;
         service.Endpoint = new Uri(webserver.BaseUrl);
         

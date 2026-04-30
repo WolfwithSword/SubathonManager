@@ -9,10 +9,13 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
-public class StreamElementsService : IAppService
+public class StreamElementsService(ILogger<StreamElementsService>? logger, IConfig config, ISecureStorage secureStorage)
+    : IAppService
 {
 
     private Func<StreamElementsClient> ClientFactory { get; set; } 
@@ -20,19 +23,11 @@ public class StreamElementsService : IAppService
     
     private StreamElementsClient? _client;
     public bool Connected { get; private set; } = false;
-    private string _jwtToken = "";
+    private string? JwtToken => secureStorage.GetOrDefault(StorageKeys.StreamElementsJwt, string.Empty);
     private bool _hasAuthError = false;
     private readonly Utils.ServiceReconnectState _reconnectState =
         new(TimeSpan.FromSeconds(2), maxRetries: 50, maxBackoff: TimeSpan.FromMinutes(5));
     
-    private readonly ILogger? _logger;
-    private readonly IConfig _config;
-
-    public StreamElementsService(ILogger<StreamElementsService>? logger, IConfig config)
-    {
-        _logger = logger;
-        _config = config;
-    }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -51,8 +46,7 @@ public class StreamElementsService : IAppService
         _client = ClientFactory();
         _hasAuthError = false;
         Connected = false;
-        GetJwtFromConfig();
-        if (_jwtToken.Equals(string.Empty)) return false;
+        if (string.IsNullOrWhiteSpace(JwtToken)) return false;
         
         if (_client != null)
         {
@@ -67,36 +61,29 @@ public class StreamElementsService : IAppService
         _client.OnTip += _OnTip;
         _client.OnDisconnected += _OnDisconnected;
         _client.OnAuthenticationFailure += _OnAuthenticateError;
-        _client.Connect(_jwtToken);
+        _client.Connect(JwtToken);
         return true;
     }
 
     public bool IsTokenEmpty()
     {
-        return string.IsNullOrEmpty(_jwtToken);
+        return !secureStorage.Exists(StorageKeys.StreamElementsJwt) || string.IsNullOrWhiteSpace(JwtToken);
     }
 
-    public void SetJwtToken(string token)
+    public bool SetJwtToken(string token)
     {
-        _jwtToken = token;
-        if (_config.Set("StreamElements", "JWT", token))
-            _config.Save();
+        return secureStorage.Set(StorageKeys.StreamElementsJwt, token);
     }
-
-    private void GetJwtFromConfig()
-    {
-        _jwtToken = _config.Get("StreamElements", "JWT", "")!;
-    }
-
+    
     private void _OnConnected(object? sender, EventArgs e)
     {
-        _logger?.LogInformation("[StreamElementsService] Connected");
+        logger?.LogInformation("[StreamElementsService] Connected");
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
     }
     private void _OnDisconnected(object? sender, EventArgs e)
     {
-        _logger?.LogWarning("[StreamElementsService] Disconnected");
+        logger?.LogWarning("[StreamElementsService] Disconnected");
         Connected = false;
          
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
@@ -139,7 +126,7 @@ public class StreamElementsService : IAppService
                         message,
                         DateTime.Now.ToLocalTime());
 
-                    _logger?.LogError(message);
+                    logger?.LogError(message);
                     return;
                 }
 
@@ -147,7 +134,7 @@ public class StreamElementsService : IAppService
 
                 var delay = _reconnectState.Backoff;
 
-                _logger?.LogWarning(
+                logger?.LogWarning(
                     "[StreamElementsService] Reconnect attempt {Attempt}/{Max} in {Delay}s",
                     _reconnectState.Retries,
                     _reconnectState.MaxRetries,
@@ -159,7 +146,7 @@ public class StreamElementsService : IAppService
 
                     if (!Connected && !_hasAuthError && _client != null)
                     {
-                        _client.Connect(_jwtToken);
+                        _client.Connect(JwtToken);
                     }
                 }
                 catch (OperationCanceledException)
@@ -169,7 +156,7 @@ public class StreamElementsService : IAppService
                 catch (Exception ex)
                 {
                     string message = $"StreamElements Disconnected with an error. Could not auto-reconnect. {ex.Message}";
-                    _logger?.LogWarning(ex, message);
+                    logger?.LogWarning(ex, message);
                     ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements), 
                                        message, DateTime.Now.ToLocalTime());
                 }
@@ -189,7 +176,7 @@ public class StreamElementsService : IAppService
 
     private void _OnAuthenticated(object? sender, Authenticated e)
     {
-        _logger?.LogDebug($"[StreamElementsService] Authenticated");
+        logger?.LogDebug($"[StreamElementsService] Authenticated");
         Connected = true;
         _hasAuthError = false;
 
@@ -206,7 +193,7 @@ public class StreamElementsService : IAppService
 
     private void _OnAuthenticateError(object? sender, EventArgs e)
     {
-        _logger?.LogError("[StreamElementsService] Authentication Error");
+        logger?.LogError("[StreamElementsService] Authentication Error");
         Connected = false;
         _hasAuthError = true;
         _reconnectState.Cts?.Cancel();   
@@ -253,7 +240,17 @@ public class StreamElementsService : IAppService
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "[StreamElementsService] Disconnection Error");
+            logger?.LogWarning(ex, "[StreamElementsService] Disconnection Error");
+        }
+        finally
+        {
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+            {
+                Source = SubathonEventSource.StreamElements,
+                Service = "Socket",
+                Name = "User",
+                Status = false
+            });
         }
     }
 

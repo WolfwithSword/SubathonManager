@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.Server;
@@ -32,7 +34,7 @@ public static class ServiceRegistration
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
         services.AddSingleton<TelemetryService>();
-
+        services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
     }
     
     public static void AddIntegrations(this IServiceCollection services)

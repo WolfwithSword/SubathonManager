@@ -10,6 +10,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
 
@@ -48,8 +49,19 @@ public class KoFiServiceTests
         var httpFactory = new Mock<IHttpClientFactory>();
         _ = httpFactory.Setup(f => f.CreateClient(nameof(KoFiService))).Returns(new HttpClient());
 
+        var token = "";
+        if (configValues != null && configValues.ContainsKey(("KoFi", "VerificationToken")))
+        {
+            token = configValues[("KoFi", "VerificationToken")];
+            configValues.Remove(("KoFi", "VerificationToken"));
+        }
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.KoFiVerificationToken] = token
+        });
+        
         IConfig config = MockConfig.MakeMockConfig(configValues);
-        var koFi = new KoFiService(logger.Object, config, httpFactory.Object, devTunnels);
+        var koFi = new KoFiService(logger.Object, config, httpFactory.Object, devTunnels, storage);
         return (koFi, devTunnels);
     }
 
@@ -386,10 +398,15 @@ public class KoFiServiceTests
 
         IConfig config = MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
         {
-            { ("KoFi", "VerificationToken"), token },
             { ("KoFi", "ForwardUrls"), mockServer.BaseUrl.TrimEnd('/') + "/forward" },
         });
-        var service = new KoFiService(logger.Object, config, httpFactory.Object, devTunnels);
+        
+
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.KoFiVerificationToken] =token,
+        });
+        var service = new KoFiService(logger.Object, config, httpFactory.Object, devTunnels, storage);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 

@@ -30,6 +30,15 @@
             <TextBlock x:Name="EventSubStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="2 5 4 4" Width="75"/>
             
         </StackPanel>
+        <StackPanel Margin="0 4" Visibility="Collapsed" x:Name="DisconnectPanel">
+            <ui:Button x:Name="DisconnectTwitchBtn"
+                       Content="Disconnect"
+                       Width="120"
+                       Height="35"
+                       VerticalAlignment="Center"
+                       Margin="0,0,4,2"
+                       Click="DisconnectTwitchButton_Click"/>
+        </StackPanel>
         
         <StackPanel Margin="10,5,0,5">
             
