@@ -14,7 +14,7 @@ using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
-public class StreamElementsService(ILogger<StreamElementsService>? logger, IConfig config, ISecureStorage secureStorage)
+public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecureStorage secureStorage)
     : IAppService
 {
 

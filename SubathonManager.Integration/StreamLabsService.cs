@@ -21,16 +21,14 @@ public class StreamLabsService : IAppService
     public bool Connected { get; private set; } = false;
 
     private readonly ILogger? _logger;
-    private readonly IConfig _config;
     private readonly ISecureStorage _secureStorage;
 
     internal string BaseUrl = "https://sockets.streamlabs.com";
     private string? SecretToken => _secureStorage.GetOrDefault(StorageKeys.StreamLabsSocketToken, string.Empty);
 
-    public StreamLabsService(ILogger<StreamLabsService>? logger, IConfig config, ISecureStorage secureStorage)
+    public StreamLabsService(ILogger<StreamLabsService>? logger, ISecureStorage secureStorage)
     {
         _logger = logger;
-        _config = config;
         _secureStorage = secureStorage;
 
         ClientFactory = token =>
