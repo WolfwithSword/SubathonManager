@@ -144,7 +144,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
         Utils.PendingOAuthCallback = null;
         logger?.LogDebug("Opening Twitch OAuth...");
         OpenBrowser(_oAuthURl);
-        var token = await WaitForProtocolCallbackAsync();   
+        var token = await WaitForProtocolCallbackAsync();
         if (!string.IsNullOrWhiteSpace(token))
         {
             secureStorage.Set(StorageKeys.TwitchAccessToken, token);
@@ -160,7 +160,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             if (cb?.Provider == "twitch" && !string.IsNullOrEmpty(cb.AccessToken))
             {
                 logger?.LogInformation("Twitch OAuth Callback received");
-                var token = cb.RefreshToken;
+                var token = cb.AccessToken;
                 Utils.PendingOAuthCallback = null;
                 return token;
             }

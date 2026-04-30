@@ -1223,7 +1223,6 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 callbackSim,
                 (Task)oauthMethod.Invoke(service, null)!
             );
-
             Assert.True(service.HasTokenFile());
             Assert.True(storage.Exists(StorageKeys.TwitchAccessToken));
             service.RevokeTokenFile();
