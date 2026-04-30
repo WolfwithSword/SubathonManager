@@ -5,6 +5,7 @@ using SubathonManager.Services;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
 using SubathonManager.Tests.Utility;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
@@ -226,7 +227,7 @@ public class CurrencyServiceTests
 
         typeof(CurrencyService)
             .GetMethod("ParseRatesAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(service, new object[] { json });
+            .Invoke(service, [json]);
 
         Assert.True(service.IsValidCurrency("EUR"));
         Assert.True(service.IsValidCurrency("GBP"));
@@ -260,17 +261,17 @@ public class CurrencyServiceTests
         string tempPath = Path.Combine(Path.GetTempPath(), "usd.json");
         await File.WriteAllTextAsync(tempPath, """
                                                { "usd": { "code": "USD", "rate": 1.0 } }
-                                               """);
+                                               """, TestContext.Current.CancellationToken);
 
         var service = CreateService("{}");
         typeof(CurrencyService).GetField("_dataDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
             .SetValue(service, Path.GetTempPath());
 
-        await service.StartAsync();
+        await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.True(service.IsValidCurrency("USD"));
         File.Delete(tempPath);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]

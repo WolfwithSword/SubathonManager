@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
@@ -15,6 +16,8 @@ public static class Utils
     public static readonly Dictionary<string, bool> DonationSettings = new();
     private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection> ConnectionDetails = new();
     
+    public static string? PendingOverlayImportPath { get; set; }
+    public static OAuthCallback? PendingOAuthCallback { get; set; }
     
     public static IEnumerable<IntegrationConnection> GetAllConnections() 
         => ConnectionDetails.Values;
@@ -213,6 +216,36 @@ public static class Utils
         bool useAsDonation = config.GetBool("Currency", "BitsLikeAsDonation", false);
         return (useAsDonation, modifier);
     }
+
+    public static DateTime? GetAccessTokenExpiry(string accessToken)
+    {
+        try
+        {
+            var parts = accessToken.Split('.');
+            if (parts.Length != 3)
+                return null; 
+            var payload = parts[1];
+            payload = payload.Replace('-', '+').Replace('_', '/');
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+
+            var json = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+            using var doc = JsonDocument.Parse(json);
+
+            if (!doc.RootElement.TryGetProperty("exp", out var expProp))
+                return null; 
+
+            var expUnix = expProp.GetInt64();
+            return DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+        }
+        catch
+        {
+            return null;
+        }
+    }
     
     public sealed class ServiceReconnectState : IDisposable
     {
@@ -267,6 +300,7 @@ public static class Utils
     public static class SingleInstanceHelper
     {
         public const int WM_SHOWAPP = 0x0400 + 1;
+        public const int WM_COPYDATA = 0x004A;
 
         [DllImport("user32")]
         public static extern bool PostMessage(
@@ -274,6 +308,34 @@ public static class Utils
             int msg,
             IntPtr wparam,
             IntPtr lparam);
+        
+        [StructLayout(LayoutKind.Sequential)]
+        public struct COPYDATASTRUCT
+        {
+            public IntPtr dwData;
+            public int cbData;
+            public IntPtr lpData;
+        }
+        
+        [DllImport("user32")]
+        public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, ref COPYDATASTRUCT lParam);
+
+        public static void SendStringMessage(IntPtr hWnd, ProtocolMessageType type, string message)
+        {
+            var bytes = Encoding.Unicode.GetBytes(message);
+
+            var cds = new COPYDATASTRUCT
+            {
+                cbData = bytes.Length,
+                lpData = Marshal.AllocHGlobal(bytes.Length)
+            };
+
+            Marshal.Copy(bytes, 0, cds.lpData, bytes.Length);
+
+            SendMessage(hWnd, WM_COPYDATA, IntPtr.Zero, ref cds);
+
+            Marshal.FreeHGlobal(cds.lpData);
+        }
     }
 
 }

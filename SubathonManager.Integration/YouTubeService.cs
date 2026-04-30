@@ -58,6 +58,7 @@ public class YouTubeService : IDisposable, IAppService
         _ytLiveChat.ChatStopped += OnChatStopped;
         _ytLiveChat.ErrorOccurred += OnErrorOccurred;
         //_ytLiveChat.LivestreamStarted += OnStreamStart;
+        _ytLiveChat.BannerAdded += OnBanner;
         _ytLiveChat.LivestreamEnded += OnStreamEnd; 
         
 #pragma warning restore CS0618
@@ -152,6 +153,24 @@ public class YouTubeService : IDisposable, IAppService
             Status = Running
         });
         TryReconnectLoop();
+    }
+    
+    private void OnBanner(object? sender, BannerAddedEventArgs e)
+    {
+        if (e.Banner.BannerType != BannerType.CrossChannelRedirect || e.Banner is not CrossChannelRedirectBannerItem banner) return;
+        if (banner.RedirectType != CrossChannelRedirectType.Raid) return;
+
+        var channel = banner.RedirectChannelHandle.Replace("@", "");
+
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.YouTube,
+            EventType = SubathonEventType.YouTubeRedirect,
+            Value = "",
+            User = channel,
+            Amount = 1
+        };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
     private void OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
@@ -428,6 +447,7 @@ public class YouTubeService : IDisposable, IAppService
             _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
             _ytLiveChat.ChatReceived -= OnChatReceived;
             _ytLiveChat.ChatStopped -= OnChatStopped;
+            _ytLiveChat.BannerAdded -= OnBanner;
             _ytLiveChat.ErrorOccurred -= OnErrorOccurred;
             _ytLiveChat.Dispose();
             _httpClient.Dispose();
@@ -475,6 +495,20 @@ public class YouTubeService : IDisposable, IAppService
             Value = tier,
             User = "SYSTEM",
             Amount = amount
+        };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    } 
+    
+    public static void SimulateRaid()
+    {
+        SubathonEvent subathonEvent = new SubathonEvent
+        {
+            Source = SubathonEventSource.Simulated,
+            Currency = "",
+            EventType = SubathonEventType.YouTubeRedirect,
+            Value = "",
+            User = "SYSTEM",
+            Amount = 1
         };
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     } 

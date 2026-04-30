@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <ForceManagedImplementation>true</ForceManagedImplementation>
@@ -10,12 +10,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Agash.YTLiveChat" Version="4.1.0" />
+      <PackageReference Include="Agash.Webhook.Abstractions" Version="1.0.1" />
+      <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0-dev1" />
+      <PackageReference Include="DevTunnels.Client.Installer" Version="1.1.0-dev1" />
+      <PackageReference Include="Fourthwall.Client" Version="0.1.0-dev2" />
+      <PackageReference Include="KoFi.Client" Version="0.1.1-dev1" />
+      <PackageReference Include="Agash.YTLiveChat" Version="4.2.0-dev3" />
       <PackageReference Include="GoAffPro.Client" Version="0.4.0" />
+      <PackageReference Include="obs-websocket-dotnet" Version="5.0.1" />
       <PackageReference Include="StreamElements.WebSocket" Version="1.0.2" />
       <PackageReference Include="Streamlabs.SocketClient" Version="3.0.0" />
-      <PackageReference Include="System.Net.Security" Version="4.3.2" />
-      <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
       <PackageReference Include="TwitchLib.Api" Version="3.9.0" />
       <PackageReference Include="TwitchLib.Client" Version="3.4.0" />
       <PackageReference Include="TwitchLib.Communication" Version="1.0.6" />

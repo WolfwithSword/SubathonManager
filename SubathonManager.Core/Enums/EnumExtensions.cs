@@ -62,6 +62,8 @@ public class EventSourceMetaAttribute : EnumMetaAttribute
     public override string? Label => SourceGroup is (SubathonSourceGroup.UseSource or SubathonSourceGroup.Unknown) ? ToString() : SourceGroup.GetLabel(); 
     public SubathonSourceGroup SourceGroup { get; init; } = SubathonSourceGroup.UseSource;
     
+    public bool Visible { get; init; } = true;
+    public SubathonEventSource TrueSource { get; init; } = SubathonEventSource.Unknown;
     public int SourceOrder { get; init; } = 99999;
 }
 

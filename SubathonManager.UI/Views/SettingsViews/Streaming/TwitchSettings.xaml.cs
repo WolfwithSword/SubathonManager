@@ -69,6 +69,8 @@ public partial class TwitchSettings : SettingsControl
                     if (!connection.Status) connectBtn = "Connect";
                     if (ConnectTwitchBtn.Content.ToString() != connectBtn) ConnectTwitchBtn.Content = connectBtn;
                     if (EventSubStatusText.Text != conStat) EventSubStatusText.Text = conStat;
+                    
+                    DisconnectPanel.Visibility = connection.Status ? Visibility.Visible : Visibility.Collapsed;
                     break;
                 }
                 case "Chat":
@@ -241,6 +243,25 @@ public partial class TwitchSettings : SettingsControl
                 break;
         }
         return (v, p, box, box2);
+    }
+
+    private async void DisconnectTwitchButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var cts = new CancellationTokenSource(5000);
+            ServiceManager.Twitch.RevokeTokenFile();
+            await Task.Delay(100, cts.Token);
+            await ServiceManager.Twitch.StopAsync(cts.Token);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error in Twitch disconnect");
+        }
+        finally
+        {
+            DisconnectPanel.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async void ConnectTwitchButton_Click(object sender, RoutedEventArgs e)

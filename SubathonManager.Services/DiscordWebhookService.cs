@@ -15,6 +15,7 @@ namespace SubathonManager.Services;
 
 public class DiscordWebhookService : IDisposable, IAppService
 {
+    private readonly IHttpClientFactory? _httpClientFactory;
     private readonly ConcurrentQueue<SubathonEvent> _eventQueue = new();
     private readonly ConcurrentQueue<SubathonValueDto> _configQueue = new();
     private readonly CancellationTokenSource _cts = new();
@@ -40,11 +41,12 @@ public class DiscordWebhookService : IDisposable, IAppService
     private const string AppAvatarUrl =
         "https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.png";
 
-    public DiscordWebhookService(ILogger<DiscordWebhookService>? logger, IConfig config, CurrencyService currencyService)
+    public DiscordWebhookService(ILogger<DiscordWebhookService>? logger, IConfig config, CurrencyService currencyService, IHttpClientFactory? httpClientFactory = null)
     {
         _logger = logger;
         _config = config;
         _currencyService = currencyService;
+        _httpClientFactory = httpClientFactory;
         LoadFromConfig();
     }
 
@@ -328,7 +330,8 @@ public class DiscordWebhookService : IDisposable, IAppService
         if (string.IsNullOrEmpty(url)) return;
         try
         {
-            using var http = new HttpClient();
+            var http = _httpClientFactory?.CreateClient(nameof(DiscordWebhookService));
+            if (http == null) return;
             var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 

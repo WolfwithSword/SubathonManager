@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Text;
 using SubathonManager.Core.Models;
@@ -174,7 +174,14 @@ namespace SubathonManager.Data
                 if (asDonation && Enum.TryParse($"{goAffProSource}Order", out SubathonEventType eventType))
                     orderTypesToInclude.Add(eventType);
             }
-
+            foreach (var kofiOrderEvent in Enum.GetValues<SubathonEventType>().Where(et =>
+                         ((SubathonEventType?)et).IsOrder() && et.GetSource() == SubathonEventSource.KoFi && !et.IsDisabled()))
+            {
+                bool asDonation = Utils.DonationSettings.TryGetValue($"{kofiOrderEvent.ToString()?.Split("Order")[0]}", out  bool donation) && donation;
+                if (asDonation)
+                    orderTypesToInclude.Add(kofiOrderEvent);
+            }
+            
             events = events.Where(e => e.EventType != null && 
                                        (e.EventType.IsCurrencyDonation() ||
                                         (e.EventType.IsOrder() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
@@ -197,6 +204,17 @@ namespace SubathonManager.Data
             sb.AppendLine("Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp,Secondary Value");
             foreach (var e in events)
             {
+                var val = e.Value;
+                if (e.EventType is SubathonEventType.TwitchGiftSub or SubathonEventType.TwitchSub)
+                {
+                    val = e.Value switch
+                    {
+                        "1000" => "T1",
+                        "2000" => "T2",
+                        "3000" => "T3",
+                        _ => val
+                    };
+                }
                 sb.AppendLine(string.Join(",",
                     e.Id,
                     Utils.EscapeCsv(e.Source.ToString()),
@@ -205,7 +223,7 @@ namespace SubathonManager.Data
                     Utils.EscapeCsv(e.User),
                     e.SecondsValue,
                     e.PointsValue,
-                    Utils.EscapeCsv(e.Value),
+                    Utils.EscapeCsv(val),
                     Utils.EscapeCsv(e.Currency),
                     e.Amount,
                     e.MultiplierSeconds,
@@ -283,39 +301,46 @@ namespace SubathonManager.Data
         {
             var defaults = new List<SubathonValue>
             {
-                new SubathonValue { EventType = SubathonEventType.TwitchSub, Meta = "1000", Seconds = 60, Points = 1 },
-                new SubathonValue { EventType = SubathonEventType.TwitchSub, Meta = "2000", Seconds = 120, Points = 2 },
-                new SubathonValue { EventType = SubathonEventType.TwitchSub, Meta = "3000", Seconds = 300, Points = 5 },
-                new SubathonValue { EventType = SubathonEventType.TwitchGiftSub, Meta = "1000", Seconds = 60, Points = 1 },
-                new SubathonValue { EventType = SubathonEventType.TwitchGiftSub, Meta = "2000", Seconds = 120, Points = 2 },
-                new SubathonValue { EventType = SubathonEventType.TwitchGiftSub, Meta = "3000", Seconds = 300, Points = 5 },
-                new SubathonValue { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
-                new SubathonValue { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
-                new SubathonValue { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
-                new SubathonValue { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.StreamLabsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.YouTubeSuperChat, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.YouTubeMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new SubathonValue { EventType = SubathonEventType.YouTubeGiftMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new SubathonValue { EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.ExternalDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.KoFiDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1}, // per 1 unit/dollar of default currency
-                new SubathonValue { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
-                new SubathonValue { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
-                new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T1", Seconds = 60, Points = 1 },
-                new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T2", Seconds = 120, Points = 2 },
-                new SubathonValue { EventType = SubathonEventType.PicartoSub, Meta = "T3", Seconds = 180, Points = 3 },
-                new SubathonValue { EventType = SubathonEventType.PicartoGiftSub, Meta = "T1", Seconds = 60, Points = 1 }, // you can only gift T1
+                new () { EventType = SubathonEventType.TwitchSub, Meta = "1000", Seconds = 60, Points = 1 },
+                new () { EventType = SubathonEventType.TwitchSub, Meta = "2000", Seconds = 120, Points = 2 },
+                new () { EventType = SubathonEventType.TwitchSub, Meta = "3000", Seconds = 300, Points = 5 },
+                new () { EventType = SubathonEventType.TwitchGiftSub, Meta = "1000", Seconds = 60, Points = 1 },
+                new () { EventType = SubathonEventType.TwitchGiftSub, Meta = "2000", Seconds = 120, Points = 2 },
+                new () { EventType = SubathonEventType.TwitchGiftSub, Meta = "3000", Seconds = 300, Points = 5 },
+                new () { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
+                new () { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
+                new () { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
+                new () { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.StreamLabsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.YouTubeSuperChat, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.YouTubeMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new () { EventType = SubathonEventType.YouTubeGiftMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new () { EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.ExternalDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.KoFiDonation, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new () { EventType = SubathonEventType.KoFiShopOrder, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.KoFiCommissionOrder, Seconds = 12}, // per 1 unit/dollar of default currency
+                new () { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
+                new () { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
+                new () { EventType = SubathonEventType.PicartoSub, Meta = "T1", Seconds = 60, Points = 1 },
+                new () { EventType = SubathonEventType.PicartoSub, Meta = "T2", Seconds = 120, Points = 2 },
+                new () { EventType = SubathonEventType.PicartoSub, Meta = "T3", Seconds = 180, Points = 3 },
+                new () { EventType = SubathonEventType.PicartoGiftSub, Meta = "T1", Seconds = 60, Points = 1 }, // you can only gift T1
                 // PicartoMonth subs, treat as amount? = months * quantity = amount
-                new SubathonValue { EventType = SubathonEventType.PicartoTip, Seconds = 0.12 },
-                new SubathonValue { EventType = SubathonEventType.PicartoFollow, Seconds = 0 },
+                new () { EventType = SubathonEventType.PicartoTip, Seconds = 0.12 },
+                new () { EventType = SubathonEventType.PicartoFollow, Seconds = 0 },
                 // assuming defaults for order types are by Dollar, we set at 12s
-                new SubathonValue { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
-                new SubathonValue { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
-                new SubathonValue { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
-                new SubathonValue { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
-                new SubathonValue { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1}
+                new () { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new () { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
+                new () { EventType = SubathonEventType.FourthWallDonation, Seconds = 12},
+                new () { EventType = SubathonEventType.FourthWallMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
+                new () { EventType = SubathonEventType.FourthWallGiftOrder, Seconds = 12},
+                new () { EventType = SubathonEventType.FourthWallOrder, Seconds = 12}
             };
 
             foreach (var def in defaults)
@@ -362,6 +387,39 @@ namespace SubathonManager.Data
                     .ExecuteUpdate(s =>
                         s.SetProperty(x => x.ReversedTime, false));
             }
+            // var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
+            // var widgetsMissingFontTypes = db.Widgets
+            //     .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))
+            //     .Include(w => w.JsVariables)
+            //     .ToList();
+            // if (widgetsMissingFontTypes.Count > 0)
+            // {
+            //     var newVars = new List<JsVariable>();
+            //     foreach (var widget in widgetsMissingFontTypes)
+            //     {
+            //         var existingTypes = widget.JsVariables
+            //             .Select(v => v.Type)
+            //             .ToHashSet();
+            //
+            //         foreach (var fontVar in fontTypes.Where(ft => !existingTypes.Contains(ft)))
+            //         {
+            //             newVars.Add(new JsVariable
+            //             {
+            //                 WidgetId = widget.Id,
+            //                 Widget = widget,
+            //                 Type = fontVar,
+            //                 Name = $"{fontVar}s",
+            //                 Description = $"Custom font names to include from {fontVar}s, comma separated",
+            //                 Value = string.Empty
+            //             });
+            //         }
+            //     }
+            //     if (newVars.Count > 0)
+            //     {
+            //         db.JsVariables.AddRange(newVars);
+            //         db.SaveChanges();
+            //     }
+            // }
         }
     }
 }

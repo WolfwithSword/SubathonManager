@@ -10,10 +10,39 @@ using SubathonManager.Data;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Tests.Utility;
-using Xunit.Abstractions;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServerUnitTests;
+
+[Collection("NonParallel")]
+public class WebServerWebSocketEventBusEnforcedSequentialTests
+{
+    
+    [Fact]
+    public async Task WebSocket_SendRefreshRequest_NoConsumers()
+    {
+        /*
+         * Fails 1 in like 10 runs due to parallel stuff
+         */
+        var server = WebServerWebSocketTests.CreateServer();
+        WebServerWebSocketTests.SetupServices();
+        var ctx = new MockHttpContext
+        {
+            IsWebSocket = true
+        };
+        
+        await server.HandleWebSocketRequestAsync(ctx);
+        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
+        server.AddSocketClient(client);
+        Guid guid = Guid.Empty;
+        server.SendRefreshRequest(guid);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        Assert.Empty(ctx.Socket.SentMessages);
+        AppServices.Provider = null!;
+        await server.StopAsync(TestContext.Current.CancellationToken);
+    }
+}
 
 [Collection("SharedEventBusTests")]
 public class WebServerWebSocketEventBusTests
@@ -51,7 +80,7 @@ public class WebServerWebSocketEventBusTests
             SubathonEvent? ev = CaptureEvent( async void () => 
                 await server.HandleWebSocketRequestAsync(ctx));
 
-            var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             Assert.Equal(nameof(SubathonEventSource.KoFi), result);
             Assert.NotNull(ev);
@@ -62,7 +91,7 @@ public class WebServerWebSocketEventBusTests
         {
             WebServerEvents.WebSocketIntegrationSourceChange -= handler;
             AppServices.Provider = null!;
-            await server.StopAsync();
+            await server.StopAsync(TestContext.Current.CancellationToken);
         }
     }
     
@@ -95,8 +124,10 @@ public class WebServerWebSocketEventBusTests
             ctx.Socket.EnqueueClose();
             
 
-            SubathonEvent? ev = CaptureEvent( async void () => 
-                await server.HandleWebSocketRequestAsync(ctx));
+            SubathonEvent? ev = CaptureEvent( async void () =>
+            {
+                await server.HandleWebSocketRequestAsync(ctx);
+            });
 
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventSource.External, ev.Source);
@@ -106,20 +137,15 @@ public class WebServerWebSocketEventBusTests
         {
             WebServerEvents.WebSocketIntegrationSourceChange -= handler;
             AppServices.Provider = null!;
-            await server.StopAsync();
+            await server.StopAsync(TestContext.Current.CancellationToken);
         }
     }
 }
 
 [Collection("ProviderOverrideTests")]
-public class WebServerWebSocketTests
+public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-
-    public WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
 
     private static async Task WaitForMessageMatchingAsync(
         MockWebSocket socket,
@@ -325,7 +351,7 @@ public class WebServerWebSocketTests
             .First(m => m.Contains("goals_list"));
         Assert.Equal("{\"type\":\"goals_list\",\"points\":10,\"goals\":[{\"text\":\"Test Goal\",\"points\":5,\"completed\":true}],\"goals_type\":\"Points\"}", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }    
     
     [Fact]
@@ -352,7 +378,7 @@ public class WebServerWebSocketTests
             .First(m => m.Contains("value_config"));
         Assert.Equal("{ \"type\": \"value_config\", \"ws_type\": \"ValueConfig\", \"data\": [{}] }", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]
@@ -383,7 +409,7 @@ public class WebServerWebSocketTests
             .First(m => m.Contains("goal_completed"));
         Assert.Equal("{\"type\":\"goal_completed\",\"goal_text\":\"Test Goal\",\"goal_points\":5,\"points\":10}", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
 
 
@@ -416,7 +442,7 @@ public class WebServerWebSocketTests
         server.AddSocketClient(client); // ACTUAL adding to clients list
         
         server.SendSubathonEventProcessed(subathonEvent, true);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var messagesAfterUnprocessed = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
@@ -444,7 +470,7 @@ public class WebServerWebSocketTests
             sent);
         Assert.Contains("\"user\":\"Test User\"", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -470,29 +496,7 @@ public class WebServerWebSocketTests
             .First(m => m.Contains("refresh_request"));
         Assert.Equal($"{{\"type\":\"refresh_request\",\"id\":\"{guid}\"}}", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
-    }
-    
-    [Fact]
-    public async Task WebSocket_SendRefreshRequest_NoConsumers()
-    {
-        var server = CreateServer();
-        SetupServices();
-        var ctx = new MockHttpContext
-        {
-            IsWebSocket = true
-        };
-        
-        await server.HandleWebSocketRequestAsync(ctx);
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
-        client.ClientTypes.Add(WebsocketClientMessageType.Widget);
-        server.AddSocketClient(client);
-        Guid guid = Guid.Empty;
-        server.SendRefreshRequest(guid);
-        await Task.Delay(50);
-        Assert.Empty(ctx.Socket.SentMessages);
-        AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]
@@ -538,7 +542,7 @@ public class WebServerWebSocketTests
             .First(m => m.Contains("subathon_timer"));
         Assert.Equal("{\"type\":\"subathon_timer\",\"total_seconds\":172800,\"days\":2,\"hours\":0,\"minutes\":0,\"seconds\":0,\"total_points\":5678,\"rounded_money\":6769,\"fractional_money\":6769.55,\"currency\":\"CAD\",\"is_paused\":false,\"is_locked\":false,\"is_reversed\":false,\"multiplier_points\":1,\"multiplier_time\":2,\"multiplier_start_time\":null,\"multiplier_seconds_total\":0,\"multiplier_seconds_remaining\":0,\"total_seconds_elapsed\":259200,\"total_seconds_added\":432000}", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
     
         
@@ -570,7 +574,7 @@ public class WebServerWebSocketTests
             .First(m => m.Contains("\"type\":\"test\""));
         Assert.Equal("{\"type\":\"test\",\"points\":5}", sent);
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]
@@ -595,7 +599,7 @@ public class WebServerWebSocketTests
         Assert.Equal("{\"ws_type\":\"pong\"}", sent);
 
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]
@@ -617,7 +621,7 @@ public class WebServerWebSocketTests
         Assert.Empty(ctx.Socket.SentMessages);
 
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -652,7 +656,7 @@ public class WebServerWebSocketTests
         Assert.Equal(nameof(SubathonEventSource.KoFi), result);
         WebServerEvents.WebSocketIntegrationSourceChange -= handler;
         AppServices.Provider = null!;
-        await server.StopAsync();
+        await server.StopAsync(TestContext.Current.CancellationToken);
     }
     
     
@@ -665,7 +669,7 @@ public class WebServerWebSocketTests
         try
         {
             var factory = AppServices.Provider.GetService<IDbContextFactory<AppDbContext>>();
-            await using var db = await factory!.CreateDbContextAsync();
+            await using var db = await factory!.CreateDbContextAsync(TestContext.Current.CancellationToken);
 
             var subathon = new SubathonData { IsActive = true };
             db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
@@ -680,7 +684,7 @@ public class WebServerWebSocketTests
                 ProcessedToSubathon = true
             });
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             db.ChangeTracker.Clear();
 
             var ctx = new MockHttpContext
@@ -713,7 +717,7 @@ public class WebServerWebSocketTests
         try
         {
             var factory = AppServices.Provider.GetService<IDbContextFactory<AppDbContext>>();
-            await using var db = await factory!.CreateDbContextAsync();
+            await using var db = await factory!.CreateDbContextAsync(TestContext.Current.CancellationToken);
 
             var subathon = new SubathonData { IsActive = true };
             db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
@@ -734,7 +738,7 @@ public class WebServerWebSocketTests
                 Meta = "1000"
             });
 
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             db.ChangeTracker.Clear();
 
             var ctx = new MockHttpContext

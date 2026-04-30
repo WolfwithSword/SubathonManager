@@ -1,0 +1,197 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/event-alerts/",
+  "Width": 500,
+  "Height": 140,
+  "Vars": {
+    "displaySeconds": {
+      "Type": "Float",
+      "Description": "How long to display the event in seconds",
+      "Value": 4,
+      "Options": null
+    },
+    "applicableEvents": {
+      "Type": "EventTypeList",
+      "Description": "Which events to display the alert for",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "TwitchCheer",
+        "StreamElementsDonation",
+        "StreamLabsDonation",
+        "YouTubeMembership",
+        "YouTubeGiftMembership",
+        "YouTubeSuperChat",
+        "ExternalDonation",
+        "ExternalSub",
+        "KoFiSub",
+        "KoFiDonation",
+        "BlerpBits",
+        "BlerpBeets",
+        "UwUMarketOrder",
+        "GamerSuppsOrder",
+        "TwitchRaid",
+        "TwitchFollow",
+        "TwitchHypeTrain",
+        "KoFiShopOrder",
+        "KoFiCommissionOrder",
+        "OrchidEightOrder"
+      ],
+      "Options": null
+    },
+    "minDonationAmount": {
+      "Type": "Float",
+      "Description": "For donation events, minimum whole amount to allow displaying",
+      "Value": 5,
+      "Options": null
+    },
+    "minTokensAmount": {
+      "Type": "Int",
+      "Description": "For bits/token events, minimum to allow displaying",
+      "Value": 100,
+      "Options": null
+    },
+    "minRaidersAmount": {
+      "Type": "Int",
+      "Description": "For raid events, minimum raiders to display. YouTube Redirects will always display",
+      "Value": 0,
+      "Options": null
+    },
+    "animationDirection": {
+      "Type": "StringSelect",
+      "Description": "What direction to animate the event entering from",
+      "Value": "top",
+      "Options": [
+        "top",
+        "bottom",
+        "left",
+        "right"
+      ]
+    },
+    "animationStyle": {
+      "Type": "StringSelect",
+      "Description": "What style should the entrance animation be?",
+      "Value": "fade",
+      "Options": [
+        "fade",
+        "slide"
+      ]
+    },
+    "exitAnimationDirection": {
+      "Type": "StringSelect",
+      "Description": "What direction to animate the event exiting to",
+      "Value": "top",
+      "Options": [
+        "top",
+        "bottom",
+        "left",
+        "right"
+      ]
+    },
+    "exitAnimationStyle": {
+      "Type": "StringSelect",
+      "Description": "What style should the exit animation be?",
+      "Value": "fade",
+      "Options": [
+        "fade",
+        "slide"
+      ]
+    },
+    "followSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for follows",
+      "Value": "",
+      "Options": null
+    },
+    "followVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "subSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for subs",
+      "Value": "",
+      "Options": null
+    },
+    "subVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "giftSubSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for giftsubs",
+      "Value": "",
+      "Options": null
+    },
+    "giftSubVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "tokenSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for bits/tokens",
+      "Value": "",
+      "Options": null
+    },
+    "tokenVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "raidSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for raids",
+      "Value": "",
+      "Options": null
+    },
+    "raidVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "donationSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for donations",
+      "Value": "",
+      "Options": null
+    },
+    "donationVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "trainSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for hype train start/level-up/end",
+      "Value": "",
+      "Options": null
+    },
+    "trainVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "orderSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play for order events",
+      "Value": "",
+      "Options": null
+    },
+    "orderVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    }
+  }
+}

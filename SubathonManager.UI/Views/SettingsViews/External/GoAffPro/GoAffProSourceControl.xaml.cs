@@ -55,7 +55,7 @@ public partial class GoAffProSourceControl : SettingsControl
         if (value != null)
             _host.UpdateTimePointsBoxes(SecondsBox, PointsBox, $"{value.Seconds}", $"{value.Points}");
 
-        ModeBox.ItemsSource = Enum.GetNames<GoAffProModes>().ToList();
+        ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
         ModeBox.SelectedItem = config.Get(configSection, $"{Source}.Mode", "Dollar")?.Trim() ?? "Dollar";
         CommissionBox.IsChecked = config.GetBool(configSection, $"{Source}.CommissionAsDonation", false);
         EnabledBox.IsChecked = config.GetBool(configSection, $"{Source}.Enabled", true);

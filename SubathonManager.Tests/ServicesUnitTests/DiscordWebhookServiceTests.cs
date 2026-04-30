@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using Moq.Protected;
 using SubathonManager.Tests.Utility;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
@@ -75,10 +76,10 @@ public class DiscordWebhookServiceTests
         });
 
         var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
-        await service.StartAsync();
+        await service.StartAsync(TestContext.Current.CancellationToken);
         var field = typeof(DiscordWebhookService).GetField("_eventWebhookUrl", BindingFlags.NonPublic | BindingFlags.Instance);
         Assert.Equal("https://eventUrl", field!.GetValue(service));
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Fact]
@@ -213,12 +214,16 @@ public class DiscordWebhookServiceTests
             { ("Discord", "Events.Log.Command"), "true" },
         });
         
-        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService());
+        var httpFactory = new Mock<IHttpClientFactory>();
+        httpFactory.Setup(f => f.CreateClient(nameof(DiscordWebhookService)))
+            .Returns(new HttpClient());
+        
+        var service = new DiscordWebhookService(null, mockConfig, SetupCurrencyService(), httpFactory.Object);
 
         Exception? ex = Record.Exception(() => service.SendErrorEvent("ERROR", 
             "TestSource", "Test message", DateTime.UtcNow));
         Assert.Null(ex);
-        await Task.Delay(TimeSpan.FromSeconds(1)); //
+        await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken); //
         Assert.Equal(1, webserver.PostCallCount);
     }
 

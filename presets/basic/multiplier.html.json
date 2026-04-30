@@ -1,0 +1,13 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/basic/#multiplier",
+  "Width": 300,
+  "Height": 80,
+  "Vars": {
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Quantico,Nunito,Baloo 2,Fredoka,Titan One"
+    }
+  }
+}

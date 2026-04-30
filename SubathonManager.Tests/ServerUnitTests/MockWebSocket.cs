@@ -1,4 +1,5 @@
 ﻿using System.Net.WebSockets;
+// ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.ServerUnitTests;
 
 public sealed class MockWebSocket : WebSocket

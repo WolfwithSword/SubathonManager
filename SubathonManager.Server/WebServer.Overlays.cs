@@ -75,18 +75,51 @@ public partial class WebServer
                             foreach (var v in widget.JsVariables)
                                 jsOverrides.Append(v.GetInjectLine());
                             jsOverrides.AppendLine("</script>\n");
+                            var fontLoader = """
+                                             <script>
+                                             let addedGoogleFont = false;
+                                             let addedCdnFont = false;
+                                             function loadGoogleFont(fontName) {
+                                               if (!addedGoogleFont) {
+                                                     const precon1 = document.createElement('link');
+                                                     precon1.href = "https://fonts.googleapis.com";
+                                                     precon1.rel = "preconnect";
+                                                     
+                                                     const precon2 = document.createElement('link');
+                                                     precon2.rel = "preconnect";
+                                                     precon2.crossorigin = true;
+                                                     precon2.href="https://fonts.gstatic.com";
+                                                     addedGoogleFont = true;
+                                                     document.head.appendChild(precon1);
+                                                     document.head.appendChild(precon2);
+                                               }
+                                               const link = document.createElement('link');
+                                               link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}&display=swap`;
+                                               link.rel = 'stylesheet';
+                                               document.head.appendChild(link);
+                                             }
+                                             
+                                             function loadCdnFont(fontName) {
+                                               const link = document.createElement('link');
+                                               link.href = `https://fonts.cdnfonts.com/css/${fontName.replace(/ /g, '-').toLowerCase()}`;
+                                               link.rel = 'stylesheet';
+                                               document.head.appendChild(link);
+                                             }
+                                             </script>
+                                             """;
                             if (html.Contains("<script>", StringComparison.OrdinalIgnoreCase))
                             {
                                 int count = 0;
                                 html = Regex.Replace(
                                     html,
                                     "<script>",
-                                    m => count++ == 0 ? jsOverrides + "\n<script>" : m.Value,
+                                    m => count++ == 0 ? fontLoader + "\n"+jsOverrides + "\n<script>" : m.Value,
                                     RegexOptions.IgnoreCase
                                 );
                             }
                             else
                             {
+                                html += fontLoader + "\n";                         
                                 html += jsOverrides;
                             }
 
@@ -135,7 +168,6 @@ public partial class WebServer
         StringBuilder sb = new StringBuilder();
         sb.AppendLine(
             $"<html><head><title>overlay-{route.Id}</title><link rel=\"icon\" type=\"image/x-icon\" href=\"https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.ico\"><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
-
         sb.AppendLine($@"
             <style>
                 html, body {{

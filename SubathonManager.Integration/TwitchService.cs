@@ -1,8 +1,5 @@
 ﻿using System.Diagnostics;
-using System.Net;
-using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Api;
 using TwitchLib.Api.Core.Enums;
@@ -17,6 +14,8 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Services;
 using TwitchLib.Client.Events;
 using TwitchLib.EventSub.Core.EventArgs.Stream;
@@ -25,23 +24,16 @@ using TwitchLib.EventSub.Websockets.Core.EventArgs;
 
 namespace SubathonManager.Integration;
 
-public class TwitchService : IDisposable, IAppService
+public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecureStorage secureStorage)
+    : IDisposable, IAppService
 {
-    private string _callbackUrl;
-
     private TwitchAPI? _api;
     private TwitchClient? _chat;
     private EventSubWebsocketClient? _eventSub;
     private static int _hypeTrainLevel = 0;
     private bool _disposed = false;
-
-    private readonly ILogger? _logger;
-    private readonly IConfig _config;
-
-    private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
-        , "data/twitch_token.json"));
-    internal string TwitchOAuthUrl = "https://id.twitch.tv/oauth2/authorize";
-    internal int CallbackPort = 14041;  // hardcode cause of app callback url
+    internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/twitch/login";
+    
     internal Uri? EventSubUrl = null;
     
     private DateTime _lastChatDisconnectLog = DateTime.MinValue;
@@ -53,72 +45,49 @@ public class TwitchService : IDisposable, IAppService
     private readonly Utils.ServiceReconnectState _eventSubReconnect =
         new(TimeSpan.FromSeconds(2.5), maxRetries: 200, maxBackoff: TimeSpan.FromMinutes(5));
 
-    private string? AccessToken { get; set; }
     public string? UserName { get; private set; } = string.Empty;
     internal string? Login = string.Empty;
     private string? UserId { get; set; }
 
-    public TwitchService(ILogger<TwitchService>? logger, IConfig config)
-    {
-        _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
-        _logger = logger;
-        _config = config;
-    }
-    
+    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.TwitchAccessToken, string.Empty);
+
     internal Action<string> OpenBrowser = url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-    private static readonly string[] TwitchScopes =
-    [
-        "user:read:email",
-        "bits:read",
-        "channel:read:subscriptions",
-        "channel:read:redemptions",
-        "moderator:read:followers",
-        "channel:read:charity",
-        "chat:read",
-        "chat:edit",
-        "channel:read:hype_train"
-    ];
 
     public bool HasTokenFile()
     {
-        return File.Exists(_tokenFile);
+        return secureStorage.Exists(StorageKeys.TwitchAccessToken) && 
+               !string.IsNullOrWhiteSpace(AccessToken);
     }
 
     public void RevokeTokenFile()
     {
-        if (HasTokenFile()) File.Delete(_tokenFile);
-        AccessToken = string.Empty;
+        secureStorage.Delete(StorageKeys.TwitchAccessToken);
     }
 
     public async Task<bool> ValidateTokenAsync()
     {
         if (!HasTokenFile())
             return false;
-
-        var json = await File.ReadAllTextAsync(_tokenFile);
-        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-        var token = data?["access_token"];
-
         var api = new TwitchAPI();
         try
         {
-            var validation = await api.Auth.ValidateAccessTokenAsync(token);
+            var validation = await api.Auth.ValidateAccessTokenAsync(AccessToken);
 
             if (validation.ClientId != Config.TwitchClientId)
                 return false;
 
-            _logger?.LogInformation($"Twitch Token Valid for Scopes: {string.Join(',', validation.Scopes)}");
+            logger?.LogInformation($"Twitch Token Valid for Scopes: {string.Join(',', validation.Scopes)}");
             return true;
         }
         catch (HttpRequestException ex)
         {
-            _logger?.LogError(ex, "Could not validate token. Internet connection may be down.");
+            logger?.LogError(ex, "Could not validate token. Internet connection may be down.");
             // return true so we don't delete file
             return true;
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Twitch Token Validation Error");
+            logger?.LogError(ex, "Twitch Token Validation Error");
             ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch),
                 "Twitch Token could not be validated", DateTime.Now.ToLocalTime());
             return false;
@@ -134,11 +103,11 @@ public class TwitchService : IDisposable, IAppService
             if (!tokenValid)
             {
                 RevokeTokenFile();
-                _logger?.LogWarning("Twitch token expired - deleting token file");
+                logger?.LogWarning("Twitch token expired - deleting token file");
             }
             else
             {
-                _logger?.LogInformation("Twitch Service starting up...");
+                logger?.LogInformation("Twitch Service starting up...");
                 await InitializeAsync(ct);
             }
         }
@@ -147,13 +116,6 @@ public class TwitchService : IDisposable, IAppService
     [ExcludeFromCodeCoverage]
     public async Task InitializeAsync(CancellationToken ct = default)
     {
-        if (HasTokenFile())
-        {
-            var json = await File.ReadAllTextAsync(_tokenFile, ct);
-            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            AccessToken = data?["access_token"];
-        }
-
         if (string.IsNullOrEmpty(AccessToken))
         {
             await StartOAuthFlowAsync();
@@ -162,15 +124,15 @@ public class TwitchService : IDisposable, IAppService
         try
         {
             await InitializeApiAsync();
-            _logger?.LogDebug("Twitch Initialized API");
+            logger?.LogDebug("Twitch Initialized API");
             await InitializeChatAsync();
-            _logger?.LogDebug("Twitch Initialized Chat");
+            logger?.LogDebug("Twitch Initialized Chat");
             await InitializeEventSubAsync();
-            _logger?.LogDebug("Twitch Initialized EventSub");
+            logger?.LogDebug("Twitch Initialized EventSub");
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "TwitchService Initialization Error");
+            logger?.LogError(ex, "TwitchService Initialization Error");
             ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch),
                 $"Error initializing Twitch Service: {ex.Message}. " +
                 $"Please try reconnecting twitch or restarting the application", DateTime.Now);
@@ -179,130 +141,33 @@ public class TwitchService : IDisposable, IAppService
     
     private async Task StartOAuthFlowAsync()
     {
-        // todo allow scopes to load from file for emergency in case of deprecation, thanks twitch
-        string scopes = string.Join('+', TwitchScopes);
-
-        
-        _callbackUrl = $"http://localhost:{CallbackPort}/auth/twitch/callback/";
-        
-        var oauthUrl = $"{TwitchOAuthUrl}" +
-                       $"?client_id={Config.TwitchClientId}" +
-                       $"&redirect_uri={_callbackUrl}" +
-                       $"&response_type=token" +
-                       $"&scope={scopes}";
-
-        _logger?.LogDebug("Opening Twitch OAuth...");
-        
-        OpenBrowser(oauthUrl);
-        
-        var uri = new Uri(_callbackUrl);
-        int port = uri.Port;
-
-        var tcpListener = new TcpListener(IPAddress.Loopback, port);
-
-        try
+        Utils.PendingOAuthCallback = null;
+        logger?.LogDebug("Opening Twitch OAuth...");
+        OpenBrowser(_oAuthURl);
+        var token = await WaitForProtocolCallbackAsync();
+        if (!string.IsNullOrWhiteSpace(token))
         {
-            tcpListener.Start();
-            _logger?.LogDebug("Waiting for Twitch auth...");
-
-            // serve the HTML page
-            AccessToken = await HandleOAuthExchangeAsync(tcpListener, uri.AbsolutePath);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "TwitchService Authentication Failure: {ExMessage}", ex.Message);
-            ErrorMessageEvents.RaiseErrorEvent(
-                "ERROR",
-                nameof(SubathonEventSource.Twitch),"Failed to do Twitch OAuth setup",
-                DateTime.Now.ToLocalTime());
-        }
-        finally
-        {
-            tcpListener.Stop();
-        }
-
-        if (!string.IsNullOrEmpty(AccessToken))
-        {
-            await File.WriteAllTextAsync(_tokenFile,
-                JsonSerializer.Serialize(new { access_token = AccessToken }));
-            await Task.Delay(100);
+            secureStorage.Set(StorageKeys.TwitchAccessToken, token);
         }
     }
     
-    private async Task<string?> HandleOAuthExchangeAsync(TcpListener tcpListener, string callbackPath)
+    private async Task<string?> WaitForProtocolCallbackAsync(CancellationToken ct = default)
     {
-        using (var client = await tcpListener.AcceptTcpClientAsync())
+        var timeout = DateTime.Now.AddMinutes(15);
+        while (DateTime.Now < timeout && !ct.IsCancellationRequested)
         {
-            var stream = client.GetStream();
-            await ReadHttpRequestAsync(stream); // consume
-
-            string html = """
-                          <html>
-                              <body>
-                                  <h2>Waiting for authorization to complete...</h2>
-                                  <script>
-                                      const hash = window.location.hash.substring(1);
-                                      fetch('/token?' + hash)
-                                          .then(() => document.body.innerHTML = 'Authorization complete. You can close this window.');
-                                  </script>
-                              </body>
-                          </html>
-                          """;
-
-            await SendHttpResponseAsync(stream, 200, "text/html", html);
-        }
-
-        // fetch token
-        using (var client = await tcpListener.AcceptTcpClientAsync())
-        {
-            var stream = client.GetStream();
-            string requestLine = await ReadHttpRequestAsync(stream);
-            
-            var match = System.Text.RegularExpressions.Regex.Match(requestLine, @"GET (/token\?[^ ]+)");
-            string? accessToken = null;
-
-            if (match.Success)
+            var cb = Utils.PendingOAuthCallback;
+            if (cb?.Provider == "twitch" && !string.IsNullOrEmpty(cb.AccessToken))
             {
-                var query = match.Groups[1].Value.Split('?', 2).ElementAtOrDefault(1) ?? "";
-                var parts = System.Web.HttpUtility.ParseQueryString(query);
-                accessToken = parts["access_token"];
+                logger?.LogInformation("Twitch OAuth Callback received");
+                var token = cb.AccessToken;
+                Utils.PendingOAuthCallback = null;
+                return token;
             }
-
-            await SendHttpResponseAsync(stream, 200, "text/plain", "OK");
-            return accessToken;
+            await Task.Delay(250, ct);
         }
+        return null;
     }
-    
-    private async Task<string> ReadHttpRequestAsync(NetworkStream stream)
-    {
-        var buffer = new byte[4096];
-        var sb = new System.Text.StringBuilder();
-
-        while (true)
-        {
-            int bytesRead = await stream.ReadAsync(buffer);
-            if (bytesRead == 0) break;
-            sb.Append(System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead));
-            if (sb.ToString().Contains("\r\n\r\n")) break; // end headers
-        }
-
-        return sb.ToString().Split("\r\n")[0];
-    }
-
-    private async Task SendHttpResponseAsync(NetworkStream stream, int statusCode, string contentType, string body)
-    {
-        var bodyBytes = System.Text.Encoding.UTF8.GetBytes(body);
-        var headers = $"HTTP/1.1 {statusCode} OK\r\n" +
-                      $"Content-Type: {contentType}; charset=utf-8\r\n" +
-                      $"Content-Length: {bodyBytes.Length}\r\n" +
-                      $"Connection: close\r\n\r\n";
-
-        var headerBytes = System.Text.Encoding.UTF8.GetBytes(headers);
-        await stream.WriteAsync(headerBytes);
-        await stream.WriteAsync(bodyBytes);
-        await stream.FlushAsync();
-    }
-
     
     [ExcludeFromCodeCoverage]
     private async Task InitializeApiAsync()
@@ -322,7 +187,7 @@ public class TwitchService : IDisposable, IAppService
             UserName = user.DisplayName;
             Login = user.Login;
             UserId = user.Id;
-            _logger?.LogDebug($"Authenticated as {UserName}");
+            logger?.LogDebug($"Authenticated as {UserName}");
             
             IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
             {
@@ -367,11 +232,11 @@ public class TwitchService : IDisposable, IAppService
                     Status = true
                 });
             }); 
-            _logger?.LogDebug("[Twitch] Authenticated Chat as {UserName}", UserName);
+            logger?.LogDebug("[Twitch] Authenticated Chat as {UserName}", UserName);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, ex.Message);
+            logger?.LogError(ex, ex.Message);
             IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
             {
                 Source = SubathonEventSource.Twitch,
@@ -392,7 +257,7 @@ public class TwitchService : IDisposable, IAppService
     {
         if ((DateTime.Now - _lastChatDisconnectLog).TotalSeconds > 60)
         {
-            _logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
+            logger?.LogWarning("Twitch Chat Disconnected. Attempting Reconnect...");
             _lastChatDisconnectLog = DateTime.Now;    
             IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
             {
@@ -427,7 +292,7 @@ public class TwitchService : IDisposable, IAppService
                 _chatReconnect.Retries++;
                 var delay = _chatReconnect.Backoff;
 
-                _logger?.LogDebug(
+                logger?.LogDebug(
                     "[Twitch Chat] Reconnect attempt {Attempt} in {Delay}s",
                     _chatReconnect.Retries,
                     delay.TotalSeconds);
@@ -438,7 +303,7 @@ public class TwitchService : IDisposable, IAppService
 
                     if (_chat.IsConnected)
                     {
-                        _logger?.LogDebug("Twitch Chat reconnect successful.");
+                        logger?.LogDebug("Twitch Chat reconnect successful.");
                         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
                         {
                             Source = SubathonEventSource.Twitch,
@@ -457,7 +322,7 @@ public class TwitchService : IDisposable, IAppService
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "Twitch Chat reconnect failed");
+                    logger?.LogWarning(ex, "Twitch Chat reconnect failed");
                 }
 
                 _chatReconnect.Backoff = TimeSpan.FromMilliseconds(
@@ -476,7 +341,7 @@ public class TwitchService : IDisposable, IAppService
     [ExcludeFromCodeCoverage]
     private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
     {
-        _logger?.LogInformation("Twitch Chat Reconnected");
+        logger?.LogInformation("Twitch Chat Reconnected");
         _chatReconnect.Cts?.Cancel();
         _chatReconnect.Reset();
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
@@ -546,7 +411,7 @@ public class TwitchService : IDisposable, IAppService
     private async Task HandleEventSubConnect(object? s, WebsocketConnectedArgs e)
     {
         bool hasError = false;
-        _logger?.LogInformation("Connected to EventSub WebSocket, session ID: "
+        logger?.LogInformation("Connected to EventSub WebSocket, session ID: "
                                 + _eventSub?.SessionId + ", isReconnect: " + e.IsRequestedReconnect);
         if (!e.IsRequestedReconnect)
         {
@@ -588,7 +453,7 @@ public class TwitchService : IDisposable, IAppService
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogError(ex, $"Failed to subscribe to {type}: {ex.Message}");
+                    logger?.LogError(ex, $"Failed to subscribe to {type}: {ex.Message}");
                     ErrorMessageEvents.RaiseErrorEvent(
                         "ERROR",
                         nameof(SubathonEventSource.Twitch),
@@ -620,7 +485,7 @@ public class TwitchService : IDisposable, IAppService
     [ExcludeFromCodeCoverage]
     private Task HandleEventSubReconnect(object? s, WebsocketReconnectedArgs e)
     {
-        _logger?.LogInformation("Reconnected EventSub WebSocket.");
+        logger?.LogInformation("Reconnected EventSub WebSocket.");
         if (_eventSubReconnect.Retries >= 1)
             ErrorMessageEvents.RaiseErrorEvent("INFO", nameof(SubathonEventSource.Twitch),
                 "Twitch EventSub has reconnected", DateTime.Now.ToLocalTime());
@@ -644,7 +509,7 @@ public class TwitchService : IDisposable, IAppService
     [ExcludeFromCodeCoverage]
     private Task HandleEventSubDisconnect(object? s, WebsocketDisconnectedArgs e)
     {
-        _logger?.LogWarning("Disconnected EventSub WebSocket.");
+        logger?.LogWarning("Disconnected EventSub WebSocket.");
         
         ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.Twitch),
             "Twitch EventSub has disconnected", DateTime.Now.ToLocalTime());
@@ -687,13 +552,13 @@ public class TwitchService : IDisposable, IAppService
                         "Twitch EventSub reconnect failed after maximum retries.",
                         DateTime.Now.ToLocalTime());
 
-                    _logger?.LogError("EventSub reconnect aborted: max retries reached. Please investigate.");
+                    logger?.LogError("EventSub reconnect aborted: max retries reached. Please investigate.");
                     return;
                 }
 
                 if (!await ValidateTokenAsync())
                 {
-                    _logger?.LogError("EventSub reconnect aborted: Twitch token invalid.");
+                    logger?.LogError("EventSub reconnect aborted: Twitch token invalid.");
                     ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch),
                         "Twitch EventSub could not be reconnected - Twitch Token is invalid", DateTime.Now.ToLocalTime());
                     RevokeTokenFile();
@@ -704,7 +569,7 @@ public class TwitchService : IDisposable, IAppService
 
                 var delay = _eventSubReconnect.Backoff;
 
-                _logger?.LogWarning(
+                logger?.LogWarning(
                     "[Twitch EventSub] Reconnect attempt {Attempt} in {Delay}s",
                     _eventSubReconnect.Retries,
                     delay.TotalSeconds);
@@ -724,7 +589,7 @@ public class TwitchService : IDisposable, IAppService
                 }
                 catch (Exception ex)
                 {
-                    _logger?.LogWarning(ex, "EventSub reconnect failed");
+                    logger?.LogWarning(ex, "EventSub reconnect failed");
                 }
 
                 _eventSubReconnect.Backoff = TimeSpan.FromMilliseconds(
@@ -742,7 +607,7 @@ public class TwitchService : IDisposable, IAppService
 
     private Task HandleChannelOnline(object? s, StreamOnlineArgs e)
     {
-        if (_config.GetBool("Twitch", "ResumeOnStart", false))
+        if (config.GetBool("Twitch", "ResumeOnStart", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -758,7 +623,7 @@ public class TwitchService : IDisposable, IAppService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
-        if (_config.GetBool("Twitch", "UnlockOnStart", false))
+        if (config.GetBool("Twitch", "UnlockOnStart", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -779,7 +644,7 @@ public class TwitchService : IDisposable, IAppService
 
     private Task HandleChannelOffline(object? s, StreamOfflineArgs e)
     {
-        if (_config.GetBool("Twitch", "PauseOnEnd", false))
+        if (config.GetBool("Twitch", "PauseOnEnd", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -795,7 +660,7 @@ public class TwitchService : IDisposable, IAppService
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         }
 
-        if (_config.GetBool("Twitch", "LockOnEnd", false))
+        if (config.GetBool("Twitch", "LockOnEnd", false))
         {
             SubathonEvent subathonEvent = new SubathonEvent
             {
@@ -920,7 +785,7 @@ public class TwitchService : IDisposable, IAppService
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
         if (e.Payload.Event.Type.ToLower() != "cheer")
         {
-            _logger?.LogInformation($"TwitchCheer Event {subathonEvent.Id} " +
+            logger?.LogInformation($"TwitchCheer Event {subathonEvent.Id} " +
                                     $"source was: {e.Payload.Event.Type} {e.Payload.Event.PowerUp?.Type}");
         }
 
@@ -1036,6 +901,28 @@ public class TwitchService : IDisposable, IAppService
         OnTeardown();
         _chat?.Disconnect();
         if (_eventSub != null) await _eventSub.DisconnectAsync();
+        
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "API",
+            Name = UserName ?? "",
+            Status = false
+        });      
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "EventSub",
+            Name = UserName ?? "",
+            Status = false
+        });      
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "Chat",
+            Name = UserName ?? "",
+            Status = false
+        });
     }
 
     public static void SimulateRaid(int viewers=50)

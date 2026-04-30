@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Tests.Utility;
 using UserType = TwitchLib.Client.Enums.UserType;
 // ReSharper disable NullableWarningSuppressionIsUsed
@@ -329,8 +330,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             {
                 { ("Twitch", "ResumeOnStart"), "true" }
             });
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
 
-            var service = new TwitchService(null, config);
+
+            var service = new TwitchService(null, config, storage);
 
             var ev = CaptureEvent(() =>
                 service
@@ -343,7 +350,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Resume, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -354,7 +361,13 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 { ("Twitch", "UnlockOnStart"), "true" }
             });
 
-            var service = new TwitchService(null, config);
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+
+
+            var service = new TwitchService(null, config, storage);
 
             var ev = CaptureEvent(() =>
                 service
@@ -367,7 +380,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Unlock, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -376,9 +389,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var config =MockConfig.MakeMockConfig(new()
             {
                 { ("Twitch", "PauseOnEnd"), "true" }
+            });    
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
             });
 
-            var service = new TwitchService(null, config);
+            var service = new TwitchService(null, config, storage);
 
             var ev = CaptureEvent(() =>
                 service
@@ -391,7 +409,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Pause, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -401,8 +419,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             {
                 { ("Twitch", "LockOnEnd"), "true" }
             });
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
 
-            var service = new TwitchService(null, config);
+            var service = new TwitchService(null, config, storage);
 
             var ev = CaptureEvent(() =>
                 service
@@ -415,13 +437,19 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonCommandType.Lock, ev.Command);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
             Assert.Equal("AUTO", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleChannelFollow_RaisesFollowEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var meta = new WebsocketEventSubMetadata
             {
@@ -452,7 +480,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventType.TwitchFollow, ev.EventType);
             Assert.Equal("Follower123", ev.User);
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -477,13 +505,19 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 { ("Chat", "Commands.Pause.permissions.Whitelist"), "specialguy" }
             });
             CommandService.SetConfig(config);
-            var service = new TwitchService(null, config);
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+
+            var service = new TwitchService(null, config, storage);
             service.Login = "teststreamer";
 
             ChatMessage MakeMessage(string message, bool isVip, bool isMod, bool isBroadcaster, string userName,
                 string displayName)
             {
-                TwitchLib.Client.Enums.UserType type = UserType.Viewer;
+                UserType type = UserType.Viewer;
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
 
@@ -613,67 +647,61 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             );
 
             Assert.Null(ev);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HasTokenFile_ReturnsCorrectValue()
         {
-            var filePath = Path.GetFullPath(Path.Combine(string.Empty
-                , "data/twitch_token.json"));
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            await File.WriteAllTextAsync(filePath, "{}");
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
             Assert.True(service.HasTokenFile());
-            File.Delete(filePath);
+            storage.Delete(StorageKeys.TwitchAccessToken);
             Assert.False(service.HasTokenFile());
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task RevokeTokenFile_DeletesFileAndClearsAccessToken()
-        {
-            var filePath = Path.GetFullPath(Path.Combine(string.Empty
-                , "data/twitch_token.json"));
-            await File.WriteAllTextAsync(filePath, "{}");
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+        {         
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
             service.RevokeTokenFile();
-            Assert.False(File.Exists(filePath));
-            await service.StopAsync();
-        }
-
-        [Fact]
-        public async Task ValidateTokenAsync_ReturnsFalse_WhenFileMissing()
-        {
-            var filePath = Path.GetFullPath(Path.Combine(string.Empty
-                , "data/twitch_token.json"));
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            File.Delete(filePath);
-
-            bool result = await service.ValidateTokenAsync();
-
-            Assert.False(result);
-            await service.StopAsync();
+            Assert.False(storage.Exists(StorageKeys.TwitchAccessToken));
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task ValidateTokenAsync_ReturnsFalse_WhenTokenInvalid()
-        {
-            var filePath = Path.GetFullPath(Path.Combine(string.Empty
-                , "data/twitch_token.json"));
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            await File.WriteAllTextAsync(filePath, JsonSerializer.Serialize(new { access_token = "badtoken" }));
+        {     
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "badtoken",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             bool result = await service.ValidateTokenAsync();
 
             Assert.False(result);
-            File.Delete(filePath);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleSubGift_RaisesGiftSubEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var meta = new WebsocketEventSubMetadata
                 { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
@@ -692,13 +720,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal(3, ev.Amount);
             Assert.Equal("gifter", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleBitsUse_RaisesCheerEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var meta = new WebsocketEventSubMetadata
                 { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
@@ -717,13 +749,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("cheerer", ev.User);
             Assert.Equal("500", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleChannelSubscribe_RaisesSubEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var args = new ChannelSubscribeArgs
             {
@@ -751,14 +787,18 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("subscriber", ev.User);
             Assert.Equal("1000", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
 
         [Fact]
         public async Task HandleSubscriptionMsg_RaisesSubEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var args = new ChannelSubscriptionMessageArgs
             {
@@ -784,13 +824,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("subscriber", ev.User);
             Assert.Equal("2000", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleChannelRaid_RaisesRaidEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var args = new ChannelRaidArgs
             {
@@ -816,13 +860,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Twitch, ev.Source);
             Assert.Equal("raider", ev.User);
             Assert.Equal("42", ev.Value);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleHypeTrainBeginV2_RaisesStartEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var args = new ChannelHypeTrainBeginV2Args
             {
@@ -849,13 +897,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("start", ev.Value);
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(1, ev.Amount);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleHypeTrainProgressV2_RaisesProgressEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
             await service.InvokePrivate("HandleHypeTrainBeginV2", null, new ChannelHypeTrainBeginV2Args
             {
                 Metadata = new WebsocketEventSubMetadata
@@ -898,13 +950,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("progress", ev.Value);
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(2, ev.Amount);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleHypeTrainEndV2_RaisesEndEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var args = new ChannelHypeTrainEndV2Args
             {
@@ -931,13 +987,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("end", ev.Value);
             Assert.Equal("broadcaster", ev.User);
             Assert.Equal(5, ev.Amount);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleCharityEvent_RaisesDonationEvent()
         {
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
 
             var args = new ChannelCharityCampaignDonateArgs
             {
@@ -969,14 +1029,18 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal("donor", ev.User);
             Assert.Equal("25.50", ev.Value);
             Assert.Equal("CAD", ev.Currency);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task StopAsync_CanBeCalledTwice_Safely()
         {
             // in case any listeners still exist
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
             await service.StartAsync(CancellationToken.None);
 
             await service.StopAsync(CancellationToken.None);
@@ -987,7 +1051,11 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public async Task HandleChatMessage_BlerpNotification()
         {
             var config =MockConfig.MakeMockConfig();
-            var service = new TwitchService(null, config);
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null, config, storage);
 
             service.Login = "teststreamer";
 
@@ -1050,14 +1118,18 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventType.BlerpBits, ev.EventType);
             Assert.Equal(SubathonEventSource.Blerp, ev.Source);
             Assert.Equal("SomeGuy", ev.User);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task HandleChatMessage_BlerpNotificationWrongChat()
         {
             var config =MockConfig.MakeMockConfig();
-            var service = new TwitchService(null, config);
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "123456abcdef",
+            });
+            var service = new TwitchService(null, config, storage);
 
             service.Login = "teststreamer2";
 
@@ -1117,69 +1189,45 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             );
 
             Assert.Null(ev);
-            await service.StopAsync();
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
         public async Task StartOAuthFlow_WritesTokenFile()
         {
-            var tokenFilePath = Path.GetFullPath("data/twitch_token.json");
-            if (File.Exists(tokenFilePath)) File.Delete(tokenFilePath);
 
-            var service = new TwitchService(null,MockConfig.MakeMockConfig());
-            service.TwitchOAuthUrl = "http://localhost/fake";
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.TwitchAccessToken] = "",
+            });
+            var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+    
             service.OpenBrowser = _ => { };
-            service.CallbackPort = MockEventSubServer.GetFreePort();
 
             var fakeToken = "test_access_token_abc123";
 
-            var browserSim = Task.Run(async () =>
+            var callbackSim = Task.Run(async () =>
             {
                 await Task.Delay(200);
-
-                using (var tcp = new System.Net.Sockets.TcpClient())
+                Utils.PendingOAuthCallback = new OAuthCallback
                 {
-                    await tcp.ConnectAsync(IPAddress.Loopback, service.CallbackPort);
-                    var stream = tcp.GetStream();
-                    var req = "GET /auth/twitch/callback/ HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-                    await stream.WriteAsync(Encoding.UTF8.GetBytes(req));
-                    var buf = new byte[4096];
-                    while (await stream.ReadAsync(buf) > 0)
-                    {
-                    }
-                }
-
-                await Task.Delay(50);
-
-                using (var tcp = new System.Net.Sockets.TcpClient())
-                {
-                    await tcp.ConnectAsync(IPAddress.Loopback, service.CallbackPort);
-                    var stream = tcp.GetStream();
-                    var req =
-                        $"GET /token?access_token={fakeToken}&token_type=bearer HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n";
-                    await stream.WriteAsync(Encoding.UTF8.GetBytes(req));
-                    var buf = new byte[4096];
-                    while (await stream.ReadAsync(buf) > 0)
-                    {
-                    }
-                }
-            });
+                    Provider = "twitch",
+                    AccessToken = fakeToken
+                };
+            }, TestContext.Current.CancellationToken);
 
             var oauthMethod = typeof(TwitchService)
                 .GetMethod("StartOAuthFlowAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             await Task.WhenAll(
-                browserSim,
+                callbackSim,
                 (Task)oauthMethod.Invoke(service, null)!
             );
-
-            Assert.True(File.Exists(tokenFilePath));
-            var json = await File.ReadAllTextAsync(tokenFilePath);
-            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            Assert.Equal(fakeToken, data!["access_token"]);
-
-            File.Delete(tokenFilePath);
-            await service.StopAsync();
+            Assert.True(service.HasTokenFile());
+            Assert.True(storage.Exists(StorageKeys.TwitchAccessToken));
+            service.RevokeTokenFile();
+            Assert.False(service.HasTokenFile());
+            await service.StopAsync(TestContext.Current.CancellationToken);
         }
         
         [Fact]
@@ -1197,7 +1245,11 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             IntegrationEvents.ConnectionUpdated += Handler;
             try
             {
-                var service = new TwitchService(null,MockConfig.MakeMockConfig());
+                var storage = new InMemorySecureStorage(new()
+                {
+                    [StorageKeys.TwitchAccessToken] = "123456abcdef",
+                });
+                var service = new TwitchService(null,MockConfig.MakeMockConfig(), storage);
                 service.EventSubUrl = wsServer.Uri;
 
                 _ = Task.Run(async () =>
@@ -1212,9 +1264,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                     {
                         tcs.TrySetException(ex);
                     }
-                });
+                }, TestContext.Current.CancellationToken);
 
-                var result = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+                var result = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
                 Assert.True(result == tcs.Task, "Timed out — EventSub ConnectionUpdated never fired");
                 Assert.True(await tcs.Task, "EventSub connected=false, expected true");
                 service.Dispose();

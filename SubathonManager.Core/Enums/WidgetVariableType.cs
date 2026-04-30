@@ -23,20 +23,30 @@ public enum WidgetVariableType
     TokenEventTypeList,
     SubEventTypeList,
     FollowEventTypeList,
-    DonationEventTypeList
+    DonationEventTypeList,
+    GoogleFont,
+    CdnFont
 }
 
 [ExcludeFromCodeCoverage]
 public static class WidgetVariableTypeHelper
 {
-    private static readonly WidgetVariableType[] FileVariables = new[]
-    {
+    private static readonly WidgetVariableType[] FileVariables =
+    [
         WidgetVariableType.AnyFile,
         WidgetVariableType.ImageFile,
         WidgetVariableType.VideoFile,
         WidgetVariableType.SoundFile,
         WidgetVariableType.FolderPath
-    };
+    ];
+    
+    public static readonly WidgetVariableType[] FontVariables =
+    [
+        WidgetVariableType.CdnFont,
+        WidgetVariableType.GoogleFont,
+    ];
+
+    public static bool IsFontVariable(this WidgetVariableType type) => FontVariables.Contains(type);
 
     public static bool IsFileVariable(this WidgetVariableType? varType) =>
         varType.HasValue && FileVariables.Contains(varType.Value);
@@ -55,6 +65,21 @@ public static class WidgetVariableTypeHelper
         _ => []
     };
 
+    public static bool IsListType(this WidgetVariableType varType) => varType switch
+    {
+        WidgetVariableType.OrderEventTypeList => true,
+        WidgetVariableType.SubEventTypeList => true,
+        WidgetVariableType.TokenEventTypeList => true,
+        WidgetVariableType.FollowEventTypeList => true,
+        WidgetVariableType.DonationEventTypeList => true,
+        WidgetVariableType.EventTypeList => true,
+        WidgetVariableType.StringList => true,
+        WidgetVariableType.EventSubTypeList => true,
+        WidgetVariableType.StringSelect => true,
+        WidgetVariableType.EventTypeSelect => true,
+        WidgetVariableType.EventSubTypeSelect => true,
+        _ => false
+    };
     public static Type GetClsSingleType(this WidgetVariableType varType) => varType switch
     {
         WidgetVariableType.Int => typeof(int),
@@ -95,7 +120,8 @@ public enum WidgetCssVariableType
     Size,
     Float,
     Int,
-    Opacity
+    Opacity,
+    Weight
 }
 
 [ExcludeFromCodeCoverage]
@@ -105,6 +131,8 @@ public static class WidgetCssVariableTypeHelper
     {
         WidgetCssVariableType.Alignment => ["left", "center", "right"], 
         WidgetCssVariableType.Size => ["px", "%", "pt", "rem", "em", "vh", "vw", "vmin", "vmax", "cm", "mm", "in", "ch", "ex"],
+        WidgetCssVariableType.Weight => ["normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900", 
+            "bolder", "lighter", "initial", "inherit"],
         _ => []
     };
 }

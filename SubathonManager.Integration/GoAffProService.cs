@@ -11,12 +11,15 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
+using SubathonManager.Services;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
-public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) : IDisposable, IAppService
+public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, ISecureStorage secureStorage, TimerService? timerService = null) : IDisposable, IAppService
 {
     private bool _disposed = false;
 
@@ -27,16 +30,18 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
     internal Uri Endpoint = new Uri("https://api.goaffpro.com/v1/", UriKind.Absolute);
     internal int MaxRetries = 20;
 
+    private string? Email => secureStorage.GetOrDefault(StorageKeys.GoAffProEmail, string.Empty);
+    private string? Password => secureStorage.GetOrDefault(StorageKeys.GoAffProPassword, string.Empty);
+
+
     private HashSet<int> _siteIds = new();
-    
+
     public async Task StartAsync(CancellationToken ct = default)
     {
         await StopAsync(ct);
-
-        var email = config.GetFromEncoded(_configSection, "Email",string.Empty);
-        var password = config.GetFromEncoded(_configSection, "Password", string.Empty);
-
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
+        timerService?.Register("goaffpro-auth-check", TimeSpan.FromHours(48), ReconnectCheck);
+        
+        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password)) return;
         _siteIds.Clear();
 
         try
@@ -48,8 +53,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
                     Timeout = TimeSpan.FromSeconds(30),
                     BaseUrl = Endpoint
                 },
-                email: email,
-                password: password, cancellationToken: ct);
+                email: Email,
+                password: Password, cancellationToken: ct);
             
             IntegrationConnection conn = new IntegrationConnection
             {
@@ -197,12 +202,12 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
             var mode = config.Get(_configSection, $"{source}.Mode", "Dollar");
 
-            var sourceMode = Enum.TryParse(mode, out GoAffProModes m) ? m : GoAffProModes.Dollar;
+            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
 
             ev.Currency = sourceMode switch
             {
-                GoAffProModes.Item => "items",
-                GoAffProModes.Order => "order",
+                OrderTypeModes.Item => "items",
+                OrderTypeModes.Order => "order",
                 _ => order.Currency
             };
             int itemCount = 0;
@@ -214,10 +219,10 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
             ev.Amount = itemCount;
             switch (sourceMode)
             {
-                case GoAffProModes.Dollar:
+                case OrderTypeModes.Dollar:
                     ev.Value = $"{order.Subtotal}";
                     break;
-                case GoAffProModes.Order:
+                case OrderTypeModes.Order:
                     ev.Value = "New";
                     break;
                 default:
@@ -245,6 +250,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
 
     public Task StopAsync(CancellationToken ct = default)
     {
+        timerService?.Unregister("goaffpro-auth-check");
+
         foreach (var integ in Enum.GetNames<GoAffProSource>())
         {           
             IntegrationConnection conn = new IntegrationConnection
@@ -271,7 +278,17 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config) :
         _client = null;
         return Task.CompletedTask;
     }
-    
+
+    public async Task ReconnectCheck(CancellationToken ct = default)
+    {
+        var conn = Utils.GetConnection(SubathonEventSource.GoAffPro, nameof(SubathonEventSource.GoAffPro));
+        if (!conn.Status) return;
+
+        await StopAsync(ct);
+        await Task.Delay(50, ct);
+        await StartAsync(ct);
+    }
+
     [ExcludeFromCodeCoverage]
     public void Dispose()
     {

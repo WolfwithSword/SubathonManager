@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <ForceManagedImplementation>true</ForceManagedImplementation>
@@ -12,6 +12,10 @@
     <ItemGroup>
       <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
       <ProjectReference Include="..\SubathonManager.Data\SubathonManager.Data.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.5" />
     </ItemGroup>
 
 </Project>

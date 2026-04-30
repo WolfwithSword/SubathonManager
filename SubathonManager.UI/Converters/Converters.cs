@@ -119,6 +119,18 @@ namespace SubathonManager.UI.Converters
             => throw new NotImplementedException();
     }
 
+    public class IsNotZeroToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is double d) return d != 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (value is int i) return i != 0 ? Visibility.Visible : Visibility.Collapsed;
+            return Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
     public class EventTypeValueConverter : IMultiValueConverter
     {
         public object? Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
@@ -289,7 +301,8 @@ namespace SubathonManager.UI.Converters
                     return $"{e.Name}\nType: {type}{description}";
                 }
                 case JsVariable r:
-                    return $"{r.Name}\nType: {r.Type}";
+                    var jsDescription = string.IsNullOrWhiteSpace(r.Description) ? "" : $"\n{r.Description}";
+                    return $"{r.Name}\nType: {r.Type}{jsDescription}";
                 default:
                     return value?.ToString() ?? "";
             }

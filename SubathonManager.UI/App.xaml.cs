@@ -5,11 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Appearance;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using SubathonManager.Server;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.UI.Services;
@@ -31,6 +35,9 @@ public partial class App
     
     protected override void OnStartup(StartupEventArgs e)
     {
+        string exeDir = Path.GetDirectoryName(Environment.ProcessPath 
+                                           ?? AppContext.BaseDirectory)!;
+        Directory.SetCurrentDirectory(exeDir);
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         
         AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
@@ -43,10 +50,22 @@ public partial class App
         
         if (!createdNew)
         {
-            FocusRunningInstance();
+            ProtocolMessageType type = ParseProtocolRequest(e);
+            if (type == ProtocolMessageType.SmoFile)
+            {
+                string? filePath = Utils.PendingOverlayImportPath;
+                FocusRunningInstance(type, filePath);
+            } else if (type == ProtocolMessageType.OAuth)
+            {
+                string? uri = e.Args[0];
+                FocusRunningInstance(type, uri);
+            }
+
             Shutdown();
             return;
         }
+
+        SetFileAssociations();
         
         var services = new ServiceCollection();
         
@@ -65,6 +84,7 @@ public partial class App
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             config.LoadOrCreateDefault();
             config.MigrateConfig();
+            MigrateSecureStore(config);
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
@@ -72,6 +92,12 @@ public partial class App
             {
                 Utils.DonationSettings[$"{goAffProSource}"] =
                     config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
+            }
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is SubathonEventSource.KoFi or SubathonEventSource.FourthWall
+                         && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
+            {
+                Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] =
+                    config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
             }
             
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
@@ -90,6 +116,13 @@ public partial class App
             }
 
             base.OnStartup(e);
+            
+            var window = new MainWindow();
+            Current.MainWindow = window;
+            window.Show();
+            
+            var type = ParseProtocolRequest(e);
+            if (type == ProtocolMessageType.OAuth) Shutdown(); // an oauth should never open the app
 
             SubathonEvents.SubathonDataUpdate += UpdateTickStateCache;
             
@@ -130,6 +163,103 @@ public partial class App
         }
     }
 
+    private void MigrateSecureStore(IConfig config)
+    {
+        bool hasUpdated = false;
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+
+        var value = "";
+        value = config.Get("StreamElements", "JWT", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.StreamElementsJwt, value);
+            hasUpdated |= config.Set("StreamElements", "JWT", string.Empty);
+        }      
+        value = config.Get("StreamLabs", "SocketToken", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.StreamLabsSocketToken, value);
+            hasUpdated |= config.Set("StreamLabs", "SocketToken", string.Empty);
+        }  
+        value = config.GetFromEncoded("KoFi", "VerificationToken", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.KoFiVerificationToken, value);
+            hasUpdated |= config.Set("KoFi", "VerificationToken", string.Empty);
+        }
+        value = config.GetFromEncoded("OBS", "Password", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.OBSWebSocketPassword, value);
+            hasUpdated |= config.Set("OBS", "Password", string.Empty);
+        }
+        value = config.GetFromEncoded("GoAffPro", "Email", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.GoAffProEmail, value);
+            hasUpdated |= config.Set("GoAffPro", "Email", string.Empty);
+        }
+        value = config.GetFromEncoded("GoAffPro", "Password", string.Empty);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            secureStorage.Set(StorageKeys.GoAffProPassword, value);
+            hasUpdated |= config.Set("GoAffPro", "Password", string.Empty);
+        }
+
+        if (hasUpdated) config.Save();
+    }
+
+    private static ProtocolMessageType ParseProtocolRequest(StartupEventArgs e)
+    {
+        ProtocolMessageType type = ProtocolMessageType.Unknown;
+        if (e.Args.Length > 0 && e.Args[0].EndsWith(".smo", StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(e.Args[0]) && !e.Args[0].Contains("subathonmanager://oauth", StringComparison.CurrentCultureIgnoreCase))
+        {
+            Utils.PendingOverlayImportPath = e.Args[0];
+            type = ProtocolMessageType.SmoFile;
+        }
+        else if (e.Args.Length > 0)
+        {
+            var arg = e.Args[0];
+            if (!arg.StartsWith("subathonmanager://")) return type; 
+
+            var uri = new Uri(arg);
+            if (arg.Contains(".smo", StringComparison.OrdinalIgnoreCase) && uri.Host != "oauth")
+            {
+
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var url = query["url"];
+
+                if (!string.IsNullOrEmpty(url))
+                {
+                    Utils.PendingOverlayImportPath = url;
+                    type = ProtocolMessageType.SmoFile;
+                }
+            }
+            else if (uri.Host == "oauth")
+            {
+                var provider = uri.AbsolutePath.TrimStart('/'); // "twitch" or "fourthwall"
+                var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+                var accessToken = query["access_token"] ?? "";
+                var code =  query["code"] ?? "";
+                var refreshToken = query["refresh_token"] ?? "";
+                var error = query["error"] ?? "";
+                type = ProtocolMessageType.OAuth;
+
+                Utils.PendingOAuthCallback = new OAuthCallback
+                {
+                    Provider = provider,
+                    AccessToken = accessToken,
+                    RefreshToken = refreshToken,
+                    Code = code,
+                    Error = error
+                };
+            }
+        }
+
+        return type;
+    }
+
     private void SetStartupTheme(IConfig config)
     {
         string theme = config.Get("App", "Theme", "Dark")!.Trim();
@@ -151,16 +281,21 @@ public partial class App
                 : ApplicationTheme.Light;
     }
     
-    private void FocusRunningInstance()
+    private void FocusRunningInstance(ProtocolMessageType type, string? data = null)
     {
         var current = Process.GetCurrentProcess();
         foreach (var proc in Process.GetProcessesByName(current.ProcessName))
         {
             if (proc.Id == current.Id)
                 continue;
-
+            
             if (proc.MainWindowHandle != IntPtr.Zero)
             {
+                if (!string.IsNullOrEmpty(data))
+                {
+                    Utils.SingleInstanceHelper.SendStringMessage(proc.MainWindowHandle, type, data);
+                }
+
                 Utils.SingleInstanceHelper.PostMessage(
                     proc.MainWindowHandle,
                     Utils.SingleInstanceHelper.WM_SHOWAPP,
@@ -265,6 +400,15 @@ public partial class App
                 if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
                 Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
+            }
+
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
+                         && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
+            {
+                bool asDonation = config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
+                if (Utils.DonationSettings.TryGetValue($"{orderSource.ToString()?.Split("Order")[0]}", out bool hasVal) && hasVal == asDonation) continue;
+                optionToggled = true;
+                Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] = asDonation;
             }
 
             if (currencyChanged || optionToggled)
@@ -386,6 +530,76 @@ public partial class App
         var totals = await EventService.GetSubathonTotalsAsync(db);
         if (totals != null)
             SubathonEvents.RaiseSubathonTotalsUpdated(totals);
+    }
+
+    private void SetFileAssociations()
+    {
+        var exePath = Environment.ProcessPath!;
+
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smo", "", "SubathonManager.Overlay");
+
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay", "", "Subathon Manager Overlay");
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\DefaultIcon",
+            "",
+            $"{exePath},0"
+        );
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\shell\open\command",
+            "",
+            $"\"{exePath}\" \"%1\""
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\subathonmanager",
+            "",
+            "URL:Subathon Manager Protocol");
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\subathonmanager",
+            "URL Protocol",
+            "");
+
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\subathonmanager\shell\open\command",
+            "",
+            $"\"{exePath}\" \"%1\"");
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\shell\import",
+            "",
+            "Import into Subathon Manager"
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Overlay\shell\import",
+            "Icon",
+            $"{exePath},0"
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\Applications\SubathonManager.exe",
+            "FriendlyAppName",
+            "Subathon Manager"
+        );
+        
+        EnsureRegistryValue(
+            @"HKEY_CURRENT_USER\Software\Classes\.smo\OpenWithProgids",
+            "SubathonManager.Overlay",
+            ""
+        );
+    }
+    
+    private void EnsureRegistryValue(string keyPath, string name, string expectedValue)
+    {
+        var currentValue = Registry.GetValue(keyPath, name, null) as string;
+
+        if (currentValue == expectedValue)
+            return;
+
+        Registry.SetValue(keyPath, name, expectedValue);
     }
 
 }

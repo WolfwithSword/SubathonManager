@@ -8,7 +8,9 @@ public interface IHttpContext
     string Path { get; }
     
     string QueryString { get; }
-    
+
+    IReadOnlyDictionary<string, string> Headers { get; }
+
     Stream Body { get; }
     Encoding Encoding { get; }
     bool IsWebSocket { get; }

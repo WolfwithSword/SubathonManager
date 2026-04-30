@@ -17,13 +17,6 @@ public enum GoAffProSource
     KatDragonz
 }
 
-public enum GoAffProModes
-{
-    Item,
-    Order,
-    Dollar
-}
-
 [ExcludeFromCodeCoverage]
 public static class GoAffProSourceeHelper
 {

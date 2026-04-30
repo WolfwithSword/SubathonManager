@@ -50,6 +50,18 @@ namespace SubathonManager.UI
                     var lockTt = subathon.IsLocked ? "Unlock" : "Lock";
                     if (!lockTt.Equals(ToggleLockTimerBtn.ToolTip))
                         ToggleLockTimerBtn.ToolTip = lockTt;
+                    
+                    var capSymbol = subathon.CapDateTime.HasValue && subathon.CapDateTime > DateTime.Now
+                        ? SymbolRegular.Flag24
+                        : SymbolRegular.FlagOff24;
+                    if (CapIcon.Symbol != capSymbol)
+                        CapIcon.Symbol = capSymbol;
+
+                    var capColor = subathon.IsCapInEffect()
+                        ? System.Windows.Media.Brushes.Orange
+                        : (System.Windows.Media.Brush)FindResource("TextFillColorPrimaryBrush");
+                    if (CapIcon.Foreground != capColor)
+                        CapIcon.Foreground = capColor;
                 });
             }
         }
