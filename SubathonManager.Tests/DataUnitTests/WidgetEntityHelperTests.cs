@@ -310,7 +310,7 @@ public class WidgetEntityHelperTests
 
         using var db2 = factory.CreateDbContext();
         var vars = db2.JsVariables.Where(v => v.WidgetId == widget.Id).ToList();
-        Assert.Single(vars);
+        Assert.Equal(vars.Count, WidgetVariableTypeHelper.FontVariables.Length + 1);
         Assert.Equal("myVar", vars[0].Name);
         Assert.Equal("hello", vars[0].Value);
 

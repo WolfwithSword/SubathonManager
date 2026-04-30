@@ -34,6 +34,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
 
     public async Task StartIntegrationsAsync()
     {
+        await StartAsync<OBSService>();
         await StartAsync<TwitchService>();
         await StartAsync<YouTubeService>();
         await StartAsync<PicartoService>();
@@ -48,6 +49,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
 
     public async Task StopIntegrationsAsync()
     {
+        await StopAsync<OBSService>();
         await StopAsync<TwitchService>();
         await StopAsync<YouTubeService>();
         await StopAsync<PicartoService>();
@@ -141,6 +143,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static PicartoService Picarto => Provider.GetRequiredService<PicartoService>();
     public static StreamElementsService StreamElements => Provider.GetRequiredService<StreamElementsService>();
     public static StreamLabsService StreamLabs => Provider.GetRequiredService<StreamLabsService>();
+    public static OBSService OBS => Provider.GetRequiredService<OBSService>();
     
     public static WebServer Server => Provider.GetRequiredService<WebServer>();
     public static TimerService Timer => Provider.GetRequiredService<TimerService>();

@@ -8,6 +8,8 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Views.SettingsViews.External.KoFi;
@@ -72,8 +74,8 @@ public partial class KoFiCombinedSettings : SettingsControl
         _webhook?.LoadValues(db);
 
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool hasToken = !string.IsNullOrWhiteSpace(
-            config.GetFromEncoded("KoFi", "VerificationToken", string.Empty));
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+        bool hasToken = !string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty));
         WebhookRadio.IsChecked = hasToken;
         SocketRadio.IsChecked = !hasToken;
         SocketSlot.Visibility = hasToken ? Visibility.Collapsed : Visibility.Visible;

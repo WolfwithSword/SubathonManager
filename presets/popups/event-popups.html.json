@@ -68,6 +68,16 @@
       "Description": "If true, 10 gifted will be a single popup. If false, it will be 10 separate popups",
       "Value": true,
       "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
+    },
+    "CdnFonts" : {
+      "type": "CdnFont",
+      "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",
+      "value": "bright-orchid,milker,beachday"
     }
   }
 }

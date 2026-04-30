@@ -45,6 +45,11 @@
         "Left",
         "Right"
       ]
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
     }
   }
 }

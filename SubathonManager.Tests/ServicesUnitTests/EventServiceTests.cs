@@ -494,44 +494,6 @@ public class EventServiceTests
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-
-    [Fact]
-    public async Task DeleteSubathonEvent_RemovesPointsAndTime()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-
-        Guid subId;
-        SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-            subId = sub.Id;
-            Assert.Equal(0, sub.Points);
-            Assert.Equal(0, sub.MillisecondsCumulative);
-            sub.IsLocked = false;
-            sub.Points += 10;
-            sub.MillisecondsCumulative += 120 * 1000;
-            ev = new SubathonEvent
-            {
-                Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.ExternalSub,
-                PointsValue = 10, SecondsValue = 120, Source = SubathonEventSource.External, ProcessedToSubathon = true
-            };
-            db.SubathonEvents.Add(ev);
-            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        }
-
-        await using var serviceDb = new AppDbContext(options);
-        await service.DeleteSubathonEvent(serviceDb, ev);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-        await service.StopAsync(TestContext.Current.CancellationToken);
-
-        await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(0, subUpdated.Points);
-        Assert.Equal(0, subUpdated.MillisecondsCumulative);
-        await conn.CloseAsync();
-    }
-    
     
     [Fact]
     public async Task DeleteOrderTypeSubathonEvent_RemovesPointsAndTimeAndMoney()
@@ -2110,6 +2072,43 @@ public class EventServiceSequentialTests
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
+    
+    
+    [Fact]
+    public async Task DeleteSubathonEvent_RemovesPointsAndTime()
+    {
+        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
 
+        Guid subId;
+        SubathonEvent ev;
+        await using (var db = new AppDbContext(options))
+        {
+            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+            subId = sub.Id;
+            Assert.Equal(0, sub.Points);
+            Assert.Equal(0, sub.MillisecondsCumulative);
+            sub.IsLocked = false;
+            sub.Points += 10;
+            sub.MillisecondsCumulative += 120 * 1000;
+            ev = new SubathonEvent
+            {
+                Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.ExternalSub,
+                PointsValue = 10, SecondsValue = 120, Source = SubathonEventSource.External, ProcessedToSubathon = true
+            };
+            db.SubathonEvents.Add(ev);
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var serviceDb = new AppDbContext(options);
+        await service.DeleteSubathonEvent(serviceDb, ev);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        await using var checkDb = new AppDbContext(options);
+        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(0, subUpdated.Points);
+        Assert.Equal(0, subUpdated.MillisecondsCumulative);
+        await conn.CloseAsync();
+    }
 
 }

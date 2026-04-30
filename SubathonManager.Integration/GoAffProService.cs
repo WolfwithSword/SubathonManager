@@ -11,13 +11,15 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Services;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
-public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, TimerService? timerService = null) : IDisposable, IAppService
+public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, ISecureStorage secureStorage, TimerService? timerService = null) : IDisposable, IAppService
 {
     private bool _disposed = false;
 
@@ -28,6 +30,9 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, T
     internal Uri Endpoint = new Uri("https://api.goaffpro.com/v1/", UriKind.Absolute);
     internal int MaxRetries = 20;
 
+    private string? Email => secureStorage.GetOrDefault(StorageKeys.GoAffProEmail, string.Empty);
+    private string? Password => secureStorage.GetOrDefault(StorageKeys.GoAffProPassword, string.Empty);
+
 
     private HashSet<int> _siteIds = new();
 
@@ -35,11 +40,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, T
     {
         await StopAsync(ct);
         timerService?.Register("goaffpro-auth-check", TimeSpan.FromHours(48), ReconnectCheck);
-
-        var email = config.GetFromEncoded(_configSection, "Email",string.Empty);
-        var password = config.GetFromEncoded(_configSection, "Password", string.Empty);
-
-        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) return;
+        
+        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password)) return;
         _siteIds.Clear();
 
         try
@@ -51,8 +53,8 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, T
                     Timeout = TimeSpan.FromSeconds(30),
                     BaseUrl = Endpoint
                 },
-                email: email,
-                password: password, cancellationToken: ct);
+                email: Email,
+                password: Password, cancellationToken: ct);
             
             IntegrationConnection conn = new IntegrationConnection
             {

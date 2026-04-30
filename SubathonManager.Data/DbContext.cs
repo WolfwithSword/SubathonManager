@@ -387,39 +387,39 @@ namespace SubathonManager.Data
                     .ExecuteUpdate(s =>
                         s.SetProperty(x => x.ReversedTime, false));
             }
-            var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
-            var widgetsMissingFontTypes = db.Widgets
-                .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))
-                .Include(w => w.JsVariables)
-                .ToList();
-            if (widgetsMissingFontTypes.Count > 0)
-            {
-                var newVars = new List<JsVariable>();
-                foreach (var widget in widgetsMissingFontTypes)
-                {
-                    var existingTypes = widget.JsVariables
-                        .Select(v => v.Type)
-                        .ToHashSet();
-
-                    foreach (var fontVar in fontTypes.Where(ft => !existingTypes.Contains(ft)))
-                    {
-                        newVars.Add(new JsVariable
-                        {
-                            WidgetId = widget.Id,
-                            Widget = widget,
-                            Type = fontVar,
-                            Name = $"{fontVar}s",
-                            Description = $"Custom font names to include from {fontVar}s, comma separated",
-                            Value = string.Empty
-                        });
-                    }
-                }
-                if (newVars.Count > 0)
-                {
-                    db.JsVariables.AddRange(newVars);
-                    db.SaveChanges();
-                }
-            }
+            // var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
+            // var widgetsMissingFontTypes = db.Widgets
+            //     .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))
+            //     .Include(w => w.JsVariables)
+            //     .ToList();
+            // if (widgetsMissingFontTypes.Count > 0)
+            // {
+            //     var newVars = new List<JsVariable>();
+            //     foreach (var widget in widgetsMissingFontTypes)
+            //     {
+            //         var existingTypes = widget.JsVariables
+            //             .Select(v => v.Type)
+            //             .ToHashSet();
+            //
+            //         foreach (var fontVar in fontTypes.Where(ft => !existingTypes.Contains(ft)))
+            //         {
+            //             newVars.Add(new JsVariable
+            //             {
+            //                 WidgetId = widget.Id,
+            //                 Widget = widget,
+            //                 Type = fontVar,
+            //                 Name = $"{fontVar}s",
+            //                 Description = $"Custom font names to include from {fontVar}s, comma separated",
+            //                 Value = string.Empty
+            //             });
+            //         }
+            //     }
+            //     if (newVars.Count > 0)
+            //     {
+            //         db.JsVariables.AddRange(newVars);
+            //         db.SaveChanges();
+            //     }
+            // }
         }
     }
 }

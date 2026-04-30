@@ -140,6 +140,27 @@ public class WidgetEntityHelper
                 db.JsVariables.Remove(variable);
             }
         }
+        
+        var existingFontTypesInDb = db.JsVariables
+            .Where(v => v.WidgetId == widget.Id && WidgetVariableTypeHelper.FontVariables.ToList().Contains(v.Type))
+            .Select(v => v.Type)
+            .Distinct()
+            .ToList();
+
+        var missingFontTypes = WidgetVariableTypeHelper.FontVariables
+            .Where(x => !existingFontTypesInDb.Contains(x))
+            .ToList();
+        foreach (var fontType in missingFontTypes)
+        {
+            db.JsVariables.Add(new JsVariable
+            {
+                WidgetId = widget.Id,
+                Type = fontType,
+                Name = $"{fontType}s",
+                Description = $"Custom font names to include from {fontType}s, comma separated",
+                Value = string.Empty
+            }); 
+        }
 
         db.SaveChanges();
     }

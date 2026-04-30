@@ -8,7 +8,8 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using Button = Wpf.Ui.Controls.Button;
@@ -39,6 +40,10 @@ public partial class KoFiWebhookSettings: DevTunnelSettingsControl
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
+            SuppressUnsavedChanges(() =>
+            {
+                WireControl(KoFiWebhookTokenBox);
+            });
             RefreshFromStoredState();
         };
 
@@ -53,7 +58,8 @@ public partial class KoFiWebhookSettings: DevTunnelSettingsControl
         SuppressUnsavedChanges(() =>
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            KoFiWebhookTokenBox.Text = config.GetFromEncoded(ConfigSection, "VerificationToken", string.Empty) ?? string.Empty;
+            var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+            KoFiWebhookTokenBox.Text = secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty) ?? string.Empty;
             KoFiWebhookForwardUrlsBox.Text = config.Get(ConfigSection, "ForwardUrls", string.Empty) ?? string.Empty;
         });
     }
@@ -62,7 +68,9 @@ public partial class KoFiWebhookSettings: DevTunnelSettingsControl
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         bool hasUpdated = false;
-        hasUpdated |= config.SetEncoded(ConfigSection, "VerificationToken", KoFiWebhookTokenBox.Password.Trim());
+        
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+        hasUpdated |= secureStorage.Set(StorageKeys.KoFiVerificationToken, KoFiWebhookTokenBox.Password.Trim());
         hasUpdated |= config.Set(ConfigSection, "ForwardUrls", KoFiWebhookForwardUrlsBox.Text.Trim());
 
         if (hasUpdated)

@@ -149,6 +149,9 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnOrder(0);
 
+                    b.Property<DateTime?>("CapDateTime")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Currency")
                         .HasColumnType("TEXT");
 

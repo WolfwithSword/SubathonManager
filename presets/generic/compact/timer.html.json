@@ -175,6 +175,11 @@
       "Description": "",
       "Value": 50,
       "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Quantico,Nunito,Baloo 2,Fredoka,Titan One"
     }
   }
 }

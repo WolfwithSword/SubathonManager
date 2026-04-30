@@ -13,6 +13,7 @@
                        MinHeight="800" MinWidth="1200"
                        MaxHeight="800" MaxWidth="1200">
     <ui:FluentWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <Style x:Key="NoHoverOverlayButton" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
             <Setter Property="Background" Value="{DynamicResource SolidOverlayButtonColor}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
@@ -130,13 +131,97 @@
                                <RowDefinition Height="*"/>
                            </Grid.RowDefinitions>
                            <StackPanel Grid.Row="0" Margin="10 2 10 10">
-                               <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,5">
-                                   <ui:Button x:Name="StartSubathonBtn" 
-                                                      Click="StartNewSubathon_Click"
-                                                      Content="Start New Subathon"
-                                                      Width="220" Height="30" Margin="0,2,0,5"/>
-                               </StackPanel>
-                               
+                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,5">
+                                <Grid>
+                                    <ui:Button x:Name="CapBtn"
+                                               Click="CapBtn_Click"
+                                               ToolTip="Set End Date (Cap)"
+                                               Width="30" Height="30" Margin="0,2,8,5"
+                                               Padding="2">
+                                        <ui:SymbolIcon x:Name="CapIcon" Symbol="Flag24" Width="20" Height="20"/>
+                                    </ui:Button>
+
+                                    <Popup x:Name="CapPopup"
+                                           PlacementTarget="{Binding ElementName=CapBtn}"
+                                           Placement="Bottom"
+                                           StaysOpen="False"
+                                           AllowsTransparency="True"
+                                           PopupAnimation="Fade">
+                                        <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                                                BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="14">
+                                            <StackPanel Width="240">
+                                                <TextBlock Text="Set end date / cap" FontSize="14" FontWeight="SemiBold" Margin="0 0 0 10"/>
+
+                                                <TextBlock x:Name="CapCurrentLabel"
+                                                           Text="No cap set"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                           Margin="0 0 0 10"/>
+
+                                                <TextBlock Text="Date" FontSize="11" Margin="0 0 0 3"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                <DatePicker x:Name="CapDatePicker"
+                                                            Height="34"
+                                                            Opacity="1"
+                                                            Background="{DynamicResource ApplicationBackgroundBrush}"
+                                                            Margin="0 0 0 8"
+                                                            SelectedDateChanged="CapDatePicker_SelectedDateChanged">
+                                                </DatePicker>
+
+                                                <TextBlock Text="Time (24h)" FontSize="11" Margin="0 0 0 3"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0 0 0 4">
+                                                    <ui:TextBox x:Name="CapHourInput"
+                                                                Width="72" Height="34"
+                                                                PlaceholderText="HH"
+                                                                ClearButtonEnabled="False"
+                                                                MaxLength="2"
+                                                                PreviewTextInput="NumberOnly_PreviewTextInput"
+                                                                TextChanged="CapTime_TextChanged"
+                                                                Margin="0 0 6 0"/>
+                                                    <TextBlock Text=":" VerticalAlignment="Center" FontSize="18" Margin="0 0 6 0"/>
+                                                    <ui:TextBox x:Name="CapMinuteInput"
+                                                                Width="72" Height="34"
+                                                                PlaceholderText="MM"
+                                                                MaxLength="2"
+                                                                ClearButtonEnabled="False"
+                                                                PreviewTextInput="NumberOnly_PreviewTextInput"
+                                                                TextChanged="CapTime_TextChanged"/>
+                                                </StackPanel>
+
+                                                <TextBlock x:Name="CapValidationMsg"
+                                                           Text=""
+                                                           FontSize="11"
+                                                           Foreground="OrangeRed"
+                                                           Margin="0 2 0 8"
+                                                           TextWrapping="Wrap"/>
+
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <ui:Button x:Name="ClearCapBtn"
+                                                               Content="Clear"
+                                                               Appearance="Secondary"
+                                                               Width="72" Height="30"
+                                                               Margin="0 0 8 0"
+                                                               Click="ClearCap_Click"/>
+                                                    <ui:Button x:Name="SetCapBtn"
+                                                               Content="Set Cap"
+                                                               Width="80" Height="30"
+                                                               Click="SetCap_Click"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+
+                                <ui:Button x:Name="StartSubathonBtn"
+                                           Click="StartNewSubathon_Click"
+                                           Content="Start New Subathon"
+                                           Width="220" Height="30" Margin="0,2,0,5"/>
+                            </StackPanel>
+                           
                                <Grid Margin="124 0 0 0 ">
                                    
                                    <Grid.ColumnDefinitions>
@@ -150,7 +235,6 @@
                                                   Width="50" Height="50" Margin="0,10,6,5">
                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                <ui:SymbolIcon x:Name="PauseIcon" Symbol="Pause28" Width="54" Height="44" Margin="0"/>
-                                               <!-- <TextBlock x:Name="PauseText" Text="Pause Timer" VerticalAlignment="Center"/> -->
                                            </StackPanel>
                                        </ui:Button>
                                        <ui:Button x:Name="ToggleLockTimerBtn"
@@ -159,17 +243,60 @@
                                                   Width="50" Height="50" Margin="0,10,6,5">
                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                <ui:SymbolIcon x:Name="LockIcon" Symbol="LockClosed28" Width="54" Height="44" Margin="0"/>
-                                               <!-- <TextBlock x:Name="LockText" Text="Lock Subathon" VerticalAlignment="Center"/> -->
                                            </StackPanel>
                                        </ui:Button>
                                    </StackPanel>
                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right"> 
                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                           <ui:SymbolIcon x:Name="LockStatus" Symbol="LockClosed32"
-                                                          Width="50" Height="50" Margin="4"/>
-                                           <TextBlock x:Name="TimerValue" HorizontalAlignment="Right" 
-                                                      Text="" VerticalAlignment="Center" FontSize="44" Margin="0 6 16 4"/>
-                                           <!-- <TextBlock x:Name="LockText" Text="Lock Subathon" VerticalAlignment="Center"/> -->
+                                           <Grid>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <ui:SymbolIcon x:Name="LockStatus" Symbol="LockClosed32"
+                                                                   Width="50" Height="50" Margin="4"/>
+                                                    <Grid x:Name="TimerHoverArea"
+                                                          MouseEnter="TimerHoverArea_MouseEnter"
+                                                          MouseLeave="TimerHoverArea_MouseLeave">
+                                                        <TextBlock x:Name="TimerValue" HorizontalAlignment="Right" 
+                                                                   Text="" VerticalAlignment="Center" FontSize="44" Margin="0 6 16 4"/>
+                                                        <Popup x:Name="StatsPopup"
+                                                               PlacementTarget="{Binding ElementName=TimerHoverArea}"
+                                                               Placement="Bottom"
+                                                               StaysOpen="True"
+                                                               AllowsTransparency="True"
+                                                               PopupAnimation="Fade">
+                                                            <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                                                                    BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="8"
+                                                                    Padding="16">
+                                                                <StackPanel Width="240">
+                                                                    <TextBlock Text="Subathon Stats" FontSize="14" FontWeight="SemiBold" Margin="0 0 0 10"/>
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*"/>
+                                                                            <ColumnDefinition Width="Auto"/>
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <Grid.RowDefinitions>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                            <RowDefinition Height="Auto"/>
+                                                                        </Grid.RowDefinitions>
+
+                                                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Elapsed Time" VerticalAlignment="Center" Margin="0 5"/>
+                                                                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsElapsedTime" Text="—" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
+
+                                                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Total Accumulated" VerticalAlignment="Center" Margin="0 5" x:Name="StatsAccu"/>
+                                                                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsTotalAccumulated" Text="—" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
+
+                                                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Total Events" VerticalAlignment="Center" Margin="0 5"/>
+                                                                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsTotalEvents" Text="—" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
+                                                                    </Grid>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </Popup>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Grid>
                                        </StackPanel>
                                    </StackPanel>
                                 </Grid>
@@ -178,13 +305,13 @@
                                        <ColumnDefinition Width="120"/>
                                        <ColumnDefinition Width="*"/>
                                    </Grid.ColumnDefinitions>
-                                   <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
-                                       <ui:Button Click="SendRefreshRequest_Click" Width="50" Height="50" Margin="12 2 6 2" ToolTip="Refresh Overlays">
-                                           <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                               <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="44" Margin="2 0"/>
-                                           </StackPanel>
-                                       </ui:Button>
-                                   </StackPanel>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                                        <ui:Button Click="SendRefreshRequest_Click" Width="50" Height="50" Margin="12 2 6 2" ToolTip="Refresh Overlays">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <ui:SymbolIcon Symbol="Recycle32" Width="54" VerticalAlignment="Center" Height="44" Margin="2 0"/>
+                                            </StackPanel>
+                                        </ui:Button>
+                                    </StackPanel>
                                    <StackPanel Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right" Margin="0,0,16,5">
                                        <ui:Button x:Name="AddTimeBtn"
                                                   Click="AddTime_Click"
@@ -390,6 +517,20 @@
                                                         Margin="10,0,0,0">
                                                 <ui:Button ToolTip="Copy Link" Click="CopyRouteUrl_Click" Padding="2" Style="{StaticResource OpaqueSecondaryButton}" Width="32" Height="32" Margin="4,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                                                     <ui:SymbolIcon Symbol="Link24" />
+                                                </ui:Button>
+                                                <ui:Button ToolTip="Add to OBS as Browser Source"
+                                                           Click="AddToObs_Click"
+                                                           Padding="2"
+                                                           Tag="ObsBtn"
+                                                           Style="{StaticResource OpaqueSecondaryButton}"
+                                                           Width="32" Height="32" Margin="4,0"
+                                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                                                    <ui:Button.Visibility>
+                                                        <Binding Path="ObsConnected"
+                                                                 RelativeSource="{RelativeSource AncestorType=Window}"
+                                                                 Converter="{StaticResource BooleanToVisibilityConverter}"/>
+                                                    </ui:Button.Visibility>
+                                                    <ui:SymbolIcon Symbol="VideoAdd24"/>
                                                 </ui:Button>
                                                 <ui:Button ToolTip="Edit" Click="EditRoute_Click" Padding="2" Style="{StaticResource OpaqueSecondaryButton}" Width="32" Height="32" Margin="4,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                                                     <ui:SymbolIcon Symbol="Edit24" />

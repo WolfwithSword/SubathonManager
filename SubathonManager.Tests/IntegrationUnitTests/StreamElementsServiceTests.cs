@@ -8,6 +8,7 @@ using StreamElements.WebSocket.Models.Tip;
 using StreamElements.WebSocket.Models.Internal;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
@@ -23,10 +24,15 @@ public class StreamElementsServiceTests
     public async Task InitClient_ShouldReturnFalse_WhenJwtIsEmpty()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        config.Setup(c => c.Get("StreamElements", "JWT", "")).Returns("");
+        
+        //config.Setup(c => c.Get("StreamElements", "JWT", "")).Returns("");
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.StreamElementsJwt] = "",
+        });
 
-        var service = new StreamElementsService(logger.Object, config.Object);
+        var service = new StreamElementsService(logger.Object, storage);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
         
@@ -40,10 +46,14 @@ public class StreamElementsServiceTests
     public void InitClient_ShouldReturnTrue_WhenJwtIsSet()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        config.Setup(c => c.Get("StreamElements", "JWT", "")).Returns("TEST_JWT");
+        
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.StreamElementsJwt] = "TEST_JWT",
+        });
 
-        var service = new StreamElementsService(logger.Object, config.Object);
+        var service = new StreamElementsService(logger.Object, storage);
 
         var result = service.InitClient();
 
@@ -56,32 +66,42 @@ public class StreamElementsServiceTests
     public void SetJwtToken_ShouldUpdateConfigAndSave()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        config.Setup(c => c.Set("StreamElements", "JWT", "NEW_JWT"))
-            .Returns(true);
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.StreamElementsJwt] = "OLD_JWT",
+        });
 
-        var service = new StreamElementsService(logger.Object, config.Object);
+        var service = new StreamElementsService(logger.Object, storage);
 
-        service.SetJwtToken("NEW_JWT");
+        var result =  service.SetJwtToken("NEW_JWT");
 
-        config.Verify(c => c.Set("StreamElements", "JWT", "NEW_JWT"), Times.Once);
-        config.Verify(c => c.Save(), Times.Once);
+        // config.Verify(c => c.Set("StreamElements", "JWT", "NEW_JWT"), Times.Once);
+        // config.Verify(c => c.Save(), Times.Once);
+        Assert.True(result);
+        Assert.Equal(1, storage.SetSuccessCount);
     }
     
     [Fact]
     public void SetJwtToken_ShouldNotUpdateConfigAndSave()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        config.Setup(c => c.Set("StreamElements", "JWT", "OLD_JWT"))
-            .Returns(false);
+        
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.StreamElementsJwt] = "OLD_JWT",
+        });
 
-        var service = new StreamElementsService(logger.Object, config.Object);
+        var service = new StreamElementsService(logger.Object, storage);
 
-        service.SetJwtToken("OLD_JWT");
+        var result = service.SetJwtToken("OLD_JWT");
 
-        config.Verify(c => c.Set("StreamElements", "JWT", "OLD_JWT"), Times.Once);
-        config.Verify(c => c.Save(), Times.Never);
+        // config.Verify(c => c.Set("StreamElements", "JWT", "OLD_JWT"), Times.Once);
+        // config.Verify(c => c.Save(), Times.Never);
+        Assert.False(result);
+        Assert.Equal(0, storage.SetSuccessCount);
+        Assert.Equal(1, storage.SetCount);
     }
     
     [Fact]
@@ -105,8 +125,8 @@ public class StreamElementsServiceTests
     public void OnTip_ShouldRaiseSubathonEvent()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        var service = new StreamElementsService(logger.Object, config.Object);
+        
+        var service = new StreamElementsService(logger.Object, new InMemorySecureStorage());
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -141,8 +161,8 @@ public class StreamElementsServiceTests
     public void OnConnected_ShouldSetReconnectingFalse_AndLogInformation()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        var service = new StreamElementsService(logger.Object, config.Object);
+        
+        var service = new StreamElementsService(logger.Object, new InMemorySecureStorage());
 
         var method = typeof(StreamElementsService)
             .GetMethod("_OnConnected", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -162,8 +182,8 @@ public class StreamElementsServiceTests
     public async Task OnDisconnected_ShouldSetConnectedFalse_AndRaiseEvent()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        var service = new StreamElementsService(logger.Object, config.Object);
+        
+        var service = new StreamElementsService(logger.Object, new InMemorySecureStorage());
 
         bool eventRaised = false;
         
@@ -201,8 +221,8 @@ public class StreamElementsServiceTests
     public void OnAuthenticated_ShouldSetConnectedTrue_AndRaiseEvent()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        var service = new StreamElementsService(logger.Object, config.Object);
+        
+        var service = new StreamElementsService(logger.Object, new InMemorySecureStorage());
 
         bool eventRaised = false;
         
@@ -249,8 +269,8 @@ public class StreamElementsServiceTests
     public void OnAuthenticateError_ShouldSetConnectedFalse_AndRaiseErrorEvent()
     {
         var logger = new Mock<ILogger<StreamElementsService>>();
-        var config = new Mock<Config>();
-        var service = new StreamElementsService(logger.Object, config.Object);
+        
+        var service = new StreamElementsService(logger.Object, new InMemorySecureStorage());
         
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)

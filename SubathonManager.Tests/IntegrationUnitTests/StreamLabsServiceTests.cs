@@ -8,8 +8,8 @@ using Streamlabs.SocketClient.Messages;
 using System.Reflection;
 using Streamlabs.SocketClient;
 using Streamlabs.SocketClient.Messages.DataTypes;
-using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
@@ -31,16 +31,21 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             string token = "valid_token")
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<IConfig>();
-            config.Setup(c => c.Get("StreamLabs", "SocketToken", ""))
-                .Returns(token);
+            
 
             var mockClient = new Mock<IStreamlabsClient>();
             mockClient.Setup(c => c.ConnectAsync()).Returns(Task.CompletedTask);
             mockClient.Setup(c => c.DisconnectAsync()).Returns(Task.CompletedTask);
 
-            var service = new StreamLabsService(logger.Object, config.Object);
-            service.ClientFactory = _ => mockClient.Object;
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = token
+            });
+            
+            var service = new StreamLabsService(logger.Object, storage)
+            {
+                ClientFactory = _ => mockClient.Object
+            };
 
             return (service, mockClient);
         }
@@ -49,9 +54,14 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public void IsTokenEmpty_ShouldReturnTrue_WhenTokenNotSet()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<IConfig>();
-            config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
-            var service = new StreamLabsService(logger.Object, config.Object);
+            
+            // config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = "",
+            });
+            var service = new StreamLabsService(logger.Object, storage);
             Assert.True(service.IsTokenEmpty());
         }
 
@@ -59,37 +69,51 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public void SetSocketToken_ShouldUpdateConfigAndSave()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<IConfig>();
-            config.Setup(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN")).Returns(true);
-            var service = new StreamLabsService(logger.Object, config.Object);
+            
+            // config.Setup(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN")).Returns(true);
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = "OLD_TOKEN",
+            });
+            var service = new StreamLabsService(logger.Object, storage);
 
-            service.SetSocketToken("NEW_TOKEN");
+            var result = service.SetSocketToken("NEW_TOKEN");
 
-            config.Verify(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN"), Times.Once);
-            config.Verify(c => c.Save(), Times.Once);
+            // config.Verify(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN"), Times.Once);
+            // config.Verify(c => c.Save(), Times.Once);
+            Assert.True(result);
+            Assert.Equal(1, storage.SetSuccessCount);
+            Assert.Equal(1, storage.SetCount);
         }
         
         [Fact]
         public void SetSocketToken_ShouldNotSave_WhenConfigSetReturnsFalse()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<IConfig>();
-            config.Setup(c => c.Set("StreamLabs", "SocketToken", "OLD_TOKEN")).Returns(false);
-            var service = new StreamLabsService(logger.Object, config.Object);
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = "OLD_TOKEN",
+            });
+            var service = new StreamLabsService(logger.Object, storage);
 
-            service.SetSocketToken("OLD_TOKEN");
+            var result = service.SetSocketToken("OLD_TOKEN");
 
-            config.Verify(c => c.Set("StreamLabs", "SocketToken", "OLD_TOKEN"), Times.Once);
-            config.Verify(c => c.Save(), Times.Never);
+            Assert.False(result);
+            Assert.Equal(0, storage.SetSuccessCount);
+            Assert.Equal(1, storage.SetCount);
         }
 
         [Fact]
         public async Task InitClientAsync_ReturnsFalse_WhenTokenEmpty()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<IConfig>();
-            config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
-            var service = new StreamLabsService(logger.Object, config.Object);
+            
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = "",
+            });
+            var service = new StreamLabsService(logger.Object, storage);
 
             var result = await service.InitClientAsync();
 
@@ -148,10 +172,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public async Task StartAsync_Works()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<Config>();
-            config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = "",
+            });
+            var service = new StreamLabsService(logger.Object, storage);
 
-            var service = new StreamLabsService(logger.Object, config.Object);
 
             await service.StartAsync(TestContext.Current.CancellationToken);
             Assert.False(service.Connected);
@@ -276,8 +302,12 @@ namespace SubathonManager.Tests.IntegrationUnitTests
         public async Task OnDonation_ShouldRaiseSubathonEvent()
         {
             var logger = new Mock<ILogger<StreamLabsService>>();
-            var config = new Mock<Config>();
-            var service = new StreamLabsService(logger.Object, config.Object);
+            var storage = new InMemorySecureStorage(new()
+            {
+                [StorageKeys.StreamLabsSocketToken] = "",
+            });
+            var service = new StreamLabsService(logger.Object, storage);
+
 
             var donation = new DonationMessage
             {

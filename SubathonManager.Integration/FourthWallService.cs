@@ -19,10 +19,13 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
-public class FourthWallService(ILogger<FourthWallService>? logger, IConfig config, IHttpClientFactory httpClientFactory, DevTunnelsService devTunnels)
+public class FourthWallService(ILogger<FourthWallService>? logger, IConfig config, IHttpClientFactory httpClientFactory, DevTunnelsService devTunnels, ISecureStorage secureStorage)
     : IWebhookIntegration
 {
     private readonly string _configSection = "FourthWall";
@@ -38,11 +41,9 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
     internal readonly string _refreshURl = "https://oauth.subathonmanager.app/auth/fourthwall/refresh";
     
     internal Action<string> OpenBrowser = url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-    private readonly string _tokenFile = Path.GetFullPath(Path.Combine(string.Empty
-        , "data/fw_token.json"));
-    
-    private string? AccessToken { get; set; }
-    private string? RefreshToken { get; set; }
+
+    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.FourthWallAccessToken, string.Empty);
+    private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.FourthWallRefreshToken, string.Empty);
     private string? ShopName { get; set; }
     
     public readonly Dictionary<string, string> MembershipNames = new();
@@ -50,21 +51,11 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
     private readonly FourthwallWebhookHandler _handler = new(signatureVerifier: new FourthwallWebhookSignatureVerifier());
     
     [ExcludeFromCodeCoverage]
-    private async Task<bool> CheckExpiry(string? token, CancellationToken ct = default)
+    private bool CheckExpiry()
     {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            if (!HasTokenFile()) return false;
-
-            var json = await File.ReadAllTextAsync(_tokenFile, ct);
-            var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            AccessToken = data?["access_token"];
-            RefreshToken = data?["refresh_token"];
-            if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-            token = AccessToken;
-        }
-
-        DateTime? expires = Utils.GetAccessTokenExpiry(token);
+        if (string.IsNullOrWhiteSpace(AccessToken)) return false;
+        
+        DateTime? expires = Utils.GetAccessTokenExpiry(AccessToken);
         if (expires == null) return false;
         bool isExpired =  DateTime.UtcNow >= expires.Value.AddSeconds(-60);
         return isExpired;
@@ -82,7 +73,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
                 return false;
             }
         }
-        else if (await CheckExpiry(AccessToken, ct))
+        else if (CheckExpiry())
         {
             var success = await StartOAuthRefreshAsync(ct);
             if (!success)
@@ -93,16 +84,13 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
             if (string.IsNullOrWhiteSpace(AccessToken)) return false;
         }
 
-        if (string.IsNullOrWhiteSpace(AccessToken) || await CheckExpiry(AccessToken, ct)) return false;
-        return true;
+        return !string.IsNullOrWhiteSpace(AccessToken) && !CheckExpiry();
     }
 
     public async Task StartAsync(CancellationToken ct = default)
     {
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
         
-        AccessToken = null;
-        RefreshToken = null;
         Utils.PendingOAuthCallback = null;
         bool enabled = HasTokenFile();
         
@@ -172,15 +160,17 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
             string? fullUrl = !string.IsNullOrWhiteSpace(tunnelConn.Name) && tunnelConn.Name != "(starting…)"
                 ? tunnelConn.Name.TrimEnd('/') + WebhookPath
                 : null;
-            WebhookConfigurationCreateRequest req = new WebhookConfigurationCreateRequest();
-            req.Url = fullUrl;
-            req.AllowedTypes = new List<WebhookConfigurationCreateRequest_allowedTypes?>()
+            WebhookConfigurationCreateRequest req = new WebhookConfigurationCreateRequest
             {
-                WebhookConfigurationCreateRequest_allowedTypes.ORDER_PLACED,
-                WebhookConfigurationCreateRequest_allowedTypes.DONATION,
-                WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_PURCHASED,
-                WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_CHANGED,
-                WebhookConfigurationCreateRequest_allowedTypes.GIFT_PURCHASE
+                Url = fullUrl,
+                AllowedTypes =
+                [
+                    WebhookConfigurationCreateRequest_allowedTypes.ORDER_PLACED,
+                    WebhookConfigurationCreateRequest_allowedTypes.DONATION,
+                    WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_PURCHASED,
+                    WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_CHANGED,
+                    WebhookConfigurationCreateRequest_allowedTypes.GIFT_PURCHASE
+                ]
             };
             var resp = await client.OpenApi.V10.Webhooks.PostAsync(req, cancellationToken: ct);
             if (resp == null || string.IsNullOrWhiteSpace(resp.Url))
@@ -227,16 +217,12 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
         if (!HasTokenFile()) return false;
 
-        var json = await File.ReadAllTextAsync(_tokenFile, ct);
-        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-        var refreshToken = data?["refresh_token"];
-
-        if (string.IsNullOrWhiteSpace(refreshToken)) return false;
+        if (string.IsNullOrWhiteSpace(RefreshToken)) return false;
 
         using var client = httpClientFactory.CreateClient(nameof(FourthWallService));
         using var body = new FormUrlEncodedContent(new[]
         {
-            new KeyValuePair<string, string>("refresh_token", refreshToken),
+            new KeyValuePair<string, string>("refresh_token", RefreshToken),
         });
 
         var response = await client.PostAsync(_refreshURl, body, ct);
@@ -252,7 +238,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
         var tokens = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseJson);
 
         var newAccess  = tokens?.GetValueOrDefault("access_token").GetString();
-        var newRefresh = tokens?.GetValueOrDefault("refresh_token").GetString() ?? refreshToken;
+        var newRefresh = tokens?.GetValueOrDefault("refresh_token").GetString() ?? RefreshToken;
 
         if (string.IsNullOrWhiteSpace(newAccess))
         {
@@ -260,11 +246,8 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
             return false;
         }
 
-        AccessToken  = newAccess;
-        RefreshToken = newRefresh;
-
-        await File.WriteAllTextAsync(_tokenFile,
-            JsonSerializer.Serialize(new { access_token = AccessToken, refresh_token = RefreshToken }), ct);
+        secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess);
+        secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh);
 
         logger?.LogDebug("[FourthWall] Tokens refreshed successfully");
         return true;
@@ -276,11 +259,11 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
         Utils.PendingOAuthCallback = null;
         logger?.LogDebug("Opening FourthWall OAuth...");
         OpenBrowser(_oAuthURl);
-        (AccessToken, RefreshToken) = await WaitForProtocolCallbackAsync();   
+        var (newAccess, newRefresh) = await WaitForProtocolCallbackAsync();   
         if (!string.IsNullOrEmpty(AccessToken) || string.IsNullOrEmpty(RefreshToken))
         {
-            await File.WriteAllTextAsync(_tokenFile,
-                JsonSerializer.Serialize(new { access_token = AccessToken, refresh_token =  RefreshToken }));
+            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess!);
+            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh!);
         }
     }
     private async Task<(string?, string?)> WaitForProtocolCallbackAsync(CancellationToken ct = default)
@@ -301,15 +284,16 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
     private bool HasTokenFile()
     {
-        return File.Exists(_tokenFile);
+        return secureStorage.Exists(StorageKeys.FourthWallAccessToken) &&
+               secureStorage.Exists(StorageKeys.FourthWallRefreshToken)
+               && !string.IsNullOrWhiteSpace(AccessToken) && !string.IsNullOrWhiteSpace(RefreshToken);
     }
 
     [ExcludeFromCodeCoverage]
     public void RevokeTokenFile()
     {
-        if (HasTokenFile()) File.Delete(_tokenFile);
-        AccessToken = string.Empty;
-        RefreshToken = string.Empty;
+        secureStorage.Delete(StorageKeys.FourthWallAccessToken);
+        secureStorage.Delete(StorageKeys.FourthWallRefreshToken);
     }
 
     [ExcludeFromCodeCoverage]
