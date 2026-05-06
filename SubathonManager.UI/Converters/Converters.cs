@@ -311,4 +311,27 @@ namespace SubathonManager.UI.Converters
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
+    
+    public class PromptRunStatusColorConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is SubathonPromptRunStatus status)
+            {
+                return status switch
+                {
+                    SubathonPromptRunStatus.Active  => new SolidColorBrush(Color.FromRgb(80, 180, 255)),
+                    SubathonPromptRunStatus.Completed => new SolidColorBrush(Color.FromRgb(80, 220, 120)),
+                    SubathonPromptRunStatus.Expired => new SolidColorBrush(Color.FromRgb(200, 100, 60)),
+                    SubathonPromptRunStatus.Cancelled => new SolidColorBrush(Color.FromRgb(140, 140, 140)),
+                    _ => new SolidColorBrush(Colors.White)
+                };
+            }
+            return new SolidColorBrush(Colors.White);
+        }
+ 
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
 }

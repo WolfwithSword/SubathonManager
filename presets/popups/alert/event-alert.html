@@ -77,7 +77,9 @@
         "gamersupps": "./icons/gamersupps.avif",
         "orchideight": "./icons/orchideight.webp",
         "kofi": "./icons/kofi.png",
+        "cheeky": "./icons/cheeky.png",
         "fourthwall": "./icons/fourthwall.png",
+        "katdragonz": "./icons/katdragonz.png",
     }
 
     const SOUND_CONFIG = {
@@ -224,6 +226,9 @@
         detailEl.textContent = buildDetail(data);
         if (data.sub_type == 'OrderLike' && !"kofi|fourthwall|".includes(source.toLowerCase())) {
             userEl.textContent = data.event_type?.replace(/Order$/, "") ?? "";
+            if (data.event_type.toLowerCase().includes("cheekysoap")) {
+                userEl.textContent = "Cheeky Soap";
+            }
         }
         else if (data.sub_type == "TrainLike") {
             userEl.textContent = `Level ${data.amount}!`

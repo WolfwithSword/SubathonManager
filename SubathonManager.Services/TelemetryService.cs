@@ -7,7 +7,7 @@ using SubathonManager.Core.Interfaces;
 namespace SubathonManager.Services;
 
 [ExcludeFromCodeCoverage]
-public class TelemetryService(ILogger<TelemetryService>? logger, IConfig config, TimerService? timerService = null): IDisposable, IAppService
+public class TelemetryService(ILogger<TelemetryService>? logger, IConfig config, ITimerService? timerService = null): IDisposable, IAppService
 {
     private readonly HttpClient _http = new();
     private readonly string _telemetryUrl = "https://telemetry.subathonmanager.app";

@@ -1,0 +1,83 @@
+﻿:root {
+    --font: "Quantico", monospace;
+    --text-color: white;
+    --outline-color: black;
+    --outline-width: 1px;
+    --font-size: 26px;
+    --timer-size: 20px;
+    --progress-color: white;
+    --progress-bg: rgba(255,255,255,0.2);
+}
+
+html, body {
+    margin: 0; padding: 0;
+    background: transparent;
+    font-family: var(--font);
+    color: var(--text-color);
+}
+
+.prompt-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.prompt-wrapper.hidden { display: none; }
+.prompt-wrapper.entering { animation: fadeIn  0.35s ease forwards; }
+.prompt-wrapper.exiting  { animation: fadeOut 0.3s  ease forwards; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+.prompt-text-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4em;
+}
+
+.prompt-text {
+    font-size: var(--font-size);
+    font-weight: 500;
+    line-height: 1;
+    -webkit-text-stroke: var(--outline-width) var(--outline-color);
+    -webkit-text-fill-color: var(--text-color);
+}
+
+.prompt-timer {
+    font-size: var(--timer-size);
+    font-weight: 500;
+    line-height: 1;
+    opacity: 0.75;
+    white-space: nowrap;
+    -webkit-text-stroke: var(--outline-width) var(--outline-color);
+    -webkit-text-fill-color: var(--text-color);
+}
+
+.progress-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+}
+
+.progress-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--progress-bg);
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--progress-color);
+    transition: width 0.4s ease;
+}
+
+.progress-label {
+    font-size: calc(var(--timer-size) * 0.65);
+    font-weight: 300;
+    opacity: 0.75;
+    white-space: nowrap;
+    -webkit-text-stroke: var(--outline-width) var(--outline-color);
+    -webkit-text-fill-color: var(--text-color);
+}

@@ -14,7 +14,10 @@ public enum GoAffProSource
     [GoAffProSourceMeta(SiteId=7142837, OrderEvent = SubathonEventType.OrchidEightOrder, Description = "Orchid Eight", Label = "Orchid Eight")]
     OrchidEight,
     [GoAffProSourceMeta(Description="KatDragonz", SiteId=7160049, OrderEvent = SubathonEventType.KatDragonzOrder, Enabled=true)]
-    KatDragonz
+    KatDragonz,
+    [GoAffProSourceMeta(Description="Cheeky", SiteId=7138531, OrderEvent = SubathonEventType.CheekySoapOrder, Enabled=true)]
+    Cheeky
+    
 }
 
 [ExcludeFromCodeCoverage]

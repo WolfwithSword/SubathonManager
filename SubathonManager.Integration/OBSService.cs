@@ -13,6 +13,7 @@ using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
+[ExcludeFromCodeCoverage]
 public class OBSService : IAppService
 {
     private readonly ILogger? _logger;

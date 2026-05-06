@@ -25,6 +25,10 @@ namespace SubathonManager.Data
         public DbSet<SubathonGoal> SubathonGoals { get; set; }
         public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
         
+        public DbSet<SubathonPromptSet> SubathonPromptSets { get; set; }
+        public DbSet<SubathonPrompt> SubathonPrompts { get; set; }
+        public DbSet<SubathonPromptRun> SubathonPromptRuns { get; set; }
+        
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
@@ -81,6 +85,40 @@ namespace SubathonManager.Data
             modelBuilder.Entity<SubathonData>().HasOne(s => s.Multiplier)
                 .WithOne(m => m.LinkedSubathon).HasForeignKey<MultiplierData>(m => m.SubathonId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<SubathonPromptSet>()
+                .HasMany(s => s.Prompts)
+                .WithOne(p => p.LinkedSet)
+                .HasForeignKey(p => p.SetId)
+                .OnDelete(DeleteBehavior.Cascade);
+ 
+            modelBuilder.Entity<SubathonPromptRun>()
+                .HasOne(r => r.LinkedPrompt)
+                .WithMany()
+                .HasForeignKey(r => r.PromptId)
+                .OnDelete(DeleteBehavior.Cascade);
+ 
+            modelBuilder.Entity<SubathonPromptRun>()
+                .HasOne(r => r.LinkedSet)
+                .WithMany()
+                .HasForeignKey(r => r.SetId)
+                .OnDelete(DeleteBehavior.NoAction);
+            
+            modelBuilder.Entity<SubathonPromptSet>()
+                .Property(s => s.Interval)
+                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+ 
+            modelBuilder.Entity<SubathonPromptSet>()
+                .Property(s => s.RandomOffset)
+                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+ 
+            modelBuilder.Entity<SubathonPromptSet>()
+                .Property(s => s.Cooldown)
+                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+ 
+            modelBuilder.Entity<SubathonPrompt>()
+                .Property(p => p.CompletionDuration)
+                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
         }
 
         public override int SaveChanges()
@@ -335,6 +373,7 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.CheekySoapOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
                 new () { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
                 new () { EventType = SubathonEventType.FourthWallDonation, Seconds = 12},
@@ -360,11 +399,16 @@ namespace SubathonManager.Data
                 subathon.IsPaused = true;
                 db.SubathonDatas.Add(subathon);
             }
-
+            
             if (!db.SubathonGoalSets.Any(s => s.IsActive))
             {
                 SubathonGoalSet goalSet = new SubathonGoalSet();
                 db.SubathonGoalSets.Add(goalSet);
+            }
+            
+            if (!db.SubathonPromptSets.Any(s => s.IsActive))
+            {
+                db.SubathonPromptSets.Add(new SubathonPromptSet { IsActive = true });
             }
 
             MigrateLegacyData(db);

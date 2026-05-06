@@ -22,16 +22,46 @@ public static class SubathonEvents
     public static event Action<List<SubathonValueDto>>? SubathonValuesPatched;
     
     public static event Action<SubathonTotals>? SubathonTotalsUpdated;
+    
+    public static event Action<SubathonPromptRun, SubathonPrompt?>? PromptRunStarted;
+    public static event Action<SubathonPromptRun, SubathonPrompt?>? PromptRunUpdate;
+    public static event Action<SubathonPromptRun, long>? PromptRunProgressUpdated;
+    public static event Action? PromptRunCancelRequested;
+    public static event Action<Guid>? PromptRunNowRequested;
 
     public static void RaiseSubathonTotalsUpdated(SubathonTotals totals)
     {
         SubathonTotalsUpdated?.Invoke(totals);
     }
 
+    
+    public static void RaisePromptRunStarted(SubathonPromptRun run, SubathonPrompt? prompt)
+        => PromptRunStarted?.Invoke(run, prompt);
+    
+    public static void RaisePromptRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt)
+        => PromptRunUpdate?.Invoke(run, prompt);
+    
+    public static void RaisePromptRunProgressUpdated(SubathonPromptRun run, long progress)
+        => PromptRunProgressUpdated?.Invoke(run, progress);
+    
+    public static void RaisePromptRunNowRequested(Guid guid)
+        => PromptRunNowRequested?.Invoke(guid);
+
+    
     public static void RaiseSubathonValuesPatched(List<SubathonValueDto> values)
     {
         SubathonValuesPatched?.Invoke(values);
     }
+    
+    public static void RaisePromptRunCancelRequested()
+        => PromptRunCancelRequested?.Invoke();
+ 
+    public static event Action<bool>? PromptSetEnabledChanged;
+ 
+    public static void RaisePromptSetEnabledChanged(bool enabled)
+        => PromptSetEnabledChanged?.Invoke(enabled);
+
+
     
     public static void RaiseSubathonEventsDeleted(List<SubathonEvent> subathonEvent)
     {

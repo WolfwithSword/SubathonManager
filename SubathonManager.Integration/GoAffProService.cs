@@ -19,7 +19,7 @@ using SubathonManager.Services;
 
 namespace SubathonManager.Integration;
 
-public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, ISecureStorage secureStorage, TimerService? timerService = null) : IDisposable, IAppService
+public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, ISecureStorage secureStorage, ITimerService? timerService = null) : IDisposable, IAppService
 {
     private bool _disposed = false;
 

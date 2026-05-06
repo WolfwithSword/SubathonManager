@@ -31,7 +31,7 @@ public partial class ExternalSettings : SettingsGroupControl
                 _settingsControls[eventSource] = new KoFiCombinedSettings();
                 break;
             case SubathonEventSource.KoFiTunnel:
-                // merged into KoFi tab — return the shared instance without registering again
+                // merged into KoFi tab - return the shared instance without registering again
                 return _settingsControls.TryGetValue(SubathonEventSource.KoFi, out var kofi) ? kofi : null;
             case SubathonEventSource.DevTunnels:
                 _settingsControls[eventSource] = new DevTunnelsSettings();

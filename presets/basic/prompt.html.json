@@ -1,0 +1,20 @@
+﻿{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/basic/#prompt",
+  "Width": 400,
+  "Height": 110,
+  "Vars": {
+    "lingerSeconds": {
+      "Name": "lingerSeconds",
+      "Type": "Int",
+      "Description": "How long in seconds to keep visible after complete or expired.",
+      "Value": 10,
+      "Options": null
+    },
+    "GoogleFonts": {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Quantico,Nunito,Baloo 2,Fredoka,Titan One"
+    }
+  }
+}

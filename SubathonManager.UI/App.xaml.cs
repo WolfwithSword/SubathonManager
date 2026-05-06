@@ -142,6 +142,7 @@ public partial class App
                 // fire-forget
                 await sm.StartAsync<WebServer>(fireAndForget: true);
                 await sm.StartAsync<TimerService>(fireAndForget: true);
+                await sm.StartAsync<PromptOrchestratorService>();
                 await Task.Delay(100);
                 TimerEvents.TimerTickEvent += UpdateSubathonTimers;
                 

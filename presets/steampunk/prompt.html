@@ -1,0 +1,285 @@
+﻿<link rel="stylesheet" href="prompt.css">
+
+<div class="engine-wrapper hidden" id="engine-wrapper">
+
+    <div class="cog-cluster" id="cog-cluster">
+        <div class="cog cog-large" id="cog-large"></div>
+        <div class="cog cog-small" id="cog-small"></div>
+    </div>
+
+    <div class="engine-card" id="engine-card">
+
+        <div class="pressure-light-wrap">
+            <div class="pressure-light" id="pressure-light">
+                <div class="pressure-light-inner" id="pressure-light-inner"></div>
+                <div class="pressure-rivet tl"></div>
+                <div class="pressure-rivet tr"></div>
+                <div class="pressure-rivet bl"></div>
+                <div class="pressure-rivet br"></div>
+            </div>
+        </div>
+
+        <div class="text-panel" id="text-panel">
+            <div class="text-panel-label">DIRECTIVE</div>
+            <div class="prompt-text" id="prompt-text">-</div>
+        </div>
+
+        <div class="bottom-row">
+
+            <div class="timer-panel">
+                <div class="timer-digits" id="timer-digits">0:00</div>
+            </div>
+
+            <div class="furnace-section">
+                <div class="furnace-panel-label">PRESSURE</div>
+                <div class="furnace-wrap">
+                    <div class="ember-layer" id="ember-layer"></div>
+                    <svg class="grill-svg" viewBox="0 0 80 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+
+                        <rect x="0" y="4"  width="80" height="4" rx="1" fill="currentColor" opacity="0.85"/>
+                        <rect x="0" y="13" width="80" height="4" rx="1" fill="currentColor" opacity="0.85"/>
+                        <rect x="0" y="22" width="80" height="4" rx="1" fill="currentColor" opacity="0.85"/>
+                        <rect x="0" y="31" width="80" height="4" rx="1" fill="currentColor" opacity="0.85"/>
+
+                        <circle cx="4"  cy="6"  r="2.5" fill="currentColor"/>
+                        <circle cx="4"  cy="15" r="2.5" fill="currentColor"/>
+                        <circle cx="4"  cy="24" r="2.5" fill="currentColor"/>
+                        <circle cx="4"  cy="33" r="2.5" fill="currentColor"/>
+                        <circle cx="76" cy="6"  r="2.5" fill="currentColor"/>
+                        <circle cx="76" cy="15" r="2.5" fill="currentColor"/>
+                        <circle cx="76" cy="24" r="2.5" fill="currentColor"/>
+                        <circle cx="76" cy="33" r="2.5" fill="currentColor"/>
+                    </svg>
+                    <div class="pressure-label-count" id="pressure-label-count">0 / 0</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+    <div class="finish-overlay" id="finish-overlay"></div>
+</div>
+
+<script>
+    async function loadCog(containerId, url) {
+        try {
+            const res = await fetch(url);
+            const text = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, "image/svg+xml");
+            const svg = doc.querySelector("svg");
+            if (svg) {
+                const cs = getComputedStyle(document.documentElement);
+                const vars = {
+                    '--cog-fill': cs.getPropertyValue('--cog-fill').trim() || '#6b4c1e',
+                    '--cog-mid': cs.getPropertyValue('--cog-mid').trim() || '#9a7850',
+                    '--cog-edge': cs.getPropertyValue('--cog-edge').trim() || '#c09050',
+                    '--cog-edge-light': cs.getPropertyValue('--cog-edge-light').trim() || '#d0a060',
+                    '--cog-hole': cs.getPropertyValue('--cog-hole').trim() || '#1a0a02',
+                };
+                const style = doc.createElementNS("http://www.w3.org/2000/svg", "style");
+                style.textContent = `:root { ${Object.entries(vars).map(([k,v]) => `${k}:${v}`).join(';')} }`;
+                svg.prepend(style);
+                svg.style.width = "100%";
+                svg.style.height = "100%";
+                svg.style.display = "block";
+                svg.style.overflow = "visible";
+                document.getElementById(containerId).appendChild(svg);
+            }
+        } catch(e) { console.warn("Could not load cog:", url, e); }
+    }
+
+    Promise.all([
+        loadCog("cog-small", "./cog.svg"),
+        loadCog("cog-large", "./cog.svg")
+    ]);
+
+    let endTime = null;
+    let durationSecs = 1;
+    let tickTimer = null;
+    let lingerTimer = null;
+    let isVisible = false;
+    let currentPct = 0;
+    let cogRpm = 4; 
+    let cogAngle = 0;
+    let cogSmallOffset = 6;
+    let rafId = null;
+    let lastRafTime = null;
+    let targetRpm = 4;
+    let actualRpm = 4;
+    let decelerating = false;
+
+    const wrapper = document.getElementById("engine-wrapper");
+    const promptText = document.getElementById("prompt-text");
+    const timerDigits = document.getElementById("timer-digits");
+    const emberLayer = document.getElementById("ember-layer");
+    const pressureLight = document.getElementById("pressure-light");
+    const lightInner = document.getElementById("pressure-light-inner");
+    const pressureCount = document.getElementById("pressure-label-count");
+    const finishOverlay = document.getElementById("finish-overlay");
+    const cogLarge = document.getElementById("cog-large");
+    const cogSmall = document.getElementById("cog-small");
+
+    function startCogRaf() {
+        if (rafId) return;
+        lastRafTime = performance.now();
+        function frame(now) {
+            const dt = (now - lastRafTime) / 1000;
+            lastRafTime = now;
+            if (decelerating) {
+                actualRpm = Math.max(0, actualRpm - dt * 3);
+            } else {
+                actualRpm += (targetRpm - actualRpm) * Math.min(1, dt * 2);
+            }
+            const dAngle = actualRpm * 360 / 60 * dt;
+            cogAngle += dAngle;
+
+            cogLarge.style.transform = `rotate(${cogAngle}deg)`;
+            cogSmall.style.transform = `rotate(${cogSmallOffset + (-cogAngle * 1.875)}deg)`;
+            if (actualRpm > 0.05 || !decelerating) {
+                rafId = requestAnimationFrame(frame);
+            } else {
+                rafId = null;
+            }
+        }
+        rafId = requestAnimationFrame(frame);
+    }
+
+    function stopCogRaf() {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    }
+
+    function updateEmber(pct) {
+        const brightness = Math.pow(pct, 0.6);
+        const r = Math.round(80 + brightness * 175);
+        const g = Math.round(20 + brightness * 80);
+        const b = 0;
+        const alpha = 0.08 + brightness * 0.88;
+        const blur = 2 + brightness * 14;
+        emberLayer.style.background = `radial-gradient(ellipse at 50% 100%,
+        rgba(${r},${g},${b},${alpha}) 0%,
+        rgba(${Math.round(r*0.6)},${Math.round(g*0.4)},0,${alpha*0.5}) 60%,
+        transparent 100%)`;
+        emberLayer.style.boxShadow = brightness > 0.1
+            ? `inset 0 0 ${blur}px rgba(${r},${g},${b},${alpha * 0.8})`
+            : "none";
+    }
+
+    function setLight(state) {
+        // state: 'idle' | 'active' | 'complete' | 'expired'
+        pressureLight.className = "pressure-light light-" + state;
+    }
+
+    function handlePromptUpdate(data) {
+        const status = data.status ?? "None";
+
+        if (status === "Cancelled") { hideCard(false); return; }
+        if (status === "None") { hideCard(false, true); return; }
+
+        if (data.end_time) {
+            endTime = new Date(data.end_time);
+            durationSecs = data.duration_seconds > 0 ? data.duration_seconds : 1;
+        }
+
+        promptText.textContent = data.text || "-";
+
+        const progress = data.progress ?? 0;
+        const target = data.target ?? 0;
+        currentPct = target > 0 ? Math.min(progress / target, 1) : 0;
+
+        pressureCount.textContent = `${progress} / ${target}`;
+        updateEmber(currentPct);
+
+        targetRpm = 4 + currentPct * 16;
+
+        if (status === "Active") {
+            clearLinger();
+            showCard();
+            startTick();
+            decelerating = false;
+            setLight("active");
+            startCogRaf();
+        } else {
+            clearTick();
+            if (status === "Completed") {
+                timerDigits.textContent = "✓";
+                setLight("complete");
+                decelerating = false;
+                targetRpm = 20;
+                updateEmber(1);
+                spawnFinish(true);
+            } else if (status === "Expired") {
+                timerDigits.textContent = "✗";
+                setLight("expired");
+                decelerating = true;
+                updateEmber(0);
+                spawnFinish(false);
+            }
+            startLinger();
+        }
+    }
+
+    function showCard() {
+        if (isVisible) return;
+        isVisible = true;
+        finishOverlay.innerHTML = "";
+        setLight("idle");
+        wrapper.classList.remove("hidden", "exiting");
+        wrapper.classList.add("entering");
+        setTimeout(() => wrapper.classList.remove("entering"), 600);
+    }
+
+    function hideCard(withExit, force = false) {
+        clearTick(); clearLinger();
+        if (!isVisible && !force) return;
+        isVisible = false;
+        decelerating = true;
+        setLight("idle");
+        if (withExit) {
+            wrapper.classList.add("exiting");
+            setTimeout(() => { wrapper.classList.add("hidden"); stopCogRaf(); }, 500);
+        } else {
+            wrapper.classList.add("hidden");
+            stopCogRaf();
+        }
+    }
+
+    function startTick() {
+        clearTick(); tick();
+        tickTimer = setInterval(tick, 250);
+    }
+    function clearTick() {
+        if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    }
+    function tick() {
+        if (!endTime) return;
+        const remaining = Math.max(0, (endTime - Date.now()) / 1000);
+        const m = Math.floor(remaining / 60);
+        const s = Math.floor(remaining % 60);
+        timerDigits.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+        if (remaining <= 0) clearTick();
+    }
+
+    function startLinger() {
+        clearLinger();
+        lingerTimer = setTimeout(() => hideCard(true), lingerSeconds * 1000);
+    }
+    function clearLinger() {
+        if (lingerTimer) { clearTimeout(lingerTimer); lingerTimer = null; }
+    }
+
+    function spawnFinish(success) {
+        finishOverlay.innerHTML = "";
+        const count = success ? 14 : 10;
+        for (let i = 0; i < count; i++) {
+            const p = document.createElement("div");
+            p.className = success ? "steam-burst" : "steam-puff";
+            p.style.setProperty("--x", `${10 + Math.random() * 80}%`);
+            p.style.setProperty("--y", `${10 + Math.random() * 80}%`);
+            p.style.setProperty("--d", `${0.4 + Math.random() * 1.0}s`);
+            p.style.setProperty("--s", `${0.6 + Math.random() * 1.0}`);
+            p.style.setProperty("--dy", `${-20 - Math.random() * 40}px`);
+            finishOverlay.appendChild(p);
+        }
+    }
+</script>

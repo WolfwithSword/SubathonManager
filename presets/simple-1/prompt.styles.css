@@ -1,0 +1,222 @@
+﻿:root {
+    --border-color: #48446e;
+    --inner-border-color: #655fa0;
+    --main-background-color: #d9d7fb;
+    --text-color: #8C46ED;
+    --timer-color: #aa00ff;
+    --timer-ring-color: #aa00ff;
+    --progress-color: #8C46ED;
+    --progress-bg-color: rgba(100, 80, 180, 0.2);
+    --glow-color: #494475;
+    --sparkle-color: #EAE57E;
+    --puff-color: #696982;
+    --font: beachday;
+    --prompt-font-size: 1rem;
+    --prompt-font-weight: 100;
+    --timer-font-size: 1rem;
+    --timer-font-weight: 100;
+    --progress-font-size: 0.8rem;
+    --progress-font-weight: 100;
+}
+
+html, body {
+    background: transparent !important;
+    margin-top: 5px;
+    margin-bottom: 4px;
+    margin-left: 5px;
+    margin-right: 5px;
+    padding: 0;
+}
+
+.prompt-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.prompt-wrapper.hidden { 
+    display: none;
+}
+.prompt-wrapper.entering { 
+    animation: cardEnter 0.5s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+.prompt-wrapper.exiting {
+    animation: cardExit  0.4s ease-in forwards; 
+}
+
+@keyframes cardEnter {
+    from { opacity: 0; transform: scale(0.85) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes cardExit {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.9) translateY(-8px); }
+}
+
+.prompt-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--main-background-color);
+    border: 1px solid var(--border-color);
+    outline: 3px solid var(--border-color);
+    outline-offset: -1px;
+    box-shadow: inset 0 0 0 2px var(--inner-border-color),
+    0 0 6px 1px var(--glow-color);
+    border-radius: 6px 14px;
+    padding: 10px 12px;
+    color: var(--text-color);
+    font-family: var(--font), sans-serif;
+    position: relative;
+    z-index: 1;
+}
+
+.timer-section {
+    position: relative;
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+}
+
+.timer-ring-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.timer-ring-bg {
+    fill: none;
+    stroke: rgba(100,80,180,0.18);
+    stroke-width: 5;
+}
+
+.timer-ring-fill {
+    fill: none;
+    stroke: var(--timer-ring-color);
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.25s linear;
+    filter: drop-shadow(0 0 2px var(--timer-ring-color));
+}
+
+.timer-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timer-value {
+    font-family: var(--font), sans-serif;
+    font-size: var(--timer-font-size);
+    font-weight: var(--timer-font-weight);
+    color: var(--timer-color);
+    line-height: 1;
+    text-align: center;
+    filter: drop-shadow(0 0 0.5px var(--timer-color));
+}
+
+.prompt-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.prompt-text {
+    font-size: var(--prompt-font-size);
+    font-weight: var(--prompt-font-weight);
+    line-height: 1.25;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.progress-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.progress-bar-wrap {
+    flex: 1;
+    height: 8px;
+    border-radius: 3px;
+    background: var(--progress-bg-color);
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--progress-color);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 4px var(--progress-color);
+    width: 0%;
+}
+
+.progress-label {
+    font-size: var(--progress-font-size);
+    font-weight: var(--progress-font-weight);
+    white-space: nowrap;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+.finish-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 10;
+}
+
+.sparkle {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--sparkle-color);
+    transform: scale(var(--s)) rotate(var(--r));
+    animation: sparklePop var(--d) ease-out both;
+    animation-delay: calc(var(--d) * 0.3);
+    box-shadow: 0 0 4px 2px var(--sparkle-color);
+}
+
+@keyframes sparklePop {
+    0%   { opacity: 0; transform: scale(0) translate(0,0) rotate(var(--r)); }
+    40%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(var(--s)) translate(
+            calc((var(--x) - 50%) * 0.6),
+            calc((var(--y) - 50%) * 0.6)
+    ) rotate(calc(var(--r) + 180deg)); }
+}
+
+.puff {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--puff-color);
+    transform: scale(var(--s));
+    animation: puffFade var(--d) ease-out both;
+    animation-delay: calc(var(--d) * 0.2);
+}
+
+@keyframes puffFade {
+    0% { opacity: 0.7; transform: scale(0); }
+    60% { opacity: 0.4; transform: scale(var(--s)); }
+    100% { opacity: 0; transform: scale(calc(var(--s) * 1.6)); }
+}
