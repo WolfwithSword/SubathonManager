@@ -1,0 +1,252 @@
+﻿<link rel="stylesheet" href="prompt.css">
+
+<div id="promptRoot">
+    <div class="prompt-card" id="promptCard">
+
+        <div class="prompt-icon-wrap" id="promptIconWrap">
+            <span class="prompt-timer-digits" id="promptTimerDigits">0:00</span>
+            <svg class="prompt-icon hidden" id="promptIcon" viewBox="0 0 24 24">
+                <path fill="currentColor" id="promptIconPath" d=""/>
+            </svg>
+        </div>
+
+        <div class="prompt-body">
+            <div class="prompt-label" id="promptLabel">DIRECTIVE</div>
+            <div class="prompt-title" id="promptTitle">—</div>
+            <div class="prompt-detail">
+                <span class="prompt-type-text" id="promptTypeText"></span>
+            </div>
+        </div>
+
+        <div class="prompt-bottom">
+            <div class="prompt-bars">
+                <div class="bar-row">
+                    <span class="bar-label"></span>
+                    <div class="bar-track">
+                        <div class="bar-fill" id="valueFill"></div>
+                    </div>
+                    <span class="bar-count" id="valueCount">0 / 0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="prompt-progress" id="promptProgress"></div>
+    </div>
+</div>
+
+<script>
+    const ICON_COMPLETE = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z";
+    const ICON_EXPIRED = "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z";
+
+    const root = document.getElementById("promptRoot");
+    const card = document.getElementById("promptCard");
+    const iconWrap = document.getElementById("promptIconWrap");
+    const icon = document.getElementById("promptIcon");
+    const iconPath = document.getElementById("promptIconPath");
+    const timerDigits = document.getElementById("promptTimerDigits");
+    const labelEl = document.getElementById("promptLabel");
+    const titleEl = document.getElementById("promptTitle");
+    const typeTextEl = document.getElementById("promptTypeText");
+    const valueFill = document.getElementById("valueFill");
+    const valueCount = document.getElementById("valueCount");
+    const progressEl = document.getElementById("promptProgress");
+
+    let endTime = null;
+    let durationSecs = 1;
+    let tickTimer = null;
+    let lingerTimer = null;
+    let isVisible = false;
+
+    function setAccent(color) {
+        root.style.setProperty("--accent", color);
+        card.style.borderColor = color;
+        card.style.boxShadow = [
+            "0 0 0 1px rgba(255,255,255,0.04)",
+            "0 8px 12px rgba(0,0,0,0.5)",
+            `0 0 16px color-mix(in srgb, ${color} 35%, transparent)`
+        ].join(",");
+        iconWrap.style.borderColor = color;
+        iconWrap.style.boxShadow = `0 0 16px color-mix(in srgb, ${color} 55%, transparent)`;
+        icon.style.color = color;
+        timerDigits.style.color = color;
+        labelEl.style.color = color;
+        progressEl.style.background = `linear-gradient(90deg, ${color}, transparent)`;
+        valueFill.style.background = color;
+    }
+
+    function showTimer() {
+        timerDigits.classList.remove("hidden");
+        icon.classList.add("hidden");
+    }
+    function showIcon(pathD) {
+        iconPath.setAttribute("d", pathD);
+        timerDigits.classList.add("hidden");
+        icon.classList.remove("hidden");
+    }
+
+    function buildTypeLabel(data) {
+        const type = data.prompt_type    ?? "";
+        const subtype = data.prompt_subtype ?? "";
+        const evtype = data.prompt_eventtype ?? "";
+        const meta = data.prompt_eventtype_metafilter ?? "";
+
+        if (type === "Event" && evtype) {
+            let label = evtype.replace(/(.*)GiftOrder$/, `$1 Gift ${ subtype == "Items" ? "Items" : "Orders"}`)
+                    .replace(/(.*)Gift(\w+)$/, `$1 Gift $2s`)
+                    .replace(/(.*)CommissionOrder$/, "$1 Commissions")
+                    .replace(/(.*)Commission$/, "$1 Commissions")
+                    .replace(/(.*)Order/, subtype == "Items" ? "$1 Ordered Items" : "$1 Orders")
+                    .replace(/(.*)Shop(.*)/, "$1 $2")
+                    .replace(/(\w+)Sub(.*)$/, "$1 Subs")
+                    .replace(/(\w+)Memb(.*)$/, "$1 Members")
+                    .replace(/(\w+)CharityDonation$/, "$1 Charity Donations")
+                    .replace(/(\w+)Donation$/, "$1 Donations")
+                    .replace(/(\w+)Tip$/, "$1 Tips")
+                    .replace(/(\w+)Follow$/, "$1 Follows")
+                    .replace(/(\w+)Bits$/, "$1 Bits")
+                    .replace(/(\w+)Beets$/, "$1 Beets")
+                    .replace(/(\w+)Kudos$/, "$1 Kudos")
+                    .replace(/(\w+)Jewels$/, "$1 Jewels")
+                    .replace(/(\w+)SuperChat$/, "$1 SuperChats")
+                    ;
+
+            if (meta) {
+                const tierMap = { "1000": "T1", "2000": "T2", "3000": "T3" };
+                label += " [" + (tierMap[meta] ?? meta) + "]";
+            }
+            return label.trim();
+        }
+
+        const typeLabels = {
+            Points: "Points", Money: "Donations",
+            Orders: "Orders", Follows: "Follows",
+            Subs: "Subscriptions", Tokens: "Tokens"
+        };
+        let label = typeLabels[type] ?? type;
+
+        const subLabels = {
+            NormalSubs: "Normal Subs", GiftSubs: "Gift Subs",
+            ByTier: "By Tier", Items: "Items"
+        };
+        if (subtype && subtype !== "Default" && subLabels[subtype])
+            label += " · " + subLabels[subtype];
+
+        return label;
+    }
+
+    function playSound(src, volume) {
+        if (!src) return;
+        try { const a = new Audio(src); a.volume = Math.min(1,(volume??50)/100); a.play().catch(()=>{}); } catch(e) {}
+    }
+
+    function handlePromptUpdate(data) {
+        const status = data.status ?? "None";
+
+        if (status === "Cancelled") { hideCard(false); return; }
+        if (status === "None")      { hideCard(false, true); return; }
+
+        if (data.end_time) {
+            endTime = new Date(data.end_time);
+            durationSecs = data.duration_seconds > 0 ? data.duration_seconds : 1;
+        }
+        titleEl.textContent = data.text || "—";
+        typeTextEl.textContent = buildTypeLabel(data);
+
+        const progress = data.progress ?? 0;
+        const target = data.target   ?? 0;
+        const pct = target > 0 ? Math.min(progress / target, 1) : 0;
+        valueFill.style.width = `${pct * 100}%`;
+        valueCount.textContent = `${progress} / ${target}`;
+
+        if (status === "Active") {
+            clearLinger();
+            labelEl.textContent = "DIRECTIVE";
+            setAccent("var(--active-color)");
+            showTimer();
+            showCard();
+            startTick();
+            progressEl.style.transition = "none";
+            progressEl.style.transform = "scaleX(1)";
+            void progressEl.offsetWidth;
+            progressEl.style.transition = `transform ${durationSecs * 1000}ms linear`;
+            progressEl.style.transform = "scaleX(0)";
+            playSound(
+                typeof startedSound !== "undefined" ? startedSound : "",
+                typeof startedSoundVolume !== "undefined" ? startedSoundVolume : 50
+            );
+        } else {
+            clearTick();
+            progressEl.style.transition = "none";
+            progressEl.style.transform = "scaleX(0)";
+
+            if (status === "Completed") {
+                showIcon(ICON_COMPLETE);
+                labelEl.textContent = "COMPLETED!";
+                valueFill.style.width = "100%";
+                valueCount.textContent = `${target} / ${target}`;
+                setAccent("var(--complete-color)");
+                playSound(
+                    typeof successSound !== "undefined" ? successSound : "",
+                    typeof successSoundVolume !== "undefined" ? successSoundVolume : 50
+                );
+            } else if (status === "Expired") {
+                showIcon(ICON_EXPIRED);
+                labelEl.textContent = "TIME'S UP";
+                setAccent("var(--expired-color)");
+                playSound(
+                    typeof failSound !== "undefined" ? failSound : "",
+                    typeof failSoundVolume !== "undefined" ? failSoundVolume : 50
+                );
+            }
+            startLinger();
+        }
+    }
+
+    function showCard() {
+        if (isVisible) return;
+        isVisible = true;
+        root.classList.remove("out");
+        void root.offsetWidth;
+        root.classList.add("in");
+    }
+
+    function hideCard(withExit, force = false) {
+        clearTick(); clearLinger();
+        if (!isVisible && !force) return;
+        isVisible = false;
+        if (withExit) {
+            root.classList.remove("in");
+            root.classList.add("out");
+        } else {
+            root.classList.remove("in", "out");
+            root.style.opacity = "0";
+        }
+    }
+
+    function startTick() { clearTick(); tick(); tickTimer = setInterval(tick, 250); }
+    function clearTick()  { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
+    function tick() {
+        if (!endTime) return;
+        const remaining = Math.max(0, (endTime - Date.now()) / 1000);
+        const m = Math.floor(remaining / 60);
+        const s = Math.floor(remaining % 60);
+        timerDigits.textContent = `${m}:${s.toString().padStart(2,"0")}`;
+        if (remaining <= 0) clearTick();
+    }
+
+    function startLinger() { clearLinger(); lingerTimer = setTimeout(() => hideCard(true), lingerSeconds * 1000); }
+    function clearLinger()  { if (lingerTimer) { clearTimeout(lingerTimer); lingerTimer = null; } }
+
+    if (typeof animationDirection !== "undefined") root.dataset.direction = animationDirection;
+    else root.dataset.direction = "top";
+    
+    if (typeof animationStyle !== "undefined") root.dataset.anim = animationStyle;
+    else root.dataset.anim = "fade";
+    
+    if (typeof exitAnimationDirection !== "undefined") root.dataset.directionexit = exitAnimationDirection;
+    else  root.dataset.directionexit = "top";
+    
+    if (typeof exitAnimationStyle !== "undefined") root.dataset.animexit = exitAnimationStyle;
+    else root.dataset.animexit = "fade";
+    
+</script>

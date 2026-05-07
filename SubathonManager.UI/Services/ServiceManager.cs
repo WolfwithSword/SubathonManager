@@ -68,6 +68,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<EventService>();
         await StopAsync<WebServer>();
         await StopAsync<TelemetryService>();
+        await StopAsync<PromptOrchestratorService>();
     }
     
     private SemaphoreSlim GetLock(Type t) => 
@@ -146,7 +147,6 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static OBSService OBS => Provider.GetRequiredService<OBSService>();
     
     public static WebServer Server => Provider.GetRequiredService<WebServer>();
-    public static TimerService Timer => Provider.GetRequiredService<TimerService>();
     
     public static EventService? EventsOrNull => Provider.GetService<EventService>();
     public static DiscordWebhookService? DiscordWebHooksOrNull => Provider.GetService<DiscordWebhookService>();

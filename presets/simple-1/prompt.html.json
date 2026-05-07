@@ -1,0 +1,61 @@
+﻿{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#prompt",
+  "Width": 340,
+  "Height": 120,
+  "Vars": {
+    "lingerSeconds": {
+      "Name": "lingerSeconds",
+      "Type": "Int",
+      "Description": "How long in seconds to keep the widget visible after a prompt completes or expires before hiding it.",
+      "Value": 10,
+      "Options": null
+    },
+    "startedSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play when prompt starts up",
+      "Value": "",
+      "Options": null
+    },
+    "startedSoundVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "successSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play when prompt completes",
+      "Value": "",
+      "Options": null
+    },
+    "successSoundVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "failSound": {
+      "Type": "SoundFile",
+      "Description": "Sound to play when prompt expires on failure",
+      "Value": "",
+      "Options": null
+    },
+    "failSoundVolume": {
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "GoogleFonts": {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Titan One,Poppins"
+    },
+    "CdnFonts": {
+      "type": "CdnFont",
+      "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",
+      "value": "bright-orchid,milker,beachday"
+    }
+  }
+}

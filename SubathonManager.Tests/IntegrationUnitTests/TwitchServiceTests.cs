@@ -1267,7 +1267,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 }, TestContext.Current.CancellationToken);
 
                 var result = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
-                Assert.True(result == tcs.Task, "Timed out — EventSub ConnectionUpdated never fired");
+                Assert.True(result == tcs.Task, "Timed out - EventSub ConnectionUpdated never fired");
                 Assert.True(await tcs.Task, "EventSub connected=false, expected true");
                 service.Dispose();
             }

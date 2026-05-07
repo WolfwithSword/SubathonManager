@@ -29,10 +29,12 @@ public static class ServiceRegistration
     public static void SetupCoreServices(this IServiceCollection services)
     {
         services.AddSingleton<TimerService>();
+        services.AddSingleton<ITimerService>(sp => sp.GetRequiredService<TimerService>());
         services.AddHttpClient(nameof(CurrencyService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<CurrencyService>(BuildCurrencyService);
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
+        services.AddSingleton<PromptOrchestratorService>();
         services.AddSingleton<TelemetryService>();
         services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
     }

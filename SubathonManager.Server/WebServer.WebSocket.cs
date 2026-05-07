@@ -28,6 +28,10 @@ public partial class WebServer
         OverlayEvents.OverlayRefreshRequested += SendRefreshRequest;
         SubathonEvents.SubathonValueConfigRequested += SendSubathonValues;
         SubathonEvents.SubathonTotalsUpdated += SendSubathonTotals;
+
+        SubathonEvents.PromptRunStarted += OnPromptStart;
+        SubathonEvents.PromptRunUpdate += OnPromptRunUpdate;
+        SubathonEvents.PromptRunProgressUpdated += OnPromptProgress;
     }
 
     private void StopWebsocketServer()
@@ -39,6 +43,52 @@ public partial class WebServer
         SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
         SubathonEvents.SubathonValueConfigRequested -= SendSubathonValues;
         SubathonEvents.SubathonTotalsUpdated -= SendSubathonTotals;
+        
+        SubathonEvents.PromptRunStarted -= OnPromptStart;
+        SubathonEvents.PromptRunUpdate -= OnPromptRunUpdate;
+        SubathonEvents.PromptRunProgressUpdated -= OnPromptProgress;
+    }
+
+    private void OnPromptStart(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
+    {
+        SendPromptData(subathonPromptRun, 0);
+    }
+
+    private void OnPromptRunUpdate(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
+    {
+        Task.Run(async () =>
+        {
+            await using var db = await _factory.CreateDbContextAsync();
+            long current = await PromptOrchestratorService.GetCurrentCountAsync(db, subathonPromptRun.LinkedPrompt!);
+            long progress = current - subathonPromptRun.BaselineCount;
+            SendPromptData(subathonPromptRun, progress);
+        });
+    }
+
+    private void OnPromptProgress(SubathonPromptRun subathonPromptRun, long progress)
+    {
+        SendPromptData(subathonPromptRun, progress);
+    }
+
+    internal void SendPromptData(SubathonPromptRun? run, long progress = 0)
+    {
+        object data = new
+        {
+            type = "prompt_update",
+            status = run == null ? "None" : run.Status.ToString(),
+            progress = progress,
+            target = run?.LinkedPrompt?.Value ?? 0,
+            seconds_remaining = run?.TimeRemaining().TotalSeconds ?? 0,
+            start_time = run?.StartedAt,
+            end_time = run?.ExpiresAt,
+            duration_seconds = run?.LinkedPrompt?.CompletionDuration.TotalSeconds ?? 0,
+            text = run?.LinkedPrompt?.Text,
+            prompt_type = $"{run?.LinkedPrompt?.Type}",
+            prompt_subtype = $"{run?.LinkedPrompt?.SubType}",
+            prompt_eventtype = $"{run?.LinkedPrompt?.FilterEventType}",
+            prompt_eventtype_metafilter =  run?.LinkedPrompt?.FilterMeta
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
 
     internal void SendSubathonValues(string jsonData)
@@ -110,6 +160,18 @@ public partial class WebServer
             };
             await SelectSendAsync(socket, data);
         }
+
+        SubathonPromptRun? promptRun = await db.SubathonPromptRuns.AsNoTracking()
+            .Include(p => p.LinkedPrompt)
+            .FirstOrDefaultAsync(p => p.Status == SubathonPromptRunStatus.Active && p.ExpiresAt > DateTime.Now);
+        if (promptRun is { LinkedPrompt: not null })
+        {
+            long current = await PromptOrchestratorService.GetCurrentCountAsync(db, promptRun.LinkedPrompt);
+            long progress = current - promptRun.BaselineCount;
+            SendPromptData(promptRun, progress);
+        }
+        else
+            SendPromptData(null, 0);
         
         var totals = await EventService.GetSubathonTotalsAsync(db);
         
@@ -540,6 +602,8 @@ public partial class WebServer
                                             window.handleSubathonUpdate(data);
                                         else if (typeof window.handleSubathonEvent === 'function' && data.type == 'event')
                                             window.handleSubathonEvent(data);
+                                        else if (typeof window.handlePromptUpdate === 'function' && data.type == 'prompt_update')
+                                            window.handlePromptUpdate(data);
                                         else if (typeof window.handleGoalsUpdate === 'function' && data.type == 'goals_list')
                                             window.handleGoalsUpdate(data);
                                         else if (typeof window.handleGoalCompleted === 'function' && data.type == 'goal_completed')

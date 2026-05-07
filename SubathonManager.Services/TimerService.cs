@@ -9,7 +9,7 @@ namespace SubathonManager.Services;
 
 
 [ExcludeFromCodeCoverage]
-public class TimerService : IDisposable, IAppService
+public class TimerService : IDisposable, IAppService, ITimerService
 {
     private readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
     private readonly CancellationTokenSource _cts = new();
@@ -111,7 +111,14 @@ public class TimerService : IDisposable, IAppService
 
     public void Unregister(string key)
     {
-        lock (_lock) _scheduledActions.Remove(key);
+        lock (_lock)
+        {
+            if (_scheduledActions.Remove(key))
+            {
+                _logger?.LogInformation("Removed {Key} timed action", key);
+            }
+            
+        }
     }
     
     private void Unregister(string key, ScheduledAction expected)
@@ -121,7 +128,7 @@ public class TimerService : IDisposable, IAppService
             if (_scheduledActions.TryGetValue(key, out var current) && ReferenceEquals(current, expected))
             {
                 _scheduledActions.Remove(key);
-                _logger?.LogInformation($"Removed {key} timed action");
+                _logger?.LogInformation("Removed {Key} timed action", key);
             }
         }
     }

@@ -5,6 +5,7 @@
                        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                        xmlns:views="clr-namespace:SubathonManager.UI.Views"
                        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                       xmlns:prompts="clr-namespace:SubathonManager.UI.Views.Prompts"
                        mc:Ignorable="d"
                        Background="{DynamicResource AppGeneralBackground}"
                        ResizeMode="NoResize"
@@ -121,8 +122,14 @@
                         <TextBlock Text="Use the Overlays tab to manage your overlays and widgets, the Goals tab to setup your goals, and Settings to configure everything else!" 
                                    TextWrapping="Wrap" FontSize="14" Margin="10 0 0 6"/>
                         <Separator Margin="4 12 4 8"/>
-                        <TextBlock Text="Recent Events" HorizontalAlignment="Left" Margin="18 8 4 8"/>
-                        <views:EventListView Margin="0 8 0 0 "/>
+                        <TabControl Margin="0 4 0 0" Background="Transparent" BorderThickness="0">
+                            <TabItem Header="Recent Events" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" >
+                                <views:EventListView Margin="0 8 0 0"/>
+                            </TabItem>
+                            <TabItem Header="Recent Prompts" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" >
+                                <prompts:PromptRunListView Margin="0 8 0 0"/>
+                            </TabItem>
+                        </TabControl>
                     </StackPanel>
                    <StackPanel Grid.Column="1" Margin="34 2 10 10">
                        <Grid>
@@ -283,13 +290,13 @@
                                                                         </Grid.RowDefinitions>
 
                                                                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Elapsed Time" VerticalAlignment="Center" Margin="0 5"/>
-                                                                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsElapsedTime" Text="—" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
+                                                                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsElapsedTime" Text="-" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
 
                                                                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Total Accumulated" VerticalAlignment="Center" Margin="0 5" x:Name="StatsAccu"/>
-                                                                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsTotalAccumulated" Text="—" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
+                                                                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsTotalAccumulated" Text="-" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
 
                                                                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Total Events" VerticalAlignment="Center" Margin="0 5"/>
-                                                                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsTotalEvents" Text="—" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
+                                                                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsTotalEvents" Text="-" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0 5"/>
                                                                     </Grid>
                                                                 </StackPanel>
                                                             </Border>
@@ -614,6 +621,11 @@
             <!-- Goals Tab -->
             <TabItem Header="Goals" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <views:GoalsEditor/>
+            </TabItem>
+            
+            <!-- Prompts Tab -->
+            <TabItem Header="Prompts" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
+                <prompts:PromptsEditor/>
             </TabItem>
             
             <!-- Settings Tab -->

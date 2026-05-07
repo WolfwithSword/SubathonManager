@@ -1,0 +1,9 @@
+﻿{
+  "text-color": { "type": "color" },
+  "outline-color": { "type": "color" },
+  "progress-color": { "type": "color", "description": "Progress bar fill colour" },
+  "progress-bg": { "type": "color", "description": "Progress bar empty track colour" },
+  "outline-width": { "type": "size" },
+  "font-size": { "type": "size", "description": "Prompt text size" },
+  "timer-size": { "type": "size", "description": "Countdown timer size" }
+}
