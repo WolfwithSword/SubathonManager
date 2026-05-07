@@ -59,6 +59,7 @@ public partial class PromptRunListView
  
     private async Task LoadRecentRuns()
     {
+        await Task.Delay(200);
         await using var db = await _factory.CreateDbContextAsync();
         var runs = await db.SubathonPromptRuns
             .Include(r => r.LinkedPrompt)
