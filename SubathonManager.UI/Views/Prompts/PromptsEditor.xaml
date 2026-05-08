@@ -6,7 +6,7 @@
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              mc:Ignorable="d"
              d:DesignHeight="800" d:DesignWidth="1200">
-    <Grid>
+    <Grid MouseDown="Grid_MouseDown" Focusable="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="3*"/>
             <ColumnDefinition Width="2*"/>
@@ -29,6 +29,7 @@
                     </Grid.ColumnDefinitions>
                     <ui:TextBox x:Name="SetNameTextBox"
                                 FontWeight="Bold" FontSize="18"
+                                IsTabStop="False"
                                 PlaceholderText="Set name…"
                                 ClearButtonEnabled="False"
                                 Height="38"
