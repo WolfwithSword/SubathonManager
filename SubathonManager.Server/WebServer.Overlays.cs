@@ -315,8 +315,11 @@ public partial class WebServer
             }
 
             sb.AppendLine($@"<iframe src=""/widget/{w.Id}/"" 
+                            data-widget-id=""{w.Id}""
                             data-scalex=""{w.ScaleX}""
                             data-scaley=""{w.ScaleY}""
+                            data-orig-width=""{w.Width}""
+                            data-orig-height=""{w.Height}""
                             sandbox=""allow-scripts allow-same-origin"" 
                             frameborder=""0"" scrolling=""no"">
                          </iframe>");
@@ -334,8 +337,12 @@ public partial class WebServer
                     const sy = parseFloat(iframe.dataset.scaley) || 1;
 
                     const wrapper = iframe.parentElement;
-                    const originalWidth  = parseFloat(wrapper.dataset.origWidth)  || iframe.offsetWidth / sx;
-                    const originalHeight = parseFloat(wrapper.dataset.origHeight) || iframe.offsetHeight / sy;
+                    const originalWidth  = parseFloat(iframe.dataset.origWidth)
+                                        || parseFloat(wrapper.dataset.origWidth)
+                                        || (iframe.offsetWidth > 0 ? iframe.offsetWidth  / sx : 400);
+                    const originalHeight = parseFloat(iframe.dataset.origHeight)
+                                        || parseFloat(wrapper.dataset.origHeight)
+                                        || (iframe.offsetHeight > 0 ? iframe.offsetHeight / sy : 400);
 
                     iframe.style.width  = originalWidth + 'px';
                     iframe.style.height = originalHeight + 'px';

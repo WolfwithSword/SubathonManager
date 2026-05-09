@@ -82,6 +82,8 @@ public enum SubathonEventType
     FourthWallGiftOrder,
     [GoAffProTypeMeta(Label="Cheeky Soap Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 5, StoreSource = GoAffProSource.Cheeky)]
     CheekySoapOrder,
+    [GoAffProTypeMeta(Label="Advanced GG Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 6, StoreSource = GoAffProSource.AdvancedGG)]
+    AdvancedGGOrder,
     // any new must be added after the last
 }
 

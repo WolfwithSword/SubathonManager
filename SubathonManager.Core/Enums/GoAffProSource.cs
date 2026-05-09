@@ -16,7 +16,9 @@ public enum GoAffProSource
     [GoAffProSourceMeta(Description="KatDragonz", SiteId=7160049, OrderEvent = SubathonEventType.KatDragonzOrder, Enabled=true)]
     KatDragonz,
     [GoAffProSourceMeta(Description="Cheeky", SiteId=7138531, OrderEvent = SubathonEventType.CheekySoapOrder, Enabled=true)]
-    Cheeky
+    Cheeky,
+    [GoAffProSourceMeta(Description="Advanced GG", SiteId=105752, OrderEvent = SubathonEventType.AdvancedGGOrder, Label="Advanced GG", Enabled=true)]
+    AdvancedGG
     
 }
 

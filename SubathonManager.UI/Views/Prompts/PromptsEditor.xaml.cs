@@ -382,6 +382,12 @@ namespace SubathonManager.UI.Views.Prompts
 
             SubathonEvents.RaisePromptSetEnabledChanged(enabling);
         }
+        
+        private void Grid_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            Keyboard.ClearFocus();
+            (sender as Grid)?.Focus();
+        }
 
         private async void NewSet_Click(object sender, RoutedEventArgs e)
         {

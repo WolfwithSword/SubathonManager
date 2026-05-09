@@ -1,4 +1,5 @@
-﻿using SubathonManager.Core.Enums;
+﻿using System.ComponentModel;
+using SubathonManager.Core.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
@@ -10,12 +11,23 @@ using System.Text.RegularExpressions;
 namespace SubathonManager.Core.Models;
 
 [ExcludeFromCodeCoverage]
-public class CssVariable
+public class CssVariable : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    
     [Key]
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
+    
+    // to assist the live change for editing
+    private string _value = string.Empty;
+    public string Value
+    {
+        get => _value;
+        set { if (_value == value) return; _value = value; OnPropertyChanged(); }
+    }
     
     
     [ForeignKey("Widget")]

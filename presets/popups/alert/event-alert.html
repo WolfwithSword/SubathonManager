@@ -75,6 +75,7 @@
     var ICON_PNG_OVERRIDE = {
         "uwumarket": "./icons/uwumarket.png",
         "gamersupps": "./icons/gamersupps.avif",
+        "advancedgg": "./icons/advancedgg.png",
         "orchideight": "./icons/orchideight.webp",
         "kofi": "./icons/kofi.png",
         "cheeky": "./icons/cheeky.png",
@@ -228,6 +229,9 @@
             userEl.textContent = data.event_type?.replace(/Order$/, "") ?? "";
             if (data.event_type.toLowerCase().includes("cheekysoap")) {
                 userEl.textContent = "Cheeky Soap";
+            }    
+            else if (data.event_type.toLowerCase().includes("advancedgg")) {
+                userEl.textContent = "Advanced GG";
             }
         }
         else if (data.sub_type == "TrainLike") {

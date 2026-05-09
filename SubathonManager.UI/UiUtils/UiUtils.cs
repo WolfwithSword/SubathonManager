@@ -98,7 +98,7 @@ public static class UiUtils
         }
         else
         {
-            if (border.BorderBrush is SolidColorBrush b)
+            if (border.BorderBrush is SolidColorBrush { IsFrozen: false } b)
                 b.BeginAnimation(SolidColorBrush.ColorProperty, null);
             border.BorderBrush = new SolidColorBrush(Colors.Transparent);
         }
