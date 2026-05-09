@@ -32,6 +32,9 @@ public partial class WebServer
         SubathonEvents.PromptRunStarted += OnPromptStart;
         SubathonEvents.PromptRunUpdate += OnPromptRunUpdate;
         SubathonEvents.PromptRunProgressUpdated += OnPromptProgress;
+        
+        OverlayEvents.WidgetVarsUpdated += SendWidgetVarsUpdate;
+        OverlayEvents.WidgetRefreshRequested += SendWidgetReload;
     }
 
     private void StopWebsocketServer()
@@ -47,6 +50,9 @@ public partial class WebServer
         SubathonEvents.PromptRunStarted -= OnPromptStart;
         SubathonEvents.PromptRunUpdate -= OnPromptRunUpdate;
         SubathonEvents.PromptRunProgressUpdated -= OnPromptProgress;
+        
+        OverlayEvents.WidgetVarsUpdated -= SendWidgetVarsUpdate;
+        OverlayEvents.WidgetRefreshRequested -= SendWidgetReload;
     }
 
     private void OnPromptStart(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
@@ -69,6 +75,16 @@ public partial class WebServer
     {
         SendPromptData(subathonPromptRun, progress);
     }
+    
+    internal void SendWidgetReload(Guid widgetId, float x, float y, int width, int height, float scaleX, float scaleY)
+    {
+        var data = new { 
+            type = "widget_reload", 
+            widgetId = widgetId.ToString(),
+            x, y, width, height, scaleX, scaleY
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientMessageType.Overlay));
+    }
 
     internal void SendPromptData(SubathonPromptRun? run, long progress = 0)
     {
@@ -87,6 +103,20 @@ public partial class WebServer
             prompt_subtype = $"{run?.LinkedPrompt?.SubType}",
             prompt_eventtype = $"{run?.LinkedPrompt?.FilterEventType}",
             prompt_eventtype_metafilter =  run?.LinkedPrompt?.FilterMeta
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+    }
+    
+    internal void SendWidgetVarsUpdate(Guid widgetId, 
+        IEnumerable<CssVariable> cssVars, IEnumerable<JsVariable> jsVars)
+    {
+        var data = new
+        {
+            type = "widget_vars_update",
+            widgetId = widgetId.ToString(),
+            cssVars = cssVars.Select(v => new { name = v.Name, value = v.Value }),
+            jsVars  = jsVars.Select(v => new { name = v.Name, value = v.Value, 
+                injectLine = v.GetInjectLine() })
         };
         Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
@@ -615,6 +645,37 @@ public partial class WebServer
                                         else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && (document.title.includes(data.id) || data.id == '{Guid.Empty}')) {{
                                             // for only the merged page
                                             window.location.reload();
+                                        }}
+                                        else if (data.type === 'widget_reload' && document.title.startsWith('overlay')) {{
+                                            const iframe = document.querySelector(`iframe[data-widget-id=""${{data.widgetId}}""]`);
+                                            if (iframe) {{
+                                                const wrapper = iframe.parentElement;
+                                                if (data.width != null) {{
+                                                    iframe.dataset.origWidth  = data.width;
+                                                    iframe.dataset.origHeight = data.height;
+                                                    iframe.dataset.scalex = data.scaleX;
+                                                    iframe.dataset.scaley = data.scaleY;
+                                                    wrapper.style.left = data.x + 'px';
+                                                    wrapper.style.top = data.y + 'px';
+                                                }}
+                                                iframe.onload = () => resizeIframe(iframe);
+                                                iframe.src = iframe.src;
+                                            }}
+                                            
+                                        }}
+                                        else if (data.type === 'widget_vars_update' && !document.title.startsWith('overlay') ) {{
+                                            const myId = window.location.pathname.split('/')[2];
+                                            if (data.widgetId !== myId) return;
+                                            if (data.cssVars) {{
+                                                for (const v of data.cssVars) {{
+                                                    document.documentElement.style.setProperty(`--${{v.name}}`, v.value, 'important');
+                                                }}
+                                            }}
+                                            if (typeof window.handleVarsUpdate === 'function' && data.jsVars) {{
+                                                // not used, attempt to maybe pass in js vars, but will break for consts so w/e
+                                                // if desired, we can stop setting vars as constants, then call this with data, and *not* refresh it
+                                                window.handleVarsUpdate(data.jsVars);
+                                            }}
                                         }}
                                         //else console.log('[Subathon WS] Received:', data);
                                     }} catch (e) {{

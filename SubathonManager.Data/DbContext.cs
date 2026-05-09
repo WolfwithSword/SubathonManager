@@ -374,6 +374,7 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.CheekySoapOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.AdvancedGGOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
                 new () { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
                 new () { EventType = SubathonEventType.FourthWallDonation, Seconds = 12},

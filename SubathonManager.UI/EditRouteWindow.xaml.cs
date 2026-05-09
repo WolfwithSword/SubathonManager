@@ -26,11 +26,18 @@ public partial class EditRouteWindow : INotifyPropertyChanged
     private Route? _route;
     private ObservableCollection<Widget> _widgets = new();
     private Widget? _selectedWidget;
-    private ObservableCollection<CssVariable> _editingCssVars = new();
+    private readonly ObservableCollection<CssVariable> _editingCssVars = [];
+    private readonly ObservableCollection<JsVariable> _editingJsVars = [];
+    private readonly Dictionary<Guid, Border> _widgetCardBorders = new();
+    private readonly Dictionary<Guid, List<CssVariable>> _unsavedCssVars = new();
+    private readonly Dictionary<Guid, List<JsVariable>> _unsavedJsVars = new();
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
     private bool _loadedWebView = false;
+    private readonly Timer? _cssLivePreviewTimer;
+    private bool _hasPendingCssChanges = false;
+    private bool _hasPendingJsChanges = false;
     private int _suppressCount = 0;
     private bool _obsConnected;
     public bool ObsConnected
@@ -57,6 +64,13 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         ObsConnected = ServiceManager.OBS.Connected;
         IntegrationEvents.ConnectionUpdated += OnObsConnectionUpdated;
         Closed += (_, _) => IntegrationEvents.ConnectionUpdated -= OnObsConnectionUpdated;
+        
+        _cssLivePreviewTimer = new Timer(_ =>
+        {
+            if (_selectedWidget == null) return;
+            OverlayEvents.RaiseWidgetVarsUpdated(_selectedWidget.Id, _editingCssVars, []);
+        }, null, Timeout.Infinite, Timeout.Infinite);
+        
     }
     private async void EditRouteWindow_Loaded(object sender, RoutedEventArgs e)
     {
@@ -208,11 +222,14 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         Dispatcher.InvokeAsync(async () =>
         {
             if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
+            
+            StashCurrentWidgetEdits();
+
             await using var db = await _factory.CreateDbContextAsync();
             var widget = await db.Widgets.Include(wX => wX.JsVariables)
                 .Include(wX => wX.CssVariables).FirstOrDefaultAsync(wX => wX.Id == widgetId);
-            PopulateWidgetEditor(widget);
             
+            PopulateWidgetEditor(widget);
         });
         
     }
@@ -222,8 +239,12 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         CssVarsList.ItemsSource = null;
         JsVarsList.ItemsSource = null;
         JsVarFontList.ItemsSource = null;
+        StashCurrentWidgetEdits();
+        UnsubscribeCssVarChanges();
         _editingCssVars.Clear();
+        _editingJsVars.Clear();
         UpdateSaveButtonBorder(SaveButtonBorder, false);
+        _hasPendingCssChanges = false;
         if (widget == null)
         {
             WidgetEditPanel.Visibility = Visibility.Collapsed;
@@ -270,15 +291,43 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         
         foreach (var v in widget.CssVariables) _editingCssVars.Add(v);
         CssVarsList.ItemsSource = _editingCssVars;
+        if (_unsavedCssVars.TryGetValue(widget.Id, out var stashed))
+        {
+            foreach (var stashedVar in stashed)
+            {
+                var live = _editingCssVars.FirstOrDefault(v => v.Name == stashedVar.Name);
+                live?.Value = stashedVar.Value;
+            }
+            _hasPendingCssChanges = true;
+        }
+        SubscribeCssVarChanges();
         PopulateJsVars();
-        UpdateSaveButtonBorder(SaveButtonBorder, false);
+        bool hasStash = _unsavedCssVars.ContainsKey(widget.Id) || _unsavedJsVars.ContainsKey(widget.Id);
+        _hasPendingCssChanges = _unsavedCssVars.ContainsKey(widget.Id);
+        _hasPendingJsChanges = _unsavedJsVars.ContainsKey(widget.Id);
+        UpdateSaveButtonBorder(SaveButtonBorder, hasStash || _hasPendingCssChanges || _hasPendingJsChanges);
     }
 
     private void PopulateJsVars()
     {
+        _hasPendingJsChanges = false;
         if (_selectedWidget == null) return;
+        _editingJsVars.Clear();
         JsVarsList.ItemsSource = _selectedWidget.JsVariables.Where(x => !x.Type.IsFontVariable());
         JsVarFontList.ItemsSource = _selectedWidget.JsVariables.Where(x => x.Type.IsFontVariable());
+        
+        foreach (var v in _selectedWidget.JsVariables) _editingJsVars.Add(v);
+        bool hasJsStash = _unsavedJsVars.TryGetValue(_selectedWidget.Id, out var stashedJs);
+        if (hasJsStash)
+        {
+            foreach (var stashedVar in stashedJs!)
+            {
+                var live = _editingJsVars.FirstOrDefault(v => v.Name == stashedVar.Name);
+                live?.Value = stashedVar.Value;
+            }
+        }
+
+        _hasPendingJsChanges = hasJsStash;
     }
     
     private string SelectFileVarPathDialog(WidgetVariableType type)
@@ -484,6 +533,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
             PreviewWebView?.Dispose();
         }
 
+        UnsubscribeCssVarChanges();
         base.OnClosed(e);
     }
 

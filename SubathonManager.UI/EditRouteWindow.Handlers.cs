@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -27,6 +28,118 @@ public partial class EditRouteWindow
 {
     
 #region GeneralHandlers
+
+    private void WidgetDirtyBorder_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Border { Tag: Guid id } border) return;
+        _widgetCardBorders[id] = border;
+        UiUtils.UiUtils.UpdateButtonPendingBorder(border, 
+            _unsavedCssVars.ContainsKey(id) || _unsavedJsVars.ContainsKey(id));
+    }
+
+    private void WidgetDirtyBorder_Unloaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Border { Tag: Guid id }) return;
+        _widgetCardBorders.Remove(id);
+    }
+    
+    private void StashCurrentWidgetEdits()
+    {
+        if (_selectedWidget == null) return;
+    
+        if (_hasPendingCssChanges)
+        {
+            _unsavedCssVars[_selectedWidget.Id] = _editingCssVars
+                .Select(v => v.Clone(v.WidgetId)).ToList();
+        }
+        if (_hasPendingJsChanges)
+        {
+            _unsavedJsVars[_selectedWidget.Id] = _editingJsVars
+                .Select(v => v.Clone(v.WidgetId)).ToList();
+        }
+    
+        bool dirty = _hasPendingCssChanges || _hasPendingJsChanges;
+        if (dirty) UpdateWidgetCardDirty(_selectedWidget.Id, true);
+    }
+    
+    private void UpdateWidgetCardDirty(Guid widgetId, bool isDirty)
+    {
+        if (!_widgetCardBorders.TryGetValue(widgetId, out var border)) return;
+        if (!isDirty)
+            isDirty = _unsavedCssVars.ContainsKey(widgetId) || _unsavedJsVars.ContainsKey(widgetId);
+        UpdateSaveButtonBorder(border, isDirty);
+    }
+    
+    private async Task SaveAllPendingWidgetChangesAsync()
+    {
+        StashCurrentWidgetEdits();
+
+        var allDirtyIds = _unsavedCssVars.Keys.Union(_unsavedJsVars.Keys).ToList();
+        if (allDirtyIds.Count == 0) return;
+
+        await using var db = await _factory.CreateDbContextAsync();
+
+        foreach (var widgetId in allDirtyIds)
+        {
+            var widget = await db.Widgets
+                .Include(w => w.CssVariables)
+                .Include(w => w.JsVariables)
+                .FirstOrDefaultAsync(w => w.Id == widgetId);
+            if (widget == null) continue;
+
+            if (_unsavedCssVars.TryGetValue(widgetId, out var stashedCss))
+            {
+                foreach (var s in stashedCss)
+                {
+                    var t = widget.CssVariables.Find(v => v.Name == s.Name);
+                    t?.Value = s.Value;
+                }
+                db.CssVariables.UpdateRange(widget.CssVariables);
+            }
+
+            if (_unsavedJsVars.TryGetValue(widgetId, out var stashedJs))
+            {
+                foreach (var s in stashedJs)
+                {
+                    var t = widget.JsVariables.Find(v => v.Name == s.Name);
+                    t?.Value = s.Value;
+                }
+                db.JsVariables.UpdateRange(widget.JsVariables);
+            }
+
+            OverlayEvents.RaiseWidgetVarsUpdated(widgetId, widget.CssVariables, []);
+        }
+
+        await db.SaveChangesAsync();
+
+        foreach (var widgetId in allDirtyIds)
+        {
+            _unsavedCssVars.Remove(widgetId);
+            _unsavedJsVars.Remove(widgetId);
+            UpdateWidgetCardDirty(widgetId, false);
+        }
+
+        _hasPendingCssChanges = false;
+        _hasPendingJsChanges = false;
+
+        if (_selectedWidget != null)
+        {
+            UnsubscribeCssVarChanges();
+            _editingCssVars.Clear();
+            _editingJsVars.Clear();
+            var refreshed = await db.Widgets
+                .Include(w => w.CssVariables)
+                .Include(w => w.JsVariables)
+                .FirstOrDefaultAsync(w => w.Id == _selectedWidget.Id);
+            if (refreshed != null)
+            {
+                foreach (var v in refreshed.CssVariables) _editingCssVars.Add(v);
+                foreach (var v in refreshed.JsVariables) _editingJsVars.Add(v);
+            }
+            SubscribeCssVarChanges();
+        }
+    }
+
     private void WebViewContainer_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         UpdateWebViewScale();
@@ -96,6 +209,8 @@ public partial class EditRouteWindow
                     _lastFolder = Path.GetDirectoryName(path)!;
                 }
                 await RefreshWidgetZIndicesAsync();
+                if (_route != null)
+                    OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
                 RefreshWebView();
             }
         }
@@ -108,6 +223,9 @@ public partial class EditRouteWindow
     private void ReloadVars_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWidget == null) return;
+        _unsavedCssVars.Remove(_selectedWidget.Id); 
+        _hasPendingCssChanges = false;
+        UpdateWidgetCardDirty(_selectedWidget.Id, false);
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         widgetHelper.SyncCssVariables(_selectedWidget);
         widgetHelper.SyncJsVariables(_selectedWidget);
@@ -119,8 +237,10 @@ public partial class EditRouteWindow
         _selectedWidget = widget;
         
         CssVarsList.ItemsSource = null;
+        UnsubscribeCssVarChanges();
         _editingCssVars.Clear();
         foreach (var v in _selectedWidget!.CssVariables) _editingCssVars.Add(v);
+        SubscribeCssVarChanges();
         CssVarsList.ItemsSource = _editingCssVars;
         PopulateJsVars();
     }
@@ -160,12 +280,18 @@ public partial class EditRouteWindow
             db.CssVariables.UpdateRange(_selectedWidget.CssVariables);
             db.JsVariables.UpdateRange(_selectedWidget.JsVariables);
             await db.SaveChangesAsync();
+            _unsavedCssVars.Remove(_selectedWidget.Id);
+            _unsavedJsVars.Remove(_selectedWidget.Id);
+            _hasPendingCssChanges = false;
+            _hasPendingJsChanges = false;
+            UpdateWidgetCardDirty(_selectedWidget.Id, false);
+            UnsubscribeCssVarChanges();
             _editingCssVars.Clear();
             foreach(var cssVar in _selectedWidget.CssVariables)
                 _editingCssVars.Add(cssVar);
 
-            // await LoadRouteAsync();
-            RefreshWebView();
+            SubscribeCssVarChanges();
+            // RefreshWebView();
             var listEntry = _widgets.FirstOrDefault(wi => wi.Id == _selectedWidget.Id);
             if (listEntry != null)
             {
@@ -175,8 +301,12 @@ public partial class EditRouteWindow
                 _widgets.Insert(index, _selectedWidget);
             }
             WidgetsList.Items.Refresh();
-            OverlayEvents.RaiseOverlayRefreshRequested(_selectedWidget.RouteId);
             
+            OverlayEvents.RaiseWidgetRefreshRequested(_selectedWidget.Id, 
+                _selectedWidget.X, _selectedWidget.Y, _selectedWidget.Width, _selectedWidget.Height,
+                _selectedWidget.ScaleX, _selectedWidget.ScaleY);
+            
+
             await db.Entry(_selectedWidget).ReloadAsync();
             await Task.Run(async () =>
             {
@@ -362,6 +492,8 @@ public partial class EditRouteWindow
 
         try
         {
+            await SaveAllPendingWidgetChangesAsync();
+            
             await using var db = await _factory.CreateDbContextAsync();
             await db.Entry(_route).ReloadAsync();
 
@@ -529,10 +661,16 @@ public partial class EditRouteWindow
         }
         SuppressUnsavedChanges(Attach);
     }
+
     private void Value_OnChanged(object sender, RoutedEventArgs e)
     {
         if (_suppressCount > 0) return;
         UpdateSaveButtonBorder(SaveButtonBorder, true);
+        bool isJsChange = sender is FrameworkElement { Tag: JsVariable };
+        if (isJsChange)
+        {
+            _hasPendingJsChanges = true;
+        }
     }
     
     
@@ -652,6 +790,66 @@ public partial class EditRouteWindow
         };
         AttachChangeHandler(sender, e);
     }
+    
+    private void ResetVars_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedWidget == null) return;
+
+        _unsavedCssVars.Remove(_selectedWidget.Id);
+        _unsavedJsVars.Remove(_selectedWidget.Id);
+        _hasPendingCssChanges = false;
+        _hasPendingJsChanges = false;
+        UpdateWidgetCardDirty(_selectedWidget.Id, false);
+        UpdateSaveButtonBorder(SaveButtonBorder, false);
+
+        using var db = _factory.CreateDbContext();
+        var widget = db.Widgets
+            .Include(w => w.CssVariables)
+            .Include(w => w.JsVariables)
+            .FirstOrDefault(w => w.Id == _selectedWidget.Id);
+        if (widget == null) return;
+
+        UnsubscribeCssVarChanges();
+        _editingCssVars.Clear();
+        _editingJsVars.Clear();
+        foreach (var v in widget.CssVariables) _editingCssVars.Add(v);
+        foreach (var v in widget.JsVariables) _editingJsVars.Add(v);
+        SubscribeCssVarChanges();
+        PopulateJsVars();
+        
+        OverlayEvents.RaiseWidgetVarsUpdated(_selectedWidget.Id, widget.CssVariables, []);
+    }
+    
+    private void SubscribeCssVarChanges()
+    {
+        foreach (var v in _editingCssVars)
+            v.PropertyChanged += OnEditingCssVarChanged;
+        _editingCssVars.CollectionChanged += OnEditingCssVarsCollectionChanged;
+    }
+
+    private void UnsubscribeCssVarChanges()
+    {
+        foreach (var v in _editingCssVars)
+            v.PropertyChanged -= OnEditingCssVarChanged;
+        _editingCssVars.CollectionChanged -= OnEditingCssVarsCollectionChanged;
+    }
+
+    private void OnEditingCssVarsCollectionChanged(object? sender, 
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+            foreach (CssVariable v in e.OldItems) v.PropertyChanged -= OnEditingCssVarChanged;
+        if (e.NewItems != null)
+            foreach (CssVariable v in e.NewItems) v.PropertyChanged += OnEditingCssVarChanged;
+    }
+
+    private void OnEditingCssVarChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(CssVariable.Value) || _selectedWidget == null) return;
+        _hasPendingCssChanges = true;
+        _cssLivePreviewTimer?.Change(120, Timeout.Infinite);
+    }
+    
 #endregion CSSHandlers  
 
 #region JSHandlers
