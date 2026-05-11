@@ -677,6 +677,10 @@ public partial class EditRouteWindow
     private void IntBox_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not System.Windows.Controls.TextBox tb) return;
+        if (string.IsNullOrWhiteSpace(tb.Text))
+        {
+            tb.Text = "0";
+        }
         tb.PreviewTextInput += (s, ev) =>
         {
             var box = (System.Windows.Controls.TextBox)s;
@@ -690,7 +694,11 @@ public partial class EditRouteWindow
 
     private void FloatBox_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not System.Windows.Controls.TextBox tb) return;
+        if (sender is not System.Windows.Controls.TextBox tb) return;     
+        if (string.IsNullOrWhiteSpace(tb.Text))
+        {
+            tb.Text = "0";
+        }
         tb.PreviewTextInput += (s, ev) =>
         {
             var box = (System.Windows.Controls.TextBox)s;
@@ -718,6 +726,10 @@ public partial class EditRouteWindow
     private void SizeValueBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
+        if (string.IsNullOrWhiteSpace(tb.Text))
+        {
+            tb.Text = "0";
+        }
         var unit = FindSiblingUnitBox(tb)?.SelectedItem as string ?? "px";
         cssVar.Value = tb.Text + unit;
     }

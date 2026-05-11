@@ -80,11 +80,25 @@ public enum SubathonEventType
     FourthWallMembership,
     [EventTypeMeta(Label="Gift Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 4)]
     FourthWallGiftOrder,
-    [GoAffProTypeMeta(Label="Cheeky Soap Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 5, StoreSource = GoAffProSource.Cheeky)]
+    [GoAffProTypeMeta(Label="Cheeky Soap Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 5, StoreSource = GoAffProSource.CheekySoap)]
     CheekySoapOrder,
     [GoAffProTypeMeta(Label="Advanced GG Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 6, StoreSource = GoAffProSource.AdvancedGG)]
     AdvancedGGOrder,
+    [EventTypeMeta(Label="Gift Purchase", Source=SubathonEventSource.Throne, Order = 1, IsOrder=true)] // forced to by Item, count = 1
+    ThroneGiftPurchase,
+    [EventTypeMeta(Label="Contribution", Source=SubathonEventSource.Throne, Order = 3, IsOrder=true)] // forced to by Money
+    ThroneGiftContribution,
+    [EventTypeMeta(Label="Crowdfunded Gift", Source=SubathonEventSource.Throne, Order = 2, HasValueConfig = false, IsGenericEvent = true)] // will come in if contribution fully funds, so purely an alert, not event to add. So we do not allow configuration of it
+    ThroneCrowdGiftComplete, // only config in settings is whether or not to display it
     // any new must be added after the last
+    [GoAffProTypeMeta(Label="Rogue Energy Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 7, StoreSource = GoAffProSource.RogueEnergy)]
+    RogueEnergyOrder,
+    [GoAffProTypeMeta(Label="Saucy Biz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 8, StoreSource = GoAffProSource.SaucyBiz)]
+    SaucyOrder,
+    [GoAffProTypeMeta(Label="GFuel Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 9, StoreSource = GoAffProSource.GFuel)]
+    GFuelOrder,
+    [GoAffProTypeMeta(Label="Natura Pine Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 10, StoreSource = GoAffProSource.NaturaPine)]
+    NaturaPineOrder,
 }
 
 [ExcludeFromCodeCoverage]
@@ -130,6 +144,8 @@ public static class SubathonEventTypeHelper
 
     public static bool IsTrain(this SubathonEventType? value) => value.Meta()?.IsTrain == true;
     public static bool IsOrder(this SubathonEventType? value) => value.Meta()?.IsOrder == true;
+    
+    public static bool IsEvent(this SubathonEventType? value) => value.Meta()?.IsGenericEvent == true;
     public static bool IsExtension(this SubathonEventType? value) => value.Meta()?.IsExtension == true;
     public static bool IsOther(this SubathonEventType? value)
         => value.Meta()?.IsOther == true;
@@ -156,6 +172,7 @@ public static class SubathonEventTypeHelper
         if (eventType.IsRaid()) return SubathonEventSubType.RaidLike;
         if (eventType.IsTrain()) return SubathonEventSubType.TrainLike;
         if (eventType.IsCommand()) return SubathonEventSubType.CommandLike;
+        if (eventType.IsEvent()) return SubathonEventSubType.EventLike;
         return SubathonEventSubType.Unknown;
     }
     

@@ -20,9 +20,9 @@ public abstract class DevTunnelSettingsControl : SettingsControl
     protected abstract StackPanel _WebhookUrlRow { get; }
     protected abstract Wpf.Ui.Controls.TextBlock _TunnelPrereqStatusText{ get; }
     protected abstract Wpf.Ui.Controls.Button _TunnelPrereqHint { get; }
-    protected abstract Wpf.Ui.Controls.TextBox _WebhookForwardUrlsBox { get; }
-    protected abstract Popup _ForwardUrlsPopup { get; }
-    protected abstract Wpf.Ui.Controls.TextBox _ForwardUrlsMultiBox { get; }
+    protected abstract Wpf.Ui.Controls.TextBox? _WebhookForwardUrlsBox { get; }
+    protected abstract Popup? _ForwardUrlsPopup { get; }
+    protected abstract Wpf.Ui.Controls.TextBox? _ForwardUrlsMultiBox { get; }
     protected abstract Wpf.Ui.Controls.Button? _ConnectBtn { get; }
     
     internal void GoToDevTunnels_Click(object sender, RoutedEventArgs e)
@@ -35,12 +35,11 @@ public abstract class DevTunnelSettingsControl : SettingsControl
     // properties or a live event that may have fired while this control was detached.
     internal void RefreshFromStoredState()
     {
-        // KoFiService owns its own connection entry (Status + public URL in Name).
-        UpdateStatus(Utils.GetConnection(_EventSource,
-            $"{_EventSource}"));
-
         // DevTunnels prereq banner: read the last-known tunnel state from the shared dict.
         UpdateStatus(Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel"));
+        
+        UpdateStatus(Utils.GetConnection(_EventSource,
+            $"{_EventSource}"));
     }
     
     internal async void CopyWebhookUrl_Click(object sender, RoutedEventArgs e)
@@ -90,9 +89,9 @@ public abstract class DevTunnelSettingsControl : SettingsControl
         // The URL row is driven by the sourceTunnel connection (Name field), not here.
     }
     
-    
     internal void EditForwardUrls_Click(object sender, RoutedEventArgs e)
     {
+        if (_WebhookForwardUrlsBox == null || _ForwardUrlsPopup == null || _ForwardUrlsMultiBox == null) return;
         var urls = _WebhookForwardUrlsBox.Text
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         _ForwardUrlsMultiBox.Text = string.Join(Environment.NewLine, urls);
@@ -109,6 +108,7 @@ public abstract class DevTunnelSettingsControl : SettingsControl
 
     internal void ForwardUrlsApply_Click(object sender, RoutedEventArgs e)
     {
+        if (_WebhookForwardUrlsBox == null || _ForwardUrlsPopup == null || _ForwardUrlsMultiBox == null) return;
         var urls = _ForwardUrlsMultiBox.Text
             .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(u => !string.IsNullOrWhiteSpace(u));
@@ -118,6 +118,7 @@ public abstract class DevTunnelSettingsControl : SettingsControl
 
     internal void ForwardUrlsCancel_Click(object sender, RoutedEventArgs e)
     {
+        if (_WebhookForwardUrlsBox == null || _ForwardUrlsPopup == null || _ForwardUrlsMultiBox == null) return;
         _ForwardUrlsPopup.IsOpen = false;
     }
 }

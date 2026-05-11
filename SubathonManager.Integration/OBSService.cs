@@ -21,7 +21,7 @@ public class OBSService : IAppService
     private readonly ISecureStorage _secureStorage;
     private readonly OBSWebsocket _obs = new();
     private readonly Utils.ServiceReconnectState _reconnectState =
-        new(TimeSpan.FromSeconds(5), maxRetries: 1000, maxBackoff: TimeSpan.FromMinutes(5));
+        new(TimeSpan.FromSeconds(3), maxRetries: 1000, maxBackoff: TimeSpan.FromSeconds(10), infiniteRetries: true);
 
     public bool Connected => _obs.IsConnected;
 
@@ -134,7 +134,7 @@ public class OBSService : IAppService
 
             while (!token.IsCancellationRequested && !_obs.IsConnected)
             {
-                if (_reconnectState.Retries >= _reconnectState.MaxRetries)
+                if (!_reconnectState.InfiniteRetries && _reconnectState.Retries >= _reconnectState.MaxRetries)
                 {
                     _logger?.LogError("[OBSService] Max reconnect retries reached");
                     return;
@@ -143,7 +143,7 @@ public class OBSService : IAppService
                 _reconnectState.Retries++;
                 var delay = _reconnectState.Backoff;
 
-                if (_reconnectState.Retries < 3 || _reconnectState.Retries % 10 == 0)
+                if (!_reconnectState.InfiniteRetries && (_reconnectState.Retries < 3 || _reconnectState.Retries % 10 == 0))
                 {
                     _logger?.LogDebug("[OBSService] Reconnect attempt {N} in {Delay}s",
                         _reconnectState.Retries, delay.TotalSeconds);

@@ -37,7 +37,9 @@ public enum SubathonEventSource
     [EventSourceMeta(Description="FourthWall", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=62, Order=51)]
     FourthWall,
     [EventSourceMeta(Description="OBS Websocket", SourceGroup = SubathonSourceGroup.Unknown, SourceOrder=999, Order=999, Visible = false)]
-    OBS
+    OBS,
+    [EventSourceMeta(Description="Throne", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=63, Order=52)]
+    Throne
 }
 
 [ExcludeFromCodeCoverage]

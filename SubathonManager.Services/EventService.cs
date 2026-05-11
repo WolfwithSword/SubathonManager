@@ -155,6 +155,13 @@ public class EventService: IDisposable, IAppService
         {
             return await HandleHypeTrainEvent(ev, subathon, db);
         }
+        if (ev.EventType == SubathonEventType.ThroneCrowdGiftComplete || ev.EventType.IsEvent())
+        { 
+            ev.ProcessedToSubathon = true;
+            db.Add(ev);
+            await db.SaveChangesAsync();
+            return (ev.ProcessedToSubathon, false);
+        }
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
@@ -331,7 +338,6 @@ public class EventService: IDisposable, IAppService
                 affected += await db.Database.ExecuteSqlRawAsync(
                     "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = {2} AND Id = {1}",
                     added, subathon.Id, lockVal);
-                
             }
             
             await db.Entry(subathon.Multiplier).ReloadAsync();

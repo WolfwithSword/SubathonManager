@@ -40,9 +40,9 @@ public partial class FourthWallSettings: DevTunnelSettingsControl
     protected override StackPanel _WebhookUrlRow => WebhookUrlRow;
     protected override TextBlock _TunnelPrereqStatusText => TunnelPrereqStatusText;
     protected override Button _TunnelPrereqHint => TunnelPrereqHint;
-    protected override Wpf.Ui.Controls.TextBox _WebhookForwardUrlsBox => FwWebhookForwardUrlsBox;
-    protected override Popup _ForwardUrlsPopup => ForwardUrlsPopup;
-    protected override Wpf.Ui.Controls.TextBox _ForwardUrlsMultiBox => ForwardUrlsMultiBox;
+    protected override Wpf.Ui.Controls.TextBox? _WebhookForwardUrlsBox => null;
+    protected override Popup? _ForwardUrlsPopup => null;
+    protected override Wpf.Ui.Controls.TextBox? _ForwardUrlsMultiBox => null;
     protected override SubathonEventType? _membershipEventType => SubathonEventType.FourthWallMembership;
     protected override Button? _ConnectBtn => ConnectBtn;
     protected override bool allowMembershipDelete => false;

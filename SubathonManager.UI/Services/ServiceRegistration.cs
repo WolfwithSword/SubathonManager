@@ -75,6 +75,8 @@ public static class ServiceRegistration
         services.AddHttpClient(nameof(FourthWallService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<FourthWallService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
+        services.AddSingleton<ThroneService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
 
         // Other //
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;

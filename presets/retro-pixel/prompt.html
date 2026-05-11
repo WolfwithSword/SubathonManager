@@ -9,7 +9,7 @@
             </div>
             <div class="dialogue-text-box">
                 <div class="dialogue-label" id="dialogue-label">QUEST</div>
-                <div class="dialogue-text" id="dialogue-text"><span id="dialogue-inner">—</span><span class="cursor" id="cursor">▮</span></div>
+                <div class="dialogue-text" id="dialogue-text"><span id="dialogue-inner">-</span><span class="cursor" id="cursor">▮</span></div>
             </div>
         </div>
 
@@ -135,7 +135,7 @@
         }
 
         const progress = data.progress ?? 0;
-        const target = data.target   ?? 0;
+        const target = data.target ?? 0;
         updateHp(progress, target);
 
         if (status === "Active") {
@@ -146,19 +146,21 @@
             timerBlink.classList.add("hidden");
             timerDigits.classList.remove("hidden");
             startTick();
+            clearTypewriter();
+            dialogueInner.textContent = "";
             if (!wasVisible) {
-                typewrite(data.text || "—");
+                typewrite(data.text || "-");
                 playSound(
                     typeof startedSound !== "undefined" ? startedSound : "",
                     typeof startedSoundVolume !== "undefined" ? startedSoundVolume : 50
                 );
             } else {
-                dialogueInner.textContent = data.text || "—";
+                dialogueInner.textContent = data.text || "-";
             }
         } else {
             clearTick();
             clearTypewriter();
-            dialogueInner.textContent = data.text || "—";
+            dialogueInner.textContent = data.text || "-";
             cursor.classList.add("hidden");
             timerDigits.classList.add("hidden");
             timerBlink.classList.remove("hidden");

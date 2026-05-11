@@ -22,7 +22,9 @@ public enum SubathonEventSubType
     [EnumMeta(Description="Commands", Label="Commands", Order = 100)]
     CommandLike,
     [EnumMeta(Description="Store Orders", Label="Store Orders", Order=8)]
-    OrderLike 
+    OrderLike,
+    [EnumMeta(Description="Generic Events", Label="Generic Events", Order=9)]
+    EventLike 
 }
 
 [ExcludeFromCodeCoverage]
@@ -42,6 +44,9 @@ public static class SubathonEventSubTypeHelper
         .ToList();
     public static readonly List<SubathonEventType> DonationEventTypes = Enum.GetValues<SubathonEventType>()
         .Where(e => e.GetSubType() == SubathonEventSubType.DonationLike && e.IsEnabled())
+        .ToList();
+    public static readonly List<SubathonEventType> GenericEventTypes = Enum.GetValues<SubathonEventType>()
+        .Where(e => e.GetSubType() == SubathonEventSubType.EventLike && e.IsEnabled())
         .ToList();
 
     private static readonly SubathonEventSubType[] NotTrueEvent =

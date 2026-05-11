@@ -374,13 +374,19 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.CheekySoapOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.SaucyOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.AdvancedGGOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.RogueEnergyOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.GFuelOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.NaturaPineOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
                 new () { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
                 new () { EventType = SubathonEventType.FourthWallDonation, Seconds = 12},
                 new () { EventType = SubathonEventType.FourthWallMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
                 new () { EventType = SubathonEventType.FourthWallGiftOrder, Seconds = 12},
-                new () { EventType = SubathonEventType.FourthWallOrder, Seconds = 12}
+                new () { EventType = SubathonEventType.FourthWallOrder, Seconds = 12},
+                new () { EventType = SubathonEventType.ThroneGiftContribution, Seconds = 12},
+                new () { EventType = SubathonEventType.ThroneGiftPurchase, Seconds = 300}
             };
 
             foreach (var def in defaults)

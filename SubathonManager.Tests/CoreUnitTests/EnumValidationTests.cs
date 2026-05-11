@@ -79,9 +79,19 @@ public class EnumValidationTests
                         Assert.Contains(eventType.GetLabel(), "Gift Subscription Gift Membership");
                     }
 
-                    if (eventType.IsOrder())
+                    if (eventType.IsOrder() && eventType.GetSource() != SubathonEventSource.Throne)
                     {
                         Assert.Contains("Order", subathonEventType.ToString());
+                    }
+                    
+                    if (eventType.IsOrder() && eventType.GetSource() == SubathonEventSource.Throne)
+                    {
+                        Assert.Contains("Gift", subathonEventType.ToString());
+                    }
+
+                    if (eventType.IsEvent() && eventType.GetSource() == SubathonEventSource.Throne)
+                    {
+                        Assert.Contains("Crowd", subathonEventType.ToString());
                     }
 
                     if (eventType.IsCurrencyDonation())

@@ -44,6 +44,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
         await StartAsync<KoFiService>();
         await StartAsync<FourthWallService>();
+        await StartAsync<ThroneService>();
         await StartAsync<DiscordWebhookService>();
     }
 
@@ -57,6 +58,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<StreamLabsService>();
         await StopAsync<GoAffProService>();
         await StopAsync<KoFiService>();
+        await StopAsync<ThroneService>();
         await StopAsync<FourthWallService>();
         await StopAsync<DevTunnelsService>();
         await StopAsync<DiscordWebhookService>();
@@ -137,6 +139,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static DiscordWebhookService DiscordWebhooks => Provider.GetRequiredService<DiscordWebhookService>();
     public static GoAffProService GoAffPro => Provider.GetRequiredService<GoAffProService>();
     public static FourthWallService FourthWall => Provider.GetRequiredService<FourthWallService>();
+    public static ThroneService Throne => Provider.GetRequiredService<ThroneService>();
     public static DevTunnelsService DevTunnels => Provider.GetRequiredService<DevTunnelsService>();
     public static KoFiService KoFi => Provider.GetRequiredService<KoFiService>();
     public static TwitchService Twitch => Provider.GetRequiredService<TwitchService>(); 
@@ -150,7 +153,5 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     
     public static EventService? EventsOrNull => Provider.GetService<EventService>();
     public static DiscordWebhookService? DiscordWebHooksOrNull => Provider.GetService<DiscordWebhookService>();
-    public static StreamElementsService? StreamElementsOrNull => Provider.GetService<StreamElementsService>();
-    public static StreamLabsService? StreamLabsOrNull => Provider.GetService<StreamLabsService>();
     
 }

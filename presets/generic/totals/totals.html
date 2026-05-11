@@ -161,7 +161,18 @@
         if (cfg.showOrders && cfg.orderEvents.length > 0) {
             for (const evType of cfg.orderEvents) {
                 addDivider();
-                const label = evType.replace(/\Order$/, '') + ( cfg.ordersHeaderShowOrdersTag ? " Orders" : "");
+                let label = evType.replace(/\Order$/, '') + ( cfg.ordersHeaderShowOrdersTag ? " Orders" : "");
+                if (evType.startsWith("KoFi")) {
+                    label = label.replace("KoFi", "KoFi ");
+                }               
+                else if (evType.startsWith("FourthWall")) {
+                    label = label.replace("FourthWall", "FourthWall ");
+                }            
+                else if (evType.startsWith("Throne")) {
+                    label = label.replace("Throne", "Throne ");
+                }
+                label = label.replace("GiftPurchase", cfg.ordersHeaderShowOrdersTag ? "Gifts" : "");
+                label = label.replace("GiftContribution", "Contribution");
                 const {
                     row,
                     valueEl

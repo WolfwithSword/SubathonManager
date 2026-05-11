@@ -129,6 +129,12 @@ public static class Utils
         }
         return  new TimeSpan(days, hours, minutes, seconds);
     }
+    
+    public static Guid TryParseGuid(string? value)
+    {
+        if (value != null && Guid.TryParse(value, out var g)) return g;
+        return CreateGuidFromUniqueString(value ?? Guid.NewGuid().ToString());
+    }
 
     public static Guid CreateGuidFromUniqueString(string? key)
     {
@@ -255,12 +261,13 @@ public static class Utils
         public CancellationTokenSource? Cts;
         public readonly SemaphoreSlim Lock = new(1, 1);
         public int Retries = 0;
+        public bool InfiniteRetries = false;
         
         private TimeSpan InitialBackOff { get; init; }
         private TimeSpan InitialMaxBackOff { get; init; }
         private int InitialMaxRetries { get; init; }
 
-        public ServiceReconnectState(TimeSpan backoff, int maxRetries, TimeSpan maxBackoff)
+        public ServiceReconnectState(TimeSpan backoff, int maxRetries, TimeSpan maxBackoff, bool infiniteRetries = false)
         {
             Backoff = backoff;
             MaxRetries = maxRetries;
@@ -268,13 +275,13 @@ public static class Utils
             InitialBackOff = Backoff;
             InitialMaxBackOff = MaxBackoff;
             InitialMaxRetries = MaxRetries;
+            InfiniteRetries = infiniteRetries;
         }
         
         public ServiceReconnectState() {
             InitialBackOff = Backoff;
             InitialMaxBackOff = MaxBackoff;
             InitialMaxRetries = MaxRetries;
-            
         }
 
         public async Task<bool> IsReconnecting()
