@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SubathonManager.Data;
 
@@ -10,9 +11,11 @@ using SubathonManager.Data;
 namespace SubathonManager.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260511152635_AddGoAffProStoreTable")]
+    partial class AddGoAffProStoreTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.6");
@@ -50,9 +53,11 @@ namespace SubathonManager.Data.Migrations
 
             modelBuilder.Entity("SubathonManager.Core.Models.GoAffProStore", b =>
                 {
-                    b.Property<int>("RowId")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int>("SiteId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("StoreName")
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
@@ -61,17 +66,7 @@ namespace SubathonManager.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("SiteId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("StoreName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("RowId");
-
-                    b.HasIndex("SiteId")
-                        .IsUnique();
+                    b.HasKey("SiteId", "StoreName");
 
                     b.ToTable("GoAffProStores");
                 });
@@ -247,9 +242,6 @@ namespace SubathonManager.Data.Migrations
                     b.Property<int?>("EventType")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("EventTypeMeta")
-                        .HasColumnType("TEXT");
-
                     b.Property<double>("MultiplierPoints")
                         .HasColumnType("REAL");
 
@@ -270,10 +262,6 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<Guid?>("SubathonId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TertiaryValue")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("User")

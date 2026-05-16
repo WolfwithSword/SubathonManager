@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core;
@@ -345,4 +346,20 @@ public static class Utils
         }
     }
 
+    public static bool IsCommissionAsDonation(IConfig config, SubathonEvent ev)
+    {
+        if (!ev.EventType.IsOrder()) return false;
+
+        // if (ev.EventType == SubathonEventType.GoAffProOrder)
+        // {
+        //     if (string.IsNullOrEmpty(ev.EventTypeMeta)) return false;
+        //     if (!GoAffProOrderHelper.TryGetStore(ev.EventTypeMeta, out var store)) return false;
+        //     return config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+        // }
+
+        return config.GetBool(
+            ev.EventType.GetSource().ToString(),
+            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
+            false);
+    }
 }

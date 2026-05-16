@@ -333,6 +333,7 @@ public class YouTubeService : IDisposable, IAppService
                 
             }
             subathonEvent.Value = tier.Trim();
+            subathonEvent.EventTypeMeta = tier.Trim();
             
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return;
@@ -493,6 +494,7 @@ public class YouTubeService : IDisposable, IAppService
             Currency = "member",
             EventType = SubathonEventType.YouTubeGiftMembership,
             Value = tier,
+            EventTypeMeta = tier,
             User = "SYSTEM",
             Amount = amount
         };

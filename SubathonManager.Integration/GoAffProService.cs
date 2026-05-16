@@ -199,10 +199,9 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
             // we will listen for these sites regardless in orders, but will ignore if not enabled.
             var enabled = config.GetBool(_configSection, $"{source}.Enabled", true);
             if (!enabled) return;
-
-            var mode = config.Get(_configSection, $"{source}.Mode", "Dollar");
-
-            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
+            
+            var sourceMode = config.GetOrderTypeMode(_configSection,
+                $"{source}", OrderTypeModes.Dollar);
 
             ev.Currency = sourceMode switch
             {

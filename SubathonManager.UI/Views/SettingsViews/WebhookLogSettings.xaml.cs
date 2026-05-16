@@ -260,4 +260,11 @@ public partial class WebhookLogSettings : SettingsControl
             "This is a test of the Error Webhook", DateTime.Now);
         ErrorMessageEvents.RaiseCustomEvent("This is a test of the Event Webhook");
     }
+    
+    // private record WebhookEventEntry(
+    //     string ConfigKey,
+    //     string Label,
+    //     SubathonEventType EventType,
+    //     string? InternalEventName = null
+    // );
 }

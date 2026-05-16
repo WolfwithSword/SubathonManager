@@ -37,6 +37,7 @@ public partial class SettingsView : SettingsControl
             SettingsEvents.SettingsUnsavedChanges += UpdateSaveButtonBorder;
             InitOBSSettings();
             RegisterUnsavedChangeHandlers();
+            InitCurrencySelects();
         };
 
         StreamingSettingsControl.Init(this);

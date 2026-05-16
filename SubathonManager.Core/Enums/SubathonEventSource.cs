@@ -28,7 +28,7 @@ public enum SubathonEventSource
     Blerp,
     [EventSourceMeta(Description = "Picarto", SourceGroup = SubathonSourceGroup.Stream, SourceOrder=3, Order=12)]
     Picarto,
-    [EventSourceMeta(Description = "GoAffPro Affiliate Stores", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=61, Order=50)]
+    [EventSourceMeta(Description = "GoAffPro Affiliate Stores", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=61, Order=50, Visible = true)]
     GoAffPro,
     [EventSourceMeta(Description = "Ko-Fi (Tunnel)", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=42, Visible=false, TrueSource=KoFi, Order=41)]
     KoFiTunnel,

@@ -10,6 +10,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
+using SubathonManager.Integration;
 using SubathonManager.UI.Services;
 using Button = Wpf.Ui.Controls.Button;
 using PasswordBox = Wpf.Ui.Controls.PasswordBox;
@@ -70,37 +71,162 @@ public partial class ThroneSettings: DevTunnelSettingsControl
             }
         );
     }
+    
 
     public override bool UpdateValueSettings(AppDbContext db)
     {
-        return false;
-        // throw new NotImplementedException();
+        bool hasUpdated = false;
+        
+        var contribVal = db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.ThroneGiftContribution && x.Meta == "");
+        if (contribVal != null && double.TryParse(ContribBox.Text, out var osec) && !contribVal.Seconds.Equals(osec))
+        {
+            contribVal.Seconds = osec;
+            hasUpdated = true;
+        }
+        if (contribVal != null && double.TryParse(ContribBox2.Text, out var opts) && !contribVal.Points.Equals(opts))
+        {
+            contribVal.Points = opts;
+            hasUpdated = true;
+        }
+        
+        var value = db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.ThroneGiftPurchase && x.Meta == "");
+        if (value != null && double.TryParse(GiftsBox.Text, out var gosec) && !value.Seconds.Equals(gosec))
+        {
+            value.Seconds = gosec;
+            hasUpdated = true;
+        }
+        if (value != null && double.TryParse(GiftsBox2.Text, out var gpts) && !value.Points.Equals(gpts))
+        {
+            value.Points = gpts;
+            hasUpdated = true;
+        }
+        return hasUpdated;
     }
 
     public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
     {
-        return;
-        // throw new NotImplementedException();
+        CurrencyBox.ItemsSource = currencies;
+        CurrencyBox.SelectedItem = selected;
+    }
+    
+    protected internal override bool UpdateConfigValueSettings()
+    {
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        bool hasUpdated = false;
+        hasUpdated |= config.SetOrderTypeMode(configSection, $"{SubathonEventType.ThroneGiftPurchase}",
+            Enum.Parse<OrderTypeModes>($"{ModeBox.SelectedItem}"));
+        return hasUpdated;
     }
 
     public override (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(SubathonValue val)
     {
-        return ("", "", null, null);
-        // throw new NotImplementedException();
+        string v = $"{val.Seconds}";
+        string p = $"{val.Points}";
+        TextBox? box = null;
+        TextBox? box2 = null;
+        switch (val.EventType)
+        {
+            case SubathonEventType.ThroneGiftContribution:
+                box = ContribBox;
+                box2 = ContribBox2;
+                break;
+            case SubathonEventType.ThroneGiftPurchase:
+                box = GiftsBox;
+                box2 = GiftsBox2;
+                break;
+        }
+        return (v, p, box, box2);
     }
-    private void TestThroneShopGiftOrder_Click(object sender, RoutedEventArgs e)
+    private void TestThroneGift_Click(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();
+        var amount = 10.00;
+        double.TryParse((string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
+            ? "10.00"
+            : SimulateThroneContribAmountBox.Text), out amount);
+        amount *= 100;
+        var amt = ((int)amount).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
+        var data = $@" {{
+                ""event_id"": ""{Guid.NewGuid()}"",
+                ""event_type"": ""gift_purchased"",
+                ""data"": {{
+                  ""creator_id"": ""string"",
+                  ""creator_username"": ""string"",
+                  ""gifter_username"": ""SYSTEM"",
+                  ""message"": ""string"",
+                  ""item_name"": ""{GiftNameBox.Text}"",
+                  ""item_thumbnail_url"": ""string"",
+                  ""is_surprise_gift"": true,
+                  ""price"": {amt},
+                  ""currency"": ""{CurrencyBox.Text}"" 
+                }}
+            }}";
+        AppServices.Provider.GetService<ThroneService>()?.ProcessData(data, true);
     }
 
-    private void TestThroneShopOrder_Click(object sender, RoutedEventArgs e)
+    private void TestThroneContrib_Click(object sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();
+        var amount = 10.00;
+        double.TryParse((string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
+            ? "10.00"
+            : SimulateThroneContribAmountBox.Text), out amount);
+        amount *= 100;
+        var amt = ((int)amount).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+        var data = $@" {{
+                ""event_id"": ""{Guid.NewGuid()}"",
+                ""event_type"": ""contribution_purchased"",
+                ""data"": {{
+                  ""creator_id"": ""string"",
+                  ""creator_username"": ""string"",
+                  ""gifter_username"": ""SYSTEM"",
+                  ""message"": ""string"",
+                  ""item_name"": ""{GiftNameBox.Text}"",
+                  ""item_thumbnail_url"": ""string"",
+                  ""amount"": {amt},
+                  ""currency"": ""{CurrencyBox.Text}"" 
+                }}
+            }}";
+        AppServices.Provider.GetService<ThroneService>()?.ProcessData(data, true);
     }
+    private void TestThroneCrowdfund_Click(object sender, RoutedEventArgs e)
+    {      
+        var amount = 10.00;
+        double.TryParse((string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
+            ? "10.00"
+            : SimulateThroneContribAmountBox.Text), out amount);
+        amount *= 100;
+        var amt = ((int)amount).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
 
-    private void TestThroneTip_Click(object sender, RoutedEventArgs e)
+        var data = $@" {{
+                ""event_id"": ""{Guid.NewGuid()}"",
+                ""event_type"": ""gift_crowdfunded"",
+                ""data"": {{
+                  ""creator_id"": ""string"",
+                  ""creator_username"": ""string"",
+                  ""item_name"": ""{GiftNameBox.Text}"",
+                  ""item_thumbnail_url"": ""string"",
+                  ""is_surprise_gift"": true,
+                  ""price"": {amt},
+                  ""currency"": ""{CurrencyBox.Text}"" 
+                }}
+            }}";
+        AppServices.Provider.GetService<ThroneService>()?.ProcessData(data, true);
+    }
+    
+    protected internal override void LoadValues(AppDbContext db)
     {
-        throw new NotImplementedException();
+        SuppressUnsavedChanges(() =>
+        {
+            LoadConfigValues();
+        });
+    }
+    
+    private void LoadConfigValues()
+    {
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().Where(x => x != $"{OrderTypeModes.Order}").ToList();
+        ModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection,
+            nameof(SubathonEventType.ThroneGiftPurchase), OrderTypeModes.Dollar)}";
     }
 
     private async void DisconnectThrone_Click(object sender, RoutedEventArgs e)
@@ -121,7 +247,7 @@ public partial class ThroneSettings: DevTunnelSettingsControl
         await ServiceManager.Throne.Initialize();
     }
 
-    private async void OpenThroneLink_Click(object sender, RoutedEventArgs e)
+    private void OpenThroneLink_Click(object sender, RoutedEventArgs e)
     {
         try
         {

@@ -3,102 +3,178 @@ namespace SubathonManager.Core.Enums;
 
 public enum SubathonEventType
 {
-    [EventTypeMeta(Label="Subscription", Source=SubathonEventSource.Twitch, IsSubscription = true, Order = 1)]
+    [EventTypeMeta(Label = "Subscription", Source = SubathonEventSource.Twitch, IsSubscription = true, Order = 1)]
     TwitchSub, // remember subs can be of Value: 1000, 2000, 3000, Prime iirc... damnit looks like the TwitchLib doesnt separate Prime??
-    [EventTypeMeta(Label="Bits", Source=SubathonEventSource.Twitch, IsToken = true, Order = 3)]
+
+    [EventTypeMeta(Label = "Bits", Source = SubathonEventSource.Twitch, IsToken = true, Order = 3)]
     TwitchCheer, // remember 100 is 1$, either in UI we say per 100 bits and divide, or we make em divide
-    [EventTypeMeta(Label="Gift Subscription", Source=SubathonEventSource.Twitch, IsGift = true, Order = 2)]
+
+    [EventTypeMeta(Label = "Gift Subscription", Source = SubathonEventSource.Twitch, IsGift = true, Order = 2)]
     TwitchGiftSub,
-    [EventTypeMeta(Label="Raid", Source=SubathonEventSource.Twitch, IsRaid = true, Order = 5)]
+
+    [EventTypeMeta(Label = "Raid", Source = SubathonEventSource.Twitch, IsRaid = true, Order = 5)]
     TwitchRaid,
-    [EventTypeMeta(Label="Follow", Source=SubathonEventSource.Twitch, IsFollow = true, Order = 4)]
+
+    [EventTypeMeta(Label = "Follow", Source = SubathonEventSource.Twitch, IsFollow = true, Order = 4)]
     TwitchFollow,
-    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.StreamElements, IsCurrencyDonation = true, Order = 1)]
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.StreamElements, IsCurrencyDonation = true,
+        Order = 1)]
     StreamElementsDonation,
-    
-    [EventTypeMeta(Label="Commands", Source=SubathonEventSource.Command, HasValueConfig = false, IsCommand = true, IsOther = true, Order =1)]
+
+    [EventTypeMeta(Label = "Commands", Source = SubathonEventSource.Command, HasValueConfig = false, IsCommand = true,
+        IsOther = true, Order = 1)]
     Command, // from any chat or ui
-    [EventTypeMeta(Label="Unknown", Source=SubathonEventSource.Unknown, HasValueConfig = false, IsOther = true, Order =1)]
+
+    [EventTypeMeta(Label = "Unknown", Source = SubathonEventSource.Unknown, HasValueConfig = false, IsOther = true,
+        Order = 1)]
     Unknown,
-    
-    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.StreamLabs, IsCurrencyDonation = true, Order =2)]
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.StreamLabs, IsCurrencyDonation = true, Order = 2)]
     StreamLabsDonation,
-    
-    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.YouTube, IsMembership = true, Order =1)]
+
+    [EventTypeMeta(Label = "Membership", Source = SubathonEventSource.YouTube, IsMembership = true, Order = 1)]
     YouTubeMembership,
-    [EventTypeMeta(Label="Gift Membership", Source=SubathonEventSource.YouTube, IsMembership = true, IsGift = true, Order =2)]
+
+    [EventTypeMeta(Label = "Gift Membership", Source = SubathonEventSource.YouTube, IsMembership = true, IsGift = true,
+        Order = 2)]
     YouTubeGiftMembership,
-    [EventTypeMeta(Label="SuperChat", Source=SubathonEventSource.YouTube, IsCurrencyDonation = true, Order =3)]
+
+    [EventTypeMeta(Label = "SuperChat", Source = SubathonEventSource.YouTube, IsCurrencyDonation = true, Order = 3)]
     YouTubeSuperChat,
-    [EventTypeMeta(Label="Hype Train", Source=SubathonEventSource.Twitch, IsTrain = true, HasValueConfig = false, Order = 6)]
+
+    [EventTypeMeta(Label = "Hype Train", Source = SubathonEventSource.Twitch, IsTrain = true, HasValueConfig = false,
+        Order = 6)]
     TwitchHypeTrain, // value is start, progress, end. Alt type event. Amount is level.
-    
-    [EventTypeMeta(Label="Charity Donation", Source=SubathonEventSource.Twitch, IsCurrencyDonation = true, Order = 7)]
+
+    [EventTypeMeta(Label = "Charity Donation", Source = SubathonEventSource.Twitch, IsCurrencyDonation = true,
+        Order = 7)]
     TwitchCharityDonation,
-    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.External, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.External, IsCurrencyDonation = true,
+        IsExternal = true, Order = 1)]
     ExternalDonation,
-    [EventTypeMeta(Label="Subscription", Source=SubathonEventSource.External, IsSubscription = true, IsExternal = true, Order = 2)]
+
+    [EventTypeMeta(Label = "Subscription", Source = SubathonEventSource.External, IsSubscription = true,
+        IsExternal = true, Order = 2)]
     ExternalSub,
-    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.KoFi, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.KoFi, IsCurrencyDonation = true, IsExternal = true,
+        Order = 1)]
     KoFiDonation,
-    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.KoFi, IsMembership = true, IsExternal=true, Order = 2)]
+
+    [EventTypeMeta(Label = "Membership", Source = SubathonEventSource.KoFi, IsMembership = true, IsExternal = true,
+        Order = 2)]
     KoFiSub,
-    [EventTypeMeta(Label="Donation Adjustment", Source=SubathonEventSource.Command, IsCurrencyDonation = true, 
-        IsOther = true, IsCommand=true, HasValueConfig = false, Order = 1)]
+
+    [EventTypeMeta(Label = "Donation Adjustment", Source = SubathonEventSource.Command, IsCurrencyDonation = true,
+        IsOther = true, IsCommand = true, HasValueConfig = false, Order = 1)]
     DonationAdjustment,
-    [EventTypeMeta(Label="Bits", Source=SubathonEventSource.Blerp, IsToken = true, Order = 1)]
+
+    [EventTypeMeta(Label = "Bits", Source = SubathonEventSource.Blerp, IsToken = true, Order = 1)]
     BlerpBits, // twitch only
-    [EventTypeMeta(Label="Beets", Source=SubathonEventSource.Blerp, IsToken = true, IsExtension=true, Order = 2)]
+
+    [EventTypeMeta(Label = "Beets", Source = SubathonEventSource.Blerp, IsToken = true, IsExtension = true, Order = 2)]
     BlerpBeets,
-    [EventTypeMeta(Label="Follow", Source=SubathonEventSource.Picarto, IsFollow = true, IsExtension=true, Order = 4)]
+
+    [EventTypeMeta(Label = "Follow", Source = SubathonEventSource.Picarto, IsFollow = true, IsExtension = true,
+        Order = 4)]
     PicartoFollow,
-    [EventTypeMeta(Label="Subscription", Source=SubathonEventSource.Picarto, IsSubscription = true, Order = 1)]
+
+    [EventTypeMeta(Label = "Subscription", Source = SubathonEventSource.Picarto, IsSubscription = true, Order = 1)]
     PicartoSub,
-    [EventTypeMeta(Label="Gift Subscription", Source=SubathonEventSource.Picarto, IsGift = true, Order = 2)]
+
+    [EventTypeMeta(Label = "Gift Subscription", Source = SubathonEventSource.Picarto, IsGift = true, Order = 2)]
     PicartoGiftSub,
-    [EventTypeMeta(Label="Kudos Tip", Source=SubathonEventSource.Picarto, IsToken = true, Order = 3)]
+
+    [EventTypeMeta(Label = "Kudos Tip", Source = SubathonEventSource.Picarto, IsToken = true, Order = 3)]
     PicartoTip,
-    [GoAffProTypeMeta(Label="GamerSupps Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 1, StoreSource = GoAffProSource.GamerSupps)]
+
+    [GoAffProTypeMeta(Label = "GamerSupps Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 1,
+        StoreSource = GoAffProSource.GamerSupps, Enabled = true)]
     GamerSuppsOrder,
-    [GoAffProTypeMeta(Label="UwUMarket Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 2, StoreSource = GoAffProSource.UwUMarket)]
+
+    [GoAffProTypeMeta(Label = "UwUMarket Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 2,
+        StoreSource = GoAffProSource.UwUMarket, Enabled = true)]
     UwUMarketOrder,
-    [GoAffProTypeMeta(Label="Orchid Eight Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 3, StoreSource = GoAffProSource.OrchidEight)]
+
+    [GoAffProTypeMeta(Label = "Orchid Eight Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 3,
+        StoreSource = GoAffProSource.OrchidEight, Enabled = true)]
     OrchidEightOrder,
-    [GoAffProTypeMeta(Label="KatDragonz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 4, StoreSource = GoAffProSource.KatDragonz)]
+
+    [GoAffProTypeMeta(Label = "KatDragonz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 4,
+        StoreSource = GoAffProSource.KatDragonz, Enabled = true)]
     KatDragonzOrder,
-    [EventTypeMeta(Label="Redirect/Raid", Source=SubathonEventSource.YouTube, IsRaid = true, Order = 5)]
+
+    [EventTypeMeta(Label = "Redirect/Raid", Source = SubathonEventSource.YouTube, IsRaid = true, Order = 5)]
     YouTubeRedirect,
-    [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 3)]
+
+    [EventTypeMeta(Label = "Shop Order", Source = SubathonEventSource.KoFi, IsOrder = true, IsExternal = true,
+        Order = 3)]
     KoFiShopOrder,
-    [EventTypeMeta(Label="Commission", Source=SubathonEventSource.KoFi, IsOrder = true, IsExternal=true, Order = 4)]
+
+    [EventTypeMeta(Label = "Commission", Source = SubathonEventSource.KoFi, IsOrder = true, IsExternal = true,
+        Order = 4)]
     KoFiCommissionOrder,
-    [EventTypeMeta(Label="Shop Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 3)]
+
+    [EventTypeMeta(Label = "Shop Order", Source = SubathonEventSource.FourthWall, IsOrder = true, IsExternal = true,
+        Order = 3)]
     FourthWallOrder,
-    [EventTypeMeta(Label="Donation", Source=SubathonEventSource.FourthWall, IsCurrencyDonation = true, IsExternal=true, Order = 1)]
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.FourthWall, IsCurrencyDonation = true,
+        IsExternal = true, Order = 1)]
     FourthWallDonation,
-    [EventTypeMeta(Label="Membership", Source=SubathonEventSource.FourthWall, IsMembership = true, IsExternal=true, Order = 2)] // tier names to be fetched and synced, maybe delete old, and new use default vals
+
+    [EventTypeMeta(Label = "Membership", Source = SubathonEventSource.FourthWall, IsMembership = true,
+        IsExternal = true, Order = 2)]
+    // tier names to be fetched and synced, maybe delete old, and new use default vals
     FourthWallMembership,
-    [EventTypeMeta(Label="Gift Order", Source=SubathonEventSource.FourthWall, IsOrder = true, IsExternal=true, Order = 4)]
+
+    [EventTypeMeta(Label = "Gift Order", Source = SubathonEventSource.FourthWall, IsOrder = true, IsExternal = true,
+        Order = 4)]
     FourthWallGiftOrder,
-    [GoAffProTypeMeta(Label="Cheeky Soap Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 5, StoreSource = GoAffProSource.CheekySoap)]
+
+    [GoAffProTypeMeta(Label = "Cheeky Soap Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 5,
+        StoreSource = GoAffProSource.CheekySoap, Enabled = true)]
     CheekySoapOrder,
-    [GoAffProTypeMeta(Label="Advanced GG Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 6, StoreSource = GoAffProSource.AdvancedGG)]
+
+    [GoAffProTypeMeta(Label = "Advanced GG Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 6,
+        StoreSource = GoAffProSource.AdvancedGG, Enabled = true)]
     AdvancedGGOrder,
-    [EventTypeMeta(Label="Gift Purchase", Source=SubathonEventSource.Throne, Order = 1, IsOrder=true)] // forced to by Item, count = 1
+
+    [EventTypeMeta(Label = "Gift Purchase", Source = SubathonEventSource.Throne, Order = 1,
+        IsOrder = true)]
+    // forced to by Item, count = 1
     ThroneGiftPurchase,
-    [EventTypeMeta(Label="Contribution", Source=SubathonEventSource.Throne, Order = 3, IsOrder=true)] // forced to by Money
+
+    [EventTypeMeta(Label = "Contribution", Source = SubathonEventSource.Throne, Order = 3,
+        IsOrder = true)]
+    // forced to by Money
     ThroneGiftContribution,
-    [EventTypeMeta(Label="Crowdfunded Gift", Source=SubathonEventSource.Throne, Order = 2, HasValueConfig = false, IsGenericEvent = true)] // will come in if contribution fully funds, so purely an alert, not event to add. So we do not allow configuration of it
+
+    [EventTypeMeta(Label = "Crowdfunded Gift", Source = SubathonEventSource.Throne, Order = 2, HasValueConfig = false,
+        IsGenericEvent = true)]
+    // will come in if contribution fully funds, so purely an alert, not event to add. So we do not allow configuration of it
     ThroneCrowdGiftComplete, // only config in settings is whether or not to display it
-    // any new must be added after the last
-    [GoAffProTypeMeta(Label="Rogue Energy Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 7, StoreSource = GoAffProSource.RogueEnergy)]
+    [GoAffProTypeMeta(Label = "Rogue Energy Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 7,
+        StoreSource = GoAffProSource.RogueEnergy, Enabled = true)]
     RogueEnergyOrder,
-    [GoAffProTypeMeta(Label="Saucy Biz Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 8, StoreSource = GoAffProSource.SaucyBiz)]
+
+    [GoAffProTypeMeta(Label = "Saucy Biz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 8,
+        StoreSource = GoAffProSource.SaucyBiz, Enabled = true)]
     SaucyOrder,
-    [GoAffProTypeMeta(Label="GFuel Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 9, StoreSource = GoAffProSource.GFuel)]
+    // PLACEHOLDER FOR FUTURE
+    [GoAffProTypeMeta(Label="GoAffPro Order", Source=SubathonEventSource.GoAffPro, IsOrder=true, Order=1, Enabled=false)]
+    GoAffProOrder,
+    
+    [GoAffProTypeMeta(Label = "GFuel Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 9,
+        StoreSource = GoAffProSource.GFuel, Enabled = true)]
     GFuelOrder,
-    [GoAffProTypeMeta(Label="Natura Pine Order", Source=SubathonEventSource.GoAffPro, IsOrder = true, Order = 10, StoreSource = GoAffProSource.NaturaPine)]
+    [GoAffProTypeMeta(Label = "Natura Pine Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 10,
+        StoreSource = GoAffProSource.NaturaPine, Enabled = true)]
     NaturaPineOrder,
+    
+    // any new must be added after the last
 }
 
 [ExcludeFromCodeCoverage]

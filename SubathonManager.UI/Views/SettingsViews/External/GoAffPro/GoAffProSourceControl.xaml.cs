@@ -25,7 +25,6 @@ public partial class GoAffProSourceControl : SettingsControl
         Source = source;
         InitializeComponent();
     
-        //SourceExpander.Header = source.ToString();
         TotalSimBox.ToolTip = "Order Total $";
         CommSimBox.ToolTip = "Commission Total $";
         QuantitySimBox.ToolTip = "Items Ordered";
@@ -56,7 +55,8 @@ public partial class GoAffProSourceControl : SettingsControl
             _host.UpdateTimePointsBoxes(SecondsBox, PointsBox, $"{value.Seconds}", $"{value.Points}");
 
         ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
-        ModeBox.SelectedItem = config.Get(configSection, $"{Source}.Mode", "Dollar")?.Trim() ?? "Dollar";
+        ModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection, Source.ToString(), OrderTypeModes.Dollar)}";
+
         CommissionBox.IsChecked = config.GetBool(configSection, $"{Source}.CommissionAsDonation", false);
         EnabledBox.IsChecked = config.GetBool(configSection, $"{Source}.Enabled", true);
         
@@ -100,7 +100,7 @@ public partial class GoAffProSourceControl : SettingsControl
     public bool UpdateConfigSettings(IConfig config, string configSection)
     {
         bool hasUpdated = false;
-        hasUpdated |= config.Set(configSection, $"{Source}.Mode", $"{ModeBox.SelectedItem}");
+        hasUpdated |= config.SetOrderTypeMode(configSection, $"{Source}", Enum.Parse<OrderTypeModes>($"{ModeBox.SelectedItem}"));
         hasUpdated |= config.SetBool(configSection, $"{Source}.CommissionAsDonation", CommissionBox.IsChecked ?? false);
         hasUpdated |= config.SetBool(configSection, $"{Source}.Enabled", EnabledBox.IsChecked ?? true);
         return hasUpdated;

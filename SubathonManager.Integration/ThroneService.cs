@@ -138,17 +138,25 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
  
         logger?.LogDebug("[Throne] Signature verified OK");
         
+        ProcessData(stringData);
+
+        return Task.CompletedTask;
+    }
+
+    public void ProcessData(string stringData, bool isSim = false)
+    {
         var throneEvent = JsonConvert.DeserializeObject<Dictionary<string, object>>(stringData);
-        if (throneEvent == null) return Task.CompletedTask;
+        if (throneEvent == null) return;
         throneEvent.TryGetValue("data", out var value);
-        
-        if (value == null || string.IsNullOrWhiteSpace(value.ToString())) return Task.CompletedTask;
+
+        if (value == null || string.IsNullOrWhiteSpace(value.ToString())) return;
 
         var data = JsonConvert.DeserializeObject<Dictionary<string, object>>(value.ToString() ?? string.Empty)!;
 
         throneEvent.TryGetValue("event_id", out var uuid);
         data.TryGetValue("item_name", out var itemName);
         data.TryGetValue("gifter_username", out var gifterName);
+        data.TryGetValue("currency", out var currency);
         // data.TryGetValue("creator_username", out var creatorUsername);
         // data.TryGetValue("is_surprise_gift", out var isSurpriseRaw);
         // bool.TryParse(isSurpriseRaw?.ToString(), out var isSurprise);
@@ -159,41 +167,48 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
             Id = Utils.TryParseGuid(uuid?.ToString()),
             SecondaryValue = itemName?.ToString() ?? "Item",
             User = gifterName?.ToString() ?? "Crowdfunding Complete!",
-            Source = SubathonEventSource.Throne
+            Source = isSim ? SubathonEventSource.Simulated : SubathonEventSource.Throne
         };
 
         throneEvent.TryGetValue("event_type", out var eventType);
+        subathonEvent.TertiaryValue = itemName?.ToString() ?? "New Gift";
         switch (eventType?.ToString())
         {
             case "gift_purchased":
+                var mode = config.GetOrderTypeMode("Throne", $"{SubathonEventType.ThroneGiftPurchase}",
+                    OrderTypeModes.Dollar);
+                    
+                data.TryGetValue("price", out var price);
+                double.TryParse(price?.ToString() ?? "0.00", out var priceInt);
                 subathonEvent.EventType = SubathonEventType.ThroneGiftPurchase;
-                subathonEvent.Currency = "item";
+                subathonEvent.Currency = mode == OrderTypeModes.Dollar && !string.IsNullOrWhiteSpace(currency!.ToString()) ? currency.ToString() : "item";
                 subathonEvent.Amount = 1;
-                subathonEvent.Value = itemName?.ToString() ?? "1";
-                
-                
+                subathonEvent.Value = mode != OrderTypeModes.Dollar ? itemName?.ToString() ?? "1" :   
+                    (priceInt / 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
                 break;
             case "contribution_purchased":
                 subathonEvent.EventType = SubathonEventType.ThroneGiftContribution;
-                data.TryGetValue("currency", out var currency);
                 subathonEvent.Currency = currency?.ToString() ?? "";
                 data.TryGetValue("amount", out var amount);
+                subathonEvent.TertiaryValue = itemName?.ToString() ?? "New Contribution";
                 double.TryParse(amount?.ToString(), out var amountInt);
                 subathonEvent.Value =
                     (amountInt / 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
                 break;
             case "gift_crowdfunded":
+                data.TryGetValue("price", out var price2);
+                double.TryParse(price2?.ToString() ?? "0.00", out var priceInt2);
                 subathonEvent.EventType = SubathonEventType.ThroneCrowdGiftComplete;
                 subathonEvent.User = itemName?.ToString() ?? "Crowdfunding Complete!";
-                subathonEvent.Value = itemName?.ToString() ?? "1";
-                subathonEvent.Currency = "";
+                subathonEvent.Currency = currency?.ToString() ?? "item";
+                subathonEvent.Value =
+                    (priceInt2 / 100).ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+
                 break;
             default:
-                return Task.CompletedTask;
+                return;
         }
         
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-        
-        return Task.CompletedTask;
     }
 }

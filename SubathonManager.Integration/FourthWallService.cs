@@ -362,10 +362,10 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
     {
         try
         {
-            var mode = config.Get(_configSection, $"{SubathonEventType.FourthWallOrder}.Mode", "Dollar");
-            var mode2 = config.Get(_configSection, $"{SubathonEventType.FourthWallGiftOrder}.Mode", "Dollar");
-            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
-            var sourceMode2 = Enum.TryParse(mode2, out OrderTypeModes m2) ? m2 : OrderTypeModes.Dollar;
+            var sourceMode = config.GetOrderTypeMode(_configSection,
+                $"{SubathonEventType.FourthWallOrder}", OrderTypeModes.Dollar);
+            var sourceMode2 = config.GetOrderTypeMode(_configSection,
+                $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar);
             var defaultCurrency = "USD";
             string username = "FourthWall Customer";
             if (fwEvent.TestMode) username = "FourthWall Test";//"SYSTEM";
@@ -515,6 +515,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
                     EventType = SubathonEventType.FourthWallMembership,
                     User = username,
                     Value = tierName,
+                    EventTypeMeta = tierName,
                     Currency = "member",
                     Amount = subscription.Variant?.Interval == MembershipTierVariantV1_interval.ANNUAL ? 12 : 1,
                     SecondaryValue = $"{(subscription.Variant?.Amount?.Value ?? 0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}|{
@@ -540,6 +541,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
                     EventType = SubathonEventType.FourthWallMembership,
                     User = username,
                     Value = tierName,
+                    EventTypeMeta = tierName,
                     Currency = "member",
                     Amount = subscription.Variant?.Interval == MembershipTierVariantV1_interval.ANNUAL ? 12 : 1,
                     SecondaryValue = $"{(subscription.Variant?.Amount?.Value ?? 0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}|{

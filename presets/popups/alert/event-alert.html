@@ -172,6 +172,9 @@
         if (sub == "FollowLike") return "";
         if (sub == "OrderLike") {
             if (data.type_true_source.toLowerCase() == "throne") {
+                if (data.event_type.toLowerCase().includes("contribution")) {
+                    return data.currency + " " + data.value + " - " + data.secondary_value;
+                }
                 return data.secondary_value;
             }
             if (data.event_type?.toLowerCase().includes("commission")) {

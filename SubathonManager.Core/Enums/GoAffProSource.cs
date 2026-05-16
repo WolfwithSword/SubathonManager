@@ -3,6 +3,7 @@
 
 namespace SubathonManager.Core.Enums;
 
+// Eventually will move to a dynamic system
 public enum GoAffProSource
 {
     [GoAffProSourceMeta(Description="Unknown", Enabled=false)]

@@ -151,8 +151,8 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
     {
         try
         {
-            var mode = config.Get(_configSection, $"{SubathonEventType.KoFiShopOrder}.Mode", "Dollar");
-            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
+            var sourceMode = config.GetOrderTypeMode(_configSection,
+                $"{SubathonEventType.KoFiShopOrder}", OrderTypeModes.Dollar);
             var defaultCurrency = "USD";
             string username = koFiEvent.FromName ?? "Ko-Fi Supporter";
             if (!koFiEvent.IsPublic) username = "Ko-Fi Supporter";
@@ -175,6 +175,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                     EventType = SubathonEventType.KoFiSub,
                     User = username,
                     Value = s.TierName ?? "DEFAULT",
+                    EventTypeMeta = s.TierName ?? "DEFAULT",
                     Currency = "member",
                     EventTimestamp = s.Timestamp.LocalDateTime,
                 },
@@ -185,6 +186,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                     EventType = SubathonEventType.KoFiSub,
                     User = username,
                     Value = r.TierName ?? "DEFAULT",
+                    EventTypeMeta = r.TierName ?? "DEFAULT",
                     Currency = "member",
                     EventTimestamp = r.Timestamp.LocalDateTime,
                 },

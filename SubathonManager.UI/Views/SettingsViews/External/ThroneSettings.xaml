@@ -10,7 +10,6 @@
                         mc:Ignorable="d">
     <StackPanel>
 <StackPanel>
-<!-- TODO --> 
         <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
             <ui:TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12"/>
             <ui:TextBlock x:Name="ThroneWebhookStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12"/>
@@ -65,14 +64,15 @@
                     <ColumnDefinition Width="300"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center"
-                               ToolTip="Donations (not including donations from orders)"/>
+                    <TextBlock Text="Contributions:" Width="100" VerticalAlignment="Center"
+                               ToolTip="Contributions toward crowd gifts"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="12" x:Name="DonoBox"/>
-                    <TextBlock Margin="8,0,0,0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                                PlaceholderText="12" x:Name="ContribBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="0" x:Name="DonoBox2"/>
-                    <TextBlock Margin="8,0,0,0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                                PlaceholderText="0" x:Name="ContribBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center" ToolTip="Rounded down"/>
+                    <TextBlock Text="Per Dollar" VerticalAlignment="Center" Width="60" Margin="12 0 2 0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <ui:TextBox Margin="10,0,4,0" Width="80" Text="10.00" PlaceholderText="1.00"
@@ -80,12 +80,12 @@
                                 ClearButtonEnabled="False" Height="34"
                                 views:SettingsProperties.ExcludeFromUnsaved="True"
                                 validation:InputValidationBehavior.IsDecimalOnly="True"
-                                x:Name="SimulateThroneTipAmountBox"/>
+                                x:Name="SimulateThroneContribAmountBox"/>
                     <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True"
                               x:Name="CurrencyBox" StaysOpenOnEdit="True" Height="34"
                               views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
                     <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                               Content="Test" Click="TestThroneTip_Click"
+                               Content="Test" Click="TestThroneContrib_Click"
                                Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
                 </StackPanel>
             </Grid>
@@ -96,40 +96,36 @@
                     <ColumnDefinition Width="400"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Orders:" Width="100" VerticalAlignment="Center" x:Name="ThroneOrdersText"
-                               ToolTip="Orders"/>
+                    <TextBlock Text="Gifts:" Width="100" VerticalAlignment="Center" x:Name="ThroneGiftsText"
+                               ToolTip="Gift purchased"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="12" x:Name="ShopOrderBox"/>
+                                PlaceholderText="12" x:Name="GiftsBox"/>
                     <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="0" x:Name="ShopOrderBox2"/>
+                                PlaceholderText="0" x:Name="GiftsBox2"/>
                     <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"/>
-                    <TextBlock Text="Per: " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"/>
+                    <TextBlock Text="Per " VerticalAlignment="Center" Width="30" Margin="12 0 2 0" ToolTip="Item will be treated as per individual gift purchased."/>
                     <ComboBox Text="Mode" Width="100"
                               x:Name="ModeBox"
                               SelectedIndex="0" Margin="4 0 4 0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0 0 0 0">
-                    <ui:TextBox Margin="10 0 4 0" Width="50" Text="1"
-                                PlaceholderText="5" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                FontSize="12" Height="34" ToolTip="Number of items in the order to sum the amount"
-                                views:SettingsProperties.ExcludeFromUnsaved="True"
-                                validation:InputValidationBehavior.IsNumberOnly="True"
-                                ClearButtonEnabled="False"
-                                x:Name="OrderQuantitySimBox"/>
-                    <ui:TextBox Margin="4 0 4 0" Width="80" Text="29.99"
-                                PlaceholderText="1.00" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                FontSize="12" Height="34"
-                                views:SettingsProperties.ExcludeFromUnsaved="True"
-                                validation:InputValidationBehavior.IsDecimalOnly="True"
-                                ClearButtonEnabled="False"
-                                x:Name="OrderTotalSimBox"/>
-                    <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True"
-                              x:Name="OrderCurrencyBox" StaysOpenOnEdit="True" Height="34"
-                              views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    <!-- <ui:TextBox Margin="4 0 4 0" Width="80" Text="29.99" -->
+                    <!--             PlaceholderText="1.00" HorizontalAlignment="Center" VerticalAlignment="Center" -->
+                    <!--             FontSize="12" Height="34" -->
+                    <!--             views:SettingsProperties.ExcludeFromUnsaved="True" -->
+                    <!--             validation:InputValidationBehavior.IsDecimalOnly="True" -->
+                    <!--             ClearButtonEnabled="False" -->
+                    <!--             x:Name="GiftsSimBox"/> -->
+                    <ui:TextBox Margin="4 0 4 0" Width="188" Text="Fancy Item" ClearButtonEnabled="False"
+                                HorizontalAlignment="Center" VerticalAlignment="Center" x:Name="GiftNameBox"
+                                views:SettingsProperties.ExcludeFromUnsaved="True"/>
+                    <!-- <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True" -->
+                    <!--           x:Name="OrderCurrencyBox" StaysOpenOnEdit="True" Height="34" -->
+                    <!--           views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/> -->
                     <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                               Content="Test" Click="TestThroneShopOrder_Click"
+                               Content="Test" Click="TestThroneGift_Click"
                                Width="60" Padding="2" Height="34"
                                views:SettingsProperties.ExcludeFromUnsaved="True"
                                Margin="4,0,0,0"/>
@@ -142,53 +138,17 @@
                     <ColumnDefinition Width="400"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Gift Orders:" Width="100" VerticalAlignment="Center" x:Name="gThroneOrdersText"
-                               ToolTip="Gift Purchase Orders"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="12" x:Name="gShopOrderBox"/>
-                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
-                                PlaceholderText="0" x:Name="gShopOrderBox2"/>
-                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"/>
-                    <TextBlock Text="Per: " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"/>
-                    <ComboBox Text="Mode" Width="100"
-                              x:Name="gModeBox"
-                              SelectedIndex="0" Margin="4 0 4 0"/>
+                    <TextBlock Text="Crowd Funding Completed:" Width="200" VerticalAlignment="Center"
+                               ToolTip="A crowdfunding gift is completed, only behaves as an alert"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0 0 0 0">
-                    <ui:TextBox Margin="10 0 4 0" Width="50" Text="1"
-                                PlaceholderText="5" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                FontSize="12" Height="34" ToolTip="Number of items in the order to sum the amount"
-                                views:SettingsProperties.ExcludeFromUnsaved="True"
-                                validation:InputValidationBehavior.IsNumberOnly="True"
-                                ClearButtonEnabled="False"
-                                x:Name="gOrderQuantitySimBox"/>
-                    <ui:TextBox Margin="4 0 4 0" Width="80" Text="29.99"
-                                PlaceholderText="1.00" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                FontSize="12" Height="34"
-                                views:SettingsProperties.ExcludeFromUnsaved="True"
-                                validation:InputValidationBehavior.IsDecimalOnly="True"
-                                ClearButtonEnabled="False"
-                                x:Name="gOrderTotalSimBox"/>
-                    <ComboBox Width="100" IsEditable="True" IsTextSearchEnabled="True"
-                              x:Name="gOrderCurrencyBox" StaysOpenOnEdit="True" Height="34"
-                              views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    
                     <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                               Content="Test" Click="TestThroneShopGiftOrder_Click"
+                               Content="Test" Click="TestThroneCrowdfund_Click"
                                Width="60" Padding="2" Height="34"
                                views:SettingsProperties.ExcludeFromUnsaved="True"
                                Margin="4,0,0,0"/>
-                </StackPanel>
-            </Grid>
-            <Grid Margin="0 2 0 0 ">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="400"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <CheckBox x:Name="OrderCommissionBox" Content="Add order profit as donation?" Margin="-10 0 0 0"/>
-                    <CheckBox x:Name="GiftCommissionBox" Content="Add gift order profit as donation?" Margin="14 0 0 0"/>
                 </StackPanel>
             </Grid>
         </StackPanel>
