@@ -388,10 +388,14 @@ public partial class WebServer
                     e.preventDefault();
                 });
 
+                function snapTo(val, grid) { return Math.round(val / grid) * grid; }
+
                 document.addEventListener('mousemove', e => {
                     if (!isDragging) return;
-                    wrapper.style.left = (e.clientX - offsetX) + 'px';
-                    wrapper.style.top = (e.clientY - offsetY) + 'px';
+                    const rawX = e.clientX - offsetX;
+                    const rawY = e.clientY - offsetY;
+                    wrapper.style.left = (snapEnabled ? snapTo(rawX, SNAP_SIZE) : rawX) + 'px';
+                    wrapper.style.top  = (snapEnabled ? snapTo(rawY, SNAP_SIZE) : rawY) + 'px';
                 });
 
                 document.addEventListener('mouseup', e => {
@@ -420,6 +424,9 @@ public partial class WebServer
             const MIN_HEIGHT = 24; // px
             const MIN_SCALE = 0.1;
 
+            let snapEnabled = false;
+            const SNAP_SIZE = 20;
+
             document.querySelectorAll('.widget-wrapper').forEach(wrapper => {{
                 const iframe = wrapper.querySelector('iframe');
 
@@ -446,6 +453,7 @@ public partial class WebServer
                 let startLeft, startTop;
                 let isShiftHeld = false;
                 let isCtrlHeld  = false;
+                let isAltHeld   = false;
 
                 const EDGE_HANDLES   = ['handle-n', 'handle-s', 'handle-e', 'handle-w'];
                 const CORNER_HANDLES = ['handle-nw', 'handle-ne', 'handle-sw', 'handle-se'];
@@ -471,10 +479,12 @@ public partial class WebServer
                 document.addEventListener('keydown', (e) => {{
                     if (e.key === 'Shift') {{ isShiftHeld = true; updateHandleIndicators(); }}
                     if (e.key === 'Control') {{ isCtrlHeld = true; updateHandleIndicators(); }}
+                    if (e.key === 'Alt') {{ isAltHeld = true; snapEnabled = true; }}
                 }});
                 document.addEventListener('keyup', (e) => {{
                     if (e.key === 'Shift') {{ isShiftHeld = false; updateHandleIndicators(); }}
                     if (e.key === 'Control') {{ isCtrlHeld = false; updateHandleIndicators(); }}
+                    if (e.key === 'Alt') {{ isAltHeld = false; snapEnabled = false; }}
                 }});
 
                 wrapper.querySelectorAll('.resize-handle').forEach(handle => {{
@@ -529,6 +539,13 @@ public partial class WebServer
                             const clamped = Math.max(MIN_HEIGHT, baselineHeight - dy);
                             newTop = startTop + (baselineHeight - clamped) * scaleY;
                             newHeight = clamped;
+                        }}
+
+                        if (snapEnabled) {{
+                            newWidth  = snapTo(newWidth,  SNAP_SIZE);
+                            newHeight = snapTo(newHeight, SNAP_SIZE);
+                            newLeft   = snapTo(newLeft,   SNAP_SIZE);
+                            newTop    = snapTo(newTop,    SNAP_SIZE);
                         }}
 
                         iframe.style.width  = newWidth  + 'px';
@@ -611,6 +628,13 @@ public partial class WebServer
                             newTop += (newHeight - MIN_HEIGHT) * scaleY;
                         }}
                         newHeight = MIN_HEIGHT;
+                    }}
+
+                    if (snapEnabled) {{
+                        newWidth  = snapTo(newWidth,  SNAP_SIZE);
+                        newHeight = snapTo(newHeight, SNAP_SIZE);
+                        newLeft   = snapTo(newLeft,   SNAP_SIZE);
+                        newTop    = snapTo(newTop,    SNAP_SIZE);
                     }}
 
                     const newScaleX = newWidth / baselineWidth;

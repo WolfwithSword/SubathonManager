@@ -242,7 +242,7 @@
         
         <!-- MIDDLE - webview editor -->
         <Grid Grid.Column="1" Margin="12 56 12 24">
-            <TextBlock Text="Shift: Resize Ratio                Ctrl: Adjust or Crop Height/Width" Margin="12 -18 0 0 " FontSize="12" xml:space="preserve"/>
+            <TextBlock Text="Shift: Resize Ratio                Ctrl: Adjust or Crop Height/Width                Alt: Grid Snapping" Margin="12 -18 0 0 " FontSize="12" xml:space="preserve"/>
             <Border Background="{DynamicResource UiBrushSurface}" CornerRadius="8" Padding="6">
                 <Grid x:Name="WebViewContainer" Background="Black">
                     <wv2:WebView2 x:Name="PreviewWebView" 
