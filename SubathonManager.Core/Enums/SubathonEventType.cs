@@ -162,7 +162,7 @@ public enum SubathonEventType
 
     [GoAffProTypeMeta(Label = "Saucy Biz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 8,
         StoreSource = GoAffProSource.SaucyBiz, Enabled = true)]
-    SaucyOrder,
+    SaucyBizOrder,
     // PLACEHOLDER FOR FUTURE
     [GoAffProTypeMeta(Label="GoAffPro Order", Source=SubathonEventSource.GoAffPro, IsOrder=true, Order=1, Enabled=false)]
     GoAffProOrder,

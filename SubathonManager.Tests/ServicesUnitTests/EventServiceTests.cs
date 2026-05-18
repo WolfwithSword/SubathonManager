@@ -689,7 +689,7 @@ public class EventServiceTests
         {
             var ev2 = await checkDb1.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
             Assert.True(ev2.ProcessedToSubathon);
-            Assert.Contains(ev2.Value, "start | x2 Points Time");
+            Assert.Contains("start | x2 Points Time", ev2.Value);
             var mult1Check = await checkDb1.MultiplierDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
             Assert.True(mult1Check.IsRunning());
         }

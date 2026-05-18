@@ -405,7 +405,7 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.CheekySoapOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.SaucyOrder,  Seconds = 12 },
+                new () { EventType = SubathonEventType.SaucyBizOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.AdvancedGGOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.RogueEnergyOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.GFuelOrder,  Seconds = 12 },
@@ -511,7 +511,7 @@ namespace SubathonManager.Data
                     //     [(int)SubathonEventType.CheekySoapOrder] = "7138531",
                     //     [(int)SubathonEventType.AdvancedGGOrder] = "105752",
                     //     [(int)SubathonEventType.RogueEnergyOrder] = "7014645",
-                    //     [(int)SubathonEventType.SaucyOrder] = "7118656",
+                    //     [(int)SubathonEventType.SaucyBizOrder] = "7118656",
                     // };
                     //
                     // foreach (var (oldTypeInt, meta) in LegacyEventTypeToMeta)

@@ -158,9 +158,12 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
         data.TryGetValue("gifter_username", out var gifterName);
         data.TryGetValue("currency", out var currency);
         // data.TryGetValue("creator_username", out var creatorUsername);
-        // data.TryGetValue("is_surprise_gift", out var isSurpriseRaw);
         // bool.TryParse(isSurpriseRaw?.ToString(), out var isSurprise);
         // var username = creatorUsername?.ToString();
+        
+        data.TryGetValue("is_surprise_gift", out var isSurpriseRaw);
+        if ((bool)(isSurpriseRaw ?? false))
+            itemName = "Surprise Gift";
         
         SubathonEvent subathonEvent = new SubathonEvent
         {
@@ -177,7 +180,7 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
             case "gift_purchased":
                 var mode = config.GetOrderTypeMode("Throne", $"{SubathonEventType.ThroneGiftPurchase}",
                     OrderTypeModes.Dollar);
-                    
+                
                 data.TryGetValue("price", out var price);
                 double.TryParse(price?.ToString() ?? "0.00", out var priceInt);
                 subathonEvent.EventType = SubathonEventType.ThroneGiftPurchase;

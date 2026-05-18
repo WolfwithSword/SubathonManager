@@ -22,7 +22,7 @@ public enum GoAffProSource
     AdvancedGG,
     [GoAffProSourceMeta(Description="Rogue Energy", SiteId=7014645, OrderEvent = SubathonEventType.RogueEnergyOrder, Label="Rogue Energy", Enabled=true)]
     RogueEnergy,
-    [GoAffProSourceMeta(Description="Saucy Biz", SiteId=7118656, OrderEvent = SubathonEventType.SaucyOrder, Label="Saucy Biz", Enabled=true)]
+    [GoAffProSourceMeta(Description="Saucy Biz", SiteId=7118656, OrderEvent = SubathonEventType.SaucyBizOrder, Label="Saucy Biz", Enabled=true)]
     SaucyBiz,
     [GoAffProSourceMeta(Description="GFuel", SiteId=48808, OrderEvent=SubathonEventType.GFuelOrder, Label="GFuel", Enabled=true)]
     GFuel,

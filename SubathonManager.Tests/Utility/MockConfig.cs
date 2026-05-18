@@ -1,5 +1,6 @@
 ﻿using IniParser.Model;
 using Moq;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.Utility;
@@ -12,6 +13,9 @@ public class MockConfig
         mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns((string s, string k, string d) =>
                 values != null && values.TryGetValue((s, k), out var v) ? v : d);
+        mock.Setup(c => c.GetOrderTypeMode(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OrderTypeModes>()))
+            .Returns((string s, string k, OrderTypeModes d) =>
+                values != null && values.TryGetValue((s, $"{k}.Mode"), out var v) ? Enum.Parse<OrderTypeModes>(v) : d);
         mock.Setup(c => c.GetBool(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
             .Returns((string s, string k, bool d) =>
                 values != null && values.TryGetValue((s, k), out var v) ? bool.TryParse(v, out var boolParse) ? boolParse : d : d);

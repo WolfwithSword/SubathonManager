@@ -156,7 +156,7 @@ public partial class ThroneSettings: DevTunnelSettingsControl
                   ""message"": ""string"",
                   ""item_name"": ""{GiftNameBox.Text}"",
                   ""item_thumbnail_url"": ""string"",
-                  ""is_surprise_gift"": true,
+                  ""is_surprise_gift"": false,
                   ""price"": {amt},
                   ""currency"": ""{CurrencyBox.Text}"" 
                 }}
@@ -205,7 +205,7 @@ public partial class ThroneSettings: DevTunnelSettingsControl
                   ""creator_username"": ""string"",
                   ""item_name"": ""{GiftNameBox.Text}"",
                   ""item_thumbnail_url"": ""string"",
-                  ""is_surprise_gift"": true,
+                  ""is_surprise_gift"": false,
                   ""price"": {amt},
                   ""currency"": ""{CurrencyBox.Text}"" 
                 }}

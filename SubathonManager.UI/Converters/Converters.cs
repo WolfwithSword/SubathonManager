@@ -151,7 +151,8 @@ namespace SubathonManager.UI.Converters
                     return item;
                 if (eventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)
                 {
-                    if (currency != "item" && eventType == SubathonEventType.ThroneGiftPurchase)
+                    if ((currency != "item" && eventType == SubathonEventType.ThroneGiftPurchase) 
+                        || eventType == SubathonEventType.ThroneGiftContribution )
                         text = $"{text} | {item}";
                 }
             }

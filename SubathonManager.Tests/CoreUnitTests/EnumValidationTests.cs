@@ -37,6 +37,7 @@ public class EnumValidationTests
                 foreach (var subathonEventType in group)
                 {
                     var eventType = (SubathonEventType?) subathonEventType;
+                    if (eventType == SubathonEventType.GoAffProOrder) continue;
                     Assert.StartsWith(subathonEventType.GetTypeTrueSource() ?? "ERROR_ERROR_ERROR", subathonEventType.ToString());
                     Assert.True(Enum.TryParse(subathonEventType.GetTypeTrueSource(), true, out GoAffProSource gapSource));
                     Assert.True(gapSource.GetSiteId() > 0);
