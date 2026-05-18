@@ -66,7 +66,7 @@ public class ThroneServiceTests
                          "message": "Enjoy!",
                          "item_name": "{{itemName}}",
                          "item_thumbnail_url": "https://example.com/img.png",
-                         "is_surprise_gift": {{isSurprise}},
+                         "is_surprise_gift": {{isSurprise.ToString().ToLower()}},
                          "price": {{priceCents}},
                          "currency": "{{currency}}"
                      }
@@ -334,14 +334,14 @@ public class ThroneServiceTests
         });
 
         var eventId = Guid.NewGuid().ToString();
-        var json = BuildGiftPurchasedJson(eventId, "WolfGifter", "Cat Plushie", 1000, "USD");
+        var json = BuildGiftPurchasedJson(eventId, "Gifter", "Cat Plushie", 1000, "USD");
 
         var ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneGiftPurchase, ev.EventType);
         Assert.Equal(SubathonEventSource.Throne, ev.Source);
-        Assert.Equal("WolfGifter", ev.User);
+        Assert.Equal("Gifter", ev.User);
         Assert.Equal("10.00", ev.Value);
         Assert.Equal("USD", ev.Currency);
         Assert.Equal(1, ev.Amount);
