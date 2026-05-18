@@ -1,7 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using Agash.Webhook.Abstractions;
 using Fourthwall.Client.Events;
@@ -29,13 +27,6 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
     : IWebhookIntegration
 {
     private readonly string _configSection = "FourthWall";
-
-    private static readonly HashSet<string> _skipForwardHeaders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "host", "connection", "transfer-encoding", "keep-alive",
-        "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"
-    };
-
     public string WebhookPath => "/api/webhooks/fourthwall";
     internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/fourthwall/login";
     internal readonly string _refreshURl = "https://oauth.subathonmanager.app/auth/fourthwall/refresh";
@@ -330,8 +321,6 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
     public async Task HandleWebhookAsync(byte[] rawBody, IReadOnlyDictionary<string, string> headers, CancellationToken ct = default)
     {
-        await ForwardRequestAsync(rawBody, headers, ct);
-
         var contentType = headers.TryGetValue("Content-Type", out var ct2) ? ct2
             : "application/x-www-form-urlencoded";
         
@@ -373,10 +362,10 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
     {
         try
         {
-            var mode = config.Get(_configSection, $"{SubathonEventType.FourthWallOrder}.Mode", "Dollar");
-            var mode2 = config.Get(_configSection, $"{SubathonEventType.FourthWallGiftOrder}.Mode", "Dollar");
-            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
-            var sourceMode2 = Enum.TryParse(mode2, out OrderTypeModes m2) ? m2 : OrderTypeModes.Dollar;
+            var sourceMode = config.GetOrderTypeMode(_configSection,
+                $"{SubathonEventType.FourthWallOrder}", OrderTypeModes.Dollar);
+            var sourceMode2 = config.GetOrderTypeMode(_configSection,
+                $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar);
             var defaultCurrency = "USD";
             string username = "FourthWall Customer";
             if (fwEvent.TestMode) username = "FourthWall Test";//"SYSTEM";
@@ -388,7 +377,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
                     username = d.Username.Split(' ').First();
                 ev = new SubathonEvent
                 {
-                    Id = TryParseGuid(d.Id),
+                    Id = Utils.TryParseGuid(d.Id),
                     Source =  string.Equals(username,"SYSTEM") ? SubathonEventSource.Simulated : SubathonEventSource.FourthWall,
                     EventType = SubathonEventType.FourthWallDonation,
                     User = username,
@@ -445,7 +434,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
                 totalDirect += profit;
                 ev = new SubathonEvent
                 {
-                    Id = TryParseGuid(order.Id),
+                    Id = Utils.TryParseGuid(order.Id),
                     Source =  string.Equals(username,"SYSTEM") ? SubathonEventSource.Simulated : SubathonEventSource.FourthWall,
                     EventType = SubathonEventType.FourthWallOrder,
                     User = username,
@@ -485,7 +474,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
                 ev = new SubathonEvent
                 {
-                    Id = TryParseGuid(order.Id),
+                    Id = Utils.TryParseGuid(order.Id),
                     Source =  string.Equals(username,"SYSTEM") ? SubathonEventSource.Simulated : SubathonEventSource.FourthWall,
                     EventType = SubathonEventType.FourthWallGiftOrder,
                     User = username,
@@ -521,11 +510,12 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
                 ev = new SubathonEvent
                 {
-                    Id = fwEvent.TestMode ? Guid.NewGuid() : TryParseGuid(data.Id),
+                    Id = fwEvent.TestMode ? Guid.NewGuid() : Utils.TryParseGuid(data.Id),
                     Source =  string.Equals(username,"SYSTEM") ? SubathonEventSource.Simulated : SubathonEventSource.FourthWall,
                     EventType = SubathonEventType.FourthWallMembership,
                     User = username,
                     Value = tierName,
+                    EventTypeMeta = tierName,
                     Currency = "member",
                     Amount = subscription.Variant?.Interval == MembershipTierVariantV1_interval.ANNUAL ? 12 : 1,
                     SecondaryValue = $"{(subscription.Variant?.Amount?.Value ?? 0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}|{
@@ -546,11 +536,12 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
                 ev = new SubathonEvent
                 {
-                    Id = fwEvent.TestMode ? Guid.NewGuid() : TryParseGuid(data.Id),
+                    Id = fwEvent.TestMode ? Guid.NewGuid() : Utils.TryParseGuid(data.Id),
                     Source =  string.Equals(username,"SYSTEM") ? SubathonEventSource.Simulated : SubathonEventSource.FourthWall,
                     EventType = SubathonEventType.FourthWallMembership,
                     User = username,
                     Value = tierName,
+                    EventTypeMeta = tierName,
                     Currency = "member",
                     Amount = subscription.Variant?.Interval == MembershipTierVariantV1_interval.ANNUAL ? 12 : 1,
                     SecondaryValue = $"{(subscription.Variant?.Amount?.Value ?? 0).ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}|{
@@ -565,62 +556,5 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
             logger?.LogWarning(ex, "[FourthWall] Failed to map FourthWall event to SubathonEvent");
             return null;
         }
-    }
-
-    private async Task ForwardRequestAsync(byte[] rawBody, IReadOnlyDictionary<string, string> headers, CancellationToken ct)
-    {
-        string? forwardUrlsRaw = config.Get(_configSection, "ForwardUrls", string.Empty);
-        if (string.IsNullOrWhiteSpace(forwardUrlsRaw)) return;
-
-        var urls = forwardUrlsRaw
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        var client = httpClientFactory.CreateClient(nameof(FourthWallService));
-
-        foreach (var url in urls)
-        {
-            try
-            {
-                using var content = new ByteArrayContent(rawBody);
-
-                foreach (var (key, value) in headers)
-                {
-                    if (_skipForwardHeaders.Contains(key)) continue;
-
-                    if (key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (MediaTypeHeaderValue.TryParse(value, out var mt))
-                            content.Headers.ContentType = mt;
-                    }
-                    else if (key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // HttpClient sets this automatically from ByteArrayContent
-                    }
-                    else
-                    {
-                        content.Headers.TryAddWithoutValidation(key, value);
-                    }
-                }
-
-                // Ensure Content-Type is set even if the inbound request omitted it
-                content.Headers.ContentType ??= new MediaTypeHeaderValue("application/x-www-form-urlencoded")
-                {
-                    CharSet = Encoding.UTF8.WebName
-                };
-
-                var response = await client.PostAsync(url, content, ct);
-                logger?.LogDebug("[FourthWall] Forwarded webhook to {Url}: {Status}", url, response.StatusCode);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogWarning(ex, "[FourthWall] Failed to forward webhook to {Url}", url);
-            }
-        }
-    }
-
-    private static Guid TryParseGuid(string? value)
-    {
-        if (value != null && Guid.TryParse(value, out var g)) return g;
-        return Utils.CreateGuidFromUniqueString(value ?? Guid.NewGuid().ToString());
     }
 }

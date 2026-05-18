@@ -13,6 +13,7 @@
         <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
         <conv:CommandDeletableToBoolVisibilityConverter x:Key="CommandDeletableToBoolVisibilityConverter"/>
         <conv:EventTypeValueConverter x:Key="EventTypeValueConverter"/>
+        <conv:EventTypeUserBindingConverter x:Key="EventTypeUserBindingConverter"/>
         <conv:IsNotMetaCommandConverter x:Key="IsNotMetaCommandConverter"/>
         <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter"/>
         <conv:AmountFormatConverter x:Key="AmountFormatConverter"/>
@@ -148,7 +149,16 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                            <TextBlock Text="{Binding User, StringFormat={}User: {0}}" Margin=" 0 0 4 0" />
+                                            <TextBlock Margin=" 0 0 4 0">
+                                                <TextBlock.Text >
+                                                    <MultiBinding Converter="{StaticResource EventTypeUserBindingConverter}">
+                                                        <Binding Path="User"/>
+                                                        <Binding Path="EventType"/>
+                                                        <Binding Path="TertiaryValue"/>
+                                                        <Binding Path="Currency"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,3,0,0">
                                             <TextBlock Margin="4 0">

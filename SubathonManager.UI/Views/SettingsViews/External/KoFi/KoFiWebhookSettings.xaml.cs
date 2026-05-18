@@ -106,6 +106,5 @@ public partial class KoFiWebhookSettings: DevTunnelSettingsControl
             });
         }
         catch { /**/ }
-        
     }
 }

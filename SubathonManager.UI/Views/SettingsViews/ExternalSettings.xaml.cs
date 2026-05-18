@@ -45,6 +45,9 @@ public partial class ExternalSettings : SettingsGroupControl
             case SubathonEventSource.FourthWall:
                 _settingsControls[eventSource] = new FourthWallSettings();
                 break;
+            case SubathonEventSource.Throne:
+                _settingsControls[eventSource] = new ThroneSettings();
+                break;
             default: return null;
         }
         _settingsControls[eventSource].Init(Host);
@@ -53,15 +56,13 @@ public partial class ExternalSettings : SettingsGroupControl
     
     public void RefreshTierCombo(SubathonEventSource source)
     {
-        if (source is not (SubathonEventSource.KoFi or SubathonEventSource.External or SubathonEventSource.FourthWall)) return;
+        if (source is not (SubathonEventSource.KoFi or SubathonEventSource.External)) return;
         _settingsControls.TryGetValue(source, out var control);
         // hc
         if (source == SubathonEventSource.KoFi)
             ((KoFiCombinedSettings?) control)?.RefreshTierCombo();
         if (source == SubathonEventSource.External)
             ((ExternalServiceSettings?) control)?.RefreshTierCombo();
-        // if (source == SubathonEventSource.FourthWall)
-        //     ((FourthWallSettings?) control)?.RefreshTierCombo();
     }
     
     private void HotLinkToDevTunnels()

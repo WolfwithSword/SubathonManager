@@ -26,7 +26,23 @@ public class CssVariable : INotifyPropertyChanged
     public string Value
     {
         get => _value;
-        set { if (_value == value) return; _value = value; OnPropertyChanged(); }
+        set
+        {
+            if (_value == value) return;
+            _value = value;
+            if (string.IsNullOrWhiteSpace(_value))
+            {
+                if (Type is WidgetCssVariableType.Int or WidgetCssVariableType.Float)
+                {
+                    _value = "0";
+                }
+                else if (Type is WidgetCssVariableType.Size)
+                {
+                    _value = "0px";
+                }
+            }
+            OnPropertyChanged();
+        }
     }
     
     

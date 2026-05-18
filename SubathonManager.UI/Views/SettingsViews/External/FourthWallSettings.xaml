@@ -51,45 +51,45 @@
                 <ui:Button Content="Connect" Margin="0 0" Width="116" Height="34" Click="ConnectFw_Click" x:Name="ConnectBtn"/>
                 <ui:Button Content="Disconnect" Margin="4 0" Width="116" Height="34" Click="DisconnectFw_Click" Visibility="Collapsed" x:Name="DisconnBtn"/>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="4,4">
-                <TextBlock Text="Forward URL(s):" Width="160" VerticalAlignment="Center"
-                           ToolTip="A list of URLs to forward the raw Fourthwall webhook to. Leave blank to disable."/>
-                <ui:TextBox x:Name="FwWebhookForwardUrlsBox" Width="360" Height="34" IsReadOnly="True" ClearButtonEnabled="False"
-                            PlaceholderText="No URLs configured" MouseDoubleClick="EditForwardUrls_Click"
-                            PreviewMouseLeftButtonUp="EditForwardUrls_Click"
-                            ToolTip="Click to edit, one URL per line"/>
-
-                <Popup x:Name="ForwardUrlsPopup" StaysOpen="True" Placement="Bottom"
-                       PlacementTarget="{Binding ElementName=FwWebhookForwardUrlsBox}"
-                       AllowsTransparency="True">
-                    <Border Background="{DynamicResource ApplicationBackgroundBrush}"
-                            BorderBrush="{DynamicResource ControlElevationBorderBrush}"
-                            BorderThickness="1" CornerRadius="6" Padding="10"
-                            MinWidth="450">
-                        <StackPanel>
-                            <TextBlock Text="One URL per line:" FontSize="11"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                       Margin="0,0,0,6"/>
-                            <ui:TextBox x:Name="ForwardUrlsMultiBox"
-                                     AcceptsReturn="True" TextWrapping="NoWrap"
-                                     MinHeight="80" MaxHeight="240" Width="500"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                     FontSize="12" Padding="4"
-                                     BorderBrush="{DynamicResource ControlElevationBorderBrush}"
-                                     BorderThickness="1"/>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                                <ui:Button Content="Cancel" Width="70" Height="28" Padding="4,2"
-                                           Margin="0,0,6,0" Click="ForwardUrlsCancel_Click"
-                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                                <ui:Button Content="Apply" Width="70" Height="28" Padding="4,2"
-                                           Click="ForwardUrlsApply_Click"
-                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
-                </Popup>
-            </StackPanel>
+            <!-- <StackPanel Orientation="Horizontal" Margin="4,4"> -->
+            <!--     <TextBlock Text="Forward URL(s):" Width="160" VerticalAlignment="Center" -->
+            <!--                ToolTip="A list of URLs to forward the raw Fourthwall webhook to. Leave blank to disable."/> -->
+            <!--     <ui:TextBox x:Name="FwWebhookForwardUrlsBox" Width="360" Height="34" IsReadOnly="True" ClearButtonEnabled="False" -->
+            <!--                 PlaceholderText="No URLs configured" MouseDoubleClick="EditForwardUrls_Click" -->
+            <!--                 PreviewMouseLeftButtonUp="EditForwardUrls_Click" -->
+            <!--                 ToolTip="Click to edit, one URL per line"/> -->
+            <!-- -->
+            <!--     <Popup x:Name="ForwardUrlsPopup" StaysOpen="True" Placement="Bottom" -->
+            <!--            PlacementTarget="{Binding ElementName=FwWebhookForwardUrlsBox}" -->
+            <!--            AllowsTransparency="True"> -->
+            <!--         <Border Background="{DynamicResource ApplicationBackgroundBrush}" -->
+            <!--                 BorderBrush="{DynamicResource ControlElevationBorderBrush}" -->
+            <!--                 BorderThickness="1" CornerRadius="6" Padding="10" -->
+            <!--                 MinWidth="450"> -->
+            <!--             <StackPanel> -->
+            <!--                 <TextBlock Text="One URL per line:" FontSize="11" -->
+            <!--                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" -->
+            <!--                            Margin="0,0,0,6"/> -->
+            <!--                 <ui:TextBox x:Name="ForwardUrlsMultiBox" -->
+            <!--                          AcceptsReturn="True" TextWrapping="NoWrap" -->
+            <!--                          MinHeight="80" MaxHeight="240" Width="500" -->
+            <!--                          ScrollViewer.VerticalScrollBarVisibility="Auto" -->
+            <!--                          ScrollViewer.HorizontalScrollBarVisibility="Auto" -->
+            <!--                          FontSize="12" Padding="4" -->
+            <!--                          BorderBrush="{DynamicResource ControlElevationBorderBrush}" -->
+            <!--                          BorderThickness="1"/> -->
+            <!--                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0"> -->
+            <!--                     <ui:Button Content="Cancel" Width="70" Height="28" Padding="4,2" -->
+            <!--                                Margin="0,0,6,0" Click="ForwardUrlsCancel_Click" -->
+            <!--                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"/> -->
+            <!--                     <ui:Button Content="Apply" Width="70" Height="28" Padding="4,2" -->
+            <!--                                Click="ForwardUrlsApply_Click" -->
+            <!--                                Foreground="{DynamicResource TextFillColorPrimaryBrush}"/> -->
+            <!--                 </StackPanel> -->
+            <!--             </StackPanel> -->
+            <!--         </Border> -->
+            <!--     </Popup> -->
+            <!-- </StackPanel> -->
         </StackPanel>
         
         <Separator Margin="0,8,0,8"/>

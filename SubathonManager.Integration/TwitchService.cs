@@ -960,6 +960,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Currency = "sub",
             EventType = SubathonEventType.TwitchSub,
             Value = tier,
+            EventTypeMeta = tier,
             User = "SYSTEM"
         };
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
@@ -975,6 +976,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Currency = "sub",
             EventType = SubathonEventType.TwitchGiftSub,
             Value = tier,
+            EventTypeMeta = tier,
             User = "SYSTEM",
             Amount = amount
         };

@@ -83,6 +83,8 @@ public class EventTypeMetaAttribute : EnumMetaAttribute
     public bool IsTrain { get; init; }
     public bool IsFollow { get; init; }
     public bool IsOrder { get; init; }
+    
+    public bool IsGenericEvent { get; init; }
     public bool IsCommand { get; init; }
     public bool IsOther { get; init; }
     public bool HasValueConfig { get; init; } = true;

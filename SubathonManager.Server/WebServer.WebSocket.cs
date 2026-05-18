@@ -250,10 +250,21 @@ public partial class WebServer
 
     private object SubathonEventToObject(SubathonEvent subathonEvent)
     {
+        var trueSource = subathonEvent.EventType.GetTypeTrueSource();
+        var eventType = subathonEvent.EventType.ToString();
+        // if (subathonEvent.EventType == SubathonEventType.GoAffProOrder)
+        // {
+        //     GoAffProStoreRegistry.TryGetBySiteId(int.Parse(subathonEvent.EventTypeMeta!), out var store);
+        //     if (store != null)
+        //     {
+        //         trueSource = store.InternalName;
+        //         eventType = store.InternalEventName;
+        //     }
+        // }
         object data = new
         {
             type = "event",
-            event_type =  subathonEvent.EventType.ToString(),
+            event_type = eventType,
             source =  subathonEvent.Source.ToString(),
             seconds_added = subathonEvent.GetFinalSecondsValueRaw() < 0.5 ? 0 : subathonEvent.GetFinalSecondsValue(),
             points_added = subathonEvent.GetFinalPointsValue(),
@@ -266,7 +277,8 @@ public partial class WebServer
             reversed = subathonEvent.WasReversed,
             sub_type = subathonEvent.EventType.GetSubType().ToString(),
             secondary_value = subathonEvent.SecondaryValue,
-            type_true_source = subathonEvent.EventType.GetTypeTrueSource()
+            tertiary_value = subathonEvent.TertiaryValue,
+            type_true_source = trueSource
         };
         return data;
     }

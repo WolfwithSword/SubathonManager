@@ -151,8 +151,8 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
     {
         try
         {
-            var mode = config.Get(_configSection, $"{SubathonEventType.KoFiShopOrder}.Mode", "Dollar");
-            var sourceMode = Enum.TryParse(mode, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
+            var sourceMode = config.GetOrderTypeMode(_configSection,
+                $"{SubathonEventType.KoFiShopOrder}", OrderTypeModes.Dollar);
             var defaultCurrency = "USD";
             string username = koFiEvent.FromName ?? "Ko-Fi Supporter";
             if (!koFiEvent.IsPublic) username = "Ko-Fi Supporter";
@@ -160,7 +160,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
             {
                 KoFiDonationEvent d => new SubathonEvent
                 {
-                    Id = TryParseGuid(d.MessageId),
+                    Id = Utils.TryParseGuid(d.MessageId),
                     Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiDonation,
                     User = username,
@@ -170,27 +170,29 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                 },
                 KoFiSubscriptionStartedEvent s => new SubathonEvent
                 {
-                    Id = TryParseGuid(s.MessageId),
+                    Id = Utils.TryParseGuid(s.MessageId),
                     Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiSub,
                     User = username,
                     Value = s.TierName ?? "DEFAULT",
+                    EventTypeMeta = s.TierName ?? "DEFAULT",
                     Currency = "member",
                     EventTimestamp = s.Timestamp.LocalDateTime,
                 },
                 KoFiSubscriptionRenewedEvent r => new SubathonEvent
                 {
-                    Id = TryParseGuid(r.MessageId),
+                    Id = Utils.TryParseGuid(r.MessageId),
                     Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiSub,
                     User = username,
                     Value = r.TierName ?? "DEFAULT",
+                    EventTypeMeta = r.TierName ?? "DEFAULT",
                     Currency = "member",
                     EventTimestamp = r.Timestamp.LocalDateTime,
                 },
                 KoFiShopOrderEvent shop => new SubathonEvent
                 {
-                    Id = TryParseGuid(shop.MessageId),
+                    Id = Utils.TryParseGuid(shop.MessageId),
                     Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiShopOrder,
                     User = username,
@@ -213,7 +215,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                 },
                 KoFiCommissionEvent comm => new SubathonEvent
                 {
-                    Id = TryParseGuid(comm.MessageId),
+                    Id = Utils.TryParseGuid(comm.MessageId),
                     Source = SubathonEventSource.KoFi,
                     EventType = SubathonEventType.KoFiCommissionOrder,
                     User = username,
@@ -283,11 +285,5 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
                 logger?.LogWarning(ex, "[Ko-Fi] Failed to forward webhook to {Url}", url);
             }
         }
-    }
-
-    private static Guid TryParseGuid(string? value)
-    {
-        if (value != null && Guid.TryParse(value, out var g)) return g;
-        return Utils.CreateGuidFromUniqueString(value ?? Guid.NewGuid().ToString());
     }
 }

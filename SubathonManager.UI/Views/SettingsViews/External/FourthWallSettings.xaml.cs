@@ -40,9 +40,9 @@ public partial class FourthWallSettings: DevTunnelSettingsControl
     protected override StackPanel _WebhookUrlRow => WebhookUrlRow;
     protected override TextBlock _TunnelPrereqStatusText => TunnelPrereqStatusText;
     protected override Button _TunnelPrereqHint => TunnelPrereqHint;
-    protected override Wpf.Ui.Controls.TextBox _WebhookForwardUrlsBox => FwWebhookForwardUrlsBox;
-    protected override Popup _ForwardUrlsPopup => ForwardUrlsPopup;
-    protected override Wpf.Ui.Controls.TextBox _ForwardUrlsMultiBox => ForwardUrlsMultiBox;
+    protected override Wpf.Ui.Controls.TextBox? _WebhookForwardUrlsBox => null;
+    protected override Popup? _ForwardUrlsPopup => null;
+    protected override Wpf.Ui.Controls.TextBox? _ForwardUrlsMultiBox => null;
     protected override SubathonEventType? _membershipEventType => SubathonEventType.FourthWallMembership;
     protected override Button? _ConnectBtn => ConnectBtn;
     protected override bool allowMembershipDelete => false;
@@ -99,10 +99,12 @@ public partial class FourthWallSettings: DevTunnelSettingsControl
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
-        ModeBox.SelectedItem = config.Get(configSection, $"{SubathonEventType.FourthWallOrder}.Mode", "Dollar")?.Trim() ?? "Dollar";
+        ModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection,
+            $"{SubathonEventType.FourthWallOrder}", OrderTypeModes.Dollar)}";
         OrderCommissionBox.IsChecked = config.GetBool(configSection, $"{nameof(SubathonEventType.FourthWallOrder)?.Split("Order")[0]}.CommissionAsDonation", false);
         gModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
-        gModeBox.SelectedItem = config.Get(configSection, $"{SubathonEventType.FourthWallGiftOrder}.Mode", "Dollar")?.Trim() ?? "Dollar";
+        gModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection,
+            $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar)}";
         GiftCommissionBox.IsChecked = config.GetBool(configSection, $"{nameof(SubathonEventType.FourthWallGiftOrder)?.Split("Order")[0]}.CommissionAsDonation", false);
     }
     
@@ -239,9 +241,12 @@ public partial class FourthWallSettings: DevTunnelSettingsControl
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         bool hasUpdated = false;
-        hasUpdated |= config.Set(configSection, $"{SubathonEventType.FourthWallGiftOrder}.Mode", $"{gModeBox.SelectedItem}");
+        
+        hasUpdated |= config.SetOrderTypeMode(configSection, $"{SubathonEventType.FourthWallGiftOrder}",
+            Enum.Parse<OrderTypeModes>($"{gModeBox.SelectedItem}"));
         hasUpdated |= config.SetBool(configSection, $"{nameof(SubathonEventType.FourthWallGiftOrder)?.Split("Order")[0]}.CommissionAsDonation", GiftCommissionBox.IsChecked ?? false);
-        hasUpdated |= config.Set(configSection, $"{SubathonEventType.FourthWallOrder}.Mode", $"{ModeBox.SelectedItem}");
+        hasUpdated |= config.SetOrderTypeMode(configSection, $"{SubathonEventType.FourthWallOrder}",
+            Enum.Parse<OrderTypeModes>($"{ModeBox.SelectedItem}"));
         hasUpdated |= config.SetBool(configSection, $"{nameof(SubathonEventType.FourthWallOrder)?.Split("Order")[0]}.CommissionAsDonation", OrderCommissionBox.IsChecked ?? false);
         return hasUpdated;
     }

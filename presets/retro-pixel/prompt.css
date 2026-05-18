@@ -179,7 +179,7 @@ html, body {
 .cursor {
     display: inline;
     animation: blink 0.7s steps(1) infinite;
-    color: var(--border-color);
+    color: var(--text-color);
     margin-left: 1px;
 }
 

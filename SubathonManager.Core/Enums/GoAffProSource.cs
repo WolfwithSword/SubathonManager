@@ -3,6 +3,7 @@
 
 namespace SubathonManager.Core.Enums;
 
+// Eventually will move to a dynamic system
 public enum GoAffProSource
 {
     [GoAffProSourceMeta(Description="Unknown", Enabled=false)]
@@ -15,11 +16,18 @@ public enum GoAffProSource
     OrchidEight,
     [GoAffProSourceMeta(Description="KatDragonz", SiteId=7160049, OrderEvent = SubathonEventType.KatDragonzOrder, Enabled=true)]
     KatDragonz,
-    [GoAffProSourceMeta(Description="Cheeky", SiteId=7138531, OrderEvent = SubathonEventType.CheekySoapOrder, Enabled=true)]
-    Cheeky,
+    [GoAffProSourceMeta(Description="Cheeky Soap", SiteId=7138531, OrderEvent = SubathonEventType.CheekySoapOrder, Enabled=true)]
+    CheekySoap,
     [GoAffProSourceMeta(Description="Advanced GG", SiteId=105752, OrderEvent = SubathonEventType.AdvancedGGOrder, Label="Advanced GG", Enabled=true)]
-    AdvancedGG
-    
+    AdvancedGG,
+    [GoAffProSourceMeta(Description="Rogue Energy", SiteId=7014645, OrderEvent = SubathonEventType.RogueEnergyOrder, Label="Rogue Energy", Enabled=true)]
+    RogueEnergy,
+    [GoAffProSourceMeta(Description="Saucy Biz", SiteId=7118656, OrderEvent = SubathonEventType.SaucyBizOrder, Label="Saucy Biz", Enabled=true)]
+    SaucyBiz,
+    [GoAffProSourceMeta(Description="GFuel", SiteId=48808, OrderEvent=SubathonEventType.GFuelOrder, Label="GFuel", Enabled=true)]
+    GFuel,
+    [GoAffProSourceMeta(Description="Natura Pine", SiteId = 7132796, OrderEvent = SubathonEventType.NaturaPineOrder,  Label="Natura Pine", Enabled=true)]
+    NaturaPine
 }
 
 [ExcludeFromCodeCoverage]

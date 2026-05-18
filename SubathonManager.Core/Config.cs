@@ -1,6 +1,7 @@
 ﻿using IniParser;
 using IniParser.Model;
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 
@@ -99,7 +100,6 @@ namespace SubathonManager.Core
         {
             Data = new IniData();
             Data["Server"]["Port"] = "14040";
-            Data["StreamElements"]["JWT"] = "";
 
             Data["Discord"]["Events.WebhookUrl"] = "";
             Data["Discord"]["WebhookUrl"] = "";
@@ -164,6 +164,18 @@ namespace SubathonManager.Core
         {
             var bytes = System.Text.Encoding.UTF8.GetBytes(value);
             return Set(section, key, Convert.ToBase64String(bytes));
+        }
+
+        public OrderTypeModes GetOrderTypeMode(string section, string orderEnumName, OrderTypeModes modeDefault)
+        {
+            var stringVal = Get(section, $"{orderEnumName}.Mode", "Dollar");
+            var sourceMode = Enum.TryParse(stringVal, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
+            return sourceMode;
+        }
+
+        public bool SetOrderTypeMode(string section, string orderEnumName, OrderTypeModes mode)
+        {
+            return Set(section, $"{orderEnumName}.Mode", $"{mode}");
         }
 
         public string GetInstallId()

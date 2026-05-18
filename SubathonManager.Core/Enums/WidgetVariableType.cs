@@ -25,7 +25,8 @@ public enum WidgetVariableType
     FollowEventTypeList,
     DonationEventTypeList,
     GoogleFont,
-    CdnFont
+    CdnFont,
+    GenericEventTypeList
 }
 
 [ExcludeFromCodeCoverage]
@@ -61,6 +62,7 @@ public static class WidgetVariableTypeHelper
         WidgetVariableType.TokenEventTypeList =>  SubathonEventSubTypeHelper.TokenEventTypes,
         WidgetVariableType.FollowEventTypeList =>  SubathonEventSubTypeHelper.FollowEventTypes,
         WidgetVariableType.DonationEventTypeList =>  SubathonEventSubTypeHelper.DonationEventTypes,
+        WidgetVariableType.GenericEventTypeList =>  SubathonEventSubTypeHelper.GenericEventTypes,
         WidgetVariableType.EventTypeList => Enum.GetValues<SubathonEventType>().ToList(),
         _ => []
     };
@@ -78,6 +80,7 @@ public static class WidgetVariableTypeHelper
         WidgetVariableType.StringSelect => true,
         WidgetVariableType.EventTypeSelect => true,
         WidgetVariableType.EventSubTypeSelect => true,
+        WidgetVariableType.GenericEventTypeList => true,
         _ => false
     };
     public static Type GetClsSingleType(this WidgetVariableType varType) => varType switch

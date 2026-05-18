@@ -75,7 +75,8 @@ public partial class KoFiCombinedSettings : SettingsControl
 
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
-        bool hasToken = !string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty));
+        bool hasToken =
+            !string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty));
         WebhookRadio.IsChecked = hasToken;
         SocketRadio.IsChecked = !hasToken;
         SocketSlot.Visibility = hasToken ? Visibility.Collapsed : Visibility.Visible;
@@ -91,6 +92,7 @@ public partial class KoFiCombinedSettings : SettingsControl
             if (child is FrameworkElement fe && fe.Name != "DefaultMember" && fe.Name != "AddBtn")
                 MembershipsPanel.Children.RemoveAt(i);
         }
+
         _dynamicSubRows.Clear();
 
         foreach (var value in values)
@@ -102,7 +104,9 @@ public partial class KoFiCombinedSettings : SettingsControl
         }
 
         ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
-        ModeBox.SelectedItem = config.Get(_source.ToString(), $"{SubathonEventType.KoFiShopOrder}.Mode", "Dollar")?.Trim() ?? "Dollar";
+        ModeBox.SelectedItem = $"{config.GetOrderTypeMode(_source.ToString(),
+            nameof(SubathonEventType.KoFiShopOrder), OrderTypeModes.Dollar)}";
+
         OrderCommissionBox.IsChecked = config.GetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiShopOrder)?.Split("Order")[0]}.CommissionAsDonation", true);
         CommCommissionBox.IsChecked = config.GetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiCommissionOrder)?.Split("Order")[0]}.CommissionAsDonation", true);
         RefreshTierCombo();
@@ -117,7 +121,9 @@ public partial class KoFiCombinedSettings : SettingsControl
             OrderCommissionBox.IsChecked);
         hasUpdated |= config.SetBool(_source.ToString(), $"{nameof(SubathonEventType.KoFiCommissionOrder)?.Split("Order")[0]}.CommissionAsDonation",
             CommCommissionBox.IsChecked);
-        hasUpdated |= config.Set(_source.ToString(), $"{SubathonEventType.KoFiShopOrder}.Mode", $"{ModeBox.SelectedItem}");
+        hasUpdated |= config.SetOrderTypeMode(_source.ToString(), $"{SubathonEventType.KoFiShopOrder}",
+            Enum.Parse<OrderTypeModes>($"{ModeBox.SelectedItem}"));
+
         return hasUpdated;
     }
 

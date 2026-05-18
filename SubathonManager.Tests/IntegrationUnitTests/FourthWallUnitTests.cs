@@ -635,7 +635,7 @@ public class FourthWallServiceTests
 
         await service.HandleWebhookAsync(body, headers, TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, mockServer.PostCallCount);
+        Assert.Equal(0, mockServer.PostCallCount); // we disabled forwarding for fourthwall as it does not require it like kofi does
 
         await service.StopAsync(TestContext.Current.CancellationToken);
     }

@@ -125,6 +125,7 @@ public class PicartoService : IDisposable, IAppService
             ev.EventType = sub.IsGift ? SubathonEventType.PicartoGiftSub : SubathonEventType.PicartoSub;
             ev.Currency = "sub";
             ev.Value = $"T{sub.Tier}";
+            ev.EventTypeMeta = $"T{sub.Tier}";
             ev.Amount = sub.GetMonths() * sub.Quantity;
         }
         else if (alert is PicartoTip tip)

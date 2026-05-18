@@ -103,6 +103,7 @@ namespace SubathonManager.UI.Views
                         SubathonId = ev.SubathonId,
                         EventTimestamp = ev.EventTimestamp,
                         Source = ev.Source,
+                        EventTypeMeta = ev.EventTypeMeta, 
                         EventType = ev.EventType,
                         User = ev.User,
                         Value = ev.Value,

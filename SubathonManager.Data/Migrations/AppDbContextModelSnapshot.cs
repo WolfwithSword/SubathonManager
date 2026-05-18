@@ -48,6 +48,34 @@ namespace SubathonManager.Data.Migrations
                     b.ToTable("CssVariables");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.GoAffProStore", b =>
+                {
+                    b.Property<int>("RowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EventName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SiteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RowId");
+
+                    b.HasIndex("SiteId")
+                        .IsUnique();
+
+                    b.ToTable("GoAffProStores");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.JsVariable", b =>
                 {
                     b.Property<int>("Id")
@@ -219,6 +247,9 @@ namespace SubathonManager.Data.Migrations
                     b.Property<int?>("EventType")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("EventTypeMeta")
+                        .HasColumnType("TEXT");
+
                     b.Property<double>("MultiplierPoints")
                         .HasColumnType("REAL");
 
@@ -239,6 +270,10 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<Guid?>("SubathonId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TertiaryValue")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("User")

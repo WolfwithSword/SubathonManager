@@ -131,6 +131,38 @@ namespace SubathonManager.UI.Converters
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
+
+    public class EventTypeUserBindingConverter : IMultiValueConverter
+    {
+        public object? Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (values.Length == 0) return null;
+            if (values.Length < 4) return values[0];
+
+            var user = values[0]?.ToString();
+            var item = values[2]?.ToString();
+            var currency = values[3]?.ToString();
+
+            var text = $"User: {user}";
+            
+            if (values[1] is SubathonEventType eventType)
+            {
+                if (eventType == SubathonEventType.ThroneCrowdGiftComplete)
+                    return item;
+                if (eventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)
+                {
+                    if ((currency != "item" && eventType == SubathonEventType.ThroneGiftPurchase) 
+                        || eventType == SubathonEventType.ThroneGiftContribution )
+                        text = $"{text} | {item}";
+                }
+            }
+            return text.Trim();
+        }
+
+        public object[] ConvertBack(object value, Type[] targetType, object? parameter, CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+    
     public class EventTypeValueConverter : IMultiValueConverter
     {
         public object? Convert(object[] values, Type targetType, object? parameter, CultureInfo culture)
@@ -143,7 +175,12 @@ namespace SubathonManager.UI.Converters
             var curr = values[2]?.ToString() ?? "";
             if (values[1] is SubathonEventType eventType)
             {
-                type = eventType == SubathonEventType.TwitchRaid ? "viewers" : curr;
+                if (eventType == SubathonEventType.TwitchRaid)
+                    type = "viewer";
+                else if (curr == "item" && eventType.GetSource() == SubathonEventSource.Throne)
+                    type = "";
+                else
+                    type = curr;
             }
 
 
@@ -333,5 +370,20 @@ namespace SubathonManager.UI.Converters
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotImplementedException();
     }
+
+    // public class EventTypeLabelConverter : IMultiValueConverter
+    // {
+    //     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    //     {
+    //         var eventType = values.ElementAtOrDefault(0) as SubathonEventType?;
+    //         var meta = values.ElementAtOrDefault(1) as string;
+    //
+    //         if (eventType == null) return "";
+    //         return GoAffProOrderHelper.GetOrderEventDisplayDescription(eventType.Value, meta);
+    //     }
+    //
+    //     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    //         => throw new NotImplementedException();
+    // }
 
 }

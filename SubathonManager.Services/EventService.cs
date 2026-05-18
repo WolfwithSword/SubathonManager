@@ -26,7 +26,7 @@ public class EventService: IDisposable, IAppService
     private readonly CurrencyService _currencyService;
     private readonly ILogger<EventService>? _logger;
     private readonly IConfig _config;
-    private record EventProjection(SubathonEventType? EventType, SubathonEventSource Source, int Amount, string Value, bool IsSimulated);
+    record EventProjection(SubathonEventType? EventType, SubathonEventSource Source, int Amount, string Value, bool IsSimulated, string? EventTypeMeta);
 
     public EventService(IDbContextFactory<AppDbContext> factory, ILogger<EventService>? logger, IConfig config,
         CurrencyService currencyService)
@@ -155,6 +155,13 @@ public class EventService: IDisposable, IAppService
         {
             return await HandleHypeTrainEvent(ev, subathon, db);
         }
+        if (ev.EventType == SubathonEventType.ThroneCrowdGiftComplete || ev.EventType.IsEvent())
+        { 
+            ev.ProcessedToSubathon = true;
+            db.Add(ev);
+            await db.SaveChangesAsync();
+            return (ev.ProcessedToSubathon, false);
+        }
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
@@ -167,7 +174,8 @@ public class EventService: IDisposable, IAppService
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
-                v.EventType == ev.EventType && (v.Meta.ToLower() == ev.Value.ToLower() || 
+                v.EventType == ev.EventType && ( (ev.EventTypeMeta != null && v.Meta.ToLower() == ev.EventTypeMeta.ToLower()) ||  
+                                                v.Meta.ToLower() == ev.Value.ToLower() || 
                                                 v.Meta == string.Empty));
 
             subathonValue ??= await db.SubathonValues.FirstOrDefaultAsync(v =>
@@ -331,7 +339,6 @@ public class EventService: IDisposable, IAppService
                 affected += await db.Database.ExecuteSqlRawAsync(
                     "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = {2} AND Id = {1}",
                     added, subathon.Id, lockVal);
-                
             }
             
             await db.Entry(subathon.Multiplier).ReloadAsync();
@@ -882,7 +889,8 @@ public class EventService: IDisposable, IAppService
                 e.Value,
                 e.Source == SubathonEventSource.Simulated ||
                 e.User!.StartsWith("SIMULATED") ||
-                e.User!.StartsWith("SYSTEM")
+                e.User!.StartsWith("SYSTEM"),
+                e.EventTypeMeta
             ))
             .ToListAsync();
 

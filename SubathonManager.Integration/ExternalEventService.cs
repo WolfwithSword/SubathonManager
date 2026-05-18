@@ -63,7 +63,8 @@ public static class ExternalEventService
         {
             Currency = type == SubathonEventType.KoFiSub ? "member" : "sub",
             User = user,
-            Value = $"{value}"
+            Value = $"{value}",
+            EventTypeMeta = $"{value}"
         };
         if (type != SubathonEventType.KoFiSub)
         {
@@ -146,7 +147,7 @@ public static class ExternalEventService
                 section = $"{type}".Replace("Order", "");
             }
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            Enum.TryParse((config.Get(section, $"{type}.Mode", "Dollar")?.Trim() ?? "Dollar"), out OrderTypeModes mode);
+            var mode = config.GetOrderTypeMode(section, $"{type}", OrderTypeModes.Dollar);
             
             currency = mode switch
             {

@@ -93,7 +93,7 @@ public partial class App
                 Utils.DonationSettings[$"{goAffProSource}"] =
                     config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
             }
-            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is SubathonEventSource.KoFi or SubathonEventSource.FourthWall
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not SubathonEventSource.Throne
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
                 Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] =
@@ -113,7 +113,21 @@ public partial class App
             using (var db = _factory.CreateDbContext()) {
                 db.Database.Migrate();
                 AppDbContext.SeedDefaultValues(db);
+                
+                // var stores = db.GoAffProStores.ToList();
+                // GoAffProStoreRegistry.Initialize(stores);
             }
+            
+            // GoAffProStoreRegistry.StoreDiscovered += async store =>
+            // {
+            //     using var scope = AppServices.Provider.CreateScope();
+            //     var db2 = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            //     db2.GoAffProStores.Add(store);
+            //     await db2.SaveChangesAsync();
+            //     var cfg = AppServices.Provider.GetRequiredService<IConfig>();
+            //     Utils.DonationSettings[store.InternalName] =
+            //         cfg.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+            // };
 
             base.OnStartup(e);
             
@@ -403,7 +417,7 @@ public partial class App
                 Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
             }
 
-            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() == SubathonEventSource.KoFi
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not SubathonEventSource.Throne
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
                 bool asDonation = config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
