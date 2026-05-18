@@ -53,7 +53,7 @@ public class ThroneServiceTests
 
     private static string BuildGiftPurchasedJson(
         string eventId, string gifterUsername, string itemName,
-        int priceCents, string currency = "USD")
+        int priceCents, string currency = "USD", bool isSurprise = false)
     {
         return $$"""
                  {
@@ -66,7 +66,7 @@ public class ThroneServiceTests
                          "message": "Enjoy!",
                          "item_name": "{{itemName}}",
                          "item_thumbnail_url": "https://example.com/img.png",
-                         "is_surprise_gift": true,
+                         "is_surprise_gift": {{isSurprise}},
                          "price": {{priceCents}},
                          "currency": "{{currency}}"
                      }
@@ -381,6 +381,27 @@ public class ThroneServiceTests
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneGiftPurchase, ev.EventType);
         Assert.Equal("Rainbow Hoodie", ev.Value);
+        Assert.Equal("Gifter", ev.User);
+        Assert.Equal("item", ev.Currency);
+        Assert.Equal(1, ev.Amount);
+    }
+    
+    
+    [Fact]
+    public void ProcessData_GiftPurchased_ItemMode_UsesSurpriseGiftNameAsValue()
+    {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
+        {
+            { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), "Item" }
+        });
+
+        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Rainbow Hoodie", 4999, "USD", true);
+
+        var ev = CaptureEvent(() => service.ProcessData(json));
+
+        Assert.NotNull(ev);
+        Assert.Equal(SubathonEventType.ThroneGiftPurchase, ev.EventType);
+        Assert.Equal("Surprise Gift", ev.Value);
         Assert.Equal("Gifter", ev.User);
         Assert.Equal("item", ev.Currency);
         Assert.Equal(1, ev.Amount);
