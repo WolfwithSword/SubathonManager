@@ -31,7 +31,16 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        InitClient();
+        try
+        {
+            InitClient();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "StreamElements could not start");
+            Disconnect();
+        }
+
         return Task.CompletedTask;
     }
 
