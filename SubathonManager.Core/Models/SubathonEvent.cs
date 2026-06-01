@@ -31,7 +31,8 @@ public class SubathonEvent
     public string? User { get; set; } = "";
     public string Value { get; set; } = "";
     
-    public string SecondaryValue { get; set; } = "";
+    public string SecondaryValue { get; set; } = ""; // often for commission and currency amounts
+    public string TertiaryValue { get; set; } = ""; // often for item names
     public SubathonCommandType Command { get; set; } = SubathonCommandType.None;
     public int Amount { get; set; } = 1; // how many times to multiply everything for amount, only used for giftsubs
     
@@ -48,6 +49,8 @@ public class SubathonEvent
     public double MultiplierSeconds { get; set; } = 1;
     
     public bool WasReversed { get; set; } = false;
+    
+    public string? EventTypeMeta { get; set; }
     
     // do we want to later finetune power hour to be for selectable events?
     private int GetAmountMultiplier()

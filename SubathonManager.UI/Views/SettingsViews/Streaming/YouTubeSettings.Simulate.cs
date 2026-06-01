@@ -22,6 +22,11 @@ public partial class YouTubeSettings : SettingsControl
         YouTubeService.SimulateMembership(selectedTier);
     }
 
+    private void TestYTRaid_Click(object sender, RoutedEventArgs e)
+    {
+        YouTubeService.SimulateRaid();
+    }
+    
     private void TestYTGiftMembership_Click(object sender, RoutedEventArgs e)
     {
         int amount = int.TryParse(SimGiftMembershipAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;

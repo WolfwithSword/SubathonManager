@@ -77,6 +77,7 @@ public partial class WebServer : IAppService
         
         _routes.Clear();
         SetupApiRoutes();
+        SetupWebhookRoutes();
         SetupOverlayRoutes();
         SetupWebsocketListeners();
 

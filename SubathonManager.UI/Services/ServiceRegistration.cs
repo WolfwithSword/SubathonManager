@@ -1,10 +1,14 @@
 ﻿using System.IO;
 using System.Net.Http;
+using DevTunnels.Client;
+using DevTunnels.Client.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.Server;
@@ -25,12 +29,14 @@ public static class ServiceRegistration
     public static void SetupCoreServices(this IServiceCollection services)
     {
         services.AddSingleton<TimerService>();
+        services.AddSingleton<ITimerService>(sp => sp.GetRequiredService<TimerService>());
         services.AddHttpClient(nameof(CurrencyService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<CurrencyService>(BuildCurrencyService);
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
+        services.AddSingleton<PromptOrchestratorService>();
         services.AddSingleton<TelemetryService>();
-
+        services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
     }
     
     public static void AddIntegrations(this IServiceCollection services)
@@ -46,9 +52,36 @@ public static class ServiceRegistration
         
         // Order Sales //
         services.AddSingleton<GoAffProService>();
+
+        // Webhooks (shared tunnel infrastructure) //
+        var wingetPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft", "WinGet", "Links", "devtunnel.exe");
+        if (File.Exists(wingetPath))
+        {
+            services.Configure<DevTunnelsClientOptions>(opts =>
+            {
+                opts.CliPathOverride = wingetPath;
+            });
+        }
         
+        services.AddDevTunnelsClient();
+        services.AddSingleton<DevTunnelsService>();
+
+        // Webhooks //
+        services.AddHttpClient(nameof(KoFiService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<KoFiService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
+        services.AddHttpClient(nameof(FourthWallService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<FourthWallService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
+        services.AddSingleton<ThroneService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
+
         // Other //
+        services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;
         services.AddSingleton<DiscordWebhookService>();
+        services.AddSingleton<OBSService>();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder)

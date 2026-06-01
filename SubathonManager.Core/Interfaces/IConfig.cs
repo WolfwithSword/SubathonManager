@@ -1,4 +1,6 @@
-﻿namespace SubathonManager.Core.Interfaces;
+﻿using SubathonManager.Core.Enums;
+
+namespace SubathonManager.Core.Interfaces;
 
 public interface IConfig
 {
@@ -18,6 +20,9 @@ public interface IConfig
 
     bool SetBool(string section, string key, bool? value);
     bool SetEncoded(string section, string key, string value);
+    
+    OrderTypeModes GetOrderTypeMode(string section, string orderEnumName, OrderTypeModes modeDefault);
+    bool SetOrderTypeMode(string section, string orderEnumName, OrderTypeModes mode);
 
     string GetInstallId();
 }

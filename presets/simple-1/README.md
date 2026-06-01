@@ -2,4 +2,4 @@
 
 Author: WolfwithSword
 
-[Documentation and Previews](https://github.com/WolfwithSword/SubathonManager/discussions/77)
+[Documentation and Previews](https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/)

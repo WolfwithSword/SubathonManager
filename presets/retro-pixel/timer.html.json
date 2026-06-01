@@ -1,0 +1,66 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#timer",
+  "Width": 440,
+  "Height": 180,
+  "Vars": {
+    "showLeadingEmptyTime": {
+      "Name": "showLeadingEmptyTime",
+      "Type": "Boolean",
+      "Description": "Show the leading 00 in 00:45:22",
+      "Value": true,
+      "Options": null
+    },
+    "minimumTimeUnitsShown": {
+      "Name": "minimumTimeUnitsShown",
+      "Type": "Int",
+      "Description": "If time is 30 seconds left, display 00:30 if set to 2",
+      "Value": 2,
+      "Options": null
+    },
+    "alignment": {
+      "Name": "alignment",
+      "Type": "StringSelect",
+      "Description": "",
+      "Value": "Center",
+      "Options": [
+        "Center",
+        "Left",
+        "Right"
+      ]
+    },
+    "finishSound": {
+      "Name": "finishSound",
+      "Type": "SoundFile",
+      "Description": "Sound to play when timer hits 00:00",
+      "Value": "./done.mp3",
+      "Options": null
+    },
+    "playSoundOnFinish": {
+      "Name": "playSoundOnFinish",
+      "Type": "Boolean",
+      "Description": "Play finish sound?",
+      "Value": true,
+      "Options": null
+    },
+    "soundVolume": {
+      "Name": "soundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 80,
+      "Options": null
+    },
+    "showDays": {
+      "Name": "showDays",
+      "Type": "Boolean",
+      "Description": "Show days as a separate box if true. If false, will add them into hours",
+      "Value": true,
+      "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
+    }
+  }
+}

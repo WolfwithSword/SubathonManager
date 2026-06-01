@@ -1,0 +1,39 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#progress",
+  "Width": 350,
+  "Height": 120,
+  "Vars": {
+    "pulseOnFull": {
+      "Name": "pulseOnFull",
+      "Type": "Boolean",
+      "Description": "Play a pulse animation when all goals are reached or surpassed",
+      "Value": true,
+      "Options": null
+    },
+    "showMarkers": {
+      "Name": "showMarkers",
+      "Type": "Boolean",
+      "Description": "Show markers for where each goal is on the bar",
+      "Value": true,
+      "Options": null
+    },
+    "useForMoney": {
+      "Name": "useForMoney",
+      "Type": "Boolean",
+      "Description": "Track total donated for goal progress instead of points, if true",
+      "Value": false,
+      "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Titan One,Poppins"
+    },
+    "CdnFonts" : {
+      "type": "CdnFont",
+      "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",
+      "value": "bright-orchid,milker,beachday"
+    }
+  }
+}

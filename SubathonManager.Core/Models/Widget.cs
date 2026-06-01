@@ -1,4 +1,5 @@
-﻿using SubathonManager.Core.Enums;
+﻿using System.ComponentModel;
+using SubathonManager.Core.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
@@ -10,12 +11,39 @@ using System.Text.RegularExpressions;
 namespace SubathonManager.Core.Models;
 
 [ExcludeFromCodeCoverage]
-public class CssVariable
+public class CssVariable : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    
     [Key]
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
+    
+    // to assist the live change for editing
+    private string _value = string.Empty;
+    public string Value
+    {
+        get => _value;
+        set
+        {
+            if (_value == value) return;
+            _value = value;
+            if (string.IsNullOrWhiteSpace(_value))
+            {
+                if (Type is WidgetCssVariableType.Int or WidgetCssVariableType.Float)
+                {
+                    _value = "0";
+                }
+                else if (Type is WidgetCssVariableType.Size)
+                {
+                    _value = "0px";
+                }
+            }
+            OnPropertyChanged();
+        }
+    }
     
     
     [ForeignKey("Widget")]
@@ -74,10 +102,27 @@ public class JsVariable
     [ForeignKey("Widget")]
     public Guid WidgetId { get; set; }
     public Widget Widget { get; set; } = null!;
+    
+    public string Description { get; set; } = string.Empty;
 
     public string GetInjectLine()
     {
         StringBuilder sb = new();
+        if (Type.IsFontVariable())
+        {
+            var fnName = Type switch
+            {
+                WidgetVariableType.GoogleFont => "loadGoogleFont",
+                WidgetVariableType.CdnFont => "loadCdnFont",
+                _ => ""
+            };
+            if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(fnName)) return "\n";
+            foreach (var font in Value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                sb.Append($"{fnName}(\"{font.Trim()}\");\n");
+            }
+            return sb.ToString();
+        }
         sb.Append($"const {Name.Replace(' ', '_')} = ");
         if (string.IsNullOrEmpty(Value) || string.IsNullOrWhiteSpace(Value))
             sb.Append("\"\"");
@@ -132,7 +177,8 @@ public class JsVariable
             Name = Name,
             Value = Value,
             Type = Type,
-            WidgetId = newWidgetId
+            WidgetId = newWidgetId,
+            Description = Description
         };
     }
     
@@ -143,6 +189,15 @@ public class JsVariable
  
         var typeEl = json.GetProperty("type");
         WidgetVariableType type;
+        
+        var description = string.Empty;
+        json.TryGetProperty("description", out var descriptEl);
+
+        if (descriptEl.ValueKind == JsonValueKind.String)
+        {
+            description = descriptEl.GetString();
+        }
+        
         if (typeEl.ValueKind == JsonValueKind.Number
             && typeEl.TryGetInt32(out var typeInt)
             && Enum.IsDefined(typeof(WidgetVariableType), typeInt))
@@ -158,7 +213,8 @@ public class JsVariable
             Name = name,
             Value = json.GetProperty("value").GetString() ?? string.Empty,
             Type = type,
-            WidgetId = widgetId
+            WidgetId = widgetId,
+            Description = description ?? string.Empty
         };
     }
     
@@ -168,7 +224,8 @@ public class JsVariable
         {
             name = Name,
             value = Value,
-            type = Type
+            type = Type,
+            description = Description
         };
 
         return JsonSerializer.SerializeToElement(obj);
@@ -314,9 +371,8 @@ public partial class Widget
 
     [GeneratedRegex(@"<link[^>]+href\s*=\s*[""']((?!https?:|\/\/)[^""']+\.css)[""']", RegexOptions.IgnoreCase, "en-CA")]
     private static partial Regex CssLinkRegex();
-    
+
     [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
-    
     private static partial Regex CssVarRegex();
 
     public JsonElement ToJson(string htmlRelPath)

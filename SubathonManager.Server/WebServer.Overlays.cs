@@ -75,18 +75,51 @@ public partial class WebServer
                             foreach (var v in widget.JsVariables)
                                 jsOverrides.Append(v.GetInjectLine());
                             jsOverrides.AppendLine("</script>\n");
+                            var fontLoader = """
+                                             <script>
+                                             let addedGoogleFont = false;
+                                             let addedCdnFont = false;
+                                             function loadGoogleFont(fontName) {
+                                               if (!addedGoogleFont) {
+                                                     const precon1 = document.createElement('link');
+                                                     precon1.href = "https://fonts.googleapis.com";
+                                                     precon1.rel = "preconnect";
+                                                     
+                                                     const precon2 = document.createElement('link');
+                                                     precon2.rel = "preconnect";
+                                                     precon2.crossorigin = true;
+                                                     precon2.href="https://fonts.gstatic.com";
+                                                     addedGoogleFont = true;
+                                                     document.head.appendChild(precon1);
+                                                     document.head.appendChild(precon2);
+                                               }
+                                               const link = document.createElement('link');
+                                               link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(/ /g, '+')}&display=swap`;
+                                               link.rel = 'stylesheet';
+                                               document.head.appendChild(link);
+                                             }
+                                             
+                                             function loadCdnFont(fontName) {
+                                               const link = document.createElement('link');
+                                               link.href = `https://fonts.cdnfonts.com/css/${fontName.replace(/ /g, '-').toLowerCase()}`;
+                                               link.rel = 'stylesheet';
+                                               document.head.appendChild(link);
+                                             }
+                                             </script>
+                                             """;
                             if (html.Contains("<script>", StringComparison.OrdinalIgnoreCase))
                             {
                                 int count = 0;
                                 html = Regex.Replace(
                                     html,
                                     "<script>",
-                                    m => count++ == 0 ? jsOverrides + "\n<script>" : m.Value,
+                                    m => count++ == 0 ? fontLoader + "\n"+jsOverrides + "\n<script>" : m.Value,
                                     RegexOptions.IgnoreCase
                                 );
                             }
                             else
                             {
+                                html += fontLoader + "\n";                         
                                 html += jsOverrides;
                             }
 
@@ -135,7 +168,6 @@ public partial class WebServer
         StringBuilder sb = new StringBuilder();
         sb.AppendLine(
             $"<html><head><title>overlay-{route.Id}</title><link rel=\"icon\" type=\"image/x-icon\" href=\"https://raw.githubusercontent.com/WolfwithSword/SubathonManager/refs/heads/main/assets/icon.ico\"><meta charset=\"UTF-8\"></head><body style='margin:0;'>");
-
         sb.AppendLine($@"
             <style>
                 html, body {{
@@ -283,8 +315,11 @@ public partial class WebServer
             }
 
             sb.AppendLine($@"<iframe src=""/widget/{w.Id}/"" 
+                            data-widget-id=""{w.Id}""
                             data-scalex=""{w.ScaleX}""
                             data-scaley=""{w.ScaleY}""
+                            data-orig-width=""{w.Width}""
+                            data-orig-height=""{w.Height}""
                             sandbox=""allow-scripts allow-same-origin"" 
                             frameborder=""0"" scrolling=""no"">
                          </iframe>");
@@ -302,8 +337,12 @@ public partial class WebServer
                     const sy = parseFloat(iframe.dataset.scaley) || 1;
 
                     const wrapper = iframe.parentElement;
-                    const originalWidth  = parseFloat(wrapper.dataset.origWidth)  || iframe.offsetWidth / sx;
-                    const originalHeight = parseFloat(wrapper.dataset.origHeight) || iframe.offsetHeight / sy;
+                    const originalWidth  = parseFloat(iframe.dataset.origWidth)
+                                        || parseFloat(wrapper.dataset.origWidth)
+                                        || (iframe.offsetWidth > 0 ? iframe.offsetWidth  / sx : 400);
+                    const originalHeight = parseFloat(iframe.dataset.origHeight)
+                                        || parseFloat(wrapper.dataset.origHeight)
+                                        || (iframe.offsetHeight > 0 ? iframe.offsetHeight / sy : 400);
 
                     iframe.style.width  = originalWidth + 'px';
                     iframe.style.height = originalHeight + 'px';
@@ -349,10 +388,14 @@ public partial class WebServer
                     e.preventDefault();
                 });
 
+                function snapTo(val, grid) { return Math.round(val / grid) * grid; }
+
                 document.addEventListener('mousemove', e => {
                     if (!isDragging) return;
-                    wrapper.style.left = (e.clientX - offsetX) + 'px';
-                    wrapper.style.top = (e.clientY - offsetY) + 'px';
+                    const rawX = e.clientX - offsetX;
+                    const rawY = e.clientY - offsetY;
+                    wrapper.style.left = (snapEnabled ? snapTo(rawX, SNAP_SIZE) : rawX) + 'px';
+                    wrapper.style.top  = (snapEnabled ? snapTo(rawY, SNAP_SIZE) : rawY) + 'px';
                 });
 
                 document.addEventListener('mouseup', e => {
@@ -381,6 +424,9 @@ public partial class WebServer
             const MIN_HEIGHT = 24; // px
             const MIN_SCALE = 0.1;
 
+            let snapEnabled = false;
+            const SNAP_SIZE = 20;
+
             document.querySelectorAll('.widget-wrapper').forEach(wrapper => {{
                 const iframe = wrapper.querySelector('iframe');
 
@@ -407,6 +453,7 @@ public partial class WebServer
                 let startLeft, startTop;
                 let isShiftHeld = false;
                 let isCtrlHeld  = false;
+                let isAltHeld   = false;
 
                 const EDGE_HANDLES   = ['handle-n', 'handle-s', 'handle-e', 'handle-w'];
                 const CORNER_HANDLES = ['handle-nw', 'handle-ne', 'handle-sw', 'handle-se'];
@@ -432,10 +479,12 @@ public partial class WebServer
                 document.addEventListener('keydown', (e) => {{
                     if (e.key === 'Shift') {{ isShiftHeld = true; updateHandleIndicators(); }}
                     if (e.key === 'Control') {{ isCtrlHeld = true; updateHandleIndicators(); }}
+                    if (e.key === 'Alt') {{ isAltHeld = true; snapEnabled = true; }}
                 }});
                 document.addEventListener('keyup', (e) => {{
                     if (e.key === 'Shift') {{ isShiftHeld = false; updateHandleIndicators(); }}
                     if (e.key === 'Control') {{ isCtrlHeld = false; updateHandleIndicators(); }}
+                    if (e.key === 'Alt') {{ isAltHeld = false; snapEnabled = false; }}
                 }});
 
                 wrapper.querySelectorAll('.resize-handle').forEach(handle => {{
@@ -490,6 +539,13 @@ public partial class WebServer
                             const clamped = Math.max(MIN_HEIGHT, baselineHeight - dy);
                             newTop = startTop + (baselineHeight - clamped) * scaleY;
                             newHeight = clamped;
+                        }}
+
+                        if (snapEnabled) {{
+                            newWidth  = snapTo(newWidth,  SNAP_SIZE);
+                            newHeight = snapTo(newHeight, SNAP_SIZE);
+                            newLeft   = snapTo(newLeft,   SNAP_SIZE);
+                            newTop    = snapTo(newTop,    SNAP_SIZE);
                         }}
 
                         iframe.style.width  = newWidth  + 'px';
@@ -572,6 +628,13 @@ public partial class WebServer
                             newTop += (newHeight - MIN_HEIGHT) * scaleY;
                         }}
                         newHeight = MIN_HEIGHT;
+                    }}
+
+                    if (snapEnabled) {{
+                        newWidth  = snapTo(newWidth,  SNAP_SIZE);
+                        newHeight = snapTo(newHeight, SNAP_SIZE);
+                        newLeft   = snapTo(newLeft,   SNAP_SIZE);
+                        newTop    = snapTo(newTop,    SNAP_SIZE);
                     }}
 
                     const newScaleX = newWidth / baselineWidth;

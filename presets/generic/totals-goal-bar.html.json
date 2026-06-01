@@ -1,0 +1,85 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/total-goal-bar/",
+  "Width": 600,
+  "Height": 80,
+  "Vars": {
+    "eventGroup": {
+      "Name": "eventGroup",
+      "Type": "EventSubTypeSelect",
+      "Description": "Select which group of events to configure this bar for",
+      "Value": [
+        "OrderLike"
+      ],
+      "Options": null
+    },
+    "eventType": {
+      "Name": "eventType",
+      "Type": "EventTypeSelect",
+      "Description": "Select which event to count totals for - must belong to the eventGroup above",
+      "Value": [
+        "GamerSuppsOrder"
+      ],
+      "Options": null
+    },
+    "eventCountType": {
+      "Name": "eventCountType",
+      "Type": "StringSelect",
+      "Description": "How to count the totals. For all events, Count is the default. For OrderLike events, Sum will be sum of items instead of order count",
+      "Value": "Count",
+      "Options": [
+        "Count",
+        "Sum"
+      ]
+    },
+    "includeSimulated": {
+      "Name": "includeSimulated",
+      "Type": "Boolean",
+      "Description": "Include simulated test data or not in counts",
+      "Value": false,
+      "Options": null
+    },
+    "valuePrefix": {
+      "Name": "valuePrefix",
+      "Type": "String",
+      "Description": "Prefix for the values, such as USD",
+      "Value": "",
+      "Options": null
+    },
+    "valueSuffix": {
+      "Name": "valueSuffix",
+      "Type": "String",
+      "Description": "Suffix for the values, such as Pts",
+      "Value": "",
+      "Options": null
+    },
+    "formatWithCommas": {
+      "Name": "formatWithCommas",
+      "Type": "Boolean",
+      "Description": "Display numbers with a well formatted comma",
+      "Value": false,
+      "Options": null
+    },
+    "goalMax": {
+      "Name": "goalMax",
+      "Type": "Int",
+      "Description": "Target goal amount",
+      "Value": 10000,
+      "Options": null
+    },
+    "goalOffset": {
+      "Name": "goalOffset",
+      "Type": "Int",
+      "Description": "Offset current count/sum by this amount",
+      "Value": 0,
+      "Options": null
+    },
+    "goalText": {
+      "Name": "goalText",
+      "Type": "String",
+      "Description": "What text to display in the bar, if any",
+      "Value": "Total",
+      "Options": null
+    }
+  }
+}

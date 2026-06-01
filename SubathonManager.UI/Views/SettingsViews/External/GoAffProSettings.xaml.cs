@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -9,6 +8,8 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.Views.SettingsViews.External.GoAffPro;
@@ -188,6 +189,7 @@ public partial class GoAffProSettings : SettingsControl
         try
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
+            var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
             
             var msgBox = new Wpf.Ui.Controls.MessageBox
             {
@@ -209,7 +211,7 @@ public partial class GoAffProSettings : SettingsControl
             };
             var userBox = new Wpf.Ui.Controls.TextBox
             {
-                Text = config.GetFromEncoded(_configSection, "Email", string.Empty) ?? string.Empty,
+                Text = secureStorage.GetOrDefault(StorageKeys.GoAffProEmail, string.Empty) ?? string.Empty,
                 Width = 240,
                 Margin = new Thickness(2, 4, 0, 0)
             };
@@ -223,7 +225,7 @@ public partial class GoAffProSettings : SettingsControl
             };
             var pwBox = new Wpf.Ui.Controls.PasswordBox
             {
-                Password = config.GetFromEncoded(_configSection, "Password", string.Empty) ?? string.Empty,
+                Password = secureStorage.GetOrDefault(StorageKeys.GoAffProPassword, string.Empty) ?? string.Empty,
                 Width = 240,
                 Margin = new Thickness(2, 4, 0, 0)
             };
@@ -257,13 +259,13 @@ public partial class GoAffProSettings : SettingsControl
             await ServiceManager.GoAffPro.StopAsync();
 
             bool setData = false;
-            setData |= config.SetEncoded(_configSection, "Email", userBox.Text);
-            setData |= config.SetEncoded(_configSection, "Password", pwBox.Password);
+            setData |= secureStorage.Set(StorageKeys.GoAffProEmail, userBox.Text);
+            setData |= secureStorage.Set(StorageKeys.GoAffProPassword, pwBox.Password);
             if (setData) config.Save();
             
             
-            if (string.IsNullOrWhiteSpace(config.GetFromEncoded(_configSection, "Email", string.Empty))
-                || string.IsNullOrWhiteSpace(config.GetFromEncoded(_configSection, "Password", string.Empty)))
+            if (string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.GoAffProPassword, string.Empty))
+                || string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.GoAffProEmail, string.Empty)))
             {
                 return;
             }

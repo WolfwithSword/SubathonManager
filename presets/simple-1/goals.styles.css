@@ -6,8 +6,10 @@
     --goal-height: 44px;
     --goal-gap: 6px;
     --visible-items: 3;
+    --goal-font: 'Poppins', sans-serif;
+    --goal-font-weight: 600;
+    --goal-font-size: 1.1rem;
 }
-
 
 .goals-container {
     display: flex;
@@ -55,9 +57,9 @@
     outline-offset: -1px;
     box-shadow: inset 0 0 0 3px var(--inner-border-color);
 
-    font-family: 'Poppins', sans-serif;
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-family: var(--goal-font);
+    font-size: var(--goal-font-size);
+    font-weight: var(--goal-font-weight);
     color: var(--goal-text-color);
 
     transition:
@@ -71,7 +73,7 @@
     padding: 2px 8px;
     border-radius: 8px;
     background: rgba(0,0,0,0.15);
-    font-weight: 600;
+    font-weight: var(--goal-font-weight);
     filter: drop-shadow(0 0 4px rgba(0,0,0,0.1));
 }
 

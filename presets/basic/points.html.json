@@ -1,0 +1,27 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/basic/#points",
+  "Width": 230,
+  "Height": 70,
+  "Vars": {
+    "useForMoney": {
+      "Name": "useForMoney",
+      "Type": "Boolean",
+      "Description": "Display current money donated total instead of points.",
+      "Value": false,
+      "Options": null
+    },
+    "suffix": {
+      "Name": "suffix",
+      "Type": "String",
+      "Description": "Suffix for the value, such as pts",
+      "Value": "pts",
+      "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Quantico,Nunito,Baloo 2,Fredoka,Titan One"
+    }
+  }
+}

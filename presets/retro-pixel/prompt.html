@@ -1,0 +1,233 @@
+﻿<link rel="stylesheet" href="prompt.css">
+
+<div class="dialogue-wrapper hidden" id="dialogue-wrapper">
+
+    <div class="dialogue-box">
+        <div class="dialogue-top">
+            <div class="portrait-box" id="portrait-box">
+                <div class="portrait-icon" id="portrait-icon"></div>
+            </div>
+            <div class="dialogue-text-box">
+                <div class="dialogue-label" id="dialogue-label">QUEST</div>
+                <div class="dialogue-text" id="dialogue-text"><span id="dialogue-inner">-</span><span class="cursor" id="cursor">▮</span></div>
+            </div>
+        </div>
+
+        <div class="hp-row">
+            <span class="hp-label">PROG</span>
+            <div class="hp-bar-outer">
+                <div class="hp-bar-fill" id="hp-bar-fill"></div>
+            </div>
+            <span class="hp-count" id="hp-count">0 / 0</span>
+        </div>
+
+        <div class="timer-row">
+            <span class="timer-label">TIME</span>
+            <span class="timer-digits" id="timer-digits">0:00</span>
+            <span class="timer-blink hidden" id="timer-blink">▼ DONE</span>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    let endTime = null;
+    let durationSecs = 1;
+    let tickTimer = null;
+    let lingerTimer = null;
+    let isVisible = false;
+    let typewriterTimer = null;
+
+    const wrapper = document.getElementById("dialogue-wrapper");
+    const portraitIcon = document.getElementById("portrait-icon");
+    const dialogueInner = document.getElementById("dialogue-inner");
+    const cursor = document.getElementById("cursor");
+    const hpFill = document.getElementById("hp-bar-fill");
+    const hpCount = document.getElementById("hp-count");
+    const timerDigits = document.getElementById("timer-digits");
+    const timerBlink = document.getElementById("timer-blink");
+
+    const ICON_IDLE = `<span style="font-family:var(--font);font-size:14px;color:var(--portrait-color)">▶</span>`;
+    const ICON_ACTIVE = `<span style="font-family:var(--font);font-size:14px;color:var(--portrait-color)">!</span>`;
+    const ICON_COMPLETE = `<svg width="28" height="22" viewBox="0 0 32 24" xmlns="http://www.w3.org/2000/svg">
+                              <rect x="0"  y="12" width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="4"  y="16" width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="8"  y="20" width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="12" y="16" width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="16" y="12" width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="20" y="8"  width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="24" y="4"  width="4" height="4" fill="var(--portrait-complete-color)"/>
+                              <rect x="28" y="0"  width="4" height="4" fill="var(--portrait-complete-color)"/>
+                            </svg>`;
+    const ICON_EXPIRED = `<svg width="24" height="24" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+                          <rect x="0"  y="0"  width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="24" y="0"  width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="4"  y="4"  width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="20" y="4"  width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="8"  y="8"  width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="16" y="8"  width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="12" y="12" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="8"  y="16" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="16" y="16" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="4"  y="20" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="20" y="20" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="0"  y="24" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                          <rect x="24" y="24" width="4" height="4" fill="var(--portrait-expired-color)"/>
+                        </svg>`;
+
+    let startedAudio, successAudio, failAudio;
+
+    function playSound(src, volume) {
+        if (!src) return;
+        try {
+            const a = new Audio(src);
+            a.volume = Math.min(1, (volume ?? 50) / 100);
+            a.play().catch(() => {});
+        } catch(e) {}
+    }
+
+    function setPortrait(state) {
+        const icons = { idle: ICON_IDLE, active: ICON_ACTIVE, complete: ICON_COMPLETE, expired: ICON_EXPIRED };
+        portraitIcon.innerHTML = icons[state] ?? ICON_IDLE;
+        document.getElementById("portrait-box").className = "portrait-box portrait-" + state;
+    }
+
+    function typewrite(text, onDone) {
+        clearTypewriter();
+        dialogueInner.textContent = "";
+        cursor.classList.remove("hidden");
+        let i = 0;
+        const delay = Math.max(18, Math.min(60, Math.round(900 / (text.length || 1))));
+        typewriterTimer = setInterval(() => {
+            if (i < text.length) {
+                dialogueInner.textContent += text[i++];
+            } else {
+                clearTypewriter();
+                if (onDone) onDone();
+            }
+        }, delay);
+    }
+
+    function clearTypewriter() {
+        if (typewriterTimer) { clearInterval(typewriterTimer); typewriterTimer = null; }
+    }
+
+    function updateHp(progress, target) {
+        const pct = target > 0 ? Math.min(progress / target, 1) : 0;
+        hpFill.style.width = `${pct * 100}%`;
+        // red yellow green as it is more filled
+        if (pct >= 0.5) hpFill.className = "hp-bar-fill hp-green";
+        else if (pct >= 0.25) hpFill.className = "hp-bar-fill hp-yellow";
+        else hpFill.className = "hp-bar-fill hp-red";
+        hpCount.textContent = `${progress} / ${target}`;
+    }
+
+    function handlePromptUpdate(data) {
+        const status = data.status ?? "None";
+
+        if (status === "Cancelled") { hideCard(false); return; }
+        if (status === "None") { hideCard(false, true); return; }
+
+        if (data.end_time) {
+            endTime = new Date(data.end_time);
+            durationSecs = data.duration_seconds > 0 ? data.duration_seconds : 1;
+        }
+
+        const progress = data.progress ?? 0;
+        const target = data.target ?? 0;
+        updateHp(progress, target);
+
+        if (status === "Active") {
+            clearLinger();
+            const wasVisible = isVisible;
+            showCard();
+            setPortrait("active");
+            timerBlink.classList.add("hidden");
+            timerDigits.classList.remove("hidden");
+            startTick();
+            clearTypewriter();
+            dialogueInner.textContent = "";
+            if (!wasVisible) {
+                typewrite(data.text || "-");
+                playSound(
+                    typeof startedSound !== "undefined" ? startedSound : "",
+                    typeof startedSoundVolume !== "undefined" ? startedSoundVolume : 50
+                );
+            } else {
+                dialogueInner.textContent = data.text || "-";
+            }
+        } else {
+            clearTick();
+            clearTypewriter();
+            dialogueInner.textContent = data.text || "-";
+            cursor.classList.add("hidden");
+            timerDigits.classList.add("hidden");
+            timerBlink.classList.remove("hidden");
+
+            if (status === "Completed") {
+                setPortrait("complete");
+                timerBlink.textContent = "COMPLETE!";
+                timerBlink.className = "timer-blink blink-complete";
+                updateHp(target, target);
+                playSound(
+                    typeof successSound !== "undefined" ? successSound : "",
+                    typeof successSoundVolume !== "undefined" ? successSoundVolume : 50
+                );
+            } else if (status === "Expired") {
+                setPortrait("expired");
+                timerBlink.textContent = "TIMES UP";
+                timerBlink.className = "timer-blink blink-expired";
+                playSound(
+                    typeof failSound !== "undefined" ? failSound : "",
+                    typeof failSoundVolume !== "undefined" ? failSoundVolume : 50
+                );
+            }
+            startLinger();
+        }
+    }
+
+    function showCard() {
+        if (isVisible) return;
+        isVisible = true;
+        wrapper.classList.remove("hidden", "exiting");
+        wrapper.classList.add("entering");
+        setTimeout(() => wrapper.classList.remove("entering"), 400);
+    }
+
+    function hideCard(withExit, force = false) {
+        clearTick(); clearLinger(); clearTypewriter();
+        if (!isVisible && !force) return;
+        isVisible = false;
+        if (withExit) {
+            wrapper.classList.add("exiting");
+            setTimeout(() => wrapper.classList.add("hidden"), 350);
+        } else {
+            wrapper.classList.add("hidden");
+        }
+    }
+
+    function startTick() {
+        clearTick(); tick();
+        tickTimer = setInterval(tick, 250);
+    }
+    function clearTick() {
+        if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    }
+    function tick() {
+        if (!endTime) return;
+        const remaining = Math.max(0, (endTime - Date.now()) / 1000);
+        const m = Math.floor(remaining / 60);
+        const s = Math.floor(remaining % 60);
+        timerDigits.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+        if (remaining <= 0) clearTick();
+    }
+
+    function startLinger() {
+        clearLinger();
+        lingerTimer = setTimeout(() => hideCard(true), lingerSeconds * 1000);
+    }
+    function clearLinger() {
+        if (lingerTimer) { clearTimeout(lingerTimer); lingerTimer = null; }
+    }
+</script>

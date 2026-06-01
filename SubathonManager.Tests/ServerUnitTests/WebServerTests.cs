@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Server;
 using SubathonManager.Data;
+// ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.ServerUnitTests;
 
 [Collection("ProviderOverrideTests")]
@@ -238,11 +239,11 @@ public class WebServerTests
         var widget = new Widget("Widget1", "test.html") { Route = route, RouteId = route.Id };
         route.Widgets.Add(widget);
 
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(route);
             db.Widgets.Add(widget);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var ctx = new MockHttpContext
@@ -268,11 +269,11 @@ public class WebServerTests
         var widget = new Widget("Widget1", "test.html") { Route = route, RouteId = route.Id };
         route.Widgets.Add(widget);
 
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(route);
             db.Widgets.Add(widget);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var updateJson = $"{{\"x\":162,\"y\":200}}";
@@ -286,9 +287,9 @@ public class WebServerTests
         await server.HandleWidgetUpdateAsync(ctx);
 
         Assert.Equal(200, ctx.StatusCode);
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
-            var updatedWidget = await db.Widgets.FindAsync(widget.Id);
+            var updatedWidget = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
             Assert.Equal(162, updatedWidget!.X);
             Assert.Equal(200, updatedWidget.Y);
         }
@@ -305,11 +306,11 @@ public class WebServerTests
         var widget = new Widget("Widget1", "test.html") { Route = route, RouteId = route.Id };
         route.Widgets.Add(widget);
 
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.Routes.Add(route);
             db.Widgets.Add(widget);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var updateJson = $"{{\"scaleX\":2,\"scaleY\":2.5}}";
@@ -323,9 +324,9 @@ public class WebServerTests
         await server.HandleWidgetUpdateAsync(ctx);
 
         Assert.Equal(200, ctx.StatusCode);
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
-            var updatedWidget = await db.Widgets.FindAsync(widget.Id);
+            var updatedWidget = await db.Widgets.FindAsync([widget.Id], TestContext.Current.CancellationToken);
             Assert.Equal(2, updatedWidget!.ScaleX);
             Assert.Equal(2.5, updatedWidget.ScaleY);
         }
@@ -362,10 +363,10 @@ public class WebServerTests
         };
         
         SubathonData subathon = new  SubathonData();
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.SubathonDatas.Add(subathon);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         await server.HandleStatusRequestAsync(ctx);
@@ -382,10 +383,10 @@ public class WebServerTests
         var server = CreateServer();
         SetupServices();
         SubathonData subathon = new  SubathonData();
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.SubathonDatas.Add(subathon);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var ctx = new MockHttpContext
@@ -418,10 +419,10 @@ public class WebServerTests
             Seconds = 60
         };
         
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             db.SubathonValues.Add(subathonValue);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
         var patchJson = "[{\"EventType\":\"TwitchSub\", \"Source\":\"Twitch\", \"Seconds\": 20, \"Meta\": \"1000\"}]";
@@ -436,10 +437,10 @@ public class WebServerTests
 
         Assert.Equal(200, ctx.StatusCode);
 
-        await using (var db = await server._factory.CreateDbContextAsync())
+        await using (var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken))
         {
             var updatedVal = await db.SubathonValues.Where(
-                x => x.EventType == SubathonEventType.TwitchSub && x.Meta == "1000").FirstOrDefaultAsync();
+                x => x.EventType == SubathonEventType.TwitchSub && x.Meta == "1000").FirstOrDefaultAsync(cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(20, updatedVal!.Seconds);
         }
         
@@ -473,7 +474,7 @@ public class WebServerTests
         var route = new Route{ Name = "TestRoute" };
     
         string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
-        await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>");
+        await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>", TestContext.Current.CancellationToken);
     
         var widget = new Widget("Widget1", tempHtml) 
         { 
@@ -490,10 +491,10 @@ public class WebServerTests
         };
         route.Widgets.Add(widget);
 
-        await using var db = await server._factory.CreateDbContextAsync();
+        await using var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
         db.Routes.Add(route);
         db.Widgets.Add(widget);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var ctx = new MockHttpContext
         {
@@ -536,7 +537,7 @@ public class WebServerTests
         var server = CreateServer();
         SetupServices();
         string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
-        await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>");
+        await File.WriteAllTextAsync(tempHtml, "<html><head></head><body></body></html>", TestContext.Current.CancellationToken);
 
         var route = new Route{ Name = "TestRoute" };
         var widget = new Widget("Widget1", tempHtml)
@@ -554,10 +555,10 @@ public class WebServerTests
         };
         route.Widgets.Add(widget);
 
-        await using var db = await server._factory.CreateDbContextAsync();
+        await using var db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
         db.Routes.Add(route);
         db.Widgets.Add(widget);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var ctx = new MockHttpContext
         {

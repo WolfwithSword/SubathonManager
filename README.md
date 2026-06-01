@@ -48,6 +48,7 @@
 
 - SuperChats
 - Memberships (Configurable Levels) & Gift Memberships
+- Redirects
 - Chat Commands
 </details>
 
@@ -70,14 +71,36 @@
 - GamerSupps
 - Orchid Eight
 - KatDragonz
+- Cheeky Soap
+- Advanced GG
+- Rogue Energy
+- Saucy Biz
+- GFuel
+- Natura Pine
 
 </details>
 <details> <summary><strong>KoFi</strong></summary>
 
-Requires StreamerBot
-
 - Tips
 - Memberships
+- Shop Orders
+- Commissions
+
+</details>
+
+<details> <summary><strong>FourthWall</strong></summary>
+
+- Donations
+- Orders, Gift Orders
+- Memberships
+
+</details>
+
+<details> <summary><strong>Throne</strong></summary>
+
+- Gift Purchases
+- Gift Contributions
+- Crowdfunding Complete Events
 
 </details>
 
@@ -111,12 +134,14 @@ Custom commands, donations and subscriptions via POST API or WebSocket
 
 - Currency conversions for donations/tips/superchats using daily floating rates
 - Points or Donation (Donothon-style) based goals
+- Random Prompt Goals on an interval
 - Audit & Event logging to file and Discord webhooks
-- Built in overlay editor and host server for local html widgets
+- Built in overlay editor and host server for local html widgets, import + export too!
 - Goals list tracking
 - Multiplier modes for time and/or points
 - External control API for integrating with complex setups and unsupported services
 - Reverse Subathon - timer goes up, events reduce time!
+- Subathon end dates
 - Remote config value management
 - And more!
 

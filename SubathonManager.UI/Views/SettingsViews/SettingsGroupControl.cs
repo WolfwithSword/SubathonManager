@@ -88,7 +88,12 @@ public class SettingsGroupControl : SettingsControl
         GetSourceContents?.Children.Add(control);
         _activeSource = source;
     }
-
+    
+    
+    public void TryHotLinkToSource(SubathonEventSource eventSource)
+    {
+        Dispatcher.Invoke(() => SelectGroup(eventSource.ToString()));
+    }
 
     internal override void UpdateStatus(IntegrationConnection? connection)
     {

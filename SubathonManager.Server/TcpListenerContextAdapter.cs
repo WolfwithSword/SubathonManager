@@ -18,6 +18,7 @@ public sealed class TcpListenerContextAdapter : IHttpContext
     public string Method { get; }
     public string Path { get; }
     public string QueryString { get; }
+    public IReadOnlyDictionary<string, string> Headers => _headers;
     public Encoding Encoding => Encoding.UTF8;
     public Stream Body { get; }
 

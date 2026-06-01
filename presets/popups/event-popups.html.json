@@ -1,0 +1,83 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/event-popups/",
+  "Width": 480,
+  "Height": 200,
+  "Vars": {
+    "applicableEvents": {
+      "Name": "applicableEvents",
+      "Type": "EventTypeList",
+      "Description": "Which events to display values for",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "TwitchGiftSub",
+        "TwitchCheer",
+        "StreamElementsDonation",
+        "StreamLabsDonation",
+        "YouTubeMembership",
+        "YouTubeGiftMembership",
+        "YouTubeSuperChat",
+        "TwitchCharityDonation",
+        "ExternalDonation",
+        "ExternalSub",
+        "KoFiSub",
+        "KoFiDonation",
+        "BlerpBits",
+        "BlerpBeets",
+        "UwUMarketOrder",
+        "GamerSuppsOrder"
+      ],
+      "Options": null
+    },
+    "showSeconds": {
+      "Name": "showSeconds",
+      "Type": "Boolean",
+      "Description": "Show seconds added?",
+      "Value": true,
+      "Options": null
+    },
+    "showPoints": {
+      "Name": "showPoints",
+      "Type": "Boolean",
+      "Description": "Show points added?",
+      "Value": false,
+      "Options": null
+    },
+    "showMoney": {
+      "Name": "showMoney",
+      "Type": "Boolean",
+      "Description": "Show money or bits/tokens donated?",
+      "Value": false,
+      "Options": null
+    },
+    "animation": {
+      "Name": "animation",
+      "Type": "StringSelect",
+      "Description": "What animation to play?",
+      "Value": "float-up",
+      "Options": [
+        "float-up",
+        "float-down",
+        "popup"
+      ]
+    },
+    "groupGifts": {
+      "Name": "groupGifts",
+      "Type": "Boolean",
+      "Description": "If true, 10 gifted will be a single popup. If false, it will be 10 separate popups",
+      "Value": true,
+      "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
+    },
+    "CdnFonts" : {
+      "type": "CdnFont",
+      "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",
+      "value": "bright-orchid,milker,beachday"
+    }
+  }
+}

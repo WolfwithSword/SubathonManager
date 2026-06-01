@@ -1,0 +1,62 @@
+﻿{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#prompt",
+  "Width": 360,
+  "Height": 126,
+  "Vars": {
+    "lingerSeconds": {
+      "Name": "lingerSeconds",
+      "Type": "Int",
+      "Description": "How long in seconds to keep the widget visible after a prompt completes or expires.",
+      "Value": 10,
+      "Options": null
+    },
+    "startedSound": {
+      "Name": "startedSound",
+      "Type": "SoundFile",
+      "Description": "Sound to play when prompt starts",
+      "Value": "",
+      "Options": null
+    },
+    "startedSoundVolume": {
+      "Name": "startedSoundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "successSound": {
+      "Name": "successSound",
+      "Type": "SoundFile",
+      "Description": "Sound to play when prompt completes",
+      "Value": "",
+      "Options": null
+    },
+    "successSoundVolume": {
+      "Name": "successSoundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "failSound": {
+      "Name": "failSound",
+      "Type": "SoundFile",
+      "Description": "Sound to play when prompt expires",
+      "Value": "",
+      "Options": null
+    },
+    "failSoundVolume": {
+      "Name": "failSoundVolume",
+      "Type": "Percent",
+      "Description": "",
+      "Value": 50,
+      "Options": null
+    },
+    "GoogleFonts": {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
+    }
+  }
+}

@@ -70,6 +70,7 @@
             drop-shadow(1px 1px 1px rgba(255,255,255,0.5)); 
 
     flex-shrink: 0;
+    margin-right: 4px;
     display: block;
     z-index: 99;
     overflow:visible;

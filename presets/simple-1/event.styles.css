@@ -8,6 +8,14 @@
     --glow-color: #494475;
 }
 
+html, body {
+    background: transparent !important;
+}
+
+#event-content {
+    background: transparent;
+}
+
 .event-card {
   display: flex;
   align-items: center;
@@ -20,10 +28,12 @@
   outline: 3px solid var(--border-color);
   outline-offset: -1px;
   
-  box-shadow: inset 0 0 0 2px var(--inner-border-color);
-  filter: drop-shadow(0 0 2px  var(--glow-color));
+  /*box-shadow: inset 0 0 0 2px var(--inner-border-color);
+  filter: drop-shadow(0 0 2px  var(--glow-color));*/
+  box-shadow: inset 0 0 0 2px var(--inner-border-color),
+    0 0 4px 1px var(--glow-color);
   
-  backdrop-filter: blur(8px);
+  /*backdrop-filter: blur(8px);*/
   border-radius: 4px 12px;
   padding: 8px 4px;
 

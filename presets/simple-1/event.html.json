@@ -1,0 +1,44 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#event",
+  "Width": 240,
+  "Height": 100,
+  "Vars": {
+    "applicableEvents": {
+      "Name": "applicableEvents",
+      "Type": "EventTypeList",
+      "Description": "Which events to show",
+      "Value": [
+        "TwitchSub",
+        "TwitchGiftSub",
+        "TwitchGiftSub",
+        "TwitchCheer",
+        "StreamElementsDonation",
+        "StreamLabsDonation",
+        "YouTubeMembership",
+        "YouTubeGiftMembership",
+        "YouTubeSuperChat",
+        "TwitchCharityDonation",
+        "ExternalDonation",
+        "ExternalSub",
+        "KoFiSub",
+        "KoFiDonation",
+        "BlerpBits",
+        "BlerpBeets",
+        "UwUMarketOrder",
+        "GamerSuppsOrder"
+      ],
+      "Options": null
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Titan One,Poppins"
+    },
+    "CdnFonts" : {
+      "type": "CdnFont",
+      "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",
+      "value": "bright-orchid,milker,beachday"
+    }
+  }
+}

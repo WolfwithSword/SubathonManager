@@ -26,7 +26,7 @@ public class EventService: IDisposable, IAppService
     private readonly CurrencyService _currencyService;
     private readonly ILogger<EventService>? _logger;
     private readonly IConfig _config;
-    private record EventProjection(SubathonEventType? EventType, SubathonEventSource Source, int Amount, string Value, bool IsSimulated);
+    record EventProjection(SubathonEventType? EventType, SubathonEventSource Source, int Amount, string Value, bool IsSimulated, string? EventTypeMeta);
 
     public EventService(IDbContextFactory<AppDbContext> factory, ILogger<EventService>? logger, IConfig config,
         CurrencyService currencyService)
@@ -40,11 +40,11 @@ public class EventService: IDisposable, IAppService
     public Task StartAsync(CancellationToken ct = default)
     {
         Core.Events.SubathonEvents.SubathonEventCreated += AddSubathonEvent;
-        _processingTask = Task.Run(LoopAsync);
+        _processingTask = Task.Run(LoopAsync, ct);
         _processingTask.ContinueWith(t => 
                 _logger?.LogError("Event loop crashed: {AggregateException}", t.Exception), 
             TaskContinuationOptions.OnlyOnFaulted);
-        Task.Run(() =>_currencyService.StartAsync(ct));
+        Task.Run(() =>_currencyService.StartAsync(ct), ct);
         _logger?.LogInformation("EventService started");
         return Task.CompletedTask;
     }
@@ -122,8 +122,9 @@ public class EventService: IDisposable, IAppService
             var (bool1, bool2, hasRun) =  await HandleCommandEvent(ev, db, subathon, goalSet, initialPoints);
             if (hasRun) return (bool1, bool2);
         }
-        
-        if (subathon == null || (subathon.IsLocked && ev.EventType != SubathonEventType.TwitchHypeTrain)) // we only do math if it's unlocked, otherwise, only link
+
+        var processPointsIfLocked = _config.GetBool("App", "OtherValuesWhenLocked", true);
+        if (subathon == null || (subathon.IsLocked && ev.EventType != SubathonEventType.TwitchHypeTrain && !processPointsIfLocked)) // we only do math if it's unlocked, otherwise, only link
         {
             ev.ProcessedToSubathon = false;
             if (subathon != null)
@@ -154,6 +155,13 @@ public class EventService: IDisposable, IAppService
         {
             return await HandleHypeTrainEvent(ev, subathon, db);
         }
+        if (ev.EventType == SubathonEventType.ThroneCrowdGiftComplete || ev.EventType.IsEvent())
+        { 
+            ev.ProcessedToSubathon = true;
+            db.Add(ev);
+            await db.SaveChangesAsync();
+            return (ev.ProcessedToSubathon, false);
+        }
         
         ev.MultiplierSeconds = subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1;
         ev.MultiplierPoints = subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1;
@@ -166,7 +174,8 @@ public class EventService: IDisposable, IAppService
             ev.EventType != SubathonEventType.DonationAdjustment)
         {
             subathonValue = await db.SubathonValues.FirstOrDefaultAsync(v =>
-                v.EventType == ev.EventType && (v.Meta.ToLower() == ev.Value.ToLower() || 
+                v.EventType == ev.EventType && ( (ev.EventTypeMeta != null && v.Meta.ToLower() == ev.EventTypeMeta.ToLower()) ||  
+                                                v.Meta.ToLower() == ev.Value.ToLower() || 
                                                 v.Meta == string.Empty));
 
             subathonValue ??= await db.SubathonValues.FirstOrDefaultAsync(v =>
@@ -245,6 +254,7 @@ public class EventService: IDisposable, IAppService
         }
 
         int affected = 0;
+        if (processPointsIfLocked && subathon.IsLocked) ev.SecondsValue = 0;
         if (ev.SecondsValue != 0)
         {
             if (ev.WasReversed)
@@ -261,26 +271,41 @@ public class EventService: IDisposable, IAppService
 
         if (ev.PointsValue != 0)
         {
+            var lockVal = 0;
+            if (subathon.IsLocked && processPointsIfLocked) lockVal = 1;
             affected += await db.Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET Points = Points + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
-                (int)ev.GetFinalPointsValue(), subathon.Id);
+                "UPDATE SubathonDatas SET Points = Points + {0} WHERE IsActive = 1 AND IsLocked = {2} AND Id = {1}",
+                (int)ev.GetFinalPointsValue(), subathon.Id, lockVal);
         }
 
         if (ev is { PointsValue: 0, SecondsValue: 0 } && ev.Currency != "???")
         {
             ev.ProcessedToSubathon = true;
         }
+
+        if (ev.EventType.IsCurrencyDonation() && !_currencyService.IsValidCurrency(ev.Currency))
+        {
+            ev.ProcessedToSubathon = false;
+            var msg = $"{ev.EventType} invalid currency donated. Amt: [{ev.Value}] Currency: [{ev.Currency}]";
+            // discord push error donation
+            ErrorMessageEvents.RaiseErrorEvent("WARN", ev.Source.ToString(), msg, ev.EventTimestamp);
+            _logger?.LogWarning(msg);
+        }
         
-        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment || 
+        if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment ||
+            (processPointsIfLocked && subathon.IsLocked && ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency)) ||
             (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                                            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
                                         && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|')))
         {
             ev.ProcessedToSubathon = true;
             (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
             
+            var lockVal = 0;
+            if (subathon.IsLocked && processPointsIfLocked) lockVal = 1;
+            
             if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                           $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                                           $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
                                        && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
             {
                 var value = ev.SecondaryValue.Split('|')[0];
@@ -289,10 +314,10 @@ public class EventService: IDisposable, IAppService
                 {
                     double added = await _currencyService.ConvertAsync(double.Parse(value), currency,
                         _config.Get("Currency", "Primary", "USD"));
-
-                    await db.Database.ExecuteSqlRawAsync(
-                        "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
-                        added, subathon.Id);
+                    affected += await db.Database.ExecuteSqlRawAsync(
+                        "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = {2} AND Id = {1}",
+                        added, subathon.Id, lockVal);
+                    
                 }
 
             }
@@ -303,18 +328,17 @@ public class EventService: IDisposable, IAppService
                 double added = await _currencyService.ConvertAsync(double.Parse(value), ev.Currency,
                         _config.Get("Currency", "Primary", "USD"));
 
-                await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
-                    added, subathon.Id);
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = {2} AND Id = {1}",
+                    added, subathon.Id, lockVal);
             }
             else if (asDono)
             {
                 double added = await _currencyService.ConvertAsync((double.Parse(ev.Value) * modifier) / 100, "USD",
                     _config.Get("Currency", "Primary", "USD"));
-                await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = 0 AND Id = {1}",
-                    added, subathon.Id);
-                
+                affected += await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE SubathonDatas SET MoneySum = MoneySum + {0} WHERE IsActive = 1 AND IsLocked = {2} AND Id = {1}",
+                    added, subathon.Id, lockVal);
             }
             
             await db.Entry(subathon.Multiplier).ReloadAsync();
@@ -605,7 +629,7 @@ public class EventService: IDisposable, IAppService
         }
 
         if (ev.EventType.IsOrder() && ev.ProcessedToSubathon && _config.GetBool(ev.EventType.GetSource().ToString(),
-                $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", false)
+                $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
             && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
         {
             var value = ev.SecondaryValue.Split('|')[0];
@@ -726,7 +750,7 @@ public class EventService: IDisposable, IAppService
                 }
                 else if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
                                                     $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-                                                    false)
+                                                    ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
                                                 && !string.IsNullOrWhiteSpace(ev.SecondaryValue) &&
                                                 ev.SecondaryValue.Contains('|'))
                 {
@@ -865,7 +889,8 @@ public class EventService: IDisposable, IAppService
                 e.Value,
                 e.Source == SubathonEventSource.Simulated ||
                 e.User!.StartsWith("SIMULATED") ||
-                e.User!.StartsWith("SYSTEM")
+                e.User!.StartsWith("SYSTEM"),
+                e.EventTypeMeta
             ))
             .ToListAsync();
 

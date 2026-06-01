@@ -1,0 +1,55 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#event-value",
+  "Width": 200,
+  "Height": 200,
+  "Vars": {
+    "eventType": {
+      "Name": "eventType",
+      "Type": "EventTypeSelect",
+      "Description": "Which event to display the value of",
+      "Value": [],
+      "Options": null
+    },
+    "optionalTier": {
+      "Name": "optionalTier",
+      "Type": "String",
+      "Description": "For certain events, you can define which variation to display. For example, TwitchSub has tier 1000, 2000, 3000",
+      "Value": "",
+      "Options": null
+    },
+    "valueType": {
+      "Name": "valueType",
+      "Type": "StringSelect",
+      "Description": "Show the seconds or points value of the event?",
+      "Value": "Seconds",
+      "Options": [
+        "Seconds",
+        "Points"
+      ]
+    },
+    "showSuffix": {
+      "Name": "showSuffix",
+      "Type": "Boolean",
+      "Description": "Show the suffix for the value type? s for Seconds, pts for Points",
+      "Value": true,
+      "Options": null
+    },
+    "alignment": {
+      "Name": "alignment",
+      "Type": "StringSelect",
+      "Description": "Alignment of the widget",
+      "Value": "Center",
+      "Options": [
+        "Center",
+        "Left",
+        "Right"
+      ]
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
+    }
+  }
+}

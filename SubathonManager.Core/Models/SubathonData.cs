@@ -28,17 +28,42 @@ public class SubathonData
     public double? MoneySum { get; set; } = 0; 
     
     public bool? ReversedTime { get; set; } = false;
+    
+    public DateTime? CapDateTime { get; set; } = null;
 
     public bool IsSubathonReversed()
     {
         return ReversedTime ?? false;
     }
 
+    public bool IsCapInEffect()
+    {
+        if (CapDateTime == null) return false;
+        long value = 0;
+        if (IsSubathonReversed())
+            value = MillisecondsCumulative + MillisecondsElapsed;
+        else
+            value = MillisecondsCumulative - MillisecondsElapsed;
+        return CapDateTime.Value < DateTime.Now + TimeSpan.FromMilliseconds(value);
+    }
+
     public long MillisecondsRemaining()
     {
+        long value = 0;
         if (IsSubathonReversed())
-            return MillisecondsCumulative + MillisecondsElapsed;
-        return MillisecondsCumulative - MillisecondsElapsed;
+            value = MillisecondsCumulative + MillisecondsElapsed;
+        else
+            value = MillisecondsCumulative - MillisecondsElapsed;
+
+        if (CapDateTime != null)
+        {
+            double timeUntilCap = 0;
+            var x = DateTime.Now;
+            if (CapDateTime.Value > x)
+                timeUntilCap = (CapDateTime.Value - x).TotalMilliseconds;
+            value = Math.Min(value, (long)timeUntilCap);
+        }
+        return value;
     }
 
     public TimeSpan TimeRemaining()

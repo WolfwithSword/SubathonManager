@@ -47,6 +47,9 @@ public partial class ExportOverlayDialog
         ExportNameBox.Text = $"{_route.Name} Export";
         var fileList = BuildFileList(_route);
         PopulateTree(fileList);
+        bool isDevOrBeta = AppServices.AppVersion.Contains('+');
+        AppOverrideSection.Visibility =  isDevOrBeta ? Visibility.Visible : Visibility.Collapsed;
+        AppVersionBox.Text = $"{AppServices.AppVersion}";
     }
 
     private static List<(string zipEntry, string? absSource)> BuildFileList(Route route)
@@ -253,6 +256,10 @@ public partial class ExportOverlayDialog
         if (string.IsNullOrWhiteSpace(exportName))
             exportName = _route!.Name;
 
+        string appVersion = AppVersionBox.Text.Trim();
+        string version = VersionBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(version)) version = "1";
+        
         string safeFileName = string.Concat(exportName.Select(c =>
             Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
         string exportsDir = Path.GetFullPath($"./exports");
@@ -287,7 +294,7 @@ public partial class ExportOverlayDialog
                 .Select(entry => entry.ZipEntry)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            await OverlayPorter.ExportRouteAsync(_route, dialog.FileName, exportName, excludedZipEntries);
+            await OverlayPorter.ExportRouteAsync(_route, dialog.FileName, exportName, excludedZipEntries, version, appVersion);
             DialogResult = true;
             Close();
         }

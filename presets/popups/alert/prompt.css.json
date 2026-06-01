@@ -1,0 +1,15 @@
+﻿{
+  "accent": { "type": "color", "description": "Default accent colour" },
+  "active-color": { "type": "color", "description": "Accent while prompt is running" },
+  "complete-color": { "type": "color", "description": "Accent on completion" },
+  "expired-color": { "type": "color", "description": "Accent on expiry" },
+  "accent-glow-opacity": { "type": "opacity", "description": "Glow opacity around card and icon" },
+  "dropshadow-opacity": { "type": "opacity", "description": "Drop shadow opacity. 0 to disable." },
+  "bg": { "type": "color", "description": "Card background" },
+  "text-primary": { "type": "color", "description": "Prompt text colour" },
+  "text-secondary": { "type": "color", "description": "Timer / progress label colour" },
+  "font-display": { "type": "string", "description": "Font for the prompt title" },
+  "font-body": { "type": "string", "description": "Font for labels and detail text" },
+  "prompt-width": { "type": "size", "description": "Width of the card" },
+  "border-thickness": { "type": "size", "description": "Card border and icon circle thickness" }
+}

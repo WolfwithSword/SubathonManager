@@ -15,7 +15,7 @@ namespace SubathonManager.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.6");
 
             modelBuilder.Entity("SubathonManager.Core.Models.CssVariable", b =>
                 {
@@ -48,11 +48,43 @@ namespace SubathonManager.Data.Migrations
                     b.ToTable("CssVariables");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.GoAffProStore", b =>
+                {
+                    b.Property<int>("RowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EventName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SiteId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RowId");
+
+                    b.HasIndex("SiteId")
+                        .IsUnique();
+
+                    b.ToTable("GoAffProStores");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.JsVariable", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -145,6 +177,9 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnOrder(0);
 
+                    b.Property<DateTime?>("CapDateTime")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Currency")
                         .HasColumnType("TEXT");
 
@@ -212,6 +247,9 @@ namespace SubathonManager.Data.Migrations
                     b.Property<int?>("EventType")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("EventTypeMeta")
+                        .HasColumnType("TEXT");
+
                     b.Property<double>("MultiplierPoints")
                         .HasColumnType("REAL");
 
@@ -232,6 +270,10 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("REAL");
 
                     b.Property<Guid?>("SubathonId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TertiaryValue")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("User")
@@ -295,6 +337,130 @@ namespace SubathonManager.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SubathonGoalSets");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.SubathonPrompt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnOrder(0);
+
+                    b.Property<long>("CompletionDuration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("FilterEventType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FilterMeta")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FilterSubType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsInfinite")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("SetId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SubType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Value")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SetId");
+
+                    b.ToTable("SubathonPrompts");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("BaselineCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PromptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SetId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SnapshotTargetValue")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PromptId");
+
+                    b.HasIndex("SetId");
+
+                    b.ToTable("SubathonPromptRuns");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnOrder(0);
+
+                    b.Property<long>("Cooldown")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Interval")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("RandomOffset")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SubathonPromptSets");
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonValue", b =>
@@ -420,6 +586,35 @@ namespace SubathonManager.Data.Migrations
                     b.Navigation("LinkedGoalSet");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.SubathonPrompt", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.SubathonPromptSet", "LinkedSet")
+                        .WithMany("Prompts")
+                        .HasForeignKey("SetId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("LinkedSet");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptRun", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.SubathonPrompt", "LinkedPrompt")
+                        .WithMany()
+                        .HasForeignKey("PromptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SubathonManager.Core.Models.SubathonPromptSet", "LinkedSet")
+                        .WithMany()
+                        .HasForeignKey("SetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("LinkedPrompt");
+
+                    b.Navigation("LinkedSet");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.Widget", b =>
                 {
                     b.HasOne("SubathonManager.Core.Models.Route", "Route")
@@ -445,6 +640,11 @@ namespace SubathonManager.Data.Migrations
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonGoalSet", b =>
                 {
                     b.Navigation("Goals");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptSet", b =>
+                {
+                    b.Navigation("Prompts");
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.Widget", b =>

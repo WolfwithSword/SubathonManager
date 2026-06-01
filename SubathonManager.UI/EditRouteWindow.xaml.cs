@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Text.RegularExpressions;
@@ -11,23 +12,43 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
+using SubathonManager.UI.Services;
+using SubathonManager.UI.Views;
 using Wpf.Ui.Controls;
 
 namespace SubathonManager.UI;
 
-public partial class EditRouteWindow
+public partial class EditRouteWindow : INotifyPropertyChanged
 {
     public readonly Guid EditorRouteId;
     private Route? _route;
     private ObservableCollection<Widget> _widgets = new();
     private Widget? _selectedWidget;
-    private ObservableCollection<CssVariable> _editingCssVars = new();
+    private readonly ObservableCollection<CssVariable> _editingCssVars = [];
+    private readonly ObservableCollection<JsVariable> _editingJsVars = [];
+    private readonly Dictionary<Guid, Border> _widgetCardBorders = new();
+    private readonly Dictionary<Guid, List<CssVariable>> _unsavedCssVars = new();
+    private readonly Dictionary<Guid, List<JsVariable>> _unsavedJsVars = new();
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
     private bool _loadedWebView = false;
+    private readonly Timer? _cssLivePreviewTimer;
+    private bool _hasPendingCssChanges = false;
+    private bool _hasPendingJsChanges = false;
     private int _suppressCount = 0;
+    private bool _obsConnected;
+    public bool ObsConnected
+    {
+        get => _obsConnected;
+        set { _obsConnected = value; OnPropertyChanged(); }
+    }
+    
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     
     [GeneratedRegex(@"^-?[\d.]+")]
     private static partial Regex IsNumberRegex();
@@ -40,6 +61,16 @@ public partial class EditRouteWindow
         EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
         Loaded += EditRouteWindow_Loaded;
+        ObsConnected = ServiceManager.OBS.Connected;
+        IntegrationEvents.ConnectionUpdated += OnObsConnectionUpdated;
+        Closed += (_, _) => IntegrationEvents.ConnectionUpdated -= OnObsConnectionUpdated;
+        
+        _cssLivePreviewTimer = new Timer(_ =>
+        {
+            if (_selectedWidget == null) return;
+            OverlayEvents.RaiseWidgetVarsUpdated(_selectedWidget.Id, _editingCssVars, []);
+        }, null, Timeout.Infinite, Timeout.Infinite);
+        
     }
     private async void EditRouteWindow_Loaded(object sender, RoutedEventArgs e)
     {
@@ -191,11 +222,14 @@ public partial class EditRouteWindow
         Dispatcher.InvokeAsync(async () =>
         {
             if (widgetId == _selectedWidget?.Id && WidgetEditPanel.Visibility == Visibility.Visible) return;
+            
+            StashCurrentWidgetEdits();
+
             await using var db = await _factory.CreateDbContextAsync();
             var widget = await db.Widgets.Include(wX => wX.JsVariables)
                 .Include(wX => wX.CssVariables).FirstOrDefaultAsync(wX => wX.Id == widgetId);
-            PopulateWidgetEditor(widget);
             
+            PopulateWidgetEditor(widget);
         });
         
     }
@@ -204,8 +238,13 @@ public partial class EditRouteWindow
     {
         CssVarsList.ItemsSource = null;
         JsVarsList.ItemsSource = null;
+        JsVarFontList.ItemsSource = null;
+        StashCurrentWidgetEdits();
+        UnsubscribeCssVarChanges();
         _editingCssVars.Clear();
+        _editingJsVars.Clear();
         UpdateSaveButtonBorder(SaveButtonBorder, false);
+        _hasPendingCssChanges = false;
         if (widget == null)
         {
             WidgetEditPanel.Visibility = Visibility.Collapsed;
@@ -252,14 +291,43 @@ public partial class EditRouteWindow
         
         foreach (var v in widget.CssVariables) _editingCssVars.Add(v);
         CssVarsList.ItemsSource = _editingCssVars;
+        if (_unsavedCssVars.TryGetValue(widget.Id, out var stashed))
+        {
+            foreach (var stashedVar in stashed)
+            {
+                var live = _editingCssVars.FirstOrDefault(v => v.Name == stashedVar.Name);
+                live?.Value = stashedVar.Value;
+            }
+            _hasPendingCssChanges = true;
+        }
+        SubscribeCssVarChanges();
         PopulateJsVars();
-        UpdateSaveButtonBorder(SaveButtonBorder, false);
+        bool hasStash = _unsavedCssVars.ContainsKey(widget.Id) || _unsavedJsVars.ContainsKey(widget.Id);
+        _hasPendingCssChanges = _unsavedCssVars.ContainsKey(widget.Id);
+        _hasPendingJsChanges = _unsavedJsVars.ContainsKey(widget.Id);
+        UpdateSaveButtonBorder(SaveButtonBorder, hasStash || _hasPendingCssChanges || _hasPendingJsChanges);
     }
 
     private void PopulateJsVars()
     {
+        _hasPendingJsChanges = false;
         if (_selectedWidget == null) return;
-        JsVarsList.ItemsSource = _selectedWidget.JsVariables;
+        _editingJsVars.Clear();
+        JsVarsList.ItemsSource = _selectedWidget.JsVariables.Where(x => !x.Type.IsFontVariable());
+        JsVarFontList.ItemsSource = _selectedWidget.JsVariables.Where(x => x.Type.IsFontVariable());
+        
+        foreach (var v in _selectedWidget.JsVariables) _editingJsVars.Add(v);
+        bool hasJsStash = _unsavedJsVars.TryGetValue(_selectedWidget.Id, out var stashedJs);
+        if (hasJsStash)
+        {
+            foreach (var stashedVar in stashedJs!)
+            {
+                var live = _editingJsVars.FirstOrDefault(v => v.Name == stashedVar.Name);
+                live?.Value = stashedVar.Value;
+            }
+        }
+
+        _hasPendingJsChanges = hasJsStash;
     }
     
     private string SelectFileVarPathDialog(WidgetVariableType type)
@@ -386,27 +454,32 @@ public partial class EditRouteWindow
         newWidget.Y = 0;
         newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
 
-        newWidget.Width = metadata.TryGetValue("Width", out var w) &&
-                          int.TryParse(w, out var parsedW)
-            ? parsedW
-            : 400;
+        newWidget.Width = metadata.Width;
 
-        newWidget.Height = metadata.TryGetValue("Height", out var h) &&
-                           int.TryParse(h, out var parsedH)
-            ? parsedH
-            : 200;
+        newWidget.Height = metadata.Height;
 
-        newWidget.DocsUrl = metadata.TryGetValue("Url", out var u) && !string.IsNullOrWhiteSpace(u)
-            && Uri.IsWellFormedUriString(u, UriKind.Absolute)
-            ? u.Trim()
-            : string.Empty;
+        newWidget.DocsUrl = metadata.Url;
 
         db.Widgets.Add(newWidget);
         await db.SaveChangesAsync();
 
         (List<JsVariable> jsVars, _, _) =
             helper.LoadNewJsVariables(newWidget, metadata);
-
+        
+        var allVarTypes = jsVars.Select(j => j.Type).Distinct().ToList();
+        var missingFontTypes = WidgetVariableTypeHelper.FontVariables.ToList().Where(x => !allVarTypes.Contains(x)).ToList();
+        foreach (var fontVar in missingFontTypes)
+        {
+            jsVars.Add(new JsVariable
+            {
+                WidgetId = newWidget.Id,
+                Type = fontVar,
+                Name = $"{fontVar}s",
+                Description = $"Custom font names to include from {fontVar}s, comma separated",
+                Value = string.Empty
+            });
+        }
+        
         if (jsVars.Count > 0)
         {
             newWidget.JsVariables = jsVars;
@@ -460,6 +533,7 @@ public partial class EditRouteWindow
             PreviewWebView?.Dispose();
         }
 
+        UnsubscribeCssVarChanges();
         base.OnClosed(e);
     }
 
@@ -469,6 +543,35 @@ public partial class EditRouteWindow
         {
             UiUtils.UiUtils.UpdateButtonPendingBorder(border, hasPendingChanges);
         });
+    }
+    
+    private void OnObsConnectionUpdated(IntegrationConnection? connection)
+    {
+        if (connection is not { Source: SubathonEventSource.OBS }) return;
+        Dispatcher.Invoke(() => ObsConnected = connection.Status);
+    }
+
+    private void AddToObs_Click(object sender, RoutedEventArgs e)
+    {
+        if (_route == null) return;
+        try
+        {
+            var scenes = ServiceManager.OBS.GetScenes();
+            string currentScene = ServiceManager.OBS.GetCurrentScene();
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            string url = _route.GetRouteUrl(config);
+
+            var dialog = new ObsAddSourceDialog(_route, url, scenes, currentScene)
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[OBS] Failed to open add source dialog for overlay {Name}", _route.Name);
+        }
     }
 
 }

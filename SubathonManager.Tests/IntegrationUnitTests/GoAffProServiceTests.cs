@@ -5,6 +5,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
 
@@ -47,13 +48,13 @@ public class GoAffProServiceTests
     
     [Theory]
     [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
-        GoAffProModes.Dollar, "USD", "2.99|USD", "10.99", SubathonEventType.UwUMarketOrder)]
+        OrderTypeModes.Dollar, "USD", "2.99|USD", "10.99", SubathonEventType.UwUMarketOrder)]
     [InlineData(GoAffProSource.GamerSupps, 20.99, 6.99, 3, 
-        GoAffProModes.Item, "items", "6.99|USD", "3", SubathonEventType.GamerSuppsOrder)]
+        OrderTypeModes.Item, "items", "6.99|USD", "3", SubathonEventType.GamerSuppsOrder)]
     [InlineData(GoAffProSource.GamerSupps, 20.99, 6.99, 3, 
-        GoAffProModes.Order, "order", "6.99|USD", "New", SubathonEventType.GamerSuppsOrder)]
+        OrderTypeModes.Order, "order", "6.99|USD", "New", SubathonEventType.GamerSuppsOrder)]
     public void SimulateOrder_RaisesEvent(GoAffProSource store, decimal total, decimal commission, int quantity, 
-        GoAffProModes type, string expectedCurrency, string expectedSecondaryValue, string expectedValue, SubathonEventType expectedEventType)
+        OrderTypeModes type, string expectedCurrency, string expectedSecondaryValue, string expectedValue, SubathonEventType expectedEventType)
     {
         var logger = new Mock<ILogger<GoAffProService>>();
         Dictionary<(string, string), string> values = new()
@@ -63,7 +64,12 @@ public class GoAffProServiceTests
             { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
         };
 
-        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "",
+            [StorageKeys.GoAffProPassword] = "",
+        });
+        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -82,13 +88,13 @@ public class GoAffProServiceTests
         
     [Theory]
     [InlineData(GoAffProSource.Unknown, 10.99, 2.99, 1, 
-        GoAffProModes.Dollar,  "True")]
+        OrderTypeModes.Dollar,  "True")]
     [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
-        GoAffProModes.Dollar, "False")]
+        OrderTypeModes.Dollar, "False")]
     [InlineData(GoAffProSource.GamerSupps, 10.99, 2.99, 1, 
-        GoAffProModes.Item, "False")]
+        OrderTypeModes.Item, "False")]
     public void SimulateOrder_BadPath_DoesNotRaiseEvent(GoAffProSource store, decimal total, decimal commission, int quantity, 
-        GoAffProModes type, string enabledString)
+        OrderTypeModes type, string enabledString)
     {
         var logger = new Mock<ILogger<GoAffProService>>();
         Dictionary<(string, string), string> values = new()
@@ -98,7 +104,12 @@ public class GoAffProServiceTests
             { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
         };
 
-        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "",
+            [StorageKeys.GoAffProPassword] = "",
+        });
+        GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
@@ -119,26 +130,26 @@ public class GoAffProServiceTests
         {
             { ("GoAffPro", "UwUMarket.Enabled"), "True"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
-            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), email},
-            { ("GoAffPro", "Password"), password},
+            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" }
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = email,
+            [StorageKeys.GoAffProPassword] = password,
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         
         typeof(IntegrationEvents)
             .GetField("RaiseConnectionUpdate", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        (status, source, name, serviceName) = await CaptureIntegrationEvent(  () => service.StartAsync());
+        bool? status = null;
+        (status, _, _, _) = await CaptureIntegrationEvent(  () => service.StartAsync());
         
         // no true should ever raise, but falses for all of the others
         Assert.NotNull(status);
         Assert.False(status);
         
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
     }
     
     [Theory]
@@ -199,10 +210,13 @@ public class GoAffProServiceTests
             { ("GoAffPro", "GamerSupps.Enabled"), "False"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
             { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), email},
-            { ("GoAffPro", "Password"), password},
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = email,
+            [StorageKeys.GoAffProPassword] = password,
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         service.Endpoint = new Uri(webserver.BaseUrl);
         
         typeof(IntegrationEvents)
@@ -210,16 +224,13 @@ public class GoAffProServiceTests
             ?.SetValue(null, null);
         
         
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        
-        (status, source, name, serviceName) = await CaptureIntegrationEvent( () => service.StartAsync());
+        bool? status = null;
+
+        (status, _, _, _) = await CaptureIntegrationEvent( () => service.StartAsync());
         
         Assert.NotNull(status);
         Assert.True(status);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, webserver.PostCallCount);
         Assert.Equal(1, webserver.GetCallCount);
     }
@@ -235,11 +246,15 @@ public class GoAffProServiceTests
             { ("GoAffPro", "UwUMarket.Enabled"), "True"},
             { ("GoAffPro", "GamerSupps.Enabled"), "False"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
-            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), "test@example.com"},
-            { ("GoAffPro", "Password"),  "p4$$w0rd"},
+            { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" }
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "test@example.com",
+            [StorageKeys.GoAffProPassword] = "p4$$w0rd",
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         service.Endpoint = new Uri(webserver.BaseUrl);
         
         typeof(IntegrationEvents)
@@ -247,16 +262,13 @@ public class GoAffProServiceTests
             ?.SetValue(null, null);
         
         
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        
-        (status, source, name, serviceName) = await CaptureIntegrationEvent( () => service.StartAsync());
+        bool? status = null;
+
+        (status, _, _, _) = await CaptureIntegrationEvent( () => service.StartAsync());
         
         Assert.NotNull(status);
         Assert.False(status);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, webserver.PostCallCount);
     }
     
@@ -277,10 +289,14 @@ public class GoAffProServiceTests
             { ("GoAffPro", "GamerSupps.Enabled"), "False"},
             { ("GoAffPro", "UwUMarket.Mode"), "Dollar" },
             { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "true" },
-            { ("GoAffPro", "Email"), "test@example.com"},
-            { ("GoAffPro", "Password"),  "p4$$w0rd"},
         };
-        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values));
+        
+        var storage = new InMemorySecureStorage(new()
+        {
+            [StorageKeys.GoAffProEmail] = "test@example.com",
+            [StorageKeys.GoAffProPassword] = "p4$$w0rd",
+        });
+        var service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
         service.MaxRetries = 1;
         service.Endpoint = new Uri(webserver.BaseUrl);
         
@@ -289,16 +305,13 @@ public class GoAffProServiceTests
             ?.SetValue(null, null);
         
         
-        bool? status = null; 
-        SubathonEventSource? source;
-        string? name;
-        string? serviceName;
-        
-        (status, source, name, serviceName) = await CaptureIntegrationEvent( () => service.StartAsync());
+        bool? status = null;
+
+        (status, _, _, _) = await CaptureIntegrationEvent( () => service.StartAsync());
         
         Assert.NotNull(status);
         Assert.False(status);
-        await service.StopAsync();
+        await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, webserver.PostCallCount);
         Assert.Equal(2, webserver.GetCallCount);
     }

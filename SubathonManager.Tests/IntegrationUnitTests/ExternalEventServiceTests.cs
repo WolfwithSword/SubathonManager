@@ -1,10 +1,9 @@
 ﻿using System.Text.Json;
-using SubathonManager.Core.Events;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Integration;
-using System.Reflection;
-using Moq;
 using SubathonManager.Tests.Utility;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
@@ -25,6 +24,19 @@ public class ExternalEventServiceTests
         bool result = ExternalEventService.ProcessExternalCommand(data);
 
         Assert.False(result);
+    }
+    private static IDisposable WithMockConfig(Dictionary<(string, string), string>? values = null)
+    {
+        var prev = AppServices.Provider;
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfig>(MockConfig.MakeMockConfig(values));
+        AppServices.Provider = services.BuildServiceProvider();
+        return new ActionDisposable(() => AppServices.Provider = prev);
+    }
+
+    private sealed class ActionDisposable(Action onDispose) : IDisposable
+    {
+        public void Dispose() => onDispose();
     }
     
     [Fact]
@@ -672,5 +684,347 @@ public class ExternalEventServiceTests
         SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
+    }
+    
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenTypeMissing()
+    {
+        var json = """{ "currency": "USD", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenTypeIsNotOrder()
+    {
+        var json = """{ "type": "ExternalDonation", "currency": "USD", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenCurrencyMissing()
+    {
+        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenAmountNotString()
+    {
+        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": 25.00, "quantity": 1 }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenAmountInvalid()
+    {
+        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "notanumber", "quantity": 1 }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenQuantityIsWrongKind()
+    {
+        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "25.00", "quantity": true }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenQuantityStringIsInvalid()
+    {
+        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "25.00", "quantity": "abc" }""";
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        Assert.False(ExternalEventService.ProcessExternalOrder(data));
+    }
+
+    [Theory]
+    [InlineData("Dollar", "25", "USD")]
+    [InlineData("Item",   "2",     "items")]
+    [InlineData("Order",  "New",   "order")]
+    public void ProcessExternalOrder_RespectsModeConfig(string mode, string expectedValue, string expectedCurrency)
+    {
+        using var _ = WithMockConfig(new Dictionary<(string, string), string>
+        {
+            { ("KoFi", $"{SubathonEventType.KoFiShopOrder}.Mode"), mode }
+        });
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "25.00",
+                       "quantity": 2
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("Buyer", ev!.User);
+        Assert.Equal(expectedValue, ev.Value);
+        Assert.Equal(expectedCurrency, ev.Currency);
+        Assert.Equal(2, ev.Amount);
+        Assert.Equal(SubathonEventSource.KoFi, ev.Source);
+        Assert.Equal(SubathonEventType.KoFiShopOrder, ev.EventType);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldRaiseEvent_WithValidData_NoQuantity()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "25.00",
+                       "id": "a1b2c3d4-0000-4000-8000-000000000001"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("Buyer", ev!.User);
+        Assert.Equal(1, ev.Amount);
+        Assert.Equal(SubathonEventSource.KoFi, ev.Source);
+        Assert.Equal(SubathonEventType.KoFiShopOrder, ev.EventType);
+        Assert.Equal(Guid.Parse("a1b2c3d4-0000-4000-8000-000000000001"), ev.Id);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldRaiseEvent_WithQuantityAsNumber()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "30.00",
+                       "quantity": 3
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal(3, ev!.Amount);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ShouldRaiseEvent_WithQuantityAsString()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "30.00",
+                       "quantity": "4"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal(4, ev!.Amount);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_EmptyUser_DefaultsToExternal()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "",
+                       "currency": "USD",
+                       "amount": "10.00"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.Equal("EXTERNAL", ev!.User);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_SystemUser_SetsSimulatedSource()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "SYSTEM",
+                       "currency": "USD",
+                       "amount": "10.00"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_CurrencyIsUppercased()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "cad",
+                       "amount": "10.00"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.Equal("CAD", ev!.Currency);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_SecondaryValue_ContainsRawAmountAndCurrency()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "42.50"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.NotNull(ev);
+        Assert.StartsWith("42.5|", ev!.SecondaryValue);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_MissingId_KeepsGeneratedGuid()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "10.00"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.NotEqual(Guid.Empty, ev!.Id);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_InvalidId_KeepsGeneratedGuid()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "10.00",
+                       "id": "not-a-valid-guid-xyz"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.NotEqual(Guid.Empty, ev!.Id);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_ValidId_UsesProvidedGuid()
+    {
+        using var _ = WithMockConfig();
+
+        var json = """
+                   {
+                       "type": "KoFiShopOrder",
+                       "user": "Buyer",
+                       "currency": "USD",
+                       "amount": "10.00",
+                       "id": "d4e5f6a7-1234-4bcd-8ef0-abcdef012345"
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.Equal(Guid.Parse("d4e5f6a7-1234-4bcd-8ef0-abcdef012345"), ev!.Id);
+    }
+
+    [Fact]
+    public void ProcessExternalOrder_KoFiCommissionOrder_SkipsModeConfig_UsesCurrencyDirectly()
+    {
+        var json = """
+                   {
+                       "type": "KoFiCommissionOrder",
+                       "user": "Artist",
+                       "currency": "GBP",
+                       "amount": "150.00",
+                       "quantity": 1
+                   }
+                   """;
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("Artist", ev!.User);
+        Assert.Equal("GBP", ev.Currency);
+        Assert.Equal(SubathonEventType.KoFiCommissionOrder, ev.EventType);
+        Assert.Equal(SubathonEventSource.KoFi, ev.Source);
     }
 }

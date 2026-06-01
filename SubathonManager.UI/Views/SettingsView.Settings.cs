@@ -76,7 +76,14 @@ namespace SubathonManager.UI.Views
             
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             hasUpdated |= config.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
+            hasUpdated |= config.Set("App", "OtherValuesWhenLocked", $"{AddOtherWhenLockedBox.IsChecked}");
             
+            bool updatedLockVisibility = config.Set("App", "ShowLockedEvents", $"{ShowEventsWhenLockedBox.IsChecked}");
+            hasUpdated |= updatedLockVisibility;
+            if (updatedLockVisibility)
+            {
+                SettingsEvents.RaiseEventVisibilityChanged();
+            }
 
             if (selectedCurrency.Length >= 3)
             {
@@ -249,6 +256,13 @@ namespace SubathonManager.UI.Views
                 var config = AppServices.Provider.GetRequiredService<IConfig>();
                 bool bitsAsDonation = config.GetBool("Currency", "BitsLikeAsDonation", false);
                 BitsAsCurrencyBox.IsChecked = bitsAsDonation;
+                
+                
+                bool otherWhenLocked = config.GetBool("App", "OtherValuesWhenLocked", true);
+                AddOtherWhenLockedBox.IsChecked =  otherWhenLocked;
+                
+                bool showWhenLocked = config.GetBool("App", "ShowLockedEvents", false);
+                ShowEventsWhenLockedBox.IsChecked = showWhenLocked;
                 
                 var theme = config.Get("App", "Theme", "Dark")!;
                 foreach (ComboBoxItem item in ThemeBox.Items)

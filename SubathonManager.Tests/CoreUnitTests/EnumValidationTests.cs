@@ -37,6 +37,7 @@ public class EnumValidationTests
                 foreach (var subathonEventType in group)
                 {
                     var eventType = (SubathonEventType?) subathonEventType;
+                    if (eventType == SubathonEventType.GoAffProOrder) continue;
                     Assert.StartsWith(subathonEventType.GetTypeTrueSource() ?? "ERROR_ERROR_ERROR", subathonEventType.ToString());
                     Assert.True(Enum.TryParse(subathonEventType.GetTypeTrueSource(), true, out GoAffProSource gapSource));
                     Assert.True(gapSource.GetSiteId() > 0);
@@ -79,9 +80,19 @@ public class EnumValidationTests
                         Assert.Contains(eventType.GetLabel(), "Gift Subscription Gift Membership");
                     }
 
-                    if (eventType.IsOrder())
+                    if (eventType.IsOrder() && eventType.GetSource() != SubathonEventSource.Throne)
                     {
                         Assert.Contains("Order", subathonEventType.ToString());
+                    }
+                    
+                    if (eventType.IsOrder() && eventType.GetSource() == SubathonEventSource.Throne)
+                    {
+                        Assert.Contains("Gift", subathonEventType.ToString());
+                    }
+
+                    if (eventType.IsEvent() && eventType.GetSource() == SubathonEventSource.Throne)
+                    {
+                        Assert.Contains("Crowd", subathonEventType.ToString());
                     }
 
                     if (eventType.IsCurrencyDonation())

@@ -1,0 +1,20 @@
+﻿{
+  "border-color": { "type": "color" },
+  "inner-border-color": { "type": "color" },
+  "main-background-color": { "type": "color" },
+  "text-color": { "type": "color" },
+  "timer-color": { "type": "color", "description": "Colour of the countdown number inside the timer ring" },
+  "timer-ring-color": { "type": "color", "description": "Colour of the draining timer ring arc" },
+  "progress-color": { "type": "color", "description": "Colour of the progress bar fill and outer value ring" },
+  "progress-bg-color": { "type": "color", "description": "Background of the progress bar track" },
+  "glow-color": { "type": "color", "description": "Glow surrounding the card. Transparent to disable." },
+  "sparkle-color": { "type": "color", "description": "Colour of the completion sparkle particles" },
+  "puff-color": { "type": "color", "description": "Colour of the expiry puff particles" },
+  "font": { "type": "string" },
+  "prompt-font-size": {"type":  "size"},
+  "prompt-font-weight": {"type":  "weight"},
+  "timer-font-size": {"type":  "size"},
+  "timer-font-weight": {"type":  "weight"},
+  "progress-font-size": {"type":  "size"},
+  "progress-font-weight": {"type":  "weight"}
+}

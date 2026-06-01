@@ -1,0 +1,46 @@
+﻿{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/alert/#prompt",
+  "Width": 500,
+  "Height": 200,
+  "Vars": {
+    "lingerSeconds": {
+      "Name": "lingerSeconds",
+      "Type": "Int",
+      "Description": "How long to keep the widget visible after complete or expired.",
+      "Value": 10,
+      "Options": null
+    },
+    "startedSound": { "Type": "SoundFile", "Description": "Sound on prompt start", "Value": "", "Options": null },
+    "startedSoundVolume": { "Type": "Percent", "Description": "", "Value": 50, "Options": null },
+    "successSound": { "Type": "SoundFile", "Description": "Sound on completion", "Value": "", "Options": null },
+    "successSoundVolume": { "Type": "Percent", "Description": "", "Value": 50, "Options": null },
+    "failSound": { "Type": "SoundFile", "Description": "Sound on expiry", "Value": "", "Options": null },
+    "failSoundVolume": { "Type": "Percent", "Description": "", "Value": 50, "Options": null },
+    "animationDirection": {
+      "Name": "animationDirection", "Type": "StringSelect",
+      "Description": "Direction the card enters from",
+      "Value": "top", "Options": ["top","bottom","left","right"]
+    },
+    "animationStyle": {
+      "Name": "animationStyle", "Type": "StringSelect",
+      "Description": "Entrance animation style",
+      "Value": "fade", "Options": ["fade","slide"]
+    },
+    "exitAnimationDirection": {
+      "Name": "exitAnimationDirection", "Type": "StringSelect",
+      "Description": "Direction the card exits to",
+      "Value": "top", "Options": ["top","bottom","left","right"]
+    },
+    "exitAnimationStyle": {
+      "Name": "exitAnimationStyle", "Type": "StringSelect",
+      "Description": "Exit animation style",
+      "Value": "fade", "Options": ["fade","slide"]
+    },
+    "GoogleFonts": {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Outfit,DM Sans"
+    }
+  }
+}

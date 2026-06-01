@@ -28,6 +28,13 @@ public partial class WebServer
         OverlayEvents.OverlayRefreshRequested += SendRefreshRequest;
         SubathonEvents.SubathonValueConfigRequested += SendSubathonValues;
         SubathonEvents.SubathonTotalsUpdated += SendSubathonTotals;
+
+        SubathonEvents.PromptRunStarted += OnPromptStart;
+        SubathonEvents.PromptRunUpdate += OnPromptRunUpdate;
+        SubathonEvents.PromptRunProgressUpdated += OnPromptProgress;
+        
+        OverlayEvents.WidgetVarsUpdated += SendWidgetVarsUpdate;
+        OverlayEvents.WidgetRefreshRequested += SendWidgetReload;
     }
 
     private void StopWebsocketServer()
@@ -39,6 +46,79 @@ public partial class WebServer
         SubathonEvents.SubathonGoalListUpdated -= SendGoalsUpdated;
         SubathonEvents.SubathonValueConfigRequested -= SendSubathonValues;
         SubathonEvents.SubathonTotalsUpdated -= SendSubathonTotals;
+        
+        SubathonEvents.PromptRunStarted -= OnPromptStart;
+        SubathonEvents.PromptRunUpdate -= OnPromptRunUpdate;
+        SubathonEvents.PromptRunProgressUpdated -= OnPromptProgress;
+        
+        OverlayEvents.WidgetVarsUpdated -= SendWidgetVarsUpdate;
+        OverlayEvents.WidgetRefreshRequested -= SendWidgetReload;
+    }
+
+    private void OnPromptStart(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
+    {
+        SendPromptData(subathonPromptRun, 0);
+    }
+
+    private void OnPromptRunUpdate(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
+    {
+        Task.Run(async () =>
+        {
+            await using var db = await _factory.CreateDbContextAsync();
+            long current = await PromptOrchestratorService.GetCurrentCountAsync(db, subathonPromptRun.LinkedPrompt!);
+            long progress = current - subathonPromptRun.BaselineCount;
+            SendPromptData(subathonPromptRun, progress);
+        });
+    }
+
+    private void OnPromptProgress(SubathonPromptRun subathonPromptRun, long progress)
+    {
+        SendPromptData(subathonPromptRun, progress);
+    }
+    
+    internal void SendWidgetReload(Guid widgetId, float x, float y, int width, int height, float scaleX, float scaleY)
+    {
+        var data = new { 
+            type = "widget_reload", 
+            widgetId = widgetId.ToString(),
+            x, y, width, height, scaleX, scaleY
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientMessageType.Overlay));
+    }
+
+    internal void SendPromptData(SubathonPromptRun? run, long progress = 0)
+    {
+        object data = new
+        {
+            type = "prompt_update",
+            status = run == null ? "None" : run.Status.ToString(),
+            progress = progress,
+            target = run?.LinkedPrompt?.Value ?? 0,
+            seconds_remaining = run?.TimeRemaining().TotalSeconds ?? 0,
+            start_time = run?.StartedAt,
+            end_time = run?.ExpiresAt,
+            duration_seconds = run?.LinkedPrompt?.CompletionDuration.TotalSeconds ?? 0,
+            text = run?.LinkedPrompt?.Text,
+            prompt_type = $"{run?.LinkedPrompt?.Type}",
+            prompt_subtype = $"{run?.LinkedPrompt?.SubType}",
+            prompt_eventtype = $"{run?.LinkedPrompt?.FilterEventType}",
+            prompt_eventtype_metafilter =  run?.LinkedPrompt?.FilterMeta
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+    }
+    
+    internal void SendWidgetVarsUpdate(Guid widgetId, 
+        IEnumerable<CssVariable> cssVars, IEnumerable<JsVariable> jsVars)
+    {
+        var data = new
+        {
+            type = "widget_vars_update",
+            widgetId = widgetId.ToString(),
+            cssVars = cssVars.Select(v => new { name = v.Name, value = v.Value }),
+            jsVars  = jsVars.Select(v => new { name = v.Name, value = v.Value, 
+                injectLine = v.GetInjectLine() })
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
 
     internal void SendSubathonValues(string jsonData)
@@ -110,6 +190,18 @@ public partial class WebServer
             };
             await SelectSendAsync(socket, data);
         }
+
+        SubathonPromptRun? promptRun = await db.SubathonPromptRuns.AsNoTracking()
+            .Include(p => p.LinkedPrompt)
+            .FirstOrDefaultAsync(p => p.Status == SubathonPromptRunStatus.Active && p.ExpiresAt > DateTime.Now);
+        if (promptRun is { LinkedPrompt: not null })
+        {
+            long current = await PromptOrchestratorService.GetCurrentCountAsync(db, promptRun.LinkedPrompt);
+            long progress = current - promptRun.BaselineCount;
+            SendPromptData(promptRun, progress);
+        }
+        else
+            SendPromptData(null, 0);
         
         var totals = await EventService.GetSubathonTotalsAsync(db);
         
@@ -158,10 +250,21 @@ public partial class WebServer
 
     private object SubathonEventToObject(SubathonEvent subathonEvent)
     {
+        var trueSource = subathonEvent.EventType.GetTypeTrueSource();
+        var eventType = subathonEvent.EventType.ToString();
+        // if (subathonEvent.EventType == SubathonEventType.GoAffProOrder)
+        // {
+        //     GoAffProStoreRegistry.TryGetBySiteId(int.Parse(subathonEvent.EventTypeMeta!), out var store);
+        //     if (store != null)
+        //     {
+        //         trueSource = store.InternalName;
+        //         eventType = store.InternalEventName;
+        //     }
+        // }
         object data = new
         {
             type = "event",
-            event_type =  subathonEvent.EventType.ToString(),
+            event_type = eventType,
             source =  subathonEvent.Source.ToString(),
             seconds_added = subathonEvent.GetFinalSecondsValueRaw() < 0.5 ? 0 : subathonEvent.GetFinalSecondsValue(),
             points_added = subathonEvent.GetFinalPointsValue(),
@@ -174,14 +277,16 @@ public partial class WebServer
             reversed = subathonEvent.WasReversed,
             sub_type = subathonEvent.EventType.GetSubType().ToString(),
             secondary_value = subathonEvent.SecondaryValue,
-            type_true_source = subathonEvent.EventType.GetTypeTrueSource()
+            tertiary_value = subathonEvent.TertiaryValue,
+            type_true_source = trueSource
         };
         return data;
     }
 
     internal void SendSubathonEventProcessed(SubathonEvent subathonEvent, bool effective)
     {
-        if (!subathonEvent.ProcessedToSubathon) return;
+        bool showOverride = _config.GetBool("App", "ShowLockedEvents", false);
+        if (!showOverride && !subathonEvent.ProcessedToSubathon) return;
         Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent), WebsocketClientTypeHelper.ConsumersList));
     }
 
@@ -539,6 +644,8 @@ public partial class WebServer
                                             window.handleSubathonUpdate(data);
                                         else if (typeof window.handleSubathonEvent === 'function' && data.type == 'event')
                                             window.handleSubathonEvent(data);
+                                        else if (typeof window.handlePromptUpdate === 'function' && data.type == 'prompt_update')
+                                            window.handlePromptUpdate(data);
                                         else if (typeof window.handleGoalsUpdate === 'function' && data.type == 'goals_list')
                                             window.handleGoalsUpdate(data);
                                         else if (typeof window.handleGoalCompleted === 'function' && data.type == 'goal_completed')
@@ -550,6 +657,37 @@ public partial class WebServer
                                         else if (data.type == 'refresh_request' && document.title.startsWith('overlay') && (document.title.includes(data.id) || data.id == '{Guid.Empty}')) {{
                                             // for only the merged page
                                             window.location.reload();
+                                        }}
+                                        else if (data.type === 'widget_reload' && document.title.startsWith('overlay')) {{
+                                            const iframe = document.querySelector(`iframe[data-widget-id=""${{data.widgetId}}""]`);
+                                            if (iframe) {{
+                                                const wrapper = iframe.parentElement;
+                                                if (data.width != null) {{
+                                                    iframe.dataset.origWidth  = data.width;
+                                                    iframe.dataset.origHeight = data.height;
+                                                    iframe.dataset.scalex = data.scaleX;
+                                                    iframe.dataset.scaley = data.scaleY;
+                                                    wrapper.style.left = data.x + 'px';
+                                                    wrapper.style.top = data.y + 'px';
+                                                }}
+                                                iframe.onload = () => resizeIframe(iframe);
+                                                iframe.src = iframe.src;
+                                            }}
+                                            
+                                        }}
+                                        else if (data.type === 'widget_vars_update' && !document.title.startsWith('overlay') ) {{
+                                            const myId = window.location.pathname.split('/')[2];
+                                            if (data.widgetId !== myId) return;
+                                            if (data.cssVars) {{
+                                                for (const v of data.cssVars) {{
+                                                    document.documentElement.style.setProperty(`--${{v.name}}`, v.value, 'important');
+                                                }}
+                                            }}
+                                            if (typeof window.handleVarsUpdate === 'function' && data.jsVars) {{
+                                                // not used, attempt to maybe pass in js vars, but will break for consts so w/e
+                                                // if desired, we can stop setting vars as constants, then call this with data, and *not* refresh it
+                                                window.handleVarsUpdate(data.jsVars);
+                                            }}
                                         }}
                                         //else console.log('[Subathon WS] Received:', data);
                                     }} catch (e) {{

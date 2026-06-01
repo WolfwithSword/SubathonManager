@@ -16,11 +16,10 @@ namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class YouTubeSettings : SettingsControl
 {
-    private readonly IDbContextFactory<AppDbContext> _factory;
-    private List<MembershipRow> _dynamicSubRows = new();
+    protected override StackPanel? _MembershipsPanel => MembershipsPanel;
+
     public YouTubeSettings()
     {
-        _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         Loaded += (_, _) =>
         {
@@ -77,7 +76,7 @@ public partial class YouTubeSettings : SettingsControl
             }
             else if (value.EventType == SubathonEventType.YouTubeMembership)
             {
-                MembershipRow row = AddMembershipRow(value);
+                var row = AddMembershipRow(value);
             }
 
             if (!string.IsNullOrWhiteSpace(v) && !string.IsNullOrWhiteSpace(p) && box1 != null && box2 != null)
@@ -120,118 +119,6 @@ public partial class YouTubeSettings : SettingsControl
 
         SimTierSelection.SelectedItem ??= SimTierSelection.Items[0];
     }
-    
-    
-    private MembershipRow AddMembershipRow(SubathonValue subathonValue)
-    {
-        var row = new Grid
-        {
-            Margin = new Thickness(0, 2, 0 ,2),
-        };
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
-        
-        var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-        var nameBox = new Wpf.Ui.Controls.TextBox { Width = 154, Text = subathonValue.Meta ?? "", 
-            ToolTip = "Tier Name", PlaceholderText = "Tier Name",
-            Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
-        var secondsBox = new Wpf.Ui.Controls.TextBox { Width = 100, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)};
-        var pointsBox = new Wpf.Ui.Controls.TextBox { Width = 100, Text = $"{subathonValue.Points}", PlaceholderText = "Points",
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(128, 0, 0, 0) };
-        
-        InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
-        InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
-        
-        WireControl(nameBox);
-        WireControl(secondsBox);
-        WireControl(pointsBox);
-        
-        var deleteBtn = new Wpf.Ui.Controls.Button { ToolTip="Delete", 
-            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24,
-                Margin = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Center},
-            Foreground = System.Windows.Media.Brushes.Red,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Width = 36, Height = 36, Margin = new Thickness(64,0,0,0) };
-
-        panelRow.Children.Add(nameBox);
-        panelRow.Children.Add(secondsBox);
-        panelRow.Children.Add(pointsBox);
-        panelRow.Children.Add(deleteBtn);
-        
-        row.Children.Add(panelRow);
-
-        MembershipsPanel.Children.Add(row);
-
-        var subRow = new MembershipRow
-        {
-            SubValue = subathonValue,
-            NameBox = nameBox,
-            TimeBox = secondsBox,
-            PointsBox = pointsBox,
-            RowGrid = row
-        };
-        
-        _dynamicSubRows.Add(subRow);
-
-        deleteBtn.Click += (s, e) =>
-        {
-            DeleteRow(subathonValue, subRow);
-        };
-        return subRow;
-    }
-
-    private void DeleteRow(SubathonValue subathonValue, MembershipRow subRow)
-    {
-        using var db = _factory.CreateDbContext();
-
-        var dbRow = db.SubathonValues
-            .FirstOrDefault(x => x.Meta == subathonValue.Meta && x.EventType == subathonValue.EventType);
-
-        if (dbRow != null)
-        {
-            db.SubathonValues.Remove(dbRow);
-            db.SaveChanges();
-        }
-
-        _dynamicSubRows.Remove(subRow);
-        MembershipsPanel.Children.Remove(subRow.RowGrid);
-    }
-    
-    private void AddMembership_Click(object sender, RoutedEventArgs e)
-    {
-        var name = $"New {_dynamicSubRows.Count}";
-        var allNames = _dynamicSubRows.Select(x => x.NameBox.Text.Trim()).ToArray();
-        while (allNames.Contains(name)) name = $"New {name}";
-        allNames = _dynamicSubRows.Select(x => x.SubValue.Meta.Trim()).ToArray();
-        while (allNames.Contains(name)) name = $"New {name}";
-        var value = new SubathonValue
-        {
-            EventType = SubathonEventType.YouTubeMembership,
-            Meta = name,
-            Seconds = 0,
-            Points = 0
-        };
-        AddMembershipRow(value);
-    }
-    
-    private void EnsureUniqueName(List<MembershipRow> rows)
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var row in rows)
-        {
-            string original = row.NameBox.Text.Trim();
-            string current = original;
-
-            while (!seen.Add(current.ToLower()))
-            {
-                current = "New " + current;
-            }
-            row.NameBox.Text = current;
-        }
-    }
-
     internal override void UpdateStatus(IntegrationConnection? connection)
     {
         if (connection is not { Source: SubathonEventSource.YouTube }) return;
@@ -261,7 +148,25 @@ public partial class YouTubeSettings : SettingsControl
             superchatValue.Points = scPoints;
             hasUpdated = true;
         }
+        
+        
+        var redirectValue = db.SubathonValues.FirstOrDefault(sv =>
+            sv.EventType == SubathonEventType.YouTubeRedirect
+            && sv.Meta == "");
+        if (redirectValue != null && double.TryParse(RaidBox.Text, out var rdSeconds)
+                                  && !rdSeconds.Equals(redirectValue.Seconds))
+        {
+            redirectValue.Seconds = rdSeconds;
+            hasUpdated = true;
+        }
 
+        if (redirectValue != null && double.TryParse(RaidBox2.Text, out var rdPoints)
+                                  && !rdPoints.Equals(redirectValue.Points))
+        {
+            redirectValue.Points = rdPoints;
+            hasUpdated = true;
+        }
+        
         hasUpdated |= Host.SaveSubTier(db, SubathonEventType.YouTubeMembership, "DEFAULT", MemberDefaultTextBox, MemberDefaultTextBox2);
         hasUpdated |= Host.SaveSubTier(db, SubathonEventType.YouTubeGiftMembership, "DEFAULT", GiftMemberDefaultTextBox, GiftMemberDefaultTextBox2);
         
@@ -353,6 +258,10 @@ public partial class YouTubeSettings : SettingsControl
                 box = DonoBox;
                 box2 = DonoBox2;
                 break;
+            case SubathonEventType.YouTubeRedirect:
+                box = RaidBox;
+                box2 = RaidBox2;
+                break;
         }
         return (v, p, box, box2);
     }
@@ -367,14 +276,5 @@ public partial class YouTubeSettings : SettingsControl
             config.Save();
 
         ServiceManager.YouTube.Start(user);
-    }
-    
-    public class MembershipRow
-    {
-        public required SubathonValue SubValue { get; set; }
-        public required Wpf.Ui.Controls.TextBox NameBox { get; set; }
-        public required Wpf.Ui.Controls.TextBox TimeBox { get; set; }
-        public required Wpf.Ui.Controls.TextBox PointsBox { get; set; }
-        public required Grid RowGrid { get; set; }
     }
 }

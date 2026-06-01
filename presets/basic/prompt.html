@@ -1,0 +1,104 @@
+﻿<link rel="stylesheet" href="prompt.styles.css">
+
+<div class="prompt-wrapper hidden" id="prompt-wrapper">
+
+    <div class="prompt-text-row">
+        <span class="prompt-text" id="prompt-text">—</span>
+        <span class="prompt-timer" id="prompt-timer">0:00</span>
+    </div>
+
+    <div class="progress-row">
+        <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        </div>
+        <span class="progress-label" id="progress-label">0 / 0</span>
+    </div>
+
+</div>
+
+<script>
+    let endTime = null;
+    let durationSecs = 1;
+    let tickTimer = null;
+    let lingerTimer = null;
+    let isVisible = false;
+
+    const wrapper = document.getElementById("prompt-wrapper");
+    const promptText = document.getElementById("prompt-text");
+    const promptTimer = document.getElementById("prompt-timer");
+    const progressFill = document.getElementById("progress-bar-fill");
+    const progressLabel = document.getElementById("progress-label");
+
+    function handlePromptUpdate(data) {
+        const status = data.status ?? "None";
+
+        if (status === "Cancelled") { hideCard(false); return; }
+        if (status === "None") { hideCard(false, true); return; }
+
+        if (data.end_time) {
+            endTime = new Date(data.end_time);
+            durationSecs = data.duration_seconds > 0 ? data.duration_seconds : 1;
+        }
+
+        promptText.textContent = data.text || "—";
+
+        const progress = data.progress ?? 0;
+        const target = data.target   ?? 0;
+        const pct = target > 0 ? Math.min(progress / target, 1) : 0;
+        progressFill.style.width = `${pct * 100}%`;
+        progressLabel.textContent = `${progress} / ${target}`;
+
+        if (status === "Active") {
+            clearLinger();
+            wrapper.classList.remove("status-complete", "status-expired");
+            showCard();
+            startTick();
+        } else {
+            clearTick();
+            if (status === "Completed") {
+                promptTimer.textContent = "✓";
+                wrapper.classList.remove("status-expired");
+                wrapper.classList.add("status-complete");
+                progressFill.style.width = "100%";
+            } else if (status === "Expired") {
+                promptTimer.textContent = "✗";
+                wrapper.classList.remove("status-complete");
+                wrapper.classList.add("status-expired");
+            }
+            startLinger();
+        }
+    }
+
+    function showCard() {
+        if (isVisible) return;
+        isVisible = true;
+        wrapper.classList.remove("hidden", "exiting");
+        wrapper.classList.add("entering");
+        setTimeout(() => wrapper.classList.remove("entering"), 400);
+    }
+
+    function hideCard(withExit, force = false) {
+        clearTick(); clearLinger();
+        if (!isVisible && !force) return;
+        isVisible = false;
+        if (withExit) {
+            wrapper.classList.add("exiting");
+            setTimeout(() => wrapper.classList.add("hidden"), 350);
+        } else {
+            wrapper.classList.add("hidden");
+        }
+    }
+
+    function startTick() { clearTick(); tick(); tickTimer = setInterval(tick, 250); }
+    function clearTick()  { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
+    function tick() {
+        if (!endTime) return;
+        const remaining = Math.max(0, (endTime - Date.now()) / 1000);
+        const m = Math.floor(remaining / 60);
+        const s = Math.floor(remaining % 60);
+        promptTimer.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+        if (remaining <= 0) clearTick();
+    }
+    function startLinger() { clearLinger(); lingerTimer = setTimeout(() => hideCard(true), lingerSeconds * 1000); }
+    function clearLinger()  { if (lingerTimer) { clearTimeout(lingerTimer); lingerTimer = null; } }
+</script>

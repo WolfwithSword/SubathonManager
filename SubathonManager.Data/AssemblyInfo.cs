@@ -1,3 +1,3 @@
-﻿// using System.Diagnostics.CodeAnalysis;
-//
-// [assembly: ExcludeFromCodeCoverage]
+﻿using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("SubathonManager.Tests")]

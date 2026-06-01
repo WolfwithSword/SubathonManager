@@ -5,13 +5,14 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using SubathonManager.Core;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data;
 
-public class OverlayPorter
+public static class OverlayPorter
 {
     private const int SegmentHashLength = 4;
     private const string ExternalFolder = "_external";
@@ -25,7 +26,7 @@ public class OverlayPorter
 
     #region EXPORT
 
-    public static async Task ExportRouteAsync(Route route, string outputPath, string exportName, HashSet<string>? excludedZipEntries = null)
+    public static async Task ExportRouteAsync(Route route, string outputPath, string exportName, HashSet<string>? excludedZipEntries = null, string version = "1", string appVersion = "")
     {
         var widgets = route.Widgets.ToList();
         var plan = BuildExportPlan(widgets);
@@ -42,7 +43,7 @@ public class OverlayPorter
             archive.CreateEntryFromFile(srcFile, zipEntry, CompressionLevel.Optimal);
         }
 
-        var manifest = BuildManifest(route, widgets, plan, exportName);
+        var manifest = BuildManifest(route, widgets, plan, exportName, version, appVersion);
         var manifestJson = JsonSerializer.Serialize(manifest, SerializeOptions);
         var manifestEntry = archive.CreateEntry(ManifestFileName, CompressionLevel.Optimal);
         await using var manifestStream = manifestEntry.Open();
@@ -110,14 +111,14 @@ public class OverlayPorter
                     foreach (var file in Directory.EnumerateFiles(jsVar.Value, "*", SearchOption.AllDirectories))
                     {
                         string relative = Path.GetRelativePath(jsVar.Value, file).Replace('\\', '/');
-                        plan.FileCopies.Add((file, $"{baseFolder}/{ExternalFolder}/{varFolderName}/{relative}"));
+                        plan.FileCopies.Add((file, $"{zipWidgetRoot}/{ExternalFolder}/{varFolderName}/{relative}"));
                     }
                     SetRewrite(plan.VariableRewrites, widget.Id, jsVar.Name, $"./{ExternalFolder}/{varFolderName}");
                 }
                 else if (!isFolderType && File.Exists(jsVar.Value))
                 {
                     string fileName = Path.GetFileName(jsVar.Value);
-                    plan.FileCopies.Add((jsVar.Value, $"{baseFolder}/{ExternalFolder}/{fileName}"));
+                    plan.FileCopies.Add((jsVar.Value, $"{zipWidgetRoot}/{ExternalFolder}/{fileName}"));
                     SetRewrite(plan.VariableRewrites, widget.Id, jsVar.Name, $"./{ExternalFolder}/{fileName}");
                 }
             }
@@ -126,8 +127,9 @@ public class OverlayPorter
         return plan;
     }
 
-    private static JsonElement BuildManifest(Route route, List<Widget> widgets, ExportPlan plan, string exportName)
+    private static JsonElement BuildManifest(Route route, List<Widget> widgets, ExportPlan plan, string exportName, string version = "1", string appVersion = "")
     {
+        if (string.IsNullOrWhiteSpace(appVersion)) appVersion = AppServices.AppVersion;
         var widgetList = widgets.Select(w =>
         {
             if (!plan.WidgetFolderMap.TryGetValue(w.Id, out var zipWidgetRoot)) return null!;
@@ -158,7 +160,8 @@ public class OverlayPorter
 
         var obj = new
         {
-            version = 1,
+            version = version,
+            app_version = appVersion,
             exported_at = DateTime.UtcNow,
             route = new
             {

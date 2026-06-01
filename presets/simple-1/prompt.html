@@ -1,0 +1,174 @@
+﻿<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="./prompt.styles.css" />
+
+<div class="prompt-wrapper" id="prompt-wrapper">
+
+    <div class="prompt-card" id="prompt-card">
+
+        <div class="timer-section">
+            <svg class="timer-ring-svg" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
+                <circle class="timer-ring-bg" cx="36" cy="36" r="30"/>
+                <circle class="timer-ring-fill" id="timer-ring-fill" cx="36" cy="36" r="30"/>
+            </svg>
+            <div class="timer-inner">
+                <span class="timer-value" id="timer-value">0:00</span>
+            </div>
+        </div>
+
+        <div class="prompt-body">
+            <div class="prompt-text" id="prompt-text">—</div>
+
+            <div class="progress-row">
+                <div class="progress-bar-wrap">
+                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                </div>
+                <div class="progress-label" id="progress-label">0 / 0</div>
+            </div>
+        </div>
+
+    </div>
+    <div class="finish-overlay" id="finish-overlay"></div>
+</div>
+
+<script>
+    let endTime = null;
+    let durationSecs = 1;
+    let tickTimer = null;
+    let lingerTimer = null;
+    let isVisible = false;
+    let lastStatus = "None";
+
+    const wrapper = document.getElementById("prompt-wrapper");
+    const card = document.getElementById("prompt-card");
+    const promptText = document.getElementById("prompt-text");
+    const timerValue = document.getElementById("timer-value");
+    const timerRingFill = document.getElementById("timer-ring-fill");
+    const progressFill = document.getElementById("progress-bar-fill");
+    const progressLabel = document.getElementById("progress-label");
+    const finishOverlay = document.getElementById("finish-overlay");
+
+    const TIMER_C = 2 * Math.PI * 30;
+    timerRingFill.style.strokeDasharray = TIMER_C;
+    timerRingFill.style.strokeDashoffset = TIMER_C;
+
+    function handlePromptUpdate(data) {
+        const status = data.status ?? "None";
+        if (status === "Cancelled") {
+            hideCard(false);
+            return;
+        }
+
+        if (status === "None") {
+            hideCard(false, true);
+            return;
+        }
+
+        // sync
+        if (data.end_time) {
+            endTime = new Date(data.end_time);
+            durationSecs = data.duration_seconds > 0 ? data.duration_seconds : 1;
+        }
+
+        promptText.textContent = data.text || "—";
+
+        const progress = data.progress  ?? 0;
+        const target = data.target    ?? 0;
+        const pct = target > 0 ? Math.min(progress / target, 1) : 0;
+
+        progressLabel.textContent = `${progress} / ${target}`;
+        progressFill.style.width = `${pct * 100}%`;
+
+        if (status === "Active") {
+            clearLinger();
+            showCard();
+            startTick();
+        } else {
+            clearTick();
+            if (status === "Completed") {
+                timerValue.textContent = "✓";
+                timerRingFill.style.strokeDashoffset = 0;
+                spawnSparkles(true);
+            } else if (status === "Expired") {
+                timerValue.textContent = "✗";
+                timerRingFill.style.strokeDashoffset = TIMER_C;
+                spawnSparkles(false);
+            }
+            startLinger();
+        }
+
+        lastStatus = status;
+    }
+
+    function showCard() {
+        if (isVisible) return;
+        isVisible = true;
+        finishOverlay.innerHTML = "";
+        wrapper.classList.remove("hidden", "exiting");
+        wrapper.classList.add("entering");
+        setTimeout(() => wrapper.classList.remove("entering"), 1500);
+    }
+
+    function hideCard(withExit, force = false) {
+        clearTick();
+        clearLinger();
+        if (!isVisible && !force) return;
+        isVisible = false;
+        if (withExit) {
+            wrapper.classList.add("exiting");
+            setTimeout(() => wrapper.classList.add("hidden"), 400);
+        } else {
+            wrapper.classList.add("hidden");
+        }
+    }
+
+    function startTick() {
+        clearTick();
+        tick();
+        tickTimer = setInterval(tick, 250);
+    }
+
+    function clearTick() {
+        if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    }
+
+    function tick() {
+        if (!endTime) return;
+        const remaining = Math.max(0, (endTime - Date.now()) / 1000);
+        const elapsed = durationSecs - remaining;
+        const frac = durationSecs > 0 ? Math.min(elapsed / durationSecs, 1) : 0;
+
+        const m = Math.floor(remaining / 60);
+        const s = Math.floor(remaining % 60);
+        timerValue.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+
+        timerRingFill.style.strokeDashoffset = TIMER_C * frac;
+
+        if (remaining <= 0) clearTick();
+    }
+
+    function startLinger() {
+        clearLinger();
+        lingerTimer = setTimeout(() => hideCard(true), lingerSeconds * 1000);
+    }
+
+    function clearLinger() {
+        if (lingerTimer) { clearTimeout(lingerTimer); lingerTimer = null; }
+    }
+
+    function spawnSparkles(success) {
+        finishOverlay.innerHTML = "";
+        const count = success ? 22 : 10;
+        for (let i = 0; i < count; i++) {
+            const p = document.createElement("div");
+            p.className = success ? "sparkle" : "puff";
+            // why didnt i never think of this before
+            p.style.setProperty("--x", `${Math.random() * 100}%`);
+            p.style.setProperty("--y", `${Math.random() * 100}%`);
+            p.style.setProperty("--r", `${Math.random() * 360}deg`);
+            p.style.setProperty("--d", `${0.4 + Math.random() * 0.8}s`);
+            p.style.setProperty("--s", `${0.8 + Math.random() * 0.8}`);
+            finishOverlay.appendChild(p);
+        }
+    }
+    
+</script>

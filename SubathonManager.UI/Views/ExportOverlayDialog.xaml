@@ -18,10 +18,20 @@
             <RowDefinition Height="Auto"/>  <!-- btns -->
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,12">
-            <ui:TextBlock FontTypography="BodyStrong" Text="Export Name" Margin="0,0,0,4"/>
-            <ui:TextBox x:Name="ExportNameBox" PlaceholderText="Overlay name..." />
-        </StackPanel>
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Left">
+                <ui:TextBlock FontTypography="BodyStrong" Text="Export Name" Margin="4,0,0,4"/>
+                <ui:TextBox Width="240" x:Name="ExportNameBox" PlaceholderText="Overlay name..." />
+            </StackPanel>
+            <StackPanel x:Name="AppOverrideSection" DockPanel.Dock="Left" Visibility="Collapsed" Margin="32 0 0 0">
+                <ui:TextBlock FontTypography="BodyStrong" Text="App Version" Margin="4,0,4,4"/>
+                <ui:TextBox Width="120" x:Name="AppVersionBox" ToolTip="Override App Version" PlaceholderText="v1.0.0" />
+            </StackPanel>   
+            <StackPanel DockPanel.Dock="Right">
+                <ui:TextBlock FontTypography="BodyStrong" Text="Version" Margin="4,0,4,4"/>
+                <ui:TextBox Width="100" x:Name="VersionBox" ToolTip="Overlay Version" PlaceholderText="1.0.0" />
+            </StackPanel>
+        </DockPanel>
 
         <StackPanel Grid.Row="1" Orientation="Vertical">
             <DockPanel  Margin="0,0,0,6" LastChildFill="False">
@@ -80,6 +90,7 @@
         </Border>
 
         <DockPanel Grid.Row="4" LastChildFill="False">
+            
             <ui:Button DockPanel.Dock="Right"
                        x:Name="ConfirmButton" Content="Export…" Appearance="Primary"
                        Width="110"

@@ -9,9 +9,12 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
@@ -38,9 +41,8 @@ public partial class StreamElementsSettings : SettingsControl
     public override void Init(SettingsView host)
     {
         Host = host;
-
-        var config = AppServices.Provider.GetRequiredService<IConfig>();
-        SEJWTTokenBox.Text = config.Get("StreamElements", "JWT", string.Empty)!;
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+        SEJWTTokenBox.Text = secureStorage.GetOrDefault(StorageKeys.StreamElementsJwt, string.Empty)!;
         UpdateStatus(Utils.GetConnection(SubathonEventSource.StreamElements, "Socket"));
     }
 

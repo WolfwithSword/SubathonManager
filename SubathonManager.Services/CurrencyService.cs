@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using Microsoft.Extensions.Logging;
@@ -150,7 +151,9 @@ public class CurrencyService : IAppService
             if (!item.TryGetProperty("code", out var codeProp) ||
                 !item.TryGetProperty("rate", out var rateProp)) continue;
             string code = codeProp.GetString()!.ToUpperInvariant();
-            double rate = rateProp.GetDouble();
+            double rate = rateProp.ValueKind == JsonValueKind.String
+                ? double.Parse(rateProp.GetString()!, CultureInfo.InvariantCulture)
+                : rateProp.GetDouble();
             Rates[code] = rate;
         }
     }
@@ -174,10 +177,15 @@ public class CurrencyService : IAppService
 
         if (!IsValidCurrency(fromCurrency))
         {
-            var message = fromCurrency + " is not a valid currency. Cannot convert";
+            var message = $"{fromCurrency} is not a valid currency. Cannot convert {amount}";
+            if (fromCurrency.ToUpperInvariant() is "ITEMS" or "ORDER" or "MEMBER")
+            {
+                _logger?.LogDebug(message);
+                return 0;
+            }
             _logger?.LogError(message);
             
-            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", "CurrencyService", 
                 message, DateTime.Now);
             return 0;
         }

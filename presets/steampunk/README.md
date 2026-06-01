@@ -2,4 +2,4 @@
 
 Author: WolfwithSword
 
-[Documentation and Previews](https://github.com/WolfwithSword/SubathonManager/discussions/79)
+[Documentation and Previews](https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/)
