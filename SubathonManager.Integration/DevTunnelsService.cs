@@ -176,15 +176,24 @@ public class DevTunnelsService(
             // The port must be pre-registered on the tunnel; passing PortNumber to StartHostSessionAsync
             // is for ephemeral tunnels only and causes a service-side error on named persistent tunnels.
             logger?.LogInformation("[DevTunnels] Ensuring tunnel '{Id}' and port {Port} exist", tunnelId, serverPort);
-            await client.CreateOrUpdateTunnelAsync(
-                tunnelId,
-                new DevTunnelOptions { AllowAnonymous = true, Description = "SubathonManager webhook tunnel" },
-                ct);
-            await client.CreateOrReplacePortAsync(
-                tunnelId,
-                serverPort,
-                new DevTunnelPortOptions { Protocol = "http", AllowAnonymous = true },
-                ct);
+            
+            try
+            {
+                await client.GetTunnelAsync(tunnelId, ct);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "[DevTunnels] Failed to find a pre-existing tunnel. Trying to create or update.");
+                await client.CreateOrUpdateTunnelAsync(
+                    tunnelId,
+                    new DevTunnelOptions { AllowAnonymous = true, Description = "SubathonManager webhook tunnel" },
+                    ct);
+                await client.CreateOrReplacePortAsync(
+                    tunnelId,
+                    serverPort,
+                    new DevTunnelPortOptions { Protocol = "http", AllowAnonymous = true },
+                    ct);
+            }
 
             logger?.LogInformation("[DevTunnels] Starting host session for tunnel '{Id}'", tunnelId);
 
