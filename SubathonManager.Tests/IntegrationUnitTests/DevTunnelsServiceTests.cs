@@ -199,9 +199,11 @@ public class DevTunnelsServiceTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await service.StartTunnelAsync(cts.Token);
 
+        mockClient.Verify(c => c.GetTunnelAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        
         mockClient.Verify(c => c.CreateOrUpdateTunnelAsync(
             It.Is<string>(id => id.StartsWith("subathon-")),
-            It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()), Times.Never);
 
         await service.StopTunnelAsync();
     }
