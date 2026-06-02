@@ -252,6 +252,16 @@ public class EventService: IDisposable, IAppService
                                       && s.EventTimestamp > cutoff);
             if (dupeTwitchSub != null) return (false, true);
         }
+        
+        if (ev.EventType.IsFollow() && ev.User != "SYSTEM")
+        {
+            SubathonEvent? dupeFollowType = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s =>
+                s.Source == ev.Source && s.User == ev.User
+                                      && s.EventType == ev.EventType
+                                      && s.ProcessedToSubathon
+                                      && s.SubathonId == subathon.Id);
+            if (dupeFollowType != null) return (false, true);
+        }
 
         int affected = 0;
         if (processPointsIfLocked && subathon.IsLocked) ev.SecondsValue = 0;
