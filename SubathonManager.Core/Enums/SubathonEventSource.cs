@@ -39,7 +39,9 @@ public enum SubathonEventSource
     [EventSourceMeta(Description="OBS Websocket", SourceGroup = SubathonSourceGroup.Unknown, SourceOrder=999, Order=999, Visible = false)]
     OBS,
     [EventSourceMeta(Description="Throne", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=63, Order=52)]
-    Throne
+    Throne,
+    [EventSourceMeta(Description="TipeeeStream", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=23, Order=22)]
+    TipeeeStream
 }
 
 [ExcludeFromCodeCoverage]

@@ -33,6 +33,9 @@ public partial class ExtensionSettings : SettingsGroupControl
             case SubathonEventSource.StreamLabs:
                 _settingsControls[eventSource] = new StreamLabsSettings();
                 break;
+            case SubathonEventSource.TipeeeStream:
+                _settingsControls[eventSource] = new TipeeeStreamSettings();
+                break;
             default: return null;
         }
         _settingsControls[eventSource].Init(Host);

@@ -78,6 +78,10 @@ public static class ServiceRegistration
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
 
+        // Stream Extensions //
+        services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<TipeeeStreamService>();
+
         // Other //
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;
         services.AddSingleton<DiscordWebhookService>();
