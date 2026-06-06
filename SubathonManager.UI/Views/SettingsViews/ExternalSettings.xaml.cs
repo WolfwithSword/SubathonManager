@@ -13,7 +13,7 @@ public partial class ExternalSettings : SettingsGroupControl
             .OrderBy(g => g.GetGroupLabelOrder());
 
     protected override StackPanel? GetSourceContents => SourceContents;
-    protected override StackPanel? GetSourceList => SourceList;
+    protected override Panel? GetSourceList => SourceList;
 
     public ExternalSettings()
     {

@@ -25,6 +25,7 @@ public partial class GoAffProSettings : SettingsControl
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<GoAffProSettings>>();
     private readonly string _configSection = "GoAffPro";
     private readonly Dictionary<GoAffProSource, GoAffProSourceControl> _sourceControls = new();
+    private readonly Dictionary<GoAffProSource, bool> _connectedStatus = new();
 
     private IEnumerable<GoAffProSource> _sources => Enum.GetValues<GoAffProSource>()
         .Where(s => !s.IsDisabled());
@@ -65,14 +66,12 @@ public partial class GoAffProSettings : SettingsControl
                     Content = source.GetDescription(),
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(0, 1, 0, -12),
-                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(2, 1, 2, 1),
+                    Padding = new Thickness(6, 4, 6, 4),
                     Appearance = ControlAppearance.Transparent,
-                    FontSize = 20,
-                    MinWidth = 100,
+                    Height = 34,
                     Tag = source.ToString(),
-                    BorderThickness = new Thickness(1, 1, 1, 2),
-                    CornerRadius = new CornerRadius(4, 4, 0, 0)
+                    BorderThickness = new Thickness(2, 1, 1, 1),
                 };
                 navBtn.Click += GroupNav_Click;
                 SourceList?.Children.Add(navBtn);
@@ -141,11 +140,35 @@ public partial class GoAffProSettings : SettingsControl
 
     private void SetNavButtonStatus(GoAffProSource source, bool status)
     {
+        _connectedStatus[source] = status;
+
         var btn = SourceList?.Children
             .OfType<Wpf.Ui.Controls.Button>()
             .FirstOrDefault(b => Equals(b.Tag, source.ToString()));
         if (btn == null) return;
         btn.Opacity = status ? 1.0 : 0.6;
+
+        Dispatcher.Invoke(SortSourceList);
+    }
+
+    private void SortSourceList()
+    {
+        if (SourceList == null) return;
+
+        var originalOrder = _sources
+            .Select((s, i) => (Key: s.ToString(), Index: i))
+            .ToDictionary(x => x.Key, x => x.Index);
+
+        var buttons = SourceList.Children.OfType<Wpf.Ui.Controls.Button>().ToList();
+        var sorted = buttons
+            .OrderByDescending(b => _connectedStatus.GetValueOrDefault(
+                Enum.TryParse(b.Tag as string, out GoAffProSource s) ? s : GoAffProSource.Unknown))
+            .ThenBy(b => originalOrder.GetValueOrDefault(b.Tag as string ?? "", int.MaxValue))
+            .ToList();
+
+        SourceList.Children.Clear();
+        foreach (var b in sorted)
+            SourceList.Children.Add(b);
     }
     
     protected internal override void LoadValues(AppDbContext db)
