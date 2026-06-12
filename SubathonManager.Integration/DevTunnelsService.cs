@@ -23,6 +23,7 @@ public class DevTunnelsService(
 
     private IDevTunnelHostSession? _session;
     private CancellationTokenSource? _cts;
+    private DateTime? _lastTokenErrorAt;
 
     // Serialises concurrent StartTunnelAsync calls so at most one session-start attempt
     // runs at a time. Without this, two webhook integrations firing StartTunnelAsync
@@ -202,7 +203,28 @@ public class DevTunnelsService(
                 new DevTunnelHostStartOptions { TunnelId = tunnelId, ReadyTimeout = TimeSpan.FromSeconds(30) },
                 _cts.Token);
 
-            await _session.WaitForReadyAsync(_cts.Token);
+            try
+            {
+                await _session.WaitForReadyAsync(_cts.Token);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("access token"))
+            {
+                logger?.LogWarning(ex, "[DevTunnels] Host token missing for tunnel '{Id}'; re-login to the devtunnel CLI may be required", tunnelId);
+
+                if (_lastTokenErrorAt == null || DateTime.Now - _lastTokenErrorAt > TimeSpan.FromMinutes(10))
+                {
+                    _lastTokenErrorAt = DateTime.Now;
+                    ErrorMessageEvents.RaiseErrorEvent(
+                        "WARN",
+                        "DevTunnels",
+                        "DevTunnel failed to start: missing host access token. Please re-login to the devtunnel.",
+                        DateTime.Now.ToLocalTime());
+                }
+
+                await StopTunnelAsync();
+                BroadcastTunnelStatus(false, null);
+                return;
+            }
 
             PublicBaseUrl = _session.PublicUrl?.ToString()?.TrimEnd('/');
             IsTunnelRunning = true;

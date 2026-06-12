@@ -209,6 +209,38 @@ public class DevTunnelsServiceTests
     }
 
     [Fact]
+    public async Task StartTunnelAsync_MissingHostToken_RaisesDiscordErrorAndThrottles()
+    {
+        (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
+        var mockSession = new Mock<IDevTunnelHostSession>();
+        _ = mockSession.Setup(s => s.WaitForReadyAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("There is no access token for host scope on the tunnel."));
+        _ = mockSession.As<IAsyncDisposable>().Setup(s => s.DisposeAsync()).Returns(ValueTask.CompletedTask);
+        _ = mockSession.Setup(s => s.StopAsync(It.IsAny<CancellationToken>())).Returns(ValueTask.CompletedTask);
+        SetupStartTunnel(mockClient, mockSession.Object);
+
+        var errors = new List<(string level, string source, string message)>();
+        void OnError(string level, string source, string message, DateTime _) => errors.Add((level, source, message));
+        ErrorMessageEvents.ErrorEventOccured += OnError;
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await service.StartTunnelAsync(cts.Token);
+            await service.StartTunnelAsync(cts.Token);
+
+            Assert.False(service.IsTunnelRunning);
+            Assert.Single(errors);
+            Assert.Equal("WARN", errors[0].level);
+            Assert.Equal(nameof(SubathonEventSource.DevTunnels), errors[0].source);
+        }
+        finally
+        {
+            ErrorMessageEvents.ErrorEventOccured -= OnError;
+        }
+    }
+
+    [Fact]
     public async Task StopTunnelAsync_WithRunningSession_StopsSessionAndClearsState()
     {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
