@@ -29,7 +29,14 @@ namespace SubathonManager.Data
         public DbSet<SubathonPrompt> SubathonPrompts { get; set; }
         public DbSet<SubathonPromptRun> SubathonPromptRuns { get; set; }
         
+        public DbSet<WheelSet> WheelSets { get; set; }
+        public DbSet<WheelItem> WheelItems { get; set; }
+        public DbSet<WheelSpinAction> WheelSpinActions { get; set; }
+        public DbSet<WheelSpinHistory> WheelSpinHistories { get; set; }
+
         public DbSet<GoAffProStore> GoAffProStores { get; set; }
+
+        public DbSet<StateValue> StateValues { get; set; }
         
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
@@ -122,6 +129,30 @@ namespace SubathonManager.Data
                 .Property(p => p.CompletionDuration)
                 .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
             
+            modelBuilder.Entity<WheelSet>()
+                .HasMany(w => w.WheelItems)
+                .WithOne(i => i.LinkedWheel)
+                .HasForeignKey(i => i.WheelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WheelItem>()
+                .HasOne(i => i.Action)
+                .WithOne(a => a.LinkedItem)
+                .HasForeignKey<WheelSpinAction>(a => a.WheelItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WheelSpinHistory>()
+                .HasOne(h => h.LinkedItem)
+                .WithMany()
+                .HasForeignKey(h => h.WheelItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<WheelSpinHistory>()
+                .HasOne(h => h.LinkedWheel)
+                .WithMany()
+                .HasForeignKey(h => h.WheelId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             modelBuilder.Entity<GoAffProStore>()
                 .HasKey(e => new { e.RowId });
             modelBuilder.Entity<GoAffProStore>()
@@ -440,6 +471,21 @@ namespace SubathonManager.Data
             if (!db.SubathonPromptSets.Any(s => s.IsActive))
             {
                 db.SubathonPromptSets.Add(new SubathonPromptSet { IsActive = true });
+            }
+
+            if (!db.WheelSets.Any(w => w.IsActive))
+            {
+                db.WheelSets.Add(new WheelSet { IsActive = true });
+            }
+
+            if (!db.StateValues.Any(sv => sv.Name == StateKeys.WheelSpinsOwed))
+            {
+                db.StateValues.Add(new StateValue
+                {
+                    Name = StateKeys.WheelSpinsOwed,
+                    Value = "0",
+                    TypeName = "Int32"
+                });
             }
 
             MigrateLegacyData(db);

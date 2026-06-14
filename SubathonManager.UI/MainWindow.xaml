@@ -6,6 +6,7 @@
                        xmlns:views="clr-namespace:SubathonManager.UI.Views"
                        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                        xmlns:prompts="clr-namespace:SubathonManager.UI.Views.Prompts"
+                       xmlns:wheel="clr-namespace:SubathonManager.UI.Views.WheelSpin"
                        mc:Ignorable="d"
                        Background="{DynamicResource AppGeneralBackground}"
                        ResizeMode="NoResize"
@@ -628,6 +629,11 @@
                 <prompts:PromptsEditor/>
             </TabItem>
             
+            <!-- Wheel Spin Tab -->
+            <TabItem Header="Wheel Spin" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
+                <wheel:WheelEditor/>
+            </TabItem>
+
             <!-- Settings Tab -->
             <TabItem Header="Settings" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <views:SettingsView/>

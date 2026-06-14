@@ -162,15 +162,36 @@ public class DevTunnelsService(
             {
                 logger?.LogInformation("[DevTunnels] Stored tunnel ID is not in short-name format; resetting");
                 tunnelId = string.Empty;
-                config.Set(_configSection, "TunnelId", string.Empty);
-                config.Save();
+                if (config.Set(_configSection, "TunnelId", string.Empty))
+                    config.Save();
             }
 
             if (string.IsNullOrWhiteSpace(tunnelId))
             {
-                tunnelId = $"subathon-{serverPort}";
-                config.Set(_configSection, "TunnelId", tunnelId);
-                config.Save();
+                try
+                {
+                    var prefix = $"sm{serverPort}-";
+                    var list = await client.ListTunnelsAsync(ct);
+                    var found = list.Tunnels.FirstOrDefault(t => t.TunnelId.StartsWith(prefix, StringComparison.Ordinal));
+                    if (found != null)
+                    {
+                        tunnelId = found.TunnelId.Split('.')[0];
+                        logger?.LogInformation("[DevTunnels] Recovered existing tunnel '{Id}' from account list", tunnelId);
+                        if (config.Set(_configSection, "TunnelId", tunnelId))
+                            config.Save();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "[DevTunnels] Failed to list tunnels; will generate a new ID");
+                }
+
+                if (string.IsNullOrWhiteSpace(tunnelId))
+                {
+                    tunnelId = $"sm{serverPort}-{Guid.NewGuid():N}";
+                    if (config.Set(_configSection, "TunnelId", tunnelId))
+                        config.Save();
+                }
             }
 
             // Always ensure the tunnel and port exist before hosting (idempotent operations).
@@ -207,9 +228,11 @@ public class DevTunnelsService(
             {
                 await _session.WaitForReadyAsync(_cts.Token);
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("access token"))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("access token") || (ex.Message.StartsWith("Request ID:")))
             {
-                logger?.LogWarning(ex, "[DevTunnels] Host token missing for tunnel '{Id}'; re-login to the devtunnel CLI may be required", tunnelId);
+                logger?.LogWarning(ex,
+                    "[DevTunnels] Host token missing for tunnel '{Id}'; re-login to the devtunnel CLI may be required",
+                    tunnelId);
 
                 if (_lastTokenErrorAt == null || DateTime.Now - _lastTokenErrorAt > TimeSpan.FromMinutes(10))
                 {
@@ -220,12 +243,11 @@ public class DevTunnelsService(
                         "DevTunnel failed to start: missing host access token. Please re-login to the devtunnel.",
                         DateTime.Now.ToLocalTime());
                 }
-
-                await StopTunnelAsync();
-                BroadcastTunnelStatus(false, null);
+                //
+                // await LogoutAsync(ct);
                 return;
             }
-
+            
             PublicBaseUrl = _session.PublicUrl?.ToString()?.TrimEnd('/');
             IsTunnelRunning = true;
 
@@ -244,6 +266,35 @@ public class DevTunnelsService(
         finally
         {
             _startLock.Release();
+        }
+    }
+
+    public async Task DeleteOldTunnelsAsync(CancellationToken ct = default)
+    {
+        var serverPort = int.TryParse(config.Get("Server", "Port", "14040"), out var p) ? p : 14040;
+        var prefix = $"sm{serverPort}-";
+
+        var list = await client.ListTunnelsAsync(ct);
+        foreach (var tunnel in list.Tunnels)
+        {
+            var id = tunnel.TunnelId.Split('.')[0];
+            if (!id.StartsWith(prefix, StringComparison.Ordinal)) continue;
+            try
+            {
+                await client.DeleteTunnelAsync(id, ct);
+                logger?.LogInformation("[DevTunnels] Deleted old tunnel '{Id}'", id);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "[DevTunnels] Failed to delete tunnel '{Id}'", id);
+            }
+        }
+
+        var storedId = config.Get(_configSection, "TunnelId", string.Empty);
+        if (!string.IsNullOrWhiteSpace(storedId) && storedId.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            if (config.Set(_configSection, "TunnelId", string.Empty))
+                config.Save();
         }
     }
 

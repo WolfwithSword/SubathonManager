@@ -7,6 +7,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Objects;
+using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.Services;
 // ReSharper disable NullableWarningSuppressionIsUsed
@@ -35,6 +36,11 @@ public partial class WebServer
         
         OverlayEvents.WidgetVarsUpdated += SendWidgetVarsUpdate;
         OverlayEvents.WidgetRefreshRequested += SendWidgetReload;
+
+        WheelEvents.WheelSpinStarted += SendWheelSpinStarted;
+        WheelEvents.WheelSpinResult += SendWheelSpinResult;
+        WheelEvents.WheelSpinStatusChanged += SendWheelSpinStatusChanged;
+        WheelEvents.WheelDataChanged += SendWheelDataChanged;
     }
 
     private void StopWebsocketServer()
@@ -53,6 +59,11 @@ public partial class WebServer
         
         OverlayEvents.WidgetVarsUpdated -= SendWidgetVarsUpdate;
         OverlayEvents.WidgetRefreshRequested -= SendWidgetReload;
+
+        WheelEvents.WheelSpinStarted -= SendWheelSpinStarted;
+        WheelEvents.WheelSpinResult -= SendWheelSpinResult;
+        WheelEvents.WheelSpinStatusChanged -= SendWheelSpinStatusChanged;
+        WheelEvents.WheelDataChanged -= SendWheelDataChanged;
     }
 
     private void OnPromptStart(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
@@ -204,10 +215,28 @@ public partial class WebServer
             SendPromptData(null, 0);
         
         var totals = await EventService.GetSubathonTotalsAsync(db);
-        
+
         if (totals != null)
             await SelectSendAsync(socket, SubathonTotalsToObject(totals));
-        
+
+        var activeWheel = await db.WheelSets
+            .Include(w => w.WheelItems)
+            .ThenInclude(i => i.Action)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(w => w.IsActive);
+
+        if (activeWheel != null)
+        {
+            int spinsOwed = StateValueHelper.Get<int>(db, StateKeys.WheelSpinsOwed);
+            var items = activeWheel.WheelItems.Select(WheelItemToObject).ToList();
+            var wheelData = new
+            {
+                type = "wheel_data",
+                wheel = new { id = activeWheel.Id, name = activeWheel.Name, spin_count = activeWheel.SpinCount, items },
+                spins_owed = spinsOwed
+            };
+            await SelectSendAsync(socket, wheelData);
+        }
     }
 
     private object SubathonTotalsToObject(SubathonTotals totals)
@@ -552,6 +581,89 @@ public partial class WebServer
         }
     }
 
+    private static object? WheelItemToObject(WheelItem? item)
+    {
+        if (item == null) return null;
+        return new
+        {
+            id = item.Id,
+            text = item.Text,
+            weight = item.Weight,
+            quantity = item.Quantity,
+            is_infinite = item.IsInfinite,
+            enabled = item.Enabled,
+            index = item.Index,
+            action = item.Action == null ? null : (object?)new
+            {
+                type = item.Action.ActionType.ToString(),
+                parameter = item.Action.Parameter
+            }
+        };
+    }
+
+    private void SendWheelSpinStarted(WheelSet wheel, int delaySeconds)
+    {
+        var data = new
+        {
+            type = "wheel_spin_start",
+            wheel_id = wheel.Id,
+            wheel_name = wheel.Name,
+            spin_delay_seconds = delaySeconds,
+            timestamp = DateTime.Now
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+    }
+
+    private void SendWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history)
+    {
+        var itemSnapshot = WheelItemToObject(item);
+        var data = new
+        {
+            type = "wheel_spin_result",
+            wheel = new { id = wheel.Id, name = wheel.Name },
+            item = itemSnapshot,
+            history = new
+            {
+                id = history.Id,
+                status = history.Status.ToString(),
+                created_at = history.CreatedAt,
+                updated_at = history.UpdatedAt
+            },
+            timestamp = DateTime.Now
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+    }
+
+    private void SendWheelSpinStatusChanged(WheelSpinHistory history)
+    {
+        var itemSnapshot = WheelItemToObject(history.LinkedItem);
+        var data = new
+        {
+            type = "wheel_spin_status",
+            history_id = history.Id,
+            status = history.Status.ToString(),
+            updated_at = history.UpdatedAt,
+            wheel_item = itemSnapshot
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+    }
+
+    private void SendWheelDataChanged(WheelSet wheel, int spinsOwed)
+    {
+        // snapshot
+        var wheelId = wheel.Id;
+        var wheelName = wheel.Name;
+        var spinCount = wheel.SpinCount;
+        var items = wheel.WheelItems.Select(WheelItemToObject).ToList();
+        var data = new
+        {
+            type = "wheel_data",
+            wheel = new { id = wheelId, name = wheelName, spin_count = spinCount, items },
+            spins_owed = spinsOwed
+        };
+        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+    }
+
     private async Task BroadcastAsyncObject(object data, params WebsocketClientMessageType[] types)
     {
         string json = JsonSerializer.Serialize(data);
@@ -689,6 +801,14 @@ public partial class WebServer
                                                 window.handleVarsUpdate(data.jsVars);
                                             }}
                                         }}
+                                        else if (typeof window.handleWheelSpinResult === 'function' && data.type == 'wheel_spin_result')
+                                            window.handleWheelSpinResult(data);
+                                        else if (typeof window.handleWheelData === 'function' && data.type == 'wheel_data')
+                                            window.handleWheelData(data);
+                                        else if (typeof window.handleWheelSpinStart === 'function' && data.type == 'wheel_spin_start')
+                                            window.handleWheelSpinStart(data);
+                                        else if (typeof window.handleWheelSpinStatus === 'function' && data.type == 'wheel_spin_status')
+                                            window.handleWheelSpinStatus(data);
                                         //else console.log('[Subathon WS] Received:', data);
                                     }} catch (e) {{
                                         console.error('[Subathon WS] JSON error:', e);

@@ -1,0 +1,370 @@
+<link rel="stylesheet" href="wheel.css">
+
+<div class="wheel-scene" id="wheel-scene">
+
+    <div class="wheel-rotate" id="wheel-rotate">
+        <svg class="wheel-svg" id="wheel-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+            <defs id="wheel-defs"></defs>
+            <g id="cog-layer"></g>
+            <g id="slice-group"></g>
+            <g id="label-group"></g>
+        </svg>
+    </div>
+
+    <div class="center-hub">
+        <div class="hub-label">SPINS</div>
+        <div class="hub-count" id="hub-count">0</div>
+    </div>
+
+    <div class="needle-wrap" id="needle-wrap">
+        <div class="needle-pivot-wrap" id="needle-pivot-wrap">
+            <div class="needle-body"></div>
+            <div class="needle-hub"></div>
+        </div>
+    </div>
+
+    <div class="nameplate-wrap">
+        <div class="nameplate hidden" id="nameplate">
+            <div class="nameplate-bolt tl"></div>
+            <div class="nameplate-bolt tr"></div>
+            <div class="nameplate-bolt bl"></div>
+            <div class="nameplate-bolt br"></div>
+            <div class="nameplate-header">RESULT</div>
+            <div class="nameplate-divider"></div>
+            <div class="nameplate-text" id="nameplate-text">-</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const SVG_NS    = 'http://www.w3.org/2000/svg';
+const CX = 200, CY = 200;
+const SLICE_R   = 148;
+const HUB_R     = 46;
+const MAX_SPEED = 660; // deg/s. not a multiple of (360/teeth * fps), avoids the stand still thingy
+const POINTER_ANGLE = 90;
+
+const COLORS = [
+    '#7a4a1a','#3a2810','#9a5e28','#4a3018',
+    '#6a4520','#2a1a0c','#8a5830','#522e18'
+];
+const STROKE = 'rgba(192,144,80,0.45)';
+
+let wheelItems = [];
+let spinsOwed  = 0;
+const sliceMap = new Map();
+
+let rotation  = 0;
+let spinSpeed = 0;
+let spinState = 'idle'; // 'idle' | 'spinning' | 'landing'
+let rafId     = null;
+let lastRaf   = 0;
+
+let decelStart = 0, decelV0 = 0, decelDur = 0, decelBegin = 0, decelTarget = 0;
+
+let resultTime       = 0;
+let nameplateShown   = false;
+let pendingWinText   = null;
+let pendingWheelData = null;
+let nameplateTimer   = null;
+
+
+const wheelRotate = document.getElementById('wheel-rotate');
+const sliceGroup  = document.getElementById('slice-group');
+const labelGroup  = document.getElementById('label-group');
+const hubCount    = document.getElementById('hub-count');
+const nameplatEl  = document.getElementById('nameplate');
+const npText      = document.getElementById('nameplate-text');
+const needlePivot = document.getElementById('needle-pivot-wrap');
+
+async function loadCog(url) {
+    try {
+        const res     = await fetch(url);
+        const svgText = await res.text();
+        const parser  = new DOMParser();
+        const doc     = parser.parseFromString(svgText, 'image/svg+xml');
+        const srcSvg  = doc.querySelector('svg');
+        if (!srcSvg) return;
+
+        const defsEl = document.getElementById('wheel-defs');
+
+        const cs    = getComputedStyle(document.documentElement);
+        const vars  = ['--cog-fill','--cog-mid','--cog-edge','--cog-edge-light','--cog-hole'];
+        const falls = ['#6b4c1e','#9a7850','#c09050','#d0a060','#1a0a02'];
+        const style = document.createElementNS(SVG_NS, 'style');
+        style.textContent = ':root{' + vars.map((v,i) =>
+            `${v}:${cs.getPropertyValue(v).trim() || falls[i]}`
+        ).join(';') + '}';
+        defsEl.appendChild(style);
+
+        const srcDefs = srcSvg.querySelector('defs');
+        if (srcDefs) {
+            Array.from(srcDefs.children).forEach(c =>
+                defsEl.appendChild(document.importNode(c, true)));
+        }
+
+        const cogLayer = document.getElementById('cog-layer');
+        Array.from(srcSvg.childNodes).forEach(n => {
+            if (n.nodeType === Node.ELEMENT_NODE && n.tagName.toLowerCase() !== 'defs')
+                cogLayer.appendChild(document.importNode(n, true));
+        });
+    } catch(e) { console.warn('loadCog:', e); }
+}
+
+loadCog('./cog.svg');
+
+function pt(r, deg) {
+    const a = deg * Math.PI / 180;
+    return { x: CX + r * Math.sin(a), y: CY - r * Math.cos(a) };
+}
+
+function sectorD(start, end, outerR, innerR) {
+    const o1 = pt(outerR, start), o2 = pt(outerR, end);
+    const i1 = pt(innerR, end),   i2 = pt(innerR, start);
+    const large = (end - start) > 180 ? 1 : 0;
+    return `M${o1.x.toFixed(2)} ${o1.y.toFixed(2)}` +
+           `A${outerR} ${outerR} 0 ${large} 1 ${o2.x.toFixed(2)} ${o2.y.toFixed(2)}` +
+           `L${i1.x.toFixed(2)} ${i1.y.toFixed(2)}` +
+           `A${innerR} ${innerR} 0 ${large} 0 ${i2.x.toFixed(2)} ${i2.y.toFixed(2)}Z`;
+}
+
+function visibleItems(items) {
+    return items.filter(it => it.enabled && (it.is_infinite || it.quantity > 0));
+}
+
+function calcAngles(items) {
+    const vis = visibleItems(items);
+    if (!vis.length) return [];
+    const useEqual = (typeof partitionType !== 'undefined') && partitionType === 'Equal';
+    const totalW   = useEqual ? vis.length
+        : vis.reduce((s, it) => s + Math.max(it.weight ?? 1, 0.001), 0);
+    let cur = 0;
+    return vis.map((it, i) => {
+        const w    = useEqual ? 1 : Math.max(it.weight ?? 1, 0.001);
+        const span = (w / totalW) * 360;
+        const s = cur, e = cur + span; cur = e;
+        return { item: it, startAngle: s, endAngle: e, midAngle: (s + e) / 2, idx: i };
+    });
+}
+
+function rebuildSlices(items) {
+    const slices    = calcAngles(items);
+    const activeIds = new Set(slices.map(s => s.item.id));
+
+    for (const [id, els] of sliceMap) {
+        if (!activeIds.has(id)) {
+            els.pathEl.remove(); els.textEl.remove(); sliceMap.delete(id);
+        }
+    }
+
+    slices.forEach(({ item, startAngle, endAngle, midAngle, idx }) => {
+        const span  = endAngle - startAngle;
+        const color = COLORS[idx % COLORS.length];
+
+        let els = sliceMap.get(item.id);
+        if (!els) {
+            const pathEl = document.createElementNS(SVG_NS, 'path');
+            pathEl.setAttribute('stroke', STROKE);
+            pathEl.setAttribute('stroke-width', '1');
+            sliceGroup.appendChild(pathEl);
+
+            const textEl = document.createElementNS(SVG_NS, 'text');
+            textEl.setAttribute('text-anchor', 'start');
+            textEl.setAttribute('dominant-baseline', 'middle');
+            textEl.setAttribute('fill', 'var(--text-color, #e8c880)');
+            textEl.setAttribute('font-family', 'var(--font-family, monospace)');
+            textEl.setAttribute('font-weight', '700');
+            textEl.setAttribute('paint-order', 'stroke fill');
+            textEl.setAttribute('stroke', 'rgba(0,0,0,0.85)');
+            textEl.setAttribute('stroke-width', '3');
+            textEl.setAttribute('stroke-linejoin', 'round');
+            labelGroup.appendChild(textEl);
+
+            els = { pathEl, textEl };
+            sliceMap.set(item.id, els);
+        }
+
+        els.pathEl.setAttribute('d', sectorD(startAngle, endAngle, SLICE_R, HUB_R));
+        els.pathEl.setAttribute('fill', color);
+        
+        // text radsiating from centre per pie slice
+        const fontSize = span > 60 ? 13 : span > 35 ? 10 : span > 18 ? 8 : span > 10 ? 6 : 0;
+        if (fontSize > 0) {
+            const startR   = HUB_R + 6;
+            const endR     = SLICE_R - 8;
+            const avail    = endR - startR;
+            const maxChars = Math.max(3, Math.floor(avail / (fontSize * 0.62)));
+            const raw      = item.text || '';
+            const label    = raw.length > maxChars ? raw.slice(0, maxChars - 1) + '…' : raw;
+
+            els.textEl.setAttribute('text-anchor', 'start');
+            els.textEl.setAttribute('x', String(CX + startR));
+            els.textEl.setAttribute('y', String(CY));
+            els.textEl.setAttribute('font-size', fontSize);
+            els.textEl.setAttribute('transform', `rotate(${(midAngle - 90).toFixed(2)},${CX},${CY})`);
+            els.textEl.textContent = label;
+            els.textEl.style.display = '';
+        } else {
+            els.textEl.textContent = '';
+            els.textEl.style.display = 'none';
+        }
+
+        els.startAngle = startAngle;
+        els.endAngle   = endAngle;
+        els.midAngle   = midAngle;
+    });
+}
+
+function showNameplate(text) {
+    nameplateShown = true;
+    npText.textContent = text;
+    nameplatEl.classList.remove('hidden', 'hiding');
+    nameplatEl.classList.add('showing');
+    nameplatEl.addEventListener('animationend',
+        () => nameplatEl.classList.remove('showing'), { once: true });
+    if (nameplateTimer) clearTimeout(nameplateTimer);
+    nameplateTimer = setTimeout(() => {
+        nameplateTimer = null;
+        dismissNameplate(true);
+        if (pendingWheelData) applyWheelItems(pendingWheelData);
+    }, 90000);
+}
+
+function dismissNameplate(animated) {
+    if (nameplateTimer) { clearTimeout(nameplateTimer); nameplateTimer = null; }
+    if (!nameplateShown) return;
+    nameplateShown = false;
+    if (animated) {
+        nameplatEl.classList.remove('showing');
+        nameplatEl.classList.add('hiding');
+        nameplatEl.addEventListener('animationend', () => {
+            nameplatEl.classList.add('hidden');
+            nameplatEl.classList.remove('hiding');
+        }, { once: true });
+    } else {
+        nameplatEl.classList.add('hidden');
+        nameplatEl.classList.remove('showing', 'hiding');
+    }
+}
+
+function updateNeedleBounce() {
+    const period = Math.max(70, Math.min(700, (12 / Math.max(spinSpeed, 1)) * 1000));
+    if (needlePivot.style.animationName === 'needleBounce') {
+        needlePivot.style.animationDuration = period + 'ms';
+    } else {
+        needlePivot.style.animation = `needleBounce ${period}ms ease-in-out infinite`;
+    }
+}
+
+function needleSettle() {
+    needlePivot.style.animation = 'needleSettle 0.85s ease-out forwards';
+}
+
+function needleReset() { needlePivot.style.animation = 'none'; }
+
+function startDecel(target) {
+    decelStart = rotation; decelTarget = target;
+    const dist = target - rotation;
+    decelV0    = Math.max(spinSpeed, 360);
+    decelDur   = (2 * dist) / decelV0;
+    if (decelDur > 8) { decelDur = 8; decelV0 = (2 * dist) / decelDur; }
+    decelBegin = performance.now();
+    spinState  = 'landing';
+    if (!rafId) startRaf();
+}
+
+function onLandComplete() {
+    spinState = 'idle';
+    rafId     = null;
+    needleSettle();
+    if (pendingWinText !== null) {
+        resultTime = Date.now();
+        showNameplate(pendingWinText);
+        pendingWinText = null;
+    }
+}
+
+function startRaf() { lastRaf = performance.now(); rafId = requestAnimationFrame(rafLoop); }
+
+function rafLoop(now) {
+    const dt = Math.min((now - lastRaf) / 1000, 0.1);
+    lastRaf = now;
+
+    if (spinState === 'spinning') {
+        spinSpeed = Math.min(MAX_SPEED, spinSpeed + MAX_SPEED * dt);
+        rotation += spinSpeed * dt;
+        updateNeedleBounce();
+        wheelRotate.style.transform = `rotate(${rotation}deg)`;
+        rafId = requestAnimationFrame(rafLoop);
+        return;
+    }
+
+    if (spinState === 'landing') {
+        const elapsed = (now - decelBegin) / 1000;
+        if (elapsed >= decelDur) {
+            rotation = decelTarget; spinSpeed = 0;
+            wheelRotate.style.transform = `rotate(${rotation}deg)`;
+            onLandComplete();
+            return;
+        }
+        const t = elapsed, T = decelDur, v0 = decelV0;
+        spinSpeed = v0 * (1 - t / T);
+        rotation  = decelStart + v0 * t - v0 * t * t / (2 * T);
+        updateNeedleBounce();
+        wheelRotate.style.transform = `rotate(${rotation}deg)`;
+        rafId = requestAnimationFrame(rafLoop);
+        return;
+    }
+
+    rafId = null;
+}
+
+function applyWheelItems(data) {
+    pendingWheelData = null;
+    wheelItems = data.wheel?.items ?? [];
+    rebuildSlices(wheelItems);
+}
+
+function handleWheelData(data) {
+    spinsOwed = data.spins_owed ?? 0;
+    hubCount.textContent = spinsOwed;
+
+    if (spinState !== 'idle') {
+        pendingWheelData = data;
+        return;
+    }
+
+    const age = resultTime > 0 ? (Date.now() - resultTime) / 1000 : Infinity;
+    if (nameplateShown && age >= 5) dismissNameplate(true);
+    applyWheelItems(data);
+}
+
+function handleWheelSpinStart(_data) {
+    // Apply any deferred wheel item changes before the new spin renders
+    if (pendingWheelData) applyWheelItems(pendingWheelData);
+
+    if (nameplateShown) dismissNameplate(false);
+    pendingWinText = null;
+    needleReset();
+    spinState = 'spinning'; spinSpeed = 0;
+    if (!rafId) startRaf();
+}
+
+function handleWheelSpinResult(data) {
+    const item = data.item;
+    if (!item) { startDecel(rotation + 540); return; }
+    const els = sliceMap.get(item.id);
+    if (!els) { startDecel(rotation + 540); pendingWinText = item.text || ''; return; }
+
+    const mid     = els.midAngle;
+    const wantMod = ((POINTER_ANGLE - mid) % 360 + 360) % 360;
+    const curMod  = ((rotation % 360) + 360) % 360;
+    let delta     = wantMod - curMod;
+    if (delta < 30) delta += 360;
+    startDecel(rotation + delta + 720);
+    pendingWinText = item.text || '';
+}
+
+function handleWheelSpinStatus(_data) { /* not doing anything rn */ }
+</script>

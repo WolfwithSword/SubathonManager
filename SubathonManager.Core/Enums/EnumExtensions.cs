@@ -112,6 +112,14 @@ public class CommandMetaAttribute : EnumMetaAttribute
     public bool IsControlType { get; init; }
 }
 
+public class WheelSpinActionMetaAttribute : EnumMetaAttribute
+{
+    public string Label { get; init; } = "";
+    public bool IsCommand { get; init; } = false;
+    public bool HasAction { get; init; } = true;
+    public bool IsDoneImmediately { get; init; } = false;
+}
+
 
 public static class EnumMetaCache
 {

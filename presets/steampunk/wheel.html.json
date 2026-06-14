@@ -1,0 +1,17 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/#wheel",
+  "Width": 560,
+  "Height": 560,
+  "Vars": {
+    "partitionType": {
+      "Type": "StringSelect",
+      "Value": "Weight",
+      "Description": "Visually partition wheel sections by relative weight, or equal size for each item regardless of weight",
+      "Options": [
+        "Weight",
+        "Equal"
+      ]
+    }
+  }
+}
