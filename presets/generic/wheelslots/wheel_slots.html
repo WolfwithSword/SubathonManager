@@ -31,7 +31,7 @@
 </div>
 
 <script>
-const MAX_SPEED = 1440; // px/s at full spin
+const MAX_SPEED = 1080; // px/s at full spin
 
 let ITEM_H = 80;
 
@@ -301,7 +301,7 @@ function handleWheelSpinResult(data) {
     }
 
     const currentItemF  = drumPos / ITEM_H;
-    const minId = currentItemF + 3 * N;
+    const minIdx = currentItemF + 3 * N;
     const quotient = Math.ceil((minIdx - targetIdx) / N);
     const targetAbsI = quotient * N + targetIdx;
     const targetDrumPos = targetAbsI * ITEM_H;

@@ -100,7 +100,7 @@ public class WheelSpinTriggerService(
         history.Trigger = trigger;
 
         WheelEvents.RaiseSpinsOwedUpdateFromEvent(newSpins);
-        WheelEvents.RaiseWheelSpinTriggerFired(trigger, history);
+        WheelEvents.RaiseWheelSpinTriggerFired(trigger, history, newSpins);
 
         logger?.LogInformation("WheelSpinTrigger fired: {EventType} -> +{Spins} spins (user: {User})",
             ev.EventType, spinsToAdd, ev.User);

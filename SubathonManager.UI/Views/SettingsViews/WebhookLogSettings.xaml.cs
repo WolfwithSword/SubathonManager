@@ -121,6 +121,8 @@ public partial class WebhookLogSettings : SettingsControl
         LogRemoteConfigCbx.IsChecked = logRemote;
         bool logWheel = config.GetBool("Discord", "Wheel.Log.Enabled", false);
         LogWheelSpinEventsCbx.IsChecked = logWheel;
+        bool logWheelTriggers = config.GetBool("Discord", "Wheel.Log.Triggers", false);
+        LogWheelTriggerEventsCbx.IsChecked = logWheelTriggers;
         ErrorWebhookUrlBx.Text = config.Get("Discord", "WebhookUrl", string.Empty)!;
         EventWebhookUrlBx.Text = config.Get("Discord", "Events.WebhookUrl", string.Empty)!;
         WheelWebhookUrlBx.Text = config.Get("Discord", "Wheel.WebhookUrl", string.Empty)!;
@@ -128,6 +130,7 @@ public partial class WebhookLogSettings : SettingsControl
         WireControl(LogSimEventsCbx);
         WireControl(LogRemoteConfigCbx);
         WireControl(LogWheelSpinEventsCbx);
+        WireControl(LogWheelTriggerEventsCbx);
         WireControl(ErrorWebhookUrlBx);
         WireControl(EventWebhookUrlBx);
         WireControl(WheelWebhookUrlBx);
@@ -248,6 +251,7 @@ public partial class WebhookLogSettings : SettingsControl
         hasUpdated |= config.Set("Discord", "Events.Log.Simulated", $"{LogSimEventsCbx.IsChecked}");
         hasUpdated |= config.Set("Discord", "Events.Log.RemoteConfig", $"{LogRemoteConfigCbx.IsChecked}");
         hasUpdated |= config.Set("Discord", "Wheel.Log.Enabled", $"{LogWheelSpinEventsCbx.IsChecked}");
+        hasUpdated |= config.Set("Discord", "Wheel.Log.Triggers", $"{LogWheelTriggerEventsCbx.IsChecked}");
         return hasUpdated;
     }
 

@@ -926,11 +926,12 @@ namespace SubathonManager.UI.Views.WheelSpin
             return row;
         }
 
-        private async void TriggerHistoryScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        private void TriggerHistoryScroller_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            if (sender is not ScrollViewer sv) return;
-            if (sv.VerticalOffset >= sv.ScrollableHeight - 20)
-                await LoadHistoryAsync();
+            if (_historyLoading) return;
+            if (TriggerHistoryScroller.ScrollableHeight > 0 &&
+                TriggerHistoryScroller.ScrollableHeight - TriggerHistoryScroller.VerticalOffset < 100)
+                _ = LoadHistoryAsync();
         }
 
         private async void ExportHistoryToCsv_Click(object sender, RoutedEventArgs e)
@@ -972,7 +973,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             catch { /**/ }
         }
 
-        private void OnTriggerFired(WheelSpinTrigger trigger, WheelSpinTriggerHistory history)
+        private void OnTriggerFired(WheelSpinTrigger trigger, WheelSpinTriggerHistory history, int newSpinsOwed)
         {
             Dispatcher.InvokeAsync(() =>
             {

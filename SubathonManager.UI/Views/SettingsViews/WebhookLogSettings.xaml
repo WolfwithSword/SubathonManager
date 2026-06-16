@@ -32,6 +32,9 @@
                 <CheckBox x:Name="LogWheelSpinEventsCbx" Content="Log WheelSpin Events?"
                           ToolTip="Send spin results and status changes to the WheelSpin webhook"
                           Margin="16 4 4 4"/>
+                <CheckBox x:Name="LogWheelTriggerEventsCbx" Content="Log Trigger Fires?"
+                          ToolTip="Send log when a wheel spin trigger is triggered"
+                          Margin="12 4 4 4"/>
             </StackPanel>
             <Separator Margin="0,10"/>
             <TextBlock HorizontalAlignment="Left" Margin="4 0 12 4">Logged Events</TextBlock>
