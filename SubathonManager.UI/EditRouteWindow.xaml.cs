@@ -533,6 +533,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
             PreviewWebView?.Dispose();
         }
 
+        _cssLivePreviewTimer?.Dispose();
         UnsubscribeCssVarChanges();
         base.OnClosed(e);
     }

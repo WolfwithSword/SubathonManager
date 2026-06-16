@@ -30,6 +30,11 @@ namespace SubathonManager.UI.Views.WheelSpin
         private bool _historyLoading;
         private bool _initialized;
 
+        private static readonly System.Windows.Media.SolidColorBrush SelectedRowBrush =
+            new(System.Windows.Media.Color.FromArgb(30, 100, 149, 237));
+
+        static WheelTriggerEditor() => SelectedRowBrush.Freeze();
+
         // Valid event subtypes for triggers
         private static readonly HashSet<SubathonEventSubType> ValidSubTypes =
         [
@@ -339,9 +344,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             foreach (var child in TriggersStack.Children.OfType<Grid>())
             {
                 var t = child.Tag as WheelSpinTrigger;
-                child.Background = (t?.Id == selected?.Id)
-                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(30, 100, 149, 237))
-                    : System.Windows.Media.Brushes.Transparent;
+                child.Background = (t?.Id == selected?.Id) ? SelectedRowBrush : System.Windows.Media.Brushes.Transparent;
             }
         }
 
@@ -979,6 +982,8 @@ namespace SubathonManager.UI.Views.WheelSpin
             {
                 TriggerHistoryStack.Children.Insert(0, BuildHistoryRow(history));
                 _historyOffset++;
+                while (TriggerHistoryStack.Children.Count > HistoryPageSize * 10)
+                    TriggerHistoryStack.Children.RemoveAt(TriggerHistoryStack.Children.Count - 1);
             });
         }
 

@@ -33,6 +33,12 @@ namespace SubathonManager.UI.Views.WheelSpin
         private WheelSpinHistoryStatus? _historyFilter = null;
         private volatile bool _multiplierActive = false;
         private int _multiplierRefreshQueued = 0;
+        private bool _initialized = false;
+
+        private static readonly System.Windows.Media.SolidColorBrush SelectedRowBrush =
+            new(System.Windows.Media.Color.FromArgb(30, 100, 149, 237));
+
+        static WheelEditor() => SelectedRowBrush.Freeze();
 
         public WheelEditor()
         {
@@ -45,7 +51,11 @@ namespace SubathonManager.UI.Views.WheelSpin
             LoadGlobalState();
             Loaded += (_, _) =>
             {
-                Dispatcher.Invoke(AttachChangeHandlers);
+                if (!_initialized)
+                {
+                    Dispatcher.Invoke(AttachChangeHandlers);
+                    _initialized = true;
+                }
                 SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
                 WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
             };
@@ -485,10 +495,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             foreach (var child in ItemsStack.Children.OfType<Grid>())
             {
                 bool isSelected = child == clickedRow || (child.Tag is WheelItem wi && wi.Id == _selectedItem?.Id);
-                child.Background = isSelected
-                    ? new System.Windows.Media.SolidColorBrush(
-                        System.Windows.Media.Color.FromArgb(30, 100, 149, 237))
-                    : System.Windows.Media.Brushes.Transparent;
+                child.Background = isSelected ? SelectedRowBrush : System.Windows.Media.Brushes.Transparent;
             }
         }
 
