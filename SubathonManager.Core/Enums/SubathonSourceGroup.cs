@@ -17,5 +17,7 @@ public enum SubathonSourceGroup
     [EnumMeta(Description="External Services", Label="External Services")]
     ExternalService,
     [EnumMeta(Label="")]
-    UseSource
+    UseSource,
+    [EnumMeta(Description="Wheel Spin", Label="Wheel Spin")]
+    WheelSpin,
 }

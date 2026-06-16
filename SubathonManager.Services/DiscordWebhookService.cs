@@ -18,19 +18,28 @@ public class DiscordWebhookService : IDisposable, IAppService
     private readonly IHttpClientFactory? _httpClientFactory;
     private readonly ConcurrentQueue<SubathonEvent> _eventQueue = new();
     private readonly ConcurrentQueue<SubathonValueDto> _configQueue = new();
+    private readonly ConcurrentQueue<WheelLogEntry> _wheelQueue = new();
+    private readonly ConcurrentQueue<TriggerLogEntry> _triggerQueue = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly CancellationTokenSource _ctsConfig = new();
+    private readonly CancellationTokenSource _ctsWheel = new();
+    private readonly CancellationTokenSource _ctsTrigger = new();
 
     private string? _eventWebhookUrl; // from config
     private string? _webhookUrl; // from config
+    private string? _wheelWebhookUrl; // from config
     private readonly TimeSpan _flushInterval = TimeSpan.FromMinutes(1);
     private readonly int _maxMsgPerMinute = 15;
     private Task? _backgroundTask;
     private Task? _backgroundConfigTask;
+    private Task? _backgroundWheelTask;
+    private Task? _backgroundTriggerTask;
 
     private List<SubathonEventType> _auditEventTypes = new();
     private bool _doSimulatedEvents = false;
     private bool _doRemoteValuePatches = false;
+    private bool _doWheelSpinEvents = false;
+    private bool _doWheelTriggerEvents = false;
     
     private readonly ILogger? _logger;
     private readonly IConfig _config;
@@ -57,8 +66,13 @@ public class DiscordWebhookService : IDisposable, IAppService
         ErrorMessageEvents.ErrorEventOccured += SendErrorEvent;
         ErrorMessageEvents.SendCustomEvent += OnCustomEvent;
         SubathonEvents.SubathonValuesPatched += OnSubathonConfigValuesPatched;
+        WheelEvents.WheelSpinResult += OnWheelSpinResult;
+        WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
+        WheelEvents.WheelSpinTriggerFired += OnWheelSpinTriggerFired;
         _backgroundTask = Task.Run(ProcessQueueAsync, cancellationToken);
         _backgroundConfigTask = Task.Run(ProcessValueQueueAsync, cancellationToken);
+        _backgroundWheelTask = Task.Run(ProcessWheelQueueAsync, cancellationToken);
+        _backgroundTriggerTask = Task.Run(ProcessTriggerQueueAsync, cancellationToken);
         return Task.CompletedTask;
     }
 
@@ -66,7 +80,8 @@ public class DiscordWebhookService : IDisposable, IAppService
     {
         _eventWebhookUrl = _config.Get("Discord", "Events.WebhookUrl", "");
         _webhookUrl = _config.Get("Discord", "WebhookUrl", "");
-        
+        _wheelWebhookUrl = _config.Get("Discord", "Wheel.WebhookUrl", "");
+
         _auditEventTypes.Clear();
         foreach (SubathonEventType type in Enum.GetValues<SubathonEventType>())
         {
@@ -76,6 +91,8 @@ public class DiscordWebhookService : IDisposable, IAppService
 
         _doSimulatedEvents = _config.GetBool("Discord", "Events.Log.Simulated", false);
         _doRemoteValuePatches = _config.GetBool("Discord", "Events.Log.RemoteConfig", false);
+        _doWheelSpinEvents = _config.GetBool("Discord", "Wheel.Log.Enabled", false);
+        _doWheelTriggerEvents = _config.GetBool("Discord", "Wheel.Log.Triggers", false);
     }
 
     private void OnSubathonEventProcessed(SubathonEvent? subathonEvent, bool effective)
@@ -378,8 +395,16 @@ public class DiscordWebhookService : IDisposable, IAppService
         await _ctsConfig.CancelAsync();
         if (_backgroundConfigTask != null)
             await _backgroundConfigTask;
+        await _ctsWheel.CancelAsync();
+        if (_backgroundWheelTask != null)
+            await _backgroundWheelTask;
+        await _ctsTrigger.CancelAsync();
+        if (_backgroundTriggerTask != null)
+            await _backgroundTriggerTask;
         await FlushQueueAsync();
         await FlushConfigQueueAsync();
+        await FlushWheelQueueAsync();
+        await FlushTriggerQueueAsync();
     }
 
     public void Dispose()
@@ -388,14 +413,23 @@ public class DiscordWebhookService : IDisposable, IAppService
             _cts.Cancel();
         if (!_ctsConfig.IsCancellationRequested)
             _ctsConfig.Cancel();
+        if (!_ctsWheel.IsCancellationRequested)
+            _ctsWheel.Cancel();
 
         SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
         SubathonEvents.SubathonEventsDeleted -= OnSubathonEventDeleted;
         ErrorMessageEvents.ErrorEventOccured -= SendErrorEvent;
         ErrorMessageEvents.SendCustomEvent -= OnCustomEvent;
         SubathonEvents.SubathonValuesPatched -= OnSubathonConfigValuesPatched;
+        WheelEvents.WheelSpinResult -= OnWheelSpinResult;
+        WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
+        WheelEvents.WheelSpinTriggerFired -= OnWheelSpinTriggerFired;
         _cts.Dispose();
         _ctsConfig.Dispose();
+        _ctsWheel.Dispose();
+        if (!_ctsTrigger.IsCancellationRequested)
+            _ctsTrigger.Cancel();
+        _ctsTrigger.Dispose();
     }
 
     public void SendErrorEvent(string level, string source, string message, DateTime time)
@@ -478,7 +512,167 @@ public class DiscordWebhookService : IDisposable, IAppService
 
         return sb.ToString();
     }
-    
+
+    private void OnWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history, int spinsOwed)
+    {
+        if (string.IsNullOrEmpty(_wheelWebhookUrl) || !_doWheelSpinEvents) return;
+        _wheelQueue.Enqueue(new WheelLogEntry(wheel.Name, item, history, spinsOwed, false));
+    }
+
+    private void OnWheelSpinStatusChanged(WheelSpinHistory history, int spinsOwed)
+    {
+        if (string.IsNullOrEmpty(_wheelWebhookUrl) || !_doWheelSpinEvents) return;
+        _wheelQueue.Enqueue(new WheelLogEntry(history.LinkedWheel?.Name ?? "Unknown", history.LinkedItem, history, spinsOwed, true));
+    }
+
+    private void OnWheelSpinTriggerFired(WheelSpinTrigger trigger, WheelSpinTriggerHistory history, int newSpinsOwed)
+    {
+        if (string.IsNullOrEmpty(_wheelWebhookUrl) || !_doWheelTriggerEvents) return;
+        _triggerQueue.Enqueue(new TriggerLogEntry(trigger, history, newSpinsOwed));
+    }
+
+    private async Task ProcessTriggerQueueAsync()
+    {
+        try
+        {
+            while (!_ctsTrigger.IsCancellationRequested)
+            {
+                await Task.Delay(_flushInterval, _ctsTrigger.Token);
+                await FlushTriggerQueueAsync();
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger?.LogDebug(ex, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, ex.Message);
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task FlushTriggerQueueAsync()
+    {
+        if (_triggerQueue.IsEmpty) return;
+        var entries = new List<TriggerLogEntry>();
+        while (entries.Count < (_maxMsgPerMinute * 10) && _triggerQueue.TryDequeue(out var entry))
+            entries.Add(entry);
+        if (entries.Count == 0) return;
+
+        foreach (var batch in entries.Chunk(10))
+        {
+            var embeds = batch.Select(e => new
+            {
+                title = $"WheelSpin Trigger - {e.Trigger.EventType.GetSource()} {e.Trigger.EventType.GetLabel()}",
+                description = BuildTriggerLogDescription(e),
+                color = 0x9B59B6,
+                timestamp = e.History.TriggeredAt.ToUniversalTime().ToString("o"),
+                footer = new { text = $"Trigger {e.Trigger.Id}\nHistory {e.History.Id}" }
+            });
+
+            var payload = new
+            {
+                username = MakeUsername(),
+                avatar_url = AppAvatarUrl,
+                embeds
+            };
+
+            await SendWebhookAsync(payload, _wheelWebhookUrl);
+            await Task.Delay(1500, _ctsTrigger.Token);
+        }
+    }
+
+    private static string BuildTriggerLogDescription(TriggerLogEntry e)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"**Event:** {e.Trigger.EventType.GetLabel()} ({e.Trigger.EventType.GetSource()})");
+        sb.AppendLine($"**User:** {e.History.TriggerUser ?? "Unknown"}");
+        sb.AppendLine($"**Source:** {e.History.TriggerSource}");
+        sb.AppendLine($"**Spins Added:** +{e.History.SpinsAdded}");
+        sb.AppendLine($"**New Spins Owed:** {e.NewSpinsOwed}");
+        sb.AppendLine($"**Subathon Event ID:** {e.History.SubathonEventId?.ToString() ?? "N/A"}");
+        return sb.ToString();
+    }
+
+    private async Task ProcessWheelQueueAsync()
+    {
+        try
+        {
+            while (!_ctsWheel.IsCancellationRequested)
+            {
+                await Task.Delay(_flushInterval, _ctsWheel.Token);
+                await FlushWheelQueueAsync();
+            }
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger?.LogDebug(ex, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, ex.Message);
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task FlushWheelQueueAsync()
+    {
+        if (_wheelQueue.IsEmpty) return;
+        var entries = new List<WheelLogEntry>();
+        while (entries.Count < (_maxMsgPerMinute * 10) && _wheelQueue.TryDequeue(out var entry))
+            entries.Add(entry);
+        if (entries.Count == 0) return;
+
+        foreach (var batch in entries.Chunk(10))
+        {
+            var embeds = batch.Select(e => new
+            {
+                title = e.IsStatusChange
+                    ? $"WheelSpin Status Change - {e.WheelName}"
+                    : $"WheelSpin - {e.WheelName}",
+                description = BuildWheelLogDescription(e),
+                color = WheelStatusColor(e.History.Status),
+                timestamp = e.History.UpdatedAt.ToUniversalTime().ToString("o"),
+                footer = new { text = $"Spin {e.History.Id}\nStatus: {e.History.Status}" }
+            });
+
+            var payload = new
+            {
+                username = MakeUsername(),
+                avatar_url = AppAvatarUrl,
+                embeds
+            };
+
+            await SendWebhookAsync(payload, _wheelWebhookUrl);
+            await Task.Delay(1500, _ctsWheel.Token);
+        }
+    }
+
+    private string BuildWheelLogDescription(WheelLogEntry e)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"**Item:** {e.Item?.Text ?? "(unknown)"}");
+        sb.AppendLine($"**Quantity Remaining:** {(e.Item?.IsInfinite ?? false ? "∞" : e.Item?.Quantity.ToString() ?? "?")}");
+        var action = e.Item?.Action;
+        sb.AppendLine($"**Action:** {(action != null ? action.ActionType.ToString() : "Manual")}");
+        if (action != null && !string.IsNullOrEmpty(action.Parameter))
+            sb.AppendLine($"**Parameter:** {action.Parameter}");
+        sb.AppendLine($"**Spins Owed Remaining:** {e.SpinsOwed}");
+        sb.AppendLine($"**Status:** {e.History.Status}");
+        return sb.ToString();
+    }
+
+    private static int WheelStatusColor(WheelSpinHistoryStatus status) => status switch
+    {
+        WheelSpinHistoryStatus.Done      => 0x00ff88,
+        WheelSpinHistoryStatus.Cancelled => 0xFF6B6B,
+        _                                => 0x6495ED
+    };
+
+    private readonly record struct WheelLogEntry(string WheelName, WheelItem? Item, WheelSpinHistory History, int SpinsOwed, bool IsStatusChange);
+    private readonly record struct TriggerLogEntry(WheelSpinTrigger Trigger, WheelSpinTriggerHistory History, int NewSpinsOwed);
+
 }
 
 

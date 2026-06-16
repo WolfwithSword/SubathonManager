@@ -170,6 +170,24 @@ namespace SubathonManager.Data.Migrations
                     b.ToTable("Routes");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.StateValue", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TypeName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("StateValues");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonData", b =>
                 {
                     b.Property<Guid>("Id")
@@ -484,6 +502,185 @@ namespace SubathonManager.Data.Migrations
                     b.ToTable("SubathonValues");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnOrder(0);
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsInfinite")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("WheelId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WheelId");
+
+                    b.ToTable("WheelItems");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnOrder(0);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SpinCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WheelSets");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinAction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnOrder(0);
+
+                    b.Property<int>("ActionType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Parameter")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WheelItemId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WheelItemId")
+                        .IsUnique();
+
+                    b.ToTable("WheelSpinActions");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WheelId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WheelItemId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WheelId");
+
+                    b.HasIndex("WheelItemId");
+
+                    b.ToTable("WheelSpinHistories");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinTrigger", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CountThreshold")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double?>("MoneyThreshold")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("SpinsToAdd")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TierValue")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WheelSpinTriggers");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinTriggerHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SpinsAdded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("SubathonEventId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SubathonEventType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("TriggerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TriggerSource")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TriggerUser")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("TriggeredAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TriggerId");
+
+                    b.ToTable("WheelSpinTriggerHistories");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.Widget", b =>
                 {
                     b.Property<Guid>("Id")
@@ -615,6 +812,57 @@ namespace SubathonManager.Data.Migrations
                     b.Navigation("LinkedSet");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelItem", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.WheelSet", "LinkedWheel")
+                        .WithMany("WheelItems")
+                        .HasForeignKey("WheelId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("LinkedWheel");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinAction", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.WheelItem", "LinkedItem")
+                        .WithOne("Action")
+                        .HasForeignKey("SubathonManager.Core.Models.WheelSpinAction", "WheelItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LinkedItem");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinHistory", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.WheelSet", "LinkedWheel")
+                        .WithMany()
+                        .HasForeignKey("WheelId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("SubathonManager.Core.Models.WheelItem", "LinkedItem")
+                        .WithMany()
+                        .HasForeignKey("WheelItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LinkedItem");
+
+                    b.Navigation("LinkedWheel");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinTriggerHistory", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.WheelSpinTrigger", "Trigger")
+                        .WithMany("History")
+                        .HasForeignKey("TriggerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Trigger");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.Widget", b =>
                 {
                     b.HasOne("SubathonManager.Core.Models.Route", "Route")
@@ -645,6 +893,21 @@ namespace SubathonManager.Data.Migrations
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptSet", b =>
                 {
                     b.Navigation("Prompts");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelItem", b =>
+                {
+                    b.Navigation("Action");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSet", b =>
+                {
+                    b.Navigation("WheelItems");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinTrigger", b =>
+                {
+                    b.Navigation("History");
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.Widget", b =>

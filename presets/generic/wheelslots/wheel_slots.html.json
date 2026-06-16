@@ -1,0 +1,32 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/wheel-slots/",
+  "Width": 316,
+  "Height": 420,
+  "Vars": {
+    "playTickSound": {
+      "Name": "playTickSound",
+      "Type": "Boolean",
+      "Description": "Play a tick sound as items scroll?",
+      "Value": true
+    },
+    "tickSound": {
+      "Name": "tickSound",
+      "Type": "SoundFile",
+      "Description": "Sound to play as each slot item scrolls past",
+      "Value": "./tickSound.mp3"
+    },
+    "tickSoundVolume": {
+      "Name": "tickSoundVolume",
+      "Type": "Percent",
+      "Description": "Tick sound volume",
+      "Value": 50
+    },
+    "showSpinsOwed": {
+      "Name": "showSpinsOwed",
+      "Type": "Boolean",
+      "Description": "Enable to show count of spins remaining",
+      "Value": true
+    }
+  }
+}
