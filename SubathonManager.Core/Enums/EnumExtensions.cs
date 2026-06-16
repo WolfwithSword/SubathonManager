@@ -114,7 +114,6 @@ public class CommandMetaAttribute : EnumMetaAttribute
 
 public class WheelSpinActionMetaAttribute : EnumMetaAttribute
 {
-    public string Label { get; init; } = "";
     public bool IsCommand { get; init; } = false;
     public bool HasAction { get; init; } = true;
     public bool IsDoneImmediately { get; init; } = false;

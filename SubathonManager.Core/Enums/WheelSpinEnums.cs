@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace SubathonManager.Core.Enums;
 
 public enum WheelSpinActionType
@@ -14,6 +16,7 @@ public enum WheelSpinActionType
     Reroll = 1000
 }
 
+[ExcludeFromCodeCoverage]
 public static class WheelSpinActionTypeHelper
 {
     public static string GetLabel(this WheelSpinActionType type)
