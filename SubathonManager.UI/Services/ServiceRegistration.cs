@@ -35,6 +35,7 @@ public static class ServiceRegistration
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
         services.AddSingleton<PromptOrchestratorService>();
+        services.AddSingleton<WheelSpinTriggerService>();
         services.AddSingleton<TelemetryService>();
         services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
     }

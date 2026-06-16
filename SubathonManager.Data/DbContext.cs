@@ -33,6 +33,8 @@ namespace SubathonManager.Data
         public DbSet<WheelItem> WheelItems { get; set; }
         public DbSet<WheelSpinAction> WheelSpinActions { get; set; }
         public DbSet<WheelSpinHistory> WheelSpinHistories { get; set; }
+        public DbSet<WheelSpinTrigger> WheelSpinTriggers { get; set; }
+        public DbSet<WheelSpinTriggerHistory> WheelSpinTriggerHistories { get; set; }
 
         public DbSet<GoAffProStore> GoAffProStores { get; set; }
 
@@ -152,6 +154,12 @@ namespace SubathonManager.Data
                 .WithMany()
                 .HasForeignKey(h => h.WheelId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<WheelSpinTrigger>()
+                .HasMany(t => t.History)
+                .WithOne(h => h.Trigger)
+                .HasForeignKey(h => h.TriggerId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<GoAffProStore>()
                 .HasKey(e => new { e.RowId });
