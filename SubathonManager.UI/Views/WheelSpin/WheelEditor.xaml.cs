@@ -43,9 +43,17 @@ namespace SubathonManager.UI.Views.WheelSpin
             PopulateActionTypeComboBox();
             LoadActiveWheel();
             LoadGlobalState();
-            Loaded += (_, _) => Dispatcher.Invoke(AttachChangeHandlers);
-            SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
-            Unloaded += (_, _) => SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
+            Loaded += (_, _) =>
+            {
+                Dispatcher.Invoke(AttachChangeHandlers);
+                SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
+                WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
+            };
+            Unloaded += (_, _) =>
+            {
+                SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
+                WheelEvents.OnSpinsOwedUpdateFromEvent -= AdjustSpinsBoxByEvent;
+            };
         }
 
         private void LoadGlobalState()
@@ -736,6 +744,15 @@ namespace SubathonManager.UI.Views.WheelSpin
             SuppressChanges(() => SpinDelayBox.Text = delay.ToString());
         }
 
+        private void AdjustSpinsBoxByEvent(int val)
+        {
+            Dispatcher.Invoke(() => {
+                _spinsOwed = val;
+                SuppressChanges(() => SpinsOwedBox.Text = val.ToString());
+                RaiseWheelDataChanged();
+            });
+       }
+
         private async void SpinsOwedBox_LostFocus(object sender, RoutedEventArgs e)
         {
             if (!int.TryParse(SpinsOwedBox.Text, out int newOwed)) return;
@@ -805,7 +822,6 @@ namespace SubathonManager.UI.Views.WheelSpin
                     ? $"ActionType={item.Action.ActionType}, Param=\"{item.Action.Parameter}\""
                     : "Action=Manual/Other";
                 string msg = $"[WheelSpin] Rolled: Id={item.Id}, Name=\"{item.Text}\", {actionDesc}";
-                //////////////////////////////////////////////////// TODO add webhook 
                 _logger?.LogInformation(msg);
 
             }
@@ -830,8 +846,9 @@ namespace SubathonManager.UI.Views.WheelSpin
                 dbH.WheelSpinHistories.Add(histEntry);
                 await dbH.SaveChangesAsync();
                 histEntry.LinkedItem = item;
+                histEntry.LinkedWheel = _activeWheel;
                 await Dispatcher.InvokeAsync(() => PrependHistoryRow(histEntry));
-                WheelEvents.RaiseWheelSpinResult(_activeWheel, item, histEntry);
+                WheelEvents.RaiseWheelSpinResult(_activeWheel, item, histEntry, _spinsOwed);
                 if (item.Action?.ActionType.IsDoneImmediately() ?? false)
                 {
                     switch (item.Action.ActionType)
@@ -939,12 +956,12 @@ namespace SubathonManager.UI.Views.WheelSpin
             RerollCountBox.TextChanged += (_, _) => MarkPendingChanges();
         }
 
-        private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = !int.TryParse(e.Text, out _);
         }
 
-        private void FloatOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        private void FloatOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = e.Text != "." && !int.TryParse(e.Text, out _);
         }
@@ -1240,7 +1257,8 @@ namespace SubathonManager.UI.Views.WheelSpin
                 foreach (var btn in hoverBtns.Children.OfType<Wpf.Ui.Controls.Button>())
                     btn.IsEnabled = btn.Tag is WheelSpinHistoryStatus s && s != newStatus;
             });
-            WheelEvents.RaiseWheelSpinStatusChanged(h);
+            h.LinkedWheel ??= _activeWheel;
+            WheelEvents.RaiseWheelSpinStatusChanged(h, _spinsOwed);
         }
 
         private void RaiseWheelDataChanged()

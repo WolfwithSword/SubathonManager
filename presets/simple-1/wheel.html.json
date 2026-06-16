@@ -1,6 +1,6 @@
 {
   "Author": "WolfwithSword",
-  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/#wheel",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/simple-1/#wheel",
   "Width": 560,
   "Height": 560,
   "Vars": {
@@ -36,6 +36,16 @@
       "Type": "Boolean",
       "Description": "Enable to show count of spins remaining",
       "Value": true
+    },
+    "CdnFonts": {
+      "type": "CdnFont",
+      "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",
+      "value": "milker,beachday"
+    },
+    "BunnyFonts": {
+      "type": "BunnyFont", 
+      "description": "Additional bunny fonts to load to use in CSS Variables. Comma separated.",
+      "value": "titan one"
     }
   }
 }

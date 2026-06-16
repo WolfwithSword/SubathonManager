@@ -1,28 +1,19 @@
 {
   "Author": "WolfwithSword",
-  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/steampunk/#wheel",
-  "Width": 560,
-  "Height": 560,
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/single/wheel-slots/",
+  "Width": 316,
+  "Height": 420,
   "Vars": {
-    "partitionType": {
-      "Type": "StringSelect",
-      "Value": "Weight",
-      "Description": "Visually partition wheel sections by relative weight, or equal size for each item regardless of weight",
-      "Options": [
-        "Weight",
-        "Equal"
-      ]
-    },
     "playTickSound": {
       "Name": "playTickSound",
       "Type": "Boolean",
-      "Description": "Play a tick sound while the wheel is spinning?",
+      "Description": "Play a tick sound as items scroll?",
       "Value": true
     },
     "tickSound": {
       "Name": "tickSound",
       "Type": "SoundFile",
-      "Description": "Sound to play as a tick while the wheel spins",
+      "Description": "Sound to play as each slot item scrolls past",
       "Value": "./tickSound.mp3"
     },
     "tickSoundVolume": {

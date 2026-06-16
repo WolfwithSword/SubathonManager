@@ -614,7 +614,7 @@ public partial class WebServer
         Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
 
-    private void SendWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history)
+    private void SendWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history, int _)
     {
         var itemSnapshot = WheelItemToObject(item);
         var data = new
@@ -634,7 +634,7 @@ public partial class WebServer
         Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
     }
 
-    private void SendWheelSpinStatusChanged(WheelSpinHistory history)
+    private void SendWheelSpinStatusChanged(WheelSpinHistory history, int _)
     {
         var itemSnapshot = WheelItemToObject(history.LinkedItem);
         var data = new

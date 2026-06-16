@@ -4,31 +4,23 @@
 
     <div class="wheel-rotate" id="wheel-rotate">
         <svg class="wheel-svg" id="wheel-svg" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-            <defs id="wheel-defs"></defs>
-            <g id="cog-layer"></g>
             <g id="slice-group"></g>
             <g id="label-group"></g>
         </svg>
     </div>
+    <div class="wheel-ring"></div>
 
     <div class="center-hub">
         <div class="hub-label">SPINS</div>
         <div class="hub-count" id="hub-count">0</div>
     </div>
 
-    <div class="needle-wrap" id="needle-wrap">
-        <div class="needle-pivot-wrap" id="needle-pivot-wrap">
-            <div class="needle-body"></div>
-            <div class="needle-hub"></div>
-        </div>
+    <div class="teardrop-wrap" id="teardrop-wrap">
+        <div class="teardrop-body"></div>
     </div>
 
     <div class="nameplate-wrap">
         <div class="nameplate hidden" id="nameplate">
-            <div class="nameplate-bolt tl"></div>
-            <div class="nameplate-bolt tr"></div>
-            <div class="nameplate-bolt bl"></div>
-            <div class="nameplate-bolt br"></div>
             <div class="nameplate-header">RESULT</div>
             <div class="nameplate-divider"></div>
             <div class="nameplate-text" id="nameplate-text">-</div>
@@ -38,18 +30,18 @@
 </div>
 
 <script>
-const SVG_NS    = 'http://www.w3.org/2000/svg';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 const CX = 200, CY = 200;
-const SLICE_R   = 148;
-const HUB_R     = 46;
-const MAX_SPEED = 660; // deg/s. not a multiple of (360/teeth * fps), avoids the stand still thingy
-const POINTER_ANGLE = 90;
+const SLICE_R = 198;
+const HUB_R = 46;
+const MAX_SPEED = 660;
+const POINTER_ANGLE = 0;
 
 const COLORS = [
     'var(--panelColor1)','var(--panelColor2)','var(--panelColor3)','var(--panelColor4)',
     'var(--panelColor5)','var(--panelColor6)','var(--panelColor7)','var(--panelColor8)'
 ];
-const STROKE = 'rgba(192,144,80,0.45)';
+const STROKE_WIDTH = 3;
 
 let wheelItems = [];
 let spinsOwed  = 0;
@@ -57,7 +49,7 @@ const sliceMap = new Map();
 
 let rotation  = 0;
 let spinSpeed = 0;
-let spinState = 'idle'; // 'idle' | 'spinning' | 'landing'
+let spinState = 'idle';
 let rafId     = null;
 let lastRaf   = 0;
 
@@ -72,7 +64,6 @@ let nameplateTimer   = null;
 let tickAudio    = null;
 let lastTickTime = 0;
 
-
 const wheelRotate = document.getElementById('wheel-rotate');
 const sliceGroup  = document.getElementById('slice-group');
 const labelGroup  = document.getElementById('label-group');
@@ -80,47 +71,9 @@ const hubCount    = document.getElementById('hub-count');
 const hubLabel    = document.querySelector('.hub-label');
 const nameplatEl  = document.getElementById('nameplate');
 const npText      = document.getElementById('nameplate-text');
-const needlePivot = document.getElementById('needle-pivot-wrap');
-
 function cssVar(name, fallback) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 }
-
-async function loadCog(url) {
-    try {
-        const res     = await fetch(url);
-        const svgText = await res.text();
-        const parser  = new DOMParser();
-        const doc     = parser.parseFromString(svgText, 'image/svg+xml');
-        const srcSvg  = doc.querySelector('svg');
-        if (!srcSvg) return;
-
-        const defsEl = document.getElementById('wheel-defs');
-
-        const cs    = getComputedStyle(document.documentElement);
-        const vars  = ['--cog-fill','--cog-mid','--cog-edge','--cog-edge-light','--cog-hole'];
-        const falls = ['#6b4c1e','#9a7850','#c09050','#d0a060','#1a0a02'];
-        const style = document.createElementNS(SVG_NS, 'style');
-        style.textContent = ':root{' + vars.map((v,i) =>
-            `${v}:${cs.getPropertyValue(v).trim() || falls[i]}`
-        ).join(';') + '}';
-        defsEl.appendChild(style);
-
-        const srcDefs = srcSvg.querySelector('defs');
-        if (srcDefs) {
-            Array.from(srcDefs.children).forEach(c =>
-                defsEl.appendChild(document.importNode(c, true)));
-        }
-
-        const cogLayer = document.getElementById('cog-layer');
-        Array.from(srcSvg.childNodes).forEach(n => {
-            if (n.nodeType === Node.ELEMENT_NODE && n.tagName.toLowerCase() !== 'defs')
-                cogLayer.appendChild(document.importNode(n, true));
-        });
-    } catch(e) { console.warn('loadCog:', e); }
-}
-
-loadCog('./cog.svg');
 
 function pt(r, deg) {
     const a = deg * Math.PI / 180;
@@ -173,19 +126,17 @@ function rebuildSlices(items) {
         let els = sliceMap.get(item.id);
         if (!els) {
             const pathEl = document.createElementNS(SVG_NS, 'path');
-            pathEl.setAttribute('stroke', STROKE);
-            pathEl.setAttribute('stroke-width', '1');
             sliceGroup.appendChild(pathEl);
 
             const textEl = document.createElementNS(SVG_NS, 'text');
             textEl.setAttribute('text-anchor', 'start');
             textEl.setAttribute('dominant-baseline', 'middle');
-            textEl.setAttribute('fill', 'var(--text-color, #e8c880)');
-            textEl.setAttribute('font-family', 'var(--font-family, monospace)');
-            textEl.setAttribute('font-weight', '700');
+            textEl.setAttribute('fill', 'var(--text-color, #d9d7fb)');
+            textEl.setAttribute('font-family', 'var(--font, sans-serif)');
+            textEl.setAttribute('font-weight', '400');
             textEl.setAttribute('paint-order', 'stroke fill');
-            textEl.setAttribute('stroke', 'rgba(0,0,0,0.85)');
-            textEl.setAttribute('stroke-width', '3');
+            textEl.setAttribute('stroke', 'rgba(0,0,0,0.55)');
+            textEl.setAttribute('stroke-width', '2.5');
             textEl.setAttribute('stroke-linejoin', 'round');
             labelGroup.appendChild(textEl);
 
@@ -195,18 +146,19 @@ function rebuildSlices(items) {
 
         els.pathEl.setAttribute('d', sectorD(startAngle, endAngle, SLICE_R, HUB_R));
         els.pathEl.setAttribute('fill', color);
-        
+        els.pathEl.style.stroke = 'var(--hub-bg, #d9d7fb)';
+        els.pathEl.setAttribute('stroke-width', STROKE_WIDTH);
+
         const base     = parseFloat(cssVar('--slice-text-size', '16')) / ((wheelRotate.clientWidth || 504) / 400);
         const fontSize = span > 60 ? base : span > 35 ? base*0.77 : span > 18 ? base*0.615 : span > 10 ? base*0.46 : 0;
         if (fontSize > 0) {
-            const startR   = HUB_R + 6;
+            const startR   = HUB_R + 18;
             const endR     = SLICE_R - 8;
             const avail    = endR - startR;
             const maxChars = Math.max(3, Math.floor(avail / (fontSize * 0.62)));
             const raw      = item.text || '';
             const label    = raw.length > maxChars ? raw.slice(0, maxChars - 1) + '…' : raw;
 
-            els.textEl.setAttribute('text-anchor', 'start');
             els.textEl.setAttribute('x', String(CX + startR));
             els.textEl.setAttribute('y', String(CY));
             els.textEl.setAttribute('font-size', fontSize);
@@ -256,31 +208,16 @@ function dismissNameplate(animated) {
     }
 }
 
-function updateNeedleBounce() {
-    const period = Math.max(70, Math.min(1500, (12 / Math.max(spinSpeed, 1)) * 1000));
-    if (needlePivot.style.animationName === 'needleBounce') {
-        needlePivot.style.animationDuration = period + 'ms';
-    } else {
-        needlePivot.style.animation = `needleBounce ${period}ms ease-in-out infinite`;
-    }
-}
-
-function needleSettle() {
-    needlePivot.style.animation = 'needleSettle 0.85s ease-out forwards';
-}
-
-function needleReset() { needlePivot.style.animation = 'none'; }
-
 function applyHubVisibility() {
     const show = typeof showSpinsOwed === 'undefined' ? true : showSpinsOwed;
     hubLabel.style.display = show ? '' : 'none';
     hubCount.style.display = show ? '' : 'none';
 }
 
-function tryTickSound(now) {
+function maybeTickSound(now) {
     if (typeof playTickSound === 'undefined' || !playTickSound) return;
     if (typeof tickSound === 'undefined' || !tickSound) return;
-    const period = Math.max(80, Math.min(1500, (12 / Math.max(spinSpeed, 1)) * 1000));
+    const period = Math.max(60, Math.min(1500, (12 / Math.max(spinSpeed, 1)) * 1000));
     if (now - lastTickTime < period) return;
     lastTickTime = now;
     if (!tickAudio) tickAudio = new Audio(tickSound);
@@ -303,7 +240,6 @@ function startDecel(target) {
 function onLandComplete() {
     spinState = 'idle';
     rafId     = null;
-    needleSettle();
     if (pendingWinText !== null) {
         resultTime = Date.now();
         showNameplate(pendingWinText);
@@ -320,8 +256,7 @@ function rafLoop(now) {
     if (spinState === 'spinning') {
         spinSpeed = Math.min(MAX_SPEED, spinSpeed + MAX_SPEED * dt);
         rotation += spinSpeed * dt;
-        updateNeedleBounce();
-        tryTickSound(now);
+        maybeTickSound(now);
         wheelRotate.style.transform = `rotate(${rotation}deg)`;
         rafId = requestAnimationFrame(rafLoop);
         return;
@@ -338,8 +273,7 @@ function rafLoop(now) {
         const t = elapsed, T = decelDur, v0 = decelV0;
         spinSpeed = v0 * (1 - t / T);
         rotation  = decelStart + v0 * t - v0 * t * t / (2 * T);
-        updateNeedleBounce();
-        tryTickSound(now);
+        maybeTickSound(now);
         wheelRotate.style.transform = `rotate(${rotation}deg)`;
         rafId = requestAnimationFrame(rafLoop);
         return;
@@ -371,10 +305,8 @@ function handleWheelData(data) {
 
 function handleWheelSpinStart(_data) {
     if (pendingWheelData) applyWheelItems(pendingWheelData);
-
     if (nameplateShown) dismissNameplate(false);
     pendingWinText = null;
-    needleReset();
     lastTickTime = 0;
     spinState = 'spinning'; spinSpeed = 0;
     if (!rafId) startRaf();
@@ -395,5 +327,6 @@ function handleWheelSpinResult(data) {
     pendingWinText = item.text || '';
 }
 
-function handleWheelSpinStatus(_data) { /* not doing anything rn */ }
+function handleWheelSpinStatus(_data) {}
+
 </script>

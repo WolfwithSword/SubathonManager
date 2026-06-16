@@ -37,7 +37,14 @@ public enum SubathonCommandType
     [CommandMeta(Description="Add Money", RequiresParameter = true)]
     AddMoney,
     [CommandMeta(Description="Remove Money", RequiresParameter = true)]
-    SubtractMoney
+    SubtractMoney,
+    [CommandMeta(Description="Set Wheel Spins", RequiresParameter = true)]
+    SetSpins,
+    [CommandMeta(Description="Add Wheel Spins", RequiresParameter = true)]
+    AddSpins,
+    [CommandMeta(Description="Subtract Wheel Spins", RequiresParameter = true)]
+    SubtractSpins,
+    
 }
 
 [ExcludeFromCodeCoverage]

@@ -15,6 +15,17 @@
     --needle-color: #cc1111;
     --hub-bg: rgba(26, 10, 2, 0.92);
     --hub-text: #e8c880;
+    --hub-label-size: 10px;
+    --hub-count-size: 38px;
+    --slice-text-size: 16px;
+    --panelColor1: #7a4a1a;
+    --panelColor2: #3a2810;
+    --panelColor3: #9a5e28;
+    --panelColor4: #4a3018;
+    --panelColor5: #6a4520;
+    --panelColor6: #2a1a0c;
+    --panelColor7: #8a5830;
+    --panelColor8: #522e18;
 }
 
 html, body {
@@ -85,7 +96,7 @@ html, body {
 
 .hub-label {
     font-family: var(--font-family);
-    font-size: calc(var(--wheel-size) * 0.018);
+    font-size: var(--hub-label-size);
     font-weight: 900;
     letter-spacing: 0.05em;
     color: var(--label-color);
@@ -95,7 +106,7 @@ html, body {
 
 .hub-count {
     font-family: var(--font-family);
-    font-size: calc(var(--wheel-size) * 0.068);
+    font-size: var(--hub-count-size);
     font-weight: 900;
     color: var(--hub-text);
     text-shadow: 0 0 4px rgba(255,200,80,0.6), 0 0 2px rgba(0,0,0,0.8);

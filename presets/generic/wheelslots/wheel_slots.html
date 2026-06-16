@@ -1,0 +1,314 @@
+<link rel="stylesheet" href="wheel_slots.css">
+
+<div class="slots-scene" id="slots-scene">
+    <div class="slots-shell">
+
+        <div class="shell-top">
+            <div class="lcd-screen" id="lcd-screen">
+                <div class="spins-display" id="spins-display">
+                    <div class="hub-label">SPINS LEFT</div>
+                    <div class="hub-count" id="hub-count">0</div>
+                </div>
+                <div class="result-display hidden" id="result-display">
+                    <div class="result-label">RESULT</div>
+                    <div class="result-text" id="result-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="shell-drum-row">
+            <div class="shell-wall left"><div class="needle"></div></div>
+            <div class="slots-outer">
+                <div class="slots-window" id="slots-window">
+                </div>
+                <div class="slots-center-highlight"></div>
+                <div class="slots-edge-fade"></div>
+            </div>
+            <div class="shell-wall right"><div class="needle"></div></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const MAX_SPEED = 1440; // px/s at full spin
+
+let ITEM_H = 80;
+
+const COLORS = [
+    '--panelColor1','--panelColor2','--panelColor3','--panelColor4',
+    '--panelColor5','--panelColor6','--panelColor7','--panelColor8'
+];
+
+let colorCache = [];
+let drumItemsList = [];
+let slotDivs = [];
+let slotState = [];
+
+let drumPos = 0;
+let spinSpeed = 0;
+let spinState = 'idle';
+let rafId = null;
+let lastRaf = 0;
+
+let decelStart = 0, decelV0 = 0, decelDur = 0, decelBegin = 0, decelTarget = 0;
+
+let spinsOwed = 0;
+let wheelItems = [];
+let resultTime = 0;
+let resultShown = false;
+let pendingWinText = null;
+let pendingWheelData = null;
+let resultTimer = null;
+
+let tickAudio = null;
+let lastTickItemIdx = -1;
+
+const hubCount = document.getElementById('hub-count');
+const hubLabel = document.querySelector('.hub-label');
+const spinsDisplayEl = document.getElementById('spins-display');
+const resultDisplayEl = document.getElementById('result-display');
+const resultTextEl = document.getElementById('result-text');
+const lcdScreenEl = document.getElementById('lcd-screen');
+const slotsWindowEl = document.getElementById('slots-window');
+
+function cssVar(name, fallback) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+function refreshColorCache() {
+    colorCache = COLORS.map(v => cssVar(v, '#333333'));
+}
+
+function initItemHeight() {
+    ITEM_H = parseFloat(cssVar('--item-height', '80')) || 80;
+}
+
+function initSlots() {
+    slotsWindowEl.innerHTML = '';
+    slotDivs  = [];
+    slotState = [];
+    for (let i = 0; i < 5; i++) {
+        const div = document.createElement('div');
+        div.className = 'slot-item';
+        div.style.top = `${ITEM_H * (i - 1)}px`;
+        slotsWindowEl.appendChild(div);
+        slotDivs.push(div);
+        slotState.push(-1);
+    }
+}
+
+function renderSlots() {
+    const N = drumItemsList.length;
+    if (!N) {
+        slotDivs.forEach(d => { d.style.opacity = '0'; });
+        return;
+    }
+
+    const centerF  = drumPos / ITEM_H;
+    const centerI  = Math.round(centerF);
+    const fraction = centerF - centerI;
+
+    slotDivs.forEach((div, i) => {
+        const offset  = i - 2; 
+        const absIdx  = centerI + offset;
+        const circIdx = ((absIdx % N) + N) % N;
+
+        if (slotState[i] !== circIdx) {
+            const item = drumItemsList[circIdx];
+            div.textContent = item?.text || '';
+            div.style.backgroundColor = colorCache[circIdx % colorCache.length];
+            slotState[i] = circIdx;
+        }
+        const dist   = offset - fraction;
+        const rotX   = -dist * 30;
+        const scaleY = Math.max(0.18, 1 - Math.abs(dist) * 0.20);
+        const opacity = Math.max(0, 1 - Math.abs(dist) * 0.50);
+        const dy     = -fraction * ITEM_H;
+
+        div.style.transform = `translateY(${dy.toFixed(1)}px) rotateX(${rotX.toFixed(1)}deg) scaleY(${scaleY.toFixed(3)})`;
+        div.style.opacity   = opacity.toFixed(3);
+    });
+}
+
+function visibleItems(items) {
+    return items.filter(it => it.enabled && (it.is_infinite || it.quantity > 0));
+}
+
+function rebuildSlices(items) {
+    initItemHeight();
+    refreshColorCache();
+    drumItemsList = visibleItems(items);
+    initSlots();
+    renderSlots();
+}
+
+function maybeTickSound() {
+    if (typeof playTickSound === 'undefined' || !playTickSound) return;
+    if (typeof tickSound     === 'undefined' || !tickSound)     return;
+    const idx = Math.floor(drumPos / ITEM_H);
+    if (idx === lastTickItemIdx) return;
+    lastTickItemIdx = idx;
+    if (!tickAudio) tickAudio = new Audio(tickSound);
+    tickAudio.currentTime = 0;
+    tickAudio.volume = (typeof tickSoundVolume !== 'undefined' ? tickSoundVolume : 50) / 100;
+    tickAudio.play().catch(() => {});
+}
+
+function applyHubVisibility() {
+    if (resultShown) return;
+    const show = typeof showSpinsOwed === 'undefined' ? true : showSpinsOwed;
+    hubLabel.style.display = show ? '' : 'none';
+    hubCount.style.display = show ? '' : 'none';
+}
+
+function fitResultText(text) {
+    resultTextEl.textContent = text;
+    let size = parseFloat(cssVar('--result-text-size', '22')) || 22;
+    resultTextEl.style.fontSize = size + 'px';
+    while (size > 9 && lcdScreenEl.scrollHeight > lcdScreenEl.clientHeight) {
+        size--;
+        resultTextEl.style.fontSize = size + 'px';
+    }
+}
+
+function showNameplate(text) {
+    resultShown = true;
+    resultDisplayEl.classList.remove('hidden');
+    spinsDisplayEl.classList.add('hidden');
+    fitResultText(text);
+    if (resultTimer) clearTimeout(resultTimer);
+    resultTimer = setTimeout(() => {
+        resultTimer = null;
+        dismissNameplate(true);
+        if (pendingWheelData) applyWheelItems(pendingWheelData);
+    }, 90000);
+}
+
+function dismissNameplate(_animated) {
+    if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
+    if (!resultShown) return;
+    resultShown = false;
+    resultDisplayEl.classList.add('hidden');
+    spinsDisplayEl.classList.remove('hidden');
+    applyHubVisibility();
+}
+
+function startDecel(targetPos) {
+    decelStart  = drumPos;
+    decelTarget = targetPos;
+    const dist  = targetPos - drumPos;
+    decelV0     = Math.max(spinSpeed, ITEM_H * 4);
+    decelDur    = (2 * dist) / decelV0;
+    if (decelDur > 8) { decelDur = 8; decelV0 = (2 * dist) / decelDur; }
+    decelBegin  = performance.now();
+    spinState   = 'landing';
+    if (!rafId) startRaf();
+}
+
+function onLandComplete() {
+    spinState = 'idle';
+    rafId     = null;
+    if (pendingWinText !== null) {
+        resultTime = Date.now();
+        showNameplate(pendingWinText);
+        pendingWinText = null;
+    }
+}
+
+function startRaf() { lastRaf = performance.now(); rafId = requestAnimationFrame(rafLoop); }
+
+function rafLoop(now) {
+    const dt = Math.min((now - lastRaf) / 1000, 0.1);
+    lastRaf = now;
+
+    if (spinState === 'spinning') {
+        spinSpeed  = Math.min(MAX_SPEED, spinSpeed + MAX_SPEED * dt);
+        drumPos   += spinSpeed * dt;
+        maybeTickSound();
+        renderSlots();
+        rafId = requestAnimationFrame(rafLoop);
+        return;
+    }
+
+    if (spinState === 'landing') {
+        const elapsed = (now - decelBegin) / 1000;
+        if (elapsed >= decelDur) {
+            drumPos   = decelTarget;
+            spinSpeed = 0;
+            renderSlots();
+            onLandComplete();
+            return;
+        }
+        const t = elapsed, T = decelDur, v0 = decelV0;
+        spinSpeed = v0 * (1 - t / T);
+        drumPos   = decelStart + v0 * t - v0 * t * t / (2 * T);
+        maybeTickSound();
+        renderSlots();
+        rafId = requestAnimationFrame(rafLoop);
+        return;
+    }
+
+    rafId = null;
+}
+
+function applyWheelItems(data) {
+    pendingWheelData = null;
+    wheelItems = data.wheel?.items ?? [];
+    rebuildSlices(wheelItems);
+}
+
+function handleWheelData(data) {
+    spinsOwed = data.spins_owed ?? 0;
+    hubCount.textContent = spinsOwed;
+    applyHubVisibility();
+
+    if (spinState !== 'idle') {
+        pendingWheelData = data;
+        return;
+    }
+    const age = resultTime > 0 ? (Date.now() - resultTime) / 1000 : Infinity;
+    
+    if (resultShown && age >= 5) dismissNameplate(true);
+    
+    applyWheelItems(data);
+}
+
+function handleWheelSpinStart(_data) {
+    if (pendingWheelData) applyWheelItems(pendingWheelData);
+    if (resultShown) dismissNameplate(false);
+    pendingWinText  = null;
+    lastTickItemIdx = Math.floor(drumPos / ITEM_H);
+    spinState = 'spinning';
+    spinSpeed = 0;
+    if (!rafId) startRaf();
+}
+
+function handleWheelSpinResult(data) {
+    const item = data.item;
+    const N = drumItemsList.length;
+
+    if (!item || !N) {
+        startDecel(drumPos + (N || 3) * ITEM_H * 3);
+        return;
+    }
+
+    const targetIdx = drumItemsList.findIndex(it => it.id === item.id);
+    if (targetIdx === -1) {
+        startDecel(drumPos + N * ITEM_H * 3);
+        pendingWinText = item.text || '';
+        return;
+    }
+
+    const currentItemF  = drumPos / ITEM_H;
+    const minId = currentItemF + 3 * N;
+    const quotient = Math.ceil((minIdx - targetIdx) / N);
+    const targetAbsI = quotient * N + targetIdx;
+    const targetDrumPos = targetAbsI * ITEM_H;
+
+    startDecel(targetDrumPos);
+    pendingWinText = item.text || '';
+}
+
+function handleWheelSpinStatus(_data) {}
+</script>

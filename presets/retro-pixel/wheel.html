@@ -1,0 +1,374 @@
+<link rel="stylesheet" href="wheel.css">
+
+<div class="wheel-scene" id="wheel-scene">
+
+    <div class="wheel-outer">
+        <div class="wheel-rotate" id="wheel-rotate">
+            <canvas id="wheel-canvas"></canvas>
+        </div>
+    </div>
+
+    <div class="center-hub px-circle">
+        <div class="hub-label">SPINS</div>
+        <div class="hub-count" id="hub-count">0</div>
+    </div>
+
+    <div class="pointer-nub" id="pointer-nub"></div>
+
+    <div class="dialogue-wrapper hidden" id="nameplate">
+        <div class="dialogue-box px-corners-lg">
+            <div class="dialogue-text-box px-corners-sm">
+                <div class="dialogue-label">RESULT</div>
+                <div class="dialogue-text" id="nameplate-text">-</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+let CX = 0, CY = 0, SLICE_R = 0, HUB_R = 0;
+
+const MAX_SPEED = 660;
+const POINTER_ANGLE = 0;
+
+let currentSlices = [];
+let wheelItems    = [];
+let spinsOwed     = 0;
+const sliceMap    = new Map();
+
+let rotation  = 0;
+let spinSpeed = 0;
+let spinState = 'idle'; // 'idle' | 'spinning' | 'landing'
+let rafId     = null;
+let lastRaf   = 0;
+
+let decelStart = 0, decelV0 = 0, decelDur = 0, decelBegin = 0, decelTarget = 0;
+
+let resultTime       = 0;
+let nameplateShown   = false;
+let pendingWinText   = null;
+let pendingWheelData = null;
+let nameplateTimer   = null;
+
+let tickAudio    = null;
+let lastTickTime = 0;
+
+const wheelRotate = document.getElementById('wheel-rotate');
+const canvas      = document.getElementById('wheel-canvas');
+const ctx         = canvas.getContext('2d');
+const hubCount    = document.getElementById('hub-count');
+const hubLabel    = document.querySelector('.hub-label');
+const nameplatEl  = document.getElementById('nameplate');
+const npText      = document.getElementById('nameplate-text');
+const pointerNub  = document.getElementById('pointer-nub');
+
+function cssVar(name, fallback) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+function primaryFontName() {
+    const raw = cssVar('--font', 'monospace');
+    const m = raw.match(/['"]([^'"]+)['"]/);
+    return m ? m[1] : raw.split(',')[0].trim();
+}
+
+function initCanvas() {
+    const w = wheelRotate.clientWidth;
+    const h = wheelRotate.clientHeight;
+    if (!w || !h) {
+        requestAnimationFrame(() => { if (initCanvas()) drawWheel(); });
+        return false;
+    }
+    canvas.width  = w;
+    canvas.height = h;
+    CX = w / 2;
+    CY = h / 2;
+    const half = Math.min(w, h) / 2;
+    SLICE_R = half * 0.99;
+    HUB_R   = half * 0.22;
+    return true;
+}
+
+function drawWheel() {
+    if (!CX) return;
+    const textColor   = cssVar('--text-color',   '#eaeaea');
+    const borderColor = cssVar('--border-color',  '#3cff8f');
+    const canvasBg    = cssVar('--canvas-bg',     '#0a0a0a');
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.beginPath();
+    ctx.arc(CX, CY, SLICE_R, 0, Math.PI * 2);
+    ctx.fillStyle = canvasBg;
+    ctx.fill();
+
+    if (currentSlices.length) {
+        currentSlices.forEach(({ startAngle, endAngle }) => {
+            const a1 = (startAngle - 90) * Math.PI / 180;
+            const a2 = (endAngle   - 90) * Math.PI / 180;
+            ctx.beginPath();
+            ctx.moveTo(CX, CY);
+            ctx.arc(CX, CY, SLICE_R, a1, a2);
+            ctx.closePath();
+            ctx.fillStyle = canvasBg;
+            ctx.fill();
+        });
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth   = Math.max(2, CX * 0.010);
+        ctx.setLineDash([CX * 0.020, CX * 0.016]);
+        currentSlices.forEach(({ startAngle }) => {
+            const a = (startAngle - 90) * Math.PI / 180;
+            ctx.beginPath();
+            ctx.moveTo(CX + HUB_R * Math.cos(a), CY + HUB_R * Math.sin(a));
+            ctx.lineTo(CX + SLICE_R * Math.cos(a), CY + SLICE_R * Math.sin(a));
+            ctx.stroke();
+        });
+        ctx.setLineDash([]);
+
+        currentSlices.forEach(({ item, startAngle, endAngle, midAngle }) => {
+            const span     = endAngle - startAngle;
+            const maxFont  = parseFloat(cssVar('--slice-text-size', '11px')) || 11;
+            const fontSize = span > 60 ? maxFont
+                           : span > 35 ? maxFont * 0.82
+                           : span > 18 ? maxFont * 0.64 : 0;
+            if (fontSize > 0) {
+                ctx.save();
+                ctx.translate(CX, CY);
+                ctx.rotate((midAngle - 90) * Math.PI / 180);
+                ctx.font         = `bold ${Math.round(fontSize)}px "${primaryFontName()}", monospace`;
+                ctx.textBaseline = 'middle';
+
+                const startR   = HUB_R + CX * 0.024;
+                const maxWidth = SLICE_R - CX * 0.032 - startR;
+                let label = item.text || '';
+                if (ctx.measureText(label).width > maxWidth) {
+                    while (label.length > 1 && ctx.measureText(label + '…').width > maxWidth)
+                        label = label.slice(0, -1);
+                    label += '…';
+                }
+
+                ctx.lineWidth   = Math.max(2, CX * 0.010);
+                ctx.lineJoin    = 'round';
+                ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+                ctx.strokeText(label, startR, 0);
+                ctx.fillStyle = textColor;
+                ctx.fillText(label, startR, 0);
+                ctx.restore();
+            }
+        });
+    }
+
+    ctx.beginPath();
+    ctx.arc(CX, CY, SLICE_R, 0, Math.PI * 2);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth   = Math.max(3, CX * 0.014);
+    ctx.setLineDash([CX * 0.024, CX * 0.016]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+}
+
+if (initCanvas()) drawWheel();
+document.fonts.ready.then(() => { if (initCanvas()) drawWheel(); });
+document.fonts.addEventListener('loadingdone', () => { if (CX) drawWheel(); });
+
+function visibleItems(items) {
+    return items.filter(it => it.enabled && (it.is_infinite || it.quantity > 0));
+}
+
+function calcAngles(items) {
+    const vis = visibleItems(items);
+    if (!vis.length) return [];
+    const useEqual = (typeof partitionType !== 'undefined') && partitionType === 'Equal';
+    const totalW   = useEqual ? vis.length
+        : vis.reduce((s, it) => s + Math.max(it.weight ?? 1, 0.001), 0);
+    let cur = 0;
+    return vis.map((it, i) => {
+        const w    = useEqual ? 1 : Math.max(it.weight ?? 1, 0.001);
+        const span = (w / totalW) * 360;
+        const s = cur, e = cur + span; cur = e;
+        return { item: it, startAngle: s, endAngle: e, midAngle: (s + e) / 2, idx: i };
+    });
+}
+
+function rebuildSlices(items) {
+    currentSlices = calcAngles(items);
+    sliceMap.clear();
+    currentSlices.forEach(s => sliceMap.set(s.item.id, s));
+    drawWheel();
+}
+
+function showNameplate(text) {
+    nameplateShown = true;
+    npText.textContent = text;
+    nameplatEl.classList.remove('hidden', 'exiting');
+    nameplatEl.classList.add('entering');
+    nameplatEl.addEventListener('animationend',
+        () => nameplatEl.classList.remove('entering'), { once: true });
+    if (nameplateTimer) clearTimeout(nameplateTimer);
+    nameplateTimer = setTimeout(() => {
+        nameplateTimer = null;
+        dismissNameplate(true);
+        if (pendingWheelData) applyWheelItems(pendingWheelData);
+    }, 90000);
+}
+
+function dismissNameplate(animated) {
+    if (nameplateTimer) { clearTimeout(nameplateTimer); nameplateTimer = null; }
+    if (!nameplateShown) return;
+    nameplateShown = false;
+    if (animated) {
+        nameplatEl.classList.remove('entering');
+        nameplatEl.classList.add('exiting');
+        nameplatEl.addEventListener('animationend', () => {
+            nameplatEl.classList.add('hidden');
+            nameplatEl.classList.remove('exiting');
+        }, { once: true });
+    } else {
+        nameplatEl.classList.add('hidden');
+        nameplatEl.classList.remove('entering', 'exiting');
+    }
+}
+
+function updateNubBounce() {
+    const period = Math.max(60, Math.min(1500, (12 / Math.max(spinSpeed, 1)) * 1000));
+    if (pointerNub.style.animationName === 'nubBounce') {
+        pointerNub.style.animationDuration = period + 'ms';
+    } else {
+        pointerNub.style.animation = `nubBounce ${period}ms ease-in-out infinite`;
+    }
+}
+
+function nubSettle() {
+    pointerNub.style.animation = 'nubSettle 0.85s steps(6) forwards';
+}
+
+function nubReset() { pointerNub.style.animation = 'none'; }
+
+function applyHubVisibility() {
+    const show = typeof showSpinsOwed === 'undefined' ? true : showSpinsOwed;
+    hubLabel.style.display = show ? '' : 'none';
+    hubCount.style.display = show ? '' : 'none';
+}
+
+function maybeTickSound(now) {
+    if (typeof playTickSound === 'undefined' || !playTickSound) return;
+    if (typeof tickSound === 'undefined' || !tickSound) return;
+    const period = Math.max(60, Math.min(1500, (12 / Math.max(spinSpeed, 1)) * 1000));
+    if (now - lastTickTime < period) return;
+    lastTickTime = now;
+    if (!tickAudio) tickAudio = new Audio(tickSound);
+    tickAudio.currentTime = 0;
+    tickAudio.volume = (typeof tickSoundVolume !== 'undefined' ? tickSoundVolume : 50) / 100;
+    tickAudio.play().catch(() => {});
+}
+
+function startDecel(target) {
+    decelStart = rotation; decelTarget = target;
+    const dist = target - rotation;
+    decelV0    = Math.max(spinSpeed, 360);
+    decelDur   = (2 * dist) / decelV0;
+    if (decelDur > 8) { decelDur = 8; decelV0 = (2 * dist) / decelDur; }
+    decelBegin = performance.now();
+    spinState  = 'landing';
+    if (!rafId) startRaf();
+}
+
+function onLandComplete() {
+    spinState = 'idle';
+    rafId     = null;
+    nubSettle();
+    if (pendingWinText !== null) {
+        resultTime = Date.now();
+        showNameplate(pendingWinText);
+        pendingWinText = null;
+    }
+}
+
+function startRaf() { lastRaf = performance.now(); rafId = requestAnimationFrame(rafLoop); }
+
+function rafLoop(now) {
+    const dt = Math.min((now - lastRaf) / 1000, 0.1);
+    lastRaf = now;
+
+    if (spinState === 'spinning') {
+        spinSpeed = Math.min(MAX_SPEED, spinSpeed + MAX_SPEED * dt);
+        rotation += spinSpeed * dt;
+        updateNubBounce();
+        maybeTickSound(now);
+        wheelRotate.style.transform = `rotate(${rotation}deg)`;
+        rafId = requestAnimationFrame(rafLoop);
+        return;
+    }
+
+    if (spinState === 'landing') {
+        const elapsed = (now - decelBegin) / 1000;
+        if (elapsed >= decelDur) {
+            rotation = decelTarget; spinSpeed = 0;
+            wheelRotate.style.transform = `rotate(${rotation}deg)`;
+            onLandComplete();
+            return;
+        }
+        const t = elapsed, T = decelDur, v0 = decelV0;
+        spinSpeed = v0 * (1 - t / T);
+        rotation  = decelStart + v0 * t - v0 * t * t / (2 * T);
+        updateNubBounce();
+        maybeTickSound(now);
+        wheelRotate.style.transform = `rotate(${rotation}deg)`;
+        rafId = requestAnimationFrame(rafLoop);
+        return;
+    }
+
+    rafId = null;
+}
+
+function applyWheelItems(data) {
+    pendingWheelData = null;
+    wheelItems = data.wheel?.items ?? [];
+    rebuildSlices(wheelItems);
+}
+
+function handleWheelData(data) {
+    spinsOwed = data.spins_owed ?? 0;
+    hubCount.textContent = spinsOwed;
+    applyHubVisibility();
+
+    if (spinState !== 'idle') {
+        pendingWheelData = data;
+        return;
+    }
+
+    const age = resultTime > 0 ? (Date.now() - resultTime) / 1000 : Infinity;
+    if (nameplateShown && age >= 5) dismissNameplate(true);
+    applyWheelItems(data);
+}
+
+function handleWheelSpinStart(_data) {
+    if (pendingWheelData) applyWheelItems(pendingWheelData);
+    if (nameplateShown) dismissNameplate(false);
+    pendingWinText = null;
+    nubReset();
+    lastTickTime = 0;
+    spinState = 'spinning'; spinSpeed = 0;
+    if (!rafId) startRaf();
+}
+
+function handleWheelSpinResult(data) {
+    const item = data.item;
+    if (!item) { startDecel(rotation + 540); return; }
+    const s = sliceMap.get(item.id);
+    if (!s) { startDecel(rotation + 540); pendingWinText = item.text || ''; return; }
+
+    const mid     = s.midAngle;
+    const wantMod = ((POINTER_ANGLE - mid) % 360 + 360) % 360;
+    const curMod  = ((rotation % 360) + 360) % 360;
+    let delta     = wantMod - curMod;
+    if (delta < 30) delta += 360;
+    startDecel(rotation + delta + 720);
+    pendingWinText = item.text || '';
+}
+
+function handleWheelSpinStatus(_data) {}
+</script>
