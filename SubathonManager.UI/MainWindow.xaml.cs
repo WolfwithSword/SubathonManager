@@ -16,6 +16,8 @@ using SubathonManager.Data;
 using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.Views;
 
@@ -40,6 +42,7 @@ namespace SubathonManager.UI
 
             SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
             SubathonEvents.SubathonDataUpdate += UpdateMultiplierUi;
+            IntegrationEvents.DevTunnelLegacyNotification += OnDevTunnelLegacyNotification;
             Task.Run(App.InitSubathonTimer);
             InitObsIntegration();
         }
@@ -223,6 +226,53 @@ namespace SubathonManager.UI
             }
         }
         
+        private void OnDevTunnelLegacyNotification()
+        {
+            Dispatcher.InvokeAsync(async () => await ShowDevTunnelLegacyNotificationAsync());
+        }
+
+        private async Task ShowDevTunnelLegacyNotificationAsync()
+        {
+            var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+
+            bool kofiConnected = !string.IsNullOrWhiteSpace(secureStorage.Get(StorageKeys.KoFiVerificationToken));
+            bool throneEnabled = config.GetBool("Throne", "Enabled", false);
+
+            if (!kofiConnected && !throneEnabled) return;
+
+            var affected = new List<string>();
+            if (kofiConnected) affected.Add("Ko-Fi");
+            if (throneEnabled) affected.Add("Throne");
+            var serviceList = string.Join(" and ", affected);
+            var plural = affected.Count > 1;
+
+            var text = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Width = 380,
+                Margin = new Thickness(4, 4, 4, 8)
+            };
+            text.Inlines.Add(new Run("DevTunnels configured before v1.2.1 were reset due to a data change."));
+            text.Inlines.Add(new LineBreak());
+            text.Inlines.Add(new LineBreak());
+            text.Inlines.Add(new Run(
+                $"Your {serviceList} webhook service URL{(plural ? "s need" : " needs")} to be reconfigured. " +
+                $"Once DevTunnels reconnects, copy the new tunnel URL into {(plural ? "each service's" : "the")} settings page. " +
+                "FourthWall automatically configures its own URL."));
+
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "DevTunnels Reset - Action Required",
+                Content = text,
+                CloseButtonText = "Dismiss",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            await msgBox.ShowDialogAsync();
+        }
+
         private async Task ShowTelemetryPromptAsync()
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();

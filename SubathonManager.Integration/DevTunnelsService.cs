@@ -165,6 +165,15 @@ public class DevTunnelsService(
                 if (config.Set(_configSection, "TunnelId", string.Empty))
                     config.Save();
             }
+            
+            if (!string.IsNullOrWhiteSpace(tunnelId) && tunnelId.StartsWith("subathon-"))
+            {
+                logger?.LogWarning("[DevTunnels] Legacy tunnel ID found. Resetting");
+                tunnelId = string.Empty;
+                if (config.Set(_configSection, "TunnelId", string.Empty))
+                    config.Save();
+                IntegrationEvents.RaiseDevTunnelLegacyNotification();
+            }
 
             if (string.IsNullOrWhiteSpace(tunnelId))
             {
