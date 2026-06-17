@@ -1,0 +1,46 @@
+{
+  "Author": "WolfwithSword",
+  "Url": "https://docs.subathonmanager.app/latest/widgets/presets/themesets/retro-pixel/#wheel",
+  "Width": 560,
+  "Height": 560,
+  "Vars": {
+    "partitionType": {
+      "Type": "StringSelect",
+      "Value": "Weight",
+      "Description": "Visually partition wheel sections by relative weight, or equal size for each item regardless of weight",
+      "Options": [
+        "Weight",
+        "Equal"
+      ]
+    },
+    "playTickSound": {
+      "Name": "playTickSound",
+      "Type": "Boolean",
+      "Description": "Play a tick sound while the wheel is spinning?",
+      "Value": true
+    },
+    "tickSound": {
+      "Name": "tickSound",
+      "Type": "SoundFile",
+      "Description": "Sound to play as a tick while the wheel spins",
+      "Value": "./tickSound.mp3"
+    },
+    "tickSoundVolume": {
+      "Name": "tickSoundVolume",
+      "Type": "Percent",
+      "Description": "Tick sound volume",
+      "Value": 50
+    },
+    "showSpinsOwed": {
+      "Name": "showSpinsOwed",
+      "Type": "Boolean",
+      "Description": "Enable to show count of spins remaining",
+      "Value": true
+    },
+    "GoogleFonts" : {
+      "type": "GoogleFont",
+      "description": "Additional google fonts to load to use in CSS Variables. Comma separated.",
+      "value": "Press Start 2P"
+    }
+  }
+}

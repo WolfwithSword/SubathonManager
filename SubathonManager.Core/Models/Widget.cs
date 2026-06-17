@@ -114,6 +114,7 @@ public class JsVariable
             {
                 WidgetVariableType.GoogleFont => "loadGoogleFont",
                 WidgetVariableType.CdnFont => "loadCdnFont",
+                WidgetVariableType.BunnyFont => "loadBunnyFont",
                 _ => ""
             };
             if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(fnName)) return "\n";

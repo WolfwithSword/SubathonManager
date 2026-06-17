@@ -252,6 +252,16 @@ public class EventService: IDisposable, IAppService
                                       && s.EventTimestamp > cutoff);
             if (dupeTwitchSub != null) return (false, true);
         }
+        
+        if (ev.EventType.IsFollow() && ev.User != "SYSTEM")
+        {
+            SubathonEvent? dupeFollowType = await db.SubathonEvents.AsNoTracking().SingleOrDefaultAsync(s =>
+                s.Source == ev.Source && s.User == ev.User
+                                      && s.EventType == ev.EventType
+                                      && s.ProcessedToSubathon
+                                      && s.SubathonId == subathon.Id);
+            if (dupeFollowType != null) return (false, true);
+        }
 
         int affected = 0;
         if (processPointsIfLocked && subathon.IsLocked) ev.SecondsValue = 0;
@@ -435,6 +445,23 @@ public class EventService: IDisposable, IAppService
         int ranCmd = int.MinValue;
         switch (ev.Command)
         {
+            case SubathonCommandType.SetSpins:
+                if (ev.Amount < 0) return (false, false, true);
+                await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, ev.Amount);
+                WheelEvents.RaiseSpinsOwedUpdateFromEvent(ev.Amount);
+                break;
+            case SubathonCommandType.AddSpins:
+                if (ev.Amount < 1) return (false, false, true);
+                var spins = await StateValueHelper.GetAsync(_factory, StateKeys.WheelSpinsOwed,  0);
+                await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, spins + ev.Amount);
+                WheelEvents.RaiseSpinsOwedUpdateFromEvent(ev.Amount + spins);
+                break;
+            case SubathonCommandType.SubtractSpins:
+                if (ev.Amount < 1) return (false, false, true);
+                var spins2 = await StateValueHelper.GetAsync(_factory, StateKeys.WheelSpinsOwed,  0);
+                await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, int.Max(0, spins2 - ev.Amount));
+                WheelEvents.RaiseSpinsOwedUpdateFromEvent(int.Max(0, spins2 - ev.Amount));
+                break;
             case SubathonCommandType.AddMoney:
                 ev.EventType = SubathonEventType.DonationAdjustment;
                 break;
@@ -551,7 +578,8 @@ public class EventService: IDisposable, IAppService
         if (goalSet?.Type == GoalsType.Money) pts = subathon.GetRoundedMoneySum();
         await CheckForGoalChange(db,  pts, initialPoints);
 
-        if (ev.Command is SubathonCommandType.AddMoney or SubathonCommandType.SubtractMoney or SubathonCommandType.AddPoints or SubathonCommandType.SubtractPoints or SubathonCommandType.SetPoints)
+        if (ev.Command is SubathonCommandType.AddMoney or SubathonCommandType.SubtractMoney or
+            SubathonCommandType.AddPoints or SubathonCommandType.SubtractPoints or SubathonCommandType.SetPoints)
         {
             var totals = await GetSubathonTotalsAsync(db);
             if (totals != null)

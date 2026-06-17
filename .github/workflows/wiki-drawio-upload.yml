@@ -32,7 +32,7 @@ jobs:
 
       - name: Stop if no wiki exists
         if: steps.wiki-check.outputs.exists == 'false'
-        run: echo "Wiki does not exist — skipping update."
+        run: echo "Wiki does not exist - skipping update."
           
       - name: Checkout Wiki Repository
         if: steps.wiki-check.outputs.exists == 'true'
@@ -87,7 +87,7 @@ jobs:
     if: ${{ (inputs.release_tag || 'nightly') != 'nightly' }}
     steps:
       - name: Dispatch docs release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           script: |
