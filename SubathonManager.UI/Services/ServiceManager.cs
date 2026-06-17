@@ -40,7 +40,6 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StartAsync<PicartoService>();
         await StartAsync<StreamElementsService>();
         await StartAsync<StreamLabsService>();
-        await StartAsync<TipeeeStreamService>();
         await StartAsync<GoAffProService>();//(fireAndForget: true);
         await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
         await StartAsync<KoFiService>();
@@ -57,7 +56,6 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<PicartoService>();
         await StopAsync<StreamElementsService>();
         await StopAsync<StreamLabsService>();
-        await StopAsync<TipeeeStreamService>();
         await StopAsync<GoAffProService>();
         await StopAsync<KoFiService>();
         await StopAsync<ThroneService>();
@@ -149,7 +147,6 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static PicartoService Picarto => Provider.GetRequiredService<PicartoService>();
     public static StreamElementsService StreamElements => Provider.GetRequiredService<StreamElementsService>();
     public static StreamLabsService StreamLabs => Provider.GetRequiredService<StreamLabsService>();
-    public static TipeeeStreamService TipeeeStream => Provider.GetRequiredService<TipeeeStreamService>();
     public static OBSService OBS => Provider.GetRequiredService<OBSService>();
     
     public static WebServer Server => Provider.GetRequiredService<WebServer>();

@@ -1,57 +1,81 @@
 <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
 
     <defs>
+        <mask id="m1">
+            <circle cx="200" cy="200" r="153" fill="white"/>
+            <circle cx="200" cy="200" r="112" fill="black"/>
+        </mask>
+        <mask id="m2">
+            <circle cx="200" cy="200" r="120" fill="white"/>
+            <circle cx="200" cy="200" r="112" fill="black"/>
+        </mask>
+        <mask id="m3">
+            <circle cx="200" cy="200" r="44" fill="white"/>
+            <circle cx="200" cy="200" r="30" fill="black"/>
+        </mask>
         <radialGradient id="metalGrad" cx="30%" cy="30%">
             <stop offset="0%"  stop-color="var(--cog-edge-light)"/>
             <stop offset="40%" stop-color="var(--cog-mid)"/>
             <stop offset="100%" stop-color="var(--cog-fill)"/>
         </radialGradient>
+
         <linearGradient id="bevelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stop-color="var(--cog-edge-light)"/>
             <stop offset="50%" stop-color="var(--cog-fill)"/>
             <stop offset="100%" stop-color="var(--cog-fill)"/>
         </linearGradient>
+        <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feOffset dx="0" dy="2"/>
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="arithmetic" k2="-1" k3="1"/>
+        </filter>
     </defs>
 
     <!-- Teeth -->
     <g class="cog-teeth" transform="translate(200,200)">
         <g class="tooth-group">
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(0)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(12)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(24)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(36)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(48)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(60)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(72)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(84)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(96)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(108)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(120)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(132)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(144)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(156)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(168)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(180)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(192)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(204)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(216)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(228)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(240)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(252)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(264)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(276)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(288)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(300)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(312)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(324)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(336)"/>
-            <path class="tooth" d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(348)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(0)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(12)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(24)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(36)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(48)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(60)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(72)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(84)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(96)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(108)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(120)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(132)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(144)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(156)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(168)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(180)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(192)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(204)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(216)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(228)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(240)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(252)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(264)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(276)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(288)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(300)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(312)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(324)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(336)"/>
+            <path class="tooth" fill="url(#bevelGrad)"  d="M -9,143 L -5.5,170 L 5.5,170 L 9,143 Z" transform="rotate(348)"/>
         </g>
     </g>
-
-    <!-- Outer ring edge highlight -->
-    <circle cx="200" cy="200" r="153" fill="none" stroke="var(--cog-edge-light)" stroke-width="1" opacity="0.6"/>
-
+    <circle
+            cx="200"
+            cy="200"
+            r="153"
+            fill="none"
+            stroke="var(--cog-edge-light)"
+            stroke-width="1"
+            opacity="0.6"
+    />
+    
     <!-- Spokes -->
     <g class="cog-spokes" transform="translate(200,200)">
         <rect class="spoke" x="-14" y="-153" width="28" height="196" rx="5" transform="rotate(0)"/>
@@ -59,22 +83,18 @@
         <rect class="spoke" x="-14" y="-153" width="28" height="196" rx="5" transform="rotate(240)"/>
     </g>
 
-    <!-- Rim ring (r=112 to r=153) - donut path replaces masked circle -->
-    <path class="cog-rim" fill="url(#metalGrad)"
-        d="M200,47 A153,153 0 1 1 199.999,47 Z M200,88 A112,112 0 1 0 200.001,88 Z"/>
+    <!-- Rings -->
+    <circle class="cog-rim" cx="200" cy="200" r="153" mask="url(#m1)" fill="url(#metalGrad)"/>
+    <circle class="cog-inner" cx="200" cy="200" r="120" mask="url(#m2)"/>
 
-    <!-- Inner ring (r=112 to r=120) - thin donut -->
-    <path class="cog-inner"
-        d="M200,80 A120,120 0 1 1 199.999,80 Z M200,88 A112,112 0 1 0 200.001,88 Z"/>
-
-    <!-- Hub ring (r=30 to r=44) -->
-    <path class="cog-hub-outer"
-        d="M200,156 A44,44 0 1 1 199.999,156 Z M200,170 A30,30 0 1 0 200.001,170 Z"/>
+    <!-- Hub -->
+    <circle class="cog-hub-outer" cx="200" cy="200" r="44" mask="url(#m3)"/>
     <circle class="cog-hub-inner" cx="200" cy="200" r="30"/>
 
     <!-- Bolt -->
     <polygon class="cog-bolt-outer" points="200,179 218.19,189.5 218.19,210.5 200,221 181.81,210.5 181.81,189.5"/>
     <polygon class="cog-bolt-inner" points="200,187 211.26,193.5 211.26,206.5 200,213 188.74,206.5 188.74,193.5"/>
     <circle class="cog-hole" cx="200" cy="200" r="5"/>
+    
 
 </svg>

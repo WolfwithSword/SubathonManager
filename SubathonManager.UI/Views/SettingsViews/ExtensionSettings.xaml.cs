@@ -11,7 +11,7 @@ public partial class ExtensionSettings : SettingsGroupControl
             .OrderBy(g => g.GetGroupLabelOrder());
 
     protected override StackPanel? GetSourceContents => SourceContents;
-    protected override Panel? GetSourceList => SourceList;
+    protected override StackPanel? GetSourceList => SourceList;
 
     public ExtensionSettings()
     {
@@ -32,9 +32,6 @@ public partial class ExtensionSettings : SettingsGroupControl
                 break;
             case SubathonEventSource.StreamLabs:
                 _settingsControls[eventSource] = new StreamLabsSettings();
-                break;
-            case SubathonEventSource.TipeeeStream:
-                _settingsControls[eventSource] = new TipeeeStreamSettings();
                 break;
             default: return null;
         }

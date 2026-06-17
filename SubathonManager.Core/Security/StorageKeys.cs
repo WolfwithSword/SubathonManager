@@ -15,8 +15,4 @@ public static class StorageKeys
     public const string GoAffProPassword = "SM.GoAffPro.Password";
     
     public const string OBSWebSocketPassword = "SM.OBS.WebSocket.Password";
-
-    public const string TipeeeStreamAccessToken = "SM.TipeeeStream.AccessToken";
-    public const string TipeeeStreamRefreshToken = "SM.TipeeeStream.RefreshToken";
-    public const string TipeeeStreamApiKey = "SM.TipeeeStream.ApiKey";
 }

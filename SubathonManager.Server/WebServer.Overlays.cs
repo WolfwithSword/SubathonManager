@@ -105,21 +105,6 @@ public partial class WebServer
                                                link.rel = 'stylesheet';
                                                document.head.appendChild(link);
                                              }
-
-                                             let addedBunnyFont = false;
-                                             function loadBunnyFont(fontName) {
-                                               if (!addedBunnyFont) {
-                                                     const precon = document.createElement('link');
-                                                     precon.href = "https://fonts.bunny.net";
-                                                     precon.rel = "preconnect";
-                                                     addedBunnyFont = true;
-                                                     document.head.appendChild(precon);
-                                               }
-                                               const link = document.createElement('link');
-                                               link.href = `https://fonts.bunny.net/css?family=${fontName.replace(/ /g, '+')}&display=swap`;
-                                               link.rel = 'stylesheet';
-                                               document.head.appendChild(link);
-                                             }
                                              </script>
                                              """;
                             if (html.Contains("<script>", StringComparison.OrdinalIgnoreCase))

@@ -157,7 +157,6 @@ public partial class App
                 await sm.StartAsync<WebServer>(fireAndForget: true);
                 await sm.StartAsync<TimerService>(fireAndForget: true);
                 await sm.StartAsync<PromptOrchestratorService>();
-                await sm.StartAsync<WheelSpinTriggerService>();
                 await Task.Delay(100);
                 TimerEvents.TimerTickEvent += UpdateSubathonTimers;
                 
