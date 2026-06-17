@@ -35,6 +35,7 @@ public static class ServiceRegistration
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
         services.AddSingleton<PromptOrchestratorService>();
+        services.AddSingleton<WheelSpinTriggerService>();
         services.AddSingleton<TelemetryService>();
         services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
     }
@@ -77,6 +78,10 @@ public static class ServiceRegistration
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
+
+        // Stream Extensions //
+        services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<TipeeeStreamService>();
 
         // Other //
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;

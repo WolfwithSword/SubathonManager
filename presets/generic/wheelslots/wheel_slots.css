@@ -1,0 +1,270 @@
+:root {
+    --slot-width: 300px;
+    --slot-height: 420px;
+    --item-height: 56px;
+    --shell-wall: 16px;
+    --text-color: #e2e2f0;
+    --border-color: #777777;
+    --shell-bg: #CAC4B5;
+    --drum-bg: #030303;
+    --drum-surface: #e4e0d8;
+    --center-line-color: #C283FF;
+    --needle-color: #C283FF;
+    --hub-bg: #e2e2f0;
+    --hub-text: #16161e;
+    --hub-label-size: 10px;
+    --hub-count-size: 30px;
+    --slot-text-size: 18px;
+    --lcd-bg: #060e0a;
+    --lcd-text: #60e890;
+    --result-text-size: 22px;
+    --font: sans-serif;
+    --panelColor1: #38285a;
+    --panelColor2: #5a2842;
+    --panelColor3: #28385a;
+    --panelColor4: #3e1e5a;
+    --panelColor5: #1e3e5a;
+    --panelColor6: #5a1e3a;
+    --panelColor7: #1e2e5a;
+    --panelColor8: #3a1e5a;
+}
+
+.slots-scene {
+    width: var(--slot-width);
+    height: var(--slot-height);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font, sans-serif);
+    box-sizing: border-box;
+}
+
+.slots-shell {
+    width: var(--slot-width);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--shell-bg);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.07),
+        inset 0 0 0 1px rgba(255,255,255,0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 10px;
+}
+
+.shell-top {
+    background: var(--shell-bg);
+    border-bottom: 2px solid var(--border-color);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.lcd-screen {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--lcd-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 3px;
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.55), inset 0 0 2px rgba(0,0,0,0.8);
+    padding: 10px 12px;
+    overflow: hidden;
+    height: var(--lcd-max-height, 108px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.lcd-screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0,0,0,0.12) 2px,
+        rgba(0,0,0,0.12) 3px
+    );
+    pointer-events: none;
+    z-index: 2;
+}
+
+.spins-display {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+}
+
+.spins-display.hidden { display: none; }
+
+.hub-label {
+    font-family: var(--font, sans-serif);
+    font-size: var(--hub-label-size);
+    color: var(--text-color);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.5;
+}
+
+.hub-count {
+    font-family: var(--font, sans-serif);
+    font-size: var(--hub-count-size);
+    color: var(--hub-text);
+    background: var(--hub-bg);
+    padding: 2px 20px;
+    border-radius: 3px;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.result-display {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 100%;
+}
+
+.result-display.hidden { display: none; }
+
+.result-label {
+    font-family: var(--font, sans-serif);
+    font-size: 9px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--lcd-text);
+    opacity: 0.55;
+}
+
+.result-text {
+    font-family: var(--font, sans-serif);
+    font-size: var(--result-text-size);
+    font-weight: bold;
+    color: var(--lcd-text);
+    text-shadow: 0 0 10px var(--lcd-text);
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
+    width: 100%;
+    text-align: center;
+    transition: font-size 0.1s;
+}
+
+.shell-drum-row {
+    display: flex;
+    align-items: stretch;
+    position: relative;
+}
+
+.shell-wall {
+    width: var(--shell-wall);
+    flex-shrink: 0;
+    background: var(--shell-bg);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shell-wall.left  { box-shadow: inset -2px 0 6px rgba(0,0,0,0.45); }
+.shell-wall.right { box-shadow: inset  2px 0 6px rgba(0,0,0,0.45); }
+
+.needle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 11px;
+    height: 20px;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.shell-wall.left  .needle { right: 0; clip-path: polygon(0% 50%, 100% 0%, 100% 100%); background: var(--needle-color); }
+.shell-wall.right .needle { left:  0; clip-path: polygon(100% 50%, 0% 0%, 0% 100%); background: var(--needle-color); }
+
+.slots-outer {
+    flex: 1;
+    position: relative;
+    height: calc(var(--item-height) * 3);
+    overflow: hidden;
+    background: var(--drum-bg);
+    box-shadow: inset 10px 0 20px rgba(0,0,0,0.65), inset -10px 0 20px rgba(0,0,0,0.65);
+}
+
+.slots-window {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    perspective: 560px;
+    perspective-origin: center center;
+    background: var(--drum-surface);
+}
+
+.slot-item {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: var(--item-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font, sans-serif);
+    font-size: var(--slot-text-size);
+    color: var(--text-color);
+    box-sizing: border-box;
+    padding: 5px 14px;
+    white-space: normal;
+    word-break: break-word;
+    text-align: center;
+    line-height: 1.2;
+    overflow: hidden;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.75);
+    border-top: 1px solid rgba(0,0,0,0.20);
+    transform-origin: center center;
+    will-change: transform, opacity;
+}
+
+.slots-center-highlight {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(var(--item-height) * 1);
+    height: var(--item-height);
+    border-top: 2px solid var(--center-line-color);
+    border-bottom: 2px solid var(--center-line-color);
+    background: rgba(255,255,255,0.025);
+    z-index: 6;
+    pointer-events: none;
+}
+
+.slots-edge-fade {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(
+            to bottom,
+            var(--drum-bg) 0%,
+            var(--drum-bg) 15%,
+            transparent 100%
+        ) top / 100% 32% no-repeat,
+
+        linear-gradient(
+            to top,
+            var(--drum-bg) 0%,
+            var(--drum-bg) 15%,
+            transparent 100%
+        ) bottom / 100% 32% no-repeat;
+    z-index: 7;
+    pointer-events: none;
+}

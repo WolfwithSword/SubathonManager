@@ -173,7 +173,10 @@ public enum SubathonEventType
     [GoAffProTypeMeta(Label = "Natura Pine Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 10,
         StoreSource = GoAffProSource.NaturaPine, Enabled = true)]
     NaturaPineOrder,
-    
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.TipeeeStream, IsCurrencyDonation = true, Order = 1)]
+    TipeeeStreamDonation,
+
     // any new must be added after the last
 }
 

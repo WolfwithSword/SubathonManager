@@ -1,0 +1,197 @@
+:root {
+    --wheel-size: 560px;
+    --border-color: #48446e;
+    --inner-border-color: #655fa0;
+    --text-color: #d9d7fb;
+    --label-color: #655fa0;
+    --font: titan one;
+    --glow-color: #494475;
+    --hub-bg: #d9d7fb;
+    --hub-text: #8C46ED;
+    --needle-color: #48446e;
+    --hub-label-size: 10px;
+    --hub-count-size: 36px;
+    --slice-text-size: 16px;
+    --nameplate-bg: #d9d7fb;
+    --nameplate-border: #48446e;
+    --nameplate-text: #48446e;
+    --panelColor1: #a898de;
+    --panelColor2: #dd94be;
+    --panelColor3: #94a8de;
+    --panelColor4: #bc94de;
+    --panelColor5: #88c8e0;
+    --panelColor6: #dd9aba;
+    --panelColor7: #9e98de;
+    --panelColor8: #bc9ede;
+}
+
+html, body {
+    background: transparent !important;
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: var(--font), sans-serif;
+}
+
+.wheel-scene {
+    position: relative;
+    width: var(--wheel-size);
+    height: var(--wheel-size);
+}
+
+.wheel-rotate {
+    position: absolute;
+    inset: 5%;
+    transform-origin: 50% 50%;
+    will-change: transform;
+}
+
+.wheel-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+.wheel-ring {
+    position: absolute;
+    inset: 5%;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    outline: 4px solid var(--border-color);
+    outline-offset: -1px;
+    box-shadow:
+        inset 0 0 0 2px var(--inner-border-color),
+        0 0 8px var(--glow-color);
+    pointer-events: none;
+    z-index: 5;
+}
+
+.center-hub {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    width: calc(var(--wheel-size) * 0.21);
+    height: calc(var(--wheel-size) * 0.21);
+    border-radius: 50%;
+    background: var(--hub-bg);
+    border: 1px solid var(--border-color);
+    outline: 3px solid var(--border-color);
+    outline-offset: -1px;
+    box-shadow:
+        inset 0 0 0 2px var(--inner-border-color),
+        0 0 6px var(--glow-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    pointer-events: none;
+}
+
+.hub-label {
+    font-family: var(--font), sans-serif;
+    font-size: var(--hub-label-size);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--label-color);
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.hub-count {
+    font-family: var(--font), sans-serif;
+    font-size: var(--hub-count-size);
+    font-weight: 400;
+    color: var(--hub-text);
+    text-shadow: 0 0 3px var(--hub-text);
+    line-height: 1;
+}
+
+.teardrop-wrap {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    z-index: 12;
+    pointer-events: none;
+}
+
+.teardrop-body {
+    position: absolute;
+    width: calc(var(--wheel-size) * 0.220);
+    height: calc(var(--wheel-size) * 0.260);
+    left: calc(var(--wheel-size) * -0.110);
+    top: calc(var(--wheel-size) * -0.150);
+    background: var(--needle-color);
+    clip-path: polygon(
+            50%   0%,
+            75%  22%,
+            25%   22%
+    );
+}
+
+.nameplate-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.nameplate {
+    background: var(--nameplate-bg);
+    border: 1px solid var(--nameplate-border);
+    outline: 3px solid var(--nameplate-border);
+    outline-offset: -1px;
+    box-shadow:
+        inset 0 0 0 2px var(--inner-border-color),
+        0 0 10px var(--glow-color);
+    border-radius: 6px 14px;
+    padding: 14px 24px;
+    min-width: calc(var(--wheel-size) * 0.35);
+    max-width: 80%;
+    text-align: center;
+}
+
+.nameplate.hidden  { display: none; }
+.nameplate.showing { animation: npIn  0.5s cubic-bezier(.34, 1.56, .64, 1) forwards; }
+.nameplate.hiding  { animation: npOut 0.4s ease-in forwards; }
+
+@keyframes npIn {
+    from { opacity: 0; transform: scale(0.85) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes npOut {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to   { opacity: 0; transform: scale(0.9) translateY(-8px); }
+}
+
+.nameplate-header {
+    font-family: var(--font), sans-serif;
+    font-size: 0.55rem;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    color: var(--label-color);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.nameplate-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--nameplate-border), transparent);
+    margin: 2px 8px 8px;
+}
+
+.nameplate-text {
+    font-family: var(--font), sans-serif;
+    font-size: 1.3rem;
+    font-weight: 400;
+    color: var(--nameplate-text);
+    word-break: break-word;
+    line-height: 1.4;
+}

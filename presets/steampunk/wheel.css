@@ -1,0 +1,266 @@
+:root {
+    --wheel-size: 560px;
+    --background-color: transparent;
+    --cog-fill: #6b4c1e;
+    --cog-mid: #9a7850;
+    --cog-edge: #c09050;
+    --cog-edge-light: #d0a060;
+    --cog-hole: #1a0a02;
+    --text-color: #e8c880;
+    --label-color: #907048;
+    --font-family: "Courier New", monospace;
+    --nameplate-bg: #3a2e24;
+    --nameplate-border: #8a5a28;
+    --nameplate-text: #e8c880;
+    --needle-color: #cc1111;
+    --hub-bg: rgba(26, 10, 2, 0.92);
+    --hub-text: #e8c880;
+    --hub-label-size: 10px;
+    --hub-count-size: 38px;
+    --slice-text-size: 16px;
+    --panelColor1: #7a4a1a;
+    --panelColor2: #3a2810;
+    --panelColor3: #9a5e28;
+    --panelColor4: #4a3018;
+    --panelColor5: #6a4520;
+    --panelColor6: #2a1a0c;
+    --panelColor7: #8a5830;
+    --panelColor8: #522e18;
+}
+
+html, body {
+    background: var(--background-color, transparent) !important;
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden;
+}
+
+.wheel-scene {
+    position: relative;
+    width: var(--wheel-size);
+    height: var(--wheel-size);
+}
+
+.wheel-rotate {
+    position: absolute;
+    inset: 5%;
+    transform-origin: 50% 50%;
+    will-change: transform;
+}
+
+.wheel-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.tooth, .spoke, .cog-rim, .cog-hub-outer, .cog-bolt-outer {
+    fill: var(--cog-fill);
+    stroke: var(--cog-edge);
+    stroke-width: 1.2;
+}
+
+.cog-inner, .cog-hub-inner, .cog-bolt-inner {
+    fill: var(--cog-mid);
+    stroke: var(--cog-edge-light);
+    stroke-width: 0.8;
+}
+
+.cog-hole {
+    fill: var(--cog-hole);
+    stroke: none;
+}
+
+.center-hub {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    width: calc(var(--wheel-size) * 0.20);
+    height: calc(var(--wheel-size) * 0.20);
+    border-radius: 50%;
+    background: var(--hub-bg);
+    border: 2px outset var(--cog-edge);
+    box-shadow: 0 0 10px rgba(0,0,0,0.7), inset 0 1px 3px rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    gap: 1px;
+}
+
+.hub-label {
+    font-family: var(--font-family);
+    font-size: var(--hub-label-size);
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    color: var(--label-color);
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.hub-count {
+    font-family: var(--font-family);
+    font-size: var(--hub-count-size);
+    font-weight: 900;
+    color: var(--hub-text);
+    text-shadow: 0 0 4px rgba(255,200,80,0.6), 0 0 2px rgba(0,0,0,0.8);
+    line-height: 1;
+}
+
+.needle-wrap {
+    position: absolute;
+    right: calc(var(--wheel-size) * 0.118);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    pointer-events: none;
+}
+
+.needle-pivot-wrap {
+    position: relative;
+    width: calc(var(--wheel-size) * 0.17);
+    height: calc(var(--wheel-size) * 0.055);
+    transform-origin: 100% 50%;
+}
+
+.needle-body {
+    position: absolute;
+    left: 0;
+    right: calc(var(--wheel-size) * 0.018);
+    top: 50%;
+    height: calc(var(--wheel-size) * 0.022);
+    transform: translateY(-50%);
+    background: linear-gradient(to left,
+        #880000 0%,
+        #cc1111 30%,
+        var(--needle-color) 65%,
+        #ff5555 90%,
+        #ffaaaa 100%);
+    clip-path: polygon(0% 50%, 100% 0%, 100% 100%);
+    filter: drop-shadow(-2px 0 4px rgba(0,0,0,0.55));
+}
+
+.needle-hub {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translate(-50%, -50%); 
+    width: calc(var(--wheel-size) * 0.055);
+    height: calc(var(--wheel-size) * 0.055);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #aaa 0%, #666 45%, #222 100%);
+    border: 2px outset #888;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.65);
+    z-index: 1;
+}
+
+@keyframes needleBounce {
+    0%   { transform: rotate(0deg); }
+    14%  { transform: rotate(-18deg); }
+    32%  { transform: rotate(4deg); }
+    50%  { transform: rotate(-6deg); }
+    66%  { transform: rotate(1deg); }
+    80%  { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+}
+
+@keyframes needleSettle {
+    0%   { transform: rotate(-12deg); }
+    26%  { transform: rotate(6deg); }
+    50%  { transform: rotate(-3deg); }
+    70%  { transform: rotate(1deg); }
+    85%  { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+}
+
+
+.nameplate-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.nameplate {
+    position: relative;
+    background: var(--nameplate-bg);
+    border: 3px outset var(--nameplate-border);
+    border-radius: 8px;
+    padding: 16px 28px;
+    min-width: calc(var(--wheel-size) * 0.32);
+    max-width: 80%;
+    text-align: center;
+    box-shadow:
+        0 6px 24px rgba(0,0,0,0.75),
+        inset 0 1px 0 rgba(255,255,255,0.07),
+        0 0 32px rgba(192,144,80,0.18);
+}
+
+.nameplate.hidden { display: none; }
+
+.nameplate.showing {
+    animation: npIn 0.42s cubic-bezier(0.22, 1.4, 0.65, 1) forwards;
+}
+
+.nameplate.hiding {
+    animation: npOut 0.38s ease-in forwards;
+}
+
+@keyframes npIn {
+    from { opacity: 0; transform: scale(0.1); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes npOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.65) translateY(10px); }
+}
+
+.nameplate-bolt {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ccc 0%, #777 55%, #333 100%);
+    border: 1px outset #aaa;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.nameplate-bolt.tl { top: 5px; left: 6px; }
+.nameplate-bolt.tr { top: 5px; right: 6px; }
+.nameplate-bolt.bl { bottom: 5px; left: 6px; }
+.nameplate-bolt.br { bottom: 5px; right: 6px; }
+
+.nameplate-header {
+    font-family: var(--font-family);
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    color: var(--label-color);
+    margin-bottom: 5px;
+}
+
+.nameplate-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--nameplate-border), transparent);
+    margin: 3px 10px 8px;
+}
+
+.nameplate-text {
+    font-family: var(--font-family);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--nameplate-text);
+    text-shadow: 0 0 8px rgba(232,200,128,0.4), 0 0 2px rgba(0,0,0,0.9);
+    word-break: break-word;
+    line-height: 1.3;
+}
