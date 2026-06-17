@@ -18,14 +18,14 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="390"/>
+                    <ColumnDefinition Width="400"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Orders:" Width="80" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="80" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="60"
+                    <TextBlock Text="Orders:" Width="100" VerticalAlignment="Center"/>
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="60"
                                 x:Name="SecondsBox"/>
                     <TextBlock Margin="8 0 0 0" Text="Seconds" Width="90" VerticalAlignment="Center"/>
-                    <ui:TextBox Width="80" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="1"
+                    <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True" PlaceholderText="1"
                                 x:Name="PointsBox"/>
                     <TextBlock Margin="8 0 0 0" Text="Points" Width="70" VerticalAlignment="Center"/>
 
@@ -49,7 +49,7 @@
                                 validation:InputValidationBehavior.IsDecimalOnly="True"
                                 ClearButtonEnabled="False"
                                 x:Name="CommSimBox"/>
-                    <ui:TextBox Margin="6 0 4 0" Width="50" Text="1"
+                    <ui:TextBox Margin="10 0 4 0" Width="80" Text="1"
                                 PlaceholderText="5" HorizontalAlignment="Center" VerticalAlignment="Center"
                                 FontSize="12" Height="34"
                                 views:SettingsProperties.ExcludeFromUnsaved="True"

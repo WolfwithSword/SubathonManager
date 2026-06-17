@@ -26,8 +26,7 @@ public enum WidgetVariableType
     DonationEventTypeList,
     GoogleFont,
     CdnFont,
-    GenericEventTypeList,
-    BunnyFont
+    GenericEventTypeList
 }
 
 [ExcludeFromCodeCoverage]
@@ -46,7 +45,6 @@ public static class WidgetVariableTypeHelper
     [
         WidgetVariableType.CdnFont,
         WidgetVariableType.GoogleFont,
-        WidgetVariableType.BunnyFont,
     ];
 
     public static bool IsFontVariable(this WidgetVariableType type) => FontVariables.Contains(type);

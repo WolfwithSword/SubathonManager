@@ -98,14 +98,6 @@
                        Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                        Margin="6,0,0,0"
                        Visibility="Collapsed"/>
-            <ui:Button x:Name="DeleteTunnelsBtn"
-                       Content="Delete Old Tunnels"
-                       Click="DeleteTunnels_Click"
-                       Height="30" Padding="4,2"
-                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                       Margin="6,0,0,0"
-                       Visibility="Collapsed"
-                       ToolTip="Delete all saved tunnels for this port from your account"/>
         </StackPanel>
 
         <StackPanel x:Name="TunnelUrlPanel" Orientation="Horizontal" Margin="0,6,0,2" Visibility="Collapsed">

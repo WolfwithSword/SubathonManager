@@ -16,7 +16,7 @@ public class SettingsGroupControl : SettingsControl
     
     internal readonly Dictionary<SubathonEventSource, SettingsControl> _settingsControls = new();
     protected virtual StackPanel? GetSourceContents => null;
-    protected virtual Panel? GetSourceList => null;
+    protected virtual StackPanel? GetSourceList => null;
 
     protected virtual SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
     {
@@ -36,7 +36,7 @@ public class SettingsGroupControl : SettingsControl
                 Content = source.GetDescription(),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Margin = new Thickness(0, 1, 0, 0),
+                Margin = new Thickness(0, 1, 0, -12),
                 Padding = new Thickness(10, 6, 10, 6),
                 Appearance = ControlAppearance.Transparent,
                 FontSize = 20,

@@ -138,19 +138,6 @@ public static class CommandService
                               subathonEvent.Command == SubathonCommandType.SetPoints;
                 }
 
-                break;        
-            case SubathonCommandType.SetSpins:
-            case SubathonCommandType.AddSpins:
-            case SubathonCommandType.SubtractSpins:
-                if (parts.Length >= 2 && int.TryParse(parts[1], out var parsedInt2))
-                {
-                    subathonEvent.Value = $"{subathonEvent.Command} {parsedInt2}";
-                    subathonEvent.Amount = parsedInt2;
-                    subathonEvent.SecondsValue = 0;
-                    isValid = parsedInt2 > 0 && subathonEvent.Command != SubathonCommandType.SetSpins ||
-                              subathonEvent.Command == SubathonCommandType.SetSpins;
-                }
-
                 break;
             case SubathonCommandType.AddTime:
             case SubathonCommandType.SubtractTime:

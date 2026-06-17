@@ -11,7 +11,7 @@ public partial class StreamingSettings : SettingsGroupControl
             .OrderBy(g => g.GetGroupLabelOrder());
 
     protected override StackPanel? GetSourceContents => SourceContents;
-    protected override Panel? GetSourceList => SourceList;
+    protected override StackPanel? GetSourceList => SourceList;
     
     public StreamingSettings()
     {

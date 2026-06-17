@@ -277,7 +277,6 @@ namespace SubathonManager.UI.Views
             }
 
             StreamingSettingsControl.LoadValues(db);
-            ExtensionSettingsControl.LoadValues(db);
             ExternalServiceSettingsControl.LoadValues(db);
         }
 

@@ -19,13 +19,10 @@ public partial class GoalsView
     private GoalsType _type = GoalsType.Points;
     private string _currency = "";
     private readonly IDbContextFactory<AppDbContext> _factory;
-    private readonly bool _isDarkTheme;
-
+    
     public GoalsView()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        var config = AppServices.Provider.GetRequiredService<IConfig>();
-        _isDarkTheme = "Dark".Equals(config.Get("App", "Theme", "Dark"), StringComparison.OrdinalIgnoreCase);
         InitializeComponent();
         LoadGoals();
         SubathonEvents.SubathonDataUpdate += OnSubathonUpdate;
@@ -90,7 +87,7 @@ public partial class GoalsView
             if (currentPoints >= goal.Points)
                 Goals.Clear(); // just remove previous completed
             
-            Goals.Add(new GoalViewModel(_isDarkTheme)
+            Goals.Add(new GoalViewModel
             {
                 Text = goal.Text,
                 PointsText = $"{goal.Points:N0} {suffix}",
@@ -111,14 +108,21 @@ public partial class GoalsView
         });
     }
     
-    public class GoalViewModel(bool isDarkTheme)
+    public class GoalViewModel
     {
         public string Text { get; set; } = "";
         public long Points { get; set; } = 0;
         public string PointsText { get; set; } = "";
         public bool Completed { get; set; } = false;
+        
+        private readonly bool _isDarkTheme;
 
-        private readonly bool _isDarkTheme = isDarkTheme;
+        
+        public GoalViewModel()
+        {
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            _isDarkTheme = "Dark".Equals(config.Get("App", "Theme", "Dark"), StringComparison.OrdinalIgnoreCase);
+        }
 
         public Brush TextColor => Completed ? Brushes.Gray : (_isDarkTheme ? Brushes.White : Brushes.Black);
         public Brush PointsColor => Completed ? Brushes.DarkGray : (_isDarkTheme ? Brushes.LightBlue : Brushes.DarkBlue);

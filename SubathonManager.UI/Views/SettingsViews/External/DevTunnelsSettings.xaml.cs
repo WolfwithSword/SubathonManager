@@ -122,7 +122,6 @@ public partial class DevTunnelsSettings : SettingsControl
         bool cliInstalled  = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
         bool tunnelRunning = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel").Status;
         StartTunnelBtn.IsEnabled = loggedIn && cliInstalled && !tunnelRunning;
-        DeleteTunnelsBtn.Visibility = loggedIn && !tunnelRunning ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ToggleUsername_Click(object sender, RoutedEventArgs e)
@@ -142,7 +141,6 @@ public partial class DevTunnelsSettings : SettingsControl
             StartTunnelBtn.IsEnabled = false;
             StopTunnelBtn.Visibility = Visibility.Collapsed;
             StartTunnelBtn.Visibility = Visibility.Visible;
-            DeleteTunnelsBtn.Visibility = Visibility.Collapsed;
             TunnelUrlPanel.Visibility = Visibility.Collapsed;
             return;
         }
@@ -153,7 +151,6 @@ public partial class DevTunnelsSettings : SettingsControl
             StopTunnelBtn.IsEnabled = false;
             StopTunnelBtn.Visibility = Visibility.Visible;
             StartTunnelBtn.Visibility = Visibility.Collapsed;
-            DeleteTunnelsBtn.Visibility = Visibility.Collapsed;
             TunnelUrlPanel.Visibility = Visibility.Collapsed;
             return;
         }
@@ -167,7 +164,6 @@ public partial class DevTunnelsSettings : SettingsControl
         bool loggedIn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Login").Status;
         StartTunnelBtn.IsEnabled = !running && cliInstalled && loggedIn;
         StopTunnelBtn.IsEnabled = running;
-        DeleteTunnelsBtn.Visibility = !running && loggedIn ? Visibility.Visible : Visibility.Collapsed;
 
         TunnelUrlPanel.Visibility = running && !string.IsNullOrWhiteSpace(url) ? Visibility.Visible : Visibility.Collapsed;
         if (!string.IsNullOrWhiteSpace(url))
@@ -271,23 +267,6 @@ public partial class DevTunnelsSettings : SettingsControl
     private async void StopTunnel_Click(object sender, RoutedEventArgs e)
     {
         await ServiceManager.DevTunnels.StopTunnelAsync();
-    }
-
-    private async void DeleteTunnels_Click(object sender, RoutedEventArgs e)
-    {
-        DeleteTunnelsBtn.IsEnabled = false;
-        StartTunnelBtn.IsEnabled = false;
-        try
-        {
-            await ServiceManager.DevTunnels.DeleteOldTunnelsAsync();
-        }
-        finally
-        {
-            DeleteTunnelsBtn.IsEnabled = true;
-            bool cliInstalled = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
-            bool loggedIn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Login").Status;
-            StartTunnelBtn.IsEnabled = cliInstalled && loggedIn;
-        }
     }
 
     private async void CopyTunnelUrl_Click(object sender, RoutedEventArgs e)
