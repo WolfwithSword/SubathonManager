@@ -36,6 +36,9 @@ public partial class ExtensionSettings : SettingsGroupControl
             case SubathonEventSource.TipeeeStream:
                 _settingsControls[eventSource] = new TipeeeStreamSettings();
                 break;
+            case SubathonEventSource.Tangia:
+                _settingsControls[eventSource] = new TangiaSettings();
+                break;
             default: return null;
         }
         _settingsControls[eventSource].Init(Host);

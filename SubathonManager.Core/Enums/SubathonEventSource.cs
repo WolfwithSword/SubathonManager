@@ -43,7 +43,9 @@ public enum SubathonEventSource
     [EventSourceMeta(Description="TipeeeStream", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=23, Order=22)]
     TipeeeStream,
     [EventSourceMeta(Description="Wheel Spin", Visible = false, Order = 990, SourceGroup = SubathonSourceGroup.WheelSpin)]
-    WheelSpin
+    WheelSpin,
+    [EventSourceMeta(Description="Tangia", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=82, Order=31)]
+    Tangia
 }
 
 [ExcludeFromCodeCoverage]

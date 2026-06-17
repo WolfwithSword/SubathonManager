@@ -19,4 +19,6 @@ public static class StorageKeys
     public const string TipeeeStreamAccessToken = "SM.TipeeeStream.AccessToken";
     public const string TipeeeStreamRefreshToken = "SM.TipeeeStream.RefreshToken";
     public const string TipeeeStreamApiKey = "SM.TipeeeStream.ApiKey";
+
+    public const string TangiaEventKey = "SM.Tangia.EventKey";
 }

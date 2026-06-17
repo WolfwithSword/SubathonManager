@@ -450,6 +450,7 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.GFuelOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.NaturaPineOrder,  Seconds = 12 },
                 new () { EventType = SubathonEventType.TipeeeStreamDonation, Seconds = 12 },
+                new () { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
             };
 
             foreach (var def in defaults)
