@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -944,6 +947,230 @@ namespace SubathonManager.UI.Views.Prompts
         private void NumberOnly_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
         {
             e.Handled = !int.TryParse(e.Text, out _);
+        }
+
+        private async void ExportPromptSet_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeSet == null) return;
+
+            await using var db = await _factory.CreateDbContextAsync();
+            var set = await db.SubathonPromptSets
+                .Include(s => s.Prompts)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == _activeSet.Id);
+            if (set == null) return;
+
+            string exportDir = Path.Combine(Config.DataFolder, "exports");
+            Directory.CreateDirectory(exportDir);
+
+            string safeName = string.Concat(set.Name.Split(Path.GetInvalidFileNameChars()));
+            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"#Interval={(int)set.Interval.TotalMinutes},Offset={(int)set.RandomOffset.TotalMinutes},Cooldown={(int)set.Cooldown.TotalMinutes}");
+            sb.AppendLine("Text,Value,Duration,Quantity,Infinite,Enabled,Type,SubType,EventType,FilterMeta");
+            foreach (var p in set.Prompts.OrderBy(p => p.Index))
+            {
+                sb.AppendLine(string.Join(",",
+                    Utils.EscapeCsv(p.Text),
+                    p.Value,
+                    (int)p.CompletionDuration.TotalMinutes,
+                    p.Quantity,
+                    p.IsInfinite,
+                    p.Enabled,
+                    p.Type,
+                    p.SubType,
+                    p.FilterEventType?.ToString() ?? "",
+                    Utils.EscapeCsv(p.FilterMeta ?? "")
+                ));
+            }
+
+            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
+            }
+            catch { /**/ }
+        }
+
+        private async void ImportPromptSet_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import Prompt Set",
+                Filter = "CSV Files (*.csv)|*.csv",
+                DefaultExt = "csv"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            string[] lines;
+            try { lines = await File.ReadAllLinesAsync(dlg.FileName, Encoding.UTF8); }
+            catch { await ShowInvalidPromptCsvPopup(); return; }
+
+            if (lines.Length < 1) { await ShowInvalidPromptCsvPopup(); return; }
+
+            int headerIndex = 0;
+            int intervalMin = 20, offsetMin = 0, cooldownMin = 20;
+
+            if (lines[0].StartsWith('#'))
+            {
+                foreach (var kv in lines[0][1..].Split(','))
+                {
+                    var parts = kv.Split('=');
+                    if (parts.Length != 2) continue;
+                    if (int.TryParse(parts[1].Trim(), out int v))
+                    {
+                        if (parts[0].Trim().Equals("Interval", StringComparison.OrdinalIgnoreCase)) intervalMin = v;
+                        else if (parts[0].Trim().Equals("Offset", StringComparison.OrdinalIgnoreCase)) offsetMin = v;
+                        else if (parts[0].Trim().Equals("Cooldown", StringComparison.OrdinalIgnoreCase)) cooldownMin = v;
+                    }
+                }
+                headerIndex = 1;
+            }
+
+            if (headerIndex >= lines.Length || ParseCsvLine(lines[headerIndex]).Length < 8)
+            {
+                await ShowInvalidPromptCsvPopup(); return;
+            }
+
+            var prompts = new List<SubathonPrompt>();
+            for (int i = headerIndex + 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var cols = ParseCsvLine(lines[i]);
+                if (cols.Length < 8
+                    || !long.TryParse(cols[1].Trim(), out long value)
+                    || !int.TryParse(cols[2].Trim(), out int durMin)
+                    || !int.TryParse(cols[3].Trim(), out int qty)
+                    || !bool.TryParse(cols[4].Trim(), out bool infinite)
+                    || !bool.TryParse(cols[5].Trim(), out bool enabled)
+                    || !Enum.TryParse<SubathonPromptType>(cols[6].Trim(), out var type)
+                    || !Enum.TryParse<SubathonPromptSubType>(cols[7].Trim(), out var subType))
+                {
+                    await ShowInvalidPromptCsvPopup(); return;
+                }
+
+                SubathonEventType? filterEvent = null;
+                var eventStr = cols.Length > 8 ? cols[8].Trim() : "";
+                if (!string.IsNullOrEmpty(eventStr))
+                {
+                    if (!Enum.TryParse<SubathonEventType>(eventStr, out var fet))
+                    { await ShowInvalidPromptCsvPopup(); return; }
+                    filterEvent = fet;
+                }
+
+                string? filterMeta = cols.Length > 9 && !string.IsNullOrWhiteSpace(cols[9]) ? cols[9].Trim() : null;
+
+                prompts.Add(new SubathonPrompt
+                {
+                    Text = cols[0],
+                    Value = value,
+                    CompletionDuration = TimeSpan.FromMinutes(Math.Max(1, durMin)),
+                    Quantity = Math.Max(0, qty),
+                    IsInfinite = infinite,
+                    Enabled = enabled,
+                    Type = type,
+                    SubType = subType,
+                    FilterEventType = filterEvent,
+                    FilterSubType = filterEvent?.GetSubType(),
+                    FilterMeta = filterMeta,
+                    Index = prompts.Count
+                });
+            }
+
+            string setName = Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            await using var db = await _factory.CreateDbContextAsync();
+            foreach (var s in db.SubathonPromptSets)
+                s.IsActive = false;
+
+            var newSet = new SubathonPromptSet
+            {
+                Name = setName,
+                IsActive = true,
+                Enabled = false,
+                Interval = TimeSpan.FromMinutes(Math.Max(1, intervalMin)),
+                RandomOffset = TimeSpan.FromMinutes(Math.Max(0, offsetMin)),
+                Cooldown = TimeSpan.FromMinutes(Math.Max(0, cooldownMin))
+            };
+            newSet.ClampRandomOffset();
+            db.SubathonPromptSets.Add(newSet);
+            await db.SaveChangesAsync();
+
+            foreach (var p in prompts)
+            {
+                p.SetId = newSet.Id;
+                db.SubathonPrompts.Add(p);
+            }
+            await db.SaveChangesAsync();
+
+            LoadActiveSet();
+        }
+
+        private static string[] ParseCsvLine(string line)
+        {
+            var result = new List<string>();
+            var field = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    switch (c)
+                    {
+                        case '"' when i + 1 < line.Length && line[i + 1] == '"':
+                            field.Append('"'); i++;
+                            break;
+                        case '"':
+                            inQuotes = false;
+                            break;
+                        default:
+                            field.Append(c);
+                            break;
+                    }
+                }
+                else
+                {
+                    switch (c)
+                    {
+                        case '"':
+                            inQuotes = true;
+                            break;
+                        case ',':
+                            result.Add(field.ToString()); field.Clear();
+                            break;
+                        default:
+                            field.Append(c);
+                            break;
+                    }
+                }
+            }
+            result.Add(field.ToString());
+            return result.ToArray();
+        }
+
+        private static async Task ShowInvalidPromptCsvPopup()
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Invalid CSV",
+                Content = new TextBlock
+                {
+                    Text = "The selected file is not a valid prompt set CSV and could not be imported.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = 300,
+                    Margin = new Thickness(4, 4, 4, 4)
+                },
+                CloseButtonText = "OK",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            await msgBox.ShowDialogAsync();
         }
 
         private async void RunOrCancel_Click(object sender, RoutedEventArgs e)

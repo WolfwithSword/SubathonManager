@@ -23,6 +23,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
@@ -38,7 +39,16 @@
                     </ui:Button>
                 </Grid>
 
-                <Border Grid.Row="1" BorderBrush="#444" BorderThickness="0 0 0 1" Margin="0 0 4 2">
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0 0 0 6">
+                    <ui:Button Click="ExportTriggers_Click" Height="28" Padding="12 2" Margin="0 0 6 0"
+                               ToolTip="Export all triggers to CSV">
+                                    <ui:SymbolIcon Symbol="ArrowExportUp24"/></ui:Button>
+                    <ui:Button Click="ImportTriggers_Click" Height="28" Padding="12 2"
+                               ToolTip="Import triggers from CSV (replaces all existing triggers and history)">
+                        <ui:SymbolIcon Symbol="ArrowDownload24"/></ui:Button>
+                </StackPanel>
+
+                <Border Grid.Row="2" BorderBrush="#444" BorderThickness="0 0 0 1" Margin="0 0 4 2">
                     <Grid Margin="4 0 4 4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="28"/>
@@ -54,7 +64,7 @@
                     </Grid>
                 </Border>
 
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="TriggersStack" Orientation="Vertical" Margin="0 2 0 0"/>
                 </ScrollViewer>
             </Grid>
@@ -74,11 +84,17 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="Trigger History" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     <ui:Button Grid.Column="1" Width="30" Height="30" Padding="2"
                                ToolTip="Export history to CSV" Click="ExportHistoryToCsv_Click">
                         <ui:SymbolIcon Symbol="ArrowExportUp24" Width="16" Height="16"/>
+                    </ui:Button>
+                    <ui:Button Grid.Column="2" Width="30" Height="30" Padding="2" Margin="4 0 0 0"
+                               ToolTip="Delete all trigger history" Click="DeleteAllTriggerHistory_Click"
+                               Foreground="Red">
+                        <ui:SymbolIcon Symbol="Delete24" Width="16" Height="16"/>
                     </ui:Button>
                 </Grid>
 

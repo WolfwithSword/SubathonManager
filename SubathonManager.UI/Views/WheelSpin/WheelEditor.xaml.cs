@@ -1419,5 +1419,172 @@ namespace SubathonManager.UI.Views.WheelSpin
             }
             catch { /**/ }
         }
+
+        private async void ExportWheel_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeWheel == null) return;
+
+            await using var db = await _factory.CreateDbContextAsync();
+            var wheel = await db.WheelSets
+                .Include(w => w.WheelItems).ThenInclude(i => i.Action)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.Id == _activeWheel.Id);
+            if (wheel == null) return;
+
+            string exportDir = Path.Combine(Config.DataFolder, "exports");
+            Directory.CreateDirectory(exportDir);
+
+            string safeName = string.Concat(wheel.Name.Split(Path.GetInvalidFileNameChars()));
+            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Text,Weight,Quantity,Infinite,Enabled,ActionType,ActionParameter");
+            foreach (var item in wheel.WheelItems.OrderBy(i => i.Index))
+            {
+                sb.AppendLine(string.Join(",",
+                    Utils.EscapeCsv(item.Text),
+                    item.Weight,
+                    item.Quantity,
+                    item.IsInfinite,
+                    item.Enabled,
+                    item.Action?.ActionType.ToString() ?? $"{WheelSpinActionType.Manual}",
+                    Utils.EscapeCsv(item.Action?.Parameter ?? "")
+                ));
+            }
+
+            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
+            }
+            catch { /**/ }
+        }
+
+        private async void ImportWheel_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import Wheel",
+                Filter = "CSV Files (*.csv)|*.csv",
+                DefaultExt = "csv"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            string[] lines;
+            try { lines = await File.ReadAllLinesAsync(dlg.FileName, Encoding.UTF8); }
+            catch { await ShowInvalidWheelCsvPopup(); return; }
+
+            if (lines.Length < 1) { await ShowInvalidWheelCsvPopup(); return; }
+
+            var headerCols = ParseWheelCsvLine(lines[0]);
+            if (headerCols.Length < 5) { await ShowInvalidWheelCsvPopup(); return; }
+
+            var items = new List<(string Text, int Weight, int Qty, bool Infinite, bool Enabled, WheelSpinActionType ActionType, string ActionParam)>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var cols = ParseWheelCsvLine(lines[i]);
+                if (cols.Length < 5
+                    || !int.TryParse(cols[1].Trim(), out int weight)
+                    || !int.TryParse(cols[2].Trim(), out int qty)
+                    || !bool.TryParse(cols[3].Trim(), out bool infinite)
+                    || !bool.TryParse(cols[4].Trim(), out bool enabled))
+                { await ShowInvalidWheelCsvPopup(); return; }
+
+                var actionTypeStr = cols.Length > 5 ? cols[5].Trim() : "";
+                var actionType = WheelSpinActionType.Manual;
+                if (!string.IsNullOrEmpty(actionTypeStr) && !Enum.TryParse(actionTypeStr, out actionType))
+                { await ShowInvalidWheelCsvPopup(); return; }
+
+                string actionParam = cols.Length > 6 ? cols[6] : "";
+                items.Add((cols[0], weight, qty, infinite, enabled, actionType, actionParam));
+            }
+
+            string wheelName = Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            await using var db = await _factory.CreateDbContextAsync();
+            foreach (var w in db.WheelSets)
+                w.IsActive = false;
+
+            var newWheel = new WheelSet { Name = wheelName, IsActive = true };
+            db.WheelSets.Add(newWheel);
+            await db.SaveChangesAsync();
+
+            for (int idx = 0; idx < items.Count; idx++)
+            {
+                var (text, weight, qty, infinite, enabled, actionType, actionParam) = items[idx];
+                var newItem = new WheelItem
+                {
+                    Text = text,
+                    Weight = weight,
+                    Quantity = qty,
+                    IsInfinite = infinite,
+                    Enabled = enabled,
+                    Index = idx,
+                    WheelId = newWheel.Id
+                };
+                db.WheelItems.Add(newItem);
+                await db.SaveChangesAsync();
+
+                var action = new WheelSpinAction
+                {
+                    ActionType = actionType,
+                    Parameter = actionParam,
+                    WheelItemId = newItem.Id
+                };
+                db.WheelSpinActions.Add(action);
+            }
+            await db.SaveChangesAsync();
+
+            LoadActiveWheel();
+        }
+
+        private static string[] ParseWheelCsvLine(string line)
+        {
+            var result = new List<string>();
+            var field = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    if (c == '"' && i + 1 < line.Length && line[i + 1] == '"') { field.Append('"'); i++; }
+                    else if (c == '"') inQuotes = false;
+                    else field.Append(c);
+                }
+                else
+                {
+                    if (c == '"') inQuotes = true;
+                    else if (c == ',') { result.Add(field.ToString()); field.Clear(); }
+                    else field.Append(c);
+                }
+            }
+            result.Add(field.ToString());
+            return result.ToArray();
+        }
+
+        private static async Task ShowInvalidWheelCsvPopup()
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Invalid CSV",
+                Content = new TextBlock
+                {
+                    Text = "The selected file is not a valid wheel CSV and could not be imported.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = 300,
+                    Margin = new Thickness(4, 4, 4, 4)
+                },
+                CloseButtonText = "OK",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            await msgBox.ShowDialogAsync();
+        }
     }
 }
