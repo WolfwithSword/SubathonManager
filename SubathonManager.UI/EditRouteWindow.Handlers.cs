@@ -33,7 +33,12 @@ public partial class EditRouteWindow
     {
         if (sender is not Border { Tag: Guid id } border) return;
         _widgetCardBorders[id] = border;
-        UiUtils.UiUtils.UpdateButtonPendingBorder(border, 
+        if (_erroredWidgets.Contains(id))
+        {
+            border.Background = new SolidColorBrush(Color.FromArgb(60, 220, 53, 69));
+            return;
+        }
+        UiUtils.UiUtils.UpdateButtonPendingBorder(border,
             _unsavedCssVars.ContainsKey(id) || _unsavedJsVars.ContainsKey(id));
     }
 
@@ -378,16 +383,26 @@ public partial class EditRouteWindow
     
     
     private void EditWidget_Click(object sender, RoutedEventArgs e)
-    {    
+    {
         var widget = GetWidgetFromSender(sender);
-        if (widget != null)
-            PopulateWidgetEditor(widget);
+        if (widget == null) return;
+        if (_erroredWidgets.Contains(widget.Id))
+        {
+            ShowWidgetErrorPopup(widget);
+            return;
+        }
+        PopulateWidgetEditor(widget);
     }
-    
+
     private void WidgetCard_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: Widget widget })
-            PopulateWidgetEditor(widget);
+        if (sender is not FrameworkElement { DataContext: Widget widget }) return;
+        if (_erroredWidgets.Contains(widget.Id))
+        {
+            ShowWidgetErrorPopup(widget);
+            return;
+        }
+        PopulateWidgetEditor(widget);
     }
     
     
@@ -395,8 +410,12 @@ public partial class EditRouteWindow
     {
         var wi = GetWidgetFromSender(sender);
         if (wi == null) return;
-        Guid routeId = wi.RouteId;
+        await DeleteWidgetAsync(wi);
+    }
 
+    private async Task DeleteWidgetAsync(Widget wi)
+    {
+        Guid routeId = wi.RouteId;
         try
         {
             await using var db = await _factory.CreateDbContextAsync();
@@ -408,6 +427,7 @@ public partial class EditRouteWindow
             }
 
             _widgets.Remove(wi);
+            _erroredWidgets.Remove(wi.Id);
             await RefreshWidgetZIndicesAsync();
             RefreshWebView();
             OverlayEvents.RaiseOverlayRefreshRequested(routeId);
@@ -418,6 +438,43 @@ public partial class EditRouteWindow
         {
             _logger?.LogError(ex, "Failed to delete widget");
         }
+    }
+
+    private async void ShowWidgetErrorPopup(Widget widget)
+    {
+        var msgBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "Widget Error",
+            PrimaryButtonText = "Delete Widget",
+            CloseButtonText = "OK",
+            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            Margin = new Thickness(4, 4, 4, 8)
+        };
+        panel.Children.Add(new Wpf.Ui.Controls.TextBlock
+        {
+            Text = $"Error loading widget \"{widget.Name}\". Could not find file",
+            TextWrapping = TextWrapping.Wrap,
+            Width = 320
+        });
+        panel.Children.Add(new Wpf.Ui.Controls.TextBlock
+        {
+            Text = widget.HtmlPath,
+            ToolTip = widget.HtmlPath,
+            TextWrapping = TextWrapping.Wrap,
+            Width = 320,
+            Margin = new Thickness(0, 6, 0, 0)
+        });
+        msgBox.Content = panel;
+
+        var result = await msgBox.ShowDialogAsync();
+        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+            await DeleteWidgetAsync(widget);
     }
 
     private async void CopyWidget_Click(object sender, RoutedEventArgs e)

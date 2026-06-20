@@ -31,6 +31,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
     private readonly Dictionary<Guid, Border> _widgetCardBorders = new();
     private readonly Dictionary<Guid, List<CssVariable>> _unsavedCssVars = new();
     private readonly Dictionary<Guid, List<JsVariable>> _unsavedJsVars = new();
+    private readonly HashSet<Guid> _erroredWidgets = new();
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<EditRouteWindow>>();
     private string _lastFolder = string.Empty;
@@ -173,6 +174,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         if (RouteHeightBox.Text != _route.Height.ToString()) RouteHeightBox.Text = _route.Height.ToString();
 
         _widgets.Clear();
+        _erroredWidgets.Clear();
         var sorted = _route.Widgets.OrderByDescending(w => w.Z).ToList();
 
         int index = sorted.Count;
@@ -182,12 +184,20 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         {
             if (w.Z != index)
             {
-                hasUpdatedZ = true; 
+                hasUpdatedZ = true;
                 w.Z = index;
             }
             index -= 1;
-            widgetHelper.SyncCssVariables(w);
-            widgetHelper.SyncJsVariables(w);
+            if (!File.Exists(w.HtmlPath))
+            {
+                _erroredWidgets.Add(w.Id);
+                _logger?.LogWarning("Widget {Name} ({Id}) HTML file not found: {Path}", w.Name, w.Id, w.HtmlPath);
+            }
+            else
+            {
+                widgetHelper.SyncCssVariables(w);
+                widgetHelper.SyncJsVariables(w);
+            }
             await db.Entry(w).ReloadAsync();
             await db.Entry(w).Collection(x => x.CssVariables).LoadAsync();
             await db.Entry(w).Collection(x => x.JsVariables).LoadAsync();
@@ -252,6 +262,9 @@ public partial class EditRouteWindow : INotifyPropertyChanged
             _selectedWidget = null;
             return;
         }
+
+        if (_erroredWidgets.Contains(widget.Id))
+            return;
         
         WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
         widgetHelper.SyncCssVariables(widget);
