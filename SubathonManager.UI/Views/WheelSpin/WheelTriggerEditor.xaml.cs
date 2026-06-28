@@ -67,10 +67,10 @@ namespace SubathonManager.UI.Views.WheelSpin
 
             Loaded += (_, _) =>
             {
+                LoadCurrencies();
                 if (!_initialized)
                 {
                     PopulateEventTypeComboBox();
-                    LoadCurrencies();
                     WireDirtyHandlers();
                     _initialized = true;
                 }
