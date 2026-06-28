@@ -262,6 +262,8 @@ public partial class Widget
 
     public string? DocsUrl { get; set; } = string.Empty;
 
+    public WidgetType Type { get; set; } = WidgetType.Html;
+
     public Widget(string name, string htmlPath)
     {
         Name = name;
@@ -281,12 +283,13 @@ public partial class Widget
         widget.Height = Height;
         widget.ScaleX = ScaleX;
         widget.ScaleY = ScaleY;
-        
+        widget.Type = Type;
+
         foreach (var jsVariable in JsVariables)
             widget.JsVariables.Add(jsVariable.Clone(widget.Id));
         foreach (var cssVariable in CssVariables)
             widget.CssVariables.Add(cssVariable.Clone(widget.Id));
-        
+
         return widget;
     }
     
@@ -382,6 +385,7 @@ public partial class Widget
         {
             name = Name,
             htmlPath = htmlRelPath,
+            type = Type.ToString(),
 
             position = new
             {

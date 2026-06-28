@@ -4,6 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -191,9 +192,9 @@ public partial class EditRouteWindow : INotifyPropertyChanged
             if (!File.Exists(w.HtmlPath))
             {
                 _erroredWidgets.Add(w.Id);
-                _logger?.LogWarning("Widget {Name} ({Id}) HTML file not found: {Path}", w.Name, w.Id, w.HtmlPath);
+                _logger?.LogWarning("Widget {Name} ({Id}) file not found: {Path}", w.Name, w.Id, w.HtmlPath);
             }
-            else
+            else if (w.Type == WidgetType.Html)
             {
                 widgetHelper.SyncCssVariables(w);
                 widgetHelper.SyncJsVariables(w);
@@ -265,10 +266,13 @@ public partial class EditRouteWindow : INotifyPropertyChanged
 
         if (_erroredWidgets.Contains(widget.Id))
             return;
-        
-        WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
-        widgetHelper.SyncCssVariables(widget);
-        widgetHelper.SyncJsVariables(widget);
+
+        if (!widget.Type.IsAsset())
+        {
+            WidgetEntityHelper widgetHelper = new WidgetEntityHelper(_factory, null);
+            widgetHelper.SyncCssVariables(widget);
+            widgetHelper.SyncJsVariables(widget);
+        }
         
         using var db = _factory.CreateDbContext();
         _selectedWidget = db.Widgets.Include(wX => wX.CssVariables)
@@ -280,6 +284,15 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         WidgetEditPanel.Visibility = Visibility.Visible;
         EmptyEditorPanel.Visibility = Visibility.Collapsed;
 
+        bool isAsset = widget.Type.IsAsset();
+        var varVisibility = isAsset ? Visibility.Collapsed : Visibility.Visible;
+        WidgetVarsSeparator.Visibility = varVisibility;
+        WidgetVarsScrollViewer.Visibility = varVisibility;
+        ReloadVarsButton.Visibility = varVisibility;
+        ResetVarsButton.Visibility = varVisibility;
+        AssetFilePanel.Visibility = isAsset ? Visibility.Visible : Visibility.Collapsed;
+        if (isAsset) AssetFilePathText.Text = widget.HtmlPath;
+
         if (WidgetNameBox.Text != widget.Name) WidgetNameBox.Text = widget.Name;
         if (WidgetWidthBox.Text != widget.Width.ToString()) WidgetWidthBox.Text = widget.Width.ToString();
         if (WidgetHeightBox.Text != widget.Height.ToString()) WidgetHeightBox.Text = widget.Height.ToString();
@@ -290,7 +303,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
         if (WidgetScaleXBox.Text != $"{widget.ScaleX}") WidgetScaleXBox.Text = $"{widget.ScaleX}";
         if (WidgetScaleYBox.Text != $"{widget.ScaleY}") WidgetScaleYBox.Text = $"{widget.ScaleY}";
 
-        if (string.IsNullOrWhiteSpace(widget.DocsUrl))
+        if (string.IsNullOrWhiteSpace(widget.DocsUrl) || isAsset)
         {
             DocsLinkBtn.Visibility = Visibility.Hidden;
             WidgetNameBox.Width = 355;
@@ -368,7 +381,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
                 {
                     WidgetVariableType.ImageFile => "Image|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.ico",
                     WidgetVariableType.SoundFile => "Sound|*.wav;*.mp3;*.ogg;*.oga;*.opus;*.m4a;",
-                    WidgetVariableType.VideoFile => "Video|*.mp4;*.m4v;*.webm;*.ogm",
+                    WidgetVariableType.VideoFile => "Video|*.mp4;*.m4v;*.webm;*.ogm;*.mkv;*.mov",
                     _ => "File|*.*"
                 };
 
@@ -458,58 +471,94 @@ public partial class EditRouteWindow : INotifyPropertyChanged
     
     private async Task ImportSingleWidgetAsync(string path, AppDbContext db, WidgetEntityHelper helper)
     {
-        var newWidget = new Widget(Path.GetFileNameWithoutExtension(path), path);
-
-        var metadata = await helper.ExtractWidgetMetadata(path);
-
-        newWidget.RouteId = _route!.Id;
-        newWidget.X = 0;
-        newWidget.Y = 0;
-        newWidget.Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1;
-
-        newWidget.Width = metadata.Width;
-
-        newWidget.Height = metadata.Height;
-
-        newWidget.DocsUrl = metadata.Url;
-
-        db.Widgets.Add(newWidget);
-        await db.SaveChangesAsync();
-
-        (List<JsVariable> jsVars, _, _) =
-            helper.LoadNewJsVariables(newWidget, metadata);
-        
-        var allVarTypes = jsVars.Select(j => j.Type).Distinct().ToList();
-        var missingFontTypes = WidgetVariableTypeHelper.FontVariables.ToList().Where(x => !allVarTypes.Contains(x)).ToList();
-        foreach (var fontVar in missingFontTypes)
+        var widgetType = WidgetTypeHelper.DetectFromPath(path);
+        var newWidget = new Widget(Path.GetFileNameWithoutExtension(path), path)
         {
-            jsVars.Add(new JsVariable
+            Type = widgetType,
+            RouteId = _route!.Id,
+            X = 0,
+            Y = 0,
+            Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1
+        };
+
+        if (widgetType == WidgetType.Html)
+        {
+            var metadata = await helper.ExtractWidgetMetadata(path);
+            newWidget.Width = metadata.Width > 0 ? metadata.Width : 400;
+            newWidget.Height = metadata.Height > 0 ? metadata.Height : 400;
+            newWidget.DocsUrl = metadata.Url;
+
+            db.Widgets.Add(newWidget);
+            await db.SaveChangesAsync();
+
+            (List<JsVariable> jsVars, _, _) = helper.LoadNewJsVariables(newWidget, metadata);
+
+            var allVarTypes = jsVars.Select(j => j.Type).Distinct().ToList();
+            var missingFontTypes = WidgetVariableTypeHelper.FontVariables.ToList().Where(x => !allVarTypes.Contains(x)).ToList();
+            foreach (var fontVar in missingFontTypes)
             {
-                WidgetId = newWidget.Id,
-                Type = fontVar,
-                Name = $"{fontVar}s",
-                Description = $"Custom font names to include from {fontVar}s, comma separated",
-                Value = string.Empty
-            });
+                jsVars.Add(new JsVariable
+                {
+                    WidgetId = newWidget.Id,
+                    Type = fontVar,
+                    Name = $"{fontVar}s",
+                    Description = $"Custom font names to include from {fontVar}s, comma separated",
+                    Value = string.Empty
+                });
+            }
+
+            if (jsVars.Count > 0)
+            {
+                newWidget.JsVariables = jsVars;
+                db.JsVariables.AddRange(jsVars);
+            }
+
+            await db.SaveChangesAsync();
+
+            newWidget.ScanCssVariables();
+            db.CssVariables.AddRange(newWidget.CssVariables);
+            await db.SaveChangesAsync();
         }
-        
-        if (jsVars.Count > 0)
+        else
         {
-            newWidget.JsVariables = jsVars;
-            db.JsVariables.AddRange(jsVars);
+            if (widgetType == WidgetType.Video)
+            {
+                newWidget.Width = 1280;
+                newWidget.Height = 720;
+            }
+            else
+            {
+                var (naturalW, naturalH) = DetectImageDimensions(path);
+                const int anchorHeight = 400;
+                float factor = naturalH > 0 ? anchorHeight / (float)naturalH : 1f;
+                newWidget.Width = (int)Math.Round(naturalW * factor);
+                newWidget.Height = anchorHeight;
+            }
+            db.Widgets.Add(newWidget);
+            await db.SaveChangesAsync();
         }
-
-        await db.SaveChangesAsync();
-
-        newWidget.ScanCssVariables();
-        db.CssVariables.AddRange(newWidget.CssVariables);
-        await db.SaveChangesAsync();
 
         _route.Widgets.Add(newWidget);
         _widgets.Insert(0, newWidget);
     }
 
     
+    private static (int width, int height) DetectImageDimensions(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None);
+            var frame = decoder.Frames[0];
+            return (frame.PixelWidth > 0 ? frame.PixelWidth : 400,
+                    frame.PixelHeight > 0 ? frame.PixelHeight : 400);
+        }
+        catch
+        {
+            return (400, 400);
+        }
+    }
+
     private void UpdateWebViewScale()
     {
         if (PreviewWebView == null || _route == null || WebViewContainer == null)

@@ -74,7 +74,11 @@ public partial class WebServer : IAppService
             }
             catch { /**/ }
         }
-        
+        else
+        {
+            StopWebsocketServer();//
+        }
+
         _routes.Clear();
         SetupApiRoutes();
         SetupWebhookRoutes();

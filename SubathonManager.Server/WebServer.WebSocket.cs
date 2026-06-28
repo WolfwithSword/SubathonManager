@@ -18,7 +18,7 @@ public partial class WebServer
 {
     private readonly List<IWebSocketClient> _clients = new();
     private readonly object _lock = new();
-    private SemaphoreSlim _sendLock = new SemaphoreSlim(1,1);
+    private readonly SemaphoreSlim _sendLock = new(1,1);
 
     private void SetupWebsocketListeners()
     {
@@ -572,6 +572,31 @@ public partial class WebServer
                         await SelectSendStringAsync(socket, newData);
                         break;
                     }
+                    case WebsocketClientMessageType.WheelControl:
+                    {
+                        if (!json.RootElement.TryGetProperty("id", out var idProp)
+                            || !Guid.TryParse(idProp.GetString(), out var histId))
+                            break;
+                        if (!json.RootElement.TryGetProperty("status", out var statusProp)
+                            || !Enum.TryParse(statusProp.GetString(), ignoreCase: true, out WheelSpinHistoryStatus newStatus))
+                            break;
+
+                        await using var db = await _factory.CreateDbContextAsync();
+                        var history = await db.WheelSpinHistories
+                            .Include(h => h.LinkedItem).ThenInclude(i => i!.Action)
+                            .Include(h => h.LinkedWheel)
+                            .FirstOrDefaultAsync(h => h.Id == histId);
+                        if (history == null || history.Status == newStatus)
+                            break;
+
+                        history.Status = newStatus;
+                        history.UpdatedAt = DateTime.Now;
+                        await db.SaveChangesAsync();
+
+                        int spinsOwed = StateValueHelper.Get<int>(db, StateKeys.WheelSpinsOwed);
+                        WheelEvents.RaiseWheelSpinStatusChanged(history, spinsOwed);
+                        break;
+                    }
                 }
             }
             catch (Exception ex)
@@ -678,7 +703,8 @@ public partial class WebServer
         lock (_lock)
             clientsCopy = _clients.ToList();
 
-        foreach (var ws in clientsCopy.Where(ws => ws.State == WebSocketState.Open && ws.ClientTypes.Any(types.Contains)))
+        foreach (var ws in clientsCopy.Where(ws =>
+                     ws.State == WebSocketState.Open && ws.ClientTypes.Any(types.Contains)))
         {
             await _sendLock.WaitAsync();
             try

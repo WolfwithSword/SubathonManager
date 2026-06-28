@@ -182,15 +182,30 @@ public partial class EditRouteWindow
     
     private async void ImportWidgetButton_Click(object sender, RoutedEventArgs e)
     {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select widget HTML file(s)",
+            Filter = "HTML Widgets|*.html;*.htm",
+            Multiselect = true
+        };
+        await RunImportDialogAsync(dlg);
+    }
+
+    private async void ImportAssetButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select asset file(s)",
+            Filter = "Asset Files|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.mp4;*.m4v;*.webm;*.ogm;*.mkv;*.mov|Image Widgets|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg|Video Widgets|*.mp4;*.m4v;*.webm;*.ogm;*.mkv;*.mov",
+            Multiselect = true
+        };
+        await RunImportDialogAsync(dlg);
+    }
+
+    private async Task RunImportDialogAsync(Microsoft.Win32.OpenFileDialog dlg)
+    {
         try
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Select widget HTML file(s)",
-                Filter = "HTML Files|*.html;*.htm",
-                Multiselect = true
-            };
-
             if (!string.IsNullOrEmpty(_lastFolder) && Directory.Exists(_lastFolder))
                 dlg.InitialDirectory = _lastFolder;
             else if (Directory.Exists(Path.GetFullPath("./presets")))
@@ -200,7 +215,6 @@ public partial class EditRouteWindow
             {
                 await using var db = await _factory.CreateDbContextAsync();
                 WidgetEntityHelper helper = new WidgetEntityHelper(_factory, null);
-                _lastFolder = Path.GetDirectoryName(dlg.FileNames[0])!;
                 foreach (var path in dlg.FileNames)
                 {
                     try
@@ -209,7 +223,7 @@ public partial class EditRouteWindow
                     }
                     catch (Exception ex)
                     {
-                        _logger?.LogError(ex, "Failed to import widget HTML file {Path}", path);
+                        _logger?.LogError(ex, "Failed to import widget file {Path}", path);
                     }
                     _lastFolder = Path.GetDirectoryName(path)!;
                 }
@@ -221,7 +235,7 @@ public partial class EditRouteWindow
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to import widget HTML file(s)");
+            _logger?.LogError(ex, "Failed to import widget file(s)");
         }
     }
     
@@ -329,6 +343,27 @@ public partial class EditRouteWindow
         }
     }
     
+    private void AssetOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedWidget == null) return;
+        string path = _selectedWidget.HtmlPath;
+        try
+        {
+            if (File.Exists(path))
+                Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{path}\"", UseShellExecute = true });
+            else
+            {
+                string? dir = Path.GetDirectoryName(path);
+                if (Directory.Exists(dir))
+                    Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"\"{dir}\"", UseShellExecute = true });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to open asset folder for {Path}", path);
+        }
+    }
+
     private async void OpenWidgetDocumentation_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWidget == null || string.IsNullOrWhiteSpace(_selectedWidget.DocsUrl)

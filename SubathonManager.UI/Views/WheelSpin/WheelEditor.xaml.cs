@@ -58,11 +58,13 @@ namespace SubathonManager.UI.Views.WheelSpin
                 }
                 SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
                 WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
+                WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
             };
             Unloaded += (_, _) =>
             {
                 SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
                 WheelEvents.OnSpinsOwedUpdateFromEvent -= AdjustSpinsBoxByEvent;
+                WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
             };
         }
 
@@ -1169,7 +1171,7 @@ namespace SubathonManager.UI.Views.WheelSpin
                     IsEnabled = h.Status != target,
                     Tag = target
                 };
-                btn.Click += async (_, _) => await SetHistoryStatus(h, target, statusLabel, hoverBtns);
+                btn.Click += async (_, _) => await SetHistoryStatus(h, target);
                 hoverBtns.Children.Add(btn);
             }
 
@@ -1216,7 +1218,7 @@ namespace SubathonManager.UI.Views.WheelSpin
                     IsEnabled = !isMultiplier || !_multiplierActive,
                     Tag = isMultiplier ? "MultiplierPlayBtn" : null
                 };
-                playBtn.Click += async (_, _) => await ExecuteHistoryAction(h, playBtn, statusLabel, hoverBtns);
+                playBtn.Click += async (_, _) => await ExecuteHistoryAction(h, playBtn);
                 Grid.SetColumn(playBtn, 1);
                 actionCell.Children.Add(playBtn);
             }
@@ -1244,8 +1246,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             _                                => System.Windows.Media.Brushes.Gray
         };
 
-        private async Task SetHistoryStatus(WheelSpinHistory h, WheelSpinHistoryStatus newStatus,
-            TextBlock statusLabel, StackPanel hoverBtns)
+        private async Task SetHistoryStatus(WheelSpinHistory h, WheelSpinHistoryStatus newStatus)
         {
             h.Status = newStatus;
             h.UpdatedAt = DateTime.Now;
@@ -1257,17 +1258,39 @@ namespace SubathonManager.UI.Views.WheelSpin
             tracked.UpdatedAt = h.UpdatedAt;
             await db.SaveChangesAsync();
 
-            await Dispatcher.InvokeAsync(() =>
-            {
-                statusLabel.Text = newStatus.ToString();
-                statusLabel.Foreground = HistoryStatusBrush(newStatus);
-                foreach (var btn in hoverBtns.Children.OfType<Wpf.Ui.Controls.Button>())
-                    btn.IsEnabled = btn.Tag is WheelSpinHistoryStatus s && s != newStatus;
-            });
             h.LinkedWheel ??= _activeWheel;
             WheelEvents.RaiseWheelSpinStatusChanged(h, _spinsOwed);
         }
 
+        private void OnWheelSpinStatusChanged(WheelSpinHistory history, int spinsOwed)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                var row = HistoryStack.Children.OfType<Grid>()
+                    .FirstOrDefault(g => g.Tag is WheelSpinHistory h && h.Id == history.Id);
+                if (row == null) return;
+
+                if (row.Tag is WheelSpinHistory rowHistory)
+                    rowHistory.Status = history.Status;
+
+                var statusLabel = row.Children.OfType<TextBlock>()
+                    .FirstOrDefault(c => Grid.GetColumn(c) == 3);
+                var hoverBtns = row.Children.OfType<StackPanel>()
+                    .FirstOrDefault(c => Grid.GetColumn(c) == 4);
+
+                if (statusLabel != null)
+                {
+                    statusLabel.Text = history.Status.ToString();
+                    statusLabel.Foreground = HistoryStatusBrush(history.Status);
+                }
+                if (hoverBtns != null)
+                {
+                    foreach (var btn in hoverBtns.Children.OfType<Wpf.Ui.Controls.Button>())
+                        btn.IsEnabled = btn.Tag is WheelSpinHistoryStatus s && s != history.Status;
+                }
+            });
+        }
+        
         private void RaiseWheelDataChanged()
         {
             if (_activeWheel == null) return;
@@ -1303,8 +1326,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             }
         }
 
-        private async Task ExecuteHistoryAction(WheelSpinHistory h, Wpf.Ui.Controls.Button playBtn,
-            TextBlock statusLabel, StackPanel hoverBtns)
+        private async Task ExecuteHistoryAction(WheelSpinHistory h, Wpf.Ui.Controls.Button playBtn)
         {
             await Dispatcher.InvokeAsync(() =>
             {
@@ -1355,7 +1377,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             }
 
             if (h.Status != WheelSpinHistoryStatus.Done)
-                await SetHistoryStatus(h, WheelSpinHistoryStatus.Done, statusLabel, hoverBtns);
+                await SetHistoryStatus(h, WheelSpinHistoryStatus.Done);
         }
 
         private void HistoryFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
