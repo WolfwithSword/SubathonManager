@@ -326,7 +326,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(82) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
 
@@ -364,14 +364,98 @@ namespace SubathonManager.UI.Views.WheelSpin
             };
             Grid.SetColumn(weightLabel, 2);
 
-            var qtyLabel = new TextBlock
+            UIElement qtyElement;
+            if (item.IsInfinite)
             {
-                Text = item.IsInfinite ? "∞" : item.Quantity.ToString(),
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            Grid.SetColumn(qtyLabel, 3);
+                var infLabel = new TextBlock
+                {
+                    Text = "∞",
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                qtyElement = infLabel;
+            }
+            else
+            {
+                var qtyLabel = new TextBlock
+                {
+                    Text = item.Quantity.ToString(),
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    MinWidth = 24,
+                    TextAlignment = TextAlignment.Center,
+                    Margin = new Thickness(2, 0, 2, 0)
+                };
+                var minusBtn = new Wpf.Ui.Controls.Button
+                {
+                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Subtract24 },
+                    Width = 20,
+                    Height = 20,
+                    Padding = new Thickness(1),
+                    IsEnabled = item.Quantity > 0,
+                    ToolTip = "Decrease quantity"
+                };
+                var plusBtn = new Wpf.Ui.Controls.Button
+                {
+                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Add24 },
+                    Width = 20,
+                    Height = 20,
+                    Padding = new Thickness(1),
+                    ToolTip = "Increase quantity"
+                };
+                minusBtn.Click += async (_, _) =>
+                {
+                    if (item.Quantity <= 0) return;
+                    item.Quantity = Math.Max(0, item.Quantity - 1);
+                    qtyLabel.Text = item.Quantity.ToString();
+                    minusBtn.IsEnabled = item.Quantity > 0;
+                    if (_selectedItem?.Id == item.Id)
+                    {
+                        _selectedItem.Quantity = item.Quantity;
+                        SuppressChanges(() => ItemQuantityBox.Text = item.Quantity.ToString());
+                    }
+                    await using var db = await _factory.CreateDbContextAsync();
+                    var tracked = await db.WheelItems.FindAsync(item.Id);
+                    if (tracked != null)
+                    {
+                        tracked.Quantity = item.Quantity;
+                        await db.SaveChangesAsync();
+                    }
+                    RaiseWheelDataChanged();
+                };
+                plusBtn.Click += async (_, _) =>
+                {
+                    item.Quantity++;
+                    qtyLabel.Text = item.Quantity.ToString();
+                    minusBtn.IsEnabled = true;
+                    if (_selectedItem?.Id == item.Id)
+                    {
+                        _selectedItem.Quantity = item.Quantity;
+                        SuppressChanges(() => ItemQuantityBox.Text = item.Quantity.ToString());
+                    }
+                    await using var db = await _factory.CreateDbContextAsync();
+                    var tracked = await db.WheelItems.FindAsync(item.Id);
+                    if (tracked != null)
+                    {
+                        tracked.Quantity = item.Quantity;
+                        await db.SaveChangesAsync();
+                    }
+                    RaiseWheelDataChanged();
+                };
+                var qtyPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                qtyPanel.Children.Add(minusBtn);
+                qtyPanel.Children.Add(qtyLabel);
+                qtyPanel.Children.Add(plusBtn);
+                qtyElement = qtyPanel;
+            }
+            Grid.SetColumn(qtyElement, 3);
 
             string actionText = item.Action == null ? "M" : item.Action.ActionType switch
             {
@@ -412,7 +496,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             row.Children.Add(enabledCheck);
             row.Children.Add(textLabel);
             row.Children.Add(weightLabel);
-            row.Children.Add(qtyLabel);
+            row.Children.Add(qtyElement);
             row.Children.Add(actionLabel);
             row.Children.Add(deleteBtn);
 
