@@ -71,8 +71,15 @@
                     </Grid>
 
                     <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
-                        <ComboBox x:Name="GoalSetType" Width="120" Height="36" VerticalAlignment="Center"
+                        <ui:Button Click="ExportGoalSet_Click" Height="30" Padding="12 4" Margin="0 0 6 0"
+                                   ToolTip="Export this goal set to CSV">
+                            <ui:SymbolIcon Symbol="ArrowExportUp24"/></ui:Button>
+                        <ui:Button Click="ImportGoalSet_Click" Height="30" Padding="12 4" 
+                                   ToolTip="Import a goal set from CSV">
+                            <ui:SymbolIcon Symbol="ArrowDownload24"/></ui:Button>
+                        <ComboBox x:Name="GoalSetType" Width="120" Height="36" VerticalAlignment="Center" HorizontalAlignment="Right"
                                   ToolTip="Points will be based off points. Money is based on total donations."
+                                  Margin="238 0 0 0 "
                                   SelectionChanged="GoalSetType_SelectionChanged"/>
                     </StackPanel>
 

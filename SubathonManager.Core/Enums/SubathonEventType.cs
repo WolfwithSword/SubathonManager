@@ -175,7 +175,9 @@ public enum SubathonEventType
     NaturaPineOrder,
 
     [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.TipeeeStream, IsCurrencyDonation = true, Order = 1)]
-    TipeeeStreamDonation,
+    TipeeeStreamDonation,    
+    [EventTypeMeta(Label = "Tokens", Source = SubathonEventSource.Tangia, IsToken = true, Order = 1)]
+    TangiaTokens, // no way to distinguish twitch bits or tangia coins
 
     // any new must be added after the last
 }

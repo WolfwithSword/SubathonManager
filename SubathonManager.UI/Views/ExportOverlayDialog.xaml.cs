@@ -66,10 +66,19 @@ public partial class ExportOverlayDialog
             string widgetRoot = widgetRoots[wi];
             string zipWidgetRoot = zipRoots[wi];
 
-            if (Directory.Exists(widgetRoot))
+            if (widget.Type.IsAsset())
             {
-                result.AddRange(from file in Directory.EnumerateFiles(widgetRoot, "*", SearchOption.AllDirectories) 
-                    let relative = Path.GetRelativePath(widgetRoot, file).Replace('\\', '/') select ($"{zipWidgetRoot}/{relative}", file));
+                if (File.Exists(widget.HtmlPath))
+                {
+                    string fileName = Path.GetFileName(widget.HtmlPath);
+                    result.Add(($"{zipWidgetRoot}/{fileName}", widget.HtmlPath));
+                }
+            }
+            else if (Directory.Exists(widgetRoot))
+            {
+                result.AddRange(from file in Directory.EnumerateFiles(widgetRoot, "*", SearchOption.AllDirectories)
+                    let relative = Path.GetRelativePath(widgetRoot, file).Replace('\\', '/')
+                    select ($"{zipWidgetRoot}/{relative}", file));
             }
 
             foreach (var jsVar in widget.JsVariables)

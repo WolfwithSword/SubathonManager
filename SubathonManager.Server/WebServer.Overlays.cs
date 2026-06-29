@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Core.Models;
+using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Server;
 
@@ -42,6 +42,17 @@ public partial class WebServer
                 if (widget != null)
                 {
                     string relativePath = string.Join('/', parts.Skip(2));
+
+                    if (widget.Type.IsAsset() && string.IsNullOrWhiteSpace(relativePath))
+                    {
+                        string fileName = Path.GetFileName(widget.HtmlPath);
+                        string html = widget.Type == WidgetType.Video
+                            ? $"<html><body style='margin:0;padding:0;overflow:hidden;background:transparent;'><video src='./{fileName}' style='height:720px;width:auto;object-fit:fill;' autoplay loop muted playsinline></video></body></html>"
+                            : $"<html><body style='margin:0;padding:0;overflow:hidden;background:transparent;'><img src='./{fileName}' style='height:400px;width:auto;object-fit:fill;'></body></html>";
+                        await ctx.WriteResponse(200, html, true, "text/html");
+                        return;
+                    }
+
                     string folder = Path.GetDirectoryName(widget.HtmlPath)!;
                     string filePath = string.IsNullOrWhiteSpace(relativePath)
                         ? widget.HtmlPath

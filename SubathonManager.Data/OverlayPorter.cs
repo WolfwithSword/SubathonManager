@@ -6,8 +6,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core;
-using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data;
@@ -86,7 +86,15 @@ public static class OverlayPorter
 
             plan.WidgetFolderMap[widget.Id] = zipWidgetRoot;
 
-            if (Directory.Exists(widgetRoot))
+            if (widget.Type.IsAsset())
+            {
+                if (File.Exists(widget.HtmlPath))
+                {
+                    string fileName = Path.GetFileName(widget.HtmlPath);
+                    plan.FileCopies.Add((widget.HtmlPath, $"{zipWidgetRoot}/{fileName}"));
+                }
+            }
+            else if (Directory.Exists(widgetRoot))
             {
                 foreach (var file in Directory.EnumerateFiles(widgetRoot, "*", SearchOption.AllDirectories))
                 {
@@ -148,6 +156,7 @@ public static class OverlayPorter
                 id = w.Id,
                 name = w.Name,
                 htmlPath = htmlZipRelPath,
+                type = w.Type.ToString(),
                 position = new { x = w.X, y = w.Y, z = w.Z },
                 size = new { width = w.Width, height = w.Height },
                 scale = new { x = w.ScaleX, y = w.ScaleY },
@@ -259,13 +268,20 @@ public static class OverlayPorter
 
             if (existingWidget == null)
             {
+                WidgetType widgetType = WidgetType.Html;
+                if (wEl.TryGetProperty("type", out var typeEl))
+                    Enum.TryParse(typeEl.GetString(), ignoreCase: true, out widgetType);
+                else
+                    widgetType = WidgetTypeHelper.DetectFromPath(htmlAbsPath);
+
                 var widget = new Widget(wEl.GetProperty("name").GetString() ?? "Imported Widget", htmlAbsPath)
                 {
                     Id = Guid.NewGuid(), RouteId = route.Id,
+                    Type = widgetType,
                     Visibility = wEl.GetProperty("visibility").GetBoolean(),
                     DocsUrl = wEl.TryGetProperty("docsUrl", out var du) ? du.GetString() : null
                 };
-                
+
                 var pos = wEl.GetProperty("position");
                 widget.X = pos.GetProperty("x").GetSingle();
                 widget.Y = pos.GetProperty("y").GetSingle();
@@ -276,18 +292,21 @@ public static class OverlayPorter
                 var scale = wEl.GetProperty("scale");
                 widget.ScaleX = scale.GetProperty("x").GetSingle();
                 widget.ScaleY = scale.GetProperty("y").GetSingle();
-                
-                foreach (var v in wEl.GetProperty("cssVariables").EnumerateArray().Select(cssEl =>
-                             CssVariable.FromJson(cssEl, widget.Id)).OfType<CssVariable>())
+
+                if (widgetType == WidgetType.Html)
                 {
-                    widget.CssVariables.Add(v);
+                    foreach (var v in wEl.GetProperty("cssVariables").EnumerateArray().Select(cssEl =>
+                                 CssVariable.FromJson(cssEl, widget.Id)).OfType<CssVariable>())
+                    {
+                        widget.CssVariables.Add(v);
+                    }
+                    foreach (var v in wEl.GetProperty("jsVariables").EnumerateArray().Select(jsEl =>
+                                 BuildJsVariable(jsEl, widget.Id, widgetExtractFolder)).OfType<JsVariable>())
+                    {
+                        widget.JsVariables.Add(v);
+                    }
                 }
-                foreach (var v in wEl.GetProperty("jsVariables").EnumerateArray().Select(jsEl =>
-                             BuildJsVariable(jsEl, widget.Id, widgetExtractFolder)).OfType<JsVariable>())
-                {
-                    widget.JsVariables.Add(v);
-                }
-                
+
                 newWidgets.Add(widget);
             }
             else

@@ -198,6 +198,15 @@
                                 </ui:Button>
                             </Grid>
 
+                            <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                                <ui:Button Click="ExportWheel_Click" Height="30" Padding="12 4" Margin="0 0 6 0"
+                                           ToolTip="Export this wheel to CSV">
+                                    <ui:SymbolIcon Symbol="ArrowExportUp24"/></ui:Button>
+                                <ui:Button Click="ImportWheel_Click" Height="30" Padding="12 4"
+                                           ToolTip="Import a wheel from CSV">
+                                    <ui:SymbolIcon Symbol="ArrowDownload24"/></ui:Button>
+                            </StackPanel>
+
                             <Border Padding="10" BorderThickness="1" BorderBrush="#333" CornerRadius="6" Margin="0 0 0 12">
                                 <Grid>
                                     <Grid.ColumnDefinitions>

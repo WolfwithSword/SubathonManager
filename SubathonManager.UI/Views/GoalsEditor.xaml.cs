@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.EntityFrameworkCore;
@@ -375,6 +378,178 @@ namespace SubathonManager.UI.Views
         {
             if (_suppressCount > 0) return;
             Dispatcher.Invoke(() => UiUtils.UiUtils.UpdateButtonPendingBorder(SaveButtonBorder, true));
+        }
+
+        private async void ExportGoalSet_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeGoalSet == null) return;
+
+            await using var db = await _factory.CreateDbContextAsync();
+            var set = await db.SubathonGoalSets
+                .Include(s => s.Goals)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == _activeGoalSet.Id);
+            if (set == null) return;
+
+            string exportDir = Path.Combine(Config.DataFolder, "exports");
+            Directory.CreateDirectory(exportDir);
+
+            string safeName = string.Concat(set.Name.Split(Path.GetInvalidFileNameChars()));
+            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
+
+            var typeHeader = (set.Type ?? GoalsType.Points) == GoalsType.Money ? "Money" : "Points";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Goal,Value,{typeHeader}");
+            foreach (var goal in set.Goals.OrderBy(g => g.Points))
+                sb.AppendLine($"{Utils.EscapeCsv(goal.Text)},{goal.Points}");
+
+            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
+            }
+            catch { /**/ }
+        }
+
+        private async void ImportGoalSet_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import Goal Set",
+                Filter = "CSV Files (*.csv)|*.csv",
+                DefaultExt = "csv"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            string[] lines;
+            try
+            {
+                lines = await File.ReadAllLinesAsync(dlg.FileName, Encoding.UTF8);
+            }
+            catch
+            {
+                await ShowInvalidGoalCsvPopup();
+                return;
+            }
+
+            if (lines.Length < 1)
+            {
+                await ShowInvalidGoalCsvPopup();
+                return;
+            }
+
+            var headerCols = ParseCsvLine(lines[0]);
+            if (headerCols.Length < 2)
+            {
+                await ShowInvalidGoalCsvPopup();
+                return;
+            }
+
+            GoalsType goalType = GoalsType.Points;
+            if (headerCols.Length >= 3 &&
+                string.Equals(headerCols[2].Trim(), "Money", StringComparison.OrdinalIgnoreCase))
+                goalType = GoalsType.Money;
+
+            var goals = new List<SubathonGoal>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var cols = ParseCsvLine(lines[i]);
+                if (cols.Length < 2 || !long.TryParse(cols[1].Trim(), out long pts))
+                {
+                    await ShowInvalidGoalCsvPopup();
+                    return;
+                }
+                goals.Add(new SubathonGoal { Text = cols[0], Points = pts });
+            }
+
+            string goalSetName = Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            await using var db = await _factory.CreateDbContextAsync();
+            foreach (var s in db.SubathonGoalSets)
+                s.IsActive = false;
+
+            var newSet = new SubathonGoalSet { Name = goalSetName, IsActive = true, Type = goalType };
+            db.SubathonGoalSets.Add(newSet);
+            await db.SaveChangesAsync();
+
+            foreach (var g in goals)
+            {
+                g.GoalSetId = newSet.Id;
+                db.SubathonGoals.Add(g);
+            }
+            await db.SaveChangesAsync();
+
+            LoadAllSets();
+        }
+
+        private static string[] ParseCsvLine(string line)
+        {
+            var result = new List<string>();
+            var field = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    switch (c)
+                    {
+                        case '"' when i + 1 < line.Length && line[i + 1] == '"':
+                            field.Append('"');
+                            i++;
+                            break;
+                        case '"':
+                            inQuotes = false;
+                            break;
+                        default:
+                            field.Append(c);
+                            break;
+                    }
+                }
+                else
+                {
+                    switch (c)
+                    {
+                        case '"':
+                            inQuotes = true;
+                            break;
+                        case ',':
+                            result.Add(field.ToString());
+                            field.Clear();
+                            break;
+                        default:
+                            field.Append(c);
+                            break;
+                    }
+                }
+            }
+            result.Add(field.ToString());
+            return result.ToArray();
+        }
+
+        private static async Task ShowInvalidGoalCsvPopup()
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Invalid CSV",
+                Content = new TextBlock
+                {
+                    Text = "The selected file is not a valid goal set CSV and could not be imported.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = 300,
+                    Margin = new Thickness(4, 4, 4, 4)
+                },
+                CloseButtonText = "OK",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            await msgBox.ShowDialogAsync();
         }
     }
 }

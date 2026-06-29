@@ -67,10 +67,10 @@ namespace SubathonManager.UI.Views.WheelSpin
 
             Loaded += (_, _) =>
             {
+                LoadCurrencies();
                 if (!_initialized)
                 {
                     PopulateEventTypeComboBox();
-                    LoadCurrencies();
                     WireDirtyHandlers();
                     _initialized = true;
                 }
@@ -974,6 +974,208 @@ namespace SubathonManager.UI.Views.WheelSpin
                 Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
             }
             catch { /**/ }
+        }
+
+        private async void ExportTriggers_Click(object sender, RoutedEventArgs e)
+        {
+            await using var db = await _factory.CreateDbContextAsync();
+            var triggers = await db.WheelSpinTriggers.AsNoTracking().ToListAsync();
+
+            string exportDir = Path.Combine(Config.DataFolder, "exports");
+            Directory.CreateDirectory(exportDir);
+            string filepath = Path.Combine(exportDir, $"wheel-triggers-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Enabled,SpinsToAdd,EventType,TierValue,CountThreshold,MoneyThreshold,Currency");
+            foreach (var t in triggers)
+            {
+                sb.AppendLine(string.Join(",",
+                    t.IsEnabled,
+                    t.SpinsToAdd,
+                    t.EventType,
+                    Utils.EscapeCsv(t.TierValue ?? ""),
+                    t.CountThreshold?.ToString() ?? "",
+                    t.MoneyThreshold?.ToString("G") ?? "",
+                    Utils.EscapeCsv(t.Currency ?? "")
+                ));
+            }
+
+            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
+            }
+            catch { /**/ }
+        }
+
+        private async void ImportTriggers_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import Triggers",
+                Filter = "CSV Files (*.csv)|*.csv",
+                DefaultExt = "csv"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            string[] lines;
+            try { lines = await File.ReadAllLinesAsync(dlg.FileName, Encoding.UTF8); }
+            catch { await ShowInvalidTriggerCsvPopup(); return; }
+
+            if (lines.Length < 1) { await ShowInvalidTriggerCsvPopup(); return; }
+
+            var headerCols = ParseTriggerCsvLine(lines[0]);
+            if (headerCols.Length < 3) { await ShowInvalidTriggerCsvPopup(); return; }
+
+            // validate ALL rows
+            var parsed = new List<WheelSpinTrigger>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var cols = ParseTriggerCsvLine(lines[i]);
+
+                if (cols.Length < 3
+                    || !bool.TryParse(cols[0].Trim(), out bool enabled)
+                    || !int.TryParse(cols[1].Trim(), out int spins)
+                    || !Enum.TryParse<SubathonEventType>(cols[2].Trim(), out var eventType))
+                { await ShowInvalidTriggerCsvPopup(); return; }
+
+                string? tierValue = cols.Length > 3 && !string.IsNullOrWhiteSpace(cols[3]) ? cols[3].Trim() : null;
+
+                int? countThreshold = null;
+                if (cols.Length > 4 && !string.IsNullOrWhiteSpace(cols[4]))
+                {
+                    if (!int.TryParse(cols[4].Trim(), out int ct)) { await ShowInvalidTriggerCsvPopup(); return; }
+                    countThreshold = ct;
+                }
+
+                double? moneyThreshold = null;
+                if (cols.Length > 5 && !string.IsNullOrWhiteSpace(cols[5]))
+                {
+                    if (!double.TryParse(cols[5].Trim(), System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double mt))
+                    { await ShowInvalidTriggerCsvPopup(); return; }
+                    moneyThreshold = mt;
+                }
+
+                string? currency = cols.Length > 6 && !string.IsNullOrWhiteSpace(cols[6]) ? cols[6].Trim() : null;
+
+                parsed.Add(new WheelSpinTrigger
+                {
+                    IsEnabled = enabled,
+                    SpinsToAdd = spins,
+                    EventType = eventType,
+                    TierValue = tierValue,
+                    CountThreshold = countThreshold,
+                    MoneyThreshold = moneyThreshold,
+                    Currency = currency
+                });
+            }
+
+            await using var db = await _factory.CreateDbContextAsync();
+            await db.WheelSpinTriggerHistories.ExecuteDeleteAsync();
+            await db.WheelSpinTriggers.ExecuteDeleteAsync();
+
+            db.WheelSpinTriggers.AddRange(parsed);
+            await db.SaveChangesAsync();
+
+            _selectedTrigger = null;
+            _isNewTrigger = false;
+            await Dispatcher.InvokeAsync(LoadTriggerRows);
+            await Dispatcher.InvokeAsync(async () => await LoadHistoryAsync(reset: true));
+            WheelEvents.RaiseWheelSpinTriggersChanged();
+        }
+
+        private static string[] ParseTriggerCsvLine(string line)
+        {
+            var result = new List<string>();
+            var field = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    switch (c)
+                    {
+                        case '"' when i + 1 < line.Length && line[i + 1] == '"':
+                            field.Append('"'); i++;
+                            break;
+                        case '"':
+                            inQuotes = false;
+                            break;
+                        default:
+                            field.Append(c);
+                            break;
+                    }
+                }
+                else
+                {
+                    switch (c)
+                    {
+                        case '"':
+                            inQuotes = true;
+                            break;
+                        case ',':
+                            result.Add(field.ToString()); field.Clear();
+                            break;
+                        default:
+                            field.Append(c);
+                            break;
+                    }
+                }
+            }
+            result.Add(field.ToString());
+            return result.ToArray();
+        }
+
+        private static async Task ShowInvalidTriggerCsvPopup()
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Invalid CSV",
+                Content = new TextBlock
+                {
+                    Text = "The selected file is not a valid trigger CSV and could not be imported.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = 300,
+                    Margin = new Thickness(4, 4, 4, 4)
+                },
+                CloseButtonText = "OK",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            await msgBox.ShowDialogAsync();
+        }
+
+        private async void DeleteAllTriggerHistory_Click(object sender, RoutedEventArgs e)
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Delete All Trigger History",
+                Content = new TextBlock
+                {
+                    Text = "Are you sure you want to delete all trigger history?",
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = 320,
+                    Margin = new Thickness(4, 4, 4, 8)
+                },
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            var result = await msgBox.ShowDialogAsync();
+            if (result != Wpf.Ui.Controls.MessageBoxResult.Primary) return;
+
+            await using var db = await _factory.CreateDbContextAsync();
+            await db.WheelSpinTriggerHistories.ExecuteDeleteAsync();
+
+            await Dispatcher.InvokeAsync(async () => await LoadHistoryAsync(reset: true));
         }
 
         private void OnTriggerFired(WheelSpinTrigger trigger, WheelSpinTriggerHistory history, int newSpinsOwed)

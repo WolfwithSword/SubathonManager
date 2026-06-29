@@ -138,6 +138,8 @@ Custom commands, donations and subscriptions via POST API or WebSocket
 - Audit & Event logging to file and Discord webhooks
 - Built in overlay editor and host server for local html widgets, import + export too!
 - Goals list tracking
+- Integrated WheelSpins
+- Automated mini timed goal-like prompts
 - Multiplier modes for time and/or points
 - External control API for integrating with complex setups and unsupported services
 - Reverse Subathon - timer goes up, events reduce time!

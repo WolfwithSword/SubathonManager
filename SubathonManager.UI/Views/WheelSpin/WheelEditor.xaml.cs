@@ -58,11 +58,13 @@ namespace SubathonManager.UI.Views.WheelSpin
                 }
                 SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
                 WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
+                WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
             };
             Unloaded += (_, _) =>
             {
                 SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
                 WheelEvents.OnSpinsOwedUpdateFromEvent -= AdjustSpinsBoxByEvent;
+                WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
             };
         }
 
@@ -324,7 +326,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(82) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
 
@@ -362,14 +364,98 @@ namespace SubathonManager.UI.Views.WheelSpin
             };
             Grid.SetColumn(weightLabel, 2);
 
-            var qtyLabel = new TextBlock
+            UIElement qtyElement;
+            if (item.IsInfinite)
             {
-                Text = item.IsInfinite ? "∞" : item.Quantity.ToString(),
-                FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            Grid.SetColumn(qtyLabel, 3);
+                var infLabel = new TextBlock
+                {
+                    Text = "∞",
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center
+                };
+                qtyElement = infLabel;
+            }
+            else
+            {
+                var qtyLabel = new TextBlock
+                {
+                    Text = item.Quantity.ToString(),
+                    FontSize = 12,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    MinWidth = 24,
+                    TextAlignment = TextAlignment.Center,
+                    Margin = new Thickness(2, 0, 2, 0)
+                };
+                var minusBtn = new Wpf.Ui.Controls.Button
+                {
+                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Subtract24 },
+                    Width = 20,
+                    Height = 20,
+                    Padding = new Thickness(1),
+                    IsEnabled = item.Quantity > 0,
+                    ToolTip = "Decrease quantity"
+                };
+                var plusBtn = new Wpf.Ui.Controls.Button
+                {
+                    Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Add24 },
+                    Width = 20,
+                    Height = 20,
+                    Padding = new Thickness(1),
+                    ToolTip = "Increase quantity"
+                };
+                minusBtn.Click += async (_, _) =>
+                {
+                    if (item.Quantity <= 0) return;
+                    item.Quantity = Math.Max(0, item.Quantity - 1);
+                    qtyLabel.Text = item.Quantity.ToString();
+                    minusBtn.IsEnabled = item.Quantity > 0;
+                    if (_selectedItem?.Id == item.Id)
+                    {
+                        _selectedItem.Quantity = item.Quantity;
+                        SuppressChanges(() => ItemQuantityBox.Text = item.Quantity.ToString());
+                    }
+                    await using var db = await _factory.CreateDbContextAsync();
+                    var tracked = await db.WheelItems.FindAsync(item.Id);
+                    if (tracked != null)
+                    {
+                        tracked.Quantity = item.Quantity;
+                        await db.SaveChangesAsync();
+                    }
+                    RaiseWheelDataChanged();
+                };
+                plusBtn.Click += async (_, _) =>
+                {
+                    item.Quantity++;
+                    qtyLabel.Text = item.Quantity.ToString();
+                    minusBtn.IsEnabled = true;
+                    if (_selectedItem?.Id == item.Id)
+                    {
+                        _selectedItem.Quantity = item.Quantity;
+                        SuppressChanges(() => ItemQuantityBox.Text = item.Quantity.ToString());
+                    }
+                    await using var db = await _factory.CreateDbContextAsync();
+                    var tracked = await db.WheelItems.FindAsync(item.Id);
+                    if (tracked != null)
+                    {
+                        tracked.Quantity = item.Quantity;
+                        await db.SaveChangesAsync();
+                    }
+                    RaiseWheelDataChanged();
+                };
+                var qtyPanel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                qtyPanel.Children.Add(minusBtn);
+                qtyPanel.Children.Add(qtyLabel);
+                qtyPanel.Children.Add(plusBtn);
+                qtyElement = qtyPanel;
+            }
+            Grid.SetColumn(qtyElement, 3);
 
             string actionText = item.Action == null ? "M" : item.Action.ActionType switch
             {
@@ -410,7 +496,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             row.Children.Add(enabledCheck);
             row.Children.Add(textLabel);
             row.Children.Add(weightLabel);
-            row.Children.Add(qtyLabel);
+            row.Children.Add(qtyElement);
             row.Children.Add(actionLabel);
             row.Children.Add(deleteBtn);
 
@@ -1169,7 +1255,7 @@ namespace SubathonManager.UI.Views.WheelSpin
                     IsEnabled = h.Status != target,
                     Tag = target
                 };
-                btn.Click += async (_, _) => await SetHistoryStatus(h, target, statusLabel, hoverBtns);
+                btn.Click += async (_, _) => await SetHistoryStatus(h, target);
                 hoverBtns.Children.Add(btn);
             }
 
@@ -1216,7 +1302,7 @@ namespace SubathonManager.UI.Views.WheelSpin
                     IsEnabled = !isMultiplier || !_multiplierActive,
                     Tag = isMultiplier ? "MultiplierPlayBtn" : null
                 };
-                playBtn.Click += async (_, _) => await ExecuteHistoryAction(h, playBtn, statusLabel, hoverBtns);
+                playBtn.Click += async (_, _) => await ExecuteHistoryAction(h, playBtn);
                 Grid.SetColumn(playBtn, 1);
                 actionCell.Children.Add(playBtn);
             }
@@ -1244,8 +1330,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             _                                => System.Windows.Media.Brushes.Gray
         };
 
-        private async Task SetHistoryStatus(WheelSpinHistory h, WheelSpinHistoryStatus newStatus,
-            TextBlock statusLabel, StackPanel hoverBtns)
+        private async Task SetHistoryStatus(WheelSpinHistory h, WheelSpinHistoryStatus newStatus)
         {
             h.Status = newStatus;
             h.UpdatedAt = DateTime.Now;
@@ -1257,17 +1342,39 @@ namespace SubathonManager.UI.Views.WheelSpin
             tracked.UpdatedAt = h.UpdatedAt;
             await db.SaveChangesAsync();
 
-            await Dispatcher.InvokeAsync(() =>
-            {
-                statusLabel.Text = newStatus.ToString();
-                statusLabel.Foreground = HistoryStatusBrush(newStatus);
-                foreach (var btn in hoverBtns.Children.OfType<Wpf.Ui.Controls.Button>())
-                    btn.IsEnabled = btn.Tag is WheelSpinHistoryStatus s && s != newStatus;
-            });
             h.LinkedWheel ??= _activeWheel;
             WheelEvents.RaiseWheelSpinStatusChanged(h, _spinsOwed);
         }
 
+        private void OnWheelSpinStatusChanged(WheelSpinHistory history, int spinsOwed)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                var row = HistoryStack.Children.OfType<Grid>()
+                    .FirstOrDefault(g => g.Tag is WheelSpinHistory h && h.Id == history.Id);
+                if (row == null) return;
+
+                if (row.Tag is WheelSpinHistory rowHistory)
+                    rowHistory.Status = history.Status;
+
+                var statusLabel = row.Children.OfType<TextBlock>()
+                    .FirstOrDefault(c => Grid.GetColumn(c) == 3);
+                var hoverBtns = row.Children.OfType<StackPanel>()
+                    .FirstOrDefault(c => Grid.GetColumn(c) == 4);
+
+                if (statusLabel != null)
+                {
+                    statusLabel.Text = history.Status.ToString();
+                    statusLabel.Foreground = HistoryStatusBrush(history.Status);
+                }
+                if (hoverBtns != null)
+                {
+                    foreach (var btn in hoverBtns.Children.OfType<Wpf.Ui.Controls.Button>())
+                        btn.IsEnabled = btn.Tag is WheelSpinHistoryStatus s && s != history.Status;
+                }
+            });
+        }
+        
         private void RaiseWheelDataChanged()
         {
             if (_activeWheel == null) return;
@@ -1303,8 +1410,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             }
         }
 
-        private async Task ExecuteHistoryAction(WheelSpinHistory h, Wpf.Ui.Controls.Button playBtn,
-            TextBlock statusLabel, StackPanel hoverBtns)
+        private async Task ExecuteHistoryAction(WheelSpinHistory h, Wpf.Ui.Controls.Button playBtn)
         {
             await Dispatcher.InvokeAsync(() =>
             {
@@ -1355,7 +1461,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             }
 
             if (h.Status != WheelSpinHistoryStatus.Done)
-                await SetHistoryStatus(h, WheelSpinHistoryStatus.Done, statusLabel, hoverBtns);
+                await SetHistoryStatus(h, WheelSpinHistoryStatus.Done);
         }
 
         private void HistoryFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1418,6 +1524,173 @@ namespace SubathonManager.UI.Views.WheelSpin
                 Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
             }
             catch { /**/ }
+        }
+
+        private async void ExportWheel_Click(object sender, RoutedEventArgs e)
+        {
+            if (_activeWheel == null) return;
+
+            await using var db = await _factory.CreateDbContextAsync();
+            var wheel = await db.WheelSets
+                .Include(w => w.WheelItems).ThenInclude(i => i.Action)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.Id == _activeWheel.Id);
+            if (wheel == null) return;
+
+            string exportDir = Path.Combine(Config.DataFolder, "exports");
+            Directory.CreateDirectory(exportDir);
+
+            string safeName = string.Concat(wheel.Name.Split(Path.GetInvalidFileNameChars()));
+            string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Text,Weight,Quantity,Infinite,Enabled,ActionType,ActionParameter");
+            foreach (var item in wheel.WheelItems.OrderBy(i => i.Index))
+            {
+                sb.AppendLine(string.Join(",",
+                    Utils.EscapeCsv(item.Text),
+                    item.Weight,
+                    item.Quantity,
+                    item.IsInfinite,
+                    item.Enabled,
+                    item.Action?.ActionType.ToString() ?? $"{WheelSpinActionType.Manual}",
+                    Utils.EscapeCsv(item.Action?.Parameter ?? "")
+                ));
+            }
+
+            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
+
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = exportDir, UseShellExecute = true, Verb = "open" });
+            }
+            catch { /**/ }
+        }
+
+        private async void ImportWheel_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Import Wheel",
+                Filter = "CSV Files (*.csv)|*.csv",
+                DefaultExt = "csv"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            string[] lines;
+            try { lines = await File.ReadAllLinesAsync(dlg.FileName, Encoding.UTF8); }
+            catch { await ShowInvalidWheelCsvPopup(); return; }
+
+            if (lines.Length < 1) { await ShowInvalidWheelCsvPopup(); return; }
+
+            var headerCols = ParseWheelCsvLine(lines[0]);
+            if (headerCols.Length < 5) { await ShowInvalidWheelCsvPopup(); return; }
+
+            var items = new List<(string Text, int Weight, int Qty, bool Infinite, bool Enabled, WheelSpinActionType ActionType, string ActionParam)>();
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                var cols = ParseWheelCsvLine(lines[i]);
+                if (cols.Length < 5
+                    || !int.TryParse(cols[1].Trim(), out int weight)
+                    || !int.TryParse(cols[2].Trim(), out int qty)
+                    || !bool.TryParse(cols[3].Trim(), out bool infinite)
+                    || !bool.TryParse(cols[4].Trim(), out bool enabled))
+                { await ShowInvalidWheelCsvPopup(); return; }
+
+                var actionTypeStr = cols.Length > 5 ? cols[5].Trim() : "";
+                var actionType = WheelSpinActionType.Manual;
+                if (!string.IsNullOrEmpty(actionTypeStr) && !Enum.TryParse(actionTypeStr, out actionType))
+                { await ShowInvalidWheelCsvPopup(); return; }
+
+                string actionParam = cols.Length > 6 ? cols[6] : "";
+                items.Add((cols[0], weight, qty, infinite, enabled, actionType, actionParam));
+            }
+
+            string wheelName = Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            await using var db = await _factory.CreateDbContextAsync();
+            foreach (var w in db.WheelSets)
+                w.IsActive = false;
+
+            var newWheel = new WheelSet { Name = wheelName, IsActive = true };
+            db.WheelSets.Add(newWheel);
+            await db.SaveChangesAsync();
+
+            for (int idx = 0; idx < items.Count; idx++)
+            {
+                var (text, weight, qty, infinite, enabled, actionType, actionParam) = items[idx];
+                var newItem = new WheelItem
+                {
+                    Text = text,
+                    Weight = weight,
+                    Quantity = qty,
+                    IsInfinite = infinite,
+                    Enabled = enabled,
+                    Index = idx,
+                    WheelId = newWheel.Id
+                };
+                db.WheelItems.Add(newItem);
+                await db.SaveChangesAsync();
+
+                var action = new WheelSpinAction
+                {
+                    ActionType = actionType,
+                    Parameter = actionParam,
+                    WheelItemId = newItem.Id
+                };
+                db.WheelSpinActions.Add(action);
+            }
+            await db.SaveChangesAsync();
+
+            LoadActiveWheel();
+        }
+
+        private static string[] ParseWheelCsvLine(string line)
+        {
+            var result = new List<string>();
+            var field = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    if (c == '"' && i + 1 < line.Length && line[i + 1] == '"') { field.Append('"'); i++; }
+                    else if (c == '"') inQuotes = false;
+                    else field.Append(c);
+                }
+                else
+                {
+                    if (c == '"') inQuotes = true;
+                    else if (c == ',') { result.Add(field.ToString()); field.Clear(); }
+                    else field.Append(c);
+                }
+            }
+            result.Add(field.ToString());
+            return result.ToArray();
+        }
+
+        private static async Task ShowInvalidWheelCsvPopup()
+        {
+            var msgBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = "Invalid CSV",
+                Content = new TextBlock
+                {
+                    Text = "The selected file is not a valid wheel CSV and could not be imported.",
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = 300,
+                    Margin = new Thickness(4, 4, 4, 4)
+                },
+                CloseButtonText = "OK",
+                Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            await msgBox.ShowDialogAsync();
         }
     }
 }

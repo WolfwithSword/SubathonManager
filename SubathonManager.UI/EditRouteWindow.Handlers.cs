@@ -33,7 +33,12 @@ public partial class EditRouteWindow
     {
         if (sender is not Border { Tag: Guid id } border) return;
         _widgetCardBorders[id] = border;
-        UiUtils.UiUtils.UpdateButtonPendingBorder(border, 
+        if (_erroredWidgets.Contains(id))
+        {
+            border.Background = new SolidColorBrush(Color.FromArgb(60, 220, 53, 69));
+            return;
+        }
+        UiUtils.UiUtils.UpdateButtonPendingBorder(border,
             _unsavedCssVars.ContainsKey(id) || _unsavedJsVars.ContainsKey(id));
     }
 
@@ -177,15 +182,30 @@ public partial class EditRouteWindow
     
     private async void ImportWidgetButton_Click(object sender, RoutedEventArgs e)
     {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select widget HTML file(s)",
+            Filter = "HTML Widgets|*.html;*.htm",
+            Multiselect = true
+        };
+        await RunImportDialogAsync(dlg);
+    }
+
+    private async void ImportAssetButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Select asset file(s)",
+            Filter = "Asset Files|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg;*.mp4;*.m4v;*.webm;*.ogm;*.mkv;*.mov|Image Widgets|*.png;*.jpg;*.jpeg;*.gif;*.webp;*.avif;*.bmp;*.svg|Video Widgets|*.mp4;*.m4v;*.webm;*.ogm;*.mkv;*.mov",
+            Multiselect = true
+        };
+        await RunImportDialogAsync(dlg);
+    }
+
+    private async Task RunImportDialogAsync(Microsoft.Win32.OpenFileDialog dlg)
+    {
         try
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Select widget HTML file(s)",
-                Filter = "HTML Files|*.html;*.htm",
-                Multiselect = true
-            };
-
             if (!string.IsNullOrEmpty(_lastFolder) && Directory.Exists(_lastFolder))
                 dlg.InitialDirectory = _lastFolder;
             else if (Directory.Exists(Path.GetFullPath("./presets")))
@@ -195,7 +215,6 @@ public partial class EditRouteWindow
             {
                 await using var db = await _factory.CreateDbContextAsync();
                 WidgetEntityHelper helper = new WidgetEntityHelper(_factory, null);
-                _lastFolder = Path.GetDirectoryName(dlg.FileNames[0])!;
                 foreach (var path in dlg.FileNames)
                 {
                     try
@@ -204,7 +223,7 @@ public partial class EditRouteWindow
                     }
                     catch (Exception ex)
                     {
-                        _logger?.LogError(ex, "Failed to import widget HTML file {Path}", path);
+                        _logger?.LogError(ex, "Failed to import widget file {Path}", path);
                     }
                     _lastFolder = Path.GetDirectoryName(path)!;
                 }
@@ -216,7 +235,7 @@ public partial class EditRouteWindow
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to import widget HTML file(s)");
+            _logger?.LogError(ex, "Failed to import widget file(s)");
         }
     }
     
@@ -324,6 +343,27 @@ public partial class EditRouteWindow
         }
     }
     
+    private void AssetOpenFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedWidget == null) return;
+        string path = _selectedWidget.HtmlPath;
+        try
+        {
+            if (File.Exists(path))
+                Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{path}\"", UseShellExecute = true });
+            else
+            {
+                string? dir = Path.GetDirectoryName(path);
+                if (Directory.Exists(dir))
+                    Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"\"{dir}\"", UseShellExecute = true });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to open asset folder for {Path}", path);
+        }
+    }
+
     private async void OpenWidgetDocumentation_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWidget == null || string.IsNullOrWhiteSpace(_selectedWidget.DocsUrl)
@@ -378,16 +418,26 @@ public partial class EditRouteWindow
     
     
     private void EditWidget_Click(object sender, RoutedEventArgs e)
-    {    
+    {
         var widget = GetWidgetFromSender(sender);
-        if (widget != null)
-            PopulateWidgetEditor(widget);
+        if (widget == null) return;
+        if (_erroredWidgets.Contains(widget.Id))
+        {
+            ShowWidgetErrorPopup(widget);
+            return;
+        }
+        PopulateWidgetEditor(widget);
     }
-    
+
     private void WidgetCard_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: Widget widget })
-            PopulateWidgetEditor(widget);
+        if (sender is not FrameworkElement { DataContext: Widget widget }) return;
+        if (_erroredWidgets.Contains(widget.Id))
+        {
+            ShowWidgetErrorPopup(widget);
+            return;
+        }
+        PopulateWidgetEditor(widget);
     }
     
     
@@ -395,8 +445,12 @@ public partial class EditRouteWindow
     {
         var wi = GetWidgetFromSender(sender);
         if (wi == null) return;
-        Guid routeId = wi.RouteId;
+        await DeleteWidgetAsync(wi);
+    }
 
+    private async Task DeleteWidgetAsync(Widget wi)
+    {
+        Guid routeId = wi.RouteId;
         try
         {
             await using var db = await _factory.CreateDbContextAsync();
@@ -408,6 +462,7 @@ public partial class EditRouteWindow
             }
 
             _widgets.Remove(wi);
+            _erroredWidgets.Remove(wi.Id);
             await RefreshWidgetZIndicesAsync();
             RefreshWebView();
             OverlayEvents.RaiseOverlayRefreshRequested(routeId);
@@ -418,6 +473,43 @@ public partial class EditRouteWindow
         {
             _logger?.LogError(ex, "Failed to delete widget");
         }
+    }
+
+    private async void ShowWidgetErrorPopup(Widget widget)
+    {
+        var msgBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = "Widget Error",
+            PrimaryButtonText = "Delete Widget",
+            CloseButtonText = "OK",
+            Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive),
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            Margin = new Thickness(4, 4, 4, 8)
+        };
+        panel.Children.Add(new Wpf.Ui.Controls.TextBlock
+        {
+            Text = $"Error loading widget \"{widget.Name}\". Could not find file",
+            TextWrapping = TextWrapping.Wrap,
+            Width = 320
+        });
+        panel.Children.Add(new Wpf.Ui.Controls.TextBlock
+        {
+            Text = widget.HtmlPath,
+            ToolTip = widget.HtmlPath,
+            TextWrapping = TextWrapping.Wrap,
+            Width = 320,
+            Margin = new Thickness(0, 6, 0, 0)
+        });
+        msgBox.Content = panel;
+
+        var result = await msgBox.ShowDialogAsync();
+        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+            await DeleteWidgetAsync(widget);
     }
 
     private async void CopyWidget_Click(object sender, RoutedEventArgs e)

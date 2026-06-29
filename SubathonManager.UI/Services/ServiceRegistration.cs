@@ -82,6 +82,8 @@ public static class ServiceRegistration
         // Stream Extensions //
         services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<TipeeeStreamService>();
+        services.AddHttpClient(nameof(TangiaService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<TangiaService>();
 
         // Other //
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;

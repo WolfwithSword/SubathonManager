@@ -42,6 +42,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StartAsync<StreamLabsService>();
         await StartAsync<TipeeeStreamService>();
         await StartAsync<GoAffProService>();//(fireAndForget: true);
+        await StartAsync<TangiaService>();
         await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
         await StartAsync<KoFiService>();
         await StartAsync<FourthWallService>();
@@ -59,6 +60,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<StreamLabsService>();
         await StopAsync<TipeeeStreamService>();
         await StopAsync<GoAffProService>();
+        await StopAsync<TangiaService>();
         await StopAsync<KoFiService>();
         await StopAsync<ThroneService>();
         await StopAsync<FourthWallService>();
@@ -140,6 +142,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static EventService Events => Provider.GetRequiredService<EventService>();
     public static DiscordWebhookService DiscordWebhooks => Provider.GetRequiredService<DiscordWebhookService>();
     public static GoAffProService GoAffPro => Provider.GetRequiredService<GoAffProService>();
+    public static TangiaService Tangia => Provider.GetRequiredService<TangiaService>();
     public static FourthWallService FourthWall => Provider.GetRequiredService<FourthWallService>();
     public static ThroneService Throne => Provider.GetRequiredService<ThroneService>();
     public static DevTunnelsService DevTunnels => Provider.GetRequiredService<DevTunnelsService>();

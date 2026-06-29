@@ -10,7 +10,8 @@ public enum WebsocketClientMessageType
     IntegrationSource, // send partial-integration events 
     IntegrationConsumer, // get all updates like widgets
     ValueConfig, // will consume config events but also signify sending
-    Command // will send commands
+    Command, // will send commands
+    WheelControl // will receive wheel spin history status changes
 }
 
 [ExcludeFromCodeCoverage]
