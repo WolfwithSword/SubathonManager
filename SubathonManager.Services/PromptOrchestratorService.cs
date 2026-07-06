@@ -429,10 +429,13 @@ public class PromptOrchestratorService(
     private static bool MatchesEventType(SubathonEvent ev, SubathonPrompt prompt)
     {
         if (ev.EventType != prompt.FilterEventType) return false;
- 
+
+        if (prompt.FilterEventType == SubathonEventType.GoAffProOrder)
+            return string.IsNullOrEmpty(prompt.FilterMeta) || ev.EventTypeMeta == prompt.FilterMeta;
+
         if (prompt.SubType == SubathonPromptSubType.ByTier && !string.IsNullOrEmpty(prompt.FilterMeta))
             return ev.Value == prompt.FilterMeta;
- 
+
         return true;
     }
  
@@ -506,8 +509,10 @@ public class PromptOrchestratorService(
         var filterType = prompt.FilterEventType;
         var query = db.SubathonEvents.AsNoTracking()
             .Where(e => e.ProcessedToSubathon && e.EventType == filterType);
- 
-        if (prompt.SubType == SubathonPromptSubType.ByTier && !string.IsNullOrEmpty(prompt.FilterMeta))
+
+        if (filterType == SubathonEventType.GoAffProOrder && !string.IsNullOrEmpty(prompt.FilterMeta))
+            query = query.Where(e => e.EventTypeMeta == prompt.FilterMeta);
+        else if (prompt.SubType == SubathonPromptSubType.ByTier && !string.IsNullOrEmpty(prompt.FilterMeta))
             query = query.Where(e => e.Value == prompt.FilterMeta);
  
         if (prompt.SubType == SubathonPromptSubType.Items)

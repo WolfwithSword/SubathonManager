@@ -37,15 +37,24 @@ public class EnumValidationTests
                 foreach (var subathonEventType in group)
                 {
                     var eventType = (SubathonEventType?) subathonEventType;
-                    if (eventType == SubathonEventType.GoAffProOrder) continue;
-                    Assert.StartsWith(subathonEventType.GetTypeTrueSource() ?? "ERROR_ERROR_ERROR", subathonEventType.ToString());
-                    Assert.True(Enum.TryParse(subathonEventType.GetTypeTrueSource(), true, out GoAffProSource gapSource));
-                    Assert.True(gapSource.GetSiteId() > 0);
-                    Assert.True(gapSource.GetOrderEvent() == subathonEventType);
                     Assert.True(eventType.IsOrder());
                     Assert.EndsWith("Order", subathonEventType.ToString());
                     Assert.Equal(eventType.GetDescription(), eventType.GetLabel());
+                    if (subathonEventType == SubathonEventType.GoAffProOrder)
+                    {
+                        Assert.True(subathonEventType.IsEnabled());
+                        Assert.True(subathonEventType.GetLegacyGoAffProSiteId() <= 0);
+                    }
+                    else
+                    {
+                        Assert.True(subathonEventType.IsDisabled());
+                        Assert.True(subathonEventType.GetLegacyGoAffProSiteId() > 0);
+                    }
                 }
+
+                var siteIds = group.Where(t => t != SubathonEventType.GoAffProOrder)
+                    .Select(t => t.GetLegacyGoAffProSiteId()).ToList();
+                Assert.Equal(siteIds.Count, siteIds.Distinct().Count());
             }
 
             if (group.Key.GetGroup() == SubathonSourceGroup.Stream ||

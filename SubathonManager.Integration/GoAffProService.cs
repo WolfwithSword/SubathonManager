@@ -99,21 +99,19 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
 
         foreach (var site in sitesResponse.Sites.Where(site => site is { Id: not null, Status: UserSite_status.Approved }))
         {
-            if (!GoAffProSourceeHelper.TryGetSource(site.Id!.Value, out GoAffProSource source))
-            {
-                logger?.LogInformation("[GoAffPro] Site {Id} ({Name}) detected on account, but not integrated. Please create an integration request if you would like it supported", site.Id!.Value, site.Name);
-                continue;
-            }
-            if (source == GoAffProSource.Unknown || source.IsDisabled()) continue;
+            // dynamically provision any store on the account we haven't seen before
+            var store = GoAffProStoreRegistry.GetOrProvision(site.Id!.Value, site.Name ?? "");
+            if (!store.Enabled) continue;
             if (!_siteIds.Add(site.Id.Value)) continue;
+            GoAffProStoreRegistry.MarkActiveOnAccount(site.Id.Value);
             string currency = !string.IsNullOrWhiteSpace(site.Currency) ? site.Currency : "USD";
-            
+
             IntegrationConnection conn = new IntegrationConnection
             {
                 Name = currency,
                 Status = true,
                 Source = SubathonEventSource.GoAffPro,
-                Service = source.ToString()
+                Service = store.InternalName
             };
             IntegrationEvents.RaiseConnectionUpdate(conn);
         }
@@ -137,13 +135,13 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
         }, _detectorCts.Token);
     }
 
-    public void SimulateOrder(decimal total, int itemCount, decimal commissionTotal, GoAffProSource affilStore, string currency = "USD")
+    public void SimulateOrder(decimal total, int itemCount, decimal commissionTotal, GoAffProStore? affilStore, string currency = "USD")
     {
         string id = Guid.NewGuid().ToString();
         // id is meant to be a long but w/e
-        
+
         UserOrderFeedItem order = new UserOrderFeedItem();
-        int idInt = affilStore.TryGetSiteId(out var idParse) ? idParse : int.MaxValue;
+        int idInt = affilStore?.SiteId > 0 ? affilStore.SiteId : int.MaxValue;
         order.SiteId = new UserOrderFeedItem.UserOrderFeedItem_site_id() { Integer = idInt };
         order.Id = new UserOrderFeedItem.UserOrderFeedItem_id() { String = id};
         order.Number = "SIMULATED";
@@ -193,15 +191,15 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
             }
 
             var site = order.SiteId!.Integer;
-            if (site == null || !GoAffProSourceeHelper.TryGetSource((int)site, out GoAffProSource source)) return;
-            if (source == GoAffProSource.Unknown || source.IsDisabled()) return;
-            
+            if (site == null || !GoAffProStoreRegistry.TryGetBySiteId((int)site, out var store)) return;
+            if (!store.Enabled) return;
+
             // we will listen for these sites regardless in orders, but will ignore if not enabled.
-            var enabled = config.GetBool(_configSection, $"{source}.Enabled", true);
+            var enabled = config.GetBool(_configSection, $"{store.InternalName}.Enabled", true);
             if (!enabled) return;
-            
+
             var sourceMode = config.GetOrderTypeMode(_configSection,
-                $"{source}", OrderTypeModes.Dollar);
+                store.InternalName, OrderTypeModes.Dollar);
 
             ev.Currency = sourceMode switch
             {
@@ -232,12 +230,12 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
             }
 
             ev.SecondaryValue = $"{order.Commission}|{order.Currency}";
-            ev.EventType = source.GetOrderEvent();
-            if (ev.EventType == SubathonEventType.Unknown) return;
+            ev.EventType = SubathonEventType.GoAffProOrder;
+            ev.EventTypeMeta = store.SiteId.ToString();
 
-            ev.User = $"New {source}";
+            ev.User = $"New {store.InternalName}";
             if (ev.Source == SubathonEventSource.Simulated)
-                ev.User = $"SYSTEM {source}";
+                ev.User = $"SYSTEM {store.InternalName}";
 
             SubathonEvents.RaiseSubathonEventCreated(ev);
         }
@@ -251,17 +249,18 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
     {
         timerService?.Unregister("goaffpro-auth-check");
 
-        foreach (var integ in Enum.GetNames<GoAffProSource>())
-        {           
+        foreach (var store in GoAffProStoreRegistry.All())
+        {
+            GoAffProStoreRegistry.MarkActiveOnAccount(store.SiteId, false);
             IntegrationConnection conn = new IntegrationConnection
             {
                 Name = "",
                 Status = false,
                 Source = SubathonEventSource.GoAffPro,
-                Service = integ
+                Service = store.InternalName
             };
             IntegrationEvents.RaiseConnectionUpdate(conn);
-        }        
+        }
         
         IntegrationConnection connection = new IntegrationConnection
         {

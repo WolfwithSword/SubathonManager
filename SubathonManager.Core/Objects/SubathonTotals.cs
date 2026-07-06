@@ -13,12 +13,13 @@ public class SubathonTotals
     public long TokenLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, long> TokenLikeByEvent { get; init; } = new();
 
-    public Dictionary<SubathonEventType, int> OrderCountByType { get; init; } = new();
-    public Dictionary<SubathonEventType, int> OrderItemsCountByType { get; init; } = new();
-    
+    // keyed by order key (enum name, or store InternalEventName for GoAffPro)
+    public Dictionary<string, int> OrderCountByType { get; init; } = new();
+    public Dictionary<string, int> OrderItemsCountByType { get; init; } = new();
+
     public int FollowLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> FollowLikeByEvent { get; init; } = new();
-    
+
     public SubathonSimulatedTotals Simulated { get; init; } = new();
 }
 
@@ -30,9 +31,10 @@ public class SubathonSimulatedTotals
     public long TokenLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, long> TokenLikeByEvent { get; init; } = new();
 
-    public Dictionary<SubathonEventType, int> OrderCountByType { get; init; } = new();
-    public Dictionary<SubathonEventType, int> OrderItemsCountByType { get; init; } = new();
-    
+    // keyed by order key (enum name, or store InternalEventName for GoAffPro)
+    public Dictionary<string, int> OrderCountByType { get; init; } = new();
+    public Dictionary<string, int> OrderItemsCountByType { get; init; } = new();
+
     public int FollowLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> FollowLikeByEvent { get; init; } = new();
 }

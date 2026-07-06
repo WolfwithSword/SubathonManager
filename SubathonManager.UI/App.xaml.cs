@@ -11,6 +11,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
@@ -88,18 +89,13 @@ public partial class App
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
-            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
-            {
-                Utils.DonationSettings[$"{goAffProSource}"] =
-                    config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
-            }
-            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not SubathonEventSource.Throne
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not (SubathonEventSource.Throne or SubathonEventSource.GoAffPro)
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
                 Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] =
                     config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
             }
-            
+
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
 
             SetStartupTheme(config);
@@ -113,21 +109,43 @@ public partial class App
             using (var db = _factory.CreateDbContext()) {
                 db.Database.Migrate();
                 AppDbContext.SeedDefaultValues(db);
-                
-                // var stores = db.GoAffProStores.ToList();
-                // GoAffProStoreRegistry.Initialize(stores);
+
+                var stores = db.GoAffProStores.ToList();
+                GoAffProStoreRegistry.Initialize(stores);
             }
-            
-            // GoAffProStoreRegistry.StoreDiscovered += async store =>
-            // {
-            //     using var scope = AppServices.Provider.CreateScope();
-            //     var db2 = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            //     db2.GoAffProStores.Add(store);
-            //     await db2.SaveChangesAsync();
-            //     var cfg = AppServices.Provider.GetRequiredService<IConfig>();
-            //     Utils.DonationSettings[store.InternalName] =
-            //         cfg.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
-            // };
+
+            GoAffProConfigMigration.Run(config);
+            foreach (var store in GoAffProStoreRegistry.All())
+            {
+                Utils.DonationSettings[store.InternalName] =
+                    config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+            }
+
+            // new stores detected on the user's GoAffPro account get persisted & seeded on the fly
+            GoAffProStoreRegistry.StoreDiscovered += store =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        if (!db2.GoAffProStores.Any(s => s.SiteId == store.SiteId))
+                            db2.GoAffProStores.Add(store);
+                        var meta = store.SiteId.ToString();
+                        if (!db2.SubathonValues.Any(sv => sv.EventType == SubathonEventType.GoAffProOrder && sv.Meta == meta))
+                            db2.SubathonValues.Add(new SubathonValue
+                                { EventType = SubathonEventType.GoAffProOrder, Seconds = 12, Meta = meta });
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist discovered GoAffPro store {SiteId}", store.SiteId);
+                    }
+                    var cfg = AppServices.Provider.GetRequiredService<IConfig>();
+                    Utils.DonationSettings[store.InternalName] =
+                        cfg.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+                });
+            };
 
             base.OnStartup(e);
             
@@ -410,15 +428,15 @@ public partial class App
                 Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
             }
             
-            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
+            foreach (var store in GoAffProStoreRegistry.All())
             {
-                bool asDonation = config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
-                if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
+                bool asDonation = config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+                if (Utils.DonationSettings.TryGetValue(store.InternalName, out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
-                Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
+                Utils.DonationSettings[store.InternalName] = asDonation;
             }
 
-            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not SubathonEventSource.Throne
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not (SubathonEventSource.Throne or SubathonEventSource.GoAffPro)
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
                 bool asDonation = config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);

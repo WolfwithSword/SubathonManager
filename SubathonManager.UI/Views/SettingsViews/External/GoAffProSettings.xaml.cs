@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,18 +24,19 @@ public partial class GoAffProSettings : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<GoAffProSettings>>();
     private readonly string _configSection = "GoAffPro";
-    private readonly Dictionary<GoAffProSource, GoAffProSourceControl> _sourceControls = new();
-    private readonly Dictionary<GoAffProSource, bool> _connectedStatus = new();
+    // keyed by store InternalName
+    private readonly Dictionary<string, GoAffProSourceControl> _sourceControls = new();
+    private readonly Dictionary<string, bool> _connectedStatus = new();
 
-    private IEnumerable<GoAffProSource> _sources => Enum.GetValues<GoAffProSource>()
-        .Where(s => !s.IsDisabled());
-    private GoAffProSource _activeSource = GoAffProSource.Unknown;
-    
+    private static IEnumerable<GoAffProStore> _stores => GoAffProStoreRegistry.All()
+        .Where(s => s.Enabled);
+    private string _activeSource = string.Empty;
+
 
     public GoAffProSettings()
     {
         InitializeComponent();
-        
+
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
@@ -48,103 +49,128 @@ public partial class GoAffProSettings : SettingsControl
             IntegrationEvents.ConnectionUpdated -= UpdateStatus;
         };
     }
-    
+
     public override void Init(SettingsView host)
     {
         Host = host;
         Dispatcher.Invoke(() =>
         {
             UpdateStatus(Utils.GetConnection(SubathonEventSource.GoAffPro, nameof(SubathonEventSource.GoAffPro)));
-            foreach (var source in _sources)
-            {
-                var control = new GoAffProSourceControl(host, source);
-                _sourceControls[source] = control;
-                UpdateStatus(Utils.GetConnection(SubathonEventSource.GoAffPro, source.ToString()));
-                
-                var navBtn = new Wpf.Ui.Controls.Button
-                {
-                    Content = source.GetDescription(),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(2, 1, 2, 1),
-                    Padding = new Thickness(6, 4, 6, 4),
-                    Appearance = ControlAppearance.Transparent,
-                    Height = 34,
-                    Tag = source.ToString(),
-                    BorderThickness = new Thickness(2, 1, 1, 1),
-                };
-                navBtn.Click += GroupNav_Click;
-                SourceList?.Children.Add(navBtn);
-
-                _sourceControls.TryGetValue(source, out var cachedControl);
-                if (cachedControl != null && _activeSource == GoAffProSource.Unknown)
-                {
-                    SelectGroup(source.ToString());
-                }
-            }
+            foreach (var store in _stores)
+                AddStoreTab(store);
         });
+
+        GoAffProStoreRegistry.StoreDiscovered -= OnStoreDiscovered;
+        GoAffProStoreRegistry.StoreDiscovered += OnStoreDiscovered;
 
         Dispatcher.InvokeAsync(async () =>
         {
             await Task.Delay(5000);
-            foreach (var source in _sources)
+            foreach (var store in _stores)
             {
-                SetNavButtonStatus(source,
-                    Utils.GetConnection(SubathonEventSource.GoAffPro, source.ToString()).Status);
+                SetNavButtonStatus(store.InternalName,
+                    Utils.GetConnection(SubathonEventSource.GoAffPro, store.InternalName).Status);
             }
         });
     }
 
-    
+    private void OnStoreDiscovered(GoAffProStore store)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (_sourceControls.ContainsKey(store.InternalName) || !store.Enabled) return;
+            AddStoreTab(store);
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            SuppressUnsavedChanges(() =>
+            {
+                var factory = AppServices.Provider
+                    .GetRequiredService<Microsoft.EntityFrameworkCore.IDbContextFactory<AppDbContext>>();
+                using var db = factory.CreateDbContext();
+                _sourceControls[store.InternalName].LoadValues(db, config, _configSection);
+            });
+        });
+    }
+
+    private void AddStoreTab(GoAffProStore store)
+    {
+        if (_sourceControls.ContainsKey(store.InternalName)) return;
+        var control = new GoAffProSourceControl(Host, store);
+        _sourceControls[store.InternalName] = control;
+        UpdateStatus(Utils.GetConnection(SubathonEventSource.GoAffPro, store.InternalName));
+
+        var navBtn = new Wpf.Ui.Controls.Button
+        {
+            Content = store.StoreName,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(2, 1, 2, 1),
+            Padding = new Thickness(6, 4, 6, 4),
+            Appearance = ControlAppearance.Transparent,
+            Height = 34,
+            Tag = store.InternalName,
+            BorderThickness = new Thickness(2, 1, 1, 1),
+        };
+        navBtn.Click += GroupNav_Click;
+        SourceList?.Children.Add(navBtn);
+
+        if (string.IsNullOrEmpty(_activeSource))
+        {
+            SelectGroup(store.InternalName);
+        }
+    }
+
+
     private void GroupNav_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Wpf.Ui.Controls.Button { Tag: string label })
             SelectGroup(label);
     }
-    
+
     private void SelectGroup(string label)
     {
         if (SourceList == null) return;
         foreach (var child in SourceList.Children)
         {
             if (child is not Wpf.Ui.Controls.Button btn) continue;
-            
+
             btn.Appearance = btn.Tag as string == label
                 ? ControlAppearance.Secondary
                 : ControlAppearance.Transparent;
         }
 
-        if (!Enum.TryParse(label, out GoAffProSource source)) return;
-        if (source == _activeSource) return;
+        if (label == _activeSource) return;
 
-        _sourceControls.TryGetValue(source, out var control);
-            
+        _sourceControls.TryGetValue(label, out var control);
+
         SourcesPanel?.Children.Clear();
         if(control != null)
             SourcesPanel?.Children.Add(control);
-        _activeSource = source;
+        _activeSource = label;
     }
 
-    
+
     internal override void UpdateStatus(IntegrationConnection? connection)
     {
         if (connection is not { Source: SubathonEventSource.GoAffPro }) return;
-        Host.UpdateConnectionStatus(connection.Status, StatusText, ConnectBtn);
+        if (connection.Service == nameof(SubathonEventSource.GoAffPro))
+        {
+            Host.UpdateConnectionStatus(connection.Status, StatusText, ConnectBtn);
+            return;
+        }
 
-        if (!Enum.TryParse(connection.Service, out GoAffProSource goAffProSource)) return;
-
-        _sourceControls.TryGetValue(goAffProSource, out var control);
+        _sourceControls.TryGetValue(connection.Service, out var control);
         control?.UpdateStatus(connection.Status, connection.Name);
-        SetNavButtonStatus(goAffProSource, connection.Status);
+        SetNavButtonStatus(connection.Service, connection.Status);
     }
 
-    private void SetNavButtonStatus(GoAffProSource source, bool status)
+    private void SetNavButtonStatus(string internalName, bool status)
     {
-        _connectedStatus[source] = status;
+        if (!_sourceControls.ContainsKey(internalName)) return;
+        _connectedStatus[internalName] = status;
 
         var btn = SourceList?.Children
             .OfType<Wpf.Ui.Controls.Button>()
-            .FirstOrDefault(b => Equals(b.Tag, source.ToString()));
+            .FirstOrDefault(b => Equals(b.Tag, internalName));
         if (btn == null) return;
         btn.Opacity = status ? 1.0 : 0.6;
 
@@ -155,14 +181,13 @@ public partial class GoAffProSettings : SettingsControl
     {
         if (SourceList == null) return;
 
-        var originalOrder = _sources
-            .Select((s, i) => (Key: s.ToString(), Index: i))
+        var originalOrder = _stores
+            .Select((s, i) => (Key: s.InternalName, Index: i))
             .ToDictionary(x => x.Key, x => x.Index);
 
         var buttons = SourceList.Children.OfType<Wpf.Ui.Controls.Button>().ToList();
         var sorted = buttons
-            .OrderByDescending(b => _connectedStatus.GetValueOrDefault(
-                Enum.TryParse(b.Tag as string, out GoAffProSource s) ? s : GoAffProSource.Unknown))
+            .OrderByDescending(b => _connectedStatus.GetValueOrDefault(b.Tag as string ?? ""))
             .ThenBy(b => originalOrder.GetValueOrDefault(b.Tag as string ?? "", int.MaxValue))
             .ToList();
 
@@ -170,7 +195,7 @@ public partial class GoAffProSettings : SettingsControl
         foreach (var b in sorted)
             SourceList.Children.Add(b);
     }
-    
+
     protected internal override void LoadValues(AppDbContext db)
     {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -213,7 +238,7 @@ public partial class GoAffProSettings : SettingsControl
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
-            
+
             var msgBox = new Wpf.Ui.Controls.MessageBox
             {
                 Title = "Login to GoAffPro",
@@ -238,7 +263,7 @@ public partial class GoAffProSettings : SettingsControl
                 Width = 240,
                 Margin = new Thickness(2, 4, 0, 0)
             };
-            
+
             var pwLabel = new Wpf.Ui.Controls.TextBlock
             {
                 Text = "Password: ",
@@ -266,7 +291,7 @@ public partial class GoAffProSettings : SettingsControl
             {
                 Orientation = Orientation.Horizontal
             };
-            
+
             panel2.Children.Add(userLabel);
             panel2.Children.Add(userBox);
             panel3.Children.Add(pwLabel);
@@ -274,19 +299,19 @@ public partial class GoAffProSettings : SettingsControl
             panel.Children.Add(panel2);
             panel.Children.Add(panel3);
             msgBox.Content = panel;
-            
+
             var result = await msgBox.ShowDialogAsync();
             bool confirm = result == Wpf.Ui.Controls.MessageBoxResult.Primary;
             if (!confirm) return;
-            
+
             await ServiceManager.GoAffPro.StopAsync();
 
             bool setData = false;
             setData |= secureStorage.Set(StorageKeys.GoAffProEmail, userBox.Text);
             setData |= secureStorage.Set(StorageKeys.GoAffProPassword, pwBox.Password);
             if (setData) config.Save();
-            
-            
+
+
             if (string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.GoAffProPassword, string.Empty))
                 || string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.GoAffProEmail, string.Empty)))
             {

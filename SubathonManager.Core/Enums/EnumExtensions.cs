@@ -95,15 +95,8 @@ public class EventTypeMetaAttribute : EnumMetaAttribute
 public class GoAffProTypeMetaAttribute : EventTypeMetaAttribute
 {
     public override string? Description =>  Label;
-    public GoAffProSource StoreSource { get; init; } = GoAffProSource.Unknown; 
-}
-
-
-public class GoAffProSourceMetaAttribute : EnumMetaAttribute
-{
-    public SubathonEventType OrderEvent { get; init; } = SubathonEventType.Unknown;
-    
-    public int SiteId { get; init; } = -1;
+    // maintaining for legacy data
+    public int LegacySiteId { get; init; } = -1;
 }
 
 public class CommandMetaAttribute : EnumMetaAttribute

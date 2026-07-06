@@ -72,6 +72,16 @@ public class WheelSpinTriggerService(
                             string.Equals(t.TierValue, ev.Value, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
+        
+        if (ev.EventType == SubathonEventType.GoAffProOrder)
+        {
+            candidates = candidates
+                .Where(t => string.IsNullOrEmpty(t.TierValue) ||
+                            string.Equals(t.TierValue, ev.EventTypeMeta, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(t => !string.IsNullOrEmpty(t.TierValue))
+                .ToList();
+        }
+        
         if (candidates.Count == 0) return;
 
         // unique rules, there should only be one match; take first anyways

@@ -64,13 +64,13 @@ public class EventServiceTests
         Microsoft.Data.Sqlite.SqliteConnection)> SetupServiceWithDb(int initialPoints = 10, bool isLocked = true, bool showEventsState = false, bool allowPointsLocked = true)
     {
         var dbName = $"test_{Guid.NewGuid():N}";
-        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared";
-        //var connection = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:"); //;Cache=Shared");
+        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
+
         var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
         await connection.OpenAsync();
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connection)
+            .UseSqlite(connectionString)
             .Options;
         
         await using (var db = new AppDbContext(options))
@@ -84,6 +84,7 @@ public class EventServiceTests
                 { Id = Guid.NewGuid(), IsActive = true, Goals = [new SubathonGoal() { Text = "New Goal", Points = 1 }] });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             AppDbContext.SeedDefaultValues(db);
+            SubathonManager.Core.GoAffProStoreRegistry.Initialize(db.GoAffProStores.ToList());
         }
 
         var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
@@ -326,7 +327,8 @@ public class EventServiceTests
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
-            EventType = SubathonEventType.UwUMarketOrder,
+            EventType = SubathonEventType.GoAffProOrder,
+            EventTypeMeta = "132230", // UwU Market
             Currency = "USD",
             Value = "10.00",
             SecondaryValue = "2.00|USD"
@@ -366,7 +368,8 @@ public class EventServiceTests
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
-            EventType = SubathonEventType.GamerSuppsOrder,
+            EventType = SubathonEventType.GoAffProOrder,
+            EventTypeMeta = "165328", // GamerSupps
             Currency = "items",
             Value = itemCount.ToString(),
             Amount = itemCount,
@@ -374,7 +377,7 @@ public class EventServiceTests
         };
 
         await using var db = new AppDbContext(options);
-        var value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.GamerSuppsOrder).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.GoAffProOrder && x.Meta == "165328").FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
         value.Points = pointsValue;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         
@@ -414,7 +417,8 @@ public class EventServiceTests
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
-            EventType = SubathonEventType.GamerSuppsOrder,
+            EventType = SubathonEventType.GoAffProOrder,
+            EventTypeMeta = "165328", // GamerSupps
             Currency = "order",
             Value = "New",
             SecondaryValue = "2.00|USD"
@@ -510,7 +514,8 @@ public class EventServiceTests
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
-            EventType = SubathonEventType.UwUMarketOrder,
+            EventType = SubathonEventType.GoAffProOrder,
+            EventTypeMeta = "132230", // UwUMarket
             SecondaryValue = "2.00|USD",
             Value = "10.00",
             Currency = "USD"
@@ -590,7 +595,7 @@ public class EventServiceTests
             ev = new SubathonEvent
             {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, Source = SubathonEventSource.Simulated,
-                User = "SYSTEM", EventType = SubathonEventType.UwUMarketOrder, Value = "10",
+                User = "SYSTEM", EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230", Value = "10",
                 Currency = "USD", SecondaryValue = "2.00|USD", PointsValue = 5, SecondsValue = 10,
                 ProcessedToSubathon = true
             };
@@ -1203,17 +1208,18 @@ public class EventServiceTests
     }
 
     [Theory]
-    [InlineData(SubathonEventType.UwUMarketOrder, true)]
-    [InlineData(SubathonEventType.GamerSuppsOrder, false)]
+    [InlineData("132230", true)]  // UwUMarket - commission as donation on
+    [InlineData("165328", false)] // GamerSupps - commission as donation off
     public async Task ProcessSubathonEvent_OrderCommission_MoneySum_Branches(
-        SubathonEventType orderType, bool commissionAsDonation)
+        string storeMeta, bool commissionAsDonation)
     {
         var (service, options, conn) = await SetupServiceWithDb(0, false);
 
         var ev = new SubathonEvent
         {
             Id = Guid.NewGuid(),
-            EventType = orderType,
+            EventType = SubathonEventType.GoAffProOrder,
+            EventTypeMeta = storeMeta,
             Currency = "USD",
             Value = "20.00",
             SecondaryValue = "5.00|USD"

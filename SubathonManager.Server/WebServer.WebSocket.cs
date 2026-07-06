@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
@@ -279,17 +280,14 @@ public partial class WebServer
 
     private object SubathonEventToObject(SubathonEvent subathonEvent)
     {
-        var trueSource = subathonEvent.EventType.GetTypeTrueSource();
+        var trueSource = subathonEvent.EventType.GetTypeTrueSource(subathonEvent.EventTypeMeta);
         var eventType = subathonEvent.EventType.ToString();
-        // if (subathonEvent.EventType == SubathonEventType.GoAffProOrder)
-        // {
-        //     GoAffProStoreRegistry.TryGetBySiteId(int.Parse(subathonEvent.EventTypeMeta!), out var store);
-        //     if (store != null)
-        //     {
-        //         trueSource = store.InternalName;
-        //         eventType = store.InternalEventName;
-        //     }
-        // }
+        if (subathonEvent.EventType == SubathonEventType.GoAffProOrder
+            && GoAffProOrderHelper.TryGetStore(subathonEvent.EventTypeMeta, out var store))
+        {
+            trueSource = store.InternalName;
+            eventType = store.InternalEventName;
+        }
         object data = new
         {
             type = "event",

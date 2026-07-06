@@ -72,6 +72,8 @@ namespace SubathonManager.UI.Views.WheelSpin
                 {
                     PopulateEventTypeComboBox();
                     WireDirtyHandlers();
+                    GoAffProStoreRegistry.StoreDiscovered -= OnGoAffProStoreDiscovered;
+                    GoAffProStoreRegistry.StoreDiscovered += OnGoAffProStoreDiscovered;
                     _initialized = true;
                 }
                 Dispatcher.InvokeAsync(LoadTriggerRows);
@@ -160,6 +162,19 @@ namespace SubathonManager.UI.Views.WheelSpin
             (sender as Grid)?.Focus();
         }
 
+        private void OnGoAffProStoreDiscovered(GoAffProStore store)
+        {
+            Dispatcher.InvokeAsync(() => SuppressChanges(() =>
+            {
+                var selectedTag = (EventTypeBox.SelectedItem as ComboBoxItem)?.Tag;
+                PopulateEventTypeComboBox();
+                if (selectedTag == null) return;
+                var match = EventTypeBox.Items.OfType<ComboBoxItem>()
+                    .FirstOrDefault(i => Equals(i.Tag, selectedTag));
+                EventTypeBox.SelectedItem = match;
+            }));
+        }
+
         private void PopulateEventTypeComboBox()
         {
             EventTypeBox.Items.Clear();
@@ -186,6 +201,20 @@ namespace SubathonManager.UI.Views.WheelSpin
 
                 foreach (var et in group.OrderBy(et => et.GetLabel()))
                 {
+                    if (et == SubathonEventType.GoAffProOrder)
+                    {
+                        foreach (var store in GoAffProStoreRegistry.All().Where(s => s.Enabled)
+                                     .OrderBy(s => s.EventName))
+                        {
+                            EventTypeBox.Items.Add(new ComboBoxItem
+                            {
+                                Content = $"  {store.EventName}", // fake cause indented
+                                Tag = store,
+                                Padding = new Thickness(6, 2, 6, 2)
+                            });
+                        }
+                        continue;
+                    }
                     EventTypeBox.Items.Add(new ComboBoxItem
                     {
                         Content = $"  {et.GetLabel()}", // fake indent
@@ -296,6 +325,10 @@ namespace SubathonManager.UI.Views.WheelSpin
 
         private static string BuildTriggerEventLabel(WheelSpinTrigger t)
         {
+            if (t.EventType == SubathonEventType.GoAffProOrder)
+            {
+                return $"{t.EventType.GetSource()} - {GoAffProOrderHelper.GetOrderEventDisplayLabel(t.EventType, t.TierValue)}";
+            }
             var label = $"{t.EventType.GetSource()} - {t.EventType.GetLabel()}";
             if (!string.IsNullOrEmpty(t.TierValue))
             {
@@ -373,7 +406,10 @@ namespace SubathonManager.UI.Views.WheelSpin
                 TriggerEnabledCheck.IsChecked = trigger.IsEnabled;
 
                 var match = EventTypeBox.Items.OfType<ComboBoxItem>()
-                    .FirstOrDefault(i => i.Tag is SubathonEventType et && et == trigger.EventType);
+                    .FirstOrDefault(i =>
+                        trigger.EventType == SubathonEventType.GoAffProOrder
+                            ? i.Tag is GoAffProStore s && s.SiteId.ToString() == trigger.TierValue
+                            : i.Tag is SubathonEventType et && et == trigger.EventType);
                 EventTypeBox.SelectedItem = match;
                 UpdateEditorPanels(trigger.EventType);
             });
@@ -515,7 +551,7 @@ namespace SubathonManager.UI.Views.WheelSpin
         {
             if (OrderItemPanel == null || OrderMoneyPanel == null) return;
 
-            eventType ??= (EventTypeBox.SelectedItem as ComboBoxItem)?.Tag as SubathonEventType?;
+            eventType ??= SelectedEventTypeFromTag((EventTypeBox.SelectedItem as ComboBoxItem)?.Tag);
 
             bool forceByMoney = eventType == SubathonEventType.ThroneGiftContribution;
             bool noItemCount = eventType is SubathonEventType.ThroneGiftPurchase
@@ -620,7 +656,8 @@ namespace SubathonManager.UI.Views.WheelSpin
             TriggerStatusText.Text = "";
 
             var eventTypeItem = EventTypeBox.SelectedItem as ComboBoxItem;
-            if (eventTypeItem?.Tag is not SubathonEventType eventType)
+            var goAffProStore = eventTypeItem?.Tag as GoAffProStore;
+            if (SelectedEventTypeFromTag(eventTypeItem?.Tag) is not { } eventType)
             {
                 TriggerStatusText.Text = "Select an event type";
                 return;
@@ -638,7 +675,11 @@ namespace SubathonManager.UI.Views.WheelSpin
             bool isSubLike = subType is SubathonEventSubType.SubLike or SubathonEventSubType.GiftSubLike;
 
             string? tierValue = null;
-            if (isSubLike)
+            if (goAffProStore != null)
+            {
+                tierValue = goAffProStore.SiteId.ToString();
+            }
+            else if (isSubLike)
             {
                 if (isTwitchTier || isPicartoTier)
                 {
@@ -737,7 +778,8 @@ namespace SubathonManager.UI.Views.WheelSpin
 
             // unique check
             await using var db = await _factory.CreateDbContextAsync();
-            bool isDuplicateTierEvent = subType is SubathonEventSubType.SubLike or SubathonEventSubType.GiftSubLike;
+            bool isDuplicateTierEvent = subType is SubathonEventSubType.SubLike or SubathonEventSubType.GiftSubLike
+                                        || eventType == SubathonEventType.GoAffProOrder;
 
             var existing = await db.WheelSpinTriggers
                 .Where(t => t.EventType == eventType && t.Id != (_selectedTrigger != null ? _selectedTrigger.Id : Guid.Empty))
@@ -749,7 +791,9 @@ namespace SubathonManager.UI.Views.WheelSpin
                     string.Equals(t.TierValue, tierValue, StringComparison.OrdinalIgnoreCase));
                 if (tierConflict)
                 {
-                    TriggerStatusText.Text = $"A trigger for {eventType.GetLabel()} ({tierValue}) already exists. Edit or delete it first";
+                    TriggerStatusText.Text = eventType == SubathonEventType.GoAffProOrder
+                        ? $"A trigger for {GoAffProOrderHelper.GetOrderEventDisplayLabel(eventType, tierValue)} already exists. Edit or delete it first"
+                        : $"A trigger for {eventType.GetLabel()} ({tierValue}) already exists. Edit or delete it first";
                     return;
                 }
             }
@@ -953,7 +997,9 @@ namespace SubathonManager.UI.Views.WheelSpin
             sb.AppendLine("Id,TriggerId,TriggerEventType,TriggeredAt,TriggerUser,TriggerSource,SpinsAdded,SubathonEventId,SubathonEventType");
             foreach (var h in rows)
             {
-                var eventLabel = h.Trigger?.EventType.GetLabel() ?? h.SubathonEventType?.GetLabel() ?? "";
+                var eventLabel = h.Trigger != null
+                    ? BuildTriggerEventLabel(h.Trigger)
+                    : h.SubathonEventType?.GetLabel() ?? "";
                 var user = h.TriggerUser?.Replace("\"", "\"\"") ?? "";
                 sb.AppendLine(
                     $"{h.Id}," +
@@ -1038,11 +1084,26 @@ namespace SubathonManager.UI.Views.WheelSpin
 
                 if (cols.Length < 3
                     || !bool.TryParse(cols[0].Trim(), out bool enabled)
-                    || !int.TryParse(cols[1].Trim(), out int spins)
-                    || !Enum.TryParse<SubathonEventType>(cols[2].Trim(), out var eventType))
+                    || !int.TryParse(cols[1].Trim(), out int spins))
                 { await ShowInvalidTriggerCsvPopup(); return; }
 
+                string typeStr = cols[2].Trim();
+                string? goAffProMeta = null;
+                if (!Enum.TryParse<SubathonEventType>(typeStr, out var eventType))
+                {
+                    if (!GoAffProOrderHelper.TryGetStoreByOrderKey(typeStr, out var keyStore))
+                    { await ShowInvalidTriggerCsvPopup(); return; }
+                    eventType = SubathonEventType.GoAffProOrder;
+                    goAffProMeta = keyStore.SiteId.ToString();
+                }
+                else if (eventType.GetLegacyGoAffProSiteId() > 0)
+                {
+                    goAffProMeta = eventType.GetLegacyGoAffProSiteId().ToString();
+                    eventType = SubathonEventType.GoAffProOrder;
+                }
+
                 string? tierValue = cols.Length > 3 && !string.IsNullOrWhiteSpace(cols[3]) ? cols[3].Trim() : null;
+                if (goAffProMeta != null) tierValue = goAffProMeta;
 
                 int? countThreshold = null;
                 if (cols.Length > 4 && !string.IsNullOrWhiteSpace(cols[4]))
@@ -1194,10 +1255,17 @@ namespace SubathonManager.UI.Views.WheelSpin
             Dispatcher.InvokeAsync(LoadTriggerRows);
         }
 
+        private static SubathonEventType? SelectedEventTypeFromTag(object? tag) => tag switch
+        {
+            SubathonEventType et => et,
+            GoAffProStore => SubathonEventType.GoAffProOrder,
+            _ => null
+        };
+
         private void EventTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_suppressCount > 0) return;
-            var et = (EventTypeBox.SelectedItem as ComboBoxItem)?.Tag as SubathonEventType?;
+            var et = SelectedEventTypeFromTag((EventTypeBox.SelectedItem as ComboBoxItem)?.Tag);
             UpdateEditorPanels(et);
             TriggerStatusText.Text = "";
             EventTypeSourceLabel.Text = et.HasValue ? et.Value.GetSource().ToString() : "";
