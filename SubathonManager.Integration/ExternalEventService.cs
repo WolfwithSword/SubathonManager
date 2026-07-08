@@ -19,13 +19,22 @@ public static class ExternalEventService
         if (elemCmd.ValueKind == JsonValueKind.String && Enum.TryParse<SubathonCommandType>
                 (elemCmd.GetString(), ignoreCase: true, out SubathonCommandType cmd) )
         {
+            var source = SubathonEventSource.External;
+            if (data.TryGetValue("source", out JsonElement elemSrc) && elemSrc.ValueKind == JsonValueKind.String
+                && Enum.TryParse(elemSrc.GetString(), ignoreCase: true, out SubathonEventSource parsedSrc) 
+                && parsedSrc.IsExternalSource())
+            {
+                source = parsedSrc;
+            }
+
             data.TryGetValue("user", out JsonElement elemUser);
-            string user = string.IsNullOrWhiteSpace(elemUser.GetString()) ? "EXTERNAL" : elemUser.GetString()!;
-            
+            string fallbackUser = "EXTERNAL";
+            string user = string.IsNullOrWhiteSpace(elemUser.GetString()) ? fallbackUser : elemUser.GetString()!;
+
             data.TryGetValue("message", out JsonElement elemMsg);
             string msg = elemMsg.ValueKind == JsonValueKind.String ? elemMsg.GetString()! : "";
-            
-            return CommandService.ChatCommandRequest(SubathonEventSource.External, msg, user, true,
+
+            return CommandService.ChatCommandRequest(source, msg, user, true,
                 false, false, DateTime.Now, null, cmd);
         }
 

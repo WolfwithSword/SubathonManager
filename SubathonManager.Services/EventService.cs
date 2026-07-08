@@ -460,6 +460,9 @@ public class EventService: IDisposable, IAppService
                 await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, int.Max(0, spins2 - ev.Amount));
                 WheelEvents.RaiseSpinsOwedUpdateFromEvent(int.Max(0, spins2 - ev.Amount));
                 break;
+            case SubathonCommandType.SpinWheel:
+                WheelEvents.RaiseWheelSpinRequested();
+                break;
             case SubathonCommandType.AddMoney:
                 ev.EventType = SubathonEventType.DonationAdjustment;
                 break;

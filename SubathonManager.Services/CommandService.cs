@@ -22,7 +22,8 @@ public static class CommandService
         SubathonCommandType cmdOverride = SubathonCommandType.None)
     {
         timestamp ??= DateTime.Now;
-        if (source == SubathonEventSource.External)
+
+        if (source.IsExternalSource())
             message = $"EXTERNAL {message}";
         SubathonCommandType command = ValidateCommand(message, cmdOverride);
         if (command == SubathonCommandType.Unknown) return false;
@@ -41,7 +42,7 @@ public static class CommandService
         bool validParams = ValidateParameters(subathonEvent, message);
         if (!validParams) return false;
 
-        bool validUser = source == SubathonEventSource.External || 
+        bool validUser = source.IsExternalSource() ||
                          ValidateUser(subathonEvent, user, isBroadcaster, isModerator, isVip);
         if (!validUser) return false;
 

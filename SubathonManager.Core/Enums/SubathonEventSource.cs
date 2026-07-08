@@ -24,7 +24,7 @@ public enum SubathonEventSource
     StreamLabs,
     [EventSourceMeta(Description = "Generic External Services", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=1000, Order=99)]
     External,
-    [EventSourceMeta(Description = "Blerp", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=81, Order=30)]
+    [EventSourceMeta(Description = "Blerp", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=81, Order=30, IsExternalSource = true)]
     Blerp,
     [EventSourceMeta(Description = "Picarto", SourceGroup = SubathonSourceGroup.Stream, SourceOrder=3, Order=12)]
     Picarto,
@@ -36,7 +36,7 @@ public enum SubathonEventSource
     DevTunnels,
     [EventSourceMeta(Description="FourthWall", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=62, Order=51)]
     FourthWall,
-    [EventSourceMeta(Description="OBS Websocket", SourceGroup = SubathonSourceGroup.Unknown, SourceOrder=999, Order=999, Visible = false)]
+    [EventSourceMeta(Description="OBS", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder=901, Order=900, Visible = false)]
     OBS,
     [EventSourceMeta(Description="Throne", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=63, Order=52)]
     Throne,
@@ -45,7 +45,11 @@ public enum SubathonEventSource
     [EventSourceMeta(Description="Wheel Spin", Visible = false, Order = 990, SourceGroup = SubathonSourceGroup.WheelSpin)]
     WheelSpin,
     [EventSourceMeta(Description="Tangia", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=82, Order=31)]
-    Tangia
+    Tangia,
+    [EventSourceMeta(Description="Stream Deck", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder=903, Order=902, Visible = false, IsExternalSource = true)]
+    StreamDeck,
+    [EventSourceMeta(Description="StreamerBot", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder=902, Order=901, Visible = false, IsExternalSource = true)]
+    StreamerBot
 }
 
 [ExcludeFromCodeCoverage]
@@ -59,6 +63,9 @@ public static class SubathonEventSourceHelper
         var meta = EnumMetaCache.Get<EventSourceMetaAttribute>(value);
         return meta;
     }
+    
+    public static bool IsExternalSource(this SubathonEventSource? source) => source.Meta()?.IsExternalSource ?? false;
+    public static bool IsExternalSource(this SubathonEventSource source) => IsExternalSource((SubathonEventSource?)source);
 
     public static SubathonSourceGroup GetGroup(this SubathonEventSource source) =>
         ((SubathonEventSource?)source).Meta()?.SourceGroup ?? SubathonSourceGroup.Unknown;

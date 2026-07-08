@@ -5,6 +5,7 @@ using SubathonManager.Services;
 using SubathonManager.Data;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using System.Net;
 using System.Reflection;
 using Moq.Protected;
@@ -230,6 +231,36 @@ public class EventServiceTests
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
+    }
+
+    [Fact]
+    public async Task SpinWheelCommand_RaisesWheelSpinRequested()
+    {
+        var (service, options, conn) = await SetupServiceWithDb();
+
+        int requested = 0;
+        Action handler = () => requested++;
+        WheelEvents.WheelSpinRequested += handler;
+        try
+        {
+            var ev = new SubathonEvent
+            {
+                Id = Guid.NewGuid(),
+                EventType = SubathonEventType.Command,
+                Command = SubathonCommandType.SpinWheel
+            };
+
+            var (processed, _) = await service.ProcessSubathonEvent(ev);
+
+            Assert.True(processed);
+            Assert.Equal(1, requested);
+        }
+        finally
+        {
+            WheelEvents.WheelSpinRequested -= handler;
+            await service.StopAsync(TestContext.Current.CancellationToken);
+            await conn.CloseAsync();
+        }
     }
 
     [Fact]

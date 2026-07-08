@@ -35,7 +35,6 @@ public partial class SettingsView : SettingsControl
             UpdateServerStatus(ServiceManager.Server?.Running ?? false);
             SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
             SettingsEvents.SettingsUnsavedChanges += UpdateSaveButtonBorder;
-            InitOBSSettings();
             RegisterUnsavedChangeHandlers();
             InitCurrencySelects();
         };
@@ -45,6 +44,7 @@ public partial class SettingsView : SettingsControl
         ExternalServiceSettingsControl.Init(this);
         CommandsSettingsControl.Init(this);
         ExtensionSettingsControl.Init(this);
+        ExternalSoftwareSettingsControl.Init(this);
         
         ServerPortTextBox.Text = config.Get("Server", "Port", string.Empty) ?? string.Empty;
         LoadValues();
@@ -55,7 +55,6 @@ public partial class SettingsView : SettingsControl
             //SubathonEvents.SubathonDataUpdate -= UpdateTimerValue;
             WebServerEvents.WebServerStatusChanged -= UpdateServerStatus;
             SubathonEvents.SubathonValueConfigUpdatedRemote -= RefreshSubathonValues;
-            UnloadOBSSettings();
         };
         
         Task.Run(CheckForUpdateOnBoot);

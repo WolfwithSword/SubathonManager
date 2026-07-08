@@ -493,22 +493,41 @@ public partial class WebServer
 
                 switch (clientMessageType)
                 {
-                    // received type *may* not equal socket type, we want to be able to reuse sockets like this
-                    // set type of socket is just primary type for events
                     case WebsocketClientMessageType.Command:
                     {
+                        if (json.RootElement.TryGetProperty("request", out JsonElement reqElem)
+                            && string.Equals(reqElem.GetString(), "commands", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await SelectSendAsync(socket, new
+                            {
+                                type = "command_list",
+                                ws_type = nameof(WebsocketClientMessageType.Command),
+                                commands = BuildCommandCatalog()
+                            });
+                            break;
+                        }
                         if (!json.RootElement.TryGetProperty("type", out JsonElement elem)
                             || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out SubathonEventType seType)
                             || seType == SubathonEventType.Unknown)
                             continue;
                         if (seType != SubathonEventType.Command) continue;
-                    
+
                         Dictionary<string, JsonElement> data =
                             json.RootElement
                                 .EnumerateObject()
                                 .ToDictionary(p => p.Name, p => p.Value);
-                    
-                        ExternalEventService.ProcessExternalCommand(data);
+                        Console.WriteLine(data);
+                        bool success = ExternalEventService.ProcessExternalCommand(data);
+                        data.TryGetValue("command", out JsonElement cmdElem);
+                        data.TryGetValue("context", out JsonElement ctxElem);
+                        await SelectSendAsync(socket, new
+                        {
+                            type = "command_ack",
+                            ws_type = nameof(WebsocketClientMessageType.Command),
+                            command = cmdElem.ValueKind == JsonValueKind.String ? cmdElem.GetString() : null,
+                            context = ctxElem.ValueKind == JsonValueKind.String ? ctxElem.GetString() : null,
+                            success
+                        });
                         break;
                     }
                     case WebsocketClientMessageType.IntegrationSource:

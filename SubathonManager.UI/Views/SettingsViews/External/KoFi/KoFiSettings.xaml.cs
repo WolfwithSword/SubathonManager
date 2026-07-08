@@ -13,6 +13,7 @@ using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views.SettingsViews.External.KoFi;
 
+[Obsolete("Legacy Ko-Fi via StreamerBot socket setup. DevTunnels method is recommended")]
 public partial class KoFiSettings : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<KoFiSettings>>();
