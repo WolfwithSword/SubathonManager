@@ -63,6 +63,35 @@ const hubLabel    = document.querySelector('.hub-label');
 const nameplatEl  = document.getElementById('nameplate');
 const npText      = document.getElementById('nameplate-text');
 const pointerNub  = document.getElementById('pointer-nub');
+const sceneEl     = document.getElementById('wheel-scene');
+
+const autoHide = typeof autoShowHide !== 'undefined' && autoShowHide;
+if (autoHide) {
+    sceneEl.style.transition = 'none';
+    sceneEl.classList.add('auto-hidden');
+    const enableSceneAnim = () => requestAnimationFrame(() =>
+        requestAnimationFrame(() => { sceneEl.style.transition = ''; }));
+    if (document.readyState === 'complete') enableSceneAnim();
+    else window.addEventListener('load', enableSceneAnim, { once: true });
+}
+
+function resultDisplayMs() {
+    const s = typeof resultDisplaySeconds !== 'undefined' ? parseFloat(resultDisplaySeconds) : 90;
+    return Math.max(1, isFinite(s) ? s : 90) * 1000;
+}
+
+function showScene() {
+    if (autoHide) sceneEl.classList.remove('auto-hidden');
+}
+
+function hideScene() {
+    if (!autoHide || spinState !== 'idle') return;
+    sceneEl.classList.add('auto-hidden');
+    setTimeout(() => {
+        if (pendingWheelData && spinState === 'idle'
+            && sceneEl.classList.contains('auto-hidden')) applyWheelItems(pendingWheelData);
+    }, 500);
+}
 
 function cssVar(name, fallback) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
@@ -211,8 +240,8 @@ function showNameplate(text) {
     nameplateTimer = setTimeout(() => {
         nameplateTimer = null;
         dismissNameplate(true);
-        if (pendingWheelData) applyWheelItems(pendingWheelData);
-    }, 90000);
+        if (pendingWheelData && !autoHide) applyWheelItems(pendingWheelData);
+    }, resultDisplayMs());
 }
 
 function dismissNameplate(animated) {
@@ -230,6 +259,7 @@ function dismissNameplate(animated) {
         nameplatEl.classList.add('hidden');
         nameplatEl.classList.remove('entering', 'exiting');
     }
+    hideScene();
 }
 
 function updateNubBounce() {
@@ -284,6 +314,8 @@ function onLandComplete() {
         resultTime = Date.now();
         showNameplate(pendingWinText);
         pendingWinText = null;
+    } else {
+        hideScene();
     }
 }
 
@@ -341,6 +373,11 @@ function handleWheelData(data) {
     }
 
     const age = resultTime > 0 ? (Date.now() - resultTime) / 1000 : Infinity;
+    if (autoHide && !sceneEl.classList.contains('auto-hidden')) {
+        pendingWheelData = data;
+        if (nameplateShown && age >= 5) dismissNameplate(true);
+        return;
+    }
     if (nameplateShown && age >= 5) dismissNameplate(true);
     applyWheelItems(data);
 }
@@ -352,6 +389,7 @@ function handleWheelSpinStart(_data) {
     nubReset();
     lastTickTime = 0;
     spinState = 'spinning'; spinSpeed = 0;
+    showScene();
     if (!rafId) startRaf();
 }
 
