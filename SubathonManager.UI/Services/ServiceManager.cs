@@ -41,12 +41,14 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StartAsync<StreamElementsService>();
         await StartAsync<StreamLabsService>();
         await StartAsync<TipeeeStreamService>();
+        await StartAsync<TreatStreamService>();
         await StartAsync<GoAffProService>();//(fireAndForget: true);
         await StartAsync<TangiaService>();
         await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
         await StartAsync<KoFiService>();
         await StartAsync<FourthWallService>();
         await StartAsync<ThroneService>();
+        await StartAsync<PallyService>();
         await StartAsync<DiscordWebhookService>();
     }
 
@@ -59,10 +61,12 @@ public class ServiceManager(ILogger<ServiceManager> logger)
         await StopAsync<StreamElementsService>();
         await StopAsync<StreamLabsService>();
         await StopAsync<TipeeeStreamService>();
+        await StopAsync<TreatStreamService>();
         await StopAsync<GoAffProService>();
         await StopAsync<TangiaService>();
         await StopAsync<KoFiService>();
         await StopAsync<ThroneService>();
+        await StopAsync<PallyService>();
         await StopAsync<FourthWallService>();
         await StopAsync<DevTunnelsService>();
         await StopAsync<DiscordWebhookService>();
@@ -145,6 +149,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static TangiaService Tangia => Provider.GetRequiredService<TangiaService>();
     public static FourthWallService FourthWall => Provider.GetRequiredService<FourthWallService>();
     public static ThroneService Throne => Provider.GetRequiredService<ThroneService>();
+    public static PallyService Pally => Provider.GetRequiredService<PallyService>();
     public static DevTunnelsService DevTunnels => Provider.GetRequiredService<DevTunnelsService>();
     public static KoFiService KoFi => Provider.GetRequiredService<KoFiService>();
     public static TwitchService Twitch => Provider.GetRequiredService<TwitchService>(); 
@@ -153,6 +158,7 @@ public class ServiceManager(ILogger<ServiceManager> logger)
     public static StreamElementsService StreamElements => Provider.GetRequiredService<StreamElementsService>();
     public static StreamLabsService StreamLabs => Provider.GetRequiredService<StreamLabsService>();
     public static TipeeeStreamService TipeeeStream => Provider.GetRequiredService<TipeeeStreamService>();
+    public static TreatStreamService TreatStream => Provider.GetRequiredService<TreatStreamService>();
     public static OBSService OBS => Provider.GetRequiredService<OBSService>();
     
     public static WebServer Server => Provider.GetRequiredService<WebServer>();

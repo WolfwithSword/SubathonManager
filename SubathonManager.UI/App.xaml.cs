@@ -272,12 +272,14 @@ public partial class App
             }
             else if (uri.Host == "oauth")
             {
-                var provider = uri.AbsolutePath.TrimStart('/'); // "twitch" or "fourthwall"
+                var provider = uri.AbsolutePath.TrimStart('/');
                 var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
                 var accessToken = query["access_token"] ?? "";
                 var code =  query["code"] ?? "";
                 var refreshToken = query["refresh_token"] ?? "";
                 var error = query["error"] ?? "";
+                var expiresIn = query["expires_in"] ?? "";
+                var clientId = query["client_id"] ?? "";
                 type = ProtocolMessageType.OAuth;
 
                 Utils.PendingOAuthCallback = new OAuthCallback
@@ -286,7 +288,9 @@ public partial class App
                     AccessToken = accessToken,
                     RefreshToken = refreshToken,
                     Code = code,
-                    Error = error
+                    Error = error,
+                    ExpiresIn = expiresIn,
+                    ClientId = clientId
                 };
             }
         }

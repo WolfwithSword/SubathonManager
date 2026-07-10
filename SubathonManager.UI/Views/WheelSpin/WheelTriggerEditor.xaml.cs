@@ -555,25 +555,39 @@ namespace SubathonManager.UI.Views.WheelSpin
 
             bool forceByMoney = eventType == SubathonEventType.ThroneGiftContribution;
             bool noItemCount = eventType is SubathonEventType.ThroneGiftPurchase
-                                         or SubathonEventType.KoFiCommissionOrder;
+                                         or SubathonEventType.KoFiCommissionOrder
+                                         or SubathonEventType.TreatStreamOrder;
+            // treats are only items/orders
+            bool noMoney = eventType == SubathonEventType.TreatStreamOrder;
 
             if (forceByMoney)
             {
                 SuppressChanges(() => OrderByMoneyRadio.IsChecked = true);
                 OrderByItemsRadio.IsEnabled = false;
                 OrderByOrderRadio.IsEnabled = false;
+                OrderByMoneyRadio.IsEnabled = true;
             }
             else if (noItemCount)
             {
                 OrderByItemsRadio.IsEnabled = false;
                 OrderByOrderRadio.IsEnabled = true;
+                OrderByMoneyRadio.IsEnabled = true;
                 if (OrderByItemsRadio.IsChecked == true)
                     SuppressChanges(() => OrderByOrderRadio.IsChecked = true);
+            }
+            else if (noMoney)
+            {
+                OrderByItemsRadio.IsEnabled = true;
+                OrderByOrderRadio.IsEnabled = true;
+                OrderByMoneyRadio.IsEnabled = false;
+                if (OrderByMoneyRadio.IsChecked == true)
+                    SuppressChanges(() => OrderByItemsRadio.IsChecked = true);
             }
             else
             {
                 OrderByItemsRadio.IsEnabled = true;
                 OrderByOrderRadio.IsEnabled = true;
+                OrderByMoneyRadio.IsEnabled = true;
             }
 
             bool byItems = OrderByItemsRadio.IsChecked == true;

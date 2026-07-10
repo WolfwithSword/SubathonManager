@@ -442,6 +442,8 @@ namespace SubathonManager.Data
                 // GoAffPro store order values are seeded per store (Meta = SiteId) in SeedKnownGoAffProStores
                 new () { EventType = SubathonEventType.TipeeeStreamDonation, Seconds = 12 },
                 new () { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
+                new () { EventType = SubathonEventType.PallyGGTip, Seconds = 12 }, // per 1 USD, Pally is USD only
+                new () { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
             };
 
             foreach (var def in defaults)

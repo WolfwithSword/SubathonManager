@@ -183,6 +183,14 @@ public enum SubathonEventType
     [EventTypeMeta(Label = "Tokens", Source = SubathonEventSource.Tangia, IsToken = true, Order = 1)]
     TangiaTokens, // no way to distinguish twitch bits or tangia coins
 
+    [EventTypeMeta(Label = "Tip", Source = SubathonEventSource.PallyGG, IsCurrencyDonation = true, IsExternal = true,
+        Order = 1)]
+    // PallyGG.gg is USD only :/
+    PallyGGTip,
+
+    [EventTypeMeta(Label = "Order", Source = SubathonEventSource.TreatStream, IsOrder = true, Order = 1)]
+    TreatStreamOrder,
+
     // any new must be added after the last
 }
 

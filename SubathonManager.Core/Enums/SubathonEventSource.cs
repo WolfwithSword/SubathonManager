@@ -22,7 +22,7 @@ public enum SubathonEventSource
     Unknown, // default
     [EventSourceMeta(Description = "StreamLabs", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=22, Order=21)]
     StreamLabs,
-    [EventSourceMeta(Description = "Generic External Services", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=1000, Order=99)]
+    [EventSourceMeta(Description = "Generic External Services", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=1000, Order=99, IsExternalSource = true)]
     External,
     [EventSourceMeta(Description = "Blerp", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=81, Order=30, IsExternalSource = true)]
     Blerp,
@@ -49,7 +49,11 @@ public enum SubathonEventSource
     [EventSourceMeta(Description="Stream Deck", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder=903, Order=902, Visible = false, IsExternalSource = true)]
     StreamDeck,
     [EventSourceMeta(Description="StreamerBot", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder=902, Order=901, Visible = false, IsExternalSource = true)]
-    StreamerBot
+    StreamerBot,
+    [EventSourceMeta(Description="Pally.GG", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=64, Order=53)]
+    PallyGG,
+    [EventSourceMeta(Description="TreatStream", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=24, Order=23)]
+    TreatStream,
 }
 
 [ExcludeFromCodeCoverage]

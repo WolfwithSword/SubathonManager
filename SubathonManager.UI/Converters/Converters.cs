@@ -177,7 +177,7 @@ namespace SubathonManager.UI.Converters
             {
                 if (eventType == SubathonEventType.TwitchRaid)
                     type = "viewer";
-                else if (curr == "item" && eventType.GetSource() == SubathonEventSource.Throne)
+                else if (curr == "item" && eventType.GetSource() is SubathonEventSource.Throne or SubathonEventSource.TreatStream)
                     type = "";
                 else
                     type = curr;

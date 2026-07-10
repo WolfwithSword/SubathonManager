@@ -48,6 +48,9 @@ public partial class ExternalSettings : SettingsGroupControl
             case SubathonEventSource.Throne:
                 _settingsControls[eventSource] = new ThroneSettings();
                 break;
+            case SubathonEventSource.PallyGG:
+                _settingsControls[eventSource] = new PallySettings();
+                break;
             default: return null;
         }
         _settingsControls[eventSource].Init(Host);
