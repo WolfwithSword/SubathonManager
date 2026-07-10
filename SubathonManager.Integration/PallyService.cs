@@ -225,7 +225,7 @@ public class PallyService : IAppService, IDisposable
                 Currency = "USD", // USD only
                 Value = amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
                 Source = simulated ? SubathonEventSource.Simulated : SubathonEventSource.PallyGG,
-                EventType = SubathonEventType.PallyGGTip
+                EventType = SubathonEventType.PallyGGDonation
             };
 
             if (payload.TryGetProperty("page", out var page)
@@ -261,7 +261,7 @@ public class PallyService : IAppService, IDisposable
             Currency = "USD",
             Value = val.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
             Source = SubathonEventSource.Simulated,
-            EventType = SubathonEventType.PallyGGTip
+            EventType = SubathonEventType.PallyGGDonation
         });
     }
 

@@ -62,11 +62,11 @@
                                 ClearButtonEnabled="False" Height="34"
                                 views:SettingsProperties.ExcludeFromUnsaved="True"
                                 validation:InputValidationBehavior.IsDecimalOnly="True"
-                                x:Name="SimulatePallyGGTipAmountBox"/>
+                                x:Name="SimulatePallyGGDonationAmountBox"/>
                     <TextBlock Text="USD" VerticalAlignment="Center" Margin="4,0,4,0" FontSize="12"
                                ToolTip="PallyGG.gg is USD-only"/>
                     <ui:Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                               Content="Test" Click="TestPallyGGTip_Click"
+                               Content="Test" Click="TestPallyGGDonation_Click"
                                Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
                 </StackPanel>
             </Grid>

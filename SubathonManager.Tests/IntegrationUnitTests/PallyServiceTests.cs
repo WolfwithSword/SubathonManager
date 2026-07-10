@@ -63,7 +63,7 @@ public class PallyServiceTests
         Assert.True(result);
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.PallyGG, ev!.Source);
-        Assert.Equal(SubathonEventType.PallyGGTip, ev.EventType);
+        Assert.Equal(SubathonEventType.PallyGGDonation, ev.EventType);
         Assert.Equal("USD", ev.Currency);
         Assert.Equal("5.00", ev.Value);
         Assert.Equal("Someone", ev.User);
@@ -155,7 +155,7 @@ public class PallyServiceTests
         Assert.NotNull(ev);
         Assert.Equal("SYSTEM", ev!.User);
         Assert.Equal(SubathonEventSource.Simulated, ev.Source);
-        Assert.Equal(SubathonEventType.PallyGGTip, ev.EventType);
+        Assert.Equal(SubathonEventType.PallyGGDonation, ev.EventType);
         Assert.Equal("USD", ev.Currency);
         Assert.Equal("12.34", ev.Value);
     }

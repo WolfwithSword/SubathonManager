@@ -140,8 +140,33 @@
                                 <TextBlock x:Name="EventTypeSourceLabel" Grid.Column="1" FontSize="11"
                                            Foreground="CornflowerBlue" VerticalAlignment="Center"/>
                             </Grid>
-                            <ComboBox x:Name="EventTypeBox" Height="36" Margin="0 0 0 12"
-                                      SelectionChanged="EventTypeBox_SelectionChanged"/>
+                            <Button x:Name="EventTypePickerBtn"
+                                    Height="36"
+                                    Margin="0 0 0 12"
+                                    MinWidth="230"
+                                    HorizontalContentAlignment="Stretch"
+                                    Padding="8 0 6 0"
+                                    Click="EventTypePickerBtn_Click"
+                                    Background="{DynamicResource ComboBoxBackground}"
+                                    BorderBrush="{DynamicResource ComboBoxBorderBrush}"
+                                    BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="20"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="EventTypePickerLabel"
+                                               Text="- select -"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <Path Grid.Column="1"
+                                          Data="M 0 0 L 4 4 L 8 0"
+                                          Stroke="{DynamicResource TextFillColorPrimaryBrush}"
+                                          StrokeThickness="1.5"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
 
                             <Border x:Name="TierPanel" Visibility="Collapsed"
                                     Padding="10" BorderThickness="1" BorderBrush="#333" CornerRadius="6"

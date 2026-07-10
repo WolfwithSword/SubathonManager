@@ -109,17 +109,17 @@ public partial class PallySettings : SettingsControl
         catch { /**/ }
     }
 
-    private void TestPallyGGTip_Click(object sender, RoutedEventArgs e)
+    private void TestPallyGGDonation_Click(object sender, RoutedEventArgs e)
     {
-        PallyService.SimulateTip(string.IsNullOrWhiteSpace(SimulatePallyGGTipAmountBox.Text)
-            ? "10.00" : SimulatePallyGGTipAmountBox.Text);
+        PallyService.SimulateTip(string.IsNullOrWhiteSpace(SimulatePallyGGDonationAmountBox.Text)
+            ? "10.00" : SimulatePallyGGDonationAmountBox.Text);
     }
 
     public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
         var tipValue = db.SubathonValues.FirstOrDefault(sv =>
-            sv.EventType == SubathonEventType.PallyGGTip && sv.Meta == "");
+            sv.EventType == SubathonEventType.PallyGGDonation && sv.Meta == "");
         if (tipValue != null && double.TryParse(TipBox.Text, out var seconds)
                              && !seconds.Equals(tipValue.Seconds))
         {
@@ -143,7 +143,7 @@ public partial class PallySettings : SettingsControl
         string p = $"{val.Points}";
         return val.EventType switch
         {
-            SubathonEventType.PallyGGTip => (v, p, TipBox, TipBox2),
+            SubathonEventType.PallyGGDonation => (v, p, TipBox, TipBox2),
             _ => (v, p, null, null)
         };
     }
