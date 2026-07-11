@@ -584,7 +584,12 @@
                         </ItemsControl>
                     </ScrollViewer>
                     <Rectangle Grid.RowSpan="2" Grid.Row="0" Grid.Column="1" Width="2" Stroke="#30808080" Margin="6 4 2 4" VerticalAlignment="Stretch"/>            
-                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2"  Margin="16 2 8 4" Orientation="Vertical">
+                    <Grid Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="16 2 8 4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Vertical">
                         <TextBlock TextWrapping="Wrap" FontSize="16" Margin="2 2 2 4">
                             Create and manage your overlays in the list to the left.
                             <LineBreak/>
@@ -616,6 +621,11 @@
                             </ui:Button>
                         </StackPanel>
                     </StackPanel>
+                    <views:ObsBrowserSourcesPanel Grid.Row="1"
+                                                  Visibility="{Binding ObsConnected,
+                                                      RelativeSource={RelativeSource AncestorType=Window},
+                                                      Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </Grid>
                 </Grid>
             </TabItem>
             

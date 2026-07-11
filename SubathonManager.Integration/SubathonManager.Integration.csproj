@@ -33,4 +33,9 @@
       <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <EmbeddedResource Include="..\external\obs\subathonmanager.lua"
+                        LogicalName="SubathonManager.Integration.obs.subathonmanager.lua" />
+    </ItemGroup>
+
 </Project>

@@ -27,12 +27,51 @@ public partial class ObsSettings : SettingsControl
 
             IntegrationEvents.ConnectionUpdated -= UpdateStatus;
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            ServiceManager.OBS.HelperScriptStatusChanged -= OnHelperScriptStatusChanged;
+            ServiceManager.OBS.HelperScriptStatusChanged += OnHelperScriptStatusChanged;
             UpdateObsStatus(ServiceManager.OBS.Connected);
+            UpdateScriptStatus(ServiceManager.OBS.HelperScriptActive);
+            ServiceManager.OBS.RecheckHelperScript();
         };
         Unloaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+            ServiceManager.OBS.HelperScriptStatusChanged -= OnHelperScriptStatusChanged;
         };
+    }
+
+    private void OnHelperScriptStatusChanged(bool active)
+    {
+        Dispatcher.InvokeAsync(() => UpdateScriptStatus(active));
+    }
+
+    private void UpdateScriptStatus(bool active)
+    {
+        if (active)
+        {
+            ScriptStatusText.Text = "Active";
+            ScriptStatusText.Foreground = System.Windows.Media.Brushes.LimeGreen;
+        }
+        else if (ServiceManager.OBS.Connected)
+        {
+            ScriptStatusText.Text = "Not Loaded (add via OBS Tools -> Scripts)";
+            ScriptStatusText.Foreground = System.Windows.Media.Brushes.Orange;
+        }
+        else
+        {
+            ScriptStatusText.Text = "Unknown (not connected)";
+            ScriptStatusText.Foreground = System.Windows.Media.Brushes.Gray;
+        }
+    }
+
+    private async void CopyScriptPath_Click(object sender, RoutedEventArgs e)
+    {
+        await UiUtils.UiUtils.TrySetClipboardTextAsync(Integration.OBSService.ScriptPath);
+    }
+
+    private void RecheckScript_Click(object sender, RoutedEventArgs e)
+    {
+        ServiceManager.OBS.RecheckHelperScript();
     }
 
     internal override void UpdateStatus(IntegrationConnection? connection)
@@ -44,6 +83,7 @@ public partial class ObsSettings : SettingsControl
     private void UpdateObsStatus(bool connected)
     {
         Host.UpdateConnectionStatus(connected, ObsStatusText, ObsConnectBtn);
+        UpdateScriptStatus(ServiceManager.OBS.HelperScriptActive);
     }
 
     private void ObsConnect_Click(object sender, RoutedEventArgs e)

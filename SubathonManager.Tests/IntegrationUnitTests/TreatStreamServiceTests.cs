@@ -134,8 +134,9 @@ public class TreatStreamServiceTests
     }
 
     [Fact]
-    public void StoreExpiry_MissingExpiresIn_DefaultsTo30Days()
+    public void StoreExpiry_MissingExpiresIn_DefaultsTo15Days()
     {
+        // api says 30, we do half for safety
         var (service, storage) = MakeService("token", "refresh");
         service.StoreExpiry(null);
 
@@ -143,7 +144,7 @@ public class TreatStreamServiceTests
         Assert.True(DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
             System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
             out var expiry));
-        Assert.InRange(expiry, DateTime.UtcNow.AddDays(29), DateTime.UtcNow.AddDays(31));
+        Assert.InRange(expiry, DateTime.UtcNow.AddDays(14), DateTime.UtcNow.AddDays(16));
     }
 
     [Fact]
