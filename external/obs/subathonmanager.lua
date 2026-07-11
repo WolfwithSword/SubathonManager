@@ -9,9 +9,11 @@ local HOTKEY_NAME = "subathonmanager_apply_tweaks"
 local MARKER_KEY = "subathon_managed"
 local REQUEST_KEY = "subathon_blend_request"
 local STATES_KEY = "subathon_blend_states"
-local SCRIPT_VERSION = "1.1.0"
+local SCRIPT_VERSION = "1.2.3"
+local VERSION_HOTKEY_PREFIX = "subathonmanager_version_"
 
 local hotkey_id = nil
+local version_hotkey_id = nil
 
 local collected = {}
 
@@ -144,5 +146,9 @@ end
 function script_load(settings)
     hotkey_id = obs.obs_hotkey_register_frontend(HOTKEY_NAME,
         "SubathonManager: Apply overlay source tweaks", on_hotkey)
+    version_hotkey_id = obs.obs_hotkey_register_frontend(
+        VERSION_HOTKEY_PREFIX .. SCRIPT_VERSION,
+        "SubathonManager: version marker (do not bind)",
+        function(pressed) end)
     obs.obs_frontend_add_event_callback(on_frontend_event)
 end

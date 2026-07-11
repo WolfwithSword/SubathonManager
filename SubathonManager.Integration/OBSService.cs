@@ -39,11 +39,23 @@ public class OBSService : IAppService
     public bool Connected => _obs.IsConnected;
 
     private const string HelperHotkeyName = "subathonmanager_apply_tweaks";
+    private const string HelperVersionHotkeyPrefix = "subathonmanager_version_";
     private const string ManagedMarkerKey = "subathon_managed";
     private const string ScriptFileName = "subathonmanager.lua";
     private const string ScriptResourceName = "SubathonManager.Integration.obs.subathonmanager.lua";
 
     public bool HelperScriptActive { get; private set; }
+    
+    public string? HelperScriptVersion { get; private set; }
+
+    public bool HelperScriptOutdated =>
+        HelperScriptActive
+        && ExpectedHelperScriptVersion != null
+        && !string.Equals(HelperScriptVersion, ExpectedHelperScriptVersion, StringComparison.Ordinal);
+
+    private static readonly Lazy<string?> ExpectedScriptVersionLazy = new(ReadEmbeddedScriptVersion);
+    public static string? ExpectedHelperScriptVersion => ExpectedScriptVersionLazy.Value;
+
     public event Action<bool>? HelperScriptStatusChanged;
     
     public event Action? BrowserSourcesChanged;
@@ -80,10 +92,13 @@ public class OBSService : IAppService
 
     public Task StopAsync(CancellationToken cancellationToken = default)
     {
+        _stopRequested = true;
         _reconnectState.Cts?.Cancel();
         if (_obs.IsConnected) _obs.Disconnect();
         return Task.CompletedTask;
     }
+
+    private volatile bool _stopRequested;
 
     public void TryConnect()
     {
@@ -93,6 +108,7 @@ public class OBSService : IAppService
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port)) return;
 
+        _stopRequested = false;
         try
         {
             var url = $"ws://{host}:{port}";
@@ -107,6 +123,15 @@ public class OBSService : IAppService
                 _logger?.LogDebug(ex, "[OBSService] Connection attempt failed");
             }
         }
+
+        _ = Task.Run(VerifyConnectionOrRetryAsync);
+    }
+
+    private async Task VerifyConnectionOrRetryAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(3));
+        if (_stopRequested || _obs.IsConnected) return;
+        await ReconnectWithBackoffAsync();
     }
 
     private void OnConnected(object? sender, EventArgs e)
@@ -131,6 +156,7 @@ public class OBSService : IAppService
         if (HelperScriptActive)
         {
             HelperScriptActive = false;
+            HelperScriptVersion = null;
             HelperScriptStatusChanged?.Invoke(false);
         }
 
@@ -231,16 +257,30 @@ public class OBSService : IAppService
         if (!_obs.IsConnected) return;
 
         bool active = false;
+        string? version = null;
         try
         {
             var response = _obs.SendRequest("GetHotkeyList");
             var hotkeys = response?["hotkeys"] as JArray;
-            active = hotkeys != null &&
-                     hotkeys.Any(h => string.Equals(h?.ToString()?.Trim(), HelperHotkeyName, StringComparison.Ordinal));
+            var names = hotkeys?.Select(h => h?.ToString()?.Trim()).ToList();
+            active = names != null &&
+                     names.Any(n => string.Equals(n, HelperHotkeyName, StringComparison.Ordinal));
+            version = names?
+                .FirstOrDefault(n => n != null && n.StartsWith(HelperVersionHotkeyPrefix, StringComparison.Ordinal))?
+                [HelperVersionHotkeyPrefix.Length..];
 
             if (active)
             {
-                _logger?.LogInformation("[OBSService] Helper script detected");
+                if (version != null && !string.Equals(version, ExpectedHelperScriptVersion, StringComparison.Ordinal))
+                    _logger?.LogWarning(
+                        "[OBSService] Helper script detected but outdated (v{Loaded} loaded, v{Expected} available). Reload it in OBS Tools -> Scripts",
+                        version, ExpectedHelperScriptVersion);
+                else if (version == null && ExpectedHelperScriptVersion != null)
+                    _logger?.LogWarning(
+                        "[OBSService] Helper script detected but predates version reporting (v{Expected} available). Reload it in OBS Tools -> Scripts",
+                        ExpectedHelperScriptVersion);
+                else
+                    _logger?.LogInformation("[OBSService] Helper script detected (v{Version})", version);
             }
             else
             {
@@ -257,6 +297,7 @@ public class OBSService : IAppService
         }
 
         HelperScriptActive = active;
+        HelperScriptVersion = active ? version : null;
         HelperScriptStatusChanged?.Invoke(active);
     }
 
@@ -266,18 +307,33 @@ public class OBSService : IAppService
         _ = Task.Run(CheckHelperScriptAsync);
     }
 
+    private static string? ReadEmbeddedScriptContent()
+    {
+        using var stream = typeof(OBSService).Assembly.GetManifestResourceStream(ScriptResourceName);
+        if (stream == null) return null;
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static string? ReadEmbeddedScriptVersion()
+    {
+        var content = ReadEmbeddedScriptContent();
+        if (content == null) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(
+            content, "SCRIPT_VERSION\\s*=\\s*\"([^\"]+)\"");
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
     private void EnsureScriptFileOnDisk()
     {
         try
         {
-            using var stream = typeof(OBSService).Assembly.GetManifestResourceStream(ScriptResourceName);
-            if (stream == null)
+            var content = ReadEmbeddedScriptContent();
+            if (content == null)
             {
                 _logger?.LogWarning("[OBSService] Embedded helper script resource not found");
                 return;
             }
-            using var reader = new StreamReader(stream);
-            var content = reader.ReadToEnd();
 
             var path = ScriptPath;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);

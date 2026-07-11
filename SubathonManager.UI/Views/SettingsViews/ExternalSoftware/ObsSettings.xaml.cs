@@ -49,8 +49,20 @@ public partial class ObsSettings : SettingsControl
     {
         if (active)
         {
-            ScriptStatusText.Text = "Active";
-            ScriptStatusText.Foreground = System.Windows.Media.Brushes.LimeGreen;
+            var loaded = ServiceManager.OBS.HelperScriptVersion;
+            var expected = Integration.OBSService.ExpectedHelperScriptVersion;
+            if (ServiceManager.OBS.HelperScriptOutdated)
+            {
+                ScriptStatusText.Text = loaded != null
+                    ? $"Outdated (v{loaded} loaded, v{expected} available) - reload in OBS Tools -> Scripts"
+                    : $"Outdated (v{expected} available) - reload in OBS Tools -> Scripts";
+                ScriptStatusText.Foreground = System.Windows.Media.Brushes.Orange;
+            }
+            else
+            {
+                ScriptStatusText.Text = loaded != null ? $"Active (v{loaded})" : "Active";
+                ScriptStatusText.Foreground = System.Windows.Media.Brushes.LimeGreen;
+            }
         }
         else if (ServiceManager.OBS.Connected)
         {
