@@ -464,7 +464,6 @@ public class TreatStreamService(ILogger<TreatStreamService>? logger, IHttpClient
     {
         try
         {
-            Console.WriteLine(response);
             ProcessTreatJson(response.GetValue<JsonElement>(0).GetRawText());
         }
         catch (Exception ex)

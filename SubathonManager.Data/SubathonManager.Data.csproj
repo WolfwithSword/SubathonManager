@@ -19,6 +19,8 @@
         <PrivateAssets>all</PrivateAssets>
       </PackageReference>
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
+      <!-- Overrides EF's transitive SQLitePCLRaw 2.1.11 for CVE-2025-6965 (GHSA-2m69-gcr7-jv3q) TODO -->
+      <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     </ItemGroup>
     
     <ItemGroup>

@@ -39,7 +39,7 @@ public class SettingsGroupControl : SettingsControl
                 Margin = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(10, 6, 10, 6),
                 Appearance = ControlAppearance.Transparent,
-                FontSize = 20,
+                FontSize = 13,
                 MinWidth = 100,
                 Tag = $"{source}",
                 BorderThickness = new Thickness(1, 1, 1, 2),

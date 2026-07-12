@@ -146,7 +146,7 @@ public partial class WebhookLogSettings : SettingsControl
                 Margin = new Thickness(2, 1, 2, 1),
                 Padding = new Thickness(10, 6, 10, 6),
                 Appearance = ControlAppearance.Transparent,
-                FontSize = 34,
+                FontSize = 13,
                 Height = 34,
                 BorderThickness = new Thickness(2, 1, 1, 1),
                 Tag = label
@@ -219,7 +219,7 @@ public partial class WebhookLogSettings : SettingsControl
                     Margin = new Thickness(0, 0, 0, 0),
                     Padding = new Thickness(10, 6, 10, 6),
                     Appearance = _activeSubTab[label].Equals(sn) ? ControlAppearance.Secondary : ControlAppearance.Transparent,
-                    FontSize = 20,
+                    FontSize = 13,
                     MinWidth = 100,
                     Tag = sn,
                     BorderThickness = new Thickness(1, 1, 1, 2),
