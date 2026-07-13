@@ -213,7 +213,8 @@ public class TangiaService(ILogger<TangiaService>? logger, IHttpClientFactory ht
             Source = SubathonEventSource.Tangia,
             Service = nameof(SubathonEventSource.Tangia),
             Name = "",
-            Status = connected
+            Status = connected,
+            Configured = !string.IsNullOrWhiteSpace(EventKey)
         });
     }
 

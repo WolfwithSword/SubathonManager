@@ -93,14 +93,15 @@ public class SubathonValueConfigHelper
         foreach (var dto in incoming)
         {
             var meta = dto.Meta;
-            // if (dto is { Source: SubathonEventSource.GoAffPro, EventType: SubathonEventType.GoAffProOrder }
-            //     && !int.TryParse(dto.Meta, out var siteid))
-            // {
-            //     GoAffProStoreRegistry.TryGetByInternalName(dto.Meta, out var store);
-            //     if (store == null) continue;
-            //     meta = store.SiteId.ToString();
-            // }
-            
+            if (dto is { Source: SubathonEventSource.GoAffPro, EventType: SubathonEventType.GoAffProOrder }
+                && !int.TryParse(dto.Meta, out _))
+            {
+                if (!GoAffProStoreRegistry.TryGetByInternalName(dto.Meta, out var store)
+                    && !GoAffProOrderHelper.TryGetStoreByOrderKey(dto.Meta, out store))
+                    continue;
+                meta = store.SiteId.ToString();
+            }
+
             var match = dbValues.FirstOrDefault(v =>
                 v.EventType == dto.EventType &&
                 v.Meta == meta &&

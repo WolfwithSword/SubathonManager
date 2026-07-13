@@ -39,7 +39,7 @@ jobs:
           dotnet-version: '9.0.x'
           
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
@@ -97,7 +97,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
@@ -250,6 +250,17 @@ jobs:
             exit 1
           fi
           cp external/streamerbot/*.sb ./ || true
+
+      - name: Package Stream Deck plugin
+        run: |
+          sdplugin=external/streamdeck/com.wolfwithsword.subathonmanager.sdPlugin
+          mkdir -p $sdplugin/images
+          for spec in pluginIcon:28 categoryIcon:28 actionIcon:20 keyIcon:72; do
+            name=${spec%%:*}; size=${spec##*:}
+            convert assets/icon.png -resize ${size}x${size} $sdplugin/images/${name}.png
+            convert assets/icon.png -resize $((size*2))x$((size*2)) $sdplugin/images/${name}@2x.png
+          done
+          (cd external/streamdeck && zip -r ../../SubathonManager_StreamDeck.streamDeckPlugin com.wolfwithsword.subathonmanager.sdPlugin)
           
            
       - name: Create GitHub Release
@@ -260,6 +271,7 @@ jobs:
           files: |
             ${{ needs.build.outputs.filename }}
             *.sb
+            *.streamDeckPlugin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -290,6 +302,7 @@ jobs:
           files: |
             ${{ needs.build.outputs.filename }}
             *.sb
+            *.streamDeckPlugin
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:

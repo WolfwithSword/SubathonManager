@@ -49,6 +49,8 @@ namespace SubathonManager.UI.Views.WheelSpin
             PopulateActionTypeComboBox();
             LoadActiveWheel();
             LoadGlobalState();
+            
+            WheelEvents.WheelSpinRequested += OnWheelSpinRequested;
             Loaded += (_, _) =>
             {
                 if (!_initialized)
@@ -875,6 +877,15 @@ namespace SubathonManager.UI.Views.WheelSpin
 
         private async void SpinWheel_Click(object sender, RoutedEventArgs e)
             => await PerformSpinAsync();
+
+        private void OnWheelSpinRequested()
+        {
+            Dispatcher.InvokeAsync(async () =>
+            {
+                if (_activeWheel == null || _isSpinning || !SpinWheelBtn.IsEnabled) return;
+                await PerformSpinAsync();
+            });
+        }
 
         private async Task PerformSpinAsync()
         {

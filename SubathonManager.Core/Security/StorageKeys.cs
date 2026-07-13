@@ -21,4 +21,11 @@ public static class StorageKeys
     public const string TipeeeStreamApiKey = "SM.TipeeeStream.ApiKey";
 
     public const string TangiaEventKey = "SM.Tangia.EventKey";
+
+    public const string PallyApiKey = "SM.PallyGG.ApiKey";
+
+    public const string TreatStreamAccessToken = "SM.TreatStream.AccessToken";
+    public const string TreatStreamRefreshToken = "SM.TreatStream.RefreshToken";
+    public const string TreatStreamTokenExpiry = "SM.TreatStream.TokenExpiry";
+    public const string TreatStreamClientId = "SM.TreatStream.ClientId";
 }

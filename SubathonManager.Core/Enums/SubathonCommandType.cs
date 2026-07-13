@@ -44,7 +44,8 @@ public enum SubathonCommandType
     AddSpins,
     [CommandMeta(Description="Subtract Wheel Spins", RequiresParameter = true)]
     SubtractSpins,
-    
+    [CommandMeta(Description="Spin the Wheel", IsControlType = true)]
+    SpinWheel,
 }
 
 [ExcludeFromCodeCoverage]

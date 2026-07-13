@@ -10,8 +10,8 @@
 
     <StackPanel>
 
-        <!-- Connection type toggle -->
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,10"
+        <!-- Connection type toggle (legacy) -->
+        <StackPanel x:Name="MethodTogglePanel" Orientation="Horizontal" Margin="0,0,0,10"
                     views:SettingsProperties.ExcludeFromUnsaved="True">
             <TextBlock Text="Method: " Margin="0 0 12 0" TextAlignment="Center" VerticalAlignment="Center"/>
             <RadioButton x:Name="WebhookRadio" Content="DevTunnel" IsChecked="True"

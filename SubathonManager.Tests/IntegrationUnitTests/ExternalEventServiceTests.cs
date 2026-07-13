@@ -69,6 +69,78 @@ public class ExternalEventServiceTests
     }
     
     [Fact]
+    public void ProcessExternalCommand_ShouldUseStreamDeckSource_WhenProvided()
+    {
+        var json = """
+                   {
+                               "command": "Pause",
+                               "user": "EXTERNAL",
+                               "source": "StreamDeck",
+                               "message": ""
+                           }
+                   """;
+
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("EXTERNAL", ev!.User);
+        Assert.Equal(SubathonEventSource.StreamDeck, ev.Source);
+        Assert.Equal(SubathonCommandType.Pause, ev.Command);
+        Assert.Equal(SubathonEventType.Command, ev.EventType);
+    }
+
+    [Fact]
+    public void ProcessExternalCommand_ShouldUseStreamerBotSource_WhenProvided()
+    {
+        var json = """
+                   {
+                               "command": "AddPoints",
+                               "user": "EXTERNAL",
+                               "source": "StreamerBot",
+                               "message": "5"
+                           }
+                   """;
+
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal("EXTERNAL", ev!.User);
+        Assert.Equal("AddPoints 5", ev.Value);
+        Assert.Equal(SubathonEventSource.StreamerBot, ev.Source);
+        Assert.Equal(SubathonCommandType.AddPoints, ev.Command);
+    }
+
+    [Fact]
+    public void ProcessExternalCommand_ShouldIgnoreUnknownSource()
+    {
+        var json = """
+                   {
+                               "command": "Pause",
+                               "user": "Tester",
+                               "source": "Twitch",
+                               "message": ""
+                           }
+                   """;
+
+        var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+
+        bool result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
+
+        Assert.True(result);
+        Assert.NotNull(ev);
+        Assert.Equal(SubathonEventSource.External, ev!.Source);
+    }
+
+    [Fact]
     public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam()
     {
         

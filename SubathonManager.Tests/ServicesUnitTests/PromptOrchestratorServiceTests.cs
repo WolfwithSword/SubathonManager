@@ -24,11 +24,13 @@ public class PromptOrchestratorServiceTests : IAsyncDisposable
     public PromptOrchestratorServiceTests()
     {
         var dbName = $"prompt_test_{Guid.NewGuid():N}";
-        _connection = new SqliteConnection($"DataSource={dbName};Mode=Memory;Cache=Shared");
+        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
+        
+        _connection = new SqliteConnection(connectionString);
         _connection.Open();
 
         _options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(_connection)
+            .UseSqlite(connectionString)
             .Options;
 
         using var db = new AppDbContext(_options);
@@ -475,8 +477,8 @@ public class PromptOrchestratorServiceTests : IAsyncDisposable
     {
         await using var db = CreateDb();
         db.SubathonDatas.Add(new SubathonData { IsActive = true, Points = 0, Currency = "USD" });
-        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.UwUMarketOrder, ProcessedToSubathon = true, Amount = 1 });
-        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.UwUMarketOrder, ProcessedToSubathon = true, Amount = 3 });
+        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230", ProcessedToSubathon = true, Amount = 1 });
+        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230", ProcessedToSubathon = true, Amount = 3 });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var prompt = new SubathonPrompt { Type = SubathonPromptType.Orders, SubType = SubathonPromptSubType.Default };
@@ -489,8 +491,8 @@ public class PromptOrchestratorServiceTests : IAsyncDisposable
     {
         await using var db = CreateDb();
         db.SubathonDatas.Add(new SubathonData { IsActive = true, Points = 0, Currency = "USD" });
-        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.UwUMarketOrder, ProcessedToSubathon = true, Amount = 2 });
-        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.UwUMarketOrder, ProcessedToSubathon = true, Amount = 4 });
+        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230", ProcessedToSubathon = true, Amount = 2 });
+        db.SubathonEvents.Add(new SubathonEvent { EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230", ProcessedToSubathon = true, Amount = 4 });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var prompt = new SubathonPrompt { Type = SubathonPromptType.Orders, SubType = SubathonPromptSubType.Items };

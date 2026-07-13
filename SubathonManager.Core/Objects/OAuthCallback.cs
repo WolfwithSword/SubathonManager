@@ -9,6 +9,8 @@ public class OAuthCallback
     public string? AccessToken { get; set; }
     public string? RefreshToken { get; set; }
     public string? Error { get; set; }
-    
+
     public string? Code { get; set; }
+    public string? ExpiresIn { get; set; }
+    public string? ClientId { get; set; }
 }

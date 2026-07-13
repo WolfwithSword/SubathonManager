@@ -169,6 +169,13 @@
                                                         <Binding Path="Currency"/>
                                                     </MultiBinding>
                                                 </TextBlock.Text>
+                                                <TextBlock.ToolTip>
+                                                    <MultiBinding Converter="{StaticResource EventTypeValueConverter}">
+                                                        <Binding Path="Value"/>
+                                                        <Binding Path="EventType"/>
+                                                        <Binding Path="Currency"/>
+                                                    </MultiBinding>
+                                                </TextBlock.ToolTip>
                                             </TextBlock>
                                         </StackPanel>
                                     </Grid>

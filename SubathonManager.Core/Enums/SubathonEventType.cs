@@ -90,20 +90,21 @@ public enum SubathonEventType
     [EventTypeMeta(Label = "Kudos Tip", Source = SubathonEventSource.Picarto, IsToken = true, Order = 3)]
     PicartoTip,
 
+    [Obsolete]
     [GoAffProTypeMeta(Label = "GamerSupps Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 1,
-        StoreSource = GoAffProSource.GamerSupps, Enabled = true)]
+        LegacySiteId = 165328, Enabled = false)]
     GamerSuppsOrder,
-
+    [Obsolete]
     [GoAffProTypeMeta(Label = "UwUMarket Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 2,
-        StoreSource = GoAffProSource.UwUMarket, Enabled = true)]
+        LegacySiteId = 132230, Enabled = false)]
     UwUMarketOrder,
 
     [GoAffProTypeMeta(Label = "Orchid Eight Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 3,
-        StoreSource = GoAffProSource.OrchidEight, Enabled = true)]
+        LegacySiteId = 7142837, Enabled = false)]
     OrchidEightOrder,
-
+    [Obsolete]
     [GoAffProTypeMeta(Label = "KatDragonz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 4,
-        StoreSource = GoAffProSource.KatDragonz, Enabled = true)]
+        LegacySiteId = 7160049, Enabled = false)]
     KatDragonzOrder,
 
     [EventTypeMeta(Label = "Redirect/Raid", Source = SubathonEventSource.YouTube, IsRaid = true, Order = 5)]
@@ -133,13 +134,13 @@ public enum SubathonEventType
     [EventTypeMeta(Label = "Gift Order", Source = SubathonEventSource.FourthWall, IsOrder = true, IsExternal = true,
         Order = 4)]
     FourthWallGiftOrder,
-
+    [Obsolete]
     [GoAffProTypeMeta(Label = "Cheeky Soap Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 5,
-        StoreSource = GoAffProSource.CheekySoap, Enabled = true)]
+        LegacySiteId = 7138531, Enabled = false)]
     CheekySoapOrder,
-
+    [Obsolete]
     [GoAffProTypeMeta(Label = "Advanced GG Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 6,
-        StoreSource = GoAffProSource.AdvancedGG, Enabled = true)]
+        LegacySiteId = 105752, Enabled = false)]
     AdvancedGGOrder,
 
     [EventTypeMeta(Label = "Gift Purchase", Source = SubathonEventSource.Throne, Order = 1,
@@ -156,28 +157,39 @@ public enum SubathonEventType
         IsGenericEvent = true)]
     // will come in if contribution fully funds, so purely an alert, not event to add. So we do not allow configuration of it
     ThroneCrowdGiftComplete, // only config in settings is whether or not to display it
+    [Obsolete]
     [GoAffProTypeMeta(Label = "Rogue Energy Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 7,
-        StoreSource = GoAffProSource.RogueEnergy, Enabled = true)]
+        LegacySiteId = 7014645, Enabled = false)]
     RogueEnergyOrder,
-
+    [Obsolete]
     [GoAffProTypeMeta(Label = "Saucy Biz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 8,
-        StoreSource = GoAffProSource.SaucyBiz, Enabled = true)]
+        LegacySiteId = 7118656, Enabled = false)]
     SaucyBizOrder,
-    // PLACEHOLDER FOR FUTURE
-    [GoAffProTypeMeta(Label="GoAffPro Order", Source=SubathonEventSource.GoAffPro, IsOrder=true, Order=1, Enabled=false)]
-    GoAffProOrder,
     
+    // dynamic GoAffPro order type, meta is site id
+    [GoAffProTypeMeta(Label="GoAffPro Order", Source=SubathonEventSource.GoAffPro, IsOrder=true, Order=1, Enabled=true)]
+    GoAffProOrder,
+    [Obsolete]
     [GoAffProTypeMeta(Label = "GFuel Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 9,
-        StoreSource = GoAffProSource.GFuel, Enabled = true)]
+        LegacySiteId = 48808, Enabled = false)]
     GFuelOrder,
+    [Obsolete]
     [GoAffProTypeMeta(Label = "Natura Pine Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 10,
-        StoreSource = GoAffProSource.NaturaPine, Enabled = true)]
+        LegacySiteId = 7132796, Enabled = false)]
     NaturaPineOrder,
 
     [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.TipeeeStream, IsCurrencyDonation = true, Order = 1)]
     TipeeeStreamDonation,    
     [EventTypeMeta(Label = "Tokens", Source = SubathonEventSource.Tangia, IsToken = true, Order = 1)]
     TangiaTokens, // no way to distinguish twitch bits or tangia coins
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.PallyGG, IsCurrencyDonation = true, IsExternal = true,
+        Order = 1)]
+    // Pally.gg is USD only :/
+    PallyGGDonation,
+
+    [EventTypeMeta(Label = "Order", Source = SubathonEventSource.TreatStream, IsOrder = true, Order = 1)]
+    TreatStreamOrder,
 
     // any new must be added after the last
 }
@@ -257,13 +269,23 @@ public static class SubathonEventTypeHelper
         return SubathonEventSubType.Unknown;
     }
     
-    public static string? GetTypeTrueSource(this SubathonEventType eventType) => GetTypeTrueSource((SubathonEventType?)eventType);
-    
-    public static string? GetTypeTrueSource(this SubathonEventType? eventType)
+    public static string? GetTypeTrueSource(this SubathonEventType eventType, string? meta = null) => GetTypeTrueSource((SubathonEventType?)eventType, meta);
+
+    public static string? GetTypeTrueSource(this SubathonEventType? eventType, string? meta = null)
     {
         if (eventType is null or SubathonEventType.Command) return "Manual";
-        if (eventType.GetSource() == SubathonEventSource.GoAffPro) return eventType.GoAffProMeta()?.StoreSource.ToString();
+        if (eventType.GetSource() == SubathonEventSource.GoAffPro)
+        {
+            var siteId = eventType == SubathonEventType.GoAffProOrder && meta != null && int.TryParse(meta, out var parsed)
+                ? parsed
+                : eventType.GoAffProMeta()?.LegacySiteId ?? -1;
+            return GoAffProStoreRegistry.TryGetBySiteId(siteId, out var store)
+                ? store.InternalName
+                : nameof(SubathonEventSource.GoAffPro);
+        }
         return eventType.GetSource().ToString();
     }
-    
+
+    public static int GetLegacyGoAffProSiteId(this SubathonEventType eventType) =>
+        ((SubathonEventType?)eventType).GoAffProMeta()?.LegacySiteId ?? -1;
 }

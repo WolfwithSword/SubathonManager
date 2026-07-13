@@ -1,11 +1,12 @@
-﻿namespace SubathonManager.Tests;
+namespace SubathonManager.Tests;
 
 [CollectionDefinition("Sequential", DisableParallelization = true)]
 public class SequentialCollectionDefinition
 {
 }
 
-[CollectionDefinition("SequentialParallel", DisableParallelization = false)]
+
+[CollectionDefinition("SequentialParallel", DisableParallelization = true)]
 public class SequentialParallelCollectionDefinition
 {
 }
@@ -15,3 +16,9 @@ public class SharedEventBusTestsCollection { }
 
 [CollectionDefinition("NonParallel", DisableParallelization = true)]
 public class NonParallelCollection { }
+
+[CollectionDefinition("ServicesTests", DisableParallelization = true)]
+public class ServicesTestsCollection { }
+
+[CollectionDefinition("ProviderOverrideTests", DisableParallelization = true)]
+public class ProviderOverrideTestsCollection { }

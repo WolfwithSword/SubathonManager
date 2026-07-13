@@ -31,7 +31,7 @@ public partial class KoFiWebhookSettings: DevTunnelSettingsControl
     protected override Wpf.Ui.Controls.TextBox _WebhookForwardUrlsBox => KoFiWebhookForwardUrlsBox;
     protected override Wpf.Ui.Controls.TextBox _ForwardUrlsMultiBox => ForwardUrlsMultiBox;
     protected override Popup _ForwardUrlsPopup => ForwardUrlsPopup;
-    protected override Button? _ConnectBtn => null;
+    protected override Button? _ConnectBtn => ConnectBtn;
 
     public KoFiWebhookSettings()
     {
@@ -94,6 +94,13 @@ public partial class KoFiWebhookSettings: DevTunnelSettingsControl
     public override bool UpdateValueSettings(AppDbContext db) => false;
     public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
     public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) => ("", "", null, null);
+    
+    private async void ConnectKoFi_Click(object sender, RoutedEventArgs e)
+    {
+        var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
+        secureStorage.Set(StorageKeys.KoFiVerificationToken, KoFiWebhookTokenBox.Password.Trim());
+        await RestartKoFiAsync();
+    }
 
     private void OpenKoFiTokenLink_Click(object sender, RoutedEventArgs e)
     {    

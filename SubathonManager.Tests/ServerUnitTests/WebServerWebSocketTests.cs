@@ -762,4 +762,78 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
         }
     }
 
+    [Fact]
+    public async Task WebSocket_CommandListRequest_ReturnsCatalog()
+    {
+        SetupServices();
+        var server = CreateServer();
+
+        try
+        {
+            var ctx = new MockHttpContext
+            {
+                IsWebSocket = true
+            };
+
+            ctx.Socket.EnqueueReceive("{\"ws_type\":\"Command\",\"request\":\"commands\"}");
+            ctx.Socket.EnqueueClose();
+
+            await server.HandleWebSocketRequestAsync(ctx);
+
+            await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("command_list"), TimeSpan.FromSeconds(5));
+
+            string msg = ctx.Socket.SentMessages
+                .Select(b => Encoding.UTF8.GetString(b))
+                .First(m => m.Contains("command_list"));
+
+            Assert.Contains($"\"{nameof(SubathonCommandType.AddTime)}\"", msg);
+            Assert.Contains($"\"{nameof(SubathonCommandType.Pause)}\"", msg);
+            Assert.Contains("requires_parameter", msg);
+            Assert.Contains("is_control", msg);
+            Assert.DoesNotContain($"\"{nameof(SubathonCommandType.Unknown)}\"", msg);
+            Assert.DoesNotContain($"\"{nameof(SubathonCommandType.None)}\"", msg);
+        }
+        finally
+        {
+            AppServices.Provider = null!;
+            server.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task WebSocket_Command_SendsAckWithContext()
+    {
+        SetupServices();
+        var server = CreateServer();
+
+        try
+        {
+            var ctx = new MockHttpContext
+            {
+                IsWebSocket = true
+            };
+
+            ctx.Socket.EnqueueReceive(
+                "{\"ws_type\":\"Command\",\"type\":\"Command\",\"command\":\"pause\",\"message\":\"\",\"user\":\"StreamDeck\",\"context\":\"key-context-1\"}");
+            ctx.Socket.EnqueueClose();
+
+            await server.HandleWebSocketRequestAsync(ctx);
+
+            await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("command_ack"), TimeSpan.FromSeconds(5));
+
+            string msg = ctx.Socket.SentMessages
+                .Select(b => Encoding.UTF8.GetString(b))
+                .First(m => m.Contains("command_ack"));
+
+            Assert.Contains("\"success\":true", msg);
+            Assert.Contains("key-context-1", msg);
+            Assert.Contains("\"pause\"", msg);
+        }
+        finally
+        {
+            AppServices.Provider = null!;
+            server.Stop();
+        }
+    }
+
 }

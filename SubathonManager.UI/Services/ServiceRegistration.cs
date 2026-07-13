@@ -37,7 +37,11 @@ public static class ServiceRegistration
         services.AddSingleton<PromptOrchestratorService>();
         services.AddSingleton<WheelSpinTriggerService>();
         services.AddSingleton<TelemetryService>();
-        services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
+
+        if (OperatingSystem.IsWindows())
+            services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
+        else
+            services.AddSingleton<ISecureStorage, AesFileSecureStorage>();
     }
     
     public static void AddIntegrations(this IServiceCollection services)
@@ -78,12 +82,15 @@ public static class ServiceRegistration
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
+        services.AddSingleton<PallyService>();
 
         // Stream Extensions //
         services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<TipeeeStreamService>();
         services.AddHttpClient(nameof(TangiaService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<TangiaService>();
+        services.AddHttpClient(nameof(TreatStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<TreatStreamService>();
 
         // Other //
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;

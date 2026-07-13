@@ -171,6 +171,9 @@
         if (sub == "DonationLike") return `${value} ${currency}`.trim();
         if (sub == "FollowLike") return "";
         if (sub == "OrderLike") {
+            if (data.type_true_source.toLowerCase() == "treatstream") {
+                return data.tertiary_value;
+            }
             if (data.type_true_source.toLowerCase() == "throne") {
                 if (data.event_type.toLowerCase().includes("contribution")) {
                     return data.currency + " " + data.value + " - " + data.secondary_value;

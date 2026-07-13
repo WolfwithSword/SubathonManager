@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>SubathonManager Command</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        background: #2D2D2D;
+        color: #D8D8D8;
+        font-family: "Segoe UI", Roboto, Arial, sans-serif;
+        font-size: 9pt;
+        -webkit-user-select: none;
+    }
+    .sdpi-wrapper { padding: 4px 6px; }
+    .sdpi-item {
+        display: flex;
+        align-items: center;
+        min-height: 26px;
+        margin: 4px 0;
+    }
+    .sdpi-item-label {
+        width: 84px;
+        min-width: 84px;
+        text-align: right;
+        padding-right: 8px;
+        color: #A8A8A8;
+    }
+    .sdpi-item-value { flex: 1; display: flex; align-items: center; }
+    select, input[type="text"], input[type="number"] {
+        flex: 1;
+        background: #3D3D3D;
+        color: #D8D8D8;
+        border: 1px solid #202020;
+        border-radius: 4px;
+        min-height: 22px;
+        padding: 2px 6px;
+        font-size: 9pt;
+        outline: none;
+        box-sizing: border-box;
+        width: 100%;
+    }
+    .hint {
+        margin: 0 0 6px 92px;
+        font-size: 8pt;
+        color: #909090;
+    }
+    .status-dot {
+        display: inline-block;
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        background: #C83232;
+    }
+    .status-dot.connected { background: #32C850; }
+    #statusText { font-size: 9pt; }
+</style>
+</head>
+<body>
+<div class="sdpi-wrapper">
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Status</div>
+        <div class="sdpi-item-value">
+            <span id="statusDot" class="status-dot"></span>
+            <span id="statusText">Not connected</span>
+        </div>
+    </div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">App Port</div>
+        <div class="sdpi-item-value">
+            <input type="number" id="port" min="1" max="65535" placeholder="14040" />
+        </div>
+    </div>
+    <div class="hint">SubathonManager WebServer port (default 14040). Shared by all keys.</div>
+    <div class="sdpi-item">
+        <div class="sdpi-item-label">Command</div>
+        <div class="sdpi-item-value">
+            <select id="command"></select>
+        </div>
+    </div>
+    <div class="sdpi-item" id="parameterItem" style="display:none">
+        <div class="sdpi-item-label">Parameter</div>
+        <div class="sdpi-item-value">
+            <input type="text" id="parameter" placeholder="e.g. 10m30s or 500, if applicable" />
+        </div>
+    </div>
+    <div class="hint" id="parameterHint" style="display:none">
+        Time: 1h10m30s &#8226; Points: 500 &#8226; Money: 5 USD &#8226; Multiplier: 2xtp 10m
+    </div>
+</div>
+
+<script>
+let sdSocket = null;
+let piUUID = null;
+let actionInfo = null;
+let settings = {};
+let commands = [];
+
+const commandSelect = document.getElementById('command');
+const parameterInput = document.getElementById('parameter');
+const parameterItem = document.getElementById('parameterItem');
+const parameterHint = document.getElementById('parameterHint');
+const portInput = document.getElementById('port');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+function connectElgatoStreamDeckSocket(inPort, inPropertyInspectorUUID, inRegisterEvent, inInfo, inActionInfo) {
+    piUUID = inPropertyInspectorUUID;
+    actionInfo = JSON.parse(inActionInfo);
+    settings = (actionInfo.payload && actionInfo.payload.settings) || {};
+
+    sdSocket = new WebSocket('ws://127.0.0.1:' + inPort);
+    sdSocket.onopen = () => {
+        sdSend({ event: inRegisterEvent, uuid: piUUID });
+        sendToPlugin({ event: 'getCommands' });
+        render();
+    };
+    sdSocket.onmessage = (evt) => {
+        let msg;
+        try { msg = JSON.parse(evt.data); } catch { return; }
+        if (msg.event === 'sendToPropertyInspector') {
+            const payload = msg.payload || {};
+            if (payload.event === 'state') {
+                commands = payload.commands || [];
+                setStatus(payload.connected);
+                if (payload.port && document.activeElement !== portInput)
+                    portInput.value = payload.port;
+                render();
+            }
+        }
+        else if (msg.event === 'didReceiveSettings') {
+            settings = (msg.payload && msg.payload.settings) || {};
+            render();
+        }
+    };
+}
+
+function sdSend(obj) {
+    if (sdSocket && sdSocket.readyState === WebSocket.OPEN)
+        sdSocket.send(JSON.stringify(obj));
+}
+
+function sendToPlugin(payload) {
+    sdSend({
+        event: 'sendToPlugin',
+        action: actionInfo.action,
+        context: piUUID,
+        payload: payload
+    });
+}
+
+function saveSettings() {
+    sdSend({ event: 'setSettings', context: piUUID, payload: settings });
+}
+
+function setStatus(connected) {
+    statusDot.classList.toggle('connected', !!connected);
+    statusText.textContent = connected ? 'Connected to SubathonManager' : 'Not connected - is the app running?';
+}
+
+function render() {
+    commandSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = commands.length ? 'Select a command...' : 'No commands loaded';
+    commandSelect.appendChild(placeholder);
+
+    let hasSaved = false;
+    for (const cmd of commands) {
+        const opt = document.createElement('option');
+        opt.value = cmd.command;
+        opt.textContent = cmd.description || cmd.command;
+        commandSelect.appendChild(opt);
+        if (cmd.command === settings.command) hasSaved = true;
+    }
+    if (settings.command && !hasSaved) {
+        const opt = document.createElement('option');
+        opt.value = settings.command;
+        opt.textContent = settings.command;
+        commandSelect.appendChild(opt);
+    }
+    commandSelect.value = settings.command || '';
+
+    parameterInput.value = settings.parameter || '';
+    updateParameterVisibility();
+}
+
+function updateParameterVisibility() {
+    const cmd = commands.find(c => c.command === settings.command);
+    const show = settings.command && (!cmd || cmd.requires_parameter);
+    parameterItem.style.display = show ? 'flex' : 'none';
+    parameterHint.style.display = show ? 'block' : 'none';
+}
+
+commandSelect.addEventListener('change', () => {
+    settings.command = commandSelect.value;
+    saveSettings();
+    updateParameterVisibility();
+});
+
+parameterInput.addEventListener('input', () => {
+    settings.parameter = parameterInput.value;
+    saveSettings();
+});
+
+portInput.addEventListener('change', () => {
+    sendToPlugin({ event: 'setPort', port: portInput.value });
+});
+</script>
+</body>
+</html>

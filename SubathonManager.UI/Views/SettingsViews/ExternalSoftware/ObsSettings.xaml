@@ -1,0 +1,50 @@
+<views:SettingsControl x:Class="SubathonManager.UI.Views.SettingsViews.ExternalSoftware.ObsSettings"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:views="clr-namespace:SubathonManager.UI.Views"
+             xmlns:local="clr-namespace:SubathonManager.UI.Views"
+             mc:Ignorable="d">
+    <StackPanel Orientation="Vertical" Margin="0,0,0,6">
+        <StackPanel Orientation="Horizontal" Margin="0 4 0 6">
+            <ui:Button x:Name="ObsConnectBtn" Content="Connect" Width="100" Height="30"
+                       Margin="0 0 8 0" Click="ObsConnect_Click"
+                       local:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <TextBlock Text="Status:" VerticalAlignment="Center" Margin="0 0 4 0" FontSize="12"/>
+            <TextBlock x:Name="ObsStatusText" VerticalAlignment="Center" FontSize="12" Text="Disconnected"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Host:" Width="120" VerticalAlignment="Center"/>
+            <ui:TextBox x:Name="ObsHostBox" Width="140" PlaceholderText="localhost" Margin="0 0 32 0"
+                        local:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <TextBlock Text="Port:" Width="32" VerticalAlignment="Center"/>
+            <ui:TextBox x:Name="ObsPortBox" Width="80" PlaceholderText="4455" Margin="12 0 8 0"
+                        local:SettingsProperties.ExcludeFromUnsaved="True" ClearButtonEnabled="False"
+                        PreviewTextInput="NumberOnly_PreviewTextInput"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Password:" Width="120" VerticalAlignment="Center"/>
+            <ui:PasswordBox x:Name="ObsPasswordBox" Width="220" Height="36" Margin="0 0 8 0" />
+            <TextBlock Text="(leave blank if none)" VerticalAlignment="Center" FontSize="11"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0 4 0 6">
+            <TextBlock Text="Helper Script:" Width="120" VerticalAlignment="Center"
+                       ToolTip="A Lua script for OBS that lets SubathonManager have a better integration and allows advanced source edits (e.g. setting Blending Method to 'SRGB Off' on browser sources it creates)."/>
+            <TextBlock x:Name="ScriptStatusText" Text="Unknown" VerticalAlignment="Center" FontSize="12"
+                       Margin="0 0 12 0"/>
+            <ui:Button x:Name="CopyScriptPathBtn" Content="Copy Script Path" Height="30"
+                       Click="CopyScriptPath_Click" Margin="0 0 6 0"
+                       ToolTip="Copies path of the helper script. Add it once in OBS: Tools -> Scripts -> '+' -> paste this path. SubathonManager detects it automatically on connect."
+                       local:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <ui:Button x:Name="RecheckScriptBtn" Height="30" Padding="8 2"
+                       Click="RecheckScript_Click"
+                       ToolTip="Recheck for the helper script"
+                       local:SettingsProperties.ExcludeFromUnsaved="True">
+                <ui:SymbolIcon Symbol="ArrowClockwise24" Width="16" Height="16"/>
+            </ui:Button>
+        </StackPanel>
+    </StackPanel>
+</views:SettingsControl>

@@ -53,11 +53,14 @@
         <StackPanel Margin="0,2">
             <StackPanel Orientation="Horizontal" Margin="0,4">
                 <TextBlock Text="Verification Token:" Width="160" VerticalAlignment="Center"
-                           ToolTip="The verification token from your Ko-fi webhook settings page. Found at Ko-fi → My Account → API → Webhooks."/>
+                           ToolTip="The verification token from your Ko-Fi webhook settings page. Found at Ko-Fi > My Account > API > Webhooks."/>
                 <ui:PasswordBox x:Name="KoFiWebhookTokenBox" Width="360" Height="34"
                             PlaceholderText="paste token here"
-                            ToolTip="Copy this from Ko-fi → My Account → API → Webhooks"/>
+                            ToolTip="Copy this from Ko-Fi > My Account > API > Webhooks"/>
                 <ui:Button Content="Get Token" Margin="4 0" Width="116" Height="34" Click="OpenKoFiTokenLink_Click"/>
+                <ui:Button x:Name="ConnectBtn" Content="Connect" Margin="4 0" Width="100" Height="34"
+                           Click="ConnectKoFi_Click"
+                           views:SettingsProperties.ExcludeFromUnsaved="True"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,4">
                 <TextBlock Text="Forward URL(s):" Width="160" VerticalAlignment="Center"

@@ -47,10 +47,11 @@ public class WheelSpinTriggerServiceTests
         Microsoft.Data.Sqlite.SqliteConnection conn)> SetupServiceWithDb()
     {
         var dbName = $"test_{Guid.NewGuid():N}";
-        var connection = new Microsoft.Data.Sqlite.SqliteConnection($"DataSource={dbName};Mode=Memory;Cache=Shared");
+        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
+        var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
         await connection.OpenAsync();
 
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
         await using (var db = new AppDbContext(options))
             await db.Database.EnsureCreatedAsync();
 
@@ -708,7 +709,7 @@ public class WheelSpinTriggerServiceTests
         {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
             {
-                EventType = SubathonEventType.UwUMarketOrder, IsEnabled = true,
+                EventType = SubathonEventType.GoAffProOrder, IsEnabled = true,
                 SpinsToAdd = 4, CountThreshold = null, MoneyThreshold = null
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -720,7 +721,7 @@ public class WheelSpinTriggerServiceTests
 
         SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
         {
-            Id = Guid.NewGuid(), EventType = SubathonEventType.UwUMarketOrder,
+            Id = Guid.NewGuid(), EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230",
             Command = SubathonCommandType.None, Amount = 99, Value = "100.00", Currency = "USD"
         }, true);
 
@@ -740,7 +741,7 @@ public class WheelSpinTriggerServiceTests
         {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
             {
-                EventType = SubathonEventType.UwUMarketOrder, IsEnabled = true,
+                EventType = SubathonEventType.GoAffProOrder, TierValue = "132230", IsEnabled = true,
                 SpinsToAdd = 1, CountThreshold = 3
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -752,7 +753,7 @@ public class WheelSpinTriggerServiceTests
 
         SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
         {
-            Id = Guid.NewGuid(), EventType = SubathonEventType.UwUMarketOrder,
+            Id = Guid.NewGuid(), EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230",
             Command = SubathonCommandType.None, Amount = 9
         }, true); // 9/3=3 * 1 = 3
 
@@ -772,7 +773,7 @@ public class WheelSpinTriggerServiceTests
         {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
             {
-                EventType = SubathonEventType.UwUMarketOrder, IsEnabled = true,
+                EventType = SubathonEventType.GoAffProOrder, TierValue = "132230", IsEnabled = true,
                 SpinsToAdd = 1, MoneyThreshold = 10, Currency = "USD"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -784,7 +785,7 @@ public class WheelSpinTriggerServiceTests
 
         SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
         {
-            Id = Guid.NewGuid(), EventType = SubathonEventType.UwUMarketOrder,
+            Id = Guid.NewGuid(), EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230",
             Command = SubathonCommandType.None, Value = "30.00", Currency = "USD"
         }, true); // (int)(30/10)=3 * 1 = 3
 

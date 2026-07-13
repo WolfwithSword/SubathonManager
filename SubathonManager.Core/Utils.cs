@@ -31,7 +31,8 @@ public static class Utils
             Source = source,
             Service = service,
             Name = "",
-            Status = false
+            Status = false,
+            Configured = false
         };
         UpdateConnection(conn);
 
@@ -350,16 +351,16 @@ public static class Utils
     {
         if (!ev.EventType.IsOrder()) return false;
 
-        // if (ev.EventType == SubathonEventType.GoAffProOrder)
-        // {
-        //     if (string.IsNullOrEmpty(ev.EventTypeMeta)) return false;
-        //     if (!GoAffProOrderHelper.TryGetStore(ev.EventTypeMeta, out var store)) return false;
-        //     return config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
-        // }
+        if (ev.EventType == SubathonEventType.GoAffProOrder)
+        {
+            if (string.IsNullOrEmpty(ev.EventTypeMeta)) return false;
+            if (!GoAffProOrderHelper.TryGetStore(ev.EventTypeMeta, out var store)) return false;
+            return config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+        }
 
         return config.GetBool(
             ev.EventType.GetSource().ToString(),
             $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-            false);
+            ev.EventType.GetSource() != SubathonEventSource.GoAffPro);
     }
 }

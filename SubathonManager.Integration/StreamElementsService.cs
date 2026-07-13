@@ -258,7 +258,8 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
                 Source = SubathonEventSource.StreamElements,
                 Service = "Socket",
                 Name = "User",
-                Status = false
+                Status = false,
+                Configured = !IsTokenEmpty()
             });
         }
     }

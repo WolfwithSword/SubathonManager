@@ -65,6 +65,8 @@ public class EventSourceMetaAttribute : EnumMetaAttribute
     public bool Visible { get; init; } = true;
     public SubathonEventSource TrueSource { get; init; } = SubathonEventSource.Unknown;
     public int SourceOrder { get; init; } = 99999;
+
+    public bool IsExternalSource { get; init; } = false;
 }
 
 public class EventTypeMetaAttribute : EnumMetaAttribute
@@ -95,15 +97,8 @@ public class EventTypeMetaAttribute : EnumMetaAttribute
 public class GoAffProTypeMetaAttribute : EventTypeMetaAttribute
 {
     public override string? Description =>  Label;
-    public GoAffProSource StoreSource { get; init; } = GoAffProSource.Unknown; 
-}
-
-
-public class GoAffProSourceMetaAttribute : EnumMetaAttribute
-{
-    public SubathonEventType OrderEvent { get; init; } = SubathonEventType.Unknown;
-    
-    public int SiteId { get; init; } = -1;
+    // maintaining for legacy data
+    public int LegacySiteId { get; init; } = -1;
 }
 
 public class CommandMetaAttribute : EnumMetaAttribute

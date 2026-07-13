@@ -1,0 +1,37 @@
+{
+  "SDKVersion": 2,
+  "Author": "WolfwithSword",
+  "Name": "SubathonManager",
+  "Description": "Control SubathonManager from your Stream Deck. Send any SubathonManager command with a key press. Requires the SubathonManager app to be running.",
+  "URL": "https://github.com/WolfwithSword/SubathonManager/external/streamdeck",
+  "Version": "1.0.1",
+  "Icon": "images/pluginIcon",
+  "CodePath": "plugin/index.html",
+  "PropertyInspectorPath": "pi/index.html",
+  "Category": "SubathonManager",
+  "CategoryIcon": "images/categoryIcon",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    }
+  ],
+  "Software": {
+    "MinimumVersion": "5.0"
+  },
+  "Actions": [
+    {
+      "Icon": "images/actionIcon",
+      "Name": "Subathon Command",
+      "States": [
+        {
+          "Image": "images/keyIcon",
+          "TitleAlignment": "bottom"
+        }
+      ],
+      "SupportedInMultiActions": true,
+      "Tooltip": "Sends a command to SubathonManager.",
+      "UUID": "com.wolfwithsword.subathonmanager.command"
+    }
+  ]
+}

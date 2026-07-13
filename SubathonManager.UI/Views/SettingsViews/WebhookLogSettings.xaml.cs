@@ -17,10 +17,11 @@ namespace SubathonManager.UI.Views.SettingsViews;
 
 public partial class WebhookLogSettings : SettingsControl
 {
-    private readonly Dictionary<string, Dictionary<string, List<(SubathonEventType EventType, CheckBox CheckBox)>>>
+    private readonly Dictionary<string, Dictionary<string, List<(string ConfigKey, CheckBox CheckBox)>>>
         _groupCheckboxes = new();
     private readonly Dictionary<string, List<string>> _subTabGroups = new();
     private readonly Dictionary<string, string> _activeSubTab = new();
+    private string? _activeGroup;
 
     public WebhookLogSettings()
     {
@@ -32,6 +33,40 @@ public partial class WebhookLogSettings : SettingsControl
     {
         Host = host;
         SuppressUnsavedChanges(InitWebhookSettings);
+
+        GoAffProStoreRegistry.StoreDiscovered -= OnGoAffProStoreDiscovered;
+        GoAffProStoreRegistry.StoreDiscovered += OnGoAffProStoreDiscovered;
+    }
+
+    private void OnGoAffProStoreDiscovered(GoAffProStore store)
+    {
+        // rerender to add new
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (!store.Enabled) return;
+            var groupLabel = SubathonEventSource.GoAffPro.GetGroupLabel();
+            var sourceName = SubathonEventSource.GoAffPro.GetDescription();
+            if (!_groupCheckboxes.TryGetValue(groupLabel, out var sourceMap) ||
+                !sourceMap.TryGetValue(sourceName, out var checkboxes)) return;
+
+            var key = $"{SubathonEventType.GoAffProOrder}.{store.SiteId}";
+            if (checkboxes.Any(c => c.ConfigKey == key)) return;
+
+            var config = AppServices.Provider.GetRequiredService<IConfig>();
+            var cb = new CheckBox
+            {
+                Content = store.EventName,
+                IsChecked = config.GetBool("Discord", $"Events.Log.{key}", false),
+                Margin = new Thickness(0, 4, 8, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 224
+            };
+            SuppressUnsavedChanges(() => WireControl(cb));
+            checkboxes.Add((key, cb));
+
+            if (_activeGroup == groupLabel)
+                SelectGroup(groupLabel);
+        });
     }
 
     internal override void UpdateStatus(IntegrationConnection? connection)
@@ -68,24 +103,32 @@ public partial class WebhookLogSettings : SettingsControl
 
         foreach (var (label, bySource) in rawGroups)
         {
-            var sourceMap = new Dictionary<string, List<(SubathonEventType, CheckBox)>>();
+            var sourceMap = new Dictionary<string, List<(string, CheckBox)>>();
 
             foreach (var (sourceName, events) in bySource)
             {
-                var checkboxes = new List<(SubathonEventType, CheckBox)>();
+                var checkboxes = new List<(string, CheckBox)>();
                 foreach (var eventType in events)
                 {
-                    bool isChecked = config.GetBool("Discord", $"Events.Log.{eventType}", false);
-                    var cb = new CheckBox
+                    IEnumerable<(string Label, string Key)> entries = eventType == SubathonEventType.GoAffProOrder
+                        ? GoAffProStoreRegistry.All().Where(s => s.Enabled)
+                            .Select(s => (s.EventName, $"{SubathonEventType.GoAffProOrder}.{s.SiteId}"))
+                        : new[] { (((SubathonEventType?)eventType).GetLabel(), eventType.ToString()) };
+
+                    foreach (var (entryLabel, key) in entries)
                     {
-                        Content = ((SubathonEventType?)eventType).GetLabel(),
-                        IsChecked = isChecked,
-                        Margin = new Thickness(0, 4, 8, 4),
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Width = 224
-                    };
-                    WireControl(cb);
-                    checkboxes.Add((eventType, cb));
+                        bool isChecked = config.GetBool("Discord", $"Events.Log.{key}", false);
+                        var cb = new CheckBox
+                        {
+                            Content = entryLabel,
+                            IsChecked = isChecked,
+                            Margin = new Thickness(0, 4, 8, 4),
+                            VerticalAlignment = VerticalAlignment.Center,
+                            Width = 224
+                        };
+                        WireControl(cb);
+                        checkboxes.Add((key, cb));
+                    }
                 }
                 sourceMap[sourceName] = checkboxes;
             }
@@ -103,7 +146,7 @@ public partial class WebhookLogSettings : SettingsControl
                 Margin = new Thickness(2, 1, 2, 1),
                 Padding = new Thickness(10, 6, 10, 6),
                 Appearance = ControlAppearance.Transparent,
-                FontSize = 34,
+                FontSize = 13,
                 Height = 34,
                 BorderThickness = new Thickness(2, 1, 1, 1),
                 Tag = label
@@ -144,6 +187,7 @@ public partial class WebhookLogSettings : SettingsControl
 
     private void SelectGroup(string label)
     {
+        _activeGroup = label;
         foreach (var child in WebhookGroupList.Children)
         {
             if (child is Wpf.Ui.Controls.Button btn)
@@ -175,7 +219,7 @@ public partial class WebhookLogSettings : SettingsControl
                     Margin = new Thickness(0, 0, 0, 0),
                     Padding = new Thickness(10, 6, 10, 6),
                     Appearance = _activeSubTab[label].Equals(sn) ? ControlAppearance.Secondary : ControlAppearance.Transparent,
-                    FontSize = 20,
+                    FontSize = 13,
                     MinWidth = 100,
                     Tag = sn,
                     BorderThickness = new Thickness(1, 1, 1, 2),
@@ -208,7 +252,7 @@ public partial class WebhookLogSettings : SettingsControl
         }
     }
 
-    private void PopulateCheckboxWrap(IEnumerable<(SubathonEventType, CheckBox cb)> checkboxes)
+    private void PopulateCheckboxWrap(IEnumerable<(string, CheckBox cb)> checkboxes)
     {
         var wrap = new WrapPanel
         {
@@ -242,8 +286,8 @@ public partial class WebhookLogSettings : SettingsControl
 
         foreach (var checkboxes
                  in _groupCheckboxes.Values.SelectMany(sourceMap => sourceMap.Values))
-            foreach (var (eventType, cb) in checkboxes)
-                hasUpdated |= config.Set("Discord", $"Events.Log.{eventType}", $"{cb.IsChecked}");
+            foreach (var (configKey, cb) in checkboxes)
+                hasUpdated |= config.Set("Discord", $"Events.Log.{configKey}", $"{cb.IsChecked}");
 
         hasUpdated |= config.Set("Discord", "WebhookUrl", ErrorWebhookUrlBx.Text);
         hasUpdated |= config.Set("Discord", "Events.WebhookUrl", EventWebhookUrlBx.Text);

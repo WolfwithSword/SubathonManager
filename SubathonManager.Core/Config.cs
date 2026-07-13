@@ -106,6 +106,7 @@ namespace SubathonManager.Core
             
             foreach (Core.Enums.SubathonEventType type in Enum.GetValues(typeof(Core.Enums.SubathonEventType)))
             {
+                if (type.GetLegacyGoAffProSiteId() > 0) continue; // retired per-store values
                 Data["Discord"][$"Events.Log.{type}"] = $"{false}";
             }
             Data["Discord"]["Events.Log.Simulated"] = $"{false}";

@@ -14,6 +14,7 @@ public static class WheelEvents
 
     public static event Action<WheelSpinTrigger, WheelSpinTriggerHistory, int>? WheelSpinTriggerFired;
     public static event Action? WheelSpinTriggersChanged;
+    public static event Action? WheelSpinRequested;
 
     public static void RaiseSpinsOwedUpdateFromEvent(int amount)
     {
@@ -37,4 +38,7 @@ public static class WheelEvents
 
     public static void RaiseWheelSpinTriggersChanged()
         => WheelSpinTriggersChanged?.Invoke();
+
+    public static void RaiseWheelSpinRequested()
+        => WheelSpinRequested?.Invoke();
 }

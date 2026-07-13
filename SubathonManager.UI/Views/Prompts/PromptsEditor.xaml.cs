@@ -4,7 +4,6 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
@@ -23,30 +22,23 @@ namespace SubathonManager.UI.Views.Prompts
         private SubathonPrompt? _selectedPrompt;
         private int _suppressCount = 0;
         private SubathonEventType? _selectedFilterEventType;
+        private string? _selectedFilterEventMeta;
         private Guid? _activeRunPromptId;
 
-        private record EventTypeEntry(SubathonEventType EventType, string Label);
+        private record EventTypeEntry(SubathonEventType EventType, string Label, string? Meta = null);
         private Dictionary<SubathonEventSource, List<EventTypeEntry>> _eventsBySource = new();
-
-        private readonly DispatcherTimer _popupCloseTimer;
 
         public PromptsEditor()
         {
             _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
             InitializeComponent();
 
-            _popupCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
-            _popupCloseTimer.Tick += (_, _) =>
-            {
-                _popupCloseTimer.Stop();
-                EventTypePopup.IsOpen = false;
-                EventListPanel.Visibility = Visibility.Collapsed;
-            };
-
             BuildEventsBySource();
             PopulateTypeComboBox();
-            PopulateSourceListBox();
             LoadActiveSet();
+
+            GoAffProStoreRegistry.StoreDiscovered -= OnGoAffProStoreDiscovered;
+            GoAffProStoreRegistry.StoreDiscovered += OnGoAffProStoreDiscovered;
 
             SubathonEvents.PromptRunStarted += (run, _) => Dispatcher.InvokeAsync(() => OnRunStateChanged(run.PromptId, true));
             SubathonEvents.PromptRunUpdate += (run, _) => Dispatcher.InvokeAsync(() =>
@@ -59,6 +51,11 @@ namespace SubathonManager.UI.Views.Prompts
             Loaded += (_, _) => Dispatcher.Invoke(AttachSetChangeHandlers);
         }
 
+        private void OnGoAffProStoreDiscovered(GoAffProStore store)
+        {
+            Dispatcher.InvokeAsync(BuildEventsBySource);
+        }
+
         private void BuildEventsBySource()
         {
             _eventsBySource = Enum.GetValues<SubathonEventType>()
@@ -68,107 +65,48 @@ namespace SubathonManager.UI.Views.Prompts
                 .ToDictionary(
                     g => g.Key,
                     g => g.OrderBy(e => e.GetOrderNumber())
-                          .Select(e => new EventTypeEntry(e, e.GetLabel()))
+                          .SelectMany(BuildEventEntries)
                           .ToList()
                 );
         }
 
-        private void PopulateSourceListBox()
+        private static IEnumerable<EventTypeEntry> BuildEventEntries(SubathonEventType e)
         {
-            SourceListBox.Items.Clear();
-            foreach (var source in _eventsBySource.Keys)
+            if (e == SubathonEventType.GoAffProOrder)
             {
-                var item = new ListBoxItem
-                {
-                    Content = source.ToString(),
-                    Tag = source,
-                    Padding = new Thickness(10, 6, 10, 6)
-                };
-                item.MouseEnter += SourceItem_MouseEnter;
-                SourceListBox.Items.Add(item);
+                return GoAffProStoreRegistry.All().Where(s => s.Enabled)
+                    .Select(s => new EventTypeEntry(e, s.EventName, s.SiteId.ToString()));
             }
-        }
-
-        private void SourceItem_MouseEnter(object sender, MouseEventArgs e)
-        {
-            _popupCloseTimer.Stop();
-
-            if (sender is not ListBoxItem item || item.Tag is not SubathonEventSource source) return;
-
-            SourceListBox.SelectedItem = item;
-            PopulateEventList(source);
-            EventListPanel.Visibility = Visibility.Visible;
-        }
-
-        private void PopulateEventList(SubathonEventSource source)
-        {
-            EventListBox.Items.Clear();
-            if (!_eventsBySource.TryGetValue(source, out var events)) return;
-
-            foreach (var entry in events)
-            {
-                EventListBox.Items.Add(new ListBoxItem
-                {
-                    Content = entry.Label,
-                    Tag = entry.EventType,
-                    Padding = new Thickness(10, 6, 10, 6)
-                });
-            }
-        }
-
-        private void EventListBox_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (EventListBox.SelectedItem is not ListBoxItem item) return;
-            if (item.Tag is not SubathonEventType eventType) return;
-
-            _popupCloseTimer.Stop();
-            EventTypePopup.IsOpen = false;
-            EventListPanel.Visibility = Visibility.Collapsed;
-            OnEventTypeSelected(eventType);
-        }
-
-        private void EventTypePopupBorder_MouseEnter(object sender, MouseEventArgs e)
-        {
-            _popupCloseTimer.Stop();
-        }
-
-        private void EventTypePopupBorder_MouseLeave(object sender, MouseEventArgs e)
-        {
-            _popupCloseTimer.Start();
+            return [new EventTypeEntry(e, e.GetLabel())];
         }
 
         private void EventTypePickerBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (EventTypePopup.IsOpen)
-            {
-                _popupCloseTimer.Stop();
-                EventTypePopup.IsOpen = false;
-                EventListPanel.Visibility = Visibility.Collapsed;
-                return;
-            }
+            var entries = new List<UiUtils.EventTypeMenuEntry>();
 
-            EventListPanel.Visibility = Visibility.Collapsed;
-
-            if (_selectedFilterEventType.HasValue)
+            foreach (var (source, events) in _eventsBySource)
             {
-                var source = _selectedFilterEventType.Value.GetSource();
-                var sourceItem = SourceListBox.Items.OfType<ListBoxItem>()
-                    .FirstOrDefault(i => i.Tag is SubathonEventSource s && s == source);
-                if (sourceItem != null)
+                foreach (var entry in events)
                 {
-                    SourceListBox.SelectedItem = sourceItem;
-                    PopulateEventList(source);
-                    EventListPanel.Visibility = Visibility.Visible;
+                    var captured = entry;
+                    entries.Add(new UiUtils.EventTypeMenuEntry(
+                        source,
+                        entry.Label,
+                        _selectedFilterEventType == entry.EventType &&
+                            entry.Meta == _selectedFilterEventMeta,
+                        () => OnEventTypeSelected(captured)));
                 }
             }
 
-            EventTypePopup.IsOpen = true;
+            UiUtils.EventTypeMenu.Show(EventTypePickerBtn, entries, groupBySourceType: true);
         }
 
-        private void OnEventTypeSelected(SubathonEventType eventType)
+        private void OnEventTypeSelected(EventTypeEntry entry)
         {
+            var eventType = entry.EventType;
             _selectedFilterEventType = eventType;
-            EventTypePickerLabel.Text = $"{eventType.GetSource()} - {eventType.GetLabel()}";
+            _selectedFilterEventMeta = entry.Meta;
+            EventTypePickerLabel.Text = $"{eventType.GetSource()} - {entry.Label}";
 
             if (_suppressCount > 0) return;
 
@@ -535,7 +473,9 @@ namespace SubathonManager.UI.Views.Prompts
             Grid.SetColumn(textLabel, 1);
 
             string typeBadgeText = prompt is { Type: SubathonPromptType.Event, FilterEventType: not null }
-                ? $"Evt:{prompt.FilterEventType.Value.GetLabel()}"
+                ? prompt.FilterEventType == SubathonEventType.GoAffProOrder
+                    ? $"Evt:{GoAffProOrderHelper.GetOrderEventDisplayLabel(prompt.FilterEventType, prompt.FilterMeta)}"
+                    : $"Evt:{prompt.FilterEventType.Value.GetLabel()}"
                 : prompt.Type.DisplayName();
             var typeBadge = new TextBlock
             {
@@ -653,8 +593,13 @@ namespace SubathonManager.UI.Views.Prompts
                 EventTypePanel.Visibility = isEvent ? Visibility.Visible : Visibility.Collapsed;
 
                 _selectedFilterEventType = isEvent ? prompt.FilterEventType : null;
+                _selectedFilterEventMeta = isEvent && prompt.FilterEventType == SubathonEventType.GoAffProOrder
+                    ? prompt.FilterMeta
+                    : null;
                 EventTypePickerLabel.Text = _selectedFilterEventType.HasValue
-                    ? $"{_selectedFilterEventType.Value.GetSource()} - {_selectedFilterEventType.Value.GetLabel()}"
+                    ? _selectedFilterEventType.Value == SubathonEventType.GoAffProOrder
+                        ? $"{_selectedFilterEventType.Value.GetSource()} - {GoAffProOrderHelper.GetOrderEventDisplayLabel(_selectedFilterEventType, _selectedFilterEventMeta)}"
+                        : $"{_selectedFilterEventType.Value.GetSource()} - {_selectedFilterEventType.Value.GetLabel()}"
                     : "- select -";
 
                 RefreshSubTypeComboBox(prompt.Type, prompt.FilterEventType);
@@ -722,6 +667,7 @@ namespace SubathonManager.UI.Views.Prompts
                 SuppressChanges(() =>
                 {
                     _selectedFilterEventType = null;
+                    _selectedFilterEventMeta = null;
                     EventTypePickerLabel.Text = "- select -";
                 });
             }
@@ -864,9 +810,12 @@ namespace SubathonManager.UI.Views.Prompts
             {
                 prompt.FilterEventType = _selectedFilterEventType;
                 prompt.FilterSubType = prompt.FilterEventType?.GetSubType();
-                prompt.FilterMeta = prompt.SubType == SubathonPromptSubType.ByTier
-                    ? (PromptTierBox.SelectedItem as ComboBoxItem)?.Tag as string
-                    : null;
+                if (prompt.FilterEventType == SubathonEventType.GoAffProOrder)
+                    prompt.FilterMeta = _selectedFilterEventMeta; // site id is meta
+                else
+                    prompt.FilterMeta = prompt.SubType == SubathonPromptSubType.ByTier
+                        ? (PromptTierBox.SelectedItem as ComboBoxItem)?.Tag as string
+                        : null;
             }
             else
             {
@@ -1054,15 +1003,29 @@ namespace SubathonManager.UI.Views.Prompts
                 }
 
                 SubathonEventType? filterEvent = null;
+                string? goAffProMeta = null;
                 var eventStr = cols.Length > 8 ? cols[8].Trim() : "";
                 if (!string.IsNullOrEmpty(eventStr))
                 {
-                    if (!Enum.TryParse<SubathonEventType>(eventStr, out var fet))
-                    { await ShowInvalidPromptCsvPopup(); return; }
-                    filterEvent = fet;
+                    if (Enum.TryParse<SubathonEventType>(eventStr, out var fet))
+                    {
+                        if (fet.GetLegacyGoAffProSiteId() > 0)
+                        {
+                            goAffProMeta = fet.GetLegacyGoAffProSiteId().ToString();
+                            fet = SubathonEventType.GoAffProOrder;
+                        }
+                        filterEvent = fet;
+                    }
+                    else if (GoAffProOrderHelper.TryGetStoreByOrderKey(eventStr, out var keyStore))
+                    {
+                        filterEvent = SubathonEventType.GoAffProOrder;
+                        goAffProMeta = keyStore.SiteId.ToString();
+                    }
+                    else { await ShowInvalidPromptCsvPopup(); return; }
                 }
 
                 string? filterMeta = cols.Length > 9 && !string.IsNullOrWhiteSpace(cols[9]) ? cols[9].Trim() : null;
+                if (goAffProMeta != null) filterMeta = goAffProMeta;
 
                 prompts.Add(new SubathonPrompt
                 {

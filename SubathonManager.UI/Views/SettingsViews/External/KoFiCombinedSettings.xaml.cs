@@ -20,7 +20,9 @@ namespace SubathonManager.UI.Views.SettingsViews.External;
 public partial class KoFiCombinedSettings : SettingsControl
 {
 
+#pragma warning disable CS0618 // legacy StreamerBot setup control kept behind FeatureFlags.KoFiStreamerBotSetupEnabled
     private KoFiSettings? _socket;
+#pragma warning restore CS0618
     private KoFiWebhookSettings? _webhook;
     private readonly SubathonEventSource _source = SubathonEventSource.KoFi;
     protected override SubathonEventType? _membershipEventType => SubathonEventType.KoFiSub; 
@@ -40,7 +42,9 @@ public partial class KoFiCombinedSettings : SettingsControl
     {
         base.Init(host);
 
+#pragma warning disable CS0618 // legacy StreamerBot setup control kept behind FeatureFlags.KoFiStreamerBotSetupEnabled
         _socket = new KoFiSettings();
+#pragma warning restore CS0618
         _webhook = new KoFiWebhookSettings();
 
         _socket.Init(host);
@@ -48,6 +52,9 @@ public partial class KoFiCombinedSettings : SettingsControl
 
         SocketSlot.Children.Add(_socket);
         WebhookSlot.Children.Add(_webhook);
+
+        if (!FeatureFlags.KoFiStreamerBotSetupEnabled)
+            MethodTogglePanel.Visibility = Visibility.Collapsed;
     }
 
     internal override void UpdateStatus(IntegrationConnection? connection) { }
@@ -77,10 +84,12 @@ public partial class KoFiCombinedSettings : SettingsControl
         var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
         bool hasToken =
             !string.IsNullOrWhiteSpace(secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty));
-        WebhookRadio.IsChecked = hasToken;
-        SocketRadio.IsChecked = !hasToken;
-        SocketSlot.Visibility = hasToken ? Visibility.Collapsed : Visibility.Visible;
-        WebhookSlot.Visibility = hasToken ? Visibility.Visible : Visibility.Collapsed;
+
+        bool useWebhook = hasToken || !FeatureFlags.KoFiStreamerBotSetupEnabled;
+        WebhookRadio.IsChecked = useWebhook;
+        SocketRadio.IsChecked = !useWebhook;
+        SocketSlot.Visibility = useWebhook ? Visibility.Collapsed : Visibility.Visible;
+        WebhookSlot.Visibility = useWebhook ? Visibility.Visible : Visibility.Collapsed;
 
         var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.KoFiSub)
             .OrderBy(meta => meta)
