@@ -644,7 +644,8 @@ public class TipeeeStreamService(ILogger<TipeeeStreamService>? logger, IHttpClie
             Source = SubathonEventSource.TipeeeStream,
             Service = nameof(SubathonEventSource.TipeeeStream),
             Name = connected ? _username ?? "User" : "",
-            Status = connected
+            Status = connected,
+            Configured = HasTokens()
         });
     }
 

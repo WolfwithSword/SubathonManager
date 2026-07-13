@@ -312,7 +312,8 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
             Name = fullUrl ?? "",
             Status = enabled && fullUrl != null,
             Source = SubathonEventSource.FourthWall,
-            Service = nameof(SubathonEventSource.FourthWall)
+            Service = nameof(SubathonEventSource.FourthWall),
+            Configured = enabled
         });
 
         if (fullUrl != null)

@@ -257,17 +257,19 @@ public class GoAffProService(ILogger<GoAffProService>? logger, IConfig config, I
                 Name = "",
                 Status = false,
                 Source = SubathonEventSource.GoAffPro,
-                Service = store.InternalName
+                Service = store.InternalName,
+                Configured = false
             };
             IntegrationEvents.RaiseConnectionUpdate(conn);
         }
-        
+
         IntegrationConnection connection = new IntegrationConnection
         {
             Name = "",
             Status = false,
             Source = SubathonEventSource.GoAffPro,
-            Service = nameof(SubathonEventSource.GoAffPro)
+            Service = nameof(SubathonEventSource.GoAffPro),
+            Configured = !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password)
         };
         IntegrationEvents.RaiseConnectionUpdate(connection);
         

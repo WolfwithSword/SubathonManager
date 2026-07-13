@@ -272,7 +272,8 @@ public class PallyService : IAppService, IDisposable
             Source = SubathonEventSource.PallyGG,
             Service = "Socket",
             Name = Room,
-            Status = status
+            Status = status,
+            Configured = Enabled && !string.IsNullOrWhiteSpace(ApiKey)
         });
     }
 

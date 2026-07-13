@@ -81,16 +81,19 @@ public class YouTubeService : IDisposable, IAppService
     {
         Running = false;
         _reconnectState.Reset();
+
+        _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
+        bool configured = !string.IsNullOrWhiteSpace(_ytHandle) && _ytHandle.Trim() != "@";
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.YouTube,
             Service = "Chat",
             Name = "None",
-            Status = Running
+            Status = Running,
+            Configured = configured
         });
 
-        _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
-        if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
+        if (!configured)
         {
             _logger?.LogInformation("YouTube Service not connected to any channel. Not running.");
             return Running;

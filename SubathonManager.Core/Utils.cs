@@ -31,7 +31,8 @@ public static class Utils
             Source = source,
             Service = service,
             Name = "",
-            Status = false
+            Status = false,
+            Configured = false
         };
         UpdateConnection(conn);
 

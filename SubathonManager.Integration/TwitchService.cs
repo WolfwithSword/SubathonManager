@@ -205,7 +205,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 Source = SubathonEventSource.Twitch,
                 Service = "API",
                 Name = "",
-                Status = false
+                Status = false,
+                Configured = HasTokenFile()
             });
         }
     }
@@ -236,7 +237,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 Source = SubathonEventSource.Twitch,
                 Service = "Chat",
                 Name = UserName!,
-                Status = false
+                Status = false,
+                Configured = HasTokenFile()
             });
         }
         
@@ -267,7 +269,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 Source = SubathonEventSource.Twitch,
                 Service = "Chat",
                 Name = UserName!,
-                Status = false
+                Status = false,
+                Configured = HasTokenFile()
             });
         }
         _ = Task.Run(TryReconnectChatAsync);
@@ -484,7 +487,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Source = SubathonEventSource.Twitch,
             Service = "EventSub",
             Name = UserName!,
-            Status = IsEventSubConnected()
+            Status = IsEventSubConnected(),
+            Configured = HasTokenFile()
         });
     }
 
@@ -527,7 +531,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Source = SubathonEventSource.Twitch,
             Service = "EventSub",
             Name = UserName!,
-            Status = _isConnected
+            Status = _isConnected,
+            Configured = HasTokenFile()
         });
         _ = Task.Run(TryReconnectEventSubAsync);
         return Task.CompletedTask;
@@ -914,21 +919,24 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Source = SubathonEventSource.Twitch,
             Service = "API",
             Name = UserName ?? "",
-            Status = false
-        });      
+            Status = false,
+            Configured = HasTokenFile()
+        });
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.Twitch,
             Service = "EventSub",
             Name = UserName ?? "",
-            Status = false
-        });      
+            Status = false,
+            Configured = HasTokenFile()
+        });
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.Twitch,
             Service = "Chat",
             Name = UserName ?? "",
-            Status = false
+            Status = false,
+            Configured = HasTokenFile()
         });
     }
 

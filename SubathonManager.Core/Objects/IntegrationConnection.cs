@@ -9,6 +9,7 @@ public class IntegrationConnection
     public string Name { get; init; } = "";
     public string Detail { get; init; } = "";
     public bool Status { get; init; }
+    public bool Configured { get; init; } = true;
 
     public override string ToString() => $"[{Source}:{Service}] [{Name}] Connected: {Status}";
 }

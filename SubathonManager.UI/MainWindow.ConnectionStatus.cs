@@ -24,8 +24,14 @@ namespace SubathonManager.UI
             UpdateConnectionStatusDot();
         }
 
+        private ContextMenu? _statusMenu;
+
         private void OnConnectionStatusChanged(IntegrationConnection _)
-            => Dispatcher.BeginInvoke(UpdateConnectionStatusDot);
+            => Dispatcher.BeginInvoke(() =>
+            {
+                UpdateConnectionStatusDot();
+                RefreshOpenConnectionStatusMenu();
+            });
 
         private void UpdateConnectionStatusDot()
         {
@@ -38,8 +44,14 @@ namespace SubathonManager.UI
         }
 
         private static bool IsAggregateExempt(IntegrationConnection c) =>
-            !c.Status && c is { Source: SubathonEventSource.KoFi, Service: "Socket" } 
-                or { Source: SubathonEventSource.OBS, Service: "HelperScript" };
+            !c.Status && (!c.Configured
+                || c is { Source: SubathonEventSource.KoFi, Service: "Socket" }
+                    or { Source: SubathonEventSource.OBS, Service: "HelperScript" });
+
+        private static Brush LeafBrush(IntegrationConnection? c) =>
+            c is not { Status: true }
+                ? c is { Configured: true } ? StatusDownBrush : StatusNoneBrush
+                : StatusUpBrush;
 
         private static Brush GetAggregateBrush(IEnumerable<IntegrationConnection> connections)
         {
@@ -52,20 +64,59 @@ namespace SubathonManager.UI
 
         private void ConnectionStatusBtn_Click(object sender, RoutedEventArgs e)
         {
-            var menu = BuildConnectionStatusMenu();
-            menu.PlacementTarget = ConnectionStatusBtn;
-            menu.Placement = PlacementMode.Bottom;
+            var menu = new ContextMenu
+            {
+                PlacementTarget = ConnectionStatusBtn,
+                Placement = PlacementMode.Bottom
+            };
+            FillConnectionStatusMenu(menu);
+            menu.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_statusMenu, menu)) _statusMenu = null;
+            };
+            _statusMenu = menu;
             menu.IsOpen = true;
         }
-
-        private static ContextMenu BuildConnectionStatusMenu()
+        
+        private void RefreshOpenConnectionStatusMenu()
         {
-            var menu = new ContextMenu();
+            if (_statusMenu is not { IsOpen: true } menu) return;
+            var fresh = new ContextMenu();
+            FillConnectionStatusMenu(fresh);
+            SyncMenuItems(menu.Items, fresh.Items);
+        }
+
+        private static void SyncMenuItems(ItemCollection target, ItemCollection source)
+        {
+            if (target.Count != source.Count)
+            {
+                var items = source.Cast<object>().ToList();
+                source.Clear();
+                target.Clear();
+                foreach (var item in items) target.Add(item);
+                return;
+            }
+
+            for (int i = 0; i < target.Count; i++)
+            {
+                if (target[i] is not MenuItem tgt || source[i] is not MenuItem src)
+                    continue;
+                tgt.Header = src.Header;
+                tgt.ToolTip = src.ToolTip;
+                tgt.IsEnabled = src.IsEnabled;
+                if (src.Icon is Ellipse dot) tgt.Icon = MakeStatusDot(dot.Fill);
+                SyncMenuItems(tgt.Items, src.Items);
+            }
+        }
+
+        private static void FillConnectionStatusMenu(ContextMenu menu)
+        {
+            menu.Items.Clear();
             var connections = Utils.GetAllConnections().ToList();
             if (connections.Count == 0)
             {
                 menu.Items.Add(new MenuItem { Header = "No integrations active", IsEnabled = false });
-                return menu;
+                return;
             }
 
             var bySource = connections
@@ -89,7 +140,6 @@ namespace SubathonManager.UI
                     groupItem.Items.Add(BuildSourceItem(source.Key, source.ToList()));
                 menu.Items.Add(groupItem);
             }
-            return menu;
         }
 
         private static MenuItem BuildSourceItem(SubathonEventSource source, List<IntegrationConnection> connections)
@@ -107,7 +157,11 @@ namespace SubathonManager.UI
                 || source is SubathonEventSource.FourthWall or SubathonEventSource.Throne)
             {
                 bool up = connections.Any(c => c.Status);
-                return MakeLeafItem(source.GetDescription(), up ? StatusUpBrush : StatusDownBrush, null);
+                Brush brush = up ? StatusUpBrush
+                    : sourceGroup == SubathonSourceGroup.ExternalSoftware || connections.Any(c => c.Configured)
+                        ? StatusDownBrush
+                        : StatusNoneBrush;
+                return MakeLeafItem(source.GetDescription(), brush, null);
             }
 
             var sourceItem = new MenuItem
@@ -127,8 +181,7 @@ namespace SubathonManager.UI
                     label = store.StoreName;
                 string detail = ShowableDetail(connection);
                 if (detail.Length > 0) label += $":  {detail}";
-                sourceItem.Items.Add(MakeLeafItem(label,
-                    connection.Status ? StatusUpBrush : StatusDownBrush, null));
+                sourceItem.Items.Add(MakeLeafItem(label, LeafBrush(connection), null));
             }
             return sourceItem;
         }
@@ -142,12 +195,10 @@ namespace SubathonManager.UI
             var item = new MenuItem
             {
                 Header = SubathonEventSource.KoFi.GetDescription(),
-                Icon = MakeStatusDot(up ? StatusUpBrush : StatusDownBrush),
+                Icon = MakeStatusDot(up ? StatusUpBrush : LeafBrush(tunnel)),
                 StaysOpenOnClick = true
             };
-            bool tunnelUp = tunnel?.Status == true;
-            item.Items.Add(MakeLeafItem("Webhook Tunnel",
-                tunnelUp ? StatusUpBrush : StatusDownBrush, null));
+            item.Items.Add(MakeLeafItem("Webhook Tunnel", LeafBrush(tunnel), null));
 
             bool socketUp = socket?.Status == true;
             var socketItem = MakeLeafItem("Socket (Legacy)",
@@ -160,7 +211,7 @@ namespace SubathonManager.UI
         private static MenuItem BuildPallyItem(List<IntegrationConnection> connections)
         {
             var socket = connections.FirstOrDefault(c => c.Service == "Socket") ?? connections.First();
-            var brush = socket.Status ? StatusUpBrush : StatusDownBrush;
+            var brush = LeafBrush(socket);
             var item = new MenuItem
             {
                 Header = SubathonEventSource.PallyGG.GetDescription(),
@@ -188,8 +239,7 @@ namespace SubathonManager.UI
             if (cli != null)
             {
                 string label = cli.Status && !string.IsNullOrWhiteSpace(cli.Name) ? $"CLI:  v{cli.Name}" : "CLI";
-                item.Items.Add(MakeLeafItem(label,
-                    cli.Status ? StatusUpBrush : StatusDownBrush,
+                item.Items.Add(MakeLeafItem(label, LeafBrush(cli),
                     cli.Status ? null : "Not Installed"));
             }
             if (login != null)
@@ -197,12 +247,10 @@ namespace SubathonManager.UI
                 string label = login.Status && !string.IsNullOrWhiteSpace(login.Detail)
                     ? $"Login:  {login.Detail}"
                     : "Login";
-                item.Items.Add(MakeLeafItem(label,
-                    login.Status ? StatusUpBrush : StatusDownBrush, null));
+                item.Items.Add(MakeLeafItem(label, LeafBrush(login), null));
             }
             if (tunnel != null)
-                item.Items.Add(MakeLeafItem("Tunnel",
-                    tunnel.Status ? StatusUpBrush : StatusDownBrush, null));
+                item.Items.Add(MakeLeafItem("Tunnel", LeafBrush(tunnel), null));
             return item;
         }
 
@@ -234,6 +282,7 @@ namespace SubathonManager.UI
         private static string ShowableDetail(IntegrationConnection connection)
         {
             if (string.IsNullOrWhiteSpace(connection.Name)) return "";
+            if (string.Equals(connection.Name, "None", StringComparison.OrdinalIgnoreCase)) return "";
             if (connection.Name.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return "";
             return Truncate(connection.Name, 36);
         }

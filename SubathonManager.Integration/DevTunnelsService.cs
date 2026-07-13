@@ -357,7 +357,8 @@ public class DevTunnelsService(
             Source = SubathonEventSource.DevTunnels,
             Service = "Cli",
             Name = probe?.IsInstalled == true ? probe.Version?.ToString() ?? "" : "",
-            Status = probe?.IsInstalled ?? false
+            Status = probe?.IsInstalled ?? false,
+            Configured = probe?.IsInstalled ?? false
         });
     }
 
@@ -369,7 +370,8 @@ public class DevTunnelsService(
             Service = "Login",
             Name = login?.Username ?? "",
             Detail = login?.Provider?.ToString() ?? "",
-            Status = login?.IsLoggedIn ?? false
+            Status = login?.IsLoggedIn ?? false,
+            Configured = login?.IsLoggedIn ?? false
         });
     }
 
@@ -381,7 +383,8 @@ public class DevTunnelsService(
             Source = SubathonEventSource.DevTunnels,
             Service = "Tunnel",
             Name = starting ? "(starting...)" : stopping ? "(stopping...)" : (url ?? ""),
-            Status = running
+            Status = running,
+            Configured = running
         });
     }
 

@@ -98,7 +98,8 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
             Name = fullUrl ?? "",
             Status = enabled && fullUrl != null,
             Source = SubathonEventSource.Throne,
-            Service = nameof(SubathonEventSource.Throne)
+            Service = nameof(SubathonEventSource.Throne),
+            Configured = enabled
         });
 
         if (fullUrl != null)

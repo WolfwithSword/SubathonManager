@@ -542,7 +542,8 @@ public class TreatStreamService(ILogger<TreatStreamService>? logger, IHttpClient
             Source = SubathonEventSource.TreatStream,
             Service = "Socket",
             Name = connected ? "TreatStream" : "",
-            Status = connected
+            Status = connected,
+            Configured = HasTokens()
         });
     }
 }

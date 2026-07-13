@@ -92,7 +92,8 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
             Name = fullUrl ?? "",
             Status = enabled && fullUrl != null,
             Source = SubathonEventSource.KoFiTunnel,
-            Service = nameof(SubathonEventSource.KoFiTunnel)
+            Service = nameof(SubathonEventSource.KoFiTunnel),
+            Configured = enabled
         });
 
         if (fullUrl != null)
