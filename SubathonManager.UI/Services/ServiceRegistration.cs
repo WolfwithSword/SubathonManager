@@ -37,7 +37,11 @@ public static class ServiceRegistration
         services.AddSingleton<PromptOrchestratorService>();
         services.AddSingleton<WheelSpinTriggerService>();
         services.AddSingleton<TelemetryService>();
-        services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
+
+        if (OperatingSystem.IsWindows())
+            services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
+        else
+            services.AddSingleton<ISecureStorage, AesFileSecureStorage>();
     }
     
     public static void AddIntegrations(this IServiceCollection services)

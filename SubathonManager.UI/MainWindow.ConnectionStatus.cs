@@ -122,6 +122,9 @@ namespace SubathonManager.UI
             foreach (var connection in ordered)
             {
                 string label = connection.Service == connection.Source.ToString() ? "Account" : connection.Service;
+                if (connection.Source == SubathonEventSource.GoAffPro
+                    && GoAffProStoreRegistry.TryGetByInternalName(connection.Service, out var store))
+                    label = store.StoreName;
                 string detail = ShowableDetail(connection);
                 if (detail.Length > 0) label += $":  {detail}";
                 sourceItem.Items.Add(MakeLeafItem(label,
