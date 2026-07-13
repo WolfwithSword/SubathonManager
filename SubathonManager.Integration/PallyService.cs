@@ -265,13 +265,13 @@ public class PallyService : IAppService, IDisposable
         });
     }
 
-    private static void BroadcastStatus(bool status)
+    private void BroadcastStatus(bool status)
     {
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.PallyGG,
             Service = "Socket",
-            Name = "PallyGG",
+            Name = Room,
             Status = status
         });
     }

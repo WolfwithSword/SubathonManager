@@ -65,7 +65,7 @@ public partial class ObsBrowserSourcesPanel : UserControl
 
     private void OnConnectionUpdated(IntegrationConnection? connection)
     {
-        if (connection is not { Source: SubathonEventSource.OBS }) return;
+        if (connection is not { Source: SubathonEventSource.OBS, Service: "OBS" }) return;
         Dispatcher.InvokeAsync(async () => await RefreshAsync());
     }
 

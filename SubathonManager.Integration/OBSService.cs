@@ -159,6 +159,7 @@ public class OBSService : IAppService
             HelperScriptVersion = null;
             HelperScriptStatusChanged?.Invoke(false);
         }
+        BroadcastHelperScriptStatus();
 
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
@@ -299,6 +300,19 @@ public class OBSService : IAppService
         HelperScriptActive = active;
         HelperScriptVersion = active ? version : null;
         HelperScriptStatusChanged?.Invoke(active);
+        BroadcastHelperScriptStatus();
+    }
+
+    private void BroadcastHelperScriptStatus()
+    {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.OBS,
+            Service = "HelperScript",
+            Name = "Helper Script",
+            Detail = HelperScriptVersion != null ? $"v{HelperScriptVersion}" : "",
+            Status = HelperScriptActive
+        });
     }
 
     public void RecheckHelperScript()

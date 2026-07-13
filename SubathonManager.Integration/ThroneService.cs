@@ -89,7 +89,7 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
     
     private void BroadcastStatus(bool enabled, string? tunnelBaseUrl)
     {
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting…)"
+        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
             ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
             : null;
         

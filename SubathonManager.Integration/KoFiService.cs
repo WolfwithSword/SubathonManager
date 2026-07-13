@@ -81,7 +81,7 @@ public class KoFiService(ILogger<KoFiService>? logger, IConfig config, IHttpClie
     {
         // Compose the full public URL from the tunnel base + our own path.
         // WebhookPath is the single source of truth for the path segment.
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting…)"
+        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
             ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
             : null;
 

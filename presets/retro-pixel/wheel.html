@@ -173,9 +173,9 @@ function drawWheel() {
                 const maxWidth = SLICE_R - CX * 0.032 - startR;
                 let label = item.text || '';
                 if (ctx.measureText(label).width > maxWidth) {
-                    while (label.length > 1 && ctx.measureText(label + '…').width > maxWidth)
+                    while (label.length > 1 && ctx.measureText(label + '‥').width > maxWidth)
                         label = label.slice(0, -1);
-                    label += '…';
+                    label += '‥';
                 }
 
                 ctx.lineWidth   = Math.max(2, CX * 0.010);

@@ -288,7 +288,7 @@ public partial class ExportOverlayDialog
 
         ConfirmButton.IsEnabled = false;
         CancelButton.IsEnabled = false;
-        ConfirmButton.Content = "Exporting…";
+        ConfirmButton.Content = "Exporting...";
 
         try
         {
@@ -316,7 +316,7 @@ public partial class ExportOverlayDialog
         {
             ConfirmButton.IsEnabled = true;
             CancelButton.IsEnabled = true;
-            ConfirmButton.Content = "Export…";
+            ConfirmButton.Content = "Export...";
         }
     }
 

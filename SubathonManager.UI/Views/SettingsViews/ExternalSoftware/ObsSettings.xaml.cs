@@ -88,7 +88,7 @@ public partial class ObsSettings : SettingsControl
 
     internal override void UpdateStatus(IntegrationConnection? connection)
     {
-        if (connection is not { Source: SubathonEventSource.OBS }) return;
+        if (connection is not { Source: SubathonEventSource.OBS, Service: "OBS" }) return;
         UpdateObsStatus(connection.Status);
     }
 

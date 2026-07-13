@@ -182,7 +182,7 @@
                                     <StackPanel x:Name="TierTextPanel" Visibility="Collapsed">
                                         <TextBlock Text="Tier Name:" FontSize="12" Margin="2 0 0 3"/>
                                         <ui:TextBox x:Name="TierTextBox" Height="36" ClearButtonEnabled="False"
-                                                    PlaceholderText="e.g. DEFAULT, Bronze, Basic Member…"
+                                                    PlaceholderText="e.g. DEFAULT, Bronze, Basic Member..."
                                                     ToolTip="Enter the tier name as it appears from the platform. Use DEFAULT for platforms with a single membership tier."/>
                                     </StackPanel>
                                 </StackPanel>

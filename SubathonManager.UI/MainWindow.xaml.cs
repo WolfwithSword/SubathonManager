@@ -45,6 +45,7 @@ namespace SubathonManager.UI
             IntegrationEvents.DevTunnelLegacyNotification += OnDevTunnelLegacyNotification;
             Task.Run(App.InitSubathonTimer);
             InitObsIntegration();
+            InitConnectionStatus();
         }
 
         protected override void OnSourceInitialized(EventArgs e)

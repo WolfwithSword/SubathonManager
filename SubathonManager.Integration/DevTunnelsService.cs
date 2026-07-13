@@ -368,6 +368,7 @@ public class DevTunnelsService(
             Source = SubathonEventSource.DevTunnels,
             Service = "Login",
             Name = login?.Username ?? "",
+            Detail = login?.Provider?.ToString() ?? "",
             Status = login?.IsLoggedIn ?? false
         });
     }
@@ -379,7 +380,7 @@ public class DevTunnelsService(
         {
             Source = SubathonEventSource.DevTunnels,
             Service = "Tunnel",
-            Name = starting ? "(starting…)" : stopping ? "(stopping…)" : (url ?? ""),
+            Name = starting ? "(starting...)" : stopping ? "(stopping...)" : (url ?? ""),
             Status = running
         });
     }

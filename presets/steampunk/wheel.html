@@ -233,7 +233,7 @@ function rebuildSlices(items) {
             const avail    = endR - startR;
             const maxChars = Math.max(3, Math.floor(avail / (fontSize * 0.62)));
             const raw      = item.text || '';
-            const label    = raw.length > maxChars ? raw.slice(0, maxChars - 1) + '…' : raw;
+            const label    = raw.length > maxChars ? raw.slice(0, maxChars - 1) + '‥' : raw;
 
             els.textEl.setAttribute('text-anchor', 'start');
             els.textEl.setAttribute('x', String(CX + startR));

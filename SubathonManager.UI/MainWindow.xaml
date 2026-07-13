@@ -106,6 +106,19 @@
                     </ui:ImageIcon.Source>
                 </ui:ImageIcon>
             </ui:TitleBar.Icon>
+            <ui:TitleBar.TrailingContent>
+                <Button x:Name="ConnectionStatusBtn"
+                        Click="ConnectionStatusBtn_Click"
+                        ToolTip="Connection Status"
+                        Width="44" Height="30"
+                        VerticalAlignment="Top"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Focusable="False">
+                    <Ellipse x:Name="ConnectionStatusDot" Width="10" Height="10" Fill="Gray"/>
+                </Button>
+            </ui:TitleBar.TrailingContent>
         </ui:TitleBar>
         <Border Grid.Row="1"  Background="{DynamicResource AppHeaderBackground}" Height="36" VerticalAlignment="Top"/>
         <TabControl Grid.Row="1" Background="Transparent" x:Name="MainWindowTabs">

@@ -148,7 +148,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
         if (!hasWh)
         {
-            string? fullUrl = !string.IsNullOrWhiteSpace(tunnelConn.Name) && tunnelConn.Name != "(starting…)"
+            string? fullUrl = !string.IsNullOrWhiteSpace(tunnelConn.Name) && tunnelConn.Name != "(starting...)"
                 ? tunnelConn.Name.TrimEnd('/') + WebhookPath
                 : null;
             WebhookConfigurationCreateRequest req = new WebhookConfigurationCreateRequest
@@ -303,7 +303,7 @@ public class FourthWallService(ILogger<FourthWallService>? logger, IConfig confi
 
     private void BroadcastStatus(bool enabled, string? tunnelBaseUrl)
     {
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting…)"
+        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
             ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
             : null;
         

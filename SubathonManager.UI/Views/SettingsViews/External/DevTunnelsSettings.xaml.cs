@@ -136,9 +136,9 @@ public partial class DevTunnelsSettings : SettingsControl
 
     private void ApplyTunnelState(bool running, string? url)
     {
-        if (url == "(starting…)")
+        if (url == "(starting...)")
         {
-            TunnelStatusText.Text = "Starting…";
+            TunnelStatusText.Text = "Starting...";
             StartTunnelBtn.IsEnabled = false;
             StopTunnelBtn.Visibility = Visibility.Collapsed;
             StartTunnelBtn.Visibility = Visibility.Visible;
@@ -147,9 +147,9 @@ public partial class DevTunnelsSettings : SettingsControl
             return;
         }
 
-        if (url == "(stopping…)")
+        if (url == "(stopping...)")
         {
-            TunnelStatusText.Text = "Stopping…";
+            TunnelStatusText.Text = "Stopping...";
             StopTunnelBtn.IsEnabled = false;
             StopTunnelBtn.Visibility = Visibility.Visible;
             StartTunnelBtn.Visibility = Visibility.Collapsed;
@@ -186,7 +186,7 @@ public partial class DevTunnelsSettings : SettingsControl
                 // ReSharper disable once NullableWarningSuppressionIsUsed
                 brush = (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"]!;
             CliStatusText.Foreground = brush;
-            CliStatusText.Text = "Checking…";
+            CliStatusText.Text = "Checking...";
             await ServiceManager.DevTunnels.RefreshCliStatusAsync();
         }
         finally
@@ -230,7 +230,7 @@ public partial class DevTunnelsSettings : SettingsControl
     {
         LoginMicrosoftBtn.IsEnabled = false;
         LoginGithubBtn.IsEnabled = false;
-        LoginStatusText.Text = "Opening browser…";
+        LoginStatusText.Text = "Opening browser...";
         try
         {
             await ServiceManager.DevTunnels.LoginAsync(provider);
