@@ -109,7 +109,7 @@ namespace SubathonManager.UI
             }
         }
 
-        private static void FillConnectionStatusMenu(ContextMenu menu)
+        private void FillConnectionStatusMenu(ContextMenu menu)
         {
             menu.Items.Clear();
             var connections = Utils.GetAllConnections().ToList();
@@ -142,7 +142,7 @@ namespace SubathonManager.UI
             }
         }
 
-        private static MenuItem BuildSourceItem(SubathonEventSource source, List<IntegrationConnection> connections)
+        private MenuItem BuildSourceItem(SubathonEventSource source, List<IntegrationConnection> connections)
         {
             switch (source)
             {
@@ -161,7 +161,7 @@ namespace SubathonManager.UI
                     : sourceGroup == SubathonSourceGroup.ExternalSoftware || connections.Any(c => c.Configured)
                         ? StatusDownBrush
                         : StatusNoneBrush;
-                return MakeLeafItem(source.GetDescription(), brush, null);
+                return MakeLeafItem(source.GetDescription(), brush, null, source);
             }
 
             var sourceItem = new MenuItem
@@ -176,17 +176,21 @@ namespace SubathonManager.UI
             foreach (var connection in ordered)
             {
                 string label = connection.Service == connection.Source.ToString() ? "Account" : connection.Service;
+                string? navDetail = null;
                 if (connection.Source == SubathonEventSource.GoAffPro
                     && GoAffProStoreRegistry.TryGetByInternalName(connection.Service, out var store))
+                {
                     label = store.StoreName;
+                    navDetail = store.InternalName;
+                }
                 string detail = ShowableDetail(connection);
                 if (detail.Length > 0) label += $":  {detail}";
-                sourceItem.Items.Add(MakeLeafItem(label, LeafBrush(connection), null));
+                sourceItem.Items.Add(MakeLeafItem(label, LeafBrush(connection), null, source, navDetail));
             }
             return sourceItem;
         }
 
-        private static MenuItem BuildKoFiItem(List<IntegrationConnection> connections)
+        private MenuItem BuildKoFiItem(List<IntegrationConnection> connections)
         {
             var tunnel = connections.FirstOrDefault(c => c.Source == SubathonEventSource.KoFiTunnel);
             var socket = connections.FirstOrDefault(c => c is { Source: SubathonEventSource.KoFi, Service: "Socket" });
@@ -198,17 +202,17 @@ namespace SubathonManager.UI
                 Icon = MakeStatusDot(up ? StatusUpBrush : LeafBrush(tunnel)),
                 StaysOpenOnClick = true
             };
-            item.Items.Add(MakeLeafItem("Webhook Tunnel", LeafBrush(tunnel), null));
+            item.Items.Add(MakeLeafItem("Webhook Tunnel", LeafBrush(tunnel), null, SubathonEventSource.KoFi));
 
             bool socketUp = socket?.Status == true;
             var socketItem = MakeLeafItem("Socket (Legacy)",
-                socketUp ? StatusUpBrush : StatusNoneBrush, null);
+                socketUp ? StatusUpBrush : StatusNoneBrush, null, SubathonEventSource.KoFi);
             socketItem.IsEnabled = socketUp;
             item.Items.Add(socketItem);
             return item;
         }
 
-        private static MenuItem BuildPallyItem(List<IntegrationConnection> connections)
+        private MenuItem BuildPallyItem(List<IntegrationConnection> connections)
         {
             var socket = connections.FirstOrDefault(c => c.Service == "Socket") ?? connections.First();
             var brush = LeafBrush(socket);
@@ -219,11 +223,11 @@ namespace SubathonManager.UI
                 StaysOpenOnClick = true
             };
             string room = string.IsNullOrWhiteSpace(socket.Name) ? "All" : socket.Name;
-            item.Items.Add(MakeLeafItem($"Room:  {room}", brush, null));
+            item.Items.Add(MakeLeafItem($"Room:  {room}", brush, null, SubathonEventSource.PallyGG));
             return item;
         }
 
-        private static MenuItem BuildDevTunnelsItem(List<IntegrationConnection> connections)
+        private MenuItem BuildDevTunnelsItem(List<IntegrationConnection> connections)
         {
             var item = new MenuItem
             {
@@ -240,21 +244,21 @@ namespace SubathonManager.UI
             {
                 string label = cli.Status && !string.IsNullOrWhiteSpace(cli.Name) ? $"CLI:  v{cli.Name}" : "CLI";
                 item.Items.Add(MakeLeafItem(label, LeafBrush(cli),
-                    cli.Status ? null : "Not Installed"));
+                    cli.Status ? null : "Not Installed", SubathonEventSource.DevTunnels));
             }
             if (login != null)
             {
                 string label = login.Status && !string.IsNullOrWhiteSpace(login.Detail)
                     ? $"Login:  {login.Detail}"
                     : "Login";
-                item.Items.Add(MakeLeafItem(label, LeafBrush(login), null));
+                item.Items.Add(MakeLeafItem(label, LeafBrush(login), null, SubathonEventSource.DevTunnels));
             }
             if (tunnel != null)
-                item.Items.Add(MakeLeafItem("Tunnel", LeafBrush(tunnel), null));
+                item.Items.Add(MakeLeafItem("Tunnel", LeafBrush(tunnel), null, SubathonEventSource.DevTunnels));
             return item;
         }
 
-        private static MenuItem BuildObsItem(List<IntegrationConnection> connections)
+        private MenuItem BuildObsItem(List<IntegrationConnection> connections)
         {
             var webSocket = connections.FirstOrDefault(c => c.Service == "OBS");
             var helper = connections.FirstOrDefault(c => c.Service == "HelperScript");
@@ -267,7 +271,7 @@ namespace SubathonManager.UI
             };
             bool wsUp = webSocket?.Status == true;
             item.Items.Add(MakeLeafItem("WebSocket",
-                wsUp ? StatusUpBrush : StatusDownBrush, null));
+                wsUp ? StatusUpBrush : StatusDownBrush, null, SubathonEventSource.OBS));
 
             bool helperUp = helper?.Status == true;
             string helperLabel = helperUp && !string.IsNullOrWhiteSpace(helper!.Detail)
@@ -275,7 +279,7 @@ namespace SubathonManager.UI
                 : "Helper Script";
             item.Items.Add(MakeLeafItem(helperLabel,
                 helperUp ? StatusUpBrush : StatusNoneBrush,
-                helperUp ? null : "Not detected. Add via OBS Tools -> Scripts"));
+                helperUp ? null : "Not detected. Add via OBS Tools -> Scripts", SubathonEventSource.OBS));
             return item;
         }
         
@@ -294,13 +298,27 @@ namespace SubathonManager.UI
             return trueSource == SubathonEventSource.Unknown ? source : trueSource;
         }
 
-        private static MenuItem MakeLeafItem(string header, Brush brush, string? toolTip) => new()
+        private MenuItem MakeLeafItem(string header, Brush brush, string? toolTip,
+            SubathonEventSource? navigateTo = null, string? navigateDetail = null)
         {
-            Header = header,
-            Icon = MakeStatusDot(brush),
-            ToolTip = toolTip,
-            StaysOpenOnClick = true
-        };
+            var item = new MenuItem
+            {
+                Header = header,
+                Icon = MakeStatusDot(brush),
+                ToolTip = toolTip,
+                StaysOpenOnClick = navigateTo == null
+            };
+            if (navigateTo is { } source)
+                item.Click += (_, _) => NavigateToSourceSettings(source, navigateDetail);
+            return item;
+        }
+
+        private void NavigateToSourceSettings(SubathonEventSource source, string? detail = null)
+        {
+            if (_statusMenu != null) _statusMenu.IsOpen = false;
+            MainWindowTabs.SelectedItem = SettingsTabItem;
+            SettingsEvents.RaiseHotLinkToSourceRequest(source, detail);
+        }
 
         private static Ellipse MakeStatusDot(Brush brush) => new()
         {

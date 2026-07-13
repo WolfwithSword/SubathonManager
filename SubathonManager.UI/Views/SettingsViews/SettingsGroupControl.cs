@@ -92,8 +92,15 @@ public class SettingsGroupControl : SettingsControl
     
     public void TryHotLinkToSource(SubathonEventSource eventSource)
     {
-        Dispatcher.Invoke(() => SelectGroup(eventSource.ToString()));
+        Dispatcher.Invoke(() =>
+        {
+            if (Content is Expander expander) expander.IsExpanded = true;
+            SelectGroup(eventSource.ToString());
+        });
     }
+
+    public SettingsControl? GetControlForSource(SubathonEventSource eventSource)
+        => GetSettingsControl(eventSource);
 
     internal override void UpdateStatus(IntegrationConnection? connection)
     {

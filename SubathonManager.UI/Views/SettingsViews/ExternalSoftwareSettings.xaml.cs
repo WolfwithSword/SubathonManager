@@ -1,5 +1,7 @@
 using System.Windows.Controls;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
+using SubathonManager.UI.Views.SettingsViews.External;
 using SubathonManager.UI.Views.SettingsViews.ExternalSoftware;
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -16,6 +18,13 @@ public partial class ExternalSoftwareSettings : SettingsGroupControl
     public ExternalSoftwareSettings()
     {
         InitializeComponent();
+        SettingsEvents.HotLinkToDevTunnelsRequested += HotLinkToDevTunnels;
+    }
+
+    private void HotLinkToDevTunnels()
+    {
+        TryHotLinkToSource(SubathonEventSource.DevTunnels);
+        Dispatcher.BeginInvoke(() => BringIntoView());
     }
 
     protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
@@ -26,6 +35,9 @@ public partial class ExternalSoftwareSettings : SettingsGroupControl
         {
             case SubathonEventSource.OBS:
                 _settingsControls[eventSource] = new ObsSettings();
+                break;
+            case SubathonEventSource.DevTunnels:
+                _settingsControls[eventSource] = new DevTunnelsSettings();
                 break;
             case SubathonEventSource.StreamDeck:
                 _settingsControls[eventSource] = new StreamDeckSettings();

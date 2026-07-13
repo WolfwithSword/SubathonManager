@@ -126,6 +126,9 @@ public partial class GoAffProSettings : SettingsControl
             SelectGroup(label);
     }
 
+    public void TrySelectStore(string internalName)
+        => Dispatcher.Invoke(() => SelectGroup(internalName));
+
     private void SelectGroup(string label)
     {
         if (SourceList == null) return;

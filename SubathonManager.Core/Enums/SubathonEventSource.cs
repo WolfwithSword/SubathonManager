@@ -32,7 +32,7 @@ public enum SubathonEventSource
     GoAffPro,
     [EventSourceMeta(Description = "Ko-Fi (Tunnel)", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=42, Visible=false, TrueSource=KoFi, Order=41)]
     KoFiTunnel,
-    [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=70, Visible=false, Order=120)]
+    [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder=904, Visible=false, Order=903)]
     DevTunnels,
     [EventSourceMeta(Description="FourthWall", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=62, Order=51)]
     FourthWall,
