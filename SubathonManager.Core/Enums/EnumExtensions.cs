@@ -1,5 +1,7 @@
 ﻿using System.Reflection;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Core.Enums;
@@ -94,6 +96,7 @@ public class EventTypeMetaAttribute : EnumMetaAttribute
     public SubathonEventSource Source { get; set; } = SubathonEventSource.Unknown;
 }
 
+[ExcludeFromCodeCoverage]
 public class GoAffProTypeMetaAttribute : EventTypeMetaAttribute
 {
     public override string? Description =>  Label;

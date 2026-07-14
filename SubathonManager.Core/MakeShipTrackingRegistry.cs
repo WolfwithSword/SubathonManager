@@ -74,6 +74,6 @@ public static class MakeShipTrackingRegistry
     public static string GetDisplayNameFromSlug(string? url)
     {
         var slug = GetSlug(url);
-        return string.IsNullOrEmpty(slug) ? "" : _textInfo.ToTitleCase(slug);
+        return string.IsNullOrEmpty(slug) ? "" : _textInfo.ToTitleCase(slug.Replace('-', ' ').Replace('_', ' '));
     }
 }

@@ -202,6 +202,7 @@ public class TreatStreamService(ILogger<TreatStreamService>? logger, IHttpClient
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task StartOAuthFlowAsync(CancellationToken ct = default)
     {
         RevokeTokens();
@@ -224,6 +225,7 @@ public class TreatStreamService(ILogger<TreatStreamService>? logger, IHttpClient
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task<OAuthCallback?> WaitForProtocolCallbackAsync(CancellationToken ct = default)
     {
         var timeout = DateTime.Now.AddMinutes(15);
@@ -252,6 +254,7 @@ public class TreatStreamService(ILogger<TreatStreamService>? logger, IHttpClient
         && !string.IsNullOrWhiteSpace(AccessToken)
         && !string.IsNullOrWhiteSpace(RefreshToken);
 
+    [ExcludeFromCodeCoverage]
     public void RevokeTokens()
     {
         secureStorage.Delete(StorageKeys.TreatStreamAccessToken);

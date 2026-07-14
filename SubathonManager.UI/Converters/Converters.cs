@@ -3,6 +3,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 
@@ -142,11 +143,16 @@ namespace SubathonManager.UI.Converters
             var user = values[0]?.ToString();
             var item = values[2]?.ToString();
             var currency = values[3]?.ToString();
+            var eventTypeMeta = values[4]?.ToString(); 
 
             var text = $"User: {user}";
             
             if (values[1] is SubathonEventType eventType)
             {
+                if (eventType is SubathonEventType.GoAffProOrder && GoAffProOrderHelper.TryGetStore(eventTypeMeta, out var store))
+                {
+                    return $"New {store.StoreName} Order";
+                }
                 if (eventType is SubathonEventType.ThroneCrowdGiftComplete or SubathonEventType.MakeShipOrder or SubathonEventType.MakeShipPledge)
                     return item;
                 if (eventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)

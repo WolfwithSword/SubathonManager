@@ -156,6 +156,7 @@
                                                         <Binding Path="EventType"/>
                                                         <Binding Path="TertiaryValue"/>
                                                         <Binding Path="Currency"/>
+                                                        <Binding Path="EventTypeMeta"/>
                                                     </MultiBinding>
                                                 </TextBlock.Text>
                                             </TextBlock>

@@ -14,6 +14,7 @@ using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
+[ExcludeFromCodeCoverage]
 public sealed record ObsBrowserSourceCard(
     string SceneName,
     string ScenePath,

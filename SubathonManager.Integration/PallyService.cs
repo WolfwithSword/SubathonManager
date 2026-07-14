@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -74,6 +75,7 @@ public class PallyService : IAppService, IDisposable
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task RestartAsync()
     {
         await StopAsync();
@@ -82,6 +84,7 @@ public class PallyService : IAppService, IDisposable
 
     public bool IsKeyEmpty() => string.IsNullOrWhiteSpace(ApiKey);
 
+    [ExcludeFromCodeCoverage]
     public bool SaveConfig(string apiKey, string room)
     {
         bool updated = _secureStorage.Set(StorageKeys.PallyApiKey, apiKey.Trim());
@@ -98,6 +101,7 @@ public class PallyService : IAppService, IDisposable
         return new Uri($"{BaseUrl}?auth={Uri.EscapeDataString(ApiKey ?? "")}&{channel}");
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task RunAsync(CancellationToken token)
     {
         var reconnect = new Utils.ServiceReconnectState(TimeSpan.FromSeconds(2), 100, TimeSpan.FromMinutes(5));
@@ -154,6 +158,7 @@ public class PallyService : IAppService, IDisposable
         BroadcastStatus(false);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task ListenAsync(ClientWebSocket socket, CancellationToken token)
     {
         using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -277,6 +282,7 @@ public class PallyService : IAppService, IDisposable
         });
     }
 
+    [ExcludeFromCodeCoverage]
     public void Dispose()
     {
         _cts?.Cancel();

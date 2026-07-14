@@ -343,6 +343,7 @@ public class TipeeeStreamService(ILogger<TipeeeStreamService>? logger, IHttpClie
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task DisconnectAsync()
     {
         _socketCts?.Cancel();
@@ -448,6 +449,7 @@ public class TipeeeStreamService(ILogger<TipeeeStreamService>? logger, IHttpClie
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task StartOAuthFlowAsync(CancellationToken ct = default)
     {
         RevokeTokens();

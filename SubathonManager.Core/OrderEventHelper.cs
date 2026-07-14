@@ -4,22 +4,23 @@ using SubathonManager.Core.Models;
 
 namespace SubathonManager.Core;
 
-public static class OrderEventHelper
-{
-    public static List<OrderEventOption> GetOrderEventOptions()
-    {
-        var options = new List<OrderEventOption>();
-
-        foreach (var t in SubathonEventSubTypeHelper.OrderEventTypes
-                     .Where(e => e != SubathonEventType.GoAffProOrder && e.IsEnabled()))
-            options.Add(new OrderEventOption(t));
-
-        foreach (var store in GoAffProStoreRegistry.All().Where(s => s.Enabled))
-            options.Add(new OrderEventOption(store));
-
-        return options;
-    }
-}
+// [ExcludeFromCodeCoverage]
+// public static class OrderEventHelper
+// {
+//     public static List<OrderEventOption> GetOrderEventOptions()
+//     {
+//         var options = new List<OrderEventOption>();
+//
+//         foreach (var t in SubathonEventSubTypeHelper.OrderEventTypes
+//                      .Where(e => e != SubathonEventType.GoAffProOrder && e.IsEnabled()))
+//             options.Add(new OrderEventOption(t));
+//
+//         foreach (var store in GoAffProStoreRegistry.All().Where(s => s.Enabled))
+//             options.Add(new OrderEventOption(store));
+//
+//         return options;
+//     }
+// }
 
 public static class GoAffProStoreRegistry
 {
@@ -105,6 +106,7 @@ public static class GoAffProStoreRegistry
     }
 }
 
+[ExcludeFromCodeCoverage]
 public static class GoAffProOrderHelper
 {
     public static bool TryParseMeta(string? meta, out int siteId)
@@ -173,29 +175,31 @@ public static class GoAffProOrderHelper
     }
 }
 
-public class OrderEventOption
-{
-    public SubathonEventType EventType { get; }
-    public string? Meta { get; }
-    public string Key { get; }
 
-    public string Label { get; }
-
-    public OrderEventOption(SubathonEventType eventType)
-    {
-        EventType = eventType;
-        Meta = null;
-        Key = eventType.ToString();
-        Label = ((SubathonEventType?)eventType).GetLabel();
-    }
-
-    public OrderEventOption(GoAffProStore store)
-    {
-        EventType = SubathonEventType.GoAffProOrder;
-        Meta = store.SiteId.ToString();
-        Key = store.InternalEventName;
-        Label = store.EventName;
-    }
-
-    public override string ToString() => Label;
-}
+// [ExcludeFromCodeCoverage]
+// public class OrderEventOption
+// {
+//     public SubathonEventType EventType { get; }
+//     public string? Meta { get; }
+//     public string Key { get; }
+//
+//     public string Label { get; }
+//
+//     public OrderEventOption(SubathonEventType eventType)
+//     {
+//         EventType = eventType;
+//         Meta = null;
+//         Key = eventType.ToString();
+//         Label = ((SubathonEventType?)eventType).GetLabel();
+//     }
+//
+//     public OrderEventOption(GoAffProStore store)
+//     {
+//         EventType = SubathonEventType.GoAffProOrder;
+//         Meta = store.SiteId.ToString();
+//         Key = store.InternalEventName;
+//         Label = store.EventName;
+//     }
+//
+//     public override string ToString() => Label;
+// }

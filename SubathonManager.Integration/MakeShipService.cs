@@ -304,7 +304,7 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
             ? SubathonEventType.MakeShipPledge
             : SubathonEventType.MakeShipOrder;
         
-        string unit = eventType == SubathonEventType.MakeShipPledge ? "pledges" : "items";
+        string unit = eventType == SubathonEventType.MakeShipPledge ? "pledges" : "sales";
         int delta = toCount - fromCount;
 
         SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent
@@ -313,7 +313,7 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
             Source = SubathonEventSource.MakeShip,
             EventType = eventType,
             EventTypeMeta = tracking.Name,
-            User = $"New {(delta > 1 ? unit : unit.TrimEnd('s'))}!",
+            User = $"New MakeShip {(delta > 1 ? unit : unit.TrimEnd('s'))}!",
             Currency = unit,
             Value = $"{delta}",
             Amount = delta,
@@ -329,14 +329,14 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
         if (string.IsNullOrWhiteSpace(name)) name = "Test Plush";
         if (count <= 0) count = 1;
         var eventType = isPetition ? SubathonEventType.MakeShipPledge : SubathonEventType.MakeShipOrder;
-        string unit = isPetition ? "pledges" : "items";
+        string unit = isPetition ? "pledges" : "sales";
 
         SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent
         {
             Source = SubathonEventSource.Simulated,
             EventType = eventType,
             EventTypeMeta = name.Trim(),
-            User = $"New {(count > 1 ? unit : unit.TrimEnd('s'))}!",
+            User = $"New MakeShip {(count > 1 ? unit : unit.TrimEnd('s'))}!",
             Currency = unit,
             Value = $"{count}",
             Amount = count,
