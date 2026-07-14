@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              xmlns:views="clr-namespace:SubathonManager.UI.Views"
+             xmlns:components="clr-namespace:SubathonManager.UI.Views.SettingsViews.Components"
              xmlns:validation="clr-namespace:SubathonManager.UI.Validation"
              mc:Ignorable="d">
     <StackPanel>
@@ -20,9 +21,9 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8,4,8,0">
-                <ui:TextBox x:Name="SimNameBox" Width="244" Height="34" PlaceholderText="Product Name"
-                            Margin="0,0,0,6" FontSize="12"
-                            views:SettingsProperties.ExcludeFromUnsaved="True"/>
+                <ComboBox x:Name="SimNameBox" Width="244" Height="34" IsEditable="True"
+                          Margin="0,0,0,6" FontSize="12" ToolTip="Product Name"
+                          views:SettingsProperties.ExcludeFromUnsaved="True"/>
                 <StackPanel Orientation="Horizontal">
                     <ComboBox x:Name="SimTypeBox" Width="120" Height="34" SelectedIndex="0" FontSize="12"
                               views:SettingsProperties.ExcludeFromUnsaved="True">
@@ -44,7 +45,7 @@
             <Grid Margin="0,4">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Petition Pledges:" Width="120" VerticalAlignment="Center"
-                               ToolTip="Value applied per pledge on tracked petitions"/>
+                               ToolTip="Default value applied per pledge on tracked petitions"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 PlaceholderText="60" x:Name="PledgeBox"/>
                     <TextBlock Margin="8,0,0,0" Text="Seconds per pledge" Width="150" VerticalAlignment="Center"/>
@@ -56,7 +57,7 @@
             <Grid Margin="0,4">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="Campaign Sales:" Width="120" VerticalAlignment="Center"
-                               ToolTip="Value applied per sold item on tracked product campaigns"/>
+                               ToolTip="Default value applied per sold item on tracked product campaigns"/>
                     <ui:TextBox Width="100" validation:InputValidationBehavior.IsDecimalOnly="True"
                                 PlaceholderText="60" x:Name="OrderBox"/>
                     <TextBlock Margin="8,0,0,0" Text="Seconds per sale" Width="150" VerticalAlignment="Center"/>
@@ -76,11 +77,6 @@
                    ToolTip="Petitions must be a valid petition Url. Product pages must be for an active and valid campaign Url - permanent products are invalid."
                    Text="Paste your MakeShip Petition or Product page Url"/>
 
-        <StackPanel x:Name="TrackingsPanel"/>
-
-        <ui:Button x:Name="AddTrackingBtn" Content="Add Url" Width="120" Height="32" Margin="0,6,0,4"
-                   Icon="Add24" Click="AddTracking_Click"
-                   Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                   views:SettingsProperties.ExcludeFromUnsaved="True"/>
+        <components:TrackedValueRowsControl x:Name="TrackingRows"/>
     </StackPanel>
 </views:SettingsControl>

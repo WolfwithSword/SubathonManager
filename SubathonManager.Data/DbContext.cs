@@ -400,6 +400,10 @@ namespace SubathonManager.Data
         
         public static void SeedDefaultValues(AppDbContext db)
         {
+            db.Database.ExecuteSqlRaw(
+                "UPDATE SubathonValues SET Meta = 'DEFAULT' WHERE Meta = '' AND EventType IN ({0}, {1})",
+                (int)SubathonEventType.MakeShipPledge, (int)SubathonEventType.MakeShipOrder);
+
             var defaults = new List<SubathonValue>
             {
                 new () { EventType = SubathonEventType.TwitchSub, Meta = "1000", Seconds = 60, Points = 1 },
@@ -445,8 +449,8 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
                 new () { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
                 new () { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
-                new () { EventType = SubathonEventType.MakeShipPledge, Seconds = 60 }, // always items mode, per pledge
-                new () { EventType = SubathonEventType.MakeShipOrder, Seconds = 60 }, // always items mode, per order
+                new () { EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60 }, // always items mode, per pledge; overridable per tracked item (Meta = tracking name)
+                new () { EventType = SubathonEventType.MakeShipOrder, Meta = "DEFAULT", Seconds = 60 }, // always items mode, per order; overridable per tracked item (Meta = tracking name)
             };
 
             foreach (var def in defaults)

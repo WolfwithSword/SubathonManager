@@ -158,11 +158,22 @@ public partial class App
                         await using var db2 = await _factory!.CreateDbContextAsync();
                         var row = db2.MakeShipTrackings.FirstOrDefault(t => t.Id == tracking.Id);
                         if (row == null) return;
+                        string oldName = row.Name;
                         row.Name = tracking.Name;
                         row.ShopifyProductId = tracking.ShopifyProductId;
                         row.ProductType = tracking.ProductType;
                         row.Sales = tracking.Sales;
                         row.Orders = tracking.Orders;
+                        if (!string.IsNullOrWhiteSpace(oldName) && oldName != "DEFAULT" &&
+                            !string.Equals(oldName, tracking.Name, StringComparison.Ordinal))
+                        {
+                            var overrides = db2.SubathonValues.Where(sv =>
+                                (sv.EventType == SubathonEventType.MakeShipPledge ||
+                                 sv.EventType == SubathonEventType.MakeShipOrder)
+                                && sv.Meta == oldName).ToList();
+                            foreach (var sv in overrides)
+                                sv.Meta = tracking.Name;
+                        }
                         await db2.SaveChangesAsync();
                     }
                     catch (Exception ex)

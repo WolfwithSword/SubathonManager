@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -10,6 +11,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.Views.SettingsViews.Components;
 using TextBox = System.Windows.Controls.TextBox;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
@@ -17,21 +19,29 @@ namespace SubathonManager.UI.Views.SettingsViews.External;
 public partial class MakeShipSettings : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<MakeShipSettings>>();
-    private readonly List<TrackingRow> _trackingRows = new();
 
-    private sealed class TrackingRow
+    private sealed class RowInfo
     {
-        public MakeShipTracking? Tracking { get; set; }
-        public required Wpf.Ui.Controls.TextBox UrlBox { get; init; }
         public required TextBlock SalesText { get; init; }
         public required TextBlock OrdersText { get; init; }
         public required TextBlock StatusText { get; init; }
-        public required Grid RowGrid { get; init; }
     }
 
     public MakeShipSettings()
     {
         InitializeComponent();
+
+        TrackingRows.KeyBoxWidth = 273;
+        TrackingRows.KeyPlaceholder = MakeShipTrackingRegistry.PetitionUrlPrefix + "...";
+        TrackingRows.KeyToolTip = "MakeShip petition or product campaign url";
+        TrackingRows.SecondsToolTip = "Seconds per pledge/sale for this item. Blank = use the default above.";
+        TrackingRows.PointsToolTip = "Points per pledge/sale for this item. Blank = use the default above.";
+        TrackingRows.WireInput = WireControl;
+        TrackingRows.RowAdded += DecorateRow;
+        TrackingRows.RowDeleted += OnRowDeleted;
+
+        SimNameBox.SelectionChanged += SimNameBox_SelectionChanged;
+
         Loaded += (_, _) =>
         {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
@@ -54,10 +64,56 @@ public partial class MakeShipSettings : SettingsControl
 
     private void ReloadTrackingRows()
     {
-        TrackingsPanel.Children.Clear();
-        _trackingRows.Clear();
+        TrackingRows.ClearRows();
+
+        List<SubathonValue> overrides;
+        using (var db = _factory.CreateDbContext())
+        {
+            overrides = db.SubathonValues.AsNoTracking()
+                .Where(sv => sv.EventType == SubathonEventType.MakeShipPledge ||
+                             sv.EventType == SubathonEventType.MakeShipOrder)
+                .Where(sv => sv.Meta != "DEFAULT" && sv.Meta != "")
+                .ToList();
+        }
+
         foreach (var tracking in MakeShipTrackingRegistry.All().OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
-            AddTrackingRow(tracking);
+        {
+            var ov = overrides.FirstOrDefault(sv =>
+                string.Equals(sv.Meta, tracking.Name, StringComparison.OrdinalIgnoreCase));
+            var row = TrackingRows.AddRow(tracking, tracking.Url,
+                seconds: ov != null ? $"{ov.Seconds}" : "",
+                points: ov != null ? $"{ov.Points}" : "");
+            DecorateRow(row);
+        }
+
+        RefreshSimNameCombo();
+    }
+
+    private void RefreshSimNameCombo()
+    {
+        string current = SimNameBox.Text;
+        var names = new List<string> { "DEFAULT" };
+        names.AddRange(MakeShipTrackingRegistry.All()
+            .Select(t => t.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
+        SimNameBox.ItemsSource = names;
+        if (string.IsNullOrWhiteSpace(current))
+            SimNameBox.SelectedIndex = 0;
+        else
+            SimNameBox.Text = current;
+    }
+
+    private void SimNameBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // picking a tracked product pre-selects its type so its override value is what gets tested
+        if (SimNameBox.SelectedItem is not string name) return;
+        var tracking = MakeShipTrackingRegistry.All().FirstOrDefault(t =>
+            string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (tracking == null) return;
+        SimTypeBox.SelectedIndex =
+            MakeShipTrackingRegistry.ClassifyUrl(tracking.Url) == MakeShipProductType.Campaign ? 1 : 0;
     }
 
     internal override void UpdateStatus(IntegrationConnection? connection)
@@ -70,14 +126,13 @@ public partial class MakeShipSettings : SettingsControl
     {
         Dispatcher.BeginInvoke(() =>
         {
-            var row = _trackingRows.FirstOrDefault(r => r.Tracking?.Id == tracking.Id);
+            var row = TrackingRows.Rows.FirstOrDefault(r => (r.Item as MakeShipTracking)?.Id == tracking.Id);
             if (row == null) return;
-            row.Tracking = tracking;
+            row.Item = tracking;
             RefreshRowStatus(row);
+            RefreshSimNameCombo();
         });
     }
-
-    private void AddTracking_Click(object sender, RoutedEventArgs e) => AddTrackingRow(null);
 
     private void TestMakeShip_Click(object sender, RoutedEventArgs e)
     {
@@ -86,36 +141,8 @@ public partial class MakeShipSettings : SettingsControl
         Integration.MakeShipService.Simulate(SimNameBox.Text, isPetition, count);
     }
 
-    private void AddTrackingRow(MakeShipTracking? tracking)
+    private void DecorateRow(TrackedValueRow row)
     {
-        var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-        var panelRow = new StackPanel { Orientation = Orientation.Horizontal };
-
-        var urlBox = new Wpf.Ui.Controls.TextBox
-        {
-            Width = 420,
-            Text = tracking?.Url ?? "",
-            PlaceholderText = MakeShipTrackingRegistry.PetitionUrlPrefix + "...",
-            ToolTip = "MakeShip petition or product campaign url",
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        };
-
-        var deleteBtn = new Wpf.Ui.Controls.Button
-        {
-            ToolTip = "Delete",
-            Icon = new Wpf.Ui.Controls.SymbolIcon
-            {
-                Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24,
-                Margin = new Thickness(2),
-                HorizontalAlignment = HorizontalAlignment.Center
-            },
-            Foreground = Brushes.Red,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Width = 36, Height = 36,
-            Margin = new Thickness(0, 0, 12, 0)
-        };
-
         var salesText = new TextBlock
         {
             VerticalAlignment = VerticalAlignment.Center,
@@ -140,89 +167,84 @@ public partial class MakeShipSettings : SettingsControl
             MaxWidth = 260
         };
 
-        WireControl(urlBox);
-
-        panelRow.Children.Add(urlBox);
-        panelRow.Children.Add(deleteBtn);
-        panelRow.Children.Add(salesText);
-        panelRow.Children.Add(ordersText);
-        panelRow.Children.Add(statusText);
-        row.Children.Add(panelRow);
-        TrackingsPanel.Children.Add(row);
-
-        var trackingRow = new TrackingRow
-        {
-            Tracking = tracking, UrlBox = urlBox,
-            SalesText = salesText, OrdersText = ordersText,
-            StatusText = statusText, RowGrid = row
-        };
-        _trackingRows.Add(trackingRow);
-        RefreshRowStatus(trackingRow);
-
-        deleteBtn.Click += (_, _) => DeleteTrackingRow(trackingRow);
+        row.InfoPanel.Children.Add(salesText);
+        row.InfoPanel.Children.Add(ordersText);
+        row.InfoPanel.Children.Add(statusText);
+        row.HostState = new RowInfo { SalesText = salesText, OrdersText = ordersText, StatusText = statusText };
+        RefreshRowStatus(row);
     }
 
-    private void DeleteTrackingRow(TrackingRow row)
+    private void OnRowDeleted(TrackedValueRow row)
     {
+        if (row.Item is not MakeShipTracking tracking) return;
         try
         {
-            if (row.Tracking != null)
+            MakeShipTrackingRegistry.Remove(tracking.Id);
+            using var db = _factory.CreateDbContext();
+            var dbRow = db.MakeShipTrackings.FirstOrDefault(t => t.Id == tracking.Id);
+            if (dbRow != null) db.MakeShipTrackings.Remove(dbRow);
+            if (!string.IsNullOrWhiteSpace(tracking.Name))
             {
-                MakeShipTrackingRegistry.Remove(row.Tracking.Id);
-                using var db = _factory.CreateDbContext();
-                var dbRow = db.MakeShipTrackings.FirstOrDefault(t => t.Id == row.Tracking.Id);
-                if (dbRow != null) { db.MakeShipTrackings.Remove(dbRow); db.SaveChanges(); }
-                _ = Task.Run(() => ServiceManager.MakeShip.RestartAsync());
+                var orphans = db.SubathonValues
+                    .Where(sv => sv.EventType == SubathonEventType.MakeShipPledge ||
+                                 sv.EventType == SubathonEventType.MakeShipOrder)
+                    .ToList()
+                    .Where(sv => sv.Meta != "DEFAULT" &&
+                                 string.Equals(sv.Meta, tracking.Name, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                db.SubathonValues.RemoveRange(orphans);
             }
+            db.SaveChanges();
+            _ = Task.Run(() => ServiceManager.MakeShip.RestartAsync());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to delete MakeShip Tracked Product");
         }
-        _trackingRows.Remove(row);
-        TrackingsPanel.Children.Remove(row.RowGrid);
+        RefreshSimNameCombo();
     }
 
-    private void RefreshRowStatus(TrackingRow row)
+    private static void RefreshRowStatus(TrackedValueRow row)
     {
-        var tracking = row.Tracking;
+        if (row.HostState is not RowInfo info) return;
+        var tracking = row.Item as MakeShipTracking;
         bool tracked = tracking?.ProductType is MakeShipProductType.Petition or MakeShipProductType.Campaign;
         bool isPetition = tracking?.ProductType == MakeShipProductType.Petition;
 
-        row.SalesText.Text = tracked ? $"Sales: {tracking!.Sales}" : "Sales: -";
-        row.OrdersText.Text = tracked
+        info.SalesText.Text = tracked ? $"Sales: {tracking!.Sales}" : "Sales: -";
+        info.OrdersText.Text = tracked
             ? (isPetition ? $"Pledges: {tracking!.Orders}" : $"Orders: {tracking!.Orders}")
             : "Orders: -";
 
-        row.SalesText.FontWeight = tracked && !isPetition ? FontWeights.Bold : FontWeights.Normal;
-        row.OrdersText.FontWeight = tracked && isPetition ? FontWeights.Bold : FontWeights.Normal;
+        info.SalesText.FontWeight = tracked && !isPetition ? FontWeights.Bold : FontWeights.Thin;
+        info.OrdersText.FontWeight = tracked && isPetition ? FontWeights.Bold : FontWeights.Thin;
 
         if (tracking == null)
         {
-            row.StatusText.Text = "Not saved";
-            row.StatusText.Foreground = Brushes.Gray;
+            info.StatusText.Text = "Not saved";
+            info.StatusText.Foreground = Brushes.Gray;
             return;
         }
 
         switch (tracking.ProductType)
         {
             case MakeShipProductType.Petition:
-                row.StatusText.Text = $"Petition: {tracking.Name}";
-                row.StatusText.Foreground = Brushes.Green;
-                row.StatusText.ToolTip = tracking.Name;
+                info.StatusText.Text = $"Petition: {tracking.Name}";
+                info.StatusText.Foreground = Brushes.Green;
+                info.StatusText.ToolTip = tracking.Name;
                 break;
             case MakeShipProductType.Campaign:
-                row.StatusText.Text = $"Campaign: {tracking.Name}";
-                row.StatusText.Foreground = Brushes.Green;
-                row.StatusText.ToolTip = tracking.Name;
+                info.StatusText.Text = $"Campaign: {tracking.Name}";
+                info.StatusText.Foreground = Brushes.Green;
+                info.StatusText.ToolTip = tracking.Name;
                 break;
             case MakeShipProductType.Invalid:
-                row.StatusText.Text = "Invalid URL";
-                row.StatusText.Foreground = Brushes.IndianRed;
+                info.StatusText.Text = "Invalid URL";
+                info.StatusText.Foreground = Brushes.IndianRed;
                 break;
             default:
-                row.StatusText.Text = "Pending...";
-                row.StatusText.Foreground = Brushes.Gray;
+                info.StatusText.Text = "Pending...";
+                info.StatusText.Foreground = Brushes.Gray;
                 break;
         }
     }
@@ -238,74 +260,157 @@ public partial class MakeShipSettings : SettingsControl
     private static bool SaveValue(AppDbContext db, SubathonEventType eventType, TextBox secondsBox, TextBox pointsBox)
     {
         bool hasUpdated = false;
-        var value = db.SubathonValues.FirstOrDefault(sv => sv.EventType == eventType && sv.Meta == "");
+        var value = db.SubathonValues.FirstOrDefault(sv =>
+            sv.EventType == eventType && (sv.Meta == "DEFAULT" || sv.Meta == ""));
         if (value == null) return false;
+        if (value.Meta != "DEFAULT")
+        {
+            value.Meta = "DEFAULT";
+            hasUpdated = true;
+        }
         if (double.TryParse(secondsBox.Text, out var seconds) && !seconds.Equals(value.Seconds))
         {
             value.Seconds = seconds;
             hasUpdated = true;
         }
-        
+
         if (double.TryParse(pointsBox.Text, out var points) && !points.Equals(value.Points))
         {
             value.Points = points;
             hasUpdated = true;
         }
-        
+
         return hasUpdated;
     }
 
     private bool SaveTrackings(AppDbContext db)
     {
-        bool hasUpdated = false;
-        foreach (var row in _trackingRows.Where(r => string.IsNullOrWhiteSpace(r.UrlBox.Text)).ToList())
+        bool trackingsChanged = false;
+        bool valuesChanged = false;
+
+        foreach (var row in TrackingRows.Rows.Where(r => string.IsNullOrWhiteSpace(r.KeyBox.Text)).ToList())
         {
-            DeleteTrackingRow(row);
-            hasUpdated = true;
+            trackingsChanged |= row.Item != null;
+            TrackingRows.RemoveRow(row);
         }
 
-        foreach (var row in _trackingRows)
-        {
-            string url = row.UrlBox.Text.Trim();
+        var makeShipValues = db.SubathonValues
+            .Where(sv => sv.EventType == SubathonEventType.MakeShipPledge ||
+                         sv.EventType == SubathonEventType.MakeShipOrder)
+            .ToList();
+        var validMetas = new List<string> { "DEFAULT", "" };
 
-            if (row.Tracking == null)
+        foreach (var row in TrackingRows.Rows)
+        {
+            string url = row.KeyBox.Text.Trim();
+
+            if (row.Item is not MakeShipTracking tracking)
             {
-                var tracking = new MakeShipTracking
+                tracking = new MakeShipTracking
                 {
                     Url = url,
                     Name = MakeShipTrackingRegistry.GetDisplayNameFromSlug(url)
                 };
                 db.MakeShipTrackings.Add(tracking);
                 MakeShipTrackingRegistry.Upsert(tracking);
-                row.Tracking = tracking;
-                hasUpdated = true;
+                row.Item = tracking;
+                trackingsChanged = true;
             }
-            else if (!string.Equals(row.Tracking.Url, url, StringComparison.Ordinal))
+            else if (!string.Equals(tracking.Url, url, StringComparison.Ordinal))
             {
-                var dbRow = db.MakeShipTrackings.FirstOrDefault(t => t.Id == row.Tracking.Id) ?? row.Tracking;
+                var dbRow = db.MakeShipTrackings.FirstOrDefault(t => t.Id == tracking.Id) ?? tracking;
                 dbRow.Url = url;
                 dbRow.Name = MakeShipTrackingRegistry.GetDisplayNameFromSlug(url);
                 dbRow.ShopifyProductId = "";
                 dbRow.ProductType = MakeShipProductType.Unknown;
                 dbRow.Sales = 0;
                 dbRow.Orders = 0;
-                row.Tracking.Url = dbRow.Url;
-                row.Tracking.Name = dbRow.Name;
-                row.Tracking.ShopifyProductId = "";
-                row.Tracking.ProductType = MakeShipProductType.Unknown;
-                row.Tracking.Sales = 0;
-                row.Tracking.Orders = 0;
-                MakeShipTrackingRegistry.Upsert(row.Tracking);
-                hasUpdated = true;
+                tracking.Url = dbRow.Url;
+                tracking.Name = dbRow.Name;
+                tracking.ShopifyProductId = "";
+                tracking.ProductType = MakeShipProductType.Unknown;
+                tracking.Sales = 0;
+                tracking.Orders = 0;
+                MakeShipTrackingRegistry.Upsert(tracking);
+                trackingsChanged = true;
             }
 
+            validMetas.Add(tracking.Name);
+            valuesChanged |= SaveOverride(db, makeShipValues, row, tracking);
             RefreshRowStatus(row);
         }
 
-        if (hasUpdated)
+        foreach (var orphan in makeShipValues
+                     .Where(sv => !validMetas.Contains(sv.Meta, StringComparer.OrdinalIgnoreCase)).ToList())
+        {
+            db.SubathonValues.Remove(orphan);
+            valuesChanged = true;
+        }
+
+        if (trackingsChanged)
             _ = Task.Run(() => ServiceManager.MakeShip.RestartAsync());
 
-        return hasUpdated;
+        RefreshSimNameCombo();
+        return trackingsChanged || valuesChanged;
+    }
+
+    private static bool SaveOverride(AppDbContext db, List<SubathonValue> makeShipValues,
+        TrackedValueRow row, MakeShipTracking tracking)
+    {
+        if (string.IsNullOrWhiteSpace(tracking.Name)) return false;
+
+        var desiredType = MakeShipTrackingRegistry.ClassifyUrl(tracking.Url) == MakeShipProductType.Campaign
+            ? SubathonEventType.MakeShipOrder
+            : SubathonEventType.MakeShipPledge;
+
+        var existing = makeShipValues
+            .Where(sv => string.Equals(sv.Meta, tracking.Name, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        string secondsText = row.SecondsBox.Text.Trim();
+        string pointsText = row.PointsBox.Text.Trim();
+        if (secondsText.Length == 0 && pointsText.Length == 0)
+        {
+            foreach (var sv in existing)
+            {
+                db.SubathonValues.Remove(sv);
+                makeShipValues.Remove(sv);
+            }
+            return existing.Count > 0;
+        }
+
+        double seconds = double.TryParse(secondsText, out var s) ? s : 0;
+        double points = double.TryParse(pointsText, out var p) ? p : 0;
+
+        bool updated = false;
+        var keep = existing.FirstOrDefault(sv => sv.EventType == desiredType);
+        foreach (var sv in existing.Where(sv => !ReferenceEquals(sv, keep)))
+        {
+            db.SubathonValues.Remove(sv);
+            makeShipValues.Remove(sv);
+            updated = true;
+        }
+
+        if (keep == null)
+        {
+            keep = new SubathonValue
+            {
+                EventType = desiredType, Meta = tracking.Name,
+                Seconds = seconds, Points = points
+            };
+            db.SubathonValues.Add(keep);
+            makeShipValues.Add(keep);
+            return true;
+        }
+
+        if (!keep.Seconds.Equals(seconds)) { keep.Seconds = seconds; updated = true; }
+        if (!keep.Points.Equals(points)) { keep.Points = points; updated = true; }
+        if (!string.Equals(keep.Meta, tracking.Name, StringComparison.Ordinal))
+        {
+            keep.Meta = tracking.Name;
+            updated = true;
+        }
+        return updated;
     }
 
     public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
@@ -314,6 +419,7 @@ public partial class MakeShipSettings : SettingsControl
     {
         string v = $"{val.Seconds}";
         string p = $"{val.Points}";
+        if (val.Meta is not ("" or "DEFAULT")) return (v, p, null, null);
         return val.EventType switch
         {
             SubathonEventType.MakeShipPledge => (v, p, PledgeBox, PledgeBox2),
