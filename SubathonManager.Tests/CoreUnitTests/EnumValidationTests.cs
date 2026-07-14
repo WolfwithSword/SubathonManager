@@ -91,7 +91,8 @@ public class EnumValidationTests
 
                     if (eventType.IsOrder() && eventType.GetSource() != SubathonEventSource.Throne)
                     {
-                        Assert.Contains("Order", subathonEventType.ToString());
+                        Assert.True(subathonEventType.ToString().Contains("Order")
+                                    || subathonEventType.ToString().Contains("Pledge"));
                     }
                     
                     if (eventType.IsOrder() && eventType.GetSource() == SubathonEventSource.Throne)

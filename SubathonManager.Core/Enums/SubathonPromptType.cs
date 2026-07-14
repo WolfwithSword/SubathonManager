@@ -74,9 +74,15 @@ public static class SubathonPromptTypeExtensions
  
         if (filterEventType.IsSubscription())
             return [SubathonPromptSubType.Default, SubathonPromptSubType.ByTier];
-        if(filterEventType.IsOrder())
+        if (filterEventType.IsOrder())
+        {
+            if (filterEventType.GetTypeTrueSource() == $"{SubathonEventSource.MakeShip}")
+            {
+                return [SubathonPromptSubType.Items];
+            }
             return [SubathonPromptSubType.Default, SubathonPromptSubType.Items];
- 
+        }
+
         return [SubathonPromptSubType.Default];
     }
  

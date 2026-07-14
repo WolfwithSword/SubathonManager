@@ -37,6 +37,7 @@ namespace SubathonManager.Data
         public DbSet<WheelSpinTriggerHistory> WheelSpinTriggerHistories { get; set; }
 
         public DbSet<GoAffProStore> GoAffProStores { get; set; }
+        public DbSet<MakeShipTracking> MakeShipTrackings { get; set; }
 
         public DbSet<StateValue> StateValues { get; set; }
         
@@ -444,6 +445,8 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
                 new () { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
                 new () { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
+                new () { EventType = SubathonEventType.MakeShipPledge, Seconds = 60 }, // always items mode, per pledge
+                new () { EventType = SubathonEventType.MakeShipOrder, Seconds = 60 }, // always items mode, per order
             };
 
             foreach (var def in defaults)

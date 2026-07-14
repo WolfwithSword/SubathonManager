@@ -547,10 +547,12 @@ namespace SubathonManager.UI.Views.WheelSpin
 
             bool forceByMoney = eventType == SubathonEventType.ThroneGiftContribution;
             bool noItemCount = eventType is SubathonEventType.ThroneGiftPurchase
-                                         or SubathonEventType.KoFiCommissionOrder
-                                         or SubathonEventType.TreatStreamOrder;
+                or SubathonEventType.KoFiCommissionOrder
+                or SubathonEventType.TreatStreamOrder;
             // treats are only items/orders
-            bool noMoney = eventType == SubathonEventType.TreatStreamOrder;
+            bool noMoney = eventType is SubathonEventType.TreatStreamOrder 
+                or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipOrder;
+            bool noOrder = eventType is SubathonEventType.MakeShipOrder or SubathonEventType.MakeShipPledge;
 
             if (forceByMoney)
             {
@@ -570,7 +572,7 @@ namespace SubathonManager.UI.Views.WheelSpin
             else
             {
                 OrderByItemsRadio.IsEnabled = true;
-                OrderByOrderRadio.IsEnabled = true;
+                OrderByOrderRadio.IsEnabled = !noOrder;
                 OrderByMoneyRadio.IsEnabled = !noMoney;
             }
 

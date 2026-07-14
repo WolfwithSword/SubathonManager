@@ -54,6 +54,8 @@ public enum SubathonEventSource
     PallyGG,
     [EventSourceMeta(Description="TreatStream", SourceGroup = SubathonSourceGroup.StreamExtension, SourceOrder=24, Order=23)]
     TreatStream,
+    [EventSourceMeta(Description="MakeShip", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=65, Order=54)]
+    MakeShip,
 }
 
 [ExcludeFromCodeCoverage]

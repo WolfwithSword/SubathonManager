@@ -112,6 +112,8 @@ public partial class App
 
                 var stores = db.GoAffProStores.ToList();
                 GoAffProStoreRegistry.Initialize(stores);
+
+                MakeShipTrackingRegistry.Initialize(db.MakeShipTrackings.AsNoTracking().ToList());
             }
 
             GoAffProConfigMigration.Run(config);
@@ -147,8 +149,31 @@ public partial class App
                 });
             };
 
+            MakeShipTrackingRegistry.TrackingUpdated += tracking =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        var row = db2.MakeShipTrackings.FirstOrDefault(t => t.Id == tracking.Id);
+                        if (row == null) return;
+                        row.Name = tracking.Name;
+                        row.ShopifyProductId = tracking.ShopifyProductId;
+                        row.ProductType = tracking.ProductType;
+                        row.Sales = tracking.Sales;
+                        row.Orders = tracking.Orders;
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist MakeShip tracking {Id}", tracking.Id);
+                    }
+                });
+            };
+
             base.OnStartup(e);
-            
+
             var window = new MainWindow();
             Current.MainWindow = window;
             window.Show();

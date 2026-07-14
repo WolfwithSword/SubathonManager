@@ -154,7 +154,8 @@ namespace SubathonManager.UI
 
             var sourceGroup = source.GetGroup();
             if (sourceGroup is SubathonSourceGroup.StreamExtension or SubathonSourceGroup.ExternalSoftware
-                || source is SubathonEventSource.FourthWall or SubathonEventSource.Throne)
+                || source is SubathonEventSource.FourthWall or SubathonEventSource.Throne
+                    or SubathonEventSource.MakeShip)
             {
                 bool up = connections.Any(c => c.Status);
                 Brush brush = up ? StatusUpBrush

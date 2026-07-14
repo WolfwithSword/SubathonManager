@@ -57,6 +57,8 @@ public static class ServiceRegistration
         
         // Order Sales //
         services.AddSingleton<GoAffProService>();
+        services.AddHttpClient(nameof(MakeShipService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<MakeShipService>();
 
         // Webhooks (shared tunnel infrastructure) //
         var wingetPath = Path.Combine(

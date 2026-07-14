@@ -191,6 +191,13 @@ public enum SubathonEventType
     [EventTypeMeta(Label = "Order", Source = SubathonEventSource.TreatStream, IsOrder = true, Order = 1)]
     TreatStreamOrder,
 
+    // items only
+    [EventTypeMeta(Label = "Pledge", Source = SubathonEventSource.MakeShip, IsOrder = true, Order = 1)]
+    MakeShipPledge,
+    // items only
+    [EventTypeMeta(Label = "Campaign Sale", Source = SubathonEventSource.MakeShip, IsOrder = true, Order = 2)]
+    MakeShipOrder,
+
     // any new must be added after the last
 }
 

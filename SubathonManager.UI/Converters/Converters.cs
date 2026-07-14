@@ -147,7 +147,7 @@ namespace SubathonManager.UI.Converters
             
             if (values[1] is SubathonEventType eventType)
             {
-                if (eventType == SubathonEventType.ThroneCrowdGiftComplete)
+                if (eventType is SubathonEventType.ThroneCrowdGiftComplete or SubathonEventType.MakeShipOrder or SubathonEventType.MakeShipPledge)
                     return item;
                 if (eventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)
                 {
