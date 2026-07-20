@@ -25,7 +25,7 @@ namespace SubathonManager.UI.Views.Prompts
         private string? _selectedFilterEventMeta;
         private Guid? _activeRunPromptId;
 
-        private record EventTypeEntry(SubathonEventType EventType, string Label, string? Meta = null);
+        private record EventTypeEntry(SubathonEventType EventType, string Label, string? Meta = null, string? Category = null);
         private Dictionary<SubathonEventSource, List<EventTypeEntry>> _eventsBySource = new();
 
         public PromptsEditor()
@@ -77,11 +77,31 @@ namespace SubathonManager.UI.Views.Prompts
                 return GoAffProStoreRegistry.All().Where(s => s.Enabled)
                     .Select(s => new EventTypeEntry(e, s.EventName, s.SiteId.ToString()));
             }
+            if (e == SubathonEventType.JuniperMerchSale)
+            {
+                return JuniperStoreRegistry.AllStores().Where(s => s.Enabled)
+                    .SelectMany(s => new[] { new EventTypeEntry(e, "Any Sale", s.RowId.ToString(), s.StoreName) }
+                        .Concat(s.Products
+                            .OrderBy(p => p.ProductName, StringComparer.OrdinalIgnoreCase)
+                            .Select(p => new EventTypeEntry(e, p.ProductName, p.ProductId.ToString(), s.StoreName))));
+            }
+            if (e is SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale)
+            {
+                bool isPledge = e == SubathonEventType.MakeShipPledge;
+                string category = isPledge ? "Pledges" : "Campaign Sales";
+                var wantedType = isPledge ? MakeShipProductType.Petition : MakeShipProductType.Campaign;
+                return new[] { new EventTypeEntry(e, isPledge ? "Any Pledge" : "Any Sale", null, category) }
+                    .Concat(MakeShipTrackingRegistry.All()
+                        .Where(t => MakeShipTrackingRegistry.ClassifyUrl(t.Url) == wantedType)
+                        .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                        .Select(t => new EventTypeEntry(e, t.Name, t.Name, category)));
+            }
             return [new EventTypeEntry(e, e.GetLabel())];
         }
 
         private void EventTypePickerBtn_Click(object sender, RoutedEventArgs e)
         {
+            BuildEventsBySource();
             var entries = new List<UiUtils.EventTypeMenuEntry>();
 
             foreach (var (source, events) in _eventsBySource)
@@ -94,7 +114,8 @@ namespace SubathonManager.UI.Views.Prompts
                         entry.Label,
                         _selectedFilterEventType == entry.EventType &&
                             entry.Meta == _selectedFilterEventMeta,
-                        () => OnEventTypeSelected(captured)));
+                        () => OnEventTypeSelected(captured),
+                        Category: entry.Category));
                 }
             }
 
@@ -106,7 +127,9 @@ namespace SubathonManager.UI.Views.Prompts
             var eventType = entry.EventType;
             _selectedFilterEventType = eventType;
             _selectedFilterEventMeta = entry.Meta;
-            EventTypePickerLabel.Text = $"{eventType.GetSource()} - {entry.Label}";
+            EventTypePickerLabel.Text = entry.Category is { Length: > 0 }
+                ? $"{eventType.GetSource()} - {entry.Category} - {entry.Label}"
+                : $"{eventType.GetSource()} - {entry.Label}";
 
             if (_suppressCount > 0) return;
 
@@ -473,9 +496,17 @@ namespace SubathonManager.UI.Views.Prompts
             Grid.SetColumn(textLabel, 1);
 
             string typeBadgeText = prompt is { Type: SubathonPromptType.Event, FilterEventType: not null }
-                ? prompt.FilterEventType == SubathonEventType.GoAffProOrder
-                    ? $"Evt:{GoAffProOrderHelper.GetOrderEventDisplayLabel(prompt.FilterEventType, prompt.FilterMeta)}"
-                    : $"Evt:{prompt.FilterEventType.Value.GetLabel()}"
+                ? prompt.FilterEventType switch
+                {
+                    SubathonEventType.GoAffProOrder =>
+                        $"Evt:{GoAffProOrderHelper.GetOrderEventDisplayLabel(prompt.FilterEventType, prompt.FilterMeta)}",
+                    SubathonEventType.JuniperMerchSale =>
+                        $"Evt:{OrderMetaFilter.Describe(prompt.FilterEventType, prompt.FilterMeta)}",
+                    SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+                        when !string.IsNullOrEmpty(prompt.FilterMeta) =>
+                        $"Evt:{prompt.FilterEventType.Value.GetLabel()} ({prompt.FilterMeta})",
+                    _ => $"Evt:{prompt.FilterEventType.Value.GetLabel()}"
+                }
                 : prompt.Type.DisplayName();
             var typeBadge = new TextBlock
             {
@@ -593,14 +624,23 @@ namespace SubathonManager.UI.Views.Prompts
                 EventTypePanel.Visibility = isEvent ? Visibility.Visible : Visibility.Collapsed;
 
                 _selectedFilterEventType = isEvent ? prompt.FilterEventType : null;
-                _selectedFilterEventMeta = isEvent && prompt.FilterEventType == SubathonEventType.GoAffProOrder
+                _selectedFilterEventMeta = isEvent && prompt.FilterEventType
+                        is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
+                        or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
                     ? prompt.FilterMeta
                     : null;
-                EventTypePickerLabel.Text = _selectedFilterEventType.HasValue
-                    ? _selectedFilterEventType.Value == SubathonEventType.GoAffProOrder
-                        ? $"{_selectedFilterEventType.Value.GetSource()} - {GoAffProOrderHelper.GetOrderEventDisplayLabel(_selectedFilterEventType, _selectedFilterEventMeta)}"
-                        : $"{_selectedFilterEventType.Value.GetSource()} - {_selectedFilterEventType.Value.GetLabel()}"
-                    : "- select -";
+                EventTypePickerLabel.Text = _selectedFilterEventType switch
+                {
+                    null => "- select -",
+                    SubathonEventType.GoAffProOrder =>
+                        $"{_selectedFilterEventType.Value.GetSource()} - {GoAffProOrderHelper.GetOrderEventDisplayLabel(_selectedFilterEventType, _selectedFilterEventMeta)}",
+                    SubathonEventType.JuniperMerchSale =>
+                        $"{_selectedFilterEventType.Value.GetSource()} - {OrderMetaFilter.Describe(_selectedFilterEventType, _selectedFilterEventMeta)}",
+                    SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+                        when !string.IsNullOrEmpty(_selectedFilterEventMeta) =>
+                        $"{_selectedFilterEventType.Value.GetSource()} - {_selectedFilterEventType.Value.GetLabel()} - {_selectedFilterEventMeta}",
+                    _ => $"{_selectedFilterEventType.Value.GetSource()} - {_selectedFilterEventType.Value.GetLabel()}"
+                };
 
                 RefreshSubTypeComboBox(prompt.Type, prompt.FilterEventType);
                 var subTypeItem = PromptSubTypeBox.Items.OfType<ComboBoxItem>()
@@ -810,8 +850,9 @@ namespace SubathonManager.UI.Views.Prompts
             {
                 prompt.FilterEventType = _selectedFilterEventType;
                 prompt.FilterSubType = prompt.FilterEventType?.GetSubType();
-                if (prompt.FilterEventType == SubathonEventType.GoAffProOrder)
-                    prompt.FilterMeta = _selectedFilterEventMeta; // site id is meta
+                if (prompt.FilterEventType is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
+                    or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale)
+                    prompt.FilterMeta = _selectedFilterEventMeta; // site id (meta) / product id / store guid / tracking name
                 else
                     prompt.FilterMeta = prompt.SubType == SubathonPromptSubType.ByTier
                         ? (PromptTierBox.SelectedItem as ComboBoxItem)?.Tag as string

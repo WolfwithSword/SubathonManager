@@ -168,6 +168,8 @@
                                                         <Binding Path="Value"/>
                                                         <Binding Path="EventType"/>
                                                         <Binding Path="Currency"/>
+                                                        <Binding Path="SecondaryValue"/>
+                                                        <Binding Path="TertiaryValue"/>
                                                     </MultiBinding>
                                                 </TextBlock.Text>
                                                 <TextBlock.ToolTip>
@@ -175,6 +177,8 @@
                                                         <Binding Path="Value"/>
                                                         <Binding Path="EventType"/>
                                                         <Binding Path="Currency"/>
+                                                        <Binding Path="SecondaryValue"/>
+                                                        <Binding Path="TertiaryValue"/>
                                                     </MultiBinding>
                                                 </TextBlock.ToolTip>
                                             </TextBlock>

@@ -110,6 +110,7 @@ public class CommandMetaAttribute : EnumMetaAttribute
     public bool IsControlType { get; init; }
 }
 
+[ExcludeFromCodeCoverage]
 public class WheelSpinActionMetaAttribute : EnumMetaAttribute
 {
     public bool IsCommand { get; init; } = false;

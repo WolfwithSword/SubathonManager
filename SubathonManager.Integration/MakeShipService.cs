@@ -32,9 +32,12 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
     [GeneratedRegex(@"gid://shopify/Product/(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex CampaignProductIdRegex();
 
-    private readonly List<string> _timerKeys = new();
-    private readonly Lock _timerLock = new();
+    private const string TimerKey = "makeship-poll";
+    private static readonly TimeSpan StaggerDelay = TimeSpan.FromSeconds(2);
+    private int _pollSweepRunning;
     private readonly HashSet<Guid> _syncedSinceStart = new();
+    private readonly Dictionary<Guid, int> _contentFailures = new();
+    private const int InvalidAfterConsecutiveFailures = 3;
     private readonly Lock _syncLock = new();
     private bool _running;
     private bool _lastBroadcastStatus;
@@ -44,9 +47,22 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
     public Task StartAsync(CancellationToken ct = default)
     {
         UnregisterTimers();
-        lock (_syncLock) { _syncedSinceStart.Clear(); }
+        lock (_syncLock)
+        {
+            _syncedSinceStart.Clear();
+            _contentFailures.Clear();
+        }
 
         var trackings = MakeShipTrackingRegistry.All();
+        foreach (var tracking in trackings)
+        {
+            var classified = MakeShipTrackingRegistry.ClassifyUrl(tracking.Url);
+            if (classified == MakeShipProductType.Invalid) continue;
+            if (!string.IsNullOrEmpty(tracking.ShopifyProductId))
+                tracking.ProductType = classified;
+            else if (tracking.ProductType == MakeShipProductType.Invalid)
+                tracking.ProductType = MakeShipProductType.Unknown;
+        }
         if (trackings.Count == 0)
         {
             logger?.LogInformation("[MakeShip] No urls tracked. Integration inactive.");
@@ -57,22 +73,10 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
 
         _running = true;
 
-        lock (_timerLock)
-        {
-            foreach (var tracking in trackings)
-            {
-                string key = $"makeship-{tracking.Id}";
-                timerService?.Register(key, PollInterval, token => PollByIdAsync(tracking.Id, token));
-                _timerKeys.Add(key);
-            }
-        }
+        timerService?.Register(TimerKey, PollInterval, PollTimerTick);
         logger?.LogInformation("[MakeShip] Tracking started ({Count} urls)", trackings.Count);
 
-        _ = Task.Run(async () =>
-        {
-            foreach (var tracking in trackings)
-                await PollByIdAsync(tracking.Id, ct);
-        }, ct);
+        _ = PollTimerTick(ct);
 
         return Task.CompletedTask;
     }
@@ -92,34 +96,43 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
         await StartAsync();
     }
 
-    private void UnregisterTimers()
+    private void UnregisterTimers() => timerService?.Unregister(TimerKey);
+
+    [ExcludeFromCodeCoverage]
+    private Task PollTimerTick(CancellationToken ct)
     {
-        lock (_timerLock)
+        if (Interlocked.CompareExchange(ref _pollSweepRunning, 1, 0) != 0) return Task.CompletedTask;
+        _ = Task.Run(async () =>
         {
-            foreach (var key in _timerKeys)
-                timerService?.Unregister(key);
-            _timerKeys.Clear();
-        }
+            try { await PollAllAsync(ct); }
+            finally { Interlocked.Exchange(ref _pollSweepRunning, 0); }
+        }, ct);
+        return Task.CompletedTask;
     }
 
     [ExcludeFromCodeCoverage]
-    private async Task PollByIdAsync(Guid trackingId, CancellationToken ct)
+    private async Task PollAllAsync(CancellationToken ct)
     {
-        if (!_running) return;
-        if (!MakeShipTrackingRegistry.TryGet(trackingId, out var tracking) || tracking == null)
+        bool first = true;
+        foreach (var tracking in MakeShipTrackingRegistry.All())
         {
-            timerService?.Unregister($"makeship-{trackingId}");
-            return;
-        }
+            if (!_running || ct.IsCancellationRequested) return;
+            if (!first)
+            {
+                try { await Task.Delay(StaggerDelay, ct); }
+                catch (OperationCanceledException) { return; }
+            }
+            first = false;
 
-        try
-        {
-            await PollTrackingAsync(tracking, ct);
-        }
-        catch (OperationCanceledException) { return; }
-        catch (Exception ex)
-        {
-            logger?.LogWarning(ex, "[MakeShip] Failed to poll {Url}", tracking.Url);
+            try
+            {
+                await PollTrackingAsync(tracking, ct);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "[MakeShip] Failed to poll {Url}", tracking.Url);
+            }
         }
 
         var trackings = MakeShipTrackingRegistry.All();
@@ -148,9 +161,12 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
             MakeShipProductType.Campaign => await RefreshCampaignAsync(tracking, ct),
             _ => false
         };
+        tracking.PollFailing = !refreshed;
 
         if (!refreshed)
         {
+            logger?.LogWarning("[MakeShip] Poll failed for {Type} '{Name}' ({Url})",
+                tracking.ProductType, tracking.Name, tracking.Url);
             MakeShipTrackingRegistry.RaiseTrackingUpdated(tracking);
             return;
         }
@@ -168,6 +184,29 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
         }
 
         MakeShipTrackingRegistry.RaiseTrackingUpdated(tracking);
+    }
+
+    private bool RegisterContentFailure(MakeShipTracking tracking)
+    {
+        int failures;
+        lock (_syncLock)
+        {
+            failures = _contentFailures.GetValueOrDefault(tracking.Id) + 1;
+            _contentFailures[tracking.Id] = failures;
+        }
+        if (failures < InvalidAfterConsecutiveFailures)
+        {
+            logger?.LogInformation("[MakeShip] Content failure {Count}/{Max} for {Url}; retrying next poll",
+                failures, InvalidAfterConsecutiveFailures, tracking.Url);
+            return false;
+        }
+        tracking.ProductType = MakeShipProductType.Invalid;
+        return true;
+    }
+
+    private void ClearContentFailures(Guid trackingId)
+    {
+        lock (_syncLock) { _contentFailures.Remove(trackingId); }
     }
 
     private async Task<bool> ResolveTrackingAsync(MakeShipTracking tracking, CancellationToken ct)
@@ -189,12 +228,13 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
 
         if (string.IsNullOrEmpty(productId))
         {
-            tracking.ProductType = MakeShipProductType.Invalid;
-            logger?.LogWarning("[MakeShip] Could not find a product id on page (not a trackable {Type}?): {Url}",
-                type, tracking.Url);
+            if (RegisterContentFailure(tracking))
+                logger?.LogWarning("[MakeShip] Could not find a product id on page (not a trackable {Type}?): {Url}",
+                    type, tracking.Url);
             return false;
         }
 
+        ClearContentFailures(tracking.Id);
         tracking.ProductType = type;
         tracking.ShopifyProductId = productId;
         if (string.IsNullOrWhiteSpace(tracking.Name)
@@ -237,8 +277,7 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
             $"{StorefrontBase}/products/{tracking.ShopifyProductId}/sales-quantity", ct);
         if (json == null)
         {
-            tracking.ProductType = MakeShipProductType.Invalid;
-            logger?.LogWarning("[MakeShip] No sales-quantity for product {Id}; not a valid campaign: {Url}",
+            logger?.LogWarning("[MakeShip] No sales-quantity for product {Id} ({Url})",
                 tracking.ShopifyProductId, tracking.Url);
             return false;
         }
@@ -302,7 +341,7 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
     {
         var eventType = tracking.ProductType == MakeShipProductType.Petition
             ? SubathonEventType.MakeShipPledge
-            : SubathonEventType.MakeShipOrder;
+            : SubathonEventType.MakeShipSale;
         
         string unit = eventType == SubathonEventType.MakeShipPledge ? "pledges" : "sales";
         int delta = toCount - fromCount;
@@ -320,7 +359,7 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
             TertiaryValue = tracking.Name,
             EventTimestamp = DateTime.Now
         });
-        logger?.LogInformation("[MakeShip] {Count} new {Unit} for '{Name}' ({From} -> {To})",
+        logger?.LogDebug("[MakeShip] {Count} new {Unit} for '{Name}' ({From} -> {To})",
             delta, unit, tracking.Name, fromCount, toCount);
     }
 
@@ -328,7 +367,7 @@ public partial class MakeShipService(ILogger<MakeShipService>? logger, IHttpClie
     {
         if (string.IsNullOrWhiteSpace(name)) name = "Test Plush";
         if (count <= 0) count = 1;
-        var eventType = isPetition ? SubathonEventType.MakeShipPledge : SubathonEventType.MakeShipOrder;
+        var eventType = isPetition ? SubathonEventType.MakeShipPledge : SubathonEventType.MakeShipSale;
         string unit = isPetition ? "pledges" : "sales";
 
         SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent

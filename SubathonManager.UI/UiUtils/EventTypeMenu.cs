@@ -11,7 +11,8 @@ public sealed record EventTypeMenuEntry(
     SubathonEventSource Source,
     string Label,
     bool IsSelected,
-    Action OnSelected);
+    Action OnSelected,
+    string? Category = null);
 
 public static class EventTypeMenu
 {
@@ -76,7 +77,9 @@ public static class EventTypeMenu
             {
                 var flat = new MenuItem
                 {
-                    Header = $"{entry.Source} - {entry.Label}",
+                    Header = entry.Category is { Length: > 0 }
+                        ? $"{entry.Source} - {entry.Category} - {entry.Label}"
+                        : $"{entry.Source} - {entry.Label}",
                     IsChecked = entry.IsSelected
                 };
                 var captured = entry;
@@ -100,8 +103,8 @@ public static class EventTypeMenu
     private static bool Matches(EventTypeMenuEntry entry, string query, bool groupBySourceType)
     {
         var haystack = groupBySourceType
-            ? $"{entry.Source.GetGroup().GetLabel()} {entry.Source} {entry.Label}"
-            : $"{entry.Source} {entry.Label}";
+            ? $"{entry.Source.GetGroup().GetLabel()} {entry.Source} {entry.Category} {entry.Label}"
+            : $"{entry.Source} {entry.Category} {entry.Label}";
         return haystack.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -153,6 +156,8 @@ public static class EventTypeMenu
     {
         var sourceItem = new MenuItem();
         hasSelection = false;
+        var categoryItems = new Dictionary<string, MenuItem>(StringComparer.OrdinalIgnoreCase);
+        var categorySelections = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var entry in sourceGroup)
         {
@@ -160,8 +165,27 @@ public static class EventTypeMenu
             hasSelection |= entry.IsSelected;
             var captured = entry;
             leaf.Click += (_, _) => captured.OnSelected();
-            sourceItem.Items.Add(leaf);
+
+            if (entry.Category is { Length: > 0 } category)
+            {
+                if (!categoryItems.TryGetValue(category, out var categoryItem))
+                {
+                    categoryItem = new MenuItem();
+                    categoryItems[category] = categoryItem;
+                    AttachHoverExpand(categoryItem, () => sourceItem.Items.OfType<MenuItem>());
+                    sourceItem.Items.Add(categoryItem);
+                }
+                categoryItem.Items.Add(leaf);
+                categorySelections[category] = categorySelections.GetValueOrDefault(category) | entry.IsSelected;
+            }
+            else
+            {
+                sourceItem.Items.Add(leaf);
+            }
         }
+
+        foreach (var (category, categoryItem) in categoryItems)
+            categoryItem.Header = MakeHeader(category, categorySelections.GetValueOrDefault(category));
 
         sourceItem.Header = MakeHeader(sourceGroup.Key.ToString(), hasSelection);
         return sourceItem;

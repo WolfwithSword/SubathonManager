@@ -29,7 +29,7 @@ namespace SubathonManager.UI.Views.WheelSpin
         private const int HistoryPageSize = 20;
         private bool _historyLoading;
         private bool _initialized;
-        private object? _selectedEventTag; // SubathonEventType or GoAffProStore
+        private object? _selectedEventTag; // SubathonEventType, GoAffProStore, JuniperStore/JuniperProduct or MakeShipTracking
 
         private static readonly System.Windows.Media.SolidColorBrush SelectedRowBrush =
             new(System.Windows.Media.Color.FromArgb(30, 100, 149, 237));
@@ -188,6 +188,62 @@ namespace SubathonManager.UI.Views.WheelSpin
                         continue;
                     }
 
+                    if (et == SubathonEventType.JuniperMerchSale)
+                    {
+                        foreach (var store in JuniperStoreRegistry.AllStores().Where(s => s.Enabled))
+                        {
+                            var capturedStore = store;
+                            entries.Add(new UiUtils.EventTypeMenuEntry(
+                                group.Key,
+                                "Any Sale",
+                                _selectedEventTag is JuniperStore selStore && selStore.RowId == store.RowId,
+                                () => OnEventTypeSelected(capturedStore, $"{capturedStore.StoreName} - Any Sale"),
+                                Category: store.StoreName));
+
+                            foreach (var product in store.Products.OrderBy(p => p.ProductName,
+                                         StringComparer.OrdinalIgnoreCase))
+                            {
+                                var capturedProduct = product;
+                                entries.Add(new UiUtils.EventTypeMenuEntry(
+                                    group.Key,
+                                    product.ProductName,
+                                    _selectedEventTag is JuniperProduct sel && sel.ProductId == product.ProductId,
+                                    () => OnEventTypeSelected(capturedProduct,
+                                        $"{JuniperStoreRegistry.GetStoreName(capturedProduct.StoreId)} - {capturedProduct.ProductName}"),
+                                    Category: store.StoreName));
+                            }
+                        }
+                        continue;
+                    }
+
+                    if (et is SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale)
+                    {
+                        bool isPledge = et == SubathonEventType.MakeShipPledge;
+                        string category = isPledge ? "Pledges" : "Campaign Sales";
+                        var capturedAny = et;
+                        entries.Add(new UiUtils.EventTypeMenuEntry(
+                            group.Key,
+                            isPledge ? "Any Pledge" : "Any Sale",
+                            _selectedEventTag is SubathonEventType selAny && selAny == et,
+                            () => OnEventTypeSelected(capturedAny, capturedAny.GetLabel()),
+                            Category: category));
+
+                        var wantedType = isPledge ? MakeShipProductType.Petition : MakeShipProductType.Campaign;
+                        foreach (var tracking in MakeShipTrackingRegistry.All()
+                                     .Where(t => MakeShipTrackingRegistry.ClassifyUrl(t.Url) == wantedType)
+                                     .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
+                        {
+                            var capturedTracking = tracking;
+                            entries.Add(new UiUtils.EventTypeMenuEntry(
+                                group.Key,
+                                tracking.Name,
+                                _selectedEventTag is MakeShipTracking selT && selT.Id == tracking.Id,
+                                () => OnEventTypeSelected(capturedTracking, capturedTracking.Name),
+                                Category: category));
+                        }
+                        continue;
+                    }
+
                     var captured = et;
                     entries.Add(new UiUtils.EventTypeMenuEntry(
                         group.Key,
@@ -315,6 +371,10 @@ namespace SubathonManager.UI.Views.WheelSpin
             {
                 return $"{t.EventType.GetSource()} - {GoAffProOrderHelper.GetOrderEventDisplayLabel(t.EventType, t.TierValue)}";
             }
+            if (t.EventType == SubathonEventType.JuniperMerchSale)
+            {
+                return $"{t.EventType.GetSource()} - {OrderMetaFilter.Describe(t.EventType, t.TierValue)}";
+            }
             var label = $"{t.EventType.GetSource()} - {t.EventType.GetLabel()}";
             if (!string.IsNullOrEmpty(t.TierValue))
             {
@@ -397,6 +457,31 @@ namespace SubathonManager.UI.Views.WheelSpin
                         .FirstOrDefault(s => s.SiteId.ToString() == trigger.TierValue);
                     _selectedEventTag = store;
                     EventTypePickerLabel.Text = store?.EventName ?? "- select -";
+                }
+                else if (trigger.EventType == SubathonEventType.JuniperMerchSale)
+                {
+                    if (Guid.TryParse(trigger.TierValue, out var storeId)
+                        && JuniperStoreRegistry.TryGetStore(storeId, out var jStore))
+                    {
+                        _selectedEventTag = jStore;
+                        EventTypePickerLabel.Text = $"{jStore.StoreName} - Any Sale";
+                    }
+                    else
+                    {
+                        JuniperOrderHelper.TryGetProduct(trigger.TierValue, out var product);
+                        _selectedEventTag = product;
+                        EventTypePickerLabel.Text = product != null
+                            ? $"{JuniperStoreRegistry.GetStoreName(product.StoreId)} - {product.ProductName}"
+                            : "- select -";
+                    }
+                }
+                else if (trigger.EventType is SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+                         && !string.IsNullOrEmpty(trigger.TierValue))
+                {
+                    var tracking = MakeShipTrackingRegistry.All().FirstOrDefault(t =>
+                        string.Equals(t.Name, trigger.TierValue, StringComparison.OrdinalIgnoreCase));
+                    _selectedEventTag = (object?)tracking ?? trigger.EventType;
+                    EventTypePickerLabel.Text = tracking?.Name ?? $"{trigger.EventType.GetLabel()} ({trigger.TierValue})";
                 }
                 else
                 {
@@ -546,15 +631,23 @@ namespace SubathonManager.UI.Views.WheelSpin
             eventType ??= SelectedEventTypeFromTag(_selectedEventTag);
 
             bool forceByMoney = eventType == SubathonEventType.ThroneGiftContribution;
+            bool forceByItems = eventType == SubathonEventType.JuniperMerchSale;
             bool noItemCount = eventType is SubathonEventType.ThroneGiftPurchase
                 or SubathonEventType.KoFiCommissionOrder
                 or SubathonEventType.TreatStreamOrder;
             // treats are only items/orders
             bool noMoney = eventType is SubathonEventType.TreatStreamOrder 
-                or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipOrder;
-            bool noOrder = eventType is SubathonEventType.MakeShipOrder or SubathonEventType.MakeShipPledge;
+                or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale;
+            bool noOrder = eventType is SubathonEventType.MakeShipSale or SubathonEventType.MakeShipPledge;
 
-            if (forceByMoney)
+            if (forceByItems)
+            {
+                SuppressChanges(() => OrderByItemsRadio.IsChecked = true);
+                OrderByItemsRadio.IsEnabled = true;
+                OrderByOrderRadio.IsEnabled = false;
+                OrderByMoneyRadio.IsEnabled = false;
+            }
+            else if (forceByMoney)
             {
                 SuppressChanges(() => OrderByMoneyRadio.IsChecked = true);
                 OrderByItemsRadio.IsEnabled = false;
@@ -657,6 +750,9 @@ namespace SubathonManager.UI.Views.WheelSpin
             TriggerStatusText.Text = "";
 
             var goAffProStore = _selectedEventTag as GoAffProStore;
+            var juniperProduct = _selectedEventTag as JuniperProduct;
+            var juniperStore = _selectedEventTag as JuniperStore;
+            var makeShipTracking = _selectedEventTag as MakeShipTracking;
             if (SelectedEventTypeFromTag(_selectedEventTag) is not { } eventType)
             {
                 TriggerStatusText.Text = "Select an event type";
@@ -678,6 +774,18 @@ namespace SubathonManager.UI.Views.WheelSpin
             if (goAffProStore != null)
             {
                 tierValue = goAffProStore.SiteId.ToString();
+            }
+            else if (juniperProduct != null)
+            {
+                tierValue = juniperProduct.ProductId.ToString();
+            }
+            else if (juniperStore != null)
+            {
+                tierValue = juniperStore.RowId.ToString();
+            }
+            else if (makeShipTracking != null)
+            {
+                tierValue = makeShipTracking.Name;
             }
             else if (isSubLike)
             {
@@ -779,7 +887,10 @@ namespace SubathonManager.UI.Views.WheelSpin
             // unique check
             await using var db = await _factory.CreateDbContextAsync();
             bool isDuplicateTierEvent = subType is SubathonEventSubType.SubLike or SubathonEventSubType.GiftSubLike
-                                        || eventType == SubathonEventType.GoAffProOrder;
+                                        || eventType is SubathonEventType.GoAffProOrder
+                                            or SubathonEventType.JuniperMerchSale
+                                            or SubathonEventType.MakeShipPledge
+                                            or SubathonEventType.MakeShipSale;
 
             var existing = await db.WheelSpinTriggers
                 .Where(t => t.EventType == eventType && t.Id != (_selectedTrigger != null ? _selectedTrigger.Id : Guid.Empty))
@@ -791,9 +902,15 @@ namespace SubathonManager.UI.Views.WheelSpin
                     string.Equals(t.TierValue, tierValue, StringComparison.OrdinalIgnoreCase));
                 if (tierConflict)
                 {
-                    TriggerStatusText.Text = eventType == SubathonEventType.GoAffProOrder
-                        ? $"A trigger for {GoAffProOrderHelper.GetOrderEventDisplayLabel(eventType, tierValue)} already exists. Edit or delete it first"
-                        : $"A trigger for {eventType.GetLabel()} ({tierValue}) already exists. Edit or delete it first";
+                    TriggerStatusText.Text = eventType switch
+                    {
+                        SubathonEventType.GoAffProOrder =>
+                            $"A trigger for {GoAffProOrderHelper.GetOrderEventDisplayLabel(eventType, tierValue)} already exists. Edit or delete it first",
+                        SubathonEventType.JuniperMerchSale or SubathonEventType.MakeShipPledge
+                            or SubathonEventType.MakeShipSale =>
+                            $"A trigger for {eventType.GetLabel()} ({OrderMetaFilter.Describe(eventType, tierValue)}) already exists. Edit or delete it first",
+                        _ => $"A trigger for {eventType.GetLabel()} ({tierValue}) already exists. Edit or delete it first"
+                    };
                     return;
                 }
             }
@@ -1259,6 +1376,11 @@ namespace SubathonManager.UI.Views.WheelSpin
         {
             SubathonEventType et => et,
             GoAffProStore => SubathonEventType.GoAffProOrder,
+            JuniperProduct or JuniperStore => SubathonEventType.JuniperMerchSale,
+            MakeShipTracking tracking =>
+                MakeShipTrackingRegistry.ClassifyUrl(tracking.Url) == MakeShipProductType.Campaign
+                    ? SubathonEventType.MakeShipSale
+                    : SubathonEventType.MakeShipPledge,
             _ => null
         };
 

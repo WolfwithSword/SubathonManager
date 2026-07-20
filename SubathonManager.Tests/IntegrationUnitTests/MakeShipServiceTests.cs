@@ -221,10 +221,10 @@ public class MakeShipServiceTests
             MakeServiceReusingSync(service, CampaignHandler(salesQuantity: 805, pledges: 42)), tracking);
 
         var ev = Assert.Single(events);
-        Assert.Equal(SubathonEventType.MakeShipOrder, ev.EventType);
+        Assert.Equal(SubathonEventType.MakeShipSale, ev.EventType);
         Assert.Equal("5", ev.Value);
         Assert.Equal(5, ev.Amount);
-        Assert.Equal("items", ev.Currency);
+        Assert.Equal("sales", ev.Currency);
         Assert.Equal(805, tracking.Sales);
     }
 
@@ -244,7 +244,7 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task Campaign_NoSalesQuantity_MarkedInvalid()
+    public async Task Campaign_NoSalesQuantity_StaysResolvedButPollFailing()
     {
         var tracking = new MakeShipTracking { Url = CampaignUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
@@ -259,7 +259,9 @@ public class MakeShipServiceTests
         var events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
-        Assert.Equal(MakeShipProductType.Invalid, tracking.ProductType);
+        Assert.Equal(MakeShipProductType.Campaign, tracking.ProductType);
+        Assert.Equal(CampaignProductId, tracking.ShopifyProductId);
+        Assert.True(tracking.PollFailing);
     }
 
     [Fact]
@@ -278,7 +280,7 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task PetitionPage_WithoutPledgeDiv_MarkedInvalid()
+    public async Task PetitionPage_WithoutPledgeDiv_MarkedInvalidAfterConsecutiveFailures()
     {
         var tracking = new MakeShipTracking { Url = PetitionUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
@@ -289,7 +291,11 @@ public class MakeShipServiceTests
         var service = MakeService(handler);
 
         await service.PollTrackingAsync(tracking, CancellationToken.None);
+        Assert.Equal(MakeShipProductType.Unknown, tracking.ProductType);
+        await service.PollTrackingAsync(tracking, CancellationToken.None);
+        Assert.Equal(MakeShipProductType.Unknown, tracking.ProductType);
 
+        await service.PollTrackingAsync(tracking, CancellationToken.None);
         Assert.Equal(MakeShipProductType.Invalid, tracking.ProductType);
     }
 
@@ -316,10 +322,10 @@ public class MakeShipServiceTests
             () => MakeShipService.Simulate("  ", isPetition: false, count: 0));
 
         Assert.NotNull(ev);
-        Assert.Equal(SubathonEventType.MakeShipOrder, ev!.EventType);
+        Assert.Equal(SubathonEventType.MakeShipSale, ev!.EventType);
         Assert.Equal("1", ev.Value);
         Assert.Equal(1, ev.Amount);
-        Assert.Equal("items", ev.Currency);
+        Assert.Equal("sales", ev.Currency);
         Assert.Equal("Test Plush", ev.EventTypeMeta);
     }
 

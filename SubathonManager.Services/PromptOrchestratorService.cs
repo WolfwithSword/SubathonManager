@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
@@ -430,8 +431,9 @@ public class PromptOrchestratorService(
     {
         if (ev.EventType != prompt.FilterEventType) return false;
 
-        if (prompt.FilterEventType == SubathonEventType.GoAffProOrder)
-            return string.IsNullOrEmpty(prompt.FilterMeta) || ev.EventTypeMeta == prompt.FilterMeta;
+        if (prompt.FilterEventType is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
+            or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale)
+            return OrderMetaFilter.Matches(ev.EventType, ev.EventTypeMeta, prompt.FilterMeta);
 
         if (prompt.SubType == SubathonPromptSubType.ByTier && !string.IsNullOrEmpty(prompt.FilterMeta))
             return ev.Value == prompt.FilterMeta;
@@ -510,8 +512,22 @@ public class PromptOrchestratorService(
         var query = db.SubathonEvents.AsNoTracking()
             .Where(e => e.ProcessedToSubathon && e.EventType == filterType);
 
-        if (filterType == SubathonEventType.GoAffProOrder && !string.IsNullOrEmpty(prompt.FilterMeta))
-            query = query.Where(e => e.EventTypeMeta == prompt.FilterMeta);
+        if (filterType is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
+                or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+            && !string.IsNullOrEmpty(prompt.FilterMeta))
+        {
+            if (filterType == SubathonEventType.JuniperMerchSale && Guid.TryParse(prompt.FilterMeta, out var storeId))
+            {
+                List<string> productMetas = JuniperStoreRegistry.TryGetStore(storeId, out var store)
+                    ? store.Products.Select(p => p.ProductId.ToString()).ToList()
+                    : [];
+                query = query.Where(e => e.EventTypeMeta != null && productMetas.Contains(e.EventTypeMeta));
+            }
+            else
+            {
+                query = query.Where(e => e.EventTypeMeta == prompt.FilterMeta);
+            }
+        }
         else if (prompt.SubType == SubathonPromptSubType.ByTier && !string.IsNullOrEmpty(prompt.FilterMeta))
             query = query.Where(e => e.Value == prompt.FilterMeta);
  

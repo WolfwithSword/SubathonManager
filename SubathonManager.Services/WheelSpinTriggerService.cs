@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
@@ -73,18 +74,19 @@ public class WheelSpinTriggerService(
                 .ToList();
         }
         
-        if (ev.EventType == SubathonEventType.GoAffProOrder)
+        if (ev.EventType is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
+            or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale)
         {
             candidates = candidates
-                .Where(t => string.IsNullOrEmpty(t.TierValue) ||
-                            string.Equals(t.TierValue, ev.EventTypeMeta, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(t => !string.IsNullOrEmpty(t.TierValue))
+                .Where(t => OrderMetaFilter.Matches(ev.EventType, ev.EventTypeMeta, t.TierValue))
+                .OrderByDescending(t => OrderMetaFilter.Specificity(ev.EventType, ev.EventTypeMeta, t.TierValue))
                 .ToList();
         }
         
         if (candidates.Count == 0) return;
 
         // unique rules, there should only be one match; take first anyways
+        // we do only apply for most specific at a time if we have generic then specific
         var trigger = candidates[0];
 
         int spinsToAdd = await CalculateSpins(ev, trigger, subType);

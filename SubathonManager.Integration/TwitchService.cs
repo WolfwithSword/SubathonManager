@@ -216,7 +216,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
     private async Task InitializeChatAsync()
     {
         _chatReconnect.Reset();
-        var credentials = new ConnectionCredentials(UserName, $"oauth:{AccessToken}");
+        var credentials = new ConnectionCredentials(UserName!, $"oauth:{AccessToken}");
         _chat = new TwitchClient();
         
         _chat.OnMessageReceived += HandleMessageCmdReceived;

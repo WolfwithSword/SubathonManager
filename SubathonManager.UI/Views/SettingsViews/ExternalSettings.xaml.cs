@@ -49,6 +49,9 @@ public partial class ExternalSettings : SettingsGroupControl
             case SubathonEventSource.MakeShip:
                 _settingsControls[eventSource] = new MakeShipSettings();
                 break;
+            case SubathonEventSource.JuniperCreates:
+                _settingsControls[eventSource] = new JuniperSettings();
+                break;
             default: return null;
         }
         _settingsControls[eventSource].Init(Host);

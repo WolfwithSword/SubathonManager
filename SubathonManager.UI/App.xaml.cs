@@ -114,6 +114,9 @@ public partial class App
                 GoAffProStoreRegistry.Initialize(stores);
 
                 MakeShipTrackingRegistry.Initialize(db.MakeShipTrackings.AsNoTracking().ToList());
+
+                JuniperStoreRegistry.Initialize(db.JuniperStores
+                    .Include(s => s.Products).AsNoTracking().ToList());
             }
 
             GoAffProConfigMigration.Run(config);
@@ -169,16 +172,72 @@ public partial class App
                         {
                             var overrides = db2.SubathonValues.Where(sv =>
                                 (sv.EventType == SubathonEventType.MakeShipPledge ||
-                                 sv.EventType == SubathonEventType.MakeShipOrder)
+                                 sv.EventType == SubathonEventType.MakeShipSale)
                                 && sv.Meta == oldName).ToList();
                             foreach (var sv in overrides)
                                 sv.Meta = tracking.Name;
+
+                            // wheel triggers and prompt filters key per-item entries by name too
+                            var triggers = db2.WheelSpinTriggers.Where(t =>
+                                (t.EventType == SubathonEventType.MakeShipPledge ||
+                                 t.EventType == SubathonEventType.MakeShipSale)
+                                && t.TierValue == oldName).ToList();
+                            foreach (var t in triggers)
+                                t.TierValue = tracking.Name;
+
+                            var prompts = db2.SubathonPrompts.Where(p =>
+                                (p.FilterEventType == SubathonEventType.MakeShipPledge ||
+                                 p.FilterEventType == SubathonEventType.MakeShipSale)
+                                && p.FilterMeta == oldName).ToList();
+                            foreach (var p in prompts)
+                                p.FilterMeta = tracking.Name;
                         }
                         await db2.SaveChangesAsync();
                     }
                     catch (Exception ex)
                     {
                         _logger?.LogError(ex, "Failed to persist MakeShip tracking {Id}", tracking.Id);
+                    }
+                });
+            };
+
+            JuniperStoreRegistry.StoreUpdated += store =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        var row = db2.JuniperStores.FirstOrDefault(s => s.RowId == store.RowId);
+                        if (row == null) return;
+                        row.Enabled = store.Enabled;
+                        row.LastFetched = store.LastFetched;
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist Juniper store {Name}", store.StoreName);
+                    }
+                });
+            };
+
+            JuniperStoreRegistry.ProductUpdated += product =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        var row = db2.JuniperProducts.FirstOrDefault(p => p.ProductId == product.ProductId);
+                        if (row == null) return;
+                        row.ProductName = product.ProductName;
+                        row.Valid = product.Valid;
+                        row.LastFetched = product.LastFetched;
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist Juniper product {Id}", product.ProductId);
                     }
                 });
             };

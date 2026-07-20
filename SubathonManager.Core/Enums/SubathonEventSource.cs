@@ -56,6 +56,8 @@ public enum SubathonEventSource
     TreatStream,
     [EventSourceMeta(Description="MakeShip", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=65, Order=54)]
     MakeShip,
+    [EventSourceMeta(Description="Juniper Creates", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder=66, Order=55, Visible = true)]
+    JuniperCreates // like goaffpro, do lookup on product id to find store name as source
 }
 
 [ExcludeFromCodeCoverage]

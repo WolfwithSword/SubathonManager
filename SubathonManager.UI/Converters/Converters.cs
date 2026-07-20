@@ -153,7 +153,12 @@ namespace SubathonManager.UI.Converters
                 {
                     return $"New {store.StoreName} Order";
                 }
-                if (eventType is SubathonEventType.ThroneCrowdGiftComplete or SubathonEventType.MakeShipOrder or SubathonEventType.MakeShipPledge)
+
+                if (eventType is SubathonEventType.JuniperMerchSale)
+                {
+                    return $"New {user} Sale";
+                }
+                if (eventType is SubathonEventType.ThroneCrowdGiftComplete or SubathonEventType.MakeShipSale or SubathonEventType.MakeShipPledge)
                     return item;
                 if (eventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)
                 {
@@ -183,6 +188,11 @@ namespace SubathonManager.UI.Converters
             {
                 if (eventType == SubathonEventType.TwitchRaid)
                     type = "viewer";
+                else if (eventType == SubathonEventType.JuniperMerchSale)
+                {
+                    type = "";
+                    val = values[4].ToString() ?? values[3].ToString() ?? val;
+                }
                 else if (curr == "item" && eventType.GetSource() is SubathonEventSource.Throne or SubathonEventSource.TreatStream)
                     type = "";
                 else

@@ -327,7 +327,23 @@ public class DiscordWebhookService : IDisposable, IAppService
     private string BuildEventDescription(SubathonEvent e)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"**User:** {e.User}");
+        var userHeader = $"**User:** {e.User}";
+        if (e.EventType.GetTypeTrueSource() == $"{SubathonEventSource.MakeShip}" ||
+            e.EventType is SubathonEventType.JuniperMerchSale or SubathonEventType.ThroneCrowdGiftComplete)
+        {
+            userHeader = $"**Item:** {e.TertiaryValue}";
+        }
+
+        if (e.EventType == SubathonEventType.JuniperMerchSale)
+        {
+            sb.AppendLine($"**Store:** {e.User}");
+        }
+
+        sb.AppendLine(userHeader);
+        if (e.EventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)
+        {
+            sb.AppendLine($"**Item:** {e.TertiaryValue}");
+        }
         var val = e.Value.Replace("[DELETED]", "").Trim();
         if (e.Currency == "sub")
         {
@@ -599,10 +615,17 @@ public class DiscordWebhookService : IDisposable, IAppService
         }
     }
 
-    private static string TriggerEventLabel(WheelSpinTrigger trigger) =>
-        trigger.EventType == SubathonEventType.GoAffProOrder
-            ? GoAffProOrderHelper.GetOrderEventDisplayLabel(trigger.EventType, trigger.TierValue)
-            : trigger.EventType.GetLabel();
+    private static string TriggerEventLabel(WheelSpinTrigger trigger) => trigger.EventType switch
+    {
+        SubathonEventType.GoAffProOrder =>
+            GoAffProOrderHelper.GetOrderEventDisplayLabel(trigger.EventType, trigger.TierValue),
+        SubathonEventType.JuniperMerchSale =>
+            OrderMetaFilter.Describe(trigger.EventType, trigger.TierValue),
+        SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+            when !string.IsNullOrEmpty(trigger.TierValue) =>
+            $"{trigger.EventType.GetLabel()} ({trigger.TierValue})",
+        _ => trigger.EventType.GetLabel()
+    };
 
     private static string BuildTriggerLogDescription(TriggerLogEntry e)
     {

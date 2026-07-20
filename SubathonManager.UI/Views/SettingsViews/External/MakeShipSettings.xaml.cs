@@ -71,7 +71,7 @@ public partial class MakeShipSettings : SettingsControl
         {
             overrides = db.SubathonValues.AsNoTracking()
                 .Where(sv => sv.EventType == SubathonEventType.MakeShipPledge ||
-                             sv.EventType == SubathonEventType.MakeShipOrder)
+                             sv.EventType == SubathonEventType.MakeShipSale)
                 .Where(sv => sv.Meta != "DEFAULT" && sv.Meta != "")
                 .ToList();
         }
@@ -187,7 +187,7 @@ public partial class MakeShipSettings : SettingsControl
             {
                 var orphans = db.SubathonValues
                     .Where(sv => sv.EventType == SubathonEventType.MakeShipPledge ||
-                                 sv.EventType == SubathonEventType.MakeShipOrder)
+                                 sv.EventType == SubathonEventType.MakeShipSale)
                     .ToList()
                     .Where(sv => sv.Meta != "DEFAULT" &&
                                  string.Equals(sv.Meta, tracking.Name, StringComparison.OrdinalIgnoreCase))
@@ -229,14 +229,13 @@ public partial class MakeShipSettings : SettingsControl
         switch (tracking.ProductType)
         {
             case MakeShipProductType.Petition:
-                info.StatusText.Text = $"Petition: {tracking.Name}";
-                info.StatusText.Foreground = Brushes.Green;
-                info.StatusText.ToolTip = tracking.Name;
-                break;
             case MakeShipProductType.Campaign:
-                info.StatusText.Text = $"Campaign: {tracking.Name}";
-                info.StatusText.Foreground = Brushes.Green;
-                info.StatusText.ToolTip = tracking.Name;
+                bool petition = tracking.ProductType == MakeShipProductType.Petition;
+                info.StatusText.Text = $"{(petition ? "Petition" : "Campaign")}: {tracking.Name}";
+                info.StatusText.Foreground = tracking.PollFailing ? Brushes.IndianRed : Brushes.Green;
+                info.StatusText.ToolTip = tracking.PollFailing
+                    ? $"{tracking.Name} - last poll failed, retrying"
+                    : tracking.Name;
                 break;
             case MakeShipProductType.Invalid:
                 info.StatusText.Text = "Invalid URL";
@@ -252,7 +251,7 @@ public partial class MakeShipSettings : SettingsControl
     public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = SaveValue(db, SubathonEventType.MakeShipPledge, PledgeBox, PledgeBox2);
-        hasUpdated |= SaveValue(db, SubathonEventType.MakeShipOrder, OrderBox, OrderBox2);
+        hasUpdated |= SaveValue(db, SubathonEventType.MakeShipSale, OrderBox, OrderBox2);
         hasUpdated |= SaveTrackings(db);
         return hasUpdated;
     }
@@ -296,7 +295,7 @@ public partial class MakeShipSettings : SettingsControl
 
         var makeShipValues = db.SubathonValues
             .Where(sv => sv.EventType == SubathonEventType.MakeShipPledge ||
-                         sv.EventType == SubathonEventType.MakeShipOrder)
+                         sv.EventType == SubathonEventType.MakeShipSale)
             .ToList();
         var validMetas = new List<string> { "DEFAULT", "" };
 
@@ -360,7 +359,7 @@ public partial class MakeShipSettings : SettingsControl
         if (string.IsNullOrWhiteSpace(tracking.Name)) return false;
 
         var desiredType = MakeShipTrackingRegistry.ClassifyUrl(tracking.Url) == MakeShipProductType.Campaign
-            ? SubathonEventType.MakeShipOrder
+            ? SubathonEventType.MakeShipSale
             : SubathonEventType.MakeShipPledge;
 
         var existing = makeShipValues
@@ -423,7 +422,7 @@ public partial class MakeShipSettings : SettingsControl
         return val.EventType switch
         {
             SubathonEventType.MakeShipPledge => (v, p, PledgeBox, PledgeBox2),
-            SubathonEventType.MakeShipOrder => (v, p, OrderBox, OrderBox2),
+            SubathonEventType.MakeShipSale => (v, p, OrderBox, OrderBox2),
             _ => (v, p, null, null)
         };
     }

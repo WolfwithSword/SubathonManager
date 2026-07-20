@@ -196,8 +196,9 @@ public enum SubathonEventType
     MakeShipPledge,
     // items only
     [EventTypeMeta(Label = "Campaign Sale", Source = SubathonEventSource.MakeShip, IsOrder = true, Order = 2)]
-    MakeShipOrder,
-
+    MakeShipSale,
+    [EventTypeMeta(Label="Merch Sale", Source=SubathonEventSource.JuniperCreates, IsOrder=true, Order=1, Enabled=true)]
+    JuniperMerchSale,
     // any new must be added after the last
 }
 
@@ -289,6 +290,11 @@ public static class SubathonEventTypeHelper
             return GoAffProStoreRegistry.TryGetBySiteId(siteId, out var store)
                 ? store.InternalName
                 : nameof(SubathonEventSource.GoAffPro);
+        }
+
+        if (eventType.GetSource() == SubathonEventSource.JuniperCreates)
+        {
+            return JuniperOrderHelper.GetStoreLabel(meta);
         }
         return eventType.GetSource().ToString();
     }

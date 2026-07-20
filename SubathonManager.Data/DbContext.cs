@@ -38,6 +38,8 @@ namespace SubathonManager.Data
 
         public DbSet<GoAffProStore> GoAffProStores { get; set; }
         public DbSet<MakeShipTracking> MakeShipTrackings { get; set; }
+        public DbSet<JuniperStore> JuniperStores { get; set; }
+        public DbSet<JuniperProduct> JuniperProducts { get; set; }
 
         public DbSet<StateValue> StateValues { get; set; }
         
@@ -167,6 +169,16 @@ namespace SubathonManager.Data
             modelBuilder.Entity<GoAffProStore>()
                 .HasIndex(s => new { s.SiteId })
                 .IsUnique();
+
+            modelBuilder.Entity<JuniperProduct>()
+                .Property(p => p.ProductId)
+                .HasConversion(v => v.ToString(), v => System.Numerics.BigInteger.Parse(v))
+                .ValueGeneratedNever();
+            modelBuilder.Entity<JuniperProduct>()
+                .HasOne(p => p.Store)
+                .WithMany(s => s.Products)
+                .HasForeignKey(p => p.StoreId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public override int SaveChanges()
@@ -402,7 +414,7 @@ namespace SubathonManager.Data
         {
             db.Database.ExecuteSqlRaw(
                 "UPDATE SubathonValues SET Meta = 'DEFAULT' WHERE Meta = '' AND EventType IN ({0}, {1})",
-                (int)SubathonEventType.MakeShipPledge, (int)SubathonEventType.MakeShipOrder);
+                (int)SubathonEventType.MakeShipPledge, (int)SubathonEventType.MakeShipSale);
 
             var defaults = new List<SubathonValue>
             {
@@ -450,7 +462,8 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
                 new () { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
                 new () { EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60 }, // always items mode, per pledge; overridable per tracked item (Meta = tracking name)
-                new () { EventType = SubathonEventType.MakeShipOrder, Meta = "DEFAULT", Seconds = 60 }, // always items mode, per order; overridable per tracked item (Meta = tracking name)
+                new () { EventType = SubathonEventType.MakeShipSale, Meta = "DEFAULT", Seconds = 300 }, // always items mode, per order; overridable per tracked item (Meta = tracking name)
+                new () { EventType = SubathonEventType.JuniperMerchSale, Meta = "DEFAULT", Seconds = 300 }, // always items mode. meta = product id number, which links back to a store
             };
 
             foreach (var def in defaults)
@@ -519,6 +532,8 @@ namespace SubathonManager.Data
                 new () { SiteId = 18870, StoreName = "Madrinas", EventName = "Madrinas Order"},
                 new () { SiteId = 7000863, StoreName = "Otaku", EventName = "Otaku Order"},
                 new () { SiteId = 7111695, StoreName = "V1 Tech", EventName = "V1 Tech Order"},
+                new () { SiteId = 7120088, StoreName = "Plush Foundry", EventName = "PlushFoundry Order"},
+                new () { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order"}
             };
             
             foreach (var def in defaults)

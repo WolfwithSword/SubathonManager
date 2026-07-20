@@ -38,7 +38,16 @@ public class EnumValidationTests
                 {
                     var eventType = (SubathonEventType?) subathonEventType;
                     Assert.True(eventType.IsOrder());
-                    Assert.EndsWith("Order", subathonEventType.ToString());
+                    if (subathonEventType.ToString().Contains("Sale"))
+                    {
+                        Assert.EndsWith("Sale", subathonEventType.ToString());
+                    }
+                    else if (subathonEventType.ToString().Contains("Pledge"))
+                    {
+                        Assert.EndsWith("Pledge", subathonEventType.ToString());
+                    }
+                    else
+                        Assert.EndsWith("Order", subathonEventType.ToString());
                     Assert.Equal(eventType.GetDescription(), eventType.GetLabel());
                     if (subathonEventType == SubathonEventType.GoAffProOrder)
                     {
@@ -77,7 +86,14 @@ public class EnumValidationTests
                     Assert.True(subathonEventType.GetOrderNumber() > 0);
                     
                     var eventType = (SubathonEventType?) subathonEventType;
-                    Assert.Contains(group.Key.ToString(), subathonEventType.ToString());
+                    if (group.Key.ToString().Contains("Juniper"))
+                    {
+                        Assert.Contains("Juniper",subathonEventType.ToString());
+                    }
+                    else
+                    {
+                        Assert.Contains(group.Key.ToString(), subathonEventType.ToString());
+                    }
                     if (eventType.IsSubscription() && !eventType.IsGift())
                     {
                         Assert.Contains(eventType.GetLabel(), "Subscription Membership");
@@ -92,7 +108,8 @@ public class EnumValidationTests
                     if (eventType.IsOrder() && eventType.GetSource() != SubathonEventSource.Throne)
                     {
                         Assert.True(subathonEventType.ToString().Contains("Order")
-                                    || subathonEventType.ToString().Contains("Pledge"));
+                                    || subathonEventType.ToString().Contains("Pledge")
+                                    || subathonEventType.ToString().Contains("Sale"));
                     }
                     
                     if (eventType.IsOrder() && eventType.GetSource() == SubathonEventSource.Throne)

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core.Models;
@@ -14,4 +15,7 @@ public class MakeShipTracking
 
     public int Sales { get; set; }
     public int Orders { get; set; }
+
+    [NotMapped]
+    public bool PollFailing { get; set; }
 }

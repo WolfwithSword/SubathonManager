@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Core;
 
+[ExcludeFromCodeCoverage]
 public static class GoAffProConfigMigration
 {
     public static bool Run(IConfig config)

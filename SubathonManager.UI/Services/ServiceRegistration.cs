@@ -59,6 +59,8 @@ public static class ServiceRegistration
         services.AddSingleton<GoAffProService>();
         services.AddHttpClient(nameof(MakeShipService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<MakeShipService>();
+        services.AddHttpClient(nameof(JuniperService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<JuniperService>();
 
         // Webhooks (shared tunnel infrastructure) //
         var wingetPath = Path.Combine(
