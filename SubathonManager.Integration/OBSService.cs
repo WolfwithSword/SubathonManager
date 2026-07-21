@@ -87,6 +87,7 @@ public class OBSService : IAppService
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+        EnsureScriptFileOnDisk();
         _ = Task.Run(TryConnect, cancellationToken);
         return Task.CompletedTask;
     }
