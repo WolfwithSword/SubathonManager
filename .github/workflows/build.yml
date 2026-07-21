@@ -261,13 +261,15 @@ jobs:
           cp external/streamerbot/*.sb ./ || true
 
       - name: Install ImageMagick
-        shell: pwsh
         run: |
-          winget install ImageMagick.ImageMagick --silent --accept-package-agreements --accept-source-agreements
+          sudo apt-get update
+          sudo apt-get install -y imagemagick zip
           
       - name: Package Stream Deck plugin
         shell: bash
         run: |
+          set -e
+          
           sdplugin="external/streamdeck/com.wolfwithsword.subathonmanager.sdPlugin"
           mkdir -p "$sdplugin/images"
           
@@ -275,8 +277,8 @@ jobs:
             name="${spec%%:*}"
             size="${spec##*:}"
           
-            magick assets/icon.png -resize "${size}x${size}" "$sdplugin/images/${name}.png"
-            magick assets/icon.png -resize "$((size*2))x$((size*2))" "$sdplugin/images/${name}@2x.png"
+            convert assets/icon.png -resize "${size}x${size}" "$sdplugin/images/${name}.png"
+            convert assets/icon.png -resize "$((size*2))x$((size*2))" "$sdplugin/images/${name}@2x.png"
           done
           
           (
