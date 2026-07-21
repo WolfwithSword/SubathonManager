@@ -240,6 +240,15 @@ jobs:
           zip -r ../${{ needs.build.outputs.filename }} .
           echo "${{ needs.build.outputs.filename }} successfully zipped"
           
+      - name: Fetch SB Extension
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "external/streamerbot" | Out-Null
+      
+          Invoke-WebRequest `
+          -Uri "https://sb-assets.wolfwithsword.com/extensions/subathonmanager/latest/subathonmanager-extension.sb" `
+          -OutFile "external/streamerbot/SubathonManager_Extension.sb"
+          
       - name: Move files 
         run: |
           if [ -f "build/${{ needs.build.outputs.filename }}" ]; then
