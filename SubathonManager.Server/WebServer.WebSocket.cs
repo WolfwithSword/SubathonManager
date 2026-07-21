@@ -516,7 +516,7 @@ public partial class WebServer
                             json.RootElement
                                 .EnumerateObject()
                                 .ToDictionary(p => p.Name, p => p.Value);
-                        Console.WriteLine(data);
+                        //Console.WriteLine(data);
                         bool success = ExternalEventService.ProcessExternalCommand(data);
                         data.TryGetValue("command", out JsonElement cmdElem);
                         data.TryGetValue("context", out JsonElement ctxElem);

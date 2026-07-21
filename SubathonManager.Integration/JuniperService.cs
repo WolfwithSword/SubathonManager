@@ -91,7 +91,6 @@ public class JuniperService(ILogger<JuniperService>? logger, IHttpClientFactory 
         bool anyError = false;
         foreach (var url in MakeQueryUrls(productIds, startTime))
         {
-            Console.WriteLine(url);
             string? json = await GetStringAsync(url, ct);
             if (json == null)
             {
