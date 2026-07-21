@@ -263,23 +263,26 @@ jobs:
       - name: Install ImageMagick
         shell: pwsh
         run: |
-          choco install imagemagick --no-progress -y
-    
+          winget install ImageMagick.ImageMagick --silent --accept-package-agreements --accept-source-agreements
+          
       - name: Package Stream Deck plugin
         shell: bash
         run: |
-          sdplugin=external/streamdeck/com.wolfwithsword.subathonmanager.sdPlugin
-          mkdir -p $sdplugin/images
+          sdplugin="external/streamdeck/com.wolfwithsword.subathonmanager.sdPlugin"
+          mkdir -p "$sdplugin/images"
           
           for spec in pluginIcon:28 categoryIcon:28 actionIcon:20 keyIcon:72; do
-            name=${spec%%:*}
-            size=${spec##*:}
+            name="${spec%%:*}"
+            size="${spec##*:}"
           
-            magick assets/icon.png -resize ${size}x${size} $sdplugin/images/${name}.png
-            magick assets/icon.png -resize $((size*2))x$((size*2)) $sdplugin/images/${name}@2x.png
+            magick assets/icon.png -resize "${size}x${size}" "$sdplugin/images/${name}.png"
+            magick assets/icon.png -resize "$((size*2))x$((size*2))" "$sdplugin/images/${name}@2x.png"
           done
           
-          (cd external/streamdeck && zip -r ../../SubathonManager_StreamDeck.streamDeckPlugin com.wolfwithsword.subathonmanager.sdPlugin)
+          (
+            cd external/streamdeck
+            zip -r ../../SubathonManager_StreamDeck.streamDeckPlugin com.wolfwithsword.subathonmanager.sdPlugin
+          )
            
       - name: Create GitHub Release
         id: create_release
