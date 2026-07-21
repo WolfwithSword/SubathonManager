@@ -20,4 +20,6 @@ public enum SubathonSourceGroup
     UseSource,
     [EnumMeta(Description="Wheel Spin", Label="Wheel Spin")]
     WheelSpin,
+    [EnumMeta(Description="External Software", Label="External Software")]
+    ExternalSoftware,
 }

@@ -37,6 +37,18 @@
       "Description": "Enable to show count of spins remaining",
       "Value": true
     },
+    "autoShowHide": {
+      "Name": "autoShowHide",
+      "Type": "Boolean",
+      "Description": "Hide the wheel while idle. It pops in when a spin starts and pops away after the result",
+      "Value": false
+    },
+    "resultDisplaySeconds": {
+      "Name": "resultDisplaySeconds",
+      "Type": "Float",
+      "Description": "How many seconds the result popup stays visible before hiding",
+      "Value": 8
+    },
     "CdnFonts": {
       "type": "CdnFont",
       "description": "Additional cdn fonts to load to use in CSS Variables. Comma separated.",

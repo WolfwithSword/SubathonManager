@@ -37,6 +37,9 @@ namespace SubathonManager.Data
         public DbSet<WheelSpinTriggerHistory> WheelSpinTriggerHistories { get; set; }
 
         public DbSet<GoAffProStore> GoAffProStores { get; set; }
+        public DbSet<MakeShipTracking> MakeShipTrackings { get; set; }
+        public DbSet<JuniperStore> JuniperStores { get; set; }
+        public DbSet<JuniperProduct> JuniperProducts { get; set; }
 
         public DbSet<StateValue> StateValues { get; set; }
         
@@ -166,6 +169,16 @@ namespace SubathonManager.Data
             modelBuilder.Entity<GoAffProStore>()
                 .HasIndex(s => new { s.SiteId })
                 .IsUnique();
+
+            modelBuilder.Entity<JuniperProduct>()
+                .Property(p => p.ProductId)
+                .HasConversion(v => v.ToString(), v => System.Numerics.BigInteger.Parse(v))
+                .ValueGeneratedNever();
+            modelBuilder.Entity<JuniperProduct>()
+                .HasOne(p => p.Store)
+                .WithMany(s => s.Products)
+                .HasForeignKey(p => p.StoreId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
 
         public override int SaveChanges()
@@ -253,23 +266,27 @@ namespace SubathonManager.Data
 
             bool includeBits = Utils.DonationSettings.TryGetValue("BitsLikeAsDonation",  out bool bitslike) && bitslike ;
             List<SubathonEventType> orderTypesToInclude = new List<SubathonEventType>();
-            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
-            {
-                bool asDonation = Utils.DonationSettings.TryGetValue($"{goAffProSource}", out  bool donation) && donation;
-                if (asDonation && Enum.TryParse($"{goAffProSource}Order", out SubathonEventType eventType))
-                    orderTypesToInclude.Add(eventType);
-            }
             foreach (var orderEvent in Enum.GetValues<SubathonEventType>().Where(et =>
-                         ((SubathonEventType?)et).IsOrder() && !et.IsDisabled()))
+                         ((SubathonEventType?)et).IsOrder() && !et.IsDisabled()
+                         && et.GetSource() != SubathonEventSource.GoAffPro))
             {
                 bool asDonation = Utils.DonationSettings.TryGetValue($"{orderEvent.ToString()?.Split("Order")[0]}", out  bool donation) && donation;
                 if (asDonation)
                     orderTypesToInclude.Add(orderEvent);
             }
-            
-            events = events.Where(e => e.EventType != null && 
+
+            // GoAffPro is per store: commission-as-donation keyed by store InternalName, matched on event meta (SiteId)
+            HashSet<string> goAffProMetasToInclude = GoAffProStoreRegistry.All()
+                .Where(s => Utils.DonationSettings.TryGetValue(s.InternalName, out bool donation) && donation)
+                .Select(s => s.SiteId.ToString())
+                .ToHashSet();
+
+            events = events.Where(e => e.EventType != null &&
                                        (e.EventType.IsCurrencyDonation() ||
-                                        (e.EventType.IsOrder() && orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
+                                        (e.EventType == SubathonEventType.GoAffProOrder &&
+                                         !string.IsNullOrEmpty(e.EventTypeMeta) && goAffProMetasToInclude.Contains(e.EventTypeMeta)) ||
+                                        (e.EventType.IsOrder() && e.EventType != SubathonEventType.GoAffProOrder &&
+                                         orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
                                         (includeBits && e.EventType.IsToken()))).ToList();
             return events;
         }
@@ -303,15 +320,12 @@ namespace SubathonManager.Data
                     commonMeta = val;
                 }
 
-                // if (e.EventType == SubathonEventType.GoAffProOrder)
-                // {
-                //     GoAffProStoreRegistry.TryGetBySiteId(int.Parse(e.EventTypeMeta!), out var store);
-                //     if (store != null)
-                //     {
-                //         commonMeta = store.InternalName;
-                //     }
-                // }
-                
+                if (e.EventType == SubathonEventType.GoAffProOrder
+                    && GoAffProOrderHelper.TryGetStore(e.EventTypeMeta, out var store))
+                {
+                    commonMeta = store.InternalName;
+                }
+
                 sb.AppendLine(string.Join(",",
                     e.Id,
                     Utils.EscapeCsv(e.Source.ToString()),
@@ -398,6 +412,10 @@ namespace SubathonManager.Data
         
         public static void SeedDefaultValues(AppDbContext db)
         {
+            db.Database.ExecuteSqlRaw(
+                "UPDATE SubathonValues SET Meta = 'DEFAULT' WHERE Meta = '' AND EventType IN ({0}, {1})",
+                (int)SubathonEventType.MakeShipPledge, (int)SubathonEventType.MakeShipSale);
+
             var defaults = new List<SubathonValue>
             {
                 new () { EventType = SubathonEventType.TwitchSub, Meta = "1000", Seconds = 60, Points = 1 },
@@ -438,19 +456,14 @@ namespace SubathonManager.Data
                 new () { EventType = SubathonEventType.FourthWallOrder, Seconds = 12},
                 new () { EventType = SubathonEventType.ThroneGiftContribution, Seconds = 12},
                 new () { EventType = SubathonEventType.ThroneGiftPurchase, Seconds = 12},
-                
-                new () { EventType = SubathonEventType.GamerSuppsOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.UwUMarketOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.OrchidEightOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.KatDragonzOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.CheekySoapOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.SaucyBizOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.AdvancedGGOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.RogueEnergyOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.GFuelOrder,  Seconds = 12 },
-                new () { EventType = SubathonEventType.NaturaPineOrder,  Seconds = 12 },
+                // GoAffPro store order values are seeded per store (Meta = SiteId) in SeedKnownGoAffProStores
                 new () { EventType = SubathonEventType.TipeeeStreamDonation, Seconds = 12 },
                 new () { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
+                new () { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
+                new () { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
+                new () { EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60 }, // always items mode, per pledge; overridable per tracked item (Meta = tracking name)
+                new () { EventType = SubathonEventType.MakeShipSale, Meta = "DEFAULT", Seconds = 300 }, // always items mode, per order; overridable per tracked item (Meta = tracking name)
+                new () { EventType = SubathonEventType.JuniperMerchSale, Meta = "DEFAULT", Seconds = 300 }, // always items mode. meta = product id number, which links back to a store
             };
 
             foreach (var def in defaults)
@@ -516,27 +529,77 @@ namespace SubathonManager.Data
                 new () { SiteId = 7118656, StoreName = "Saucy Biz", EventName = "Saucy Biz Order"},
                 new () { SiteId = 48808, StoreName = "GFuel", EventName = "GFuel Order"},
                 new () { SiteId = 7132796, StoreName = "Natura Pine", EventName = "Natura Pine Order"},
+                new () { SiteId = 18870, StoreName = "Madrinas", EventName = "Madrinas Order"},
+                new () { SiteId = 7000863, StoreName = "Otaku", EventName = "Otaku Order"},
+                new () { SiteId = 7111695, StoreName = "V1 Tech", EventName = "V1 Tech Order"},
+                new () { SiteId = 7120088, StoreName = "Plush Foundry", EventName = "PlushFoundry Order"},
+                new () { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order"}
             };
             
             foreach (var def in defaults)
             {
-                if (db.GoAffProStores.Any(store => store.SiteId == def.SiteId && (store.StoreName != def.StoreName || store.EventName != def.EventName)))
-                {
-                    db.GoAffProStores.Update(def);
-                }
-                else if (!db.GoAffProStores.Any(store => store.SiteId == def.SiteId))
+                var existing = db.GoAffProStores.FirstOrDefault(store => store.SiteId == def.SiteId);
+                if (existing == null)
                 {
                     db.GoAffProStores.Add(def);
                 }
+                else if (existing.StoreName != def.StoreName || existing.EventName != def.EventName)
+                {
+                    existing.StoreName = def.StoreName;
+                    existing.EventName = def.EventName;
+                }
+            }
+
+            var siteIds = defaults.Select(d => d.SiteId)
+                .Concat(db.GoAffProStores.AsNoTracking().Select(s => s.SiteId).ToList())
+                .Distinct();
+            foreach (var siteId in siteIds)
+            {
+                var meta = siteId.ToString();
+                if (!db.SubathonValues.Any(sv => sv.EventType == SubathonEventType.GoAffProOrder
+                                                 && sv.Meta == meta))
+                {
+                    db.SubathonValues.Add( new ()
+                    {
+                        EventType =  SubathonEventType.GoAffProOrder, Seconds = 12, Meta = meta
+                    });
+                }
+            }
+        }
+
+        private static void MigrateLegacyGoAffProData(AppDbContext db)
+        {
+            // Convert rows stored under retired per-store GoAffPro enum values to the single
+            // GoAffProOrder type, SiteId in the meta column
+            int newGoAffProOrderInt = (int)SubathonEventType.GoAffProOrder;
+
+            foreach (var legacyType in Enum.GetValues<SubathonEventType>()
+                         .Where(t => t.GetLegacyGoAffProSiteId() > 0))
+            {
+                int oldTypeInt = (int)legacyType;
+                string meta = legacyType.GetLegacyGoAffProSiteId().ToString();
                 
-                // if (!db.SubathonValues.Any(sv => sv.EventType == SubathonEventType.GoAffProOrder 
-                //                                  && sv.Meta == def.SiteId.ToString()))
-                // {
-                //     db.SubathonValues.Add( new ()
-                //     {
-                //         EventType =  SubathonEventType.GoAffProOrder, Seconds = 12, Meta = def.SiteId.ToString()
-                //     });
-                // }
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE OR IGNORE SubathonValues SET EventType = {0}, Meta = {1} WHERE EventType = {2}",
+                    newGoAffProOrderInt, meta, oldTypeInt);
+                db.Database.ExecuteSqlRaw(
+                    "DELETE FROM SubathonValues WHERE EventType = {0}",
+                    oldTypeInt);
+
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE SubathonEvents SET EventType = {0}, EventTypeMeta = {1} WHERE EventType = {2}",
+                    newGoAffProOrderInt, meta, oldTypeInt);
+
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE WheelSpinTriggers SET EventType = {0}, TierValue = {1} WHERE EventType = {2}",
+                    newGoAffProOrderInt, meta, oldTypeInt);
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE WheelSpinTriggerHistories SET SubathonEventType = {0} WHERE SubathonEventType = {1}",
+                    newGoAffProOrderInt, oldTypeInt);
+
+                db.Database.ExecuteSqlRaw(
+                    "UPDATE SubathonPrompts SET FilterEventType = {0}, FilterMeta = {1} WHERE FilterEventType = {2}",
+                    newGoAffProOrderInt, meta, oldTypeInt);
             }
         }
 
@@ -557,39 +620,8 @@ namespace SubathonManager.Data
                         s.SetProperty(x => x.ReversedTime, false));
             }
             
-                    // int newGoAffProOrderInt = (int)SubathonEventType.GoAffProOrder;
-                    // Dictionary<int, string> LegacyEventTypeToMeta = new()
-                    // {
-                    //     [(int)SubathonEventType.GamerSuppsOrder] = "165328",
-                    //     [(int)SubathonEventType.UwUMarketOrder] = "132230",
-                    //     [(int)SubathonEventType.OrchidEightOrder] = "7142837",
-                    //     [(int)SubathonEventType.KatDragonzOrder] = "7160049",
-                    //     [(int)SubathonEventType.CheekySoapOrder] = "7138531",
-                    //     [(int)SubathonEventType.AdvancedGGOrder] = "105752",
-                    //     [(int)SubathonEventType.RogueEnergyOrder] = "7014645",
-                    //     [(int)SubathonEventType.SaucyBizOrder] = "7118656",
-                    // };
-                    //
-                    // foreach (var (oldTypeInt, meta) in LegacyEventTypeToMeta)
-                    // {
-                    //     // SubathonValue rows
-                    //     db.Database.ExecuteSqlRaw(
-                    //         "UPDATE SubathonValues SET EventType = {0}, Meta = {1} WHERE EventType = {2} AND Meta = ''",
-                    //         newGoAffProOrderInt, meta, oldTypeInt);
-                    //
-                    //     // SubathonEvent rows  
-                    //     db.Database.ExecuteSqlRaw(
-                    //         "UPDATE SubathonEvents SET EventType = {0}, EventTypeMeta = {1} WHERE EventType = {2}",
-                    //         newGoAffProOrderInt, meta, oldTypeInt);
-                    // }
-                    //
-                    // foreach (var subathonEventType in Enum.GetValues<SubathonEventType>().Where(x => ((SubathonEventType?)x).IsSubscription()))
-                    // {
-                    //     db.Database.ExecuteSqlRaw(
-                    //         "UPDATE SubathonEvents SET EventTypeMeta = Value WHERE EventType = {0}",
-                    //         (int)subathonEventType);
-                    // }
-            
+            MigrateLegacyGoAffProData(db);
+
             // var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
             // var widgetsMissingFontTypes = db.Widgets
             //     .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))

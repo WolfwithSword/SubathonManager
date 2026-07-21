@@ -58,7 +58,8 @@ public class StreamLabsService : IAppService
             Source = SubathonEventSource.StreamLabs,
             Service = "Socket",
             Name = "User",
-            Status = false
+            Status = false,
+            Configured = !IsTokenEmpty()
         });
         
         if (string.IsNullOrWhiteSpace(SecretToken))
@@ -144,13 +145,14 @@ public class StreamLabsService : IAppService
         if (_client == null) return;
         
         _client.OnDonation -= OnDonation;
-        await _client.DisconnectAsync();  
+        await _client.DisconnectAsync();
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.StreamLabs,
             Service = "Socket",
             Name = "User",
-            Status = Connected
+            Status = Connected,
+            Configured = !IsTokenEmpty()
         });
         _logger?.LogInformation("StreamLabsService Disconnected");
     }

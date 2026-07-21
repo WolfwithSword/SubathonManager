@@ -45,6 +45,7 @@ namespace SubathonManager.UI
             IntegrationEvents.DevTunnelLegacyNotification += OnDevTunnelLegacyNotification;
             Task.Run(App.InitSubathonTimer);
             InitObsIntegration();
+            InitConnectionStatus();
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -91,7 +92,9 @@ namespace SubathonManager.UI
                             Code = query["code"] ?? "",
                             AccessToken = query["access_token"] ?? "",
                             RefreshToken = query["refresh_token"] ?? "",
-                            Error = query["error"] ?? ""
+                            Error = query["error"] ?? "",
+                            ExpiresIn = query["expires_in"] ?? "",
+                            ClientId =  query["client_id"] ?? ""
                         };
                         handled = true;
                         return IntPtr.Zero;

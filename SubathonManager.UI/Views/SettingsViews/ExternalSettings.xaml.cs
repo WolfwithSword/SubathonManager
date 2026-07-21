@@ -1,6 +1,5 @@
 ﻿using System.Windows.Controls;
 using SubathonManager.Core.Enums;
-using SubathonManager.Core.Events;
 using SubathonManager.UI.Views.SettingsViews.External;
 
 namespace SubathonManager.UI.Views.SettingsViews;
@@ -18,7 +17,6 @@ public partial class ExternalSettings : SettingsGroupControl
     public ExternalSettings()
     {
         InitializeComponent();
-        SettingsEvents.HotLinkToDevTunnelsRequested += HotLinkToDevTunnels;
     }
 
     protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
@@ -33,9 +31,6 @@ public partial class ExternalSettings : SettingsGroupControl
             case SubathonEventSource.KoFiTunnel:
                 // merged into KoFi tab - return the shared instance without registering again
                 return _settingsControls.TryGetValue(SubathonEventSource.KoFi, out var kofi) ? kofi : null;
-            case SubathonEventSource.DevTunnels:
-                _settingsControls[eventSource] = new DevTunnelsSettings();
-                break;
             case SubathonEventSource.GoAffPro:
                 _settingsControls[eventSource] = new GoAffProSettings();
                 break;
@@ -47,6 +42,15 @@ public partial class ExternalSettings : SettingsGroupControl
                 break;
             case SubathonEventSource.Throne:
                 _settingsControls[eventSource] = new ThroneSettings();
+                break;
+            case SubathonEventSource.PallyGG:
+                _settingsControls[eventSource] = new PallySettings();
+                break;
+            case SubathonEventSource.MakeShip:
+                _settingsControls[eventSource] = new MakeShipSettings();
+                break;
+            case SubathonEventSource.JuniperCreates:
+                _settingsControls[eventSource] = new JuniperSettings();
                 break;
             default: return null;
         }
@@ -63,11 +67,6 @@ public partial class ExternalSettings : SettingsGroupControl
             ((KoFiCombinedSettings?) control)?.RefreshTierCombo();
         if (source == SubathonEventSource.External)
             ((ExternalServiceSettings?) control)?.RefreshTierCombo();
-    }
-    
-    private void HotLinkToDevTunnels()
-    {
-        TryHotLinkToSource(SubathonEventSource.DevTunnels);
     }
     
 }

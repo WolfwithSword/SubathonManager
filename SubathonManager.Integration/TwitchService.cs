@@ -205,7 +205,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 Source = SubathonEventSource.Twitch,
                 Service = "API",
                 Name = "",
-                Status = false
+                Status = false,
+                Configured = HasTokenFile()
             });
         }
     }
@@ -215,23 +216,17 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
     private async Task InitializeChatAsync()
     {
         _chatReconnect.Reset();
-        var credentials = new ConnectionCredentials(UserName, $"oauth:{AccessToken}");
+        var credentials = new ConnectionCredentials(UserName!, $"oauth:{AccessToken}");
         _chat = new TwitchClient();
+        
+        _chat.OnMessageReceived += HandleMessageCmdReceived;
+        _chat.OnDisconnected += HandleChatDisconnect;
+        _chat.OnReconnected += HandleChatReconnect;
+        _chat.OnConnected += HandleChatConnect;
         
         try
         {
             _chat.Initialize(credentials, channel: UserName);
-            await Task.Run(async () =>
-            {
-                await Task.Delay(1000);
-                IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-                {
-                    Source = SubathonEventSource.Twitch,
-                    Service = "Chat",
-                    Name = UserName!,
-                    Status = true
-                });
-            }); 
             logger?.LogDebug("[Twitch] Authenticated Chat as {UserName}", UserName);
         }
         catch (Exception ex)
@@ -242,18 +237,28 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 Source = SubathonEventSource.Twitch,
                 Service = "Chat",
                 Name = UserName!,
-                Status = false
+                Status = false,
+                Configured = HasTokenFile()
             });
         }
+        
+        await _chat.ConnectAsync();
+    }
 
-        _chat.OnMessageReceived += HandleMessageCmdReceived;
-        _chat.OnDisconnected += HandleChatDisconnect;
-        _chat.OnReconnected += HandleChatReconnect;
-        await Task.Run(() => _chat.Connect());
+    private Task HandleChatConnect(object? sender, OnConnectedEventArgs e)
+    {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
+        {
+            Source = SubathonEventSource.Twitch,
+            Service = "Chat",
+            Name = UserName!,
+            Status = true
+        });
+        return Task.CompletedTask;
     }
 
     [ExcludeFromCodeCoverage]
-    private void HandleChatDisconnect(object? _, TwitchLib.Communication.Events.OnDisconnectedEventArgs args)
+    private Task HandleChatDisconnect(object? sender, OnDisconnectedArgs onDisconnectedArgs)
     {
         if ((DateTime.Now - _lastChatDisconnectLog).TotalSeconds > 60)
         {
@@ -264,10 +269,12 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 Source = SubathonEventSource.Twitch,
                 Service = "Chat",
                 Name = UserName!,
-                Status = false
+                Status = false,
+                Configured = HasTokenFile()
             });
         }
-        Task.Run(TryReconnectChatAsync);
+        _ = Task.Run(TryReconnectChatAsync);
+        return Task.CompletedTask;
     }
     
     
@@ -314,7 +321,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                         return;
                     }
 
-                    _chat.Reconnect();
+                    await _chat.ReconnectAsync();
                 }
                 catch (OperationCanceledException)
                 {
@@ -339,7 +346,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
 
 
     [ExcludeFromCodeCoverage]
-    private void HandleChatReconnect(object? _, TwitchLib.Communication.Events.OnReconnectedEventArgs args)
+    private Task HandleChatReconnect(object? _, OnConnectedEventArgs onConnectedEventArgs)
     {
         logger?.LogInformation("Twitch Chat Reconnected");
         _chatReconnect.Cts?.Cancel();
@@ -351,19 +358,20 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Name = UserName!,
             Status = true
         });
+        return Task.CompletedTask;
     }
     
     
-    private void HandleMessageCmdReceived(object? s, OnMessageReceivedArgs e)
+    private Task HandleMessageCmdReceived(object? s, OnMessageReceivedArgs e)
     {
         if (!e.ChatMessage.Channel.Equals(Login, StringComparison.InvariantCultureIgnoreCase) && 
             !e.ChatMessage.Channel.Equals(UserName, StringComparison.InvariantCultureIgnoreCase))
-            return;
+            return Task.CompletedTask;
         
         string message = e.ChatMessage.Message;
-        bool isMod = e.ChatMessage.IsModerator;
+        bool isMod = e.ChatMessage.UserDetail.IsModerator;
         bool isBroadcaster = e.ChatMessage.IsBroadcaster;
-        bool isVip = e.ChatMessage.IsVip;
+        bool isVip = e.ChatMessage.UserDetail.IsVip;
 
         if (!string.IsNullOrWhiteSpace(message) && message.StartsWith('!'))
         {
@@ -375,11 +383,13 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
         {
             BlerpChatService.ParseMessage(e.ChatMessage.Message, SubathonEventSource.Twitch);
         }
+
+        return Task.CompletedTask;
     }
     
     private async Task InitializeEventSubAsync()
     {
-        _chatReconnect.Reset();
+        _eventSubReconnect.Reset();
         _eventSub = new EventSubWebsocketClient();
 
         _eventSub.WebsocketConnected += HandleEventSubConnect;
@@ -477,7 +487,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Source = SubathonEventSource.Twitch,
             Service = "EventSub",
             Name = UserName!,
-            Status = IsEventSubConnected()
+            Status = IsEventSubConnected(),
+            Configured = HasTokenFile()
         });
     }
 
@@ -520,7 +531,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Source = SubathonEventSource.Twitch,
             Service = "EventSub",
             Name = UserName!,
-            Status = _isConnected
+            Status = _isConnected,
+            Configured = HasTokenFile()
         });
         _ = Task.Run(TryReconnectEventSubAsync);
         return Task.CompletedTask;
@@ -899,7 +911,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
     {
         // api has no disconnect? 
         OnTeardown();
-        _chat?.Disconnect();
+        if (_chat != null) await _chat.DisconnectAsync();
         if (_eventSub != null) await _eventSub.DisconnectAsync();
         
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
@@ -907,21 +919,24 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             Source = SubathonEventSource.Twitch,
             Service = "API",
             Name = UserName ?? "",
-            Status = false
-        });      
+            Status = false,
+            Configured = HasTokenFile()
+        });
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.Twitch,
             Service = "EventSub",
             Name = UserName ?? "",
-            Status = false
-        });      
+            Status = false,
+            Configured = HasTokenFile()
+        });
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.Twitch,
             Service = "Chat",
             Name = UserName ?? "",
-            Status = false
+            Status = false,
+            Configured = HasTokenFile()
         });
     }
 
@@ -1075,6 +1090,7 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
             _chat.OnMessageReceived -= HandleMessageCmdReceived;
             _chat.OnDisconnected -= HandleChatDisconnect;
             _chat.OnReconnected -= HandleChatReconnect;
+            _chat.OnConnected -= HandleChatConnect;
         }
 
         if (_eventSub != null)

@@ -74,9 +74,19 @@ public static class SubathonPromptTypeExtensions
  
         if (filterEventType.IsSubscription())
             return [SubathonPromptSubType.Default, SubathonPromptSubType.ByTier];
-        if(filterEventType.IsOrder())
+        if (filterEventType.IsOrder())
+        {
+            // makeship and juniper only ever track unit counts between polls, but do it diff
+            // makeship is diff between (ignore first on boot)
+            // juniper is timerange fetched
+            if (filterEventType.GetTypeTrueSource() == $"{SubathonEventSource.MakeShip}"
+                || filterEventType?.GetSource() == SubathonEventSource.JuniperCreates)
+            {
+                return [SubathonPromptSubType.Items];
+            }
             return [SubathonPromptSubType.Default, SubathonPromptSubType.Items];
- 
+        }
+
         return [SubathonPromptSubType.Default];
     }
  

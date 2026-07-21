@@ -19,13 +19,22 @@ public static class ExternalEventService
         if (elemCmd.ValueKind == JsonValueKind.String && Enum.TryParse<SubathonCommandType>
                 (elemCmd.GetString(), ignoreCase: true, out SubathonCommandType cmd) )
         {
+            var source = SubathonEventSource.External;
+            if (data.TryGetValue("source", out JsonElement elemSrc) && elemSrc.ValueKind == JsonValueKind.String
+                && Enum.TryParse(elemSrc.GetString(), ignoreCase: true, out SubathonEventSource parsedSrc) 
+                && parsedSrc.IsExternalSource())
+            {
+                source = parsedSrc;
+            }
+
             data.TryGetValue("user", out JsonElement elemUser);
-            string user = string.IsNullOrWhiteSpace(elemUser.GetString()) ? "EXTERNAL" : elemUser.GetString()!;
-            
+            string fallbackUser = "EXTERNAL";
+            string user = string.IsNullOrWhiteSpace(elemUser.GetString()) ? fallbackUser : elemUser.GetString()!;
+
             data.TryGetValue("message", out JsonElement elemMsg);
             string msg = elemMsg.ValueKind == JsonValueKind.String ? elemMsg.GetString()! : "";
-            
-            return CommandService.ChatCommandRequest(SubathonEventSource.External, msg, user, true,
+
+            return CommandService.ChatCommandRequest(source, msg, user, true,
                 false, false, DateTime.Now, null, cmd);
         }
 
@@ -99,10 +108,23 @@ public static class ExternalEventService
 
         string typeStr = elemType.GetString()!;
         Enum.TryParse<SubathonEventType>(typeStr, ignoreCase: true, out var type);
+
+        string? goAffProMeta = null;
+        if (type != SubathonEventType.GoAffProOrder && GoAffProOrderHelper.TryGetStoreByOrderKey(typeStr, out var keyStore))
+        {
+            type = SubathonEventType.GoAffProOrder;
+            goAffProMeta = keyStore.SiteId.ToString();
+        }
+        else if (type.GetLegacyGoAffProSiteId() > 0)
+        {
+            goAffProMeta = type.GetLegacyGoAffProSiteId().ToString();
+            type = SubathonEventType.GoAffProOrder;
+        }
+
         data.TryGetValue("user", out JsonElement elemUser);
         string user = string.IsNullOrWhiteSpace(elemUser.GetString()) ? "EXTERNAL" : elemUser.GetString()!;
 
-        if (!((SubathonEventType?)type).IsOrder()) return false; 
+        if (!((SubathonEventType?)type).IsOrder()) return false;
         if (type.GetSource() == SubathonEventSource.KoFi && !string.Equals(user, "SYSTEM"))
         {
             if (Utils.GetConnection(SubathonEventSource.KoFiTunnel,
@@ -142,12 +164,16 @@ public static class ExternalEventService
         if (type != SubathonEventType.KoFiCommissionOrder)
         {
             string section = $"{type.GetSource()}";
-            if (type.GetSource() == SubathonEventSource.GoAffPro)
+            string modeKey = $"{type}";
+            if (type == SubathonEventType.GoAffProOrder)
             {
-                section = $"{type}".Replace("Order", "");
+                section = nameof(SubathonEventSource.GoAffPro);
+                modeKey = GoAffProOrderHelper.TryGetStore(goAffProMeta, out var store)
+                    ? store.InternalName
+                    : $"{type}";
             }
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            var mode = config.GetOrderTypeMode(section, $"{type}", OrderTypeModes.Dollar);
+            var mode = config.GetOrderTypeMode(section, modeKey, OrderTypeModes.Dollar);
             
             currency = mode switch
             {
@@ -174,6 +200,7 @@ public static class ExternalEventService
             Value = orderVal,
             Source = user == "SYSTEM" ? SubathonEventSource.Simulated : ((SubathonEventType?)type).GetSource(),
             EventType = type,
+            EventTypeMeta = goAffProMeta,
             Amount = amt,
             SecondaryValue = $"{value}|{currency}"
         };

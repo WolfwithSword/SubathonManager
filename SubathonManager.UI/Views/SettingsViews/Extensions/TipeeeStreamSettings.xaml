@@ -20,7 +20,7 @@
                        Content="Disconnect"
                        Width="120"
                        Height="35"
-                       Margin="4,5,0,10"
+                       Margin="6,5,0,10"
                        Visibility="Collapsed"
                        Click="Disconnect_Click"/>
             <TextBlock x:Name="TipeeeStatusText"

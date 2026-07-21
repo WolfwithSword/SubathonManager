@@ -156,6 +156,7 @@
                                                         <Binding Path="EventType"/>
                                                         <Binding Path="TertiaryValue"/>
                                                         <Binding Path="Currency"/>
+                                                        <Binding Path="EventTypeMeta"/>
                                                     </MultiBinding>
                                                 </TextBlock.Text>
                                             </TextBlock>
@@ -167,8 +168,19 @@
                                                         <Binding Path="Value"/>
                                                         <Binding Path="EventType"/>
                                                         <Binding Path="Currency"/>
+                                                        <Binding Path="SecondaryValue"/>
+                                                        <Binding Path="TertiaryValue"/>
                                                     </MultiBinding>
                                                 </TextBlock.Text>
+                                                <TextBlock.ToolTip>
+                                                    <MultiBinding Converter="{StaticResource EventTypeValueConverter}">
+                                                        <Binding Path="Value"/>
+                                                        <Binding Path="EventType"/>
+                                                        <Binding Path="Currency"/>
+                                                        <Binding Path="SecondaryValue"/>
+                                                        <Binding Path="TertiaryValue"/>
+                                                    </MultiBinding>
+                                                </TextBlock.ToolTip>
                                             </TextBlock>
                                         </StackPanel>
                                     </Grid>

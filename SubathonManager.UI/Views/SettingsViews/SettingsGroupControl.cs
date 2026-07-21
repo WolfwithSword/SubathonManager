@@ -39,7 +39,7 @@ public class SettingsGroupControl : SettingsControl
                 Margin = new Thickness(0, 1, 0, 0),
                 Padding = new Thickness(10, 6, 10, 6),
                 Appearance = ControlAppearance.Transparent,
-                FontSize = 20,
+                FontSize = 13,
                 MinWidth = 100,
                 Tag = $"{source}",
                 BorderThickness = new Thickness(1, 1, 1, 2),
@@ -92,8 +92,15 @@ public class SettingsGroupControl : SettingsControl
     
     public void TryHotLinkToSource(SubathonEventSource eventSource)
     {
-        Dispatcher.Invoke(() => SelectGroup(eventSource.ToString()));
+        Dispatcher.Invoke(() =>
+        {
+            if (Content is Expander expander) expander.IsExpanded = true;
+            SelectGroup(eventSource.ToString());
+        });
     }
+
+    public SettingsControl? GetControlForSource(SubathonEventSource eventSource)
+        => GetSettingsControl(eventSource);
 
     internal override void UpdateStatus(IntegrationConnection? connection)
     {

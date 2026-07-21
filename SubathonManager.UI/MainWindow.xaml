@@ -106,6 +106,19 @@
                     </ui:ImageIcon.Source>
                 </ui:ImageIcon>
             </ui:TitleBar.Icon>
+            <ui:TitleBar.TrailingContent>
+                <Button x:Name="ConnectionStatusBtn"
+                        Click="ConnectionStatusBtn_Click"
+                        ToolTip="Connection Status"
+                        Width="44" Height="30"
+                        VerticalAlignment="Top"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Focusable="False">
+                    <Ellipse x:Name="ConnectionStatusDot" Width="10" Height="10" Fill="Gray"/>
+                </Button>
+            </ui:TitleBar.TrailingContent>
         </ui:TitleBar>
         <Border Grid.Row="1"  Background="{DynamicResource AppHeaderBackground}" Height="36" VerticalAlignment="Top"/>
         <TabControl Grid.Row="1" Background="Transparent" x:Name="MainWindowTabs">
@@ -584,7 +597,12 @@
                         </ItemsControl>
                     </ScrollViewer>
                     <Rectangle Grid.RowSpan="2" Grid.Row="0" Grid.Column="1" Width="2" Stroke="#30808080" Margin="6 4 2 4" VerticalAlignment="Stretch"/>            
-                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="2"  Margin="16 2 8 4" Orientation="Vertical">
+                    <Grid Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="16 2 8 4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Vertical">
                         <TextBlock TextWrapping="Wrap" FontSize="16" Margin="2 2 2 4">
                             Create and manage your overlays in the list to the left.
                             <LineBreak/>
@@ -616,6 +634,11 @@
                             </ui:Button>
                         </StackPanel>
                     </StackPanel>
+                    <views:ObsBrowserSourcesPanel Grid.Row="1"
+                                                  Visibility="{Binding ObsConnected,
+                                                      RelativeSource={RelativeSource AncestorType=Window},
+                                                      Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </Grid>
                 </Grid>
             </TabItem>
             
@@ -635,7 +658,7 @@
             </TabItem>
 
             <!-- Settings Tab -->
-            <TabItem Header="Settings" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
+            <TabItem Header="Settings" x:Name="SettingsTabItem" BorderBrush="{DynamicResource ControlFillColorDefaultBrush}" BorderThickness="4" Width="140">
                 <views:SettingsView/>
             </TabItem>
         </TabControl>

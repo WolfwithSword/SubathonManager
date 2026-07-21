@@ -30,7 +30,7 @@
                     <ui:TextBox x:Name="SetNameTextBox"
                                 FontWeight="Bold" FontSize="18"
                                 IsTabStop="False"
-                                PlaceholderText="Set name…"
+                                PlaceholderText="Set name..."
                                 ClearButtonEnabled="False"
                                 Height="38"
                                 BorderThickness="0"
@@ -184,7 +184,7 @@
                             </Border>
 
                             <TextBlock Text="Text:" FontSize="12" Margin="2 0 0 3"/>
-                            <ui:TextBox x:Name="PromptTextBox" PlaceholderText="What should viewers do…"
+                            <ui:TextBox x:Name="PromptTextBox" PlaceholderText="What should viewers do..."
                                         ClearButtonEnabled="False" Height="36" Margin="0 0 0 8"/>
 
                             <Grid Margin="0 0 0 8">
@@ -205,71 +205,33 @@
 
                             <StackPanel x:Name="EventTypePanel" Visibility="Collapsed" Margin="0 0 0 8">
                                 <TextBlock Text="Event:" FontSize="12" Margin="2 0 0 3"/>
-                                <Grid Margin="0 0 0 2">
-                                    <Button x:Name="EventTypePickerBtn"
-                                            Height="36"
-                                            MinWidth = "130"
-                                            HorizontalContentAlignment="Stretch"
-                                            Padding="8 0 6 0"
-                                            Click="EventTypePickerBtn_Click"
-                                            Background="{DynamicResource ComboBoxBackground}"
-                                            BorderBrush="{DynamicResource ComboBoxBorderBrush}"
-                                            BorderThickness="1">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="20"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="EventTypePickerLabel"
-                                                       Text="- select -"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <Path Grid.Column="1"
-                                                  Data="M 0 0 L 4 4 L 8 0"
-                                                  Stroke="{DynamicResource TextFillColorPrimaryBrush}"
-                                                  StrokeThickness="1.5"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center"/>
-                                        </Grid>
-                                    </Button>
-
-                                    <Popup x:Name="EventTypePopup"
-                                           PlacementTarget="{Binding ElementName=EventTypePickerBtn}"
-                                           Placement="Bottom"
-                                           StaysOpen="True"
-                                           AllowsTransparency="True"
-                                           PopupAnimation="Fade">
-                                        <Border x:Name="EventTypePopupBorder"
-                                                Background="{DynamicResource ApplicationBackgroundBrush}"
-                                                BorderBrush="{DynamicResource ControlElevationBorderBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                MouseEnter="EventTypePopupBorder_MouseEnter"
-                                                MouseLeave="EventTypePopupBorder_MouseLeave">
-                                            <StackPanel Orientation="Horizontal">
-                                                <ListBox x:Name="SourceListBox"
-                                                         Width="150"
-                                                         Background="Transparent"
-                                                         BorderThickness="0"
-                                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-
-                                                <Border x:Name="EventListPanel"
-                                                        BorderBrush="{DynamicResource ControlElevationBorderBrush}"
-                                                        BorderThickness="1 0 0 0"
-                                                        Visibility="Collapsed"
-                                                        MouseEnter="EventTypePopupBorder_MouseEnter">
-                                                    <ListBox x:Name="EventListBox"
-                                                             Background="Transparent"
-                                                             BorderThickness="0"
-                                                             MinWidth="150"
-                                                             MaxHeight="300"
-                                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                                             MouseLeftButtonUp="EventListBox_MouseLeftButtonUp"/>
-                                                </Border>
-                                            </StackPanel>
-                                        </Border>
-                                    </Popup>
-                                </Grid>
+                                <Button x:Name="EventTypePickerBtn"
+                                        Height="36"
+                                        MinWidth = "130"
+                                        Margin="0 0 0 2"
+                                        HorizontalContentAlignment="Stretch"
+                                        Padding="8 0 6 0"
+                                        Click="EventTypePickerBtn_Click"
+                                        Background="{DynamicResource ComboBoxBackground}"
+                                        BorderBrush="{DynamicResource ComboBoxBorderBrush}"
+                                        BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="20"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="EventTypePickerLabel"
+                                                   Text="- select -"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <Path Grid.Column="1"
+                                              Data="M 0 0 L 4 4 L 8 0"
+                                              Stroke="{DynamicResource TextFillColorPrimaryBrush}"
+                                              StrokeThickness="1.5"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
                             </StackPanel>
 
                             <StackPanel x:Name="TierFilterPanel" Visibility="Collapsed" Margin="0 0 0 8">

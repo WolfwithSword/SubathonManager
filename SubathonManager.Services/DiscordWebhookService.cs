@@ -36,6 +36,7 @@ public class DiscordWebhookService : IDisposable, IAppService
     private Task? _backgroundTriggerTask;
 
     private List<SubathonEventType> _auditEventTypes = new();
+    private readonly HashSet<string> _auditGoAffProMetas = new();
     private bool _doSimulatedEvents = false;
     private bool _doRemoteValuePatches = false;
     private bool _doWheelSpinEvents = false;
@@ -85,8 +86,16 @@ public class DiscordWebhookService : IDisposable, IAppService
         _auditEventTypes.Clear();
         foreach (SubathonEventType type in Enum.GetValues<SubathonEventType>())
         {
+            if (type.GetLegacyGoAffProSiteId() > 0) continue; //
             if (_config.GetBool("Discord", $"Events.Log.{type}", false))
                 _auditEventTypes.Add(type);
+        }
+
+        _auditGoAffProMetas.Clear();
+        foreach (var store in GoAffProStoreRegistry.All())
+        {
+            if (_config.GetBool("Discord", $"Events.Log.GoAffProOrder.{store.SiteId}", false))
+                _auditGoAffProMetas.Add(store.SiteId.ToString());
         }
 
         _doSimulatedEvents = _config.GetBool("Discord", "Events.Log.Simulated", false);
@@ -95,10 +104,17 @@ public class DiscordWebhookService : IDisposable, IAppService
         _doWheelTriggerEvents = _config.GetBool("Discord", "Wheel.Log.Triggers", false);
     }
 
+    private bool IsAuditedEventType(SubathonEvent subathonEvent)
+    {
+        if (subathonEvent.EventType == SubathonEventType.GoAffProOrder)
+            return subathonEvent.EventTypeMeta != null && _auditGoAffProMetas.Contains(subathonEvent.EventTypeMeta);
+        return _auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown);
+    }
+
     private void OnSubathonEventProcessed(SubathonEvent? subathonEvent, bool effective)
     {
         if (subathonEvent == null || string.IsNullOrEmpty(_eventWebhookUrl) ) return;
-        if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
+        if (!IsAuditedEventType(subathonEvent)) return;
         if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
         // only queue events we care about based on settings
         // so not-logged ones don't clog the queue downstream
@@ -188,7 +204,7 @@ public class DiscordWebhookService : IDisposable, IAppService
         {
             SubathonEvent subathonEvent = subathonEvents.Single().ShallowClone();
             if (string.IsNullOrEmpty(_eventWebhookUrl)) return;
-            if (!_auditEventTypes.Contains(subathonEvent.EventType ?? SubathonEventType.Unknown)) return;
+            if (!IsAuditedEventType(subathonEvent)) return;
             if (subathonEvent.Source == SubathonEventSource.Simulated && !_doSimulatedEvents) return;
 
 
@@ -288,7 +304,7 @@ public class DiscordWebhookService : IDisposable, IAppService
         {
             var embeds = batch.Select(e => new
             {
-                title=$"{e.EventType}{(e.Value.EndsWith(" [DELETED]") ? " - Deleted" : (e.EventType == SubathonEventType.Command ? $" - {e.Command}" : 
+                title=$"{GoAffProOrderHelper.GetOrderKey(e.EventType, e.EventTypeMeta)}{(e.Value.EndsWith(" [DELETED]") ? " - Deleted" : (e.EventType == SubathonEventType.Command ? $" - {e.Command}" :
                     (e.Source == SubathonEventSource.Simulated ? " - Simulated" :  "")))}",
                 description=BuildEventDescription(e),
                 color = (e.ProcessedToSubathon && e.Value.EndsWith(" [DELETED]") ? 0x691911 : (e.ProcessedToSubathon ? 0x00ff88 : 0xffaa55)),
@@ -311,7 +327,23 @@ public class DiscordWebhookService : IDisposable, IAppService
     private string BuildEventDescription(SubathonEvent e)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"**User:** {e.User}");
+        var userHeader = $"**User:** {e.User}";
+        if (e.EventType.GetTypeTrueSource() == $"{SubathonEventSource.MakeShip}" ||
+            e.EventType is SubathonEventType.JuniperMerchSale or SubathonEventType.ThroneCrowdGiftComplete)
+        {
+            userHeader = $"**Item:** {e.TertiaryValue}";
+        }
+
+        if (e.EventType == SubathonEventType.JuniperMerchSale)
+        {
+            sb.AppendLine($"**Store:** {e.User}");
+        }
+
+        sb.AppendLine(userHeader);
+        if (e.EventType is SubathonEventType.ThroneGiftContribution or SubathonEventType.ThroneGiftPurchase)
+        {
+            sb.AppendLine($"**Item:** {e.TertiaryValue}");
+        }
         var val = e.Value.Replace("[DELETED]", "").Trim();
         if (e.Currency == "sub")
         {
@@ -564,7 +596,7 @@ public class DiscordWebhookService : IDisposable, IAppService
         {
             var embeds = batch.Select(e => new
             {
-                title = $"WheelSpin Trigger - {e.Trigger.EventType.GetSource()} {e.Trigger.EventType.GetLabel()}",
+                title = $"WheelSpin Trigger - {e.Trigger.EventType.GetSource()} {TriggerEventLabel(e.Trigger)}",
                 description = BuildTriggerLogDescription(e),
                 color = 0x9B59B6,
                 timestamp = e.History.TriggeredAt.ToUniversalTime().ToString("o"),
@@ -583,10 +615,22 @@ public class DiscordWebhookService : IDisposable, IAppService
         }
     }
 
+    private static string TriggerEventLabel(WheelSpinTrigger trigger) => trigger.EventType switch
+    {
+        SubathonEventType.GoAffProOrder =>
+            GoAffProOrderHelper.GetOrderEventDisplayLabel(trigger.EventType, trigger.TierValue),
+        SubathonEventType.JuniperMerchSale =>
+            OrderMetaFilter.Describe(trigger.EventType, trigger.TierValue),
+        SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+            when !string.IsNullOrEmpty(trigger.TierValue) =>
+            $"{trigger.EventType.GetLabel()} ({trigger.TierValue})",
+        _ => trigger.EventType.GetLabel()
+    };
+
     private static string BuildTriggerLogDescription(TriggerLogEntry e)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"**Event:** {e.Trigger.EventType.GetLabel()} ({e.Trigger.EventType.GetSource()})");
+        sb.AppendLine($"**Event:** {TriggerEventLabel(e.Trigger)} ({e.Trigger.EventType.GetSource()})");
         sb.AppendLine($"**User:** {e.History.TriggerUser ?? "Unknown"}");
         sb.AppendLine($"**Source:** {e.History.TriggerSource}");
         sb.AppendLine($"**Spins Added:** +{e.History.SpinsAdded}");

@@ -107,6 +107,84 @@ namespace SubathonManager.Data.Migrations
                     b.ToTable("JsVariables");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.JuniperProduct", b =>
+                {
+                    b.Property<string>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastFetched")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("StoreId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Valid")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("ProductId");
+
+                    b.HasIndex("StoreId");
+
+                    b.ToTable("JuniperProducts");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.JuniperStore", b =>
+                {
+                    b.Property<Guid>("RowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("LastFetched")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StoreName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("RowId");
+
+                    b.ToTable("JuniperStores");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.MakeShipTracking", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Orders")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProductType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Sales")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ShopifyProductId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MakeShipTrackings");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.MultiplierData", b =>
                 {
                     b.Property<Guid>("Id")
@@ -757,6 +835,17 @@ namespace SubathonManager.Data.Migrations
                     b.Navigation("Widget");
                 });
 
+            modelBuilder.Entity("SubathonManager.Core.Models.JuniperProduct", b =>
+                {
+                    b.HasOne("SubathonManager.Core.Models.JuniperStore", "Store")
+                        .WithMany("Products")
+                        .HasForeignKey("StoreId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Store");
+                });
+
             modelBuilder.Entity("SubathonManager.Core.Models.MultiplierData", b =>
                 {
                     b.HasOne("SubathonManager.Core.Models.SubathonData", "LinkedSubathon")
@@ -875,6 +964,11 @@ namespace SubathonManager.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Route");
+                });
+
+            modelBuilder.Entity("SubathonManager.Core.Models.JuniperStore", b =>
+                {
+                    b.Navigation("Products");
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.Route", b =>

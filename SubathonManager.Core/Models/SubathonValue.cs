@@ -29,7 +29,9 @@ public class SubathonValue
             Source = ((SubathonEventType?)EventType).GetSource(),
             Meta = Meta,
             Seconds = Seconds,
-            Points = Points
+            Points = Points,
+            Key = GoAffProOrderHelper.GetOrderKey(EventType, Meta),
+            Label = GoAffProOrderHelper.GetOrderEventDisplayLabel(EventType, Meta)
         };
     }
 
@@ -71,6 +73,9 @@ public class SubathonValueDto
     public string Meta { get; set; } = "";
     public double? Seconds { get; set; }
     public double? Points { get; set; }
+
+    public string? Key { get; set; }
+    public string? Label { get; set; }
 
     public override string ToString()
     {

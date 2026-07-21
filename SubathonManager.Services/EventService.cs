@@ -304,18 +304,16 @@ public class EventService: IDisposable, IAppService
         
         if (affected > 0 || ev.EventType == SubathonEventType.DonationAdjustment ||
             (processPointsIfLocked && subathon.IsLocked && ev.EventType.IsCurrencyDonation() && _currencyService.IsValidCurrency(ev.Currency)) ||
-            (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                            $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
+            (Utils.IsCommissionAsDonation(_config, ev)
                                         && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|')))
         {
             ev.ProcessedToSubathon = true;
             (bool asDono, double modifier) = Utils.GetAltCurrencyUseAsDonation(_config, ev.EventType);
-            
+
             var lockVal = 0;
             if (subathon.IsLocked && processPointsIfLocked) lockVal = 1;
-            
-            if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                           $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
+
+            if (Utils.IsCommissionAsDonation(_config, ev)
                                        && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
             {
                 var value = ev.SecondaryValue.Split('|')[0];
@@ -461,6 +459,9 @@ public class EventService: IDisposable, IAppService
                 var spins2 = await StateValueHelper.GetAsync(_factory, StateKeys.WheelSpinsOwed,  0);
                 await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, int.Max(0, spins2 - ev.Amount));
                 WheelEvents.RaiseSpinsOwedUpdateFromEvent(int.Max(0, spins2 - ev.Amount));
+                break;
+            case SubathonCommandType.SpinWheel:
+                WheelEvents.RaiseWheelSpinRequested();
                 break;
             case SubathonCommandType.AddMoney:
                 ev.EventType = SubathonEventType.DonationAdjustment;
@@ -656,8 +657,7 @@ public class EventService: IDisposable, IAppService
             }
         }
 
-        if (ev.EventType.IsOrder() && ev.ProcessedToSubathon && _config.GetBool(ev.EventType.GetSource().ToString(),
-                $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation", ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
+        if (ev.ProcessedToSubathon && Utils.IsCommissionAsDonation(_config, ev)
             && !string.IsNullOrWhiteSpace(ev.SecondaryValue) && ev.SecondaryValue.Contains('|'))
         {
             var value = ev.SecondaryValue.Split('|')[0];
@@ -776,9 +776,7 @@ public class EventService: IDisposable, IAppService
                     moneyToRemove +=
                         await _currencyService.ConvertAsync(double.Parse(ev.Value), ev.Currency!, subathon.Currency!);
                 }
-                else if (ev.EventType.IsOrder() && _config.GetBool(ev.EventType.GetSource().ToString(),
-                                                    $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-                                                    ev.EventType.GetSource() != SubathonEventSource.GoAffPro) ///////////////////////////////////
+                else if (Utils.IsCommissionAsDonation(_config, ev)
                                                 && !string.IsNullOrWhiteSpace(ev.SecondaryValue) &&
                                                 ev.SecondaryValue.Contains('|'))
                 {
@@ -944,9 +942,9 @@ public class EventService: IDisposable, IAppService
                         .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)))
                     .ToDictionary(k => k.Key, v => v.Value),TokenLikeTotal = tokenLikeSim.Sum(e => long.TryParse(e.Value, out var v) ? v : 0),
                 TokenLikeByEvent = tokenLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Sum(e => long.TryParse(e.Value, out var v) ? v : 0)),
-                OrderCountByType = orderLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Count()),
+                OrderCountByType = orderLikeSim.GroupBy(e => GoAffProOrderHelper.GetOrderKey(e.EventType, e.EventTypeMeta)).ToDictionary(g => g.Key, g => g.Count()),
                 OrderItemsCountByType = orderLikeSim
-                    .GroupBy(e => e.EventType!.Value)
+                    .GroupBy(e => GoAffProOrderHelper.GetOrderKey(e.EventType, e.EventTypeMeta))
                     .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)),
                 FollowLikeTotal = followLikeSim.Count,
                 FollowLikeByEvent= followLikeSim.GroupBy(e => e.EventType!.Value).ToDictionary(g => g.Key, g => g.Count()),
@@ -996,11 +994,11 @@ public class EventService: IDisposable, IAppService
                     g => g.Sum(e => long.TryParse(e.Value, out var v) ? v : 0)),
 
             OrderCountByType = orderLike
-                .GroupBy(e => e.EventType!.Value)
+                .GroupBy(e => GoAffProOrderHelper.GetOrderKey(e.EventType, e.EventTypeMeta))
                 .ToDictionary(g => g.Key, g => g.Count()),
-            
+
             OrderItemsCountByType = orderLike
-                .GroupBy(e => e.EventType!.Value)
+                .GroupBy(e => GoAffProOrderHelper.GetOrderKey(e.EventType, e.EventTypeMeta))
                 .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount)),
             
             FollowLikeTotal = followLike.Count,

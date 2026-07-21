@@ -38,7 +38,7 @@
                             <ui:TextBox x:Name="WheelNameTextBox"
                                         FontWeight="Bold" FontSize="18"
                                         IsTabStop="False"
-                                        PlaceholderText="Wheel name…"
+                                        PlaceholderText="Wheel name..."
                                         ClearButtonEnabled="False"
                                         Height="38"
                                         BorderThickness="0"
@@ -96,8 +96,8 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="50"/>
-                                    <ColumnDefinition Width="46"/>
+                                    <ColumnDefinition Width="68"/>
+                                    <ColumnDefinition Width="68"/>
                                     <ColumnDefinition Width="80"/>
                                     <ColumnDefinition Width="36"/>
                                 </Grid.ColumnDefinitions>
@@ -237,7 +237,7 @@
                                     <TextBlock Text="Selected Item" FontSize="14" FontWeight="SemiBold" Margin="0 0 0 8"/>
 
                                     <TextBlock Text="Text:" FontSize="12" Margin="2 0 0 3"/>
-                                    <ui:TextBox x:Name="ItemTextBox" PlaceholderText="What can be spun…"
+                                    <ui:TextBox x:Name="ItemTextBox" PlaceholderText="What can be spun..."
                                                 ClearButtonEnabled="False" Height="36" Margin="0 0 0 8"/>
 
                                     <Grid Margin="0 0 0 8">

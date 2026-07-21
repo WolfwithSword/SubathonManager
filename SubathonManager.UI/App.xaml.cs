@@ -11,6 +11,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
@@ -88,18 +89,13 @@ public partial class App
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
-            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
-            {
-                Utils.DonationSettings[$"{goAffProSource}"] =
-                    config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
-            }
-            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not SubathonEventSource.Throne
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not (SubathonEventSource.Throne or SubathonEventSource.GoAffPro)
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
                 Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] =
                     config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
             }
-            
+
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
 
             SetStartupTheme(config);
@@ -113,24 +109,141 @@ public partial class App
             using (var db = _factory.CreateDbContext()) {
                 db.Database.Migrate();
                 AppDbContext.SeedDefaultValues(db);
-                
-                // var stores = db.GoAffProStores.ToList();
-                // GoAffProStoreRegistry.Initialize(stores);
+
+                var stores = db.GoAffProStores.ToList();
+                GoAffProStoreRegistry.Initialize(stores);
+
+                MakeShipTrackingRegistry.Initialize(db.MakeShipTrackings.AsNoTracking().ToList());
+
+                JuniperStoreRegistry.Initialize(db.JuniperStores
+                    .Include(s => s.Products).AsNoTracking().ToList());
             }
-            
-            // GoAffProStoreRegistry.StoreDiscovered += async store =>
-            // {
-            //     using var scope = AppServices.Provider.CreateScope();
-            //     var db2 = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            //     db2.GoAffProStores.Add(store);
-            //     await db2.SaveChangesAsync();
-            //     var cfg = AppServices.Provider.GetRequiredService<IConfig>();
-            //     Utils.DonationSettings[store.InternalName] =
-            //         cfg.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
-            // };
+
+            GoAffProConfigMigration.Run(config);
+            foreach (var store in GoAffProStoreRegistry.All())
+            {
+                Utils.DonationSettings[store.InternalName] =
+                    config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+            }
+
+            // new stores detected on the user's GoAffPro account get persisted & seeded on the fly
+            GoAffProStoreRegistry.StoreDiscovered += store =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        if (!db2.GoAffProStores.Any(s => s.SiteId == store.SiteId))
+                            db2.GoAffProStores.Add(store);
+                        var meta = store.SiteId.ToString();
+                        if (!db2.SubathonValues.Any(sv => sv.EventType == SubathonEventType.GoAffProOrder && sv.Meta == meta))
+                            db2.SubathonValues.Add(new SubathonValue
+                                { EventType = SubathonEventType.GoAffProOrder, Seconds = 12, Meta = meta });
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist discovered GoAffPro store {SiteId}", store.SiteId);
+                    }
+                    var cfg = AppServices.Provider.GetRequiredService<IConfig>();
+                    Utils.DonationSettings[store.InternalName] =
+                        cfg.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+                });
+            };
+
+            MakeShipTrackingRegistry.TrackingUpdated += tracking =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        var row = db2.MakeShipTrackings.FirstOrDefault(t => t.Id == tracking.Id);
+                        if (row == null) return;
+                        string oldName = row.Name;
+                        row.Name = tracking.Name;
+                        row.ShopifyProductId = tracking.ShopifyProductId;
+                        row.ProductType = tracking.ProductType;
+                        row.Sales = tracking.Sales;
+                        row.Orders = tracking.Orders;
+                        if (!string.IsNullOrWhiteSpace(oldName) && oldName != "DEFAULT" &&
+                            !string.Equals(oldName, tracking.Name, StringComparison.Ordinal))
+                        {
+                            var overrides = db2.SubathonValues.Where(sv =>
+                                (sv.EventType == SubathonEventType.MakeShipPledge ||
+                                 sv.EventType == SubathonEventType.MakeShipSale)
+                                && sv.Meta == oldName).ToList();
+                            foreach (var sv in overrides)
+                                sv.Meta = tracking.Name;
+
+                            // wheel triggers and prompt filters key per-item entries by name too
+                            var triggers = db2.WheelSpinTriggers.Where(t =>
+                                (t.EventType == SubathonEventType.MakeShipPledge ||
+                                 t.EventType == SubathonEventType.MakeShipSale)
+                                && t.TierValue == oldName).ToList();
+                            foreach (var t in triggers)
+                                t.TierValue = tracking.Name;
+
+                            var prompts = db2.SubathonPrompts.Where(p =>
+                                (p.FilterEventType == SubathonEventType.MakeShipPledge ||
+                                 p.FilterEventType == SubathonEventType.MakeShipSale)
+                                && p.FilterMeta == oldName).ToList();
+                            foreach (var p in prompts)
+                                p.FilterMeta = tracking.Name;
+                        }
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist MakeShip tracking {Id}", tracking.Id);
+                    }
+                });
+            };
+
+            JuniperStoreRegistry.StoreUpdated += store =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        var row = db2.JuniperStores.FirstOrDefault(s => s.RowId == store.RowId);
+                        if (row == null) return;
+                        row.Enabled = store.Enabled;
+                        row.LastFetched = store.LastFetched;
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist Juniper store {Name}", store.StoreName);
+                    }
+                });
+            };
+
+            JuniperStoreRegistry.ProductUpdated += product =>
+            {
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var db2 = await _factory!.CreateDbContextAsync();
+                        var row = db2.JuniperProducts.FirstOrDefault(p => p.ProductId == product.ProductId);
+                        if (row == null) return;
+                        row.ProductName = product.ProductName;
+                        row.Valid = product.Valid;
+                        row.LastFetched = product.LastFetched;
+                        await db2.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogError(ex, "Failed to persist Juniper product {Id}", product.ProductId);
+                    }
+                });
+            };
 
             base.OnStartup(e);
-            
+
             var window = new MainWindow();
             Current.MainWindow = window;
             window.Show();
@@ -254,12 +367,14 @@ public partial class App
             }
             else if (uri.Host == "oauth")
             {
-                var provider = uri.AbsolutePath.TrimStart('/'); // "twitch" or "fourthwall"
+                var provider = uri.AbsolutePath.TrimStart('/');
                 var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
                 var accessToken = query["access_token"] ?? "";
                 var code =  query["code"] ?? "";
                 var refreshToken = query["refresh_token"] ?? "";
                 var error = query["error"] ?? "";
+                var expiresIn = query["expires_in"] ?? "";
+                var clientId = query["client_id"] ?? "";
                 type = ProtocolMessageType.OAuth;
 
                 Utils.PendingOAuthCallback = new OAuthCallback
@@ -268,7 +383,9 @@ public partial class App
                     AccessToken = accessToken,
                     RefreshToken = refreshToken,
                     Code = code,
-                    Error = error
+                    Error = error,
+                    ExpiresIn = expiresIn,
+                    ClientId = clientId
                 };
             }
         }
@@ -410,15 +527,15 @@ public partial class App
                 Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
             }
             
-            foreach (var goAffProSource in Enum.GetValues<GoAffProSource>().Where(ga => ga != GoAffProSource.Unknown && !ga.IsDisabled()))
+            foreach (var store in GoAffProStoreRegistry.All())
             {
-                bool asDonation = config.GetBool("GoAffPro", $"{goAffProSource}.CommissionAsDonation", false);
-                if (Utils.DonationSettings.TryGetValue($"{goAffProSource}", out bool hasVal) && hasVal == asDonation) continue;
+                bool asDonation = config.GetBool("GoAffPro", $"{store.InternalName}.CommissionAsDonation", false);
+                if (Utils.DonationSettings.TryGetValue(store.InternalName, out bool hasVal) && hasVal == asDonation) continue;
                 optionToggled = true;
-                Utils.DonationSettings[$"{goAffProSource}"] = asDonation;
+                Utils.DonationSettings[store.InternalName] = asDonation;
             }
 
-            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not SubathonEventSource.Throne
+            foreach (var orderSource in Enum.GetValues<SubathonEventType>().Where(et => et.GetSource() is not (SubathonEventSource.Throne or SubathonEventSource.GoAffPro)
                          && !et.IsDisabled() && ((SubathonEventType?)et).IsOrder()))
             {
                 bool asDonation = config.GetBool($"{orderSource.GetSource()}", $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);

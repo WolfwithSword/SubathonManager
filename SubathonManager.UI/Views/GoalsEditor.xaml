@@ -26,7 +26,7 @@
                                 BorderThickness="0" FontSize="18"
                                 Background="Transparent"
                                 VerticalAlignment="Center"
-                                PlaceholderText="Set name…" FontWeight="Bold" Margin="2"
+                                PlaceholderText="Set name..." FontWeight="Bold" Margin="2"
                                 HorizontalAlignment="Left"
                                 ClearButtonEnabled="False" LostFocus="GoalSetNameBox_LostFocus"/>
                     <ui:Button Grid.Column="1" Width="36" Height="36" Padding="2"

@@ -240,3 +240,12 @@ html, body {
     90%  { transform: translateX(-50%) translateY(0); }
     100% { transform: translateX(-50%) translateY(0); }
 }
+
+.wheel-scene {
+    transition: transform 0.4s steps(6), opacity 0.35s steps(6);
+}
+.wheel-scene.auto-hidden {
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+}

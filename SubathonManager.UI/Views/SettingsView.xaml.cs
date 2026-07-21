@@ -7,11 +7,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging; 
 using SubathonManager.Core.Events;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.Views.SettingsViews;
 
 namespace SubathonManager.UI.Views;
 
@@ -35,7 +37,6 @@ public partial class SettingsView : SettingsControl
             UpdateServerStatus(ServiceManager.Server?.Running ?? false);
             SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
             SettingsEvents.SettingsUnsavedChanges += UpdateSaveButtonBorder;
-            InitOBSSettings();
             RegisterUnsavedChangeHandlers();
             InitCurrencySelects();
         };
@@ -45,6 +46,10 @@ public partial class SettingsView : SettingsControl
         ExternalServiceSettingsControl.Init(this);
         CommandsSettingsControl.Init(this);
         ExtensionSettingsControl.Init(this);
+        ExternalSoftwareSettingsControl.Init(this);
+
+        SettingsEvents.HotLinkToSourceRequested -= HotLinkToSource;
+        SettingsEvents.HotLinkToSourceRequested += HotLinkToSource;
         
         ServerPortTextBox.Text = config.Get("Server", "Port", string.Empty) ?? string.Empty;
         LoadValues();
@@ -55,10 +60,30 @@ public partial class SettingsView : SettingsControl
             //SubathonEvents.SubathonDataUpdate -= UpdateTimerValue;
             WebServerEvents.WebServerStatusChanged -= UpdateServerStatus;
             SubathonEvents.SubathonValueConfigUpdatedRemote -= RefreshSubathonValues;
-            UnloadOBSSettings();
         };
         
         Task.Run(CheckForUpdateOnBoot);
+    }
+
+    private void HotLinkToSource(SubathonEventSource source, string? detail)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            SettingsGroupControl? group = source.GetGroup() switch
+            {
+                SubathonSourceGroup.Stream => StreamingSettingsControl,
+                SubathonSourceGroup.StreamExtension => ExtensionSettingsControl,
+                SubathonSourceGroup.ExternalService => ExternalServiceSettingsControl,
+                SubathonSourceGroup.ExternalSoftware => ExternalSoftwareSettingsControl,
+                _ => null
+            };
+            if (group == null) return;
+            group.TryHotLinkToSource(source);
+            if (!string.IsNullOrWhiteSpace(detail)
+                && group.GetControlForSource(source) is SettingsViews.External.GoAffProSettings goAffPro)
+                goAffPro.TrySelectStore(detail);
+            group.BringIntoView();
+        });
     }
 
     private async void CheckForUpdateOnBoot()

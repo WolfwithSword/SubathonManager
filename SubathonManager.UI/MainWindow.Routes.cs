@@ -170,7 +170,7 @@ namespace SubathonManager.UI
             }
         }
         
-        private void OpenRouteEditor(Route route)
+        internal void OpenRouteEditor(Route route)
         {
             if (_editWindow != null)
             {

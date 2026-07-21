@@ -89,7 +89,7 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
     
     private void BroadcastStatus(bool enabled, string? tunnelBaseUrl)
     {
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting…)"
+        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
             ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
             : null;
         
@@ -98,7 +98,8 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
             Name = fullUrl ?? "",
             Status = enabled && fullUrl != null,
             Source = SubathonEventSource.Throne,
-            Service = nameof(SubathonEventSource.Throne)
+            Service = nameof(SubathonEventSource.Throne),
+            Configured = enabled
         });
 
         if (fullUrl != null)

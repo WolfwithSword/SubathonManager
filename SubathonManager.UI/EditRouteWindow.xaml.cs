@@ -610,7 +610,7 @@ public partial class EditRouteWindow : INotifyPropertyChanged
     
     private void OnObsConnectionUpdated(IntegrationConnection? connection)
     {
-        if (connection is not { Source: SubathonEventSource.OBS }) return;
+        if (connection is not { Source: SubathonEventSource.OBS, Service: "OBS" }) return;
         Dispatcher.Invoke(() => ObsConnected = connection.Status);
     }
 

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Events;
@@ -279,17 +280,14 @@ public partial class WebServer
 
     private object SubathonEventToObject(SubathonEvent subathonEvent)
     {
-        var trueSource = subathonEvent.EventType.GetTypeTrueSource();
+        var trueSource = subathonEvent.EventType.GetTypeTrueSource(subathonEvent.EventTypeMeta);
         var eventType = subathonEvent.EventType.ToString();
-        // if (subathonEvent.EventType == SubathonEventType.GoAffProOrder)
-        // {
-        //     GoAffProStoreRegistry.TryGetBySiteId(int.Parse(subathonEvent.EventTypeMeta!), out var store);
-        //     if (store != null)
-        //     {
-        //         trueSource = store.InternalName;
-        //         eventType = store.InternalEventName;
-        //     }
-        // }
+        if (subathonEvent.EventType == SubathonEventType.GoAffProOrder
+            && GoAffProOrderHelper.TryGetStore(subathonEvent.EventTypeMeta, out var store))
+        {
+            trueSource = store.InternalName;
+            eventType = store.InternalEventName;
+        }
         object data = new
         {
             type = "event",
@@ -495,22 +493,41 @@ public partial class WebServer
 
                 switch (clientMessageType)
                 {
-                    // received type *may* not equal socket type, we want to be able to reuse sockets like this
-                    // set type of socket is just primary type for events
                     case WebsocketClientMessageType.Command:
                     {
+                        if (json.RootElement.TryGetProperty("request", out JsonElement reqElem)
+                            && string.Equals(reqElem.GetString(), "commands", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await SelectSendAsync(socket, new
+                            {
+                                type = "command_list",
+                                ws_type = nameof(WebsocketClientMessageType.Command),
+                                commands = BuildCommandCatalog()
+                            });
+                            break;
+                        }
                         if (!json.RootElement.TryGetProperty("type", out JsonElement elem)
                             || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out SubathonEventType seType)
                             || seType == SubathonEventType.Unknown)
                             continue;
                         if (seType != SubathonEventType.Command) continue;
-                    
+
                         Dictionary<string, JsonElement> data =
                             json.RootElement
                                 .EnumerateObject()
                                 .ToDictionary(p => p.Name, p => p.Value);
-                    
-                        ExternalEventService.ProcessExternalCommand(data);
+                        //Console.WriteLine(data);
+                        bool success = ExternalEventService.ProcessExternalCommand(data);
+                        data.TryGetValue("command", out JsonElement cmdElem);
+                        data.TryGetValue("context", out JsonElement ctxElem);
+                        await SelectSendAsync(socket, new
+                        {
+                            type = "command_ack",
+                            ws_type = nameof(WebsocketClientMessageType.Command),
+                            command = cmdElem.ValueKind == JsonValueKind.String ? cmdElem.GetString() : null,
+                            context = ctxElem.ValueKind == JsonValueKind.String ? ctxElem.GetString() : null,
+                            success
+                        });
                         break;
                     }
                     case WebsocketClientMessageType.IntegrationSource:

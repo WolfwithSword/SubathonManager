@@ -5,7 +5,6 @@ namespace SubathonManager.Core.Models;
 
 public class GoAffProStore
 {
-    // Placeholder for future dynamic goaffpro stores
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int RowId { get; set; }

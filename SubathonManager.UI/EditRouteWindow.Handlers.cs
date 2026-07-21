@@ -977,22 +977,73 @@ public partial class EditRouteWindow
         AttachChangeHandler(sender, e);
     }
 
-    private void JsEventTypeSelectBox_Loaded(object sender, RoutedEventArgs e)
+    private void JsEventTypePickerBtn_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not ComboBox { Tag: JsVariable jsVar } cb) return;
+        if (sender is not System.Windows.Controls.Button { Tag: JsVariable jsVar } btn) return;
+        SetJsEventTypeButtonLabel(btn, jsVar.Value);
+    }
+
+    private void JsEventTypePickerBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button { Tag: JsVariable jsVar } btn) return;
+
+        var current = jsVar.Value ?? string.Empty;
+        var entries = new List<UiUtils.EventTypeMenuEntry>();
+
         var values = Enum.GetValues<SubathonEventType>()
             .Where(x => x.IsEnabled())
             .Where(x => ((SubathonEventType?)x).HasNoValueConfig())
-            .Select(x => x).OrderBy(x => x.GetOrderNumber());
-        cb.Items.Add(string.Empty);
-        foreach (var val in values) cb.Items.Add(val.ToString());
-        cb.SelectedValue = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
-        cb.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () =>
+            .OrderBy(x => x.GetOrderNumber());
+
+        foreach (var val in values)
         {
-            cb.SelectionChanged += (_, __) => jsVar.Value = $"{cb.SelectedValue}";
-        });
-        
-        AttachChangeHandler(sender, e);
+            if (val == SubathonEventType.GoAffProOrder)
+            {
+                foreach (var store in GoAffProStoreRegistry.All().Where(s => s.Enabled))
+                {
+                    var capturedStore = store;
+                    entries.Add(new UiUtils.EventTypeMenuEntry(
+                        val.GetSource(),
+                        store.EventName,
+                        current == store.InternalEventName,
+                        () => SetJsEventTypeValue(btn, jsVar, capturedStore.InternalEventName)));
+                }
+                continue;
+            }
+
+            var captured = val;
+            entries.Add(new UiUtils.EventTypeMenuEntry(
+                val.GetSource(),
+                val.GetLabel(),
+                current == captured.ToString(),
+                () => SetJsEventTypeValue(btn, jsVar, captured.ToString())));
+        }
+
+        UiUtils.EventTypeMenu.Show(btn, entries, groupBySourceType: false,
+            clearLabel: "- none -", onClear: () => SetJsEventTypeValue(btn, jsVar, string.Empty));
+    }
+
+    private void SetJsEventTypeValue(System.Windows.Controls.Button btn, JsVariable jsVar, string value)
+    {
+        jsVar.Value = value;
+        SetJsEventTypeButtonLabel(btn, value);
+        Value_OnChanged(btn, new RoutedEventArgs());
+    }
+
+    private static void SetJsEventTypeButtonLabel(System.Windows.Controls.Button btn, string? value)
+    {
+        if (btn.Content is not Grid grid) return;
+        var label = grid.Children.OfType<System.Windows.Controls.TextBlock>().FirstOrDefault();
+        if (label != null) label.Text = JsEventTypeDisplay(value);
+    }
+
+    private static string JsEventTypeDisplay(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "- none -";
+        if (Enum.TryParse<SubathonEventType>(value, out var et))
+            return $"{et.GetSource()} - {et.GetLabel()}";
+        var store = GoAffProStoreRegistry.All().FirstOrDefault(s => s.InternalEventName == value);
+        return store != null ? $"{SubathonEventSource.GoAffPro} - {store.EventName}" : value;
     }
 
     private void JsEventSubTypeSelectBox_Loaded(object sender, RoutedEventArgs e)
@@ -1117,14 +1168,14 @@ public partial class EditRouteWindow
                 Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(0, 2, 0, 2),
                 IsExpanded = false, Header = group.Key.ToString()
             };
-            
+
             var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-            foreach (var eType in group.Select(x => x).OrderBy(x => x.GetOrderNumber()))
+            foreach (var (label, key) in BuildEventTypeEntries(group))
             {
                 var chkBox = new CheckBox
                 {
-                    Content = new Wpf.Ui.Controls.TextBlock { Text = ((SubathonEventType?)eType).GetLabel(), Tag=eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
-                    IsChecked = panelValues.Contains(eType.ToString()),
+                    Content = new Wpf.Ui.Controls.TextBlock { Text = label, Tag=key, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
+                    IsChecked = panelValues.Contains(key),
                     Margin = new Thickness(2)
                 };
                 chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);
@@ -1136,6 +1187,20 @@ public partial class EditRouteWindow
             outerPanel.Children.Add(groupExpander);
         }
         expander.Content = outerPanel;
+    }
+
+    private static IEnumerable<(string Label, string Key)> BuildEventTypeEntries(IEnumerable<SubathonEventType> group)
+    {
+        foreach (var eType in group.OrderBy(x => x.GetOrderNumber()))
+        {
+            if (eType == SubathonEventType.GoAffProOrder)
+            {
+                foreach (var store in GoAffProStoreRegistry.All().Where(s => s.Enabled))
+                    yield return (store.EventName, store.InternalEventName);
+                continue;
+            }
+            yield return (((SubathonEventType?)eType).GetLabel(), eType.ToString());
+        }
     }
 
     private void JsEventSubTypeList_Loaded(object sender, RoutedEventArgs e)
@@ -1240,12 +1305,12 @@ public partial class EditRouteWindow
             };
 
             var chkboxList = new StackPanel { Orientation = Orientation.Vertical };
-            foreach (var eType in group.Select(x => x).OrderBy(x => x.GetOrderNumber()))
+            foreach (var (label, key) in BuildEventTypeEntries(group))
             {
                 var chkBox = new CheckBox
                 {
-                    Content = new Wpf.Ui.Controls.TextBlock { Text = ((SubathonEventType?)eType).GetLabel(), Tag=eType, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
-                    IsChecked = panelValues.Contains(eType.ToString()),
+                    Content = new Wpf.Ui.Controls.TextBlock { Text = label, Tag=key, TextWrapping = TextWrapping.Wrap, MaxWidth = 240 },
+                    IsChecked = panelValues.Contains(key),
                     Margin = new Thickness(2)
                 };
                 chkBox.Checked += (_, __) => UpdateEventListValues(jsVar, outerPanel);

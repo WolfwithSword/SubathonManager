@@ -83,8 +83,8 @@ public abstract class DevTunnelSettingsControl : SettingsControl
 
     private void ApplyTunnelBanner(bool running, string? nameOrHint)
     {
-        bool starting = nameOrHint == "(starting…)";
-        _TunnelPrereqStatusText.Text = starting ? "Starting…" : (running ? "Running" : "Not running");
+        bool starting = nameOrHint == "(starting...)";
+        _TunnelPrereqStatusText.Text = starting ? "Starting..." : (running ? "Running" : "Not running");
         _TunnelPrereqHint.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
         // The URL row is driven by the sourceTunnel connection (Name field), not here.
     }

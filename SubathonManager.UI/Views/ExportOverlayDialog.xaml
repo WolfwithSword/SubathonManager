@@ -92,7 +92,7 @@
         <DockPanel Grid.Row="4" LastChildFill="False">
             
             <ui:Button DockPanel.Dock="Right"
-                       x:Name="ConfirmButton" Content="Export…" Appearance="Primary"
+                       x:Name="ConfirmButton" Content="Export..." Appearance="Primary"
                        Width="110"
                        Margin="8,0,0,0"
                        Click="ConfirmButton_Click"/>

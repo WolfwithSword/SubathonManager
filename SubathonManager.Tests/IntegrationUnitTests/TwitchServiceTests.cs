@@ -3,7 +3,6 @@ using TwitchLib.EventSub.Core.EventArgs.Stream;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets.Core.Models;
 using TwitchLib.Client.Enums;
-using System.Drawing;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text.Json;
@@ -521,45 +520,40 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
 
+                var details = UserDetails.Subscriber;
+                if (isMod) details |= UserDetails.Moderator;
+                if (isVip) details |= UserDetails.Vip;
+
                 return new ChatMessage(
                     botUsername: "",
                     userId: "123456789",
                     userName: userName,
                     displayName: displayName,
-                    colorHex: "#ffffff",
-                    color: Color.Black,
+                    hexColor: "#ffffff",
                     emoteSet: new("", ""),
                     message: message,
                     userType: type,
                     channel: "teststreamer",
                     id: Guid.NewGuid().ToString(),
-                    isSubscriber: true,
                     subscribedMonthCount: 4,
                     roomId: "098765432",
-                    isTurbo: false,
-                    isModerator: isMod,
                     isMe: false,
                     isBroadcaster: isBroadcaster,
-                    isVip: isVip,
-                    isPartner: false,
-                    isStaff: false,
                     noisy: Noisy.NotSet,
                     rawIrcMessage: "",
                     emoteReplacedMessage: "",
                     badges: [],
                     cheerBadge: new CheerBadge(0),
                     bits: 0,
-                    bitsInDollars: 0
+                    bitsInDollars: 0,
+                    userDetail: new UserDetail(details)
                 );
 
             }
 
             var chatMsg = MakeMessage("!pause", false, false,
                 true, "test", "Test");
-            var args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            var args = new OnMessageReceivedArgs(chatMsg);
 
 
             var ev = CaptureEvent(() =>
@@ -578,10 +572,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             chatMsg = MakeMessage("!pause", false, false,
                 false, "specialguy", "specialguy");
-            args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            args = new OnMessageReceivedArgs(chatMsg);
 
             ev = CaptureEvent(() =>
                 service
@@ -598,10 +589,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             chatMsg = MakeMessage("!pause", false, true,
                 false, "testuser", "TestUser");
-            args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            args = new OnMessageReceivedArgs(chatMsg);
 
             ev = CaptureEvent(() =>
                 service
@@ -618,10 +606,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             chatMsg = MakeMessage("!pause", true, false,
                 false, "testuser", "TestUser");
-            args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            args = new OnMessageReceivedArgs(chatMsg);
 
             ev = CaptureEvent(() =>
                 service
@@ -634,10 +619,7 @@ namespace SubathonManager.Tests.IntegrationUnitTests
 
             chatMsg = MakeMessage("!resume", true, true,
                 false, "testuser", "TestUser");
-            args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            args = new OnMessageReceivedArgs(chatMsg);
 
             ev = CaptureEvent(() =>
                 service
@@ -1066,45 +1048,40 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
 
+                var details = UserDetails.Subscriber;
+                if (isMod) details |= UserDetails.Moderator;
+                if (isVip) details |= UserDetails.Vip;
+
                 return new ChatMessage(
                     botUsername: "",
                     userId: "123456789",
                     userName: userName,
                     displayName: displayName,
-                    colorHex: "#ffffff",
-                    color: Color.Black,
+                    hexColor: "#ffffff",
                     emoteSet: new("", ""),
                     message: message,
                     userType: type,
                     channel: "teststreamer",
                     id: Guid.NewGuid().ToString(),
-                    isSubscriber: true,
                     subscribedMonthCount: 4,
                     roomId: "098765432",
-                    isTurbo: false,
-                    isModerator: isMod,
                     isMe: false,
                     isBroadcaster: isBroadcaster,
-                    isVip: isVip,
-                    isPartner: false,
-                    isStaff: false,
                     noisy: Noisy.NotSet,
                     rawIrcMessage: "",
                     emoteReplacedMessage: "",
                     badges: [],
                     cheerBadge: new CheerBadge(0),
                     bits: 0,
-                    bitsInDollars: 0
+                    bitsInDollars: 0,
+                    userDetail: new UserDetail(details)
                 );
 
             }
 
             var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false,
                 false, "blerp", "blerp");
-            var args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            var args = new OnMessageReceivedArgs(chatMsg);
 
 
             var ev = CaptureEvent(() =>
@@ -1140,45 +1117,40 @@ namespace SubathonManager.Tests.IntegrationUnitTests
                 if (isMod) type = UserType.Moderator;
                 if (isBroadcaster) type = UserType.Broadcaster;
 
+                var details = UserDetails.Subscriber;
+                if (isMod) details |= UserDetails.Moderator;
+                if (isVip) details |= UserDetails.Vip;
+
                 return new ChatMessage(
                     botUsername: "",
                     userId: "123456789",
                     userName: userName,
                     displayName: displayName,
-                    colorHex: "#ffffff",
-                    color: Color.Black,
+                    hexColor: "#ffffff",
                     emoteSet: new("", ""),
                     message: message,
                     userType: type,
                     channel: "teststreamer",
                     id: Guid.NewGuid().ToString(),
-                    isSubscriber: true,
                     subscribedMonthCount: 4,
                     roomId: "098765432",
-                    isTurbo: false,
-                    isModerator: isMod,
                     isMe: false,
                     isBroadcaster: isBroadcaster,
-                    isVip: isVip,
-                    isPartner: false,
-                    isStaff: false,
                     noisy: Noisy.NotSet,
                     rawIrcMessage: "",
                     emoteReplacedMessage: "",
                     badges: [],
                     cheerBadge: new CheerBadge(0),
                     bits: 0,
-                    bitsInDollars: 0
+                    bitsInDollars: 0,
+                    userDetail: new UserDetail(details)
                 );
 
             }
 
             var chatMsg = MakeMessage("SomeGuy used 500 bits to play XYZ", false, false,
                 false, "blerp", "blerp");
-            var args = new OnMessageReceivedArgs
-            {
-                ChatMessage = chatMsg
-            };
+            var args = new OnMessageReceivedArgs(chatMsg);
 
 
             var ev = CaptureEvent(() =>

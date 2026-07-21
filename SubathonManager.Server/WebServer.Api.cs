@@ -22,6 +22,8 @@ public partial class WebServer
         _routes.Add((new RouteKey("GET", "/api/data/amounts"),HandleAmountsRequestAsync ));
         
         _routes.Add((new RouteKey("GET", "/api/data/values"),HandleValuesRequestAsync ));
+
+        _routes.Add((new RouteKey("GET", "/api/data/commands"),HandleCommandsRequestAsync ));
         
         _routes.Add((new RouteKey("PUT", "/api/data/values"),HandleValuesPatchRequestAsync));
         _routes.Add((new RouteKey("POST", "/api/data/values"),HandleValuesPatchRequestAsync ));
@@ -238,6 +240,23 @@ public partial class WebServer
         await ctx.WriteResponse(200, json);
     }
     
+    internal static object[] BuildCommandCatalog() =>
+        Enum.GetValues<SubathonCommandType>()
+            .Where(c => c is not (SubathonCommandType.None or SubathonCommandType.Unknown))
+            .Select(object (c) => new
+            {
+                command = c.ToString(),
+                description = c.GetDescription(),
+                requires_parameter = c.IsParametersRequired(),
+                is_control = c.IsControlTypeCommand()
+            }).ToArray();
+
+    internal async Task HandleCommandsRequestAsync(IHttpContext ctx)
+    {
+        string json = JsonSerializer.Serialize(new { commands = BuildCommandCatalog() });
+        await ctx.WriteResponse(200, json, addCors: true, contentType: "application/json");
+    }
+
     private async Task HandleValuesRequestAsync(IHttpContext ctx)
     {
         var json = await _valueHelper.GetAllAsJsonAsync();

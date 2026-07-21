@@ -1,7 +1,7 @@
 ﻿<link rel="stylesheet" href="goal-bar.css">
 
 <div class="goal-root">
-    <div class="goal-text" id="goalText">Waiting for goals…</div>
+    <div class="goal-text" id="goalText">Waiting for goals‥</div>
 
     <div class="bar-outer">
         <div class="bar-inner" id="barFill"></div>
@@ -52,7 +52,7 @@
     function render() {
         if (!goals.length) {
             barFill.style.width = "0%";
-            goalText.textContent = "Waiting for goals…";
+            goalText.textContent = "Waiting for goals...";
             goalProgress.textContent = "";
             return;
         }

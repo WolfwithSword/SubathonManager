@@ -179,6 +179,25 @@ public class WebServerTests
     }
     
     [Fact]
+    public async Task Commands_Endpoint_Returns_Catalog()
+    {
+        var ctx = new MockHttpContext
+        {
+            Method = "GET",
+            Path = "/api/data/commands"
+        };
+
+        var server = CreateServer();
+        SetupServices();
+        await server.InvokeHandleRequest(ctx);
+        Assert.Equal(200, ctx.StatusCode);
+        Assert.Contains("\"AddTime\"", ctx.ResponseBody);
+        Assert.Contains("requires_parameter", ctx.ResponseBody);
+        Assert.DoesNotContain("\"Unknown\"", ctx.ResponseBody);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
     public async Task DataControl_Invalid_Body_Returns_400()
     {
         var ctx = new MockHttpContext

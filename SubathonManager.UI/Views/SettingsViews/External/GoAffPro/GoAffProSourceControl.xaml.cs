@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,14 +17,16 @@ public partial class GoAffProSourceControl : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<GoAffProSettings>>();
     private readonly SettingsView _host;
-    public GoAffProSource Source { get; }
+    public GoAffProStore Store { get; }
 
-    public GoAffProSourceControl(SettingsView host, GoAffProSource source)
+    private string Meta => Store.SiteId.ToString();
+
+    public GoAffProSourceControl(SettingsView host, GoAffProStore store)
     {
         _host = host;
-        Source = source;
+        Store = store;
         InitializeComponent();
-    
+
         TotalSimBox.ToolTip = "Order Total $";
         CommSimBox.ToolTip = "Commission Total $";
         QuantitySimBox.ToolTip = "Items Ordered";
@@ -36,30 +38,27 @@ public partial class GoAffProSourceControl : SettingsControl
         Dispatcher.Invoke(() =>
         {
             _host.UpdateConnectionStatus(status, StatusText, null);
-            CurrencyText.Text = string.IsNullOrWhiteSpace(currencyName) 
-                ? string.Empty 
+            CurrencyText.Text = string.IsNullOrWhiteSpace(currencyName)
+                ? string.Empty
                 : $"[{currencyName}]";
-            
+
         });
     }
 
     public void LoadValues(AppDbContext db, IConfig config, string configSection)
     {
-        var eventType = Source.GetOrderEvent();
-        if (eventType == SubathonEventType.Unknown) return;
-
         var value = db.SubathonValues.AsNoTracking()
-            .FirstOrDefault(v => v.EventType == eventType);
+            .FirstOrDefault(v => v.EventType == SubathonEventType.GoAffProOrder && v.Meta == Meta);
 
         if (value != null)
             _host.UpdateTimePointsBoxes(SecondsBox, PointsBox, $"{value.Seconds}", $"{value.Points}");
 
         ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
-        ModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection, Source.ToString(), OrderTypeModes.Dollar)}";
+        ModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection, Store.InternalName, OrderTypeModes.Dollar)}";
 
-        CommissionBox.IsChecked = config.GetBool(configSection, $"{Source}.CommissionAsDonation", false);
-        EnabledBox.IsChecked = config.GetBool(configSection, $"{Source}.Enabled", true);
-        
+        CommissionBox.IsChecked = config.GetBool(configSection, $"{Store.InternalName}.CommissionAsDonation", false);
+        EnabledBox.IsChecked = config.GetBool(configSection, $"{Store.InternalName}.Enabled", true);
+
     }
 
     internal override void UpdateStatus(IntegrationConnection? connection)
@@ -70,16 +69,20 @@ public partial class GoAffProSourceControl : SettingsControl
     public override bool UpdateValueSettings(AppDbContext db)
     {
         bool hasUpdated = false;
-        var eventType = Source.GetOrderEvent();
-        if (eventType == SubathonEventType.Unknown) return false;
-
-        var value = db.SubathonValues.FirstOrDefault(x => x.EventType == eventType && x.Meta == "");
-        if (value != null && double.TryParse(SecondsBox.Text, out var seconds) && !value.Seconds.Equals(seconds))
+        var value = db.SubathonValues.FirstOrDefault(x =>
+            x.EventType == SubathonEventType.GoAffProOrder && x.Meta == Meta);
+        if (value == null)
+        {
+            value = new SubathonValue { EventType = SubathonEventType.GoAffProOrder, Meta = Meta, Seconds = 12 };
+            db.SubathonValues.Add(value);
+            hasUpdated = true;
+        }
+        if (double.TryParse(SecondsBox.Text, out var seconds) && !value.Seconds.Equals(seconds))
         {
             value.Seconds = seconds;
             hasUpdated = true;
         }
-        if (value != null && double.TryParse(PointsBox.Text, out var points) && !value.Points.Equals(points))
+        if (double.TryParse(PointsBox.Text, out var points) && !value.Points.Equals(points))
         {
             value.Points = points;
             hasUpdated = true;
@@ -100,12 +103,12 @@ public partial class GoAffProSourceControl : SettingsControl
     public bool UpdateConfigSettings(IConfig config, string configSection)
     {
         bool hasUpdated = false;
-        hasUpdated |= config.SetOrderTypeMode(configSection, $"{Source}", Enum.Parse<OrderTypeModes>($"{ModeBox.SelectedItem}"));
-        hasUpdated |= config.SetBool(configSection, $"{Source}.CommissionAsDonation", CommissionBox.IsChecked ?? false);
-        hasUpdated |= config.SetBool(configSection, $"{Source}.Enabled", EnabledBox.IsChecked ?? true);
+        hasUpdated |= config.SetOrderTypeMode(configSection, Store.InternalName, Enum.Parse<OrderTypeModes>($"{ModeBox.SelectedItem}"));
+        hasUpdated |= config.SetBool(configSection, $"{Store.InternalName}.CommissionAsDonation", CommissionBox.IsChecked ?? false);
+        hasUpdated |= config.SetBool(configSection, $"{Store.InternalName}.Enabled", EnabledBox.IsChecked ?? true);
         return hasUpdated;
     }
-    
+
 
     public void SimulateOrder()
     {
@@ -115,7 +118,7 @@ public partial class GoAffProSourceControl : SettingsControl
         string currency = CurrencyText.Text.Replace("[", "").Replace("]", "");
         if (string.IsNullOrWhiteSpace(currency)) currency = "USD";
 
-        ServiceManager.GoAffPro.SimulateOrder(total, itemCount, commTotal, Source, currency);
+        ServiceManager.GoAffPro.SimulateOrder(total, itemCount, commTotal, Store, currency);
     }
 
     private void TestOrder_Click(object sender, RoutedEventArgs e) => SimulateOrder();

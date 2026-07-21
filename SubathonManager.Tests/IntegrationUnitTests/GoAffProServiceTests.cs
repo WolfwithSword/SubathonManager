@@ -14,6 +14,17 @@ namespace SubathonManager.Tests.IntegrationUnitTests;
 [Collection("SharedEventBusTests")]
 public class GoAffProServiceTests
 {
+    private static readonly GoAffProStore GamerSupps = new()
+        { SiteId = 165328, StoreName = "GamerSupps", EventName = "GamerSupps Order" };
+    private static readonly GoAffProStore UwUMarket = new()
+        { SiteId = 132230, StoreName = "UwUMarket", EventName = "UwUMarket Order" };
+
+    static GoAffProServiceTests()
+    {
+        GoAffProStoreRegistry.Register(GamerSupps);
+        GoAffProStoreRegistry.Register(UwUMarket);
+    }
+
     private static SubathonEvent? CaptureEvent(Action trigger) =>
         EventUtil.SubathonEventCapture.CaptureRequired(trigger);
     
@@ -47,21 +58,22 @@ public class GoAffProServiceTests
     
     
     [Theory]
-    [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
-        OrderTypeModes.Dollar, "USD", "2.99|USD", "10.99", SubathonEventType.UwUMarketOrder)]
-    [InlineData(GoAffProSource.GamerSupps, 20.99, 6.99, 3, 
-        OrderTypeModes.Item, "items", "6.99|USD", "3", SubathonEventType.GamerSuppsOrder)]
-    [InlineData(GoAffProSource.GamerSupps, 20.99, 6.99, 3, 
-        OrderTypeModes.Order, "order", "6.99|USD", "New", SubathonEventType.GamerSuppsOrder)]
-    public void SimulateOrder_RaisesEvent(GoAffProSource store, decimal total, decimal commission, int quantity, 
-        OrderTypeModes type, string expectedCurrency, string expectedSecondaryValue, string expectedValue, SubathonEventType expectedEventType)
+    [InlineData(132230, 10.99, 2.99, 1,
+        OrderTypeModes.Dollar, "USD", "2.99|USD", "10.99")]
+    [InlineData(165328, 20.99, 6.99, 3,
+        OrderTypeModes.Item, "items", "6.99|USD", "3")]
+    [InlineData(165328, 20.99, 6.99, 3,
+        OrderTypeModes.Order, "order", "6.99|USD", "New")]
+    public void SimulateOrder_RaisesEvent(int siteId, decimal total, decimal commission, int quantity,
+        OrderTypeModes type, string expectedCurrency, string expectedSecondaryValue, string expectedValue)
     {
+        Assert.True(GoAffProStoreRegistry.TryGetBySiteId(siteId, out var store));
         var logger = new Mock<ILogger<GoAffProService>>();
         Dictionary<(string, string), string> values = new()
         {
-            { ("GoAffPro", $"{store}.Enabled"), "True" },
-            { ("GoAffPro", $"{store}.Mode"), $"{type}" },
-            { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
+            { ("GoAffPro", $"{store.InternalName}.Enabled"), "True" },
+            { ("GoAffPro", $"{store.InternalName}.Mode"), $"{type}" },
+            { ("GoAffPro", $"{store.InternalName}.CommissionAsDonation"), "true" },
         };
 
         var storage = new InMemorySecureStorage(new()
@@ -70,38 +82,43 @@ public class GoAffProServiceTests
             [StorageKeys.GoAffProPassword] = "",
         });
         GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
-        
+
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
         var ev = CaptureEvent(() => service.SimulateOrder(total, quantity, commission, store));
 
         Assert.NotNull(ev);
-        Assert.Equal(expectedEventType, ev.EventType);
+        Assert.Equal(SubathonEventType.GoAffProOrder, ev.EventType);
+        Assert.Equal(siteId.ToString(), ev.EventTypeMeta);
         Assert.Equal(SubathonEventSubType.OrderLike, ev.EventType.GetSubType());
         Assert.Equal(expectedCurrency, ev.Currency);
         Assert.Equal(expectedValue, ev.Value);
         Assert.Equal(expectedSecondaryValue, ev.SecondaryValue);
-        Assert.Equal($"SYSTEM {store}", ev.User);
+        Assert.Equal($"SYSTEM {store.InternalName}", ev.User);
     }
-    
-        
+
+
     [Theory]
-    [InlineData(GoAffProSource.Unknown, 10.99, 2.99, 1, 
-        OrderTypeModes.Dollar,  "True")]
-    [InlineData(GoAffProSource.UwUMarket, 10.99, 2.99, 1, 
+    [InlineData(null, 10.99, 2.99, 1,
+        OrderTypeModes.Dollar,  "True")] // unknown store
+    [InlineData(132230, 10.99, 2.99, 1,
         OrderTypeModes.Dollar, "False")]
-    [InlineData(GoAffProSource.GamerSupps, 10.99, 2.99, 1, 
+    [InlineData(165328, 10.99, 2.99, 1,
         OrderTypeModes.Item, "False")]
-    public void SimulateOrder_BadPath_DoesNotRaiseEvent(GoAffProSource store, decimal total, decimal commission, int quantity, 
+    public void SimulateOrder_BadPath_DoesNotRaiseEvent(int? siteId, decimal total, decimal commission, int quantity,
         OrderTypeModes type, string enabledString)
     {
+        GoAffProStore? store = null;
+        if (siteId.HasValue)
+            Assert.True(GoAffProStoreRegistry.TryGetBySiteId(siteId.Value, out store));
+        var storeKey = store?.InternalName ?? "Unknown";
         var logger = new Mock<ILogger<GoAffProService>>();
         Dictionary<(string, string), string> values = new()
         {
-            { ("GoAffPro", $"{store}.Enabled"), enabledString},
-            { ("GoAffPro", $"{store}.Mode"), $"{type}" },
-            { ("GoAffPro", $"{store}.CommissionAsDonation"), "true" },
+            { ("GoAffPro", $"{storeKey}.Enabled"), enabledString},
+            { ("GoAffPro", $"{storeKey}.Mode"), $"{type}" },
+            { ("GoAffPro", $"{storeKey}.CommissionAsDonation"), "true" },
         };
 
         var storage = new InMemorySecureStorage(new()
@@ -110,7 +127,7 @@ public class GoAffProServiceTests
             [StorageKeys.GoAffProPassword] = "",
         });
         GoAffProService service = new GoAffProService(logger.Object, MockConfig.MakeMockConfig(values), storage);
-        
+
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);

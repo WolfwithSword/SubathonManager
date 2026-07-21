@@ -1,0 +1,2 @@
+*.sh text eol=lf
+external/linux/** text eol=lf

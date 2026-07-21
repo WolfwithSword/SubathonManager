@@ -63,25 +63,28 @@ public class PicartoService : IDisposable, IAppService
         Opts.Channel = string.Empty;
         
         _picartoUsername = _config.Get("Picarto", "Username", string.Empty)!;
+        bool configured = !string.IsNullOrWhiteSpace(_picartoUsername);
 
-        if (string.IsNullOrWhiteSpace(_picartoUsername))
-            return;
-        
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.Picarto,
             Service = "Chat",
             Name = _picartoUsername,
-            Status = false
-        });   
+            Status = false,
+            Configured = configured
+        });
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
         {
             Source = SubathonEventSource.Picarto,
             Service = "Alerts",
             Name = _picartoUsername,
-            Status = false
+            Status = false,
+            Configured = configured
         });
-        
+
+        if (!configured)
+            return;
+
         _logger?.LogInformation("Picarto Service Starting for " + _picartoUsername);
         Opts.Channel = _picartoUsername;
 

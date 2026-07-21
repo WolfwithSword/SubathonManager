@@ -216,3 +216,7 @@ obj
 
 TestResults/
 coverage-report/
+
+# Stream Deck plugin packaging stuff
+*.streamDeckPlugin
+external/streamdeck/**/images/
