@@ -261,6 +261,7 @@ jobs:
           cp external/streamerbot/*.sb ./ || true
 
       - name: Package Stream Deck plugin
+        shell: pwsh
         run: |
           sdplugin=external/streamdeck/com.wolfwithsword.subathonmanager.sdPlugin
           mkdir -p $sdplugin/images
