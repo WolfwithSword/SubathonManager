@@ -265,6 +265,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick zip
           
+      - name: Download icon
+        shell: bash
+        run: |
+          curl -L "https://assets.subathonmanager.app/docs/icon.png" -o icon.png
+    
       - name: Package Stream Deck plugin
         shell: bash
         run: |
@@ -277,8 +282,8 @@ jobs:
             name="${spec%%:*}"
             size="${spec##*:}"
           
-            convert assets/icon.png -resize "${size}x${size}" "$sdplugin/images/${name}.png"
-            convert assets/icon.png -resize "$((size*2))x$((size*2))" "$sdplugin/images/${name}@2x.png"
+            convert icon.png -resize "${size}x${size}" "$sdplugin/images/${name}.png"
+            convert icon.png -resize "$((size*2))x$((size*2))" "$sdplugin/images/${name}@2x.png"
           done
           
           (
