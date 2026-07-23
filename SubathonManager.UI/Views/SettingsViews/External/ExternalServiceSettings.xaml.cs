@@ -17,6 +17,7 @@ public partial class ExternalServiceSettings : SettingsControl
 {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<ExternalServiceSettings>>();
     protected override StackPanel? _MembershipsPanel => MembershipsPanel;
+    protected override SubathonEventType? _membershipEventType => SubathonEventType.ExternalSub;
 
     public ExternalServiceSettings()
     {
