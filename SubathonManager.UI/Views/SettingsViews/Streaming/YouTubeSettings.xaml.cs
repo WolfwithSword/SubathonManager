@@ -17,6 +17,7 @@ namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 public partial class YouTubeSettings : SettingsControl
 {
     protected override StackPanel? _MembershipsPanel => MembershipsPanel;
+    protected override SubathonEventType? _membershipEventType => SubathonEventType.YouTubeMembership;
 
     public YouTubeSettings()
     {
