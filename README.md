@@ -72,11 +72,9 @@
 - Orchid Eight
 - KatDragonz
 - Cheeky Soap
-- Advanced GG
-- Rogue Energy
-- Saucy Biz
-- GFuel
-- Natura Pine
+- Horizons Merch
+
+And many more - any on your GoAffPro account will be added dynamically.
 
 </details>
 <details> <summary><strong>KoFi</strong></summary>
@@ -115,10 +113,48 @@
 - Donations
 
 </details>
+
+<details> <summary><strong>TipeeeStream</strong></summary>
+
+- Tips
+
+</details>
+
+<details> <summary><strong>PallyGG</strong></summary>
+
+- Donations
+
+</details>
+
+<details> <summary><strong>TreatStream</strong></summary>
+
+- Treat Orders
+
+</details>
+
 <details> <summary><strong>Blerp</strong></summary>
 
 - Bits & Beets
     - On both YouTube and Twitch
+
+</details>
+
+<details> <summary><strong>Tangia</strong></summary>
+
+- Tokens
+
+</details>
+
+<details> <summary><strong>MakeShip</strong></summary>
+
+- Pledges
+- Campaign Sales
+
+</details>
+
+<details> <summary><strong>Juniper Creates Stores</strong></summary>
+
+- Product Sales
 
 </details>
 
@@ -127,6 +163,14 @@
 Custom commands, donations and subscriptions via POST API or WebSocket
 
 </details>
+
+</details>
+
+<details> <summary><strong>Software</strong></summary>
+  
+- OBS (with optional script)
+- StreamerBot Extension
+- StreamDeck Plugin
 
 </details>
 
