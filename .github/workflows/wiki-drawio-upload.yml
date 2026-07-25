@@ -97,12 +97,12 @@ jobs:
   trigger-docs-release:
     runs-on: ubuntu-latest
     needs: update
-    if: ${{ needs.update.result == 'success' && steps.version.outputs.release_tag != 'nightly' }}
+    if: ${{ needs.update.result == 'success' && needs.version.outputs.release_tag != 'nightly' }}
     steps:
       - name: Dispatch docs release
         uses: actions/github-script@v9
         env:
-          VERSION: ${{ steps.version.outputs.release_tag }}
+          VERSION: ${{ needs.version.outputs.release_tag }}
         with:
           github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           script: |
