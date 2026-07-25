@@ -125,7 +125,13 @@ public partial class WebServer : IAppService
         if (_app == null) return;
         var app = _app;
         _app = null;
-        try { await app.StopAsync(); } catch { /**/ }
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            await app.StopAsync(cts.Token);
+        }
+        catch { /**/ }
         try { await app.DisposeAsync(); } catch { /**/ }
     }
 

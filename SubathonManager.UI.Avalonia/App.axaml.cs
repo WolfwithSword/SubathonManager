@@ -234,8 +234,11 @@ public partial class App : Application
         try
         {
             var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
-            sm.StopCoreServicesAsync().GetAwaiter().GetResult();
-            sm.StopIntegrationsAsync().GetAwaiter().GetResult();
+            Task.Run(async () =>
+            {
+                await sm.StopCoreServicesAsync();
+                await sm.StopIntegrationsAsync();
+            }).Wait(TimeSpan.FromSeconds(8));
         }
         catch (Exception ex)
         {
