@@ -23,6 +23,26 @@ on:
         required: false
         default: 'false'
         type: boolean
+      build_windows:
+        description: 'Avalonia: build Windows (win-x64)'
+        required: false
+        default: true
+        type: boolean
+      build_linux:
+        description: 'Avalonia: build Linux (linux-x64)'
+        required: false
+        default: true
+        type: boolean
+      build_macos_arm:
+        description: 'Avalonia: build macOS Apple Silicon (osx-arm64)'
+        required: false
+        default: true
+        type: boolean
+      build_macos_intel:
+        description: 'Avalonia: build macOS Intel (osx-x64)'
+        required: false
+        default: true
+        type: boolean
 jobs:
 
   test:
@@ -196,24 +216,52 @@ jobs:
           nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
 
 
-  build-avalonia:
-    name: Build Avalonia App (${{ matrix.runtime }})
+  avalonia-matrix:
+    name: Compute Avalonia build matrix
     if: >
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') )
       || github.event.inputs.force_nightly == 'true'
     needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      has_targets: ${{ steps.set.outputs.has_targets }}
+    steps:
+      - name: Build matrix from inputs
+        id: set
+        shell: bash
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            WIN="${{ inputs.build_windows }}"
+            LINUX="${{ inputs.build_linux }}"
+            ARM="${{ inputs.build_macos_arm }}"
+            INTEL="${{ inputs.build_macos_intel }}"
+          else
+            WIN=true; LINUX=true; ARM=true; INTEL=true
+          fi
+
+          include=()
+          [ "$WIN" = "true" ]   && include+=('{"os":"windows-latest","runtime":"win-x64"}')
+          [ "$LINUX" = "true" ] && include+=('{"os":"ubuntu-latest","runtime":"linux-x64"}')
+          [ "$ARM" = "true" ]   && include+=('{"os":"macos-latest","runtime":"osx-arm64"}')
+          [ "$INTEL" = "true" ] && include+=('{"os":"macos-latest","runtime":"osx-x64"}')
+
+          joined=$(IFS=,; echo "${include[*]}")
+          echo "matrix={\"include\":[$joined]}" >> "$GITHUB_OUTPUT"
+          if [ ${#include[@]} -eq 0 ]; then
+            echo "has_targets=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_targets=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Selected matrix: {\"include\":[$joined]}"
+
+  build-avalonia:
+    name: Build Avalonia App (${{ matrix.runtime }})
+    if: needs.avalonia-matrix.outputs.has_targets == 'true'
+    needs: [test, avalonia-matrix]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            runtime: win-x64
-          - os: ubuntu-latest
-            runtime: linux-x64
-          - os: macos-latest
-            runtime: osx-arm64
-          - os: macos-latest
-            runtime: osx-x64
+      matrix: ${{ fromJSON(needs.avalonia-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Set Path Registry (Windows long paths)
