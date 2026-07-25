@@ -34,7 +34,7 @@
     </Application.Resources>
 
     <Application.Styles>
-        <sty:FluentAvaloniaTheme PreferSystemTheme="True" PreferUserAccentColor="True" />
+        <sty:FluentAvaloniaTheme PreferSystemTheme="False" PreferUserAccentColor="True" />
         <StyleInclude Source="avares://SubathonManager/Themes/TabStyles.axaml" />
         <StyleInclude Source="avares://SubathonManager/Themes/ControlTweaks.axaml" />
     </Application.Styles>
