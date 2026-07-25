@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+        <Version>0.0.0</Version>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+        <FileVersion>0.0.0.0</FileVersion>
+        <InformationalVersion>dev</InformationalVersion>
+        <AssemblyName>SubathonManager</AssemblyName>
+        <ApplicationIcon>..\assets\icon.ico</ApplicationIcon>
+        <Company>WolfwithSword</Company>
+        <Copyright>© 2025-$(CopyrightYear) WolfwithSword and contributors</Copyright>
+        <NoWarn>$(NoWarn);NU1701;CS8981</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**" />
+        <None Include="..\assets\icon.png" Link="Assets\icon.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Configuration)' != 'Release'">
+        <Content Include="..\assets\**\*">
+            <Link>assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="..\SubathonManager.UI\Services\ServiceManager.cs" Link="Services\ServiceManager.cs" />
+        <Compile Include="..\SubathonManager.UI\Services\ServiceRegistration.cs" Link="Services\ServiceRegistration.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
+        <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
+        <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
+        <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Controls.WebView" Version="12.0.1" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+
+        <PackageReference Include="FluentAvaloniaUI" Version="3.0.2" />
+
+        <PackageReference Include="FluentIcons.Avalonia" Version="2.1.333" />
+
+        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
+        <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0" />
+    </ItemGroup>
+
+</Project>

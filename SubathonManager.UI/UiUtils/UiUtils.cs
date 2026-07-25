@@ -75,11 +75,6 @@ public static class UiUtils
         return false;
     }
 
-    /// <summary>
-    /// Updates a Border to indicate pending changes on a save button. Run from a dispatcher.
-    /// </summary>
-    /// <param name="border"></param>
-    /// <param name="hasPendingChanges"></param>
     public static void UpdateButtonPendingBorder(Border border, bool hasPendingChanges)
     {
         if (hasPendingChanges)

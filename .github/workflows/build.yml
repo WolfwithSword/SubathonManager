@@ -36,8 +36,8 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '9.0.x'
-          
+          dotnet-version: '10.0.x'
+
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
@@ -56,7 +56,7 @@ jobs:
           --logger "console;verbosity=detailed" \
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
-          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs"
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI.Avalonia/**"
                
       - name: Code Coverage Summary Report
         uses: irongut/CodeCoverageSummary@v1.3.0
@@ -94,7 +94,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
@@ -194,6 +194,120 @@ jobs:
           nextcloud-url: ${{ vars.NEXTCLOUD_URL }}
           nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
           nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
+
+
+  build-avalonia:
+    name: Build Avalonia App (${{ matrix.runtime }})
+    if: >
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') )
+      || github.event.inputs.force_nightly == 'true'
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+          - os: ubuntu-latest
+            runtime: linux-x64
+          - os: macos-latest
+            runtime: osx-arm64
+          - os: macos-latest
+            runtime: osx-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Set Path Registry (Windows long paths)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: Set-ItemProperty 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -value 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-avalonia-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+
+      - name: Set copyright year
+        shell: bash
+        run: echo "CopyrightYear=$(date +%Y)" >> $GITHUB_ENV
+
+      - name: Inject telemetry key
+        shell: bash
+        run: |
+          sed -i.bak 's/BUILD_TELEMETRY_KEY/${{ secrets.TELEMETRY_KEY }}/g' \
+            SubathonManager.Services/TelemetryService.cs
+          rm -f SubathonManager.Services/TelemetryService.cs.bak
+
+      - name: Publish Avalonia (${{ matrix.runtime }})
+        run: >
+          dotnet publish SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+          -c Release
+          -r ${{ matrix.runtime }}
+          --self-contained true
+          -p:PublishSingleFile=false
+          -p:PublishTrimmed=false
+          -p:FileVersion=0.0.0.0
+          -p:AssemblyVersion=0.0.0.0
+          -p:InformationalVersion=nightly-${{ github.sha }}
+          -p:Copyright="© 2025–${{ env.CopyrightYear }} WolfwithSword and contributors"
+          -o build-avalonia
+
+      - name: Copy presets folder and license into build output
+        shell: bash
+        run: |
+          mkdir -p build-avalonia/presets
+          cp -R presets/. build-avalonia/presets/
+          cp LICENSE build-avalonia/
+          rm -f build-avalonia/*.pdb
+
+      - name: Bundle Linux association helper (linux only)
+        if: matrix.runtime == 'linux-x64'
+        shell: bash
+        run: |
+          mkdir -p build-avalonia/linux
+          cp external/linux/install.sh external/linux/README.md external/linux/subathonmanager-smo.xml build-avalonia/linux/
+          chmod +x build-avalonia/linux/install.sh
+
+      - name: Zip build (linux)
+        if: matrix.runtime == 'linux-x64'
+        shell: bash
+        run: |
+          cd build-avalonia
+          zip -r ../SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip .
+
+      - name: Assemble macOS .app bundle and zip (macOS only)
+        if: startsWith(matrix.runtime, 'osx')
+        shell: bash
+        run: |
+          chmod +x external/macos/make-app-bundle.sh
+          bash external/macos/make-app-bundle.sh build-avalonia bundle external/macos/Info.plist assets/icon.png SubathonManager
+          cd bundle
+          zip -ry ../SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip SubathonManager.app
+
+      - name: Zip build (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SubathonManager_avalonia_${{ matrix.runtime }}_nightly
+          path: SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip
+          retention-days: 3
 
 
   release:
@@ -331,6 +445,30 @@ jobs:
             ${{ needs.build.outputs.filename }}
             *.sb
             *.streamDeckPlugin
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  attach-avalonia-nightly:
+    name: Add Avalonia builds to nightly
+    runs-on: ubuntu-latest
+    needs: [release, build-avalonia]
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      || github.event.inputs.force_nightly == 'true'
+    steps:
+      - name: Download Avalonia artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: SubathonManager_avalonia_*
+          path: avalonia-dist
+          merge-multiple: true
+
+      - name: Upload Avalonia zips to Nightly release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: "Nightly Build"
+          tag_name: "nightly"
+          prerelease: true
+          files: avalonia-dist/*.zip
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:

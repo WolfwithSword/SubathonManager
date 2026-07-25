@@ -1,0 +1,83 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.ThemeDictionaries>
+
+        <!-- ============================ DARK ============================ -->
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#363636"/>
+            <SolidColorBrush x:Key="OpaqueSecondaryBackgroundBorder" Color="#2f2f2f"/>
+            <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#424242"/>
+            <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#484848"/>
+            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="TextFillColorPrimaryBrushSoft" Color="#CCCCCC"/>
+            <SolidColorBrush x:Key="AppGeneralBackground" Color="#202020"/>
+            
+            <SolidColorBrush x:Key="TabStripBackground" Color="#1C1C1C"/>
+            <SolidColorBrush x:Key="AppHeaderBackground" Color="#1c1c1c"/>
+            <SolidColorBrush x:Key="AppTitleBackground" Color="#101010"/>
+            <SolidColorBrush x:Key="TextColorBrush" Color="White"/>
+            <SolidColorBrush x:Key="PointsColorBrush" Color="LightBlue"/>
+            <SolidColorBrush x:Key="CompletedTextColorBrush" Color="Gray"/>
+            <SolidColorBrush x:Key="CompletedPointsColorBrush" Color="DarkGray"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonColor" Color="#323232"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonHoverColor" Color="#424242"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonPressedColor" Color="#424242"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonBorderColor" Color="#515151"/>
+
+            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#C8C8C8"/>
+            <SolidColorBrush x:Key="ControlElevationBorderBrush" Color="#3D3D3D"/>
+            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#2D2D2D"/>
+            <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="#202020"/>
+            <SolidColorBrush x:Key="SystemFillColorCautionBrush" Color="#FFC83F"/>
+            <SolidColorBrush x:Key="SystemFillColorCautionBackgroundBrush" Color="#433519"/>
+            <SolidColorBrush x:Key="ComboBoxBackground" Color="#2D2D2D"/>
+            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#3D3D3D"/>
+
+            <SolidColorBrush x:Key="UiBrushControlBackground" Color="#2B2B2B"/>
+            <SolidColorBrush x:Key="UiBrushPrimary" Color="#1F1F1F"/>
+            <SolidColorBrush x:Key="UiBrushSurface" Color="#272727"/>
+            <SolidColorBrush x:Key="UiBrushBorder" Color="#3A3A3A"/>
+            <SolidColorBrush x:Key="UiBrushTextTertiary" Color="#9A9A9A"/>
+        </ResourceDictionary>
+
+        <!-- ============================ LIGHT ============================ -->
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="OpaqueSecondaryBackground" Color="#e0e0e0"/>
+            <SolidColorBrush x:Key="OpaqueSecondaryBackgroundBorder" Color="#cfcfcf"/>
+            <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#b0b0b0"/>
+            <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#8f8f8f"/>
+            <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#101010"/>
+            <SolidColorBrush x:Key="TextFillColorPrimaryBrushSoft" Color="#1c1c1c"/>
+            <SolidColorBrush x:Key="AppGeneralBackground" Color="#ececec"/>
+            
+            <SolidColorBrush x:Key="TabStripBackground" Color="#d8d8d8"/>
+            <SolidColorBrush x:Key="AppHeaderBackground" Color="#c7c7c7"/>
+            <SolidColorBrush x:Key="AppTitleBackground" Color="#f0f0f0"/>
+            <SolidColorBrush x:Key="TextColorBrush" Color="Black"/>
+            <SolidColorBrush x:Key="PointsColorBrush" Color="DarkBlue"/>
+            <SolidColorBrush x:Key="CompletedTextColorBrush" Color="Gray"/>
+            <SolidColorBrush x:Key="CompletedPointsColorBrush" Color="DarkGray"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonColor" Color="#fcfcfc"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonHoverColor" Color="#d3d3d3"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonPressedColor" Color="#d3d3d3"/>
+            <SolidColorBrush x:Key="SolidOverlayButtonBorderColor" Color="#656565"/>
+
+            <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#5D5D5D"/>
+            <SolidColorBrush x:Key="ControlElevationBorderBrush" Color="#E5E5E5"/>
+            <SolidColorBrush x:Key="ControlFillColorDefaultBrush" Color="#FBFBFB"/>
+            <SolidColorBrush x:Key="ApplicationBackgroundBrush" Color="#F3F3F3"/>
+            <SolidColorBrush x:Key="SystemFillColorCautionBrush" Color="#9D5D00"/>
+            <SolidColorBrush x:Key="SystemFillColorCautionBackgroundBrush" Color="#FFF4CE"/>
+            <SolidColorBrush x:Key="ComboBoxBackground" Color="#FBFBFB"/>
+            <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#E5E5E5"/>
+
+            <SolidColorBrush x:Key="UiBrushControlBackground" Color="#FBFBFB"/>
+            <SolidColorBrush x:Key="UiBrushPrimary" Color="#F3F3F3"/>
+            <SolidColorBrush x:Key="UiBrushSurface" Color="#EDEDED"/>
+            <SolidColorBrush x:Key="UiBrushBorder" Color="#D9D9D9"/>
+            <SolidColorBrush x:Key="UiBrushTextTertiary" Color="#767676"/>
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

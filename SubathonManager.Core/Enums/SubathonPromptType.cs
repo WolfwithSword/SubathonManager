@@ -73,7 +73,11 @@ public static class SubathonPromptTypeExtensions
             return type.GetValidSubTypes();
  
         if (filterEventType.IsSubscription())
+        {
+            if (filterEventType == SubathonEventType.YouTubeGiftMembership) // no tier selection
+                return [SubathonPromptSubType.Default];
             return [SubathonPromptSubType.Default, SubathonPromptSubType.ByTier];
+        }
         if (filterEventType.IsOrder())
         {
             // makeship and juniper only ever track unit counts between polls, but do it diff
