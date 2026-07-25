@@ -11,6 +11,7 @@
         x:Class="SubathonManager.UI.Avalonia.EditRouteWindow"
         x:CompileBindings="False"
         Title="Overlay Editor"
+        Icon="/Assets/icon.png"
         Width="1740" Height="900" MinWidth="940" MinHeight="500"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppGeneralBackground}">

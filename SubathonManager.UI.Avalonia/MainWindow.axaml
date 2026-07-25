@@ -10,6 +10,7 @@
         xmlns:v="using:SubathonManager.UI.Avalonia.Validation"
         x:Class="SubathonManager.UI.Avalonia.MainWindow"
         Title="Subathon Manager"
+        Icon="/Assets/icon.png"
         Width="1200" Height="800"
         MinWidth="1200" MinHeight="800"
         CanResize="False"

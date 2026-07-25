@@ -13,6 +13,12 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (OperatingSystem.IsLinux())
+        {
+            Environment.SetEnvironmentVariable("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            Environment.SetEnvironmentVariable("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+        }
+
         string exeDir = Path.GetDirectoryName(Environment.ProcessPath ?? AppContext.BaseDirectory)!;
         Directory.SetCurrentDirectory(exeDir);
         Console.OutputEncoding = System.Text.Encoding.UTF8;

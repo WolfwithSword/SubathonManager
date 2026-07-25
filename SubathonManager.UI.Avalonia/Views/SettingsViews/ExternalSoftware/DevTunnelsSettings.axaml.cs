@@ -4,6 +4,8 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using DevTunnels.Client.Authentication;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -17,6 +19,8 @@ namespace SubathonManager.UI.Avalonia.Views.SettingsViews.ExternalSoftware;
 
 public partial class DevTunnelsSettings : SettingsControl
 {
+    private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<DevTunnelsSettings>>();
+
     public DevTunnelsSettings()
     {
         InitializeComponent();
@@ -212,6 +216,11 @@ public partial class DevTunnelsSettings : SettingsControl
         try
         {
             await ServiceManager.DevTunnels.LoginAsync(provider);
+        }
+        catch (Exception ex)
+        {
+            LoginStatusText.Text = "Login failed";
+            _logger?.LogError(ex, "DevTunnels {Provider} login failed", provider);
         }
         finally
         {
