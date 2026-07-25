@@ -241,10 +241,10 @@ jobs:
           fi
 
           include=()
-          [ "$WIN" = "true" ]   && include+=('{"os":"windows-latest","runtime":"win-x64"}')
-          [ "$LINUX" = "true" ] && include+=('{"os":"ubuntu-latest","runtime":"linux-x64"}')
-          [ "$ARM" = "true" ]   && include+=('{"os":"macos-latest","runtime":"osx-arm64"}')
-          [ "$INTEL" = "true" ] && include+=('{"os":"macos-latest","runtime":"osx-x64"}')
+          [ "$WIN" = "true" ]   && include+=('{"os":"windows-latest","runtime":"win-x64","single":"true"}')
+          [ "$LINUX" = "true" ] && include+=('{"os":"ubuntu-latest","runtime":"linux-x64","single":"true"}')
+          [ "$ARM" = "true" ]   && include+=('{"os":"macos-latest","runtime":"osx-arm64","single":"false"}')
+          [ "$INTEL" = "true" ] && include+=('{"os":"macos-latest","runtime":"osx-x64","single":"false"}')
 
           joined=$(IFS=,; echo "${include[*]}")
           echo "matrix={\"include\":[$joined]}" >> "$GITHUB_OUTPUT"
@@ -323,7 +323,8 @@ jobs:
           -c Release
           -r ${{ matrix.runtime }}
           --self-contained true
-          -p:PublishSingleFile=false
+          -p:PublishSingleFile=${{ matrix.single }}
+          -p:IncludeNativeLibrariesForSelfExtract=${{ matrix.single }}
           -p:PublishTrimmed=false
           -p:FileVersion=${{ steps.avars.outputs.file_version }}
           -p:AssemblyVersion=${{ steps.avars.outputs.file_version }}
