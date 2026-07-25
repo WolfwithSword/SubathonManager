@@ -73,7 +73,7 @@ public partial class WebServer : IAppService
         builder.Logging.ClearProviders();
         
         builder.Services.AddSingleton<IHostLifetime, NoopHostLifetime>();
-        builder.WebHost.UseUrls($"http://localhost:{Port}", $"http://127.0.0.1:{Port}");
+        builder.WebHost.UseUrls($"http://127.0.0.1:{Port}");
 
         var app = builder.Build();
         app.UseWebSockets();
@@ -91,11 +91,31 @@ public partial class WebServer : IAppService
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         Port = int.Parse(_config.Get("Server", "Port", "14040")!);
-        Initialize();
-        await _app!.StartAsync(cancellationToken);
-        
-        Running = true;
-        _logger?.LogInformation($"WebServer running at http://localhost:{Port}/");
+        const int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                Initialize();
+                await _app!.StartAsync(cancellationToken);
+                Running = true;
+                _logger?.LogInformation($"WebServer running at http://localhost:{Port}/");
+                WebServerEvents.RaiseWebServerStatusChange(Running);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Running = false;
+
+                await StopServerAsync();
+                _logger?.LogWarning(ex, "WebServer failed to start on port {Port} (attempt {Attempt}/{Max})",
+                    Port, attempt, maxAttempts);
+                if (attempt < maxAttempts)
+                    await Task.Delay(250, cancellationToken);
+            }
+        }
+
+        _logger?.LogError("WebServer could not start on port {Port} after {Max} attempts", Port, maxAttempts);
         WebServerEvents.RaiseWebServerStatusChange(Running);
     }
 

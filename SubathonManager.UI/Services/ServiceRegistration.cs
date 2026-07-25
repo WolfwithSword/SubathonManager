@@ -22,7 +22,7 @@ public static class ServiceRegistration
     {
         services.AddLogging(ConfigureLogging);
         services.AddSingleton<IConfig, Config>();
-        services.AddDbContextFactory<AppDbContext>(ConfigureDatabase);
+        services.AddPooledDbContextFactory<AppDbContext>(ConfigureDatabase);
         services.AddSingleton<ServiceManager>();
     }
 
