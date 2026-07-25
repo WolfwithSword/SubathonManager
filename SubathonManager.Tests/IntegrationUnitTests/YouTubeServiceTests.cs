@@ -405,6 +405,9 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
             var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
             var config = new Mock<Config>();
+
+            config.Setup(c => c.GetBool("Extensions", "Blerp.Enabled", true)).Returns(true);
+            
             var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
             
             service.Running = true;
@@ -432,6 +435,42 @@ namespace SubathonManager.Tests.IntegrationUnitTests
             Assert.Equal(SubathonEventSource.Blerp, captured!.Source);
             Assert.Equal(SubathonEventType.BlerpBeets, captured!.EventType);
             Assert.Equal("SomeGuy", captured.User);
+        }
+        
+        [Fact]
+        public void OnChatReceived_BlerpMessage_Disabled()
+        {
+            var logger = new Mock<ILogger<YouTubeService>>();
+            var chatLogger = new Mock<ILogger<YTLiveChat.Services.YTLiveChat>>();
+            var httpLogger = new Mock<ILogger<YTLiveChat.Services.YTHttpClient>>();
+            var config = new Mock<Config>();
+
+            config.Setup(c => c.GetBool("Extensions", "Blerp.Enabled", true)).Returns(false);
+            
+            var service = new YouTubeService(logger.Object, config.Object, httpLogger.Object, chatLogger.Object);
+            
+            service.Running = true;
+            typeof(YouTubeService)
+                .GetField("_ytHandle", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(service, "@test");
+
+            MessagePart parts = new TextPart{Text="SomeGuy used 500 beets to play FunnyHaHa"}; 
+            var chatItem = new ChatItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                Timestamp = DateTimeOffset.UtcNow,
+                IsModerator = true,
+                Author = new Author { Name = "blerp", ChannelId = "12345"},
+                Message = [parts]
+            };
+
+            var args = new ChatReceivedEventArgs { ChatItem = chatItem };
+            
+            SubathonEvent? captured = CaptureEvent( () => typeof(YouTubeService)
+                .GetMethod("OnChatReceived", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, [null, args]));
+            
+            Assert.Null(captured);
         }
         
         [Fact]
