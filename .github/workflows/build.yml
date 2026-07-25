@@ -1,4 +1,4 @@
-name: Build SubathonManager (Windows)
+name: Build SubathonManager
 
 on:
   push:
@@ -291,12 +291,12 @@ jobs:
           cp LICENSE build-avalonia/
           rm -f build-avalonia/*.pdb
 
-      - name: Bundle Linux association helper (linux only)
+      - name: Bundle Linux association helper (linux)
         if: matrix.runtime == 'linux-x64'
         shell: bash
         run: |
           mkdir -p build-avalonia/linux
-          cp external/linux/install.sh external/linux/README.md external/linux/subathonmanager-smo.xml build-avalonia/linux/
+          cp external/linux/install.sh external/linux/subathonmanager-smo.xml build-avalonia/linux/
           chmod +x build-avalonia/linux/install.sh
 
       - name: Zip build (linux)
