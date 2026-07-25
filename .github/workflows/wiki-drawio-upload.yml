@@ -88,10 +88,16 @@ jobs:
     steps:
       - name: Dispatch docs release
         uses: actions/github-script@v9
+        env:
+          VERSION: ${{ inputs.release_tag }}
         with:
           github-token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
           script: |
-            const version = context.payload.inputs?.release_tag || 'nightly';
+            const version = process.env.VERSION;
+            if (!version || version === 'nightly') {
+              core.setFailed(`Refusing to dispatch a docs release for version '${version}'.`);
+              return;
+            }
             await github.rest.repos.createDispatchEvent({
               owner: 'WolfwithSword',
               repo:  'SubathonManager-docs',

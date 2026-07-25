@@ -7,7 +7,10 @@
                        mc:Ignorable="d"
                        x:Class="SubathonManager.UI.Avalonia.Views.SettingsViews.Extensions.ChatExtensionSettings">
     <StackPanel Margin="10,5,0,5">
-        <TextBlock Margin="0 -2 0 5" Text="Twitch + YouTube. Requires Blerp Chat Notifications"/>
+        <StackPanel Orientation="Horizontal" Margin="0 -2 0 5">
+            <TextBlock VerticalAlignment="Center" Text="Twitch + YouTube. Requires Blerp Chat Notifications"/>
+            <CheckBox x:Name="EnabledBox" Content="Enabled" Margin="20 0 0 0" VerticalAlignment="Center"/>
+        </StackPanel>
         <Grid Margin="0,2" ColumnDefinitions="*,350" RowDefinitions="40,40">
             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
                 <TextBlock Text="Bits:" Width="80" VerticalAlignment="Center" ToolTip.Tip="Twitch Only"/>

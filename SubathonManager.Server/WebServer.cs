@@ -1,7 +1,8 @@
-﻿using System.Net;
-using System.Net.Sockets;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Data;
 using SubathonManager.Core.Models;
@@ -13,10 +14,10 @@ namespace SubathonManager.Server;
 
 public partial class WebServer : IAppService
 {
+    // ReSharper disable once InconsistentNaming
     internal readonly IDbContextFactory<AppDbContext> _factory;
     public int Port { get; set; }
-    private HttpListener? _listener;
-    private TcpListener? _tcpListener;
+    private WebApplication? _app;
     public bool Running { get; private set; }
     
     private readonly HashSet<string> _servedFolders = new();
@@ -24,10 +25,6 @@ public partial class WebServer : IAppService
     private readonly IConfig _config;
     private SubathonValueConfigHelper _valueHelper;
 
-    private static bool IsWindows => HttpListener.IsSupported && 
-                                     !(Environment.GetEnvironmentVariable("TEMP")
-                                         ?.Contains("steamuser", StringComparison.OrdinalIgnoreCase) ?? false);
-    
     record RouteKey(string Method, string Pattern);
     private readonly List<(RouteKey key, Func<IHttpContext, Task> handler)> _routes
         = new();
@@ -60,24 +57,11 @@ public partial class WebServer : IAppService
         }
         
         Port = int.Parse(_config.Get("Server", "Port", "14040")!);
-        //Initialize();
     }
 
     internal void Initialize()
     {
-        
-        if (_listener is { IsListening: true })
-        {
-            try
-            {
-                Stop();
-            }
-            catch { /**/ }
-        }
-        else
-        {
-            StopWebsocketServer();//
-        }
+        StopServerAsync().GetAwaiter().GetResult();
 
         _routes.Clear();
         SetupApiRoutes();
@@ -85,16 +69,16 @@ public partial class WebServer : IAppService
         SetupOverlayRoutes();
         SetupWebsocketListeners();
 
-        if (IsWindows)
-        {
-            _listener = new HttpListener();
-            _listener.Prefixes.Add($"http://localhost:{Port}/");
-            _listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
-        }
-        else
-        {
-            _tcpListener = new TcpListener(IPAddress.Loopback, Port);
-        }
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Logging.ClearProviders();
+        
+        builder.Services.AddSingleton<IHostLifetime, NoopHostLifetime>();
+        builder.WebHost.UseUrls($"http://localhost:{Port}", $"http://127.0.0.1:{Port}");
+
+        var app = builder.Build();
+        app.UseWebSockets();
+        app.Run(ctx => HandleRequestAsync(new AspNetContextAdapter(ctx)));
+        _app = app;
     }
 
     private void SetupOverlayRoutes()
@@ -108,95 +92,21 @@ public partial class WebServer : IAppService
     {
         Port = int.Parse(_config.Get("Server", "Port", "14040")!);
         Initialize();
-        Running = true;
-
-        if (IsWindows)
-        {
-            await RunHttpListenerLoopAsync(cancellationToken);
-        }
-        else
-        {
-            _logger?.LogWarning("HttpListener is not supported. Running BETA TcpListener as fallback");
-            await RunTcpListenerLoopAsync(cancellationToken);
-        }
+        await _app!.StartAsync(cancellationToken);
         
-    }
-
-    private async Task RunHttpListenerLoopAsync(CancellationToken cancellationToken)
-    {
-        _listener?.Start();
+        Running = true;
         _logger?.LogInformation($"WebServer running at http://localhost:{Port}/");
-        var oldPort = Port;
         WebServerEvents.RaiseWebServerStatusChange(Running);
-        while (Running)
-        {
-            try
-            {
-                var context = await _listener!.GetContextAsync();
-                _ = Task.Run(() => HandleRequestAsync(new HttpListenerContextAdapter(context)), cancellationToken);
-                if (cancellationToken.IsCancellationRequested)
-                    break;
-            }
-            catch (HttpListenerException ex)
-            {
-                if (cancellationToken.IsCancellationRequested || oldPort != Port)
-                    return;
-                _logger?.LogError(ex, $"WebServer Error: {ex.Message}");
-                break;
-            }
-            catch (Exception ex)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-                _logger?.LogError(ex, $"WebServer Error: {ex.Message}");
-            }
-        }
     }
-    
-    private async Task RunTcpListenerLoopAsync(CancellationToken cancellationToken)
+
+    private async Task StopServerAsync()
     {
-        _tcpListener!.Start();
-        _logger?.LogInformation($"WebServer (TCP) running at http://localhost:{Port}/");
-        WebServerEvents.RaiseWebServerStatusChange(Running);
-
-        while (Running && !cancellationToken.IsCancellationRequested)
-        {
-            TcpClient? client = null;
-            try
-            {
-                client = await _tcpListener.AcceptTcpClientAsync(cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (SocketException ex)
-            {
-                if (!Running || cancellationToken.IsCancellationRequested) break;
-                _logger?.LogError(ex, $"WebServer TCP accept error: {ex.Message}");
-                continue;
-            }
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var ctx = await TcpListenerContextAdapter.ParseAsync(client, cancellationToken);
-                    if (ctx != null)
-                        await HandleRequestAsync(ctx);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "TCP Request Handler had an error.");
-                }
-                finally
-                {
-                    try { client.Dispose(); } catch { /* ignored */ }
-                }
-            }, cancellationToken);
-        }
-
-        try { _tcpListener.Stop(); } catch { /* ignored */ }
+        StopWebsocketServer();
+        if (_app == null) return;
+        var app = _app;
+        _app = null;
+        try { await app.StopAsync(); } catch { /**/ }
+        try { await app.DisposeAsync(); } catch { /**/ }
     }
 
     public void Stop()
@@ -204,9 +114,7 @@ public partial class WebServer : IAppService
         Running = false;
         try
         {
-            _listener?.Stop();
-            _tcpListener?.Stop();
-            StopWebsocketServer();
+            StopServerAsync().GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -218,11 +126,11 @@ public partial class WebServer : IAppService
         }
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         Running = false;
-        Stop();
-        return Task.CompletedTask;
+        await StopServerAsync();
+        WebServerEvents.RaiseWebServerStatusChange(Running);
     }
     
     internal Func<IHttpContext, Task>? MatchRoute(string method, string path)

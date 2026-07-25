@@ -30,6 +30,8 @@ public partial class GoAffProSourceControl : SettingsControl
         Store = store;
         InitializeComponent();
 
+        StoreNameText.Text = Store.StoreName;
+
         ToolTip.SetTip(TotalSimBox, "Order Total $");
         ToolTip.SetTip(CommSimBox, "Commission Total $");
         ToolTip.SetTip(QuantitySimBox, "Items Ordered");

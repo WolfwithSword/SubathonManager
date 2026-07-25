@@ -244,6 +244,24 @@ jobs:
         shell: bash
         run: echo "CopyrightYear=$(date +%Y)" >> $GITHUB_ENV
 
+      - name: Determine version
+        id: avars
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
+            echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          else
+            SAFE_REF=${GITHUB_REF_NAME//\//-}
+            echo "version=${SAFE_REF}" >> $GITHUB_OUTPUT
+          fi
+          if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "file_version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          else
+            echo "file_version=0.0.0.0" >> $GITHUB_OUTPUT
+          fi
+
       - name: Inject telemetry key
         shell: bash
         run: |
@@ -259,9 +277,9 @@ jobs:
           --self-contained true
           -p:PublishSingleFile=false
           -p:PublishTrimmed=false
-          -p:FileVersion=0.0.0.0
-          -p:AssemblyVersion=0.0.0.0
-          -p:InformationalVersion=nightly-${{ github.sha }}
+          -p:FileVersion=${{ steps.avars.outputs.file_version }}
+          -p:AssemblyVersion=${{ steps.avars.outputs.file_version }}
+          -p:InformationalVersion=${{ steps.avars.outputs.version }}
           -p:Copyright="© 2025–${{ env.CopyrightYear }} WolfwithSword and contributors"
           -o build-avalonia
 
@@ -293,7 +311,7 @@ jobs:
         shell: bash
         run: |
           chmod +x external/macos/make-app-bundle.sh
-          bash external/macos/make-app-bundle.sh build-avalonia bundle external/macos/Info.plist assets/icon.png SubathonManager
+          bash external/macos/make-app-bundle.sh build-avalonia bundle external/macos/Info.plist assets/icon.png SubathonManager "${{ steps.avars.outputs.file_version }}"
           cd bundle
           zip -ry ../SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip SubathonManager.app
 

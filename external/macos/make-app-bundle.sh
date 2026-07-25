@@ -8,6 +8,7 @@ OUT_DIR="$2"
 PLIST="$3"
 ICON_PNG="${4:-}"
 EXE_NAME="${5:-SubathonManager}"
+VERSION="${6:-}"
 
 APP="$OUT_DIR/SubathonManager.app"
 rm -rf "$APP"
@@ -16,6 +17,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp -R "$PUBLISH_DIR"/. "$APP/Contents/MacOS/"
 cp "$PLIST" "$APP/Contents/Info.plist"
 chmod +x "$APP/Contents/MacOS/$EXE_NAME"
+
+if [ -n "$VERSION" ]; then
+    SHORT_VERSION="$(echo "$VERSION" | cut -d. -f1-3)"
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $SHORT_VERSION" "$APP/Contents/Info.plist" || true
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $VERSION" "$APP/Contents/Info.plist" || true
+fi
 
 if [ -n "$ICON_PNG" ] && [ -f "$ICON_PNG" ] \
    && command -v sips >/dev/null 2>&1 && command -v iconutil >/dev/null 2>&1; then

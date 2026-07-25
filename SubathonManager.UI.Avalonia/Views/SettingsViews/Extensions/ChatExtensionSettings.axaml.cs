@@ -91,6 +91,7 @@ public partial class ChatExtensionSettings : SettingsControl
             hasUpdated |= config.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
         if (double.TryParse(BeetsModifierTextBox.Text, out var blerpBeetsMod))
             hasUpdated |= config.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
+        hasUpdated |= config.SetBool("Extensions", "Blerp.Enabled", EnabledBox.IsChecked ?? true);
         return hasUpdated;
     }
 
@@ -101,6 +102,7 @@ public partial class ChatExtensionSettings : SettingsControl
         BitsModifierTextBox.Text = $"{blerpBitsMod}";
         double.TryParse(config.Get("Extensions", "BlerpBeets.Modifier", "1"), out var blerpBeetsMod);
         BeetsModifierTextBox.Text = $"{blerpBeetsMod}";
+        EnabledBox.IsChecked = config.GetBool("Extensions", "Blerp.Enabled", true);
     }
 
     private void TestBlerp_Click(object? sender, RoutedEventArgs e)

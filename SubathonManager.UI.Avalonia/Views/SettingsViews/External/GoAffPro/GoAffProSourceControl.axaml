@@ -7,12 +7,17 @@
                        mc:Ignorable="d"
                        x:Class="SubathonManager.UI.Avalonia.Views.SettingsViews.External.GoAffPro.GoAffProSourceControl">
     <StackPanel x:Name="SourcePanel">
-        <StackPanel Orientation="Horizontal" Margin="0 0 0 10">
-            <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" Width="120" FontSize="12" Margin="0 0 0 0"/>
-            <TextBlock x:Name="CurrencyText" Text="" VerticalAlignment="Center" FontSize="12" Width="60" Margin="14 0 0 0"/>
-            <CheckBox x:Name="EnabledBox" Content="Enabled" Margin="14 0 0 0"/>
-            <CheckBox x:Name="CommissionBox" Content="Add commission amount as donation?" Margin="14 0 0 0"/>
-        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0 0 0 10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" Width="120" FontSize="12" Margin="0 0 0 0"/>
+                <TextBlock x:Name="CurrencyText" Text="" VerticalAlignment="Center" FontSize="12" Width="60" Margin="14 0 0 0"/>
+                <CheckBox x:Name="EnabledBox" Content="Enabled" Margin="14 0 0 0"/>
+                <CheckBox x:Name="CommissionBox" Content="Add commission amount as donation?" Margin="14 0 0 0"/>
+            </StackPanel>
+            <TextBlock x:Name="StoreNameText" Grid.Column="1" Text="" VerticalAlignment="Center"
+                       HorizontalAlignment="Right" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource SystemAccentColorLight2}" Margin="14 0 4 0"/>
+        </Grid>
         <Grid ColumnDefinitions="*,390">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Orders:" Width="80" VerticalAlignment="Center"/>

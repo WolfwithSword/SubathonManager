@@ -347,7 +347,8 @@ public class YouTubeService : IDisposable, IAppService
             CommandService.ChatCommandRequest(SubathonEventSource.YouTube, messagePreview, user,
                 item.IsOwner, item.IsModerator, false,
                 item.Timestamp.DateTime.ToLocalTime(), Utils.CreateGuidFromUniqueString(item.Id));
-        else if (user.Equals("blerp", StringComparison.OrdinalIgnoreCase))
+        else if (user.Equals("blerp", StringComparison.OrdinalIgnoreCase)
+                 && _config.GetBool("Extensions", "Blerp.Enabled", true))
         {
             BlerpChatService.ParseMessage(messagePreview, SubathonEventSource.YouTube);
         }

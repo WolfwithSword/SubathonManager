@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using SubathonManager.Core.Enums;
 
@@ -13,6 +14,7 @@ public class WidgetMeta
     public Dictionary<string, WidgetMetaVar> Vars { get; set; } = new();
 }
 
+[ExcludeFromCodeCoverage]
 public class WidgetMetaVar
 {
     [JsonIgnore]

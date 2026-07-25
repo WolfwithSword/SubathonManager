@@ -379,7 +379,8 @@ public class TwitchService(ILogger<TwitchService>? logger, IConfig config, ISecu
                 e.ChatMessage.Username, // DisplayName
                 isBroadcaster, isMod, isVip, DateTime.Now);
         }
-        else if (e.ChatMessage.DisplayName.Equals("blerp", StringComparison.InvariantCultureIgnoreCase))
+        else if (e.ChatMessage.DisplayName.Equals("blerp", StringComparison.InvariantCultureIgnoreCase)
+                 && config.GetBool("Extensions", "Blerp.Enabled", true))
         {
             BlerpChatService.ParseMessage(e.ChatMessage.Message, SubathonEventSource.Twitch);
         }
