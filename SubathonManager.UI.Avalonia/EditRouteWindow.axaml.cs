@@ -74,7 +74,10 @@ public partial class EditRouteWindow : Window
         {
             if (e is WindowsWebView2EnvironmentRequestedEventArgs win)
                 win.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required";
+            if (e is LinuxWpeWebViewEnvironmentRequestedEventArgs linux) 
+                linux.PreferWebKitGtkInstead = true;
         };
+        
         
         PreviewWebView.NavigationCompleted += (_, _) =>
             Dispatcher.UIThread.Post(() =>
