@@ -68,6 +68,7 @@ public partial class EditRouteWindow : Window
         InitializeComponent();
         EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
+        BrowserEditorButton.IsVisible = OperatingSystem.IsLinux();
         UiUtils.UiHelpers.EnableClickAwayUnfocus(this);
 
         PreviewWebView.EnvironmentRequested += (_, e) =>

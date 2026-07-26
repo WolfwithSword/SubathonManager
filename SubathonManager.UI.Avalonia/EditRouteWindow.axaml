@@ -350,6 +350,10 @@
             <Grid Margin="12,-18,0,0" ColumnDefinitions="*,Auto" VerticalAlignment="Top" ZIndex="1">
                 <TextBlock Grid.Column="0" Text="Shift: Resize Ratio                Ctrl: Adjust or Crop Height/Width                Alt: Grid Snapping" FontSize="12" xml:space="preserve" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Button x:Name="BrowserEditorButton" Content="Browser Editor" Height="24" Padding="8,0" IsVisible="False"
+                            VerticalAlignment="Center" Margin="0,0,12,0"
+                            ToolTip.Tip="Open the preview editor in your web browser"
+                            Click="OpenEditorInBrowser_Click"/>
                     <TextBlock Text="Editor BG:" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
                     <ToggleButton x:Name="WebViewBgToggle" Content="Light" Width="72" Height="24" Padding="0"
                                   HorizontalContentAlignment="Center" ToolTip.Tip="Preview background style (does not affect the live overlay)"

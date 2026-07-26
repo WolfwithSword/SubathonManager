@@ -102,7 +102,7 @@ jobs:
       version: ${{ steps.vars.outputs.version }}
       filename: ${{ steps.vars.outputs.filename }}
       nextcloud_url: ${{ steps.nextcloud-fallback.outcome == 'success' && steps.nextcloud-fallback.outputs.SHAREABLE_URL || '' }}
-      artifact_name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
+      artifact_name: WPF_SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
     steps:
       - name: Set Path Registry
         shell: pwsh
@@ -142,12 +142,12 @@ jobs:
           fi
           
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "filename=SubathonManager_${RUNTIME}_nightly.zip" >> $GITHUB_OUTPUT
+            echo "filename=WPF_SubathonManager_${RUNTIME}_nightly.zip" >> $GITHUB_OUTPUT
           elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
-            echo "filename=SubathonManager_${RUNTIME}_${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
+            echo "filename=WPF_SubathonManager_${RUNTIME}_${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
           else
             SAFE_REF=${GITHUB_REF_NAME//\//-}
-            echo "filename=SubathonManager_${RUNTIME}_${SAFE_REF}.zip" >> $GITHUB_OUTPUT
+            echo "filename=WPF_SubathonManager_${RUNTIME}_${SAFE_REF}.zip" >> $GITHUB_OUTPUT
           fi
           
           if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -197,7 +197,7 @@ jobs:
         id: artifact-upload
         continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}
         with:
-          name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
+          name: WPF_SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
           retention-days: 3
 
@@ -209,7 +209,7 @@ jobs:
         uses: trympet/nextcloud-artifacts-action@v2
         continue-on-error: false
         with:
-          name: SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
+          name: WPF_SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
           path: build
           nextcloud-url: ${{ vars.NEXTCLOUD_URL }}
           nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
@@ -281,7 +281,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-avalonia-${{ hashFiles('**/*.csproj') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
 
@@ -353,7 +353,7 @@ jobs:
         shell: bash
         run: |
           cd build-avalonia
-          zip -r ../SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip .
+          zip -r ../SubathonManager_${{ matrix.runtime }}_nightly.zip .
 
       - name: Assemble macOS .app bundle and zip (macOS only)
         if: startsWith(matrix.runtime, 'osx')
@@ -362,18 +362,18 @@ jobs:
           chmod +x external/macos/make-app-bundle.sh
           bash external/macos/make-app-bundle.sh build-avalonia bundle external/macos/Info.plist assets/icon.png SubathonManager "${{ steps.avars.outputs.file_version }}"
           cd bundle
-          zip -ry ../SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip SubathonManager.app
+          zip -ry ../SubathonManager_${{ matrix.runtime }}_nightly.zip SubathonManager.app
 
       - name: Zip build (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip
+        run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_${{ matrix.runtime }}_nightly.zip
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: SubathonManager_avalonia_${{ matrix.runtime }}_nightly
-          path: SubathonManager_avalonia_${{ matrix.runtime }}_nightly.zip
+          name: SubathonManager_${{ matrix.runtime }}_nightly
+          path: SubathonManager_${{ matrix.runtime }}_nightly.zip
           retention-days: 3
 
 
@@ -525,7 +525,7 @@ jobs:
       - name: Download Avalonia artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: SubathonManager_avalonia_*
+          pattern: SubathonManager_*
           path: avalonia-dist
           merge-multiple: true
 
