@@ -307,19 +307,23 @@
                             <TextBlock TextWrapping="Wrap" FontSize="16" Margin="2,2,2,4"
                                        Text="Create and manage your overlays in the list to the left.&#x0a;Copy the URL to a browser source in OBS and set its resolution to match.&#x0a;Double click or press the edit button to configure your overlay."/>
                             <StackPanel Orientation="Horizontal">
-                                <Button Click="SendRefreshRequest_Click" Width="184" Height="48" Margin="0,16,2,8">
+                                <Button Click="SendRefreshRequest_Click" Width="154" Height="48" Margin="0,16,2,8">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                                        <TextBlock Text="Refresh Overlays" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Refresh All" VerticalAlignment="Center"/>
                                         <ctl:SymIcon Glyph="Recycle16" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
-                                <Button Content="Open Presets Folder" Width="184" Height="48" FontSize="12"
-                                        Click="OpenPresets_Click" Margin="8,16,2,8"/>
+                                <Button Content="Browse Presets" Width="154" Height="48"
+                                        Click="OpenBrowsePresets_Click" Margin="8,16,2,8"/>
+                                <Button Content="Browse Premade" Width="154" Height="48"
+                                        Click="OpenMarketplace_Click" Margin="8,16,2,8"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <Button Content="Open Imports Folder" Width="184" Height="48" Margin="0,8,2,8"
+                                <Button Content="Open Presets" Width="154" Height="48"
+                                        Click="OpenPresets_Click" Margin="0,8,2,8"/>
+                                <Button Content="Open Imports" Width="154" Height="48" Margin="8,8,2,8"
                                         Click="OpenImports_Click"/>
-                                <Button Content="Open Exports Folder" Width="184" Height="48" Margin="8,8,2,8"
+                                <Button Content="Open Exports" Width="154" Height="48" Margin="8,8,2,8"
                                         Click="OpenExports_Click"/>
                             </StackPanel>
                         </StackPanel>

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -39,6 +40,21 @@ public partial class MainWindow
 
         foreach (var route in routes)
             Overlays.Add(route);
+    }
+
+    private void OpenMarketplace_Click(object? sender, RoutedEventArgs e) {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://docs.subathonmanager.app/latest/browse/",
+            UseShellExecute = true
+        });
+    }
+    private void OpenBrowsePresets_Click(object? sender, RoutedEventArgs e) {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://docs.subathonmanager.app/latest/widgets/presets/Presets/",
+            UseShellExecute = true
+        });
     }
 
     private void OpenPresets_Click(object? sender, RoutedEventArgs e) => OpenRelativeFolder("presets");
