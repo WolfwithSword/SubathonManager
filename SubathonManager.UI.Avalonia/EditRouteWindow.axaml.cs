@@ -84,8 +84,14 @@ public partial class EditRouteWindow : Window
             //     gtkArgs.ExperimentalOffscreen = true;
             // }
         };
-        
-        
+
+        PreviewWebView.AdapterCreated += (_, _) =>
+        {
+            PreviewWebView.IsVisible = false;
+            PreviewWebView.IsVisible = true;
+        };
+
+
         PreviewWebView.NavigationCompleted += (_, _) =>
             Dispatcher.UIThread.Post(() =>
             {
