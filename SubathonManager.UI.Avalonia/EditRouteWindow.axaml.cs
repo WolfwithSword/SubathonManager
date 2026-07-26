@@ -77,6 +77,12 @@ public partial class EditRouteWindow : Window
                 win.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required";
             if (e is LinuxWpeWebViewEnvironmentRequestedEventArgs linux) 
                 linux.PreferWebKitGtkInstead = true;
+            if (e is GtkWebViewEnvironmentRequestedEventArgs gtkArgs)
+            {
+                gtkArgs.EphemeralDataManager = true;
+                gtkArgs.DisableCache = true;
+                gtkArgs.ExperimentalOffscreen = true;
+            }
         };
         
         
@@ -103,8 +109,20 @@ public partial class EditRouteWindow : Window
     {
         try
         {
-            _loadedWebView = true;
-            await LoadRouteAsync();
+
+            // if (OperatingSystem.IsLinux())
+            // {
+            //     _loadedWebView = false;
+            //     PreviewWebView.IsVisible = false;
+            //     WebViewFallbackPanel.IsVisible = true;
+            //     ConfigureFallbackForPlatform();
+            //     await LoadRouteAsync();
+            // }
+            // else
+            // {
+                _loadedWebView = true;
+                await LoadRouteAsync();
+            // }
         }
         catch (Exception ex)
         {
@@ -219,7 +237,8 @@ public partial class EditRouteWindow : Window
         {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             _editUrl = _route.GetRouteUrl(config, true);
-            PreviewWebView.Source = new Uri(_editUrl);
+            if (_loadedWebView)
+                PreviewWebView.Source = new Uri(_editUrl);
         }
         catch (Exception ex)
         {
@@ -572,12 +591,12 @@ public partial class EditRouteWindow : Window
         }
         else if (OperatingSystem.IsLinux())
         {
-            WebViewFallbackText.Text = "The embedded WebView needs WebKitGTK, which doesn't appear to be installed.";
+            WebViewFallbackText.Text = "The embedded WebView needs WebKitGTK or WPEWebKit, but may still not be supported.";
             WebViewRequirementHint.Text =
-                "Install your distro's WebKitGTK package (e.g. \"sudo apt install libwebkit2gtk-4.1-0\" on " +
-                "Debian/Ubuntu, or \"webkit2gtk4.1\" on Fedora), then reopen this editor.";
-            _webViewRequirementUrl = "https://webkitgtk.org/";
-            InstallWebViewButton.Content = "About WebKitGTK";
+                "Use \"Browser Editor\" button " +
+                "to edit this overlay in your web browser.";
+            _webViewRequirementUrl = "https://github.com/AvaloniaUI/Avalonia.Controls.WebView/pull/38";
+            InstallWebViewButton.Content = "Track upstream fix/problem";
             WebViewRequirementHint.IsVisible = true;
             InstallWebViewButton.IsVisible = true;
         }
