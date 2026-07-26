@@ -77,12 +77,12 @@ public partial class EditRouteWindow : Window
                 win.AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required";
             if (e is LinuxWpeWebViewEnvironmentRequestedEventArgs linux) 
                 linux.PreferWebKitGtkInstead = true;
-            if (e is GtkWebViewEnvironmentRequestedEventArgs gtkArgs)
-            {
-                gtkArgs.EphemeralDataManager = true;
-                gtkArgs.DisableCache = true;
-                gtkArgs.ExperimentalOffscreen = true;
-            }
+            // if (e is GtkWebViewEnvironmentRequestedEventArgs gtkArgs)
+            // {
+            //     gtkArgs.EphemeralDataManager = true;
+            //     gtkArgs.DisableCache = true;
+            //     gtkArgs.ExperimentalOffscreen = true;
+            // }
         };
         
         
