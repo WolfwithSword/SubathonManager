@@ -223,7 +223,7 @@ public partial class SettingsView
             AddOtherWhenLockedBox.IsChecked = config.GetBool("App", "OtherValuesWhenLocked", true);
             ShowEventsWhenLockedBox.IsChecked = config.GetBool("App", "ShowLockedEvents", false);
 
-            var theme = config.Get("App", "Theme", "Dark")!;
+            var theme = config.Get("App", "Theme", "System")!;
             foreach (var obj in ThemeBox.Items)
             {
                 if (obj is ComboBoxItem item && theme.Equals(item.Content?.ToString(), StringComparison.OrdinalIgnoreCase))

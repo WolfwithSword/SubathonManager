@@ -45,6 +45,7 @@
                         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
                             <TextBlock Text="App Theme:" Width="120" Margin="0 0 4 0" VerticalAlignment="Center"/>
                             <ComboBox PlaceholderText="Theme" Width="100" x:Name="ThemeBox" Margin="0 0 4 0">
+                                <ComboBoxItem Content="System"/>
                                 <ComboBoxItem Content="Dark"/>
                                 <ComboBoxItem Content="Light"/>
                             </ComboBox>

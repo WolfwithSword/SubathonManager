@@ -25,8 +25,10 @@ public partial class GoalsView : UserControl
     public GoalsView()
     {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        var config = AppServices.Provider.GetRequiredService<IConfig>();
-        _isDarkTheme = "Dark".Equals(config.Get("App", "Theme", "Dark"), StringComparison.OrdinalIgnoreCase);
+
+        _isDarkTheme = global::Avalonia.Application.Current?.ActualThemeVariant
+            != global::Avalonia.Styling.ThemeVariant.Light;
+            
         InitializeComponent();
         LoadGoals();
         SubathonEvents.SubathonDataUpdate += OnSubathonUpdate;

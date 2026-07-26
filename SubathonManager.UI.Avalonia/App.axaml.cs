@@ -2,6 +2,7 @@ using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,16 @@ public partial class App : Application
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
 
             SetThemeVariant(config);
+
+            if (PlatformSettings is { } ps)
+                ps.ColorValuesChanged += (_, _) =>
+                {
+                    var cfg = AppServices.Provider.GetRequiredService<IConfig>();
+                    var t = cfg.Get("App", "Theme", "System")!.Trim();
+                    if (!t.Equals("Light", StringComparison.OrdinalIgnoreCase)
+                        && !t.Equals("Dark", StringComparison.OrdinalIgnoreCase))
+                        Dispatcher.UIThread.Post(() => SetThemeVariant(cfg));
+                };
 
             _logger = AppServices.Provider.GetRequiredService<ILogger<App>>();
             _logger.LogInformation("======== Subathon Manager started ========");
@@ -213,10 +224,19 @@ public partial class App : Application
 
     private void SetThemeVariant(IConfig config)
     {
-        string theme = config.Get("App", "Theme", "Dark")!.Trim();
-        RequestedThemeVariant = theme.Equals("Light", StringComparison.OrdinalIgnoreCase)
-            ? ThemeVariant.Light
-            : ThemeVariant.Dark;
+        string theme = config.Get("App", "Theme", "System")!.Trim();
+        RequestedThemeVariant = theme switch
+        {
+            _ when theme.Equals("Light", StringComparison.OrdinalIgnoreCase) => ThemeVariant.Light,
+            _ when theme.Equals("Dark", StringComparison.OrdinalIgnoreCase) => ThemeVariant.Dark,
+            _ => DetectSystemThemeVariant()
+        };
+    }
+
+    private ThemeVariant DetectSystemThemeVariant()
+    {
+        var sys = PlatformSettings?.GetColorValues().ThemeVariant ?? PlatformThemeVariant.Dark;
+        return sys == PlatformThemeVariant.Light ? ThemeVariant.Light : ThemeVariant.Dark;
     }
 
     private void SetThemeFromConfig()
