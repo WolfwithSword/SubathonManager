@@ -1,0 +1,31 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.External.GoAffProSettings">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Connect" Click="OpenLogin_Click"
+                    Padding="2" Width="120" Height="35" x:Name="ConnectBtn" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 0" Width="140"/>
+            <TextBlock Text="Lookback Days" ToolTip.Tip="Number of days to look back on connect for orders that were missed"
+                       VerticalAlignment="Center" Margin="48 0 0 0"/>
+            <TextBox x:Name="LookbackDaysBox" Margin="8 0 4 0" Width="60" Text="0" PlaceholderText="0" v:NumericInputBehaviour.Mode="Integer"/>
+        </StackPanel>
+
+        <Grid Margin="-2,2,0,5" ColumnDefinitions="136,*">
+            <Border Grid.Column="0" BorderThickness="0,0,1,0"
+                    BorderBrush="{DynamicResource ControlElevationBorderBrush}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="180">
+                    <StackPanel x:Name="SourceList" Orientation="Vertical" Margin="0,2,0,2"/>
+                </ScrollViewer>
+            </Border>
+            <Grid Grid.Column="1" MaxHeight="500">
+                <StackPanel x:Name="SourcesPanel" MinHeight="100" Margin="12,6,8,6"/>
+            </Grid>
+        </Grid>
+    </StackPanel>
+</views:SettingsControl>

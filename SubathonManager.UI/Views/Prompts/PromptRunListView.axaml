@@ -1,0 +1,66 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:conv="using:SubathonManager.UI.Converters"
+             mc:Ignorable="d" d:DesignHeight="500" d:DesignWidth="500"
+             x:CompileBindings="False" Background="Transparent"
+             x:Class="SubathonManager.UI.Views.Prompts.PromptRunListView">
+    <UserControl.Resources>
+        <conv:PromptRunStatusColorConverter x:Key="PromptRunStatusColorConverter"/>
+    </UserControl.Resources>
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="PromptRunListPanel">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical" Margin="8"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border CornerRadius="10" BorderBrush="#333" BorderThickness="1"
+                                Padding="10" Margin="4,6" Background="{DynamicResource AppHeaderBackground}">
+                            <StackPanel Orientation="Vertical">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{Binding LinkedPrompt.Text}" HorizontalAlignment="Left"
+                                               FontSize="15" FontWeight="Bold" TextWrapping="Wrap"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding StartedAt, StringFormat='{}{0:G}'}"
+                                               HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}" FontSize="12"/>
+                                </Grid>
+                                <Grid Margin="0,4,0,0" ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding LinkedPrompt.Type}" FontSize="12"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="·" FontSize="12"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="{Binding LinkedPrompt.Value, StringFormat='Goal: {0}'}" FontSize="12"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{Binding Status, Converter={StaticResource PromptRunStatusColorConverter}}"/>
+                                </Grid>
+                                <Grid Margin="0,3,0,0" ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Duration: " FontSize="12"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"/>
+                                        <TextBlock Text="{Binding LinkedPrompt.CompletionDuration, StringFormat='{}{0:mm\\:ss}'}" FontSize="12"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding EndedAt, StringFormat='Ended: {0:G}'}" FontSize="11"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"/>
+                                </Grid>
+                                <Grid Margin="0,5,0,0" ColumnDefinitions="*,Auto" IsVisible="{Binding IsActive}">
+                                    <ProgressBar Value="{Binding ProgressPct, Mode=OneWay}" Minimum="0" Maximum="1" Height="6"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding ProgressText}" FontSize="11" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="32" d:DesignWidth="200"
+             x:Class="SubathonManager.UI.Views.CssColorPicker">
+    <Grid ColumnDefinitions="32,*" VerticalAlignment="Center" Height="32">
+        <Button Grid.Column="0" x:Name="SwatchButton" Width="32" Height="32" Padding="2" ToolTip.Tip="Pick colour"
+                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+            <Button.Flyout>
+                <Flyout Placement="Bottom">
+                    <ColorView x:Name="ColorViewCtl" IsAlphaEnabled="True" MinWidth="320"
+                               ColorChanged="ColorView_ColorChanged"/>
+                </Flyout>
+            </Button.Flyout>
+            <Border x:Name="SwatchFill" CornerRadius="3" MinWidth="20" MinHeight="20"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        </Button>
+        <TextBox Grid.Column="1" x:Name="CssValueBox" Height="32" Margin="4,0,0,0" Padding="4,0"
+                 HorizontalAlignment="Stretch" VerticalContentAlignment="Center"
+                 TextChanged="CssValueBox_TextChanged" LostFocus="CssValueBox_LostFocus"/>
+    </Grid>
+</UserControl>

@@ -1,6 +1,10 @@
-﻿using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Threading;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
@@ -9,27 +13,38 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
+using SubathonManager.UI.Controls;
+using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Validation;
-
 // ReSharper disable InconsistentNaming
 
 namespace SubathonManager.UI.Views;
 
 public abstract class SettingsControl : UserControl
 {
-#pragma warning disable CS8618
-    protected SettingsView Host;
-#pragma warning restore CS8618
+    protected SettingsView Host = null!;
 
-    
-    internal readonly IDbContextFactory<AppDbContext> _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+    internal readonly IDbContextFactory<AppDbContext> _factory =
+        AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     private int _suppressCount = 0;
-    
+
+    protected SettingsControl()
+    {
+        AttachedToVisualTree += (_, _) =>
+        {
+            _suppressCount++;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_suppressCount > 0) _suppressCount--;
+            }, DispatcherPriority.Background);
+        };
+    }
+
     internal List<DynamicSubRow> _dynamicSubRows = new();
     protected virtual SubathonEventType? _membershipEventType => null;
     protected virtual StackPanel? _MembershipsPanel => null;
 
-    protected virtual bool allowMembershipDelete => true; 
+    protected virtual bool allowMembershipDelete => true;
 
     public virtual void Init(SettingsView host)
     {
@@ -45,59 +60,48 @@ public abstract class SettingsControl : UserControl
 
     protected void RegisterUnsavedChangeHandlers()
     {
-        Dispatcher.InvokeAsync(() => WireInputs(this), DispatcherPriority.Loaded);
+        Dispatcher.UIThread.Post(() => WireInputs(this), DispatcherPriority.Loaded);
     }
 
-    protected void WireControl(DependencyObject control)
+    protected void WireControl(Visual control)
     {
         AttachHandler(control);
         WireInputs(control);
     }
 
-    private void WireInputs(DependencyObject parent)
+    private void WireInputs(Visual parent)
     {
-        int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent);
-        for (int i = 0; i < count; i++)
+        foreach (var child in parent.GetVisualChildren())
         {
-            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-
-            if (child is { } dep &&
-                SettingsProperties.GetExcludeFromUnsaved(dep))
+            if (SettingsProperties.GetExcludeFromUnsaved(child))
                 continue;
 
-            switch (child)
+            if (child is Expander expander)
             {
-                case Expander expander:
-                    WireExpander(expander);
-                    continue;
-
-                default:
-                    AttachHandler(child);
-                    break;
+                WireExpander(expander);
+                continue;
             }
+
+            AttachHandler(child);
             WireInputs(child);
         }
     }
 
-    private void AttachHandler(DependencyObject element)
+    private void AttachHandler(Visual element)
     {
         switch (element)
         {
             case TextBox tb:
-                tb.TextChanged += OnInputChanged;
-                break;
-            case PasswordBox pb:
-                pb.PasswordChanged += OnInputChanged;
+                tb.TextChanged += (_, _) => OnInputChanged();
                 break;
             case ComboBox cb:
-                cb.SelectionChanged += OnInputChanged;
+                cb.SelectionChanged += (_, _) => OnInputChanged();
                 break;
             case CheckBox chk:
-                chk.Checked += OnInputChanged;
-                chk.Unchecked += OnInputChanged;
+                chk.IsCheckedChanged += (_, _) => OnInputChanged();
                 break;
             case Slider sld:
-                sld.ValueChanged += OnInputChanged;
+                sld.ValueChanged += (_, _) => OnInputChanged();
                 break;
         }
     }
@@ -106,11 +110,12 @@ public abstract class SettingsControl : UserControl
     {
         bool firstExpand = true;
 
-        expander.Expanded += (_, _) =>
+        expander.PropertyChanged += (_, e) =>
         {
-            Dispatcher.InvokeAsync(() =>
+            if (e.Property != Expander.IsExpandedProperty) return;
+            if (e.NewValue is not true) return;
+            Dispatcher.UIThread.Post(() =>
             {
-                // ReSharper disable once AccessToModifiedClosure
                 if (firstExpand)
                 {
                     firstExpand = false;
@@ -126,7 +131,7 @@ public abstract class SettingsControl : UserControl
         }
     }
 
-    private void OnInputChanged(object sender, EventArgs e)
+    private void OnInputChanged()
     {
         if (_suppressCount > 0) return;
         SettingsEvents.RaiseSettingsUnsavedChanges(true);
@@ -136,41 +141,39 @@ public abstract class SettingsControl : UserControl
 
     protected internal virtual void LoadValues(AppDbContext db)
     {
-        return;
     }
+
     public abstract bool UpdateValueSettings(AppDbContext db);
 
-    protected internal virtual bool UpdateConfigValueSettings()
-    {
-        return false;
-    }
+    protected internal virtual bool UpdateConfigValueSettings() => false;
+
     public abstract void UpdateCurrencyBoxes(List<string> currencies, string selected);
 
     public abstract (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(SubathonValue val);
-    
+
     internal static void EnsureUniqueName(List<DynamicSubRow> rows)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows)
         {
-            string current = row.NameBox.Text.Trim();
+            string current = (row.NameBox.Text ?? "").Trim();
             while (!seen.Add(current.ToLower()))
                 current = "New " + current;
             row.NameBox.Text = current;
         }
     }
-    
-    internal virtual void AddMembership_Click(object sender, RoutedEventArgs e)
+
+    internal virtual void AddMembership_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_membershipEventType == null) return;
         var name = $"New {_dynamicSubRows.Count}";
-        var allNames = _dynamicSubRows.Select(x => x.NameBox.Text.Trim()).ToArray();
+        var allNames = _dynamicSubRows.Select(x => (x.NameBox.Text ?? "").Trim()).ToArray();
         while (allNames.Contains(name)) name = $"New {name}";
         allNames = _dynamicSubRows.Select(x => x.SubValue.Meta.Trim()).ToArray();
         while (allNames.Contains(name)) name = $"New {name}";
         AddMembershipRow(new SubathonValue { EventType = _membershipEventType.Value, Meta = name, Seconds = 0, Points = 0 });
     }
-    
+
     internal DynamicSubRow? AddMembershipRow(SubathonValue subathonValue)
     {
         if (_MembershipsPanel == null) return null;
@@ -179,40 +182,43 @@ public abstract class SettingsControl : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
 
         var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-        var nameBox = new Wpf.Ui.Controls.TextBox
+        var nameBox = new TextBox
         {
-            Width = 154, Text = subathonValue.Meta ?? "",
+            Width = 154, Height = 32, Text = subathonValue.Meta ?? "",
             IsReadOnly = !allowMembershipDelete,
-            ClearButtonEnabled = allowMembershipDelete,
-            ToolTip = "Subscription Tier Name", PlaceholderText = "Tier Name",
-            Margin = new Thickness(0, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center
+            PlaceholderText = "Tier Name",
+            Margin = new Thickness(0, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
         };
-        var secondsBox = new Wpf.Ui.Controls.TextBox
+        ToolTip.SetTip(nameBox, "Subscription Tier Name");
+        TextBoxAssist.SetClear(nameBox, true);
+        var secondsBox = new TextBox
         {
-            Width = 100, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0)
+            Width = 100, Height = 32, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
+            VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0, 0, 0)
         };
-        var pointsBox = new Wpf.Ui.Controls.TextBox
+        var pointsBox = new TextBox
         {
-            Width = 100, Text = $"{subathonValue.Points}", PlaceholderText = "Points",
-            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(128, 0, 0, 0)
-        };
-        
-        var deleteBtn = new Wpf.Ui.Controls.Button
-        {
-            ToolTip = "Delete",
-            Icon = new Wpf.Ui.Controls.SymbolIcon
-            {
-                Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24,
-                Margin = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Center
-            },
-            Foreground = System.Windows.Media.Brushes.Red,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Width = 36, Height = 36, Margin = new Thickness(64, 0, 0, 0)
+            Width = 100, Height = 32, Text = $"{subathonValue.Points}", PlaceholderText = "Points",
+            VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(128, 0, 0, 0)
         };
 
-        InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
-        InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
+        NumericInputBehaviour.SetMode(secondsBox, NumericInputBehaviour.NumericMode.SignedDecimal);
+        NumericInputBehaviour.SetMode(pointsBox, NumericInputBehaviour.NumericMode.SignedDecimal);
+
+        var deleteBtn = new Button
+        {
+            Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
+            Foreground = Brushes.Red,
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Width = 32, Height = 32, Margin = new Thickness(64, 0, 0, 0)
+        };
+        ToolTip.SetTip(deleteBtn, "Delete");
 
         WireControl(nameBox);
         WireControl(secondsBox);
@@ -240,7 +246,7 @@ public abstract class SettingsControl : UserControl
             deleteBtn.Click += (_, _) => DeleteRow(subathonValue, subRow);
         return subRow;
     }
-    
+
     internal void DeleteRow(SubathonValue subathonValue, DynamicSubRow subRow)
     {
         if (_MembershipsPanel == null) return;
@@ -251,14 +257,13 @@ public abstract class SettingsControl : UserControl
         _dynamicSubRows.Remove(subRow);
         _MembershipsPanel.Children.Remove(subRow.RowGrid);
     }
-
 }
 
 public class DynamicSubRow
 {
     public required SubathonValue SubValue { get; set; }
-    public required Wpf.Ui.Controls.TextBox NameBox { get; set; }
-    public required Wpf.Ui.Controls.TextBox TimeBox { get; set; }
-    public required Wpf.Ui.Controls.TextBox PointsBox { get; set; }
+    public required TextBox NameBox { get; set; }
+    public required TextBox TimeBox { get; set; }
+    public required TextBox PointsBox { get; set; }
     public required Grid RowGrid { get; set; }
 }

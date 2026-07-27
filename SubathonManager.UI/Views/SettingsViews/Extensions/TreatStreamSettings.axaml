@@ -1,0 +1,36 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.Extensions.TreatStreamSettings">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <Button x:Name="ConnectTreatBtn" Content="Connect" Width="120" Height="35" Margin="0,5,0,10"
+                    Click="ConnectTreatStream_Click" views:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <Button x:Name="DisconnectTreatBtn" Content="Disconnect" Width="120" Height="35" Margin="6,5,0,10"
+                    IsVisible="False" Click="DisconnectTreatStream_Click" views:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <TextBlock x:Name="TreatStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="14,0,0,10"/>
+        </StackPanel>
+        <StackPanel Margin="10,5,0,5">
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Treats:" Width="100" VerticalAlignment="Center"
+                               ToolTip.Tip="Treats received (always 1 item each, no money)"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="TreatBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds per Treat" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="TreatBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points per Treat" Width="180" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10,0,4,0" Width="188" Text="Fancy Treat" PlaceholderText="Treat Title"
+                             VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" x:Name="SimulateTreatTitleBox"/>
+                    <Button Content="Test" Click="TestTreat_Click" Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</views:SettingsControl>

@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="400" d:DesignWidth="600"
+             x:CompileBindings="False"
+             x:Class="SubathonManager.UI.Views.GoalsView">
+    <Grid Height="300" MaxHeight="300">
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" MaxHeight="300" Height="300" Width="600"
+                      Padding="4" HorizontalAlignment="Right" Margin="4,8,16,4">
+            <ItemsControl x:Name="GoalsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,8,10" Padding="12" CornerRadius="6"
+                                Background="{DynamicResource UiBrushControlBackground}"
+                                BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Text}" FontWeight="SemiBold" TextWrapping="Wrap" FontSize="16"
+                                           TextTrimming="CharacterEllipsis" Opacity="{Binding OpacityValue}"
+                                           Foreground="{Binding TextColor}"/>
+                                <TextBlock Text="{Binding PointsText}" FontSize="14" Margin="0,4,0,0"
+                                           TextDecorations="{Binding PointsDecoration}" Opacity="{Binding OpacityValue}"
+                                           Foreground="{Binding PointsColor}"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

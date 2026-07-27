@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35527.113
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.UI", "SubathonManager.UI\SubathonManager.UI.csproj", "{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Server", "SubathonManager.Server\SubathonManager.Server.csproj", "{6B4F72B2-4DB9-4BE4-9BEF-31AD453C1F20}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Core", "SubathonManager.Core\SubathonManager.Core.csproj", "{303F5D9D-C445-4232-BD94-C110509FA34C}"
@@ -17,7 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Services", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.Tests", "SubathonManager.Tests\SubathonManager.Tests.csproj", "{B2B12A03-3D8A-42AF-BA7B-26F30235B635}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.UI.Avalonia", "SubathonManager.UI.Avalonia\SubathonManager.UI.Avalonia.csproj", "{049927EF-790D-414A-8D34-BEF516C5B087}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubathonManager.UI", "SubathonManager.UI\SubathonManager.UI.csproj", "{049927EF-790D-414A-8D34-BEF516C5B087}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,18 +27,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Debug|x64.Build.0 = Debug|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Debug|x86.Build.0 = Debug|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Release|x64.ActiveCfg = Release|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Release|x64.Build.0 = Release|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Release|x86.ActiveCfg = Release|Any CPU
-		{E1B703BA-CC9A-4A80-9D64-91E0BE8A2284}.Release|x86.Build.0 = Release|Any CPU
 		{6B4F72B2-4DB9-4BE4-9BEF-31AD453C1F20}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6B4F72B2-4DB9-4BE4-9BEF-31AD453C1F20}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6B4F72B2-4DB9-4BE4-9BEF-31AD453C1F20}.Debug|x64.ActiveCfg = Debug|Any CPU

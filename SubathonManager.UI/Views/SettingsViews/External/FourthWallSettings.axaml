@@ -1,0 +1,156 @@
+<external:DevTunnelSettingsControl xmlns="https://github.com/avaloniaui"
+                                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                   xmlns:external="using:SubathonManager.UI.Views.SettingsViews.External"
+                                   xmlns:views="using:SubathonManager.UI.Views"
+                                   xmlns:v="using:SubathonManager.UI.Validation"
+                                   xmlns:ui2="using:SubathonManager.UI.UiUtils"
+                                   mc:Ignorable="d"
+                                   x:Class="SubathonManager.UI.Views.SettingsViews.External.FourthWallSettings">
+    <StackPanel>
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
+                <TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12"/>
+                <TextBlock x:Name="FwWebhookStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12"/>
+            </StackPanel>
+
+            <!-- DevTunnels prerequisite status -->
+            <Border x:Name="TunnelStatusBorder" BorderThickness="1" CornerRadius="4" Padding="8,6"
+                    BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                    Margin="0,0,0,10">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="DevTunnels:" Width="110" VerticalAlignment="Center" FontSize="12"/>
+                        <TextBlock x:Name="TunnelPrereqStatusText" Text="Not running"
+                                   VerticalAlignment="Center" FontSize="12" Margin="0,0,12,0"/>
+                        <Button Content="Go to setup" Click="GoToDevTunnels_Click" x:Name="TunnelPrereqHint" FontSize="11"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <StackPanel x:Name="WebhookUrlRow" Orientation="Horizontal" Margin="0,8,0,2" IsVisible="False" MinHeight="36">
+                        <TextBlock Text="Webhook URL:" Width="110" VerticalAlignment="Center" FontSize="12"/>
+                        <TextBox x:Name="WebhookUrlBox" Width="420" Height="34" IsReadOnly="True" PasswordChar="●"
+                                 ui2:TextBoxAssist.Reveal="True"
+                                 views:SettingsProperties.ExcludeFromUnsaved="True" FontSize="11" VerticalAlignment="Center"/>
+                        <Button Content="Copy" Click="CopyWebhookUrl_Click" Width="56" Height="34" Padding="4,2"
+                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="6,0,2,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Configuration -->
+            <StackPanel Margin="0,2">
+                <StackPanel Orientation="Horizontal" Margin="2,4">
+                    <Button Content="Connect" Margin="0 0" Width="116" Height="34" Click="ConnectFw_Click" x:Name="ConnectBtn"/>
+                    <Button Content="Disconnect" Margin="4 0" Width="116" Height="34" Click="DisconnectFw_Click" IsVisible="False" x:Name="DisconnBtn"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Separator Margin="0,8,0,8"/>
+        </StackPanel>
+
+        <StackPanel Margin="10,5,0,5">
+            <Grid Margin="0,4" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center" ToolTip.Tip="Donations (not including donations from orders)"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="DonoBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="DonoBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10,0,4,0" Width="80" Text="10.00" PlaceholderText="1.00" VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="SimulateFwTipAmountBox"/>
+                    <AutoCompleteBox Width="100" x:Name="CurrencyBox" Height="34"
+                                     views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestFwTip_Click"
+                            Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0 4" ColumnDefinitions="*,400">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Orders:" Width="100" VerticalAlignment="Center" x:Name="FwOrdersText" ToolTip.Tip="Orders"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="ShopOrderBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="ShopOrderBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"/>
+                    <TextBlock Text="Per: " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"/>
+                    <ComboBox PlaceholderText="Mode" Width="100" x:Name="ModeBox" SelectedIndex="0" Margin="4 0 4 0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="50" Text="1" PlaceholderText="5" VerticalAlignment="Center" FontSize="12" Height="34"
+                             ToolTip.Tip="Number of items in the order to sum the amount"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="Integer" x:Name="OrderQuantitySimBox"/>
+                    <TextBox Margin="4 0 4 0" Width="80" Text="29.99" PlaceholderText="1.00" VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="OrderTotalSimBox"/>
+                    <AutoCompleteBox Width="100" x:Name="OrderCurrencyBox" Height="34"
+                                     views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestFwShopOrder_Click"
+                            Width="60" Padding="2" Height="34" views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0 4" ColumnDefinitions="*,400">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Gift Orders:" Width="100" VerticalAlignment="Center" x:Name="gFwOrdersText" ToolTip.Tip="Gift Purchase Orders"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="gShopOrderBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="gShopOrderBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"/>
+                    <TextBlock Text="Per: " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"/>
+                    <ComboBox PlaceholderText="Mode" Width="100" x:Name="gModeBox" SelectedIndex="0" Margin="4 0 4 0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="50" Text="1" PlaceholderText="5" VerticalAlignment="Center" FontSize="12" Height="34"
+                             ToolTip.Tip="Number of items in the order to sum the amount"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="Integer" x:Name="gOrderQuantitySimBox"/>
+                    <TextBox Margin="4 0 4 0" Width="80" Text="29.99" PlaceholderText="1.00" VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="gOrderTotalSimBox"/>
+                    <AutoCompleteBox Width="100" x:Name="gOrderCurrencyBox" Height="34"
+                                     views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestFwShopGiftOrder_Click"
+                            Width="60" Padding="2" Height="34" views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0 2 0 0" ColumnDefinitions="*,400">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <CheckBox x:Name="OrderCommissionBox" Content="Add order profit as donation?" Margin="-10 0 0 0"/>
+                    <CheckBox x:Name="GiftCommissionBox" Content="Add gift order profit as donation?" Margin="14 0 0 0"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Memberships -->
+        <Expander Header="Memberships" IsExpanded="False" Margin="0,5,0,0">
+            <StackPanel x:Name="MembershipsPanel" Margin="10,5,0,5">
+                <Grid x:Name="DefaultMember" Margin="0,2" ColumnDefinitions="*,400">
+                    <StackPanel Orientation="Horizontal" Margin="4,2">
+                        <TextBlock Text="Default:" Width="160" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="FwSubDTextBox" Height="36"/>
+                        <TextBlock Margin="8,0,0,0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" Height="36" PlaceholderText="1" x:Name="FwSubDTextBox2"/>
+                        <TextBlock Margin="8,0,0,0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <ComboBox PlaceholderText="Duration" Width="110" Height="36" FontSize="12"
+                                  x:Name="SimMembershipDuration" ToolTip.Tip="Select Monthly (x1) or Annual (x12)"
+                                  views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4,0,4,0">
+                            <ComboBoxItem Content="Monthly"/>
+                            <ComboBoxItem Content="Annual"/>
+                        </ComboBox>
+                        <ComboBox PlaceholderText="Tier" Width="150" Height="36" FontSize="12"
+                                  x:Name="SimFwTierSelection" ToolTip.Tip="Select Membership Tier"
+                                  views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4,0,4,0">
+                            <ComboBoxItem Content="DEFAULT"/>
+                        </ComboBox>
+                        <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestFwSub_Click"
+                                Width="60" Padding="2" Height="36" Margin="4,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Expander>
+    </StackPanel>
+</external:DevTunnelSettingsControl>

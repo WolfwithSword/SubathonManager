@@ -1,83 +1,74 @@
-﻿using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Objects;
-
-// ReSharper disable NullableWarningSuppressionIsUsed
+using SubathonManager.UI.UiUtils;
 // ReSharper disable InconsistentNaming
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
 
 public abstract class DevTunnelSettingsControl : SettingsControl
 {
-    
-    protected abstract Wpf.Ui.Controls.PasswordBox _WebhookUrlBox { get; }
-    protected abstract Wpf.Ui.Controls.TextBlock _WebhookStatusText{ get; }
+    protected abstract TextBox _WebhookUrlBox { get; }
+    protected abstract TextBlock _WebhookStatusText { get; }
     protected abstract SubathonEventSource _EventSource { get; }
     protected abstract StackPanel _WebhookUrlRow { get; }
-    protected abstract Wpf.Ui.Controls.TextBlock _TunnelPrereqStatusText{ get; }
-    protected abstract Wpf.Ui.Controls.Button _TunnelPrereqHint { get; }
-    protected abstract Wpf.Ui.Controls.TextBox? _WebhookForwardUrlsBox { get; }
+    protected abstract TextBlock _TunnelPrereqStatusText { get; }
+    protected abstract Button _TunnelPrereqHint { get; }
+    protected abstract TextBox? _WebhookForwardUrlsBox { get; }
     protected abstract Popup? _ForwardUrlsPopup { get; }
-    protected abstract Wpf.Ui.Controls.TextBox? _ForwardUrlsMultiBox { get; }
-    protected abstract Wpf.Ui.Controls.Button? _ConnectBtn { get; }
-    
-    internal void GoToDevTunnels_Click(object sender, RoutedEventArgs e)
+    protected abstract TextBox? _ForwardUrlsMultiBox { get; }
+    protected abstract Button? _ConnectBtn { get; }
+
+    internal void GoToDevTunnels_Click(object? sender, RoutedEventArgs e)
     {
         SettingsEvents.RaiseHotLinkToDevTunnelsRequest();
     }
-    
-    // Called on every Loaded (incl. re-visits after switching tabs) so the UI
-    // always reflects the latest stored state without relying on in-memory service
-    // properties or a live event that may have fired while this control was detached.
+
     internal void RefreshFromStoredState()
     {
-        // DevTunnels prereq banner: read the last-known tunnel state from the shared dict.
         UpdateStatus(Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel"));
-        
-        UpdateStatus(Utils.GetConnection(_EventSource,
-            $"{_EventSource}"));
+        UpdateStatus(Utils.GetConnection(_EventSource, $"{_EventSource}"));
     }
-    
-    internal async void CopyWebhookUrl_Click(object sender, RoutedEventArgs e)
+
+    internal async void CopyWebhookUrl_Click(object? sender, RoutedEventArgs e)
     {
-        var url = _WebhookUrlBox.Password;
+        var url = _WebhookUrlBox.Text;
         if (string.IsNullOrWhiteSpace(url)) return;
-        var result = await UiUtils.UiUtils.TrySetClipboardTextAsync(url);
+        var result = await UiHelpers.TrySetClipboardTextAsync(url);
         if (!result) return;
-        var btn = (sender as Wpf.Ui.Controls.Button)!;
+        if (sender is not Button btn) return;
         var original = btn.Content;
         btn.Content = "Copied!";
         await Task.Delay(1500);
         btn.Content = original;
     }
-    
+
     internal override void UpdateStatus(IntegrationConnection? connection)
     {
         if (connection == null) return;
 
-        Dispatcher.Invoke(() =>
+        Dispatcher.UIThread.Post(() =>
         {
-            // Services compose and own the full public URL; we just display Name.
             if (connection.Source == _EventSource)
             {
                 Host.UpdateConnectionStatus(connection.Status, _WebhookStatusText, _ConnectBtn);
                 ApplyWebhookUrl(connection.Name);
             }
 
-            // Tunnel prereq banner, driven by DevTunnels tunnel events.
             if (connection is { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" })
                 ApplyTunnelBanner(connection.Status, connection.Name);
         });
     }
-    
+
     private void ApplyWebhookUrl(string? url)
     {
         bool hasUrl = !string.IsNullOrWhiteSpace(url);
-        _WebhookUrlRow.Visibility = hasUrl ? Visibility.Visible : Visibility.Collapsed;
+        _WebhookUrlRow.IsVisible = hasUrl;
         if (hasUrl) _WebhookUrlBox.Text = url!;
     }
 
@@ -85,14 +76,13 @@ public abstract class DevTunnelSettingsControl : SettingsControl
     {
         bool starting = nameOrHint == "(starting...)";
         _TunnelPrereqStatusText.Text = starting ? "Starting..." : (running ? "Running" : "Not running");
-        _TunnelPrereqHint.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
-        // The URL row is driven by the sourceTunnel connection (Name field), not here.
+        _TunnelPrereqHint.IsVisible = !running;
     }
-    
-    internal void EditForwardUrls_Click(object sender, RoutedEventArgs e)
+
+    internal void EditForwardUrls_Click(object? sender, RoutedEventArgs e)
     {
         if (_WebhookForwardUrlsBox == null || _ForwardUrlsPopup == null || _ForwardUrlsMultiBox == null) return;
-        var urls = _WebhookForwardUrlsBox.Text
+        var urls = (_WebhookForwardUrlsBox.Text ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         _ForwardUrlsMultiBox.Text = string.Join(Environment.NewLine, urls);
 
@@ -103,20 +93,20 @@ public abstract class DevTunnelSettingsControl : SettingsControl
         if (!string.IsNullOrWhiteSpace(text) && !text.EndsWith(Environment.NewLine))
             _ForwardUrlsMultiBox.Text = text + Environment.NewLine;
 
-        _ForwardUrlsMultiBox.CaretIndex = _ForwardUrlsMultiBox.Text.Length;
+        _ForwardUrlsMultiBox.CaretIndex = (_ForwardUrlsMultiBox.Text ?? "").Length;
     }
 
-    internal void ForwardUrlsApply_Click(object sender, RoutedEventArgs e)
+    internal void ForwardUrlsApply_Click(object? sender, RoutedEventArgs e)
     {
         if (_WebhookForwardUrlsBox == null || _ForwardUrlsPopup == null || _ForwardUrlsMultiBox == null) return;
-        var urls = _ForwardUrlsMultiBox.Text
+        var urls = (_ForwardUrlsMultiBox.Text ?? "")
             .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(u => !string.IsNullOrWhiteSpace(u));
         _WebhookForwardUrlsBox.Text = string.Join(", ", urls);
         _ForwardUrlsPopup.IsOpen = false;
     }
 
-    internal void ForwardUrlsCancel_Click(object sender, RoutedEventArgs e)
+    internal void ForwardUrlsCancel_Click(object? sender, RoutedEventArgs e)
     {
         if (_WebhookForwardUrlsBox == null || _ForwardUrlsPopup == null || _ForwardUrlsMultiBox == null) return;
         _ForwardUrlsPopup.IsOpen = false;

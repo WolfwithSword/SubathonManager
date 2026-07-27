@@ -1,0 +1,69 @@
+using Avalonia.Controls;
+using SubathonManager.Core.Enums;
+using SubathonManager.UI.Views.SettingsViews.External;
+
+namespace SubathonManager.UI.Views.SettingsViews;
+
+public partial class ExternalSettings : SettingsGroupControl
+{
+    protected override IEnumerable<SubathonEventSource> _eventSources =>
+        Enum.GetValues<SubathonEventSource>()
+            .Where(s => s.GetGroup() == SubathonSourceGroup.ExternalService && s != SubathonEventSource.KoFiTunnel)
+            .OrderBy(g => g.GetGroupLabelOrder());
+
+    protected override StackPanel? GetSourceContents => SourceContents;
+    protected override Panel? GetSourceList => SourceList;
+
+    public ExternalSettings()
+    {
+        InitializeComponent();
+    }
+
+    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
+    {
+        if (_settingsControls.TryGetValue(eventSource, out var control)) return control;
+
+        switch (eventSource)
+        {
+            case SubathonEventSource.KoFi:
+                _settingsControls[eventSource] = new KoFiCombinedSettings();
+                break;
+            case SubathonEventSource.KoFiTunnel:
+                return _settingsControls.TryGetValue(SubathonEventSource.KoFi, out var kofi) ? kofi : null;
+            case SubathonEventSource.GoAffPro:
+                _settingsControls[eventSource] = new GoAffProSettings();
+                break;
+            case SubathonEventSource.External:
+                _settingsControls[eventSource] = new ExternalServiceSettings();
+                break;
+            case SubathonEventSource.FourthWall:
+                _settingsControls[eventSource] = new FourthWallSettings();
+                break;
+            case SubathonEventSource.Throne:
+                _settingsControls[eventSource] = new ThroneSettings();
+                break;
+            case SubathonEventSource.PallyGG:
+                _settingsControls[eventSource] = new PallySettings();
+                break;
+            case SubathonEventSource.MakeShip:
+                _settingsControls[eventSource] = new MakeShipSettings();
+                break;
+            case SubathonEventSource.JuniperCreates:
+                _settingsControls[eventSource] = new JuniperSettings();
+                break;
+            default: return null;
+        }
+        _settingsControls[eventSource].Init(Host);
+        return _settingsControls[eventSource];
+    }
+
+    public void RefreshTierCombo(SubathonEventSource source)
+    {
+        if (source is not (SubathonEventSource.KoFi or SubathonEventSource.External)) return;
+        _settingsControls.TryGetValue(source, out var control);
+        if (source == SubathonEventSource.KoFi)
+            (control as KoFiCombinedSettings)?.RefreshTierCombo();
+        if (source == SubathonEventSource.External)
+            (control as ExternalServiceSettings)?.RefreshTierCombo();
+    }
+}

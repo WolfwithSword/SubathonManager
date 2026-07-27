@@ -1,0 +1,245 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ctl="using:SubathonManager.UI.Controls"
+             xmlns:val="using:SubathonManager.UI.Validation"
+             xmlns:local="using:SubathonManager.UI.Views.WheelSpin"
+             mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="1200"
+             x:Class="SubathonManager.UI.Views.WheelSpin.WheelEditor">
+    <TabControl Background="Transparent" BorderThickness="0">
+        <TabItem Header="Wheel">
+            <Grid x:Name="RootGrid" Focusable="True" PointerPressed="Grid_PointerPressed"
+                  ColumnDefinitions="3*,2*" RowDefinitions="*,*">
+
+                <!-- Left Top: wheel item list -->
+                <Border Grid.Column="0" Grid.Row="0" Padding="8" Margin="16,16,8,-72"
+                        BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+                    <Grid RowDefinitions="Auto,Auto,Auto,*">
+                        <Grid Grid.Row="0" Margin="0,0,0,6" ColumnDefinitions="*,Auto">
+                            <TextBox x:Name="WheelNameTextBox" FontWeight="Bold" FontSize="18" IsTabStop="False"
+                                     PlaceholderText="Wheel name..." Height="38" BorderThickness="0" Background="Transparent"
+                                     VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="2"
+                                     LostFocus="WheelNameTextBox_LostFocus"/>
+                            <Button Grid.Column="1" Classes="iconbtn" Width="30" Height="30"
+                                    ToolTip.Tip="Add New Item" Click="AddItem_Click">
+                                <ctl:SymIcon Glyph="Add16"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- action bar -->
+                        <Grid Grid.Row="1" Margin="2,4,4,4" ColumnDefinitions="Auto,Auto,*,Auto">
+                            <Button x:Name="SpinWheelBtn" Content="Spin Wheel" Click="SpinWheel_Click" Height="36" Padding="14,2"/>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+                                <TextBlock Text="Delay:" FontSize="12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBox x:Name="SpinDelayBox" Width="48" Height="36" val:NumericInputBehaviour.Mode="Integer"
+                                         LostFocus="SpinDelayBox_LostFocus"
+                                         ToolTip.Tip="Seconds to wait after spinning before logging/processing the result"/>
+                                <TextBlock Text="s" FontSize="12" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Spins Owed:" FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <Button Classes="iconbtn" Width="28" Height="36" Click="SpinsOwedDecrement_Click" ToolTip.Tip="Decrement spins owed">
+                                    <ctl:SymIcon Glyph="Subtract16"/>
+                                </Button>
+                                <TextBox x:Name="SpinsOwedBox" Width="56" Height="36" val:NumericInputBehaviour.Mode="Integer"
+                                         LostFocus="SpinsOwedBox_LostFocus" Margin="2,0"
+                                         ToolTip.Tip="Total spins owed - global across all wheels"/>
+                                <Button Classes="iconbtn" Width="28" Height="36" Click="SpinsOwedIncrement_Click" ToolTip.Tip="Increment spins owed">
+                                    <ctl:SymIcon Glyph="Add16"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Grid.Row="2" BorderBrush="#444" BorderThickness="0,0,0,1" Margin="0,4,0,2">
+                            <Grid Margin="4,0,8,5" ColumnDefinitions="28,*,68,68,80,36">
+                                <TextBlock Grid.Column="0" Text="On" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="Item Text" FontSize="11" Foreground="Gray" Margin="6,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="Weight" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"
+                                           ToolTip.Tip="Higher weight = greater spin probability. An item's chance is its weight / sum of all enabled items' weights"/>
+                                <TextBlock Grid.Column="3" Text="Qty" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                                <TextBlock Grid.Column="4" Text="Action" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <ScrollViewer Grid.Row="3" x:Name="ItemsScroller" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="ItemsStack" Orientation="Vertical" Margin="0,2,0,0"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Left Bottom: spin history -->
+                <Border Grid.Column="0" Grid.Row="1" Padding="8" Margin="16,80,8,16"
+                        BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+                    <Grid RowDefinitions="Auto,Auto,*">
+                        <Grid Grid.Row="0" Margin="0,0,0,4" ColumnDefinitions="*,Auto,Auto">
+                            <TextBlock Text="Spin History" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="HistoryFilterBox" Grid.Column="1" Width="116" Height="26" Margin="0,0,4,0"
+                                      FontSize="10" SelectedIndex="0" Padding="4,0" VerticalContentAlignment="Center"
+                                      SelectionChanged="HistoryFilter_SelectionChanged">
+                                <ComboBoxItem Content="All" Tag="All" FontSize="10"/>
+                                <ComboBoxItem Content="Pending" Tag="Pending" FontSize="10"/>
+                                <ComboBoxItem Content="Completed" Tag="Done" FontSize="10"/>
+                                <ComboBoxItem Content="Cancelled" Tag="Cancelled" FontSize="10"/>
+                            </ComboBox>
+                            <Button Grid.Column="2" Classes="iconbtn" Width="28" Height="28"
+                                    ToolTip.Tip="Export all spin history to CSV" Click="ExportHistory_Click">
+                                <ctl:SymIcon Glyph="ArrowExportUp16"/>
+                            </Button>
+                        </Grid>
+
+                        <Border Grid.Row="1" BorderBrush="#444" BorderThickness="0,0,0,1" Margin="0,0,4,2">
+                            <Grid Margin="2,0,2,4" ColumnDefinitions="78,1.7*,*,70,80">
+                                <TextBlock Grid.Column="0" Text="Time" FontSize="10" Foreground="Gray"/>
+                                <TextBlock Grid.Column="1" Text="Item" FontSize="10" Foreground="Gray" Margin="4,0,0,0"/>
+                                <TextBlock Grid.Column="2" Text="Action" FontSize="10" Foreground="Gray" Margin="4,0,0,0"/>
+                                <TextBlock Grid.Column="3" Text="Status" FontSize="10" Foreground="Gray" HorizontalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <ScrollViewer Grid.Row="2" x:Name="HistoryScroller" VerticalScrollBarVisibility="Auto"
+                                      ScrollChanged="HistoryScroller_ScrollChanged">
+                            <StackPanel x:Name="HistoryStack" Orientation="Vertical" Margin="0,2,0,0"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Right: editor panel -->
+                <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="20,16,16,56">
+
+                            <TextBlock Text="Wheel Spin Editor" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+
+                            <Grid Margin="0,0,0,10" ColumnDefinitions="*,Auto,Auto">
+                                <ComboBox x:Name="WheelSelectorBox" Height="36" HorizontalAlignment="Stretch"
+                                          SelectionChanged="WheelSelectorBox_SelectionChanged"/>
+                                <Button Grid.Column="1" Classes="iconbtn" Width="34" Height="34" Margin="4,0,0,0"
+                                        ToolTip.Tip="New wheel" Click="NewWheel_Click">
+                                    <ctl:SymIcon Glyph="Add16"/>
+                                </Button>
+                                <Button Grid.Column="2" x:Name="DeleteWheelBtn" Classes="iconbtn" Width="34" Height="34" Margin="4,0,0,0"
+                                        ToolTip.Tip="Delete this wheel" Click="DeleteWheel_Click" Foreground="Red">
+                                    <ctl:SymIcon Glyph="Delete16"/>
+                                </Button>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Click="ExportWheel_Click" Height="30" Padding="12,4" Margin="0,0,6,0"
+                                        ToolTip.Tip="Export this wheel to CSV">
+                                    <ctl:SymIcon Glyph="ArrowExportUp16"/>
+                                </Button>
+                                <Button Click="ImportWheel_Click" Height="30" Padding="12,4"
+                                        ToolTip.Tip="Import a wheel from CSV">
+                                    <ctl:SymIcon Glyph="ArrowDownload16"/>
+                                </Button>
+                            </StackPanel>
+
+                            <Border Padding="10" BorderThickness="1" BorderBrush="#333" CornerRadius="6" Margin="0,0,0,12">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="Total Spins: " FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBox x:Name="SpinCountBox" Text="0" Width="72" Height="32" FontSize="14" FontWeight="Bold"
+                                                 BorderThickness="0" Background="Transparent" Foreground="CornflowerBlue"
+                                                 val:NumericInputBehaviour.Mode="Integer" LostFocus="SpinCountBox_LostFocus"
+                                                 VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" x:Name="ResetSpinCountBtn" Content="Reset" Height="30" Padding="10,2"
+                                            ToolTip.Tip="Reset the spin count to zero" Click="ResetSpinCount_Click"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Item editor -->
+                            <Border x:Name="ItemDetailBorder" Padding="10" BorderThickness="1" BorderBrush="#333" CornerRadius="6"
+                                    Margin="0,0,0,12" IsVisible="False">
+                                <StackPanel>
+                                    <TextBlock Text="Selected Item" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                                    <TextBlock Text="Text:" FontSize="12" Margin="2,0,0,3"/>
+                                    <TextBox x:Name="ItemTextBox" PlaceholderText="What can be spun..." Height="36" Margin="0,0,0,8"/>
+
+                                    <Grid Margin="0,0,0,8" ColumnDefinitions="*,8,*">
+                                        <StackPanel>
+                                            <TextBlock Text="Weight:" FontSize="12" Margin="2,0,0,3"/>
+                                            <TextBox x:Name="ItemWeightBox" Height="36" val:NumericInputBehaviour.Mode="Integer"
+                                                     ToolTip.Tip="Higher weight = more likely to be picked"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Quantity:" FontSize="12" Margin="2,0,0,3"/>
+                                            <TextBox x:Name="ItemQuantityBox" Height="36" val:NumericInputBehaviour.Mode="Integer"
+                                                     ToolTip.Tip="How many times this item can be picked. Ignored if Infinite is on."/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <CheckBox x:Name="ItemInfiniteCheck" Content="Infinite (no stock limit)"
+                                                  IsCheckedChanged="ItemInfinite_Changed"/>
+                                    </StackPanel>
+
+                                    <Border BorderBrush="#3a3a3a" BorderThickness="0,1,0,0" Margin="0,4,0,0" Padding="0,8,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="Action" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+
+                                            <TextBlock Text="Action Type:" FontSize="12" Margin="2,0,0,3"/>
+                                            <ComboBox x:Name="ActionTypeBox" Height="36" Margin="0,0,0,8" HorizontalAlignment="Stretch"
+                                                      SelectionChanged="ActionType_SelectionChanged"/>
+
+                                            <StackPanel x:Name="ActionParameterPanel" IsVisible="False">
+                                                <StackPanel x:Name="TimeParamPanel" IsVisible="False">
+                                                    <TextBlock Text="Duration:" FontSize="12" Margin="2,0,0,3"/>
+                                                    <TextBox x:Name="ActionParameterBox" Height="36" PlaceholderText="e.g. 300s, 5m, 1h30m"/>
+                                                    <TextBlock x:Name="ActionHintText" FontSize="11" Foreground="Gray"
+                                                               TextWrapping="Wrap" Margin="2,4,0,0"/>
+                                                </StackPanel>
+
+                                                <StackPanel x:Name="MultiplierParamPanel" IsVisible="False">
+                                                    <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,10,Auto">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Multiplier:" FontSize="12" Margin="2,0,0,3"/>
+                                                            <TextBox x:Name="MultiplierAmountBox" Height="36" Width="90"
+                                                                     PlaceholderText="e.g. 2.0" val:NumericInputBehaviour.Mode="Decimal"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Duration:" FontSize="12" Margin="2,0,0,3"/>
+                                                            <TextBox x:Name="MultiplierDurationBox" Height="36" Width="230"
+                                                                     PlaceholderText="e.g. 30m or 1h (required)"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                        <TextBlock Text="Multiply for: " FontSize="12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                        <CheckBox x:Name="MultiplierTimeCheck" Content="Time?" Margin="0,0,16,0"
+                                                                  IsCheckedChanged="Multiplier_Changed"/>
+                                                        <CheckBox x:Name="MultiplierPointsCheck" Content="Points?"
+                                                                  IsCheckedChanged="Multiplier_Changed"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+
+                                                <StackPanel x:Name="RerollParamPanel" IsVisible="False">
+                                                    <TextBlock Text="Rerolls to Add:" FontSize="12" Margin="2,0,0,3"/>
+                                                    <TextBox x:Name="RerollCountBox" Height="36" Width="160"
+                                                             PlaceholderText="e.g. 1 (min 1)" val:NumericInputBehaviour.Mode="Integer"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBlock x:Name="StatusText" Foreground="OrangeRed" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <Border x:Name="SaveButtonBorder" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                            CornerRadius="6" BorderThickness="2" BorderBrush="Transparent" Margin="6,10,14,10">
+                        <Button x:Name="SaveBtn" Content="Save Changes" Classes="accent" Click="Save_Click" Width="140" Height="38"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </TabItem>
+
+        <TabItem Header="Triggers">
+            <local:WheelTriggerEditor x:Name="TriggerEditor"/>
+        </TabItem>
+    </TabControl>
+</UserControl>

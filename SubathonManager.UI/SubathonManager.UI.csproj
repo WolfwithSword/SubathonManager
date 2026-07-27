@@ -1,165 +1,61 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
-        <TargetFramework>net10.0-windows</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
-        <UseWPF>true</UseWPF>  
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
         <Version>0.0.0</Version>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
         <FileVersion>0.0.0.0</FileVersion>
         <InformationalVersion>dev</InformationalVersion>
         <AssemblyName>SubathonManager</AssemblyName>
+        <RootNamespace>SubathonManager.UI</RootNamespace>
         <ApplicationIcon>..\assets\icon.ico</ApplicationIcon>
-        <ForceManagedImplementation>true</ForceManagedImplementation>
         <Company>WolfwithSword</Company>
         <Copyright>© 2025-$(CopyrightYear) WolfwithSword and contributors</Copyright>
-        <NoWarn>$(NoWarn);WPF0001</NoWarn>
-        <NoWarn>$(NoWarn);NU1701</NoWarn>
-        <NoWarn>$(NoWarn);CS8981</NoWarn>
+        <NoWarn>$(NoWarn);NU1701;CS8981</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
-        <Resource Include="..\assets\icon.png" />
-        <Resource Include="..\assets\icon_base.png" />
-        <Resource Include="..\assets\icon.ico" />
+        <AvaloniaResource Include="Assets\**" />
+        <None Include="..\assets\icon.png" Link="Assets\icon.png">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
     <ItemGroup Condition="'$(Configuration)' != 'Release'">
         <Content Include="..\assets\**\*">
+            <Link>assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
-    
+
     <ItemGroup>
-        <ApplicationIcon Include="..\assets\icon.ico" />
-    </ItemGroup>
-    
-    <ItemGroup>
-      <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
-      <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
-      <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
-      <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
+        <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
+        <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
+        <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
+        <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
-      <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
-      <PackageReference Include="WPF-UI" Version="4.3.0" />
-    </ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Controls.WebView" Version="12.0.1" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
 
-    <ItemGroup>
-      <Compile Update="MainWindow.SubathonTimer.cs">
-        <DependentUpon>MainWindow.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="MainWindow.Routes.cs">
-        <DependentUpon>MainWindow.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="Views\SettingsView.Settings.cs">
-        <DependentUpon>SettingsView.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="Views\SettingsView.SubathonTimer.cs">
-        <DependentUpon>SettingsView.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="MainWindow.Validation.xaml.cs">
-        <DependentUpon>MainWindow.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="App.Subathon.xaml.cs">
-        <DependentUpon>App.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="MainWindow.Multiplier.cs">
-        <DependentUpon>MainWindow.xaml</DependentUpon>
-      </Compile>
-      <Compile Update="..\SubathonManager.Data\Migrations\*.cs">
-        <NoWarn>IDE1006</NoWarn>
-        <NoWarn>CS8981</NoWarn>
-      </Compile>
-      <Compile Update="EditRouteWindow.Handlers.cs">
-        <DependentUpon>EditRouteWindow.xaml</DependentUpon>
-      </Compile>
-    </ItemGroup>
+        <PackageReference Include="FluentAvaloniaUI" Version="3.0.2" />
 
-    <ItemGroup>
-      <Page Update="Views\GoalsView.xaml">
-        <Generator>MSBuild:Compile</Generator>
-        <XamlRuntime>Wpf</XamlRuntime>
-        <SubType>Designer</SubType>
-      </Page>
-        <Page Update="Themes\DARK.xaml">
-            <Generator>MSBuild:Compile</Generator>
-            <XamlRuntime>Wpf</XamlRuntime>
-            <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Themes\LIGHT.xaml">
-            <Generator>MSBuild:Compile</Generator>
-            <XamlRuntime>Wpf</XamlRuntime>
-            <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Streaming\TwitchSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Streaming\YouTubeSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Streaming\PicartoSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\StreamingSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\External\GoAffPro\GoAffProSourceControl.xaml">
-          <Generator>MSBuild:Compile</Generator>
-        </Page>
-        <Page Update="Views\SettingsViews\External\GoAffProSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Extensions\ChatExtensionSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\External\ExternalServiceSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Extensions\StreamElementsSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Extensions\StreamLabsSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\Extensions\TipeeeStreamSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\External\KoFi\KoFiWebhookSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
-        <Page Update="Views\SettingsViews\External\KoFi\KoFiSettings.xaml">
-          <Generator>MSBuild:Compile</Generator>
-          <XamlRuntime>Wpf</XamlRuntime>
-          <SubType>Designer</SubType>
-        </Page>
+        <PackageReference Include="FluentIcons.Avalonia" Version="2.1.333" />
+
+        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
+        <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0" />
     </ItemGroup>
 
 </Project>

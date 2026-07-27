@@ -1,0 +1,365 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        xmlns:views="using:SubathonManager.UI.Views"
+        xmlns:prompts="using:SubathonManager.UI.Views.Prompts"
+        xmlns:wheel="using:SubathonManager.UI.Views.WheelSpin"
+        xmlns:ctl="using:SubathonManager.UI.Controls"
+        xmlns:v="using:SubathonManager.UI.Validation"
+        x:Class="SubathonManager.UI.MainWindow"
+        Title="Subathon Manager"
+        Icon="/Assets/icon.png"
+        Width="1200" Height="800"
+        MinWidth="1200" MinHeight="800"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppGeneralBackground}">
+
+    <Grid Background="{DynamicResource AppGeneralBackground}">
+
+        <TabControl x:Name="MainWindowTabs" Classes="pagetabs" Background="Transparent">
+            <TabItem Header="Home">
+                <Grid ColumnDefinitions="500,*">
+                    <Grid Grid.Column="0" Margin="10" RowDefinitions="Auto,*">
+                        <StackPanel Grid.Row="0" Spacing="6">
+                            <TextBlock Text="Welcome to Subathon Manager!" FontSize="22" FontWeight="Bold"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="14"
+                                       Text="Use the Overlays tab to manage your overlays and widgets, the Goals tab to setup your goals, and Settings to configure everything else!"/>
+                            <Separator Margin="4,12,4,8"/>
+                        </StackPanel>
+                        <TabControl Grid.Row="1" Classes="boxed" Background="Transparent">
+                            <TabItem Header="Recent Events">
+                                <views:EventListView/>
+                            </TabItem>
+                            <TabItem Header="Recent Prompts">
+                                <prompts:PromptRunListView/>
+                            </TabItem>
+                        </TabControl>
+                    </Grid>
+                    <StackPanel Grid.Column="1" Margin="34,2,10,10">
+                        <Grid RowDefinitions="300,*">
+                            <StackPanel Grid.Row="0" Margin="10,2,10,10">
+                                
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,5">
+                                    <Panel>
+                                        <Button x:Name="CapBtn" Click="CapBtn_Click" ToolTip.Tip="Set End Date (Cap)"
+                                                Width="30" Height="30" Margin="0,2,8,5" Padding="2">
+                                            <ctl:SymIcon x:Name="CapIcon" Glyph="Flag20"/>
+                                        </Button>
+                                        <!-- ReSharper disable once Xaml.InvalidType -->
+                                        <Popup x:Name="CapPopup" PlacementTarget="{Binding #CapBtn}" Placement="Bottom"
+                                               IsLightDismissEnabled="True">
+                                            <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                                                    BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="14">
+                                                <StackPanel Width="300">
+                                                    <TextBlock Text="Set end date / cap" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                                    <TextBlock x:Name="CapCurrentLabel" Text="No cap set" FontSize="12"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,10"/>
+                                                    <TextBlock Text="Date" FontSize="11" Margin="0,0,0,3"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                    <DatePicker x:Name="CapDatePicker" Margin="0,0,0,8" HorizontalAlignment="Stretch"
+                                                                SelectedDateChanged="CapDatePicker_SelectedDateChanged"/>
+                                                    <TextBlock Text="Time (24h)" FontSize="11" Margin="0,0,0,3"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                        <TextBox x:Name="CapHourInput" Width="72" Height="34" PlaceholderText="HH" MaxLength="2"
+                                                                 v:NumericInputBehaviour.Mode="Integer"
+                                                                 TextChanged="CapTime_TextChanged" Margin="0,0,6,0"/>
+                                                        <TextBlock Text=":" VerticalAlignment="Center" FontSize="18" Margin="0,0,6,0"/>
+                                                        <TextBox x:Name="CapMinuteInput" Width="72" Height="34" PlaceholderText="MM" MaxLength="2"
+                                                                 v:NumericInputBehaviour.Mode="Integer"
+                                                                 TextChanged="CapTime_TextChanged"/>
+                                                    </StackPanel>
+                                                    <TextBlock x:Name="CapValidationMsg" Text="" FontSize="11" Foreground="OrangeRed"
+                                                               Margin="0,2,0,8" TextWrapping="Wrap"/>
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                        <Button x:Name="ClearCapBtn" Content="Clear" Width="72" Height="30" Margin="0,0,8,0"
+                                                                Click="ClearCap_Click"/>
+                                                        <Button x:Name="SetCapBtn" Content="Set Cap" Classes="accent" Width="80" Height="30"
+                                                                Click="SetCap_Click"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                    </Panel>
+                                    <Button x:Name="StartSubathonBtn" Click="StartNewSubathon_Click" Content="Start New Subathon"
+                                            Width="220" Height="30" Margin="0,2,0,5"/>
+                                </StackPanel>
+
+                                <!-- Pause / Lock + Timer -->
+                                <Grid Margin="124,0,0,0" ColumnDefinitions="180,*">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="12,0,16,5">
+                                        <Button x:Name="TogglePauseTimerBtn" Click="TogglePauseSubathon_Click" ToolTip.Tip="Resume"
+                                                Classes="iconbtn" Width="34" Height="34" Margin="0,10,6,5">
+                                            <ctl:SymIcon x:Name="PauseIcon" Glyph="Pause16"/>
+                                        </Button>
+                                        <Button x:Name="ToggleLockTimerBtn" Click="ToggleLockSubathon_Click" Classes="iconbtn"
+                                                Width="34" Height="34" Margin="0,10,6,5">
+                                            <ctl:SymIcon x:Name="LockIcon" Glyph="LockClosed16"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ctl:SymIcon x:Name="LockStatus" Glyph="LockClosed16" Margin="4"/>
+                                        <Panel x:Name="TimerHoverArea" PointerEntered="TimerHoverArea_PointerEntered"
+                                               PointerExited="TimerHoverArea_PointerExited">
+                                            <TextBlock x:Name="TimerValue" HorizontalAlignment="Right" Text=""
+                                                       VerticalAlignment="Center" FontSize="44" Margin="0,6,16,4"/>
+                                            <!-- ReSharper disable Xaml.InvalidType -->
+                                            <Popup x:Name="StatsPopup" PlacementTarget="{Binding #TimerHoverArea}" Placement="Bottom"
+                                                   IsLightDismissEnabled="False">
+                                                <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                                                        BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                                                        BorderThickness="1" CornerRadius="8" Padding="16">
+                                                    <StackPanel Width="240">
+                                                        <TextBlock Text="Subathon Stats" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Elapsed Time" VerticalAlignment="Center" Margin="0,5"/>
+                                                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="StatsElapsedTime" Text="-" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,5"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="0" x:Name="StatsAccu" Text="Total Accumulated" VerticalAlignment="Center" Margin="0,5"/>
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="StatsTotalAccumulated" Text="-" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,5"/>
+                                                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Total Events" VerticalAlignment="Center" Margin="0,5"/>
+                                                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="StatsTotalEvents" Text="-" FontWeight="SemiBold" HorizontalAlignment="Right" Margin="0,5"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Popup>
+                                        </Panel>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Grid Margin="124,0,0,0" ColumnDefinitions="120,*">
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                                        <Button Click="SendRefreshRequest_Click" Classes="iconbtn" Width="34" Height="34" Margin="12,2,6,2" ToolTip.Tip="Refresh Overlays">
+                                            <ctl:SymIcon Glyph="Recycle16"/>
+                                        </Button>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,5">
+                                        <Button x:Name="AddTimeBtn" Click="AddTime_Click" ToolTip.Tip="Add Time" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                            <ctl:SymIcon Glyph="Add16"/>
+                                        </Button>
+                                        <Button x:Name="SubtractTimeBtn" Click="SubtractTime_Click" ToolTip.Tip="Subtract Time" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                            <ctl:SymIcon Glyph="Subtract16"/>
+                                        </Button>
+                                        <Button x:Name="SetTimeBtn" Click="SetTime_Click" ToolTip.Tip="Set Time" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                            <ctl:SymIcon Glyph="Clock16"/>
+                                        </Button>
+                                        <TextBox x:Name="AdjustSubathonTime" Margin="5,10,0,5" ToolTip.Tip="#d#h#m#s ex. 10m30s"
+                                                 PlaceholderText="30m" Text="5m" Height="34" Width="140" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Separator Margin="46,8,8,4"/>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock x:Name="MultiplierRemainingTime" HorizontalAlignment="Center" Text="" VerticalAlignment="Bottom" FontSize="12" Margin="0,2,24,6"/>
+                                    <TextBlock x:Name="MultiplierVals" HorizontalAlignment="Right" Text="" VerticalAlignment="Bottom" FontSize="16" Margin="0,2,24,6"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,2">
+                                    <Button x:Name="ToggleMultiplierBtn" Click="TogglePowerMultiplier_Click" ToolTip.Tip="Start Multiplier"
+                                            Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                        <ctl:SymIcon x:Name="MultiplierIcon" Glyph="Play16"/>
+                                    </Button>
+                                    <StackPanel Orientation="Vertical" HorizontalAlignment="Right" Margin="8,0,8,0" MaxWidth="90">
+                                        <CheckBox x:Name="ApplyTimeCb" HorizontalAlignment="Left" VerticalContentAlignment="Center"
+                                                  ToolTip.Tip="Apply Multiplier to Time?" Content="Time?" FontSize="12" Padding="4,0,0,0"/>
+                                        <CheckBox x:Name="ApplyPtsCb" HorizontalAlignment="Left" VerticalContentAlignment="Center"
+                                                  ToolTip.Tip="Apply Multiplier to Points?" Content="Points?" FontSize="12" Padding="4,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="MultiplierAmtInput" Margin="5,10,0,5" v:NumericInputBehaviour.Mode="SignedDecimal"
+                                             PlaceholderText="2" ToolTip.Tip="Multiplier Amount (0.5, 1.25, 2, etc)" Text="2" Height="34" Width="80" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="MultiplierDurationInput" Margin="5,10,0,5" ToolTip.Tip="Duration (leave empty if only manually ending)"
+                                             PlaceholderText="1h" Text="1h" Height="34" Width="140" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Grid Grid.Row="1">
+                                <StackPanel>
+                                    <Separator Margin="51,4,13,4"/>
+                                    <Grid ColumnDefinitions="*,*">
+                                        <TextBlock x:Name="MoneyValue" HorizontalAlignment="Left" Text="" VerticalAlignment="Center" FontSize="24" Margin="112,2,8,6"/>
+                                        <TextBlock Grid.Column="1" x:Name="PointsValue" HorizontalAlignment="Right" Text="" VerticalAlignment="Center" FontSize="34" Margin="0,2,24,6"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,*">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="42,0,12,5">
+                                            <Button x:Name="AddMoneyBtn" Click="AddMoney_Click" ToolTip.Tip="Add Money (does not affect timer)" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                                <ctl:SymIcon Glyph="Add16"/>
+                                            </Button>
+                                            <Button x:Name="SubtractMoneyBtn" Click="SubtractMoney_Click" ToolTip.Tip="Subtract Money (does not affect timer)" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                                <ctl:SymIcon Glyph="Subtract16"/>
+                                            </Button>
+                                            <TextBox x:Name="AdjustSubathonMoney" Margin="5,10,0,5" Text="5.00" Height="34" Width="84" VerticalAlignment="Center"
+                                                     PlaceholderText="5.00" ToolTip.Tip="Amount" v:NumericInputBehaviour.Mode="SignedDecimal"/>
+                                            <AutoCompleteBox x:Name="AdjustCurrencyBox" Width="94" Height="34" ToolTip.Tip="Currency" Margin="5,10,0,5"
+                                                             FilterMode="Contains" MinimumPrefixLength="0"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,24,5">
+                                            <Button x:Name="AddPointsBtn" Click="AddPoints_Click" ToolTip.Tip="Add Points" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                                <ctl:SymIcon Glyph="Add16"/>
+                                            </Button>
+                                            <Button x:Name="SubtractPointsBtn" Click="SubtractPoints_Click" ToolTip.Tip="Subtract Points" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                                <ctl:SymIcon Glyph="Subtract16"/>
+                                            </Button>
+                                            <Button x:Name="SetPointsBtn" Click="SetPoints_Click" ToolTip.Tip="Set Points" Classes="iconbtn" Width="34" Height="30" Margin="3,10,3,5">
+                                                <ctl:SymIcon Glyph="Pen16"/>
+                                            </Button>
+                                            <TextBox x:Name="AdjustSubathonPoints" Margin="5,10,0,5" Text="1" Height="34" Width="140" VerticalAlignment="Center"
+                                                     ToolTip.Tip="Points" PlaceholderText="5" v:NumericInputBehaviour.Mode="Integer"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <views:GoalsView/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="OverlayTabItem" Header="Overlays">
+                <Grid Margin="10" ColumnDefinitions="2*,10,3*" RowDefinitions="Auto,*" x:CompileBindings="False">
+                    <Grid.Styles>
+                        <Style Selector="Border.routecard StackPanel.actions">
+                            <Setter Property="Opacity" Value="0"/>
+                            <Setter Property="Transitions">
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                                </Transitions>
+                            </Setter>
+                        </Style>
+                        <Style Selector="Border.routecard:pointerover StackPanel.actions">
+                            <Setter Property="Opacity" Value="1"/>
+                        </Style>
+                    </Grid.Styles>
+
+                    <Grid Grid.Row="0" Grid.Column="0" Margin="6,0,2,10" ColumnDefinitions="*,Auto,Auto">
+                        <TextBlock Grid.Column="0" Text="Overlays" FontWeight="Bold" FontSize="18" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Classes="opaquesecondary" Width="130" Padding="2" Margin="0,0,6,0"
+                                Click="ImportRoute_Click">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                                <ctl:SymIcon Glyph="ArrowImport16" VerticalAlignment="Center"/>
+                                <TextBlock Text="Import .smo" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Grid.Column="2" Classes="opaquesecondary" Width="130" Padding="2"
+                                Click="AddRoute_Click">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                                <ctl:SymIcon Glyph="Add16" VerticalAlignment="Center"/>
+                                <TextBlock Text="Create New" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <ScrollViewer Grid.Column="0" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="OverlaysList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes="routecard" Margin="0,0,0,8" Padding="12"
+                                            BorderThickness="1" CornerRadius="6"
+                                            BorderBrush="{DynamicResource UiBrushBorder}"
+                                            Background="{DynamicResource UiBrushControlBackground}"
+                                            DoubleTapped="RouteCard_DoubleTapped">
+                                        <Grid>
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap" FontWeight="SemiBold" FontSize="16"/>
+                                            </StackPanel>
+                                            <StackPanel Classes="actions" Orientation="Horizontal"
+                                                        VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10,0,0,0">
+                                                <Button ToolTip.Tip="Copy Link" Click="CopyRouteUrl_Click" Padding="2"
+                                                        Classes="opaquesecondary iconbtn" Width="32" Height="32" Margin="4,0">
+                                                    <ctl:SymIcon Glyph="Link20"/>
+                                                </Button>
+                                                <Button ToolTip.Tip="Add to OBS as Browser Source" Click="AddToObs_Click" Padding="2"
+                                                        Classes="opaquesecondary iconbtn" Width="32" Height="32" Margin="4,0"
+                                                        IsVisible="{Binding ObsConnected, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                    <ctl:SymIcon Glyph="VideoAdd20"/>
+                                                </Button>
+                                                <Button ToolTip.Tip="Edit" Click="EditRoute_Click" Padding="2"
+                                                        Classes="opaquesecondary iconbtn" Width="32" Height="32" Margin="4,0">
+                                                    <ctl:SymIcon Glyph="Edit20"/>
+                                                </Button>
+                                                <Button ToolTip.Tip="Copy" Click="DuplicateRoute_Click" Padding="2"
+                                                        Classes="opaquesecondary iconbtn" Width="32" Height="32" Margin="4,0">
+                                                    <ctl:SymIcon Glyph="Copy20"/>
+                                                </Button>
+                                                <Button ToolTip.Tip="Export" Click="ExportRoute_Click" Padding="2"
+                                                        Classes="opaquesecondary iconbtn" Width="32" Height="32" Margin="4,0">
+                                                    <ctl:SymIcon Glyph="ArrowExportUp20"/>
+                                                </Button>
+                                                <Button ToolTip.Tip="Delete" Click="DeleteRoute_Click" Padding="2"
+                                                        Classes="danger iconbtn" Width="32" Height="32" Margin="4,0">
+                                                    <ctl:SymIcon Glyph="Delete20"/>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <Rectangle Grid.RowSpan="2" Grid.Row="0" Grid.Column="1" Width="2" Fill="#30808080"
+                               Margin="6,4,2,4" VerticalAlignment="Stretch"/>
+
+                    <!-- Info panel, OBS browser sources -->
+                    <Grid Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Margin="16,2,8,4" RowDefinitions="Auto,*">
+                        <StackPanel Grid.Row="0" Orientation="Vertical">
+                            <TextBlock TextWrapping="Wrap" FontSize="16" Margin="2,2,2,4"
+                                       Text="Create and manage your overlays in the list to the left.&#x0a;Copy the URL to a browser source in OBS and set its resolution to match.&#x0a;Double click or press the edit button to configure your overlay."/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Click="SendRefreshRequest_Click" Width="154" Height="48" Margin="0,16,2,8">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                                        <TextBlock Text="Refresh All" VerticalAlignment="Center"/>
+                                        <ctl:SymIcon Glyph="Recycle16" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Content="Browse Presets" Width="154" Height="48"
+                                        Click="OpenBrowsePresets_Click" Margin="8,16,2,8"/>
+                                <Button Content="Browse Premade" Width="154" Height="48"
+                                        Click="OpenMarketplace_Click" Margin="8,16,2,8"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Open Presets" Width="154" Height="48"
+                                        Click="OpenPresets_Click" Margin="0,8,2,8"/>
+                                <Button Content="Open Imports" Width="154" Height="48" Margin="8,8,2,8"
+                                        Click="OpenImports_Click"/>
+                                <Button Content="Open Exports" Width="154" Height="48" Margin="8,8,2,8"
+                                        Click="OpenExports_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <views:ObsBrowserSourcesPanel Grid.Row="1" x:Name="ObsSourcesPanel"
+                                                      IsVisible="{Binding ObsConnected, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Goals">
+                <views:GoalsEditor/>
+            </TabItem>
+            <TabItem Header="Prompts">
+                <prompts:PromptsEditor/>
+            </TabItem>
+            <TabItem Header="Wheel Spin">
+                <wheel:WheelEditor/>
+            </TabItem>
+            <TabItem x:Name="SettingsTabItem" Header="Settings">
+                <views:SettingsView/>
+            </TabItem>
+        </TabControl>
+
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,4,14,0">
+            <Button x:Name="VersionLabelBtn" Click="CopyVersion_Click"
+                    Background="Transparent" BorderThickness="0" Cursor="Hand"
+                    Padding="6,0" VerticalAlignment="Center">
+                <TextBlock x:Name="VersionText" FontSize="12" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </Button>
+            <Button x:Name="ConnectionStatusBtn"
+                    Click="ConnectionStatusBtn_Click"
+                    ToolTip.Tip="Connection Status"
+                    Width="44" Height="30" VerticalAlignment="Center"
+                    Background="Transparent" BorderThickness="0" Cursor="Hand">
+                <Ellipse x:Name="ConnectionStatusDot" Width="10" Height="10" Fill="Gray"/>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

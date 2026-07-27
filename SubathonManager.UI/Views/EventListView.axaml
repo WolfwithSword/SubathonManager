@@ -1,0 +1,162 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ctl="using:SubathonManager.UI.Controls"
+             mc:Ignorable="d"
+             x:CompileBindings="False"
+             d:DesignHeight="500" d:DesignWidth="500"
+             x:Class="SubathonManager.UI.Views.EventListView"
+             Background="Transparent">
+    <UserControl.Styles>
+        <Style Selector="Button.opaque-secondary">
+            <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.opaque-secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#C42B1C"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#D13A2B"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#A81F12"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style Selector="Border.eventcard StackPanel.hoverbtns">
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.eventcard:pointerover StackPanel.hoverbtns">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="EventListPanel">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical" Margin="8"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="eventcard" CornerRadius="10" BorderBrush="#333" BorderThickness="1"
+                                Padding="10" Margin="4,6" Background="{DynamicResource AppHeaderBackground}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Orientation="Vertical">
+                                    <Grid>
+                                        <TextBlock Text="{Binding Source}" HorizontalAlignment="Left"
+                                                   FontSize="16" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding EventTimestamp, StringFormat='{}{0:G}'}"
+                                                   HorizontalAlignment="Right"
+                                                   Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
+                                                   FontSize="12"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="200,*">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="{Binding EventType, Converter={StaticResource EnumDescriptionConverter}}"
+                                                   FontSize="14" Foreground="{DynamicResource TextFillColorPrimaryBrushSoft}"
+                                                   HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedTextConverter}}"
+                                                   Foreground="{Binding ProcessedToSubathon, Converter={StaticResource BoolToProcessedColorConverter}}"
+                                                   FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   FontSize="14" Margin="0,4,0,0"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="220,*">
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                            <TextBlock Margin="0 0 4 0">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource EventTypeUserBindingConverter}">
+                                                        <Binding Path="User"/>
+                                                        <Binding Path="EventType"/>
+                                                        <Binding Path="TertiaryValue"/>
+                                                        <Binding Path="Currency"/>
+                                                        <Binding Path="EventTypeMeta"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,3,0,0">
+                                            <TextBlock Margin="4 0">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource EventTypeValueConverter}">
+                                                        <Binding Path="Value"/>
+                                                        <Binding Path="EventType"/>
+                                                        <Binding Path="Currency"/>
+                                                        <Binding Path="SecondaryValue"/>
+                                                        <Binding Path="TertiaryValue"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,140"
+                                          IsVisible="{Binding Command, Converter={StaticResource IsNotMetaCommandConverter}}">
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock Text="Values: "/>
+                                            <TextBlock Text="{Binding SecondsValue, StringFormat='{}{0}s'}"
+                                                       IsVisible="{Binding SecondsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
+                                            <TextBlock Text="{Binding MultiplierSeconds, StringFormat=' x{0}    '}"
+                                                       IsVisible="{Binding SecondsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
+                                            <TextBlock Text="{Binding PointsValue, StringFormat='{}{0}pts'}"
+                                                       IsVisible="{Binding PointsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
+                                            <TextBlock Text="{Binding MultiplierPoints, StringFormat=' x{0}'}"
+                                                       IsVisible="{Binding PointsValue, Converter={StaticResource IsNotZeroToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock Margin="0"
+                                                       IsVisible="{Binding Amount, Converter={StaticResource GreaterThanOneToVisibilityConverter}}">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource AmountFormatConverter}">
+                                                        <Binding Path="Amount"/>
+                                                        <Binding Path="EventType"/>
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="0" Classes="hoverbtns" Orientation="Horizontal"
+                                            VerticalAlignment="Top" HorizontalAlignment="Right"
+                                            ZIndex="100" Margin="8,0,0,0">
+                                    <Button x:Name="ReprocessBtn" Classes="opaque-secondary"
+                                            Width="32" Height="32" Margin="4,0" Padding="2"
+                                            ToolTip.Tip="Retry"
+                                            IsVisible="{Binding ProcessedToSubathon, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                                            Click="ReprocessBtn_Click">
+                                        <ctl:SymIcon Glyph="Recycle20"/>
+                                    </Button>
+                                    <Button x:Name="DeleteBtn" Classes="danger" ToolTip.Tip="Delete" Click="DeleteBtn_Click" Padding="2"
+                                            IsVisible="{Binding Command, Converter={StaticResource CommandDeletableToBoolVisibilityConverter}}"
+                                            Width="32" Height="32" Margin="4,0">
+                                        <ctl:SymIcon Glyph="Delete24"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

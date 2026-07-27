@@ -1,0 +1,42 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sty="using:FluentAvalonia.Styling"
+             xmlns:conv="using:SubathonManager.UI.Converters"
+             x:Class="SubathonManager.UI.App"
+             RequestedThemeVariant="Dark">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://SubathonManager/Themes/ThemeBrushes.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <conv:BoolToProcessedTextConverter x:Key="BoolToProcessedTextConverter" />
+            <conv:BoolToProcessedColorConverter x:Key="BoolToProcessedColorConverter" />
+            <conv:CommandDeletableToBoolVisibilityConverter x:Key="CommandDeletableToBoolVisibilityConverter" />
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
+            <conv:IsNotMetaCommandConverter x:Key="IsNotMetaCommandConverter" />
+            <conv:AmountFormatConverter x:Key="AmountFormatConverter" />
+            <conv:GreaterThanOneToVisibilityConverter x:Key="GreaterThanOneToVisibilityConverter" />
+            <conv:GreaterThanZeroToVisibilityConverter x:Key="GreaterThanZeroToVisibilityConverter" />
+            <conv:IsNotZeroToVisibilityConverter x:Key="IsNotZeroToVisibilityConverter" />
+            <conv:EventTypeUserBindingConverter x:Key="EventTypeUserBindingConverter" />
+            <conv:EventTypeValueConverter x:Key="EventTypeValueConverter" />
+            <conv:CssColorStringToColorConverter x:Key="CssColorConverter" />
+            <conv:CssVariableTypeOptionsConverter x:Key="CssTypeOptionsConverter" />
+            <conv:CssSizeValueConverter x:Key="CssSizeValueConverter" />
+            <conv:CssSizeUnitConverter x:Key="CssSizeUnitConverter" />
+            <conv:NullOrEmptyToNullConverter x:Key="NullOrEmptyToNull" />
+            <conv:StringToBoolConverter x:Key="StringToBoolConverter" />
+            <conv:EnumDescriptionConverter x:Key="EnumDescriptionConverter" />
+            <conv:VarTooltipConverter x:Key="VarTooltipConverter" />
+            <conv:PromptRunStatusColorConverter x:Key="PromptRunStatusColorConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <sty:FluentAvaloniaTheme PreferSystemTheme="False" PreferUserAccentColor="True" />
+        <StyleInclude Source="avares://SubathonManager/Themes/TabStyles.axaml" />
+        <StyleInclude Source="avares://SubathonManager/Themes/ControlTweaks.axaml" />
+    </Application.Styles>
+
+</Application>

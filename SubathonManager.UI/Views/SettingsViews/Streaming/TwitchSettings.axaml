@@ -1,0 +1,195 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.Streaming.TwitchSettings">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <Button x:Name="ConnectTwitchBtn" Content="Connect" Width="120" Height="35"
+                    VerticalAlignment="Center" Margin="0,5,4,4" Click="ConnectTwitchButton_Click"/>
+            <TextBlock x:Name="TwitchStatusText" VerticalAlignment="Center" FontSize="12" Margin="4 5 4 4" MinWidth="170"/>
+            <CheckBox x:Name="TwitchPauseOnEndBx" VerticalAlignment="Center" Content="Auto Pause" ToolTip.Tip="Pause on stream end?" Margin="2 5 2 4"/>
+            <CheckBox x:Name="TwitchLockOnEndBx" VerticalAlignment="Center" Content="Auto Lock" ToolTip.Tip="Lock on stream end?" Margin="2 5 2 4"/>
+            <CheckBox x:Name="TwitchResumeOnStartBx" VerticalAlignment="Center" Content="Auto Resume" ToolTip.Tip="Resume on stream start?" Margin="2 5 2 4"/>
+            <CheckBox x:Name="TwitchUnlockOnStartBx" VerticalAlignment="Center" Content="Auto Unlock" ToolTip.Tip="Unlock on stream start?" Margin="2 5 2 4"/>
+            <TextBlock Text="Chat: " VerticalAlignment="Center" FontSize="12" Margin="42 5 0 4"/>
+            <TextBlock x:Name="ChatStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="2 5 14 4" Width="75"/>
+            <TextBlock Text="EventSub: " VerticalAlignment="Center" FontSize="12" Margin="14 5 0 4"/>
+            <TextBlock x:Name="EventSubStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" Margin="2 5 4 4" Width="75"/>
+        </StackPanel>
+        <StackPanel Margin="0 4" IsVisible="False" x:Name="DisconnectPanel">
+            <Button x:Name="DisconnectTwitchBtn" Content="Disconnect" Width="120" Height="35"
+                    VerticalAlignment="Center" Margin="0,0,4,2" Click="DisconnectTwitchButton_Click"/>
+        </StackPanel>
+
+        <StackPanel Margin="10,5,0,5">
+            <!-- Cheer / Bits -->
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Cheers/Bits:" Width="150" VerticalAlignment="Center" ToolTip.Tip="Includes Combos and PowerUps"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="CheerTextBox" PlaceholderText="12"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="Cheer2TextBox" PlaceholderText="0"/>
+                    <TextBlock Margin="8 0 0 0" Text="Points per 100, rounded down" Width="150" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="80" Text="100" PlaceholderText="100" VerticalAlignment="Center" Height="30" FontSize="12"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="Integer" x:Name="SimulateCheerAmt"/>
+                    <Button Content="Test" Click="TestTwitchCheer_Click" Width="60" Padding="2" Height="30" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Raid -->
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Raids:" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="RaidTextBox" PlaceholderText="0"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per viewer" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="Raid2TextBox" PlaceholderText="0"/>
+                    <TextBlock Margin="8 0 0 0" Text="Points per raid" Width="150" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="80" Text="25" PlaceholderText="25" VerticalAlignment="Center" Height="30" FontSize="12"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="Integer" x:Name="SimulateRaidAmt"/>
+                    <Button Content="Test" Click="TestTwitchRaid_Click" Width="60" Padding="2" Height="30" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Follows -->
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Follows:" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="FollowTextBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="Follow2TextBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Points" Width="150" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Test" Click="TestTwitchFollow_Click" Width="60" Padding="2" Height="30" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Charity -->
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                    <TextBlock Text="Charity Donations:" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="DonoBox" PlaceholderText="12"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="DonoBox2"/>
+                    <TextBlock Margin="8 0 0 0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="80" Text="10.00" PlaceholderText="10.00" VerticalAlignment="Center" Height="34" FontSize="12"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="SimulateTwitchCharAmt"/>
+                    <AutoCompleteBox Width="100" x:Name="CurrencyBox" Height="34" Margin="4 0 4 0"/>
+                    <Button Content="Test" Click="TestTwitchCharityDonation_Click" Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Subs -->
+            <Expander Header="Subscriptions" IsExpanded="False" Margin="0,5,0,0">
+                <StackPanel Margin="10,5,0,5">
+                    <Grid Margin="0,2" ColumnDefinitions="*,300">
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="T1 Sub:" Width="100" VerticalAlignment="Center"/>
+                            <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="SubT1TextBox"/>
+                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                            <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="1" x:Name="SubT1TextBox2"/>
+                            <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <ComboBox Width="120" x:Name="SimSubTierSelection" views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4 0 4 0">
+                                <ComboBoxItem Content="Tier 1"/>
+                                <ComboBoxItem Content="Tier 2"/>
+                                <ComboBoxItem Content="Tier 3"/>
+                            </ComboBox>
+                            <Button Content="Test" Click="TestTwitchSub_Click" Width="60" Padding="2" Height="35" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <TextBlock Text="T2 Sub:" Width="100" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="120" x:Name="SubT2TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="2" x:Name="SubT2TextBox2"/>
+                        <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <TextBlock Text="T3 Sub:" Width="100" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="300" x:Name="SubT3TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="5" x:Name="SubT3TextBox2"/>
+                        <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Separator Margin="0,8"/>
+
+                    <Grid Margin="0,2" ColumnDefinitions="*,300">
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="T1 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                            <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="GiftSubT1TextBox"/>
+                            <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                            <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="1" x:Name="GiftSubT1TextBox2"/>
+                            <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBox Width="100" v:NumericInputBehaviour.Mode="Integer" views:SettingsProperties.ExcludeFromUnsaved="True"
+                                     Text="1" PlaceholderText="1" Height="35" FontSize="14" Margin="0 0 2 0" x:Name="SimGiftSubAmtInput"/>
+                            <ComboBox Width="120" Height="35" x:Name="SimGiftSubTierSelection" views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4 0 4 0">
+                                <ComboBoxItem Content="Tier 1"/>
+                                <ComboBoxItem Content="Tier 2"/>
+                                <ComboBoxItem Content="Tier 3"/>
+                            </ComboBox>
+                            <Button Content="Test" Click="TestTwitchGiftSub_Click" Width="60" Padding="2" Height="35" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <TextBlock Text="T2 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="120" x:Name="GiftSubT2TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="2" x:Name="GiftSubT2TextBox2"/>
+                        <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,4">
+                        <TextBlock Text="T3 GiftSub:" Width="100" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="300" x:Name="GiftSubT3TextBox"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="5" x:Name="GiftSubT3TextBox2"/>
+                        <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+
+            <!-- HypeTrain -->
+            <Expander Header="Hype Trains" IsExpanded="False" Margin="0,5,0,0">
+                <StackPanel Margin="10,5,0,5">
+                    <Grid Margin="0,2" ColumnDefinitions="*,400" RowDefinitions="40,40">
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <CheckBox x:Name="HypeTrainMultBox" Content="Run Multiplier during Hype Trains?" Margin="-4 4 8 4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                            <TextBlock Text="Multiplier" Width="74" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0 0 4 0"/>
+                            <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="1.20" x:Name="HypeTrainMultAmt"/>
+                            <CheckBox x:Name="HypeTrainMultTimeBox" Content="Time" Margin="28 4 0 4"/>
+                            <CheckBox x:Name="HypeTrainMultPointsBox" Content="Points" Margin="4 4 4 4"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBox PlaceholderText="Level" Width="100" Height="36" Margin="8 0 2 0"
+                                     v:NumericInputBehaviour.Mode="Integer" FontSize="14" VerticalAlignment="Center"
+                                     views:SettingsProperties.ExcludeFromUnsaved="True" x:Name="HypeTrainLevel"/>
+                            <ComboBox Width="120" Height="36" FontSize="12" x:Name="HypeTrainTestSelection"
+                                      views:SettingsProperties.ExcludeFromUnsaved="True" VerticalAlignment="Center" SelectedIndex="0" Margin="4 0 4 0">
+                                <ComboBoxItem Content="Start"/>
+                                <ComboBoxItem Content="Progress"/>
+                                <ComboBoxItem Content="End"/>
+                            </ComboBox>
+                            <Button Content="Test" Click="TestTwitchHypeTrain_Click" Width="60" Padding="2" Height="36" Margin="4,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Expander>
+        </StackPanel>
+    </StackPanel>
+</views:SettingsControl>

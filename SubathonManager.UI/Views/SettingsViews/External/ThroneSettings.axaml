@@ -1,0 +1,108 @@
+<external:DevTunnelSettingsControl xmlns="https://github.com/avaloniaui"
+                                   xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                   xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                   xmlns:external="using:SubathonManager.UI.Views.SettingsViews.External"
+                                   xmlns:views="using:SubathonManager.UI.Views"
+                                   xmlns:v="using:SubathonManager.UI.Validation"
+                                   xmlns:ui2="using:SubathonManager.UI.UiUtils"
+                                   mc:Ignorable="d"
+                                   x:Class="SubathonManager.UI.Views.SettingsViews.External.ThroneSettings">
+    <StackPanel>
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
+                <TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12"/>
+                <TextBlock x:Name="ThroneWebhookStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12"/>
+            </StackPanel>
+
+            <Border x:Name="TunnelStatusBorder" BorderThickness="1" CornerRadius="4" Padding="8,6"
+                    BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                    Margin="0,0,0,10">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="DevTunnels:" Width="110" VerticalAlignment="Center" FontSize="12"/>
+                        <TextBlock x:Name="TunnelPrereqStatusText" Text="Not running"
+                                   VerticalAlignment="Center" FontSize="12" Margin="0,0,12,0"/>
+                        <Button Content="Go to setup" Click="GoToDevTunnels_Click" x:Name="TunnelPrereqHint" FontSize="11"
+                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <StackPanel x:Name="WebhookUrlRow" Orientation="Horizontal" Margin="0,8,0,2" IsVisible="False" MinHeight="36">
+                        <TextBlock Text="Webhook URL:" Width="110" VerticalAlignment="Center" FontSize="12"/>
+                        <TextBox x:Name="WebhookUrlBox" Width="420" Height="34" IsReadOnly="True" PasswordChar="●"
+                                 ui2:TextBoxAssist.Reveal="True"
+                                 views:SettingsProperties.ExcludeFromUnsaved="True"
+                                 FontSize="11" VerticalAlignment="Center"/>
+                        <Button Content="Copy" Click="CopyWebhookUrl_Click" Width="56" Height="34" Padding="4,2"
+                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="6,0,2,0"/>
+                        <Button Content="Setup Throne" Margin="4 0" Width="112" Height="34" Click="OpenThroneLink_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Configuration -->
+            <StackPanel Margin="0,2">
+                <StackPanel Orientation="Horizontal" Margin="2,4">
+                    <Button Content="Connect" Margin="0 0" Width="116" Height="34" Click="ConnectThrone_Click" x:Name="ConnectBtn"/>
+                    <Button Content="Disconnect" Margin="4 0" Width="116" Height="34" Click="DisconnectThrone_Click" IsVisible="False" x:Name="DisconnBtn"/>
+                </StackPanel>
+            </StackPanel>
+
+            <Separator Margin="0,8,0,8"/>
+        </StackPanel>
+
+        <StackPanel Margin="10,5,0,5">
+            <Grid Margin="0,4" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Contributions:" Width="100" VerticalAlignment="Center"
+                               ToolTip.Tip="Contributions toward crowd gifts"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="ContribBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="ContribBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center" ToolTip.Tip="Rounded down"/>
+                    <TextBlock Text="Per Dollar" VerticalAlignment="Center" Width="60" Margin="12 0 2 0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10,0,4,0" Width="80" Text="10.00" PlaceholderText="1.00" VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal"
+                             x:Name="SimulateThroneContribAmountBox"/>
+                    <AutoCompleteBox Width="100" x:Name="CurrencyBox" Height="34"
+                                     views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,4,0"/>
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestThroneContrib_Click"
+                            Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0 4" ColumnDefinitions="*,400">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Gifts:" Width="100" VerticalAlignment="Center" x:Name="ThroneGiftsText" ToolTip.Tip="Gift purchased"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="GiftsBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="GiftsBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"/>
+                    <TextBlock Text="Per " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"
+                               ToolTip.Tip="Item will be treated as per individual gift purchased."/>
+                    <ComboBox PlaceholderText="Mode" Width="100" x:Name="ModeBox" SelectedIndex="0" Margin="4 0 4 0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="4 0 4 0" Width="188" Text="Fancy Item" VerticalAlignment="Center" x:Name="GiftNameBox"
+                             views:SettingsProperties.ExcludeFromUnsaved="True"/>
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestThroneGift_Click"
+                            Width="60" Padding="2" Height="34" views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0 4" ColumnDefinitions="*,400">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Crowd Funding Completed:" Width="200" VerticalAlignment="Center"
+                               ToolTip.Tip="A crowdfunding gift is completed, only behaves as an alert"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestThroneCrowdfund_Click"
+                            Width="60" Padding="2" Height="34" views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</external:DevTunnelSettingsControl>

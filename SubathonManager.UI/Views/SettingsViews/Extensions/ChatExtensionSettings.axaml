@@ -1,0 +1,52 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.Extensions.ChatExtensionSettings">
+    <StackPanel Margin="10,5,0,5">
+        <StackPanel Orientation="Horizontal" Margin="0 -2 0 5">
+            <TextBlock VerticalAlignment="Center" Text="Twitch + YouTube. Requires Blerp Chat Notifications"/>
+            <CheckBox x:Name="EnabledBox" Content="Enabled" Margin="20 0 0 0" VerticalAlignment="Center"/>
+        </StackPanel>
+        <Grid Margin="0,2" ColumnDefinitions="*,350" RowDefinitions="40,40">
+            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                <TextBlock Text="Bits:" Width="80" VerticalAlignment="Center" ToolTip.Tip="Twitch Only"/>
+                <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="BitsTextBox"/>
+                <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center"/>
+                <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="Bits2TextBox"/>
+                <TextBlock Margin="8 0 0 0" Text="Points/100" ToolTip.Tip="Rounded down" Width="140" VerticalAlignment="Center"/>
+                <TextBox Width="70" v:NumericInputBehaviour.Mode="SignedDecimal" Text="1" PlaceholderText="0.80" x:Name="BitsModifierTextBox" Margin="8 0"/>
+                <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center"
+                           ToolTip.Tip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,2">
+                <TextBlock Text="Beets:" Width="80" VerticalAlignment="Center"/>
+                <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="BeetsTextBox"/>
+                <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center"/>
+                <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="Beets2TextBox"/>
+                <TextBlock Margin="8 0 0 0" Text="Points/100" ToolTip.Tip="Rounded down" Width="140" VerticalAlignment="Center"/>
+                <TextBox Width="70" v:NumericInputBehaviour.Mode="SignedDecimal" Text="1" PlaceholderText="0.8" x:Name="BeetsModifierTextBox" Margin="8 0"/>
+                <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center"
+                           ToolTip.Tip="Only when counting as donations, what modifier to count it as? 0.8 = 80%"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBox Margin="10 0 4 0" Width="80" Text="100" PlaceholderText="100"
+                         VerticalAlignment="Center" Height="34" FontSize="12"
+                         views:SettingsProperties.ExcludeFromUnsaved="True"
+                         v:NumericInputBehaviour.Mode="Integer" x:Name="SimulateBlerpAmt"/>
+                <ComboBox Width="100" x:Name="BlerpCurrencyBox" Height="34"
+                          ToolTip.Tip="Blerp Bits or Beets" views:SettingsProperties.ExcludeFromUnsaved="True"
+                          Margin="4 2 4 0" SelectedIndex="0">
+                    <ComboBoxItem Content="bits"/>
+                    <ComboBoxItem Content="beets"/>
+                </ComboBox>
+                <Button Content="Test" Click="TestBlerp_Click" Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</views:SettingsControl>

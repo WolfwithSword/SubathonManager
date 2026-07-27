@@ -76,7 +76,7 @@ jobs:
           --logger "console;verbosity=detailed" \
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
-          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI.Avalonia/**"
+          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
 
       - name: Code Coverage Summary Report
         uses: irongut/CodeCoverageSummary@v1.3.0
@@ -161,7 +161,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore dependencies
-        run: dotnet restore SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+        run: dotnet restore SubathonManager.UI/SubathonManager.UI.csproj
 
       - name: Set copyright year
         shell: bash
@@ -198,7 +198,7 @@ jobs:
 
       - name: Publish Avalonia (${{ matrix.runtime }})
         run: >
-          dotnet publish SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+          dotnet publish SubathonManager.UI/SubathonManager.UI.csproj
           -c Release
           -r ${{ matrix.runtime }}
           --self-contained true
@@ -332,11 +332,11 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore dependencies
-        run: dotnet restore SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+        run: dotnet restore SubathonManager.UI/SubathonManager.UI.csproj
 
       - name: Publish Avalonia (win-x64)
         run: >
-          dotnet publish SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+          dotnet publish SubathonManager.UI/SubathonManager.UI.csproj
           -c Release
           -r win-x64
           --self-contained true

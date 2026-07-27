@@ -1,23 +1,19 @@
-﻿using System.Windows;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
 using SubathonManager.Integration;
 
 namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class TwitchSettings
 {
-    
-    private void TestTwitchCharityDonation_Click(object sender, RoutedEventArgs e)
+    private void TestTwitchCharityDonation_Click(object? sender, RoutedEventArgs e)
     {
-        var value = SimulateTwitchCharAmt.Text;
-        var currency = CurrencyBox.Text;
-        TwitchService.SimulateCharityDonation(value, currency);
+        TwitchService.SimulateCharityDonation(SimulateTwitchCharAmt.Text ?? "", CurrencyBox.Text ?? "");
     }
 
-    private void TestTwitchHypeTrain_Click(object sender, RoutedEventArgs e)
+    private void TestTwitchHypeTrain_Click(object? sender, RoutedEventArgs e)
     {
-        string selectedEvent = (HypeTrainTestSelection.SelectedItem is System.Windows.Controls.ComboBoxItem item) 
-            ? item.Content?.ToString() ?? "" 
-            : "";
+        string selectedEvent = (HypeTrainTestSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
         var level = HypeTrainLevel.Text;
         switch (selectedEvent)
         {
@@ -32,71 +28,50 @@ public partial class TwitchSettings
                 break;
         }
     }
-    
-    private void TestTwitchFollow_Click(object sender, RoutedEventArgs e)
+
+    private void TestTwitchFollow_Click(object? sender, RoutedEventArgs e)
     {
         TwitchService.SimulateFollow();
     }
 
-    private void TestTwitchRaid_Click(object sender, RoutedEventArgs e)
+    private void TestTwitchRaid_Click(object? sender, RoutedEventArgs e)
     {
-        if (int.TryParse(SimulateRaidAmt.Text, out var parsedAmount))
-        {
-            if (parsedAmount >= 0)
-            {
-                TwitchService.SimulateRaid(parsedAmount);
-            }
-        }
+        if (int.TryParse(SimulateRaidAmt.Text, out var parsedAmount) && parsedAmount >= 0)
+            TwitchService.SimulateRaid(parsedAmount);
     }
 
-    private void TestTwitchSub_Click(object sender, RoutedEventArgs e)
+    private void TestTwitchSub_Click(object? sender, RoutedEventArgs e)
     {
-        string tier = "";
-        string selectedTier = (SimSubTierSelection.SelectedItem is System.Windows.Controls.ComboBoxItem item) 
-            ? item.Content?.ToString() ?? "" 
-            : "";
-        switch (selectedTier)
-        {
-            case "Tier 1":
-                tier = "1000";
-                break;
-            case "Tier 2":
-                tier = "2000";
-                break;
-            case "Tier 3":
-                tier = "3000";
-                break;
-        }
-        if (!string.IsNullOrEmpty(tier))
-            TwitchService.SimulateSubscription(tier);
-    }
-    
-    private void TestTwitchGiftSub_Click(object sender, RoutedEventArgs e)
-    {
-        string tier = "";
-        string selectedTier = (SimGiftSubTierSelection.SelectedItem is System.Windows.Controls.ComboBoxItem item) 
-            ? item.Content?.ToString() ?? "" 
-            : "";
-        int amount = int.TryParse(SimGiftSubAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
-        tier = selectedTier switch
+        string selectedTier = (SimSubTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+        string tier = selectedTier switch
         {
             "Tier 1" => "1000",
             "Tier 2" => "2000",
             "Tier 3" => "3000",
-            _ => tier
+            _ => ""
+        };
+        if (!string.IsNullOrEmpty(tier))
+            TwitchService.SimulateSubscription(tier);
+    }
+
+    private void TestTwitchGiftSub_Click(object? sender, RoutedEventArgs e)
+    {
+        string selectedTier = (SimGiftSubTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+        int amount = int.TryParse(SimGiftSubAmtInput.Text, out var parsedAmountInt) ? parsedAmountInt : 0;
+        string tier = selectedTier switch
+        {
+            "Tier 1" => "1000",
+            "Tier 2" => "2000",
+            "Tier 3" => "3000",
+            _ => ""
         };
         if (!string.IsNullOrEmpty(tier) && amount > 0)
             TwitchService.SimulateGiftSubscriptions(tier, amount);
     }
 
-    private void TestTwitchCheer_Click(object sender, RoutedEventArgs e)
+    private void TestTwitchCheer_Click(object? sender, RoutedEventArgs e)
     {
-        if (int.TryParse(SimulateCheerAmt.Text, out var parsedAmount))
-        {
-            if (parsedAmount >= 0)
-            {
-                TwitchService.SimulateCheer(parsedAmount);
-            }
-        }
+        if (int.TryParse(SimulateCheerAmt.Text, out var parsedAmount) && parsedAmount >= 0)
+            TwitchService.SimulateCheer(parsedAmount);
     }
 }

@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        x:Class="SubathonManager.UI.Views.ObsAddSourceDialog"
+        Title="Add to OBS"
+        Width="400" Height="350"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppGeneralBackground}">
+    <Grid Margin="24,16,24,16" RowDefinitions="*,Auto">
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Add Browser Source to OBS" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+            <TextBlock Text="Source Name" FontSize="11"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,3"/>
+            <TextBox x:Name="SourceNameBox" Height="40" Margin="0,0,0,12" VerticalContentAlignment="Center"/>
+
+            <TextBlock Text="Scene" FontSize="11"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,3"/>
+            <ComboBox x:Name="SceneComboBox" Height="40" HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+
+            <TextBlock x:Name="SrgbOff"
+                       Text="Note: Some widgets may not look correct unless you set the browser source Blending Method to SRGB Off."
+                       TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+            <CheckBox x:Name="FitToScreenCheckBox" Content="Fit to canvas?" IsChecked="False" Margin="0,0,0,0"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Width="90" Height="32" Margin="0,0,8,0" Click="Cancel_Click"/>
+            <Button Content="Add Source" Classes="accent" Width="110" Height="32" Click="AddSource_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

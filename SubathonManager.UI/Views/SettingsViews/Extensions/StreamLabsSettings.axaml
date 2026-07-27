@@ -1,0 +1,40 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       xmlns:ui2="using:SubathonManager.UI.UiUtils"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.Extensions.StreamLabsSettings">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal">
+            <Button x:Name="ConnectSLBtn" Content="Connect" Width="120" Height="35"
+                    Margin="0,5,0,10" Click="ConnectSLButton_Click"/>
+            <TextBox x:Name="SLTokenBox" Width="200" Height="35" PlaceholderText="Socket Token"
+                     PasswordChar="●" ui2:TextBoxAssist.Reveal="True" ui2:TextBoxAssist.Clear="True"
+                     Margin="14 5 0 10"/>
+            <TextBlock x:Name="SLStatusText" VerticalAlignment="Center" FontSize="12" Margin="14 0 0 10"/>
+        </StackPanel>
+        <StackPanel Margin="10,5,0,5">
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="DonoBox"/>
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="DonoBox2"/>
+                    <TextBlock Margin="8 0 0 0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="80" Text="10.00" PlaceholderText="1.00"
+                             VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True"
+                             v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="SimulateSLTipAmountBox"/>
+                    <AutoCompleteBox Width="100" x:Name="CurrencyBox" Height="34"
+                                     views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4 0 4 0"/>
+                    <Button Content="Test" Click="TestSLTip_Click" Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</views:SettingsControl>

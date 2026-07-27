@@ -1,0 +1,58 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.External.ExternalServiceSettings">
+    <StackPanel>
+        <Grid Margin="0,2" ColumnDefinitions="*,300">
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <TextBlock Text="External Donations:" Width="150" VerticalAlignment="Center"/>
+                <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="DonoBox"/>
+                <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="DonoBox2"/>
+                <TextBlock Margin="8 0 0 0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBox Margin="10 0 4 0" Width="80" Text="10.00" PlaceholderText="10.00" VerticalAlignment="Center" Height="34" FontSize="12"
+                         views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal" x:Name="SimulateExternalAmt"/>
+                <AutoCompleteBox Width="100" x:Name="CurrencyBox" Height="34"
+                                 views:SettingsProperties.ExcludeFromUnsaved="True" Margin="4 0 4 0"/>
+                <Button Content="Test" Click="TestExternalDonation_Click" Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <Expander Header="Subscriptions" IsExpanded="False" Margin="0,5,0,0">
+            <StackPanel x:Name="MembershipsPanel" Margin="10,5,0,5">
+                <Grid x:Name="DefaultMember" Margin="0,2" ColumnDefinitions="*,400">
+                    <StackPanel Orientation="Horizontal" Margin="4,2">
+                        <TextBlock Text="Default:" Width="160" VerticalAlignment="Center" Margin="8 0 0 0"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="SubDTextBox" Height="36"/>
+                        <TextBlock Margin="8 0 0 0" Text="Seconds" Width="120" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" Height="36" PlaceholderText="1" x:Name="SubDTextBox2"/>
+                        <TextBlock Margin="8 0 0 0" Text="Points" Width="100" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36"
+                                Content="Add New" x:Name="AddBtn" Click="AddMembership_Click"
+                                Width="100" Margin="0,4,4,4"/>
+                        <TextBox Width="34" v:NumericInputBehaviour.Mode="Integer" Height="36" Margin="4,4,4,4"
+                                 PlaceholderText="1" x:Name="SimCount" Text="1" 
+                                 views:SettingsProperties.ExcludeFromUnsaved="True" />
+                        <ComboBox Width="150" Height="36" FontSize="12" x:Name="SimTierSelection"
+                                  ToolTip.Tip="Select Sub Tier"
+                                  views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4 4 4 4">
+                            <ComboBoxItem Content="DEFAULT"/>
+                        </ComboBox>
+                        <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test"
+                                Click="TestSub_Click" Width="60" Padding="2" Height="36" Margin="4,4,0,4"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Expander>
+    </StackPanel>
+</views:SettingsControl>

@@ -1,0 +1,21 @@
+<settingsViews:SettingsGroupControl xmlns="https://github.com/avaloniaui"
+                                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                                    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                                    xmlns:settingsViews="using:SubathonManager.UI.Views.SettingsViews"
+                                    mc:Ignorable="d" d:DesignHeight="300" d:DesignWidth="300"
+                                    x:Class="SubathonManager.UI.Views.SettingsViews.ExtensionSettings">
+    <Expander Header="Stream Extensions" IsExpanded="False">
+        <StackPanel Margin="4,2,0,5">
+            <Grid RowDefinitions="Auto,*">
+                <Border Grid.Row="0" BorderThickness="0,0,0,4"
+                        BorderBrush="{DynamicResource ControlElevationBorderBrush}">
+                    <WrapPanel x:Name="SourceList" Orientation="Horizontal"/>
+                </Border>
+                <Grid Grid.Row="1">
+                    <StackPanel x:Name="SourceContents" Orientation="Vertical" MinHeight="80" Margin="12,10,8,6"/>
+                </Grid>
+            </Grid>
+        </StackPanel>
+    </Expander>
+</settingsViews:SettingsGroupControl>

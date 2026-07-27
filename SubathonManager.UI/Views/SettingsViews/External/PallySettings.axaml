@@ -1,0 +1,64 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       xmlns:ui2="using:SubathonManager.UI.UiUtils"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.External.PallySettings">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
+            <TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12"/>
+            <TextBlock x:Name="PallyStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="API Key:" Width="120" VerticalAlignment="Center"/>
+            <TextBox x:Name="PallyApiKeyBox" Width="320" Height="36" Margin="0,0,8,0" PasswordChar="●"
+                     ui2:TextBoxAssist.Reveal="True" ui2:TextBoxAssist.Clear="True"
+                     views:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <Button Content="Get API Key" Width="110" Height="34" Click="GetApiKey_Click"
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="Page (Room):" Width="120" VerticalAlignment="Center"
+                       ToolTip.Tip="PallyGG page slug to listen to. Leave blank to receive tips from ALL your pages (firehose)."/>
+            <TextBox x:Name="PallyRoomBox" Width="200" PlaceholderText="blank = all pages" Margin="0,0,8,0"
+                     views:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <TextBlock Text="Leave blank to listen to all pages" VerticalAlignment="Center" FontSize="11"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="2,4">
+            <Button Content="Connect" Width="116" Height="34" Click="ConnectPally_Click" x:Name="ConnectBtn"
+                    views:SettingsProperties.ExcludeFromUnsaved="True"/>
+            <Button Content="Disconnect" Margin="4,0" Width="116" Height="34" Click="DisconnectPally_Click"
+                    IsVisible="False" x:Name="DisconnBtn"
+                    views:SettingsProperties.ExcludeFromUnsaved="True"/>
+        </StackPanel>
+
+        <Separator Margin="0,8,0,8"/>
+
+        <StackPanel Margin="10,5,0,5">
+            <Grid Margin="0,4" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Tips:" Width="100" VerticalAlignment="Center" ToolTip.Tip="PallyGG.gg tips (USD only)"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12" x:Name="TipBox"/>
+                    <TextBlock Margin="8,0,0,0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center"/>
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="TipBox2"/>
+                    <TextBlock Margin="8,0,0,0" Text="Points per 1$, rounded down" Width="180" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10,0,4,0" Width="80" Text="10.00" PlaceholderText="1.00" VerticalAlignment="Center" FontSize="12" Height="34"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="SignedDecimal"
+                             x:Name="SimulatePallyGGDonationAmountBox"/>
+                    <TextBlock Text="USD" VerticalAlignment="Center" Margin="4,0,4,0" FontSize="12" ToolTip.Tip="PallyGG.gg is USD-only"/>
+                    <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test" Click="TestPallyGGDonation_Click"
+                            Width="60" Padding="2" Height="34" Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</views:SettingsControl>

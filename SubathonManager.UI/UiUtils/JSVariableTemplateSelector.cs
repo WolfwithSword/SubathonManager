@@ -1,37 +1,40 @@
-﻿using System.Windows;
-using System.Windows.Controls;
+using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.UiUtils;
 
-public class JsVariableTemplateSelector : DataTemplateSelector
+public class JsVariableTemplateSelector : IDataTemplate
 {
-    public DataTemplate? DefaultTemplate { get; set; } // same as String
-    
-    public DataTemplate? EventTypeListTemplate { get; set; }
-    public DataTemplate? EventSubTypeListTemplate { get; set; }
-    public DataTemplate? BooleanTemplate { get; set; }
-    public DataTemplate? EventTypeSelectTemplate { get; set; }
-    public DataTemplate? EventSubTypeSelectTemplate { get; set; }
-    public DataTemplate? StringSelectTemplate { get; set; }
-    public DataTemplate? FileVarTemplate { get; set; }
-    public DataTemplate? IntTemplate { get; set; }
-    public DataTemplate? PercentTemplate { get; set; }
-    public DataTemplate? FloatTemplate { get; set; }
-    
-    public DataTemplate? FilteredEventTypeListTemplate { get; set; }
-    
-    public override DataTemplate? SelectTemplate(object? item, DependencyObject container)
+    public IDataTemplate? DefaultTemplate { get; set; } // same as String
+
+    public IDataTemplate? EventTypeListTemplate { get; set; }
+    public IDataTemplate? EventSubTypeListTemplate { get; set; }
+    public IDataTemplate? BooleanTemplate { get; set; }
+    public IDataTemplate? EventTypeSelectTemplate { get; set; }
+    public IDataTemplate? EventSubTypeSelectTemplate { get; set; }
+    public IDataTemplate? StringSelectTemplate { get; set; }
+    public IDataTemplate? FileVarTemplate { get; set; }
+    public IDataTemplate? IntTemplate { get; set; }
+    public IDataTemplate? PercentTemplate { get; set; }
+    public IDataTemplate? FloatTemplate { get; set; }
+    public IDataTemplate? FilteredEventTypeListTemplate { get; set; }
+
+    public bool Match(object? data) => data is JsVariable;
+
+    public Control? Build(object? param) => Pick(param)?.Build(param);
+
+    private IDataTemplate? Pick(object? item)
     {
         if (item is not JsVariable jsVar) return DefaultTemplate;
-        
+
         if (((WidgetVariableType?)jsVar.Type).IsFileVariable()) return FileVarTemplate;
-        
+
         if (jsVar.Type.GetFilteredEventTypes() is { Count: > 0 } &&
-         jsVar.Type != WidgetVariableType.EventTypeList)
+            jsVar.Type != WidgetVariableType.EventTypeList)
             return FilteredEventTypeListTemplate;
-        
+
         return jsVar.Type switch
         {
             WidgetVariableType.String => DefaultTemplate,

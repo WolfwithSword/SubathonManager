@@ -1,0 +1,227 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ctl="using:SubathonManager.UI.Controls"
+             xmlns:val="using:SubathonManager.UI.Validation"
+             mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="1200"
+             x:Class="SubathonManager.UI.Views.WheelSpin.WheelTriggerEditor">
+    <Grid x:Name="RootGrid" Focusable="True" PointerPressed="Grid_PointerPressed"
+          ColumnDefinitions="3*,2*" RowDefinitions="*,*">
+
+        <!-- Left Top: triggers list -->
+        <Border Grid.Column="0" Grid.Row="0" Padding="8" Margin="16,16,8,-72"
+                BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <Grid Grid.Row="0" Margin="0,0,0,6" ColumnDefinitions="*,Auto">
+                    <TextBlock Text="Triggers" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Click="ExportTriggers_Click" Height="28" Padding="12,2" Margin="0,0,6,0"
+                                ToolTip.Tip="Export all triggers to CSV">
+                            <ctl:SymIcon Glyph="ArrowExportUp16"/>
+                        </Button>
+                        <Button Click="ImportTriggers_Click" Height="28" Padding="12,2"
+                                ToolTip.Tip="Import triggers from CSV (replaces all existing triggers and history)">
+                            <ctl:SymIcon Glyph="ArrowDownload16"/>
+                        </Button>
+                        <Button Classes="iconbtn" Width="30" Height="30" Margin="16,0,0,0"
+                                ToolTip.Tip="Add new trigger" Click="AddTrigger_Click">
+                            <ctl:SymIcon Glyph="Add16"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="1" BorderBrush="#444" BorderThickness="0,0,0,1" Margin="0,0,4,2">
+                    <Grid Margin="4,0,4,4" ColumnDefinitions="28,*,100,46,34">
+                        <TextBlock Grid.Column="0" Text="On" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="Event" FontSize="11" Foreground="Gray" Margin="4,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="Condition" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="Spins" FontSize="11" Foreground="Gray" HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="TriggersStack" Orientation="Vertical" Margin="0,2,0,0"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Left Bottom: trigger history -->
+        <Border Grid.Column="0" Grid.Row="1" Padding="8" Margin="16,80,8,16"
+                BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <Grid Grid.Row="0" Margin="0,0,0,4" ColumnDefinitions="*,Auto,Auto">
+                    <TextBlock Text="Trigger History" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Classes="iconbtn" Width="30" Height="30"
+                            ToolTip.Tip="Export history to CSV" Click="ExportHistoryToCsv_Click">
+                        <ctl:SymIcon Glyph="ArrowExportUp16"/>
+                    </Button>
+                    <Button Grid.Column="2" Classes="iconbtn" Width="30" Height="30" Margin="4,0,0,0"
+                            ToolTip.Tip="Delete all trigger history" Click="DeleteAllTriggerHistory_Click" Foreground="Red">
+                        <ctl:SymIcon Glyph="Delete16"/>
+                    </Button>
+                </Grid>
+
+                <Border Grid.Row="1" BorderBrush="#444" BorderThickness="0,0,0,1" Margin="0,0,4,2">
+                    <Grid Margin="2,0,2,4" ColumnDefinitions="145,*,225,50">
+                        <TextBlock Grid.Column="0" Text="Time" FontSize="10" Foreground="Gray"/>
+                        <TextBlock Grid.Column="1" Text="Trigger Event" FontSize="10" Foreground="Gray" Margin="4,0,0,0"/>
+                        <TextBlock Grid.Column="2" Text="User" FontSize="10" Foreground="Gray" Margin="4,0,0,0"/>
+                        <TextBlock Grid.Column="3" Text="Spins" FontSize="10" Foreground="Gray" HorizontalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer Grid.Row="2" x:Name="TriggerHistoryScroller" VerticalScrollBarVisibility="Auto"
+                              ScrollChanged="TriggerHistoryScroller_ScrollChanged">
+                    <StackPanel x:Name="TriggerHistoryStack" Orientation="Vertical" Margin="0,2,0,0"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Right: trigger editor panel -->
+        <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20,16,16,56">
+                    <TextBlock x:Name="EditorTitle" Text="Trigger Editor" FontSize="20" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <Border x:Name="TriggerDetailBorder" IsVisible="False">
+                        <StackPanel>
+
+                            <CheckBox x:Name="TriggerEnabledCheck" Content="Enabled" FontSize="13" Margin="0,0,0,14"/>
+
+                            <Grid Margin="2,0,0,3" ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Event Type:" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="EventTypeSourceLabel" Grid.Column="1" FontSize="11"
+                                           Foreground="CornflowerBlue" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Button x:Name="EventTypePickerBtn" Height="36" Margin="0,0,0,12" MinWidth="230"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                                    Padding="8,0,6,0" Click="EventTypePickerBtn_Click">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock x:Name="EventTypePickerLabel" Text="- select -" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <ctl:SymIcon Grid.Column="1" Glyph="ChevronDown12" VerticalAlignment="Center"
+                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                </Grid>
+                            </Button>
+
+                            <Border x:Name="TierPanel" IsVisible="False" Padding="10" BorderThickness="1" BorderBrush="#333"
+                                    CornerRadius="6" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Tier" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+
+                                    <StackPanel x:Name="TierComboPanel" IsVisible="False">
+                                        <TextBlock Text="Tier:" FontSize="12" Margin="2,0,0,3"/>
+                                        <ComboBox x:Name="TierComboBox" Height="36" HorizontalAlignment="Stretch"/>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="TierTextPanel" IsVisible="False">
+                                        <TextBlock Text="Tier Name:" FontSize="12" Margin="2,0,0,3"/>
+                                        <TextBox x:Name="TierTextBox" Height="36"
+                                                 PlaceholderText="e.g. DEFAULT, Bronze, Basic Member..."
+                                                 ToolTip.Tip="Enter the tier name as it appears from the platform. Use DEFAULT for platforms with a single membership tier."/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="GiftCountPanel" IsVisible="False" Padding="10" BorderThickness="1" BorderBrush="#333"
+                                    CornerRadius="6" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Gift Count" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="Gifts Required:" FontSize="12" Margin="2,0,0,3"/>
+                                    <TextBox x:Name="GiftCountBox" Height="36" PlaceholderText="e.g. 10" val:NumericInputBehaviour.Mode="Integer"
+                                             ToolTip.Tip="How many gifts must arrive to add the configured spins. Remainder is discarded - e.g. threshold 10: 25 gifts -> 2x, 49 gifts -> 4x."/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="TokenCountPanel" IsVisible="False" Padding="10" BorderThickness="1" BorderBrush="#333"
+                                    CornerRadius="6" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Token Count" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="Tokens Required:" FontSize="12" Margin="2,0,0,3"/>
+                                    <TextBox x:Name="TokenCountBox" Height="36" PlaceholderText="e.g. 500" val:NumericInputBehaviour.Mode="Integer"
+                                             ToolTip.Tip="How many tokens (bits, beets, etc.) per spin batch. Remainder is discarded."/>
+                                </StackPanel>
+                            </Border>
+                            <Border x:Name="OrderModePanel" IsVisible="False" Padding="10" BorderThickness="1" BorderBrush="#333"
+                                    CornerRadius="6" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Order Trigger" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                        <RadioButton x:Name="OrderByItemsRadio" Content="By Item Count" GroupName="OrderMode"
+                                                     IsChecked="True" IsCheckedChanged="OrderMode_Changed" Margin="0,0,20,0"/>
+                                        <RadioButton x:Name="OrderByMoneyRadio" Content="By Money Spent" GroupName="OrderMode"
+                                                     IsCheckedChanged="OrderMode_Changed" Margin="0,0,20,0"/>
+                                        <RadioButton x:Name="OrderByOrderRadio" Content="Per Order" GroupName="OrderMode"
+                                                     IsCheckedChanged="OrderMode_Changed"/>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="OrderItemPanel">
+                                        <TextBlock Text="Items Required:" FontSize="12" Margin="2,0,0,3"/>
+                                        <TextBox x:Name="OrderItemCountBox" Height="36" PlaceholderText="e.g. 3" val:NumericInputBehaviour.Mode="Integer"
+                                                 ToolTip.Tip="Number of items per spin batch. Remainder is discarded."/>
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="OrderMoneyPanel" IsVisible="False">
+                                        <Grid ColumnDefinitions="*,8,100">
+                                            <StackPanel>
+                                                <TextBlock Text="Amount ≥:" FontSize="12" Margin="2,0,0,3"/>
+                                                <TextBox x:Name="OrderMoneyBox" Height="36" PlaceholderText="e.g. 10.00" val:NumericInputBehaviour.Mode="Decimal"
+                                                         ToolTip.Tip="Spend threshold per spin batch, in the currency below. Remainder is discarded."/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Currency:" FontSize="12" Margin="2,0,0,3"/>
+                                                <AutoCompleteBox x:Name="OrderCurrencyBox" Height="36" HorizontalAlignment="Stretch"
+                                                          ToolTip.Tip="ISO 4217 currency code. Incoming order value is converted to this currency before comparing."/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="DonationPanel" IsVisible="False" Padding="10" BorderThickness="1" BorderBrush="#333"
+                                    CornerRadius="6" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Donation Threshold" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <Grid ColumnDefinitions="*,8,100">
+                                        <StackPanel>
+                                            <TextBlock Text="Amount ≥:" FontSize="12" Margin="2,0,0,3"/>
+                                            <TextBox x:Name="DonationMoneyBox" Height="36" PlaceholderText="e.g. 5.00" val:NumericInputBehaviour.Mode="Decimal"
+                                                     ToolTip.Tip="Donation threshold per spin batch, in the currency below. Remainder is discarded."/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Currency:" FontSize="12" Margin="2,0,0,3"/>
+                                            <AutoCompleteBox x:Name="DonationCurrencyBox" Height="36" HorizontalAlignment="Stretch"
+                                                      ToolTip.Tip="ISO 4217 currency code. Incoming donation is converted to this currency before comparing."/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Padding="10" BorderThickness="1" BorderBrush="#333" CornerRadius="6" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <TextBlock Text="Spins to Add" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="Spins:" FontSize="12" Margin="2,0,0,3"/>
+                                    <TextBox x:Name="SpinsToAddBox" Height="36" Width="100" HorizontalAlignment="Left"
+                                             PlaceholderText="e.g. 5" val:NumericInputBehaviour.Mode="Integer"
+                                             ToolTip.Tip="Number of spins added per qualifying batch (multiplied by how many batches qualify)."/>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock x:Name="TriggerStatusText" Foreground="OrangeRed" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="TriggerPlaceholderText" Text="Select a trigger from the list or add a new one."
+                               FontSize="12" Foreground="Gray" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border x:Name="SaveButtonBorder" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    CornerRadius="6" BorderThickness="2" BorderBrush="Transparent" Margin="6,10,14,10">
+                <Button x:Name="SaveTriggerBtn" Content="Save Changes" Classes="accent"
+                        Click="SaveTrigger_Click" Width="140" Height="38" IsEnabled="False"/>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,76 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:uiutils="using:SubathonManager.UI.UiUtils">
+    <!-- WPF Lookalike stuff-->
+    
+    <Style Selector="Button.iconbtn">
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="TextBox">
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="ComboBox">
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    
+    <Style Selector="ComboBox /template/ ContentPresenter#ContentPresenter">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="ComboBox[IsEditable=True] /template/ ContentPresenter#ContentPresenter">
+        <Setter Property="IsVisible" Value="False"/>
+    </Style>
+
+    <Style Selector="AutoCompleteBox">
+        <Setter Property="FilterMode" Value="Contains"/>
+        <Setter Property="MinimumPrefixLength" Value="0"/>
+        <Setter Property="MaxDropDownHeight" Value="220"/>
+        <Setter Property="uiutils:AutoCompleteBoxBehaviours.OpenOnFocus" Value="True"/>
+    </Style>
+
+    <Style Selector="CheckBox /template/ Path#CheckGlyph">
+        <Setter Property="Stroke" Value="{Binding $self.Fill}"/>
+        <Setter Property="StrokeThickness" Value="1.3"/>
+        <Setter Property="StrokeLineCap" Value="Round"/>
+        <Setter Property="StrokeJoin" Value="Round"/>
+    </Style>
+
+    <Style Selector="Button.opaquesecondary">
+        <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundBorder}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+    </Style>
+    <Style Selector="Button.opaquesecondary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundBorder}"/>
+    </Style>
+    <Style Selector="Button.opaquesecondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundHover}"/>
+    </Style>
+    <Style Selector="Button.opaquesecondary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource OpaqueSecondaryBackgroundPressed}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OpaqueSecondaryBackgroundPressed}"/>
+    </Style>
+
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="#C42B1C"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.danger /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#C42B1C"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#D13A2B"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style Selector="Button.danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#A81F12"/>
+        <Setter Property="Foreground" Value="White"/>
+    </Style>
+</Styles>

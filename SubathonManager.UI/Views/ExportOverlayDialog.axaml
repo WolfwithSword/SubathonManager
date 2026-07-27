@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:ctl="using:SubathonManager.UI.Controls"
+        mc:Ignorable="d"
+        x:Class="SubathonManager.UI.Views.ExportOverlayDialog"
+        Title="Export Overlay"
+        Width="560" Height="580"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppGeneralBackground}">
+    <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto">
+
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+            <StackPanel DockPanel.Dock="Left">
+                <TextBlock FontWeight="SemiBold" Text="Export Name" Margin="4,0,0,4"/>
+                <TextBox Width="240" x:Name="ExportNameBox" PlaceholderText="Overlay name..." VerticalContentAlignment="Center"/>
+            </StackPanel>
+            <StackPanel x:Name="AppOverrideSection" DockPanel.Dock="Left" IsVisible="False" Margin="32,0,0,0">
+                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4"/>
+                <TextBox Width="120" x:Name="AppVersionBox" ToolTip.Tip="Override App Version" PlaceholderText="v1.0.0"
+                         VerticalContentAlignment="Center"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Right">
+                <TextBlock FontWeight="SemiBold" Text="Version" Margin="4,0,4,4"/>
+                <TextBox Width="100" x:Name="VersionBox" ToolTip.Tip="Overlay Version" PlaceholderText="1.0.0"
+                         VerticalContentAlignment="Center"/>
+            </StackPanel>
+        </DockPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Vertical">
+            <DockPanel Margin="0,0,0,6" LastChildFill="False">
+                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Files to be included" VerticalAlignment="Center"/>
+                <CheckBox x:Name="SelectAllBox" DockPanel.Dock="Right" Content="Select all" IsChecked="True"
+                          VerticalAlignment="Center" IsThreeState="True" IsCheckedChanged="SelectAllBox_Changed"/>
+            </DockPanel>
+            <TextBlock TextWrapping="Wrap" MaxWidth="440" FontSize="12"
+                       Text="Please verify the files to be included in the export. Not all selected may be in use."/>
+        </StackPanel>
+
+        <Border Grid.Row="2" BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="2"
+                CornerRadius="4" Margin="0,0,0,10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="4">
+                <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0" Padding="2"/>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="3"
+                Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
+                BorderBrush="{DynamicResource SystemFillColorCautionBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,14">
+            <StackPanel Orientation="Horizontal">
+                <ctl:SymIcon Glyph="Warning24" Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                             Margin="0,0,8,0" VerticalAlignment="Top"/>
+                <TextBlock TextWrapping="Wrap" MaxWidth="440" FontSize="12"
+                           Text="This export may not include all required files, and may include many not required. Files referenced by hardcoded paths inside widget HTML/JS/CSS sources, or assets outside each widget's folder, may not be bundled automatically."/>
+            </StackPanel>
+        </Border>
+
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <Button DockPanel.Dock="Right" x:Name="ConfirmButton" Content="Export..." Classes="accent"
+                    Width="110" Margin="8,0,0,0" Click="ConfirmButton_Click"/>
+            <Button DockPanel.Dock="Right" x:Name="CancelButton" Content="Cancel" Width="90" Click="CancelButton_Click"/>
+        </DockPanel>
+    </Grid>
+</Window>

@@ -1,21 +1,25 @@
-﻿using System.Windows;
-using System.Windows.Controls;
+using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.UiUtils;
 
-public class CssVariableTemplateSelector : DataTemplateSelector
+public class CssVariableTemplateSelector : IDataTemplate
 {
-    public DataTemplate? DefaultTemplate { get; set; }
-    public DataTemplate? ColorTemplate { get; set; }
-    public DataTemplate? SizeTemplate { get; set; }
-    public DataTemplate? OptionsTemplate { get; set; }
-    public DataTemplate? FloatTemplate { get; set; }
-    public DataTemplate? IntTemplate { get; set; }
-    public DataTemplate? OpacityTemplate { get; set; }
+    public IDataTemplate? DefaultTemplate { get; set; }
+    public IDataTemplate? ColorTemplate { get; set; }
+    public IDataTemplate? SizeTemplate { get; set; }
+    public IDataTemplate? OptionsTemplate { get; set; }
+    public IDataTemplate? FloatTemplate { get; set; }
+    public IDataTemplate? IntTemplate { get; set; }
+    public IDataTemplate? OpacityTemplate { get; set; }
 
-    public override DataTemplate? SelectTemplate(object? item, DependencyObject container)
+    public bool Match(object? data) => data is CssVariable;
+
+    public Control? Build(object? param) => Pick(param)?.Build(param);
+
+    private IDataTemplate? Pick(object? item)
     {
         if (item is CssVariable cssVar)
         {

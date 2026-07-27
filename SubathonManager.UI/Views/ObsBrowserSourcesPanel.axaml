@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ctl="using:SubathonManager.UI.Controls"
+             mc:Ignorable="d" d:DesignHeight="500" d:DesignWidth="600"
+             x:Class="SubathonManager.UI.Views.ObsBrowserSourcesPanel">
+    <Grid RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" Margin="2,10,2,6" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="OBS Overlay Sources" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock x:Name="PanelStatusText" FontSize="11" Margin="10,2,0,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+            <Button Grid.Column="1" Classes="iconbtn" Width="32" Height="32" Padding="2"
+                    ToolTip.Tip="Refresh browser sources from OBS" Click="Refresh_Click">
+                <ctl:SymIcon Glyph="ArrowClockwise24" FontSize="16"/>
+            </Button>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,2,2">
+            <StackPanel x:Name="CardsStack" Orientation="Vertical"/>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -1,61 +1,55 @@
-﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows;
-using SubathonManager.Core.Enums;
-using SubathonManager.Core.Events;
-using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
-using SubathonManager.UI.Services;
+using Avalonia;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Objects;
+using SubathonManager.Core.Models;
 using SubathonManager.UI.Views;
+using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI;
 
-public partial class MainWindow : INotifyPropertyChanged
+public partial class MainWindow
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
-    private void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    public static readonly StyledProperty<bool> ObsConnectedProperty =
+        AvaloniaProperty.Register<MainWindow, bool>(nameof(ObsConnected));
 
-    private bool _obsConnected;
     public bool ObsConnected
     {
-        get => _obsConnected;
-        set { _obsConnected = value; OnPropertyChanged(); }
+        get => GetValue(ObsConnectedProperty);
+        set => SetValue(ObsConnectedProperty, value);
     }
 
     private void InitObsIntegration()
     {
         IntegrationEvents.ConnectionUpdated += OnObsConnectionUpdated;
+        Closed += (_, _) => IntegrationEvents.ConnectionUpdated -= OnObsConnectionUpdated;
         ObsConnected = ServiceManager.OBS.Connected;
     }
 
     private void OnObsConnectionUpdated(IntegrationConnection? connection)
     {
         if (connection is not { Source: SubathonEventSource.OBS, Service: "OBS" }) return;
-        Dispatcher.Invoke(() => ObsConnected = connection.Status);
+        Dispatcher.UIThread.Post(() => ObsConnected = connection.Status);
     }
 
-    private void AddToObs_Click(object sender, RoutedEventArgs e)
+    private async void AddToObs_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (sender is not Wpf.Ui.Controls.Button { DataContext: Route route }) return;
+        if (sender is not global::Avalonia.Controls.Control { DataContext: Route route }) return;
 
         try
         {
-            var scenes = ServiceManager.OBS.GetScenes(); // returns List<string>
+            var scenes = ServiceManager.OBS.GetScenes();
             string currentScene = ServiceManager.OBS.GetCurrentScene();
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             string url = route.GetRouteUrl(config);
 
-            var dialog = new ObsAddSourceDialog(route, url, scenes, currentScene)
-            {
-                Owner = this,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner
-            };
-            dialog.ShowDialog();
+            var dialog = new ObsAddSourceDialog(route, url, scenes, currentScene);
+            await dialog.ShowDialog(this);
         }
         catch (Exception ex)
         {

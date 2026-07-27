@@ -1,6 +1,10 @@
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Layout;
+using Avalonia.Media;
+using SubathonManager.UI.Controls;
+using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Validation;
 
 namespace SubathonManager.UI.Views.SettingsViews.Components;
@@ -11,10 +15,10 @@ public class TrackedValueRowsControl : UserControl
     private readonly StackPanel _headerPanel = new()
     {
         Orientation = Orientation.Horizontal,
-        Visibility = Visibility.Collapsed,
+        IsVisible = false,
         Margin = new Thickness(0, 0, 0, 2)
     };
-    private readonly Wpf.Ui.Controls.Button _addBtn;
+    private readonly Button _addBtn;
     private readonly List<TrackedValueRow> _rows = new();
 
     public double KeyBoxWidth { get; set; } = 420;
@@ -36,8 +40,8 @@ public class TrackedValueRowsControl : UserControl
         get => _addBtn.Content as string ?? "";
         set => _addBtn.Content = value;
     }
-    
-    public Action<DependencyObject>? WireInput { get; set; }
+
+    public Action<Control>? WireInput { get; set; }
 
     public event Action<TrackedValueRow>? RowAdded;
     public event Action<TrackedValueRow>? RowDeleted;
@@ -46,15 +50,14 @@ public class TrackedValueRowsControl : UserControl
 
     public TrackedValueRowsControl()
     {
-        _addBtn = new Wpf.Ui.Controls.Button
+        _addBtn = new Button
         {
             Content = "Add Url",
             Width = 120, Height = 32,
             Margin = new Thickness(0, 6, 0, 4),
-            Icon = new Wpf.Ui.Controls.SymbolIcon { Symbol = Wpf.Ui.Controls.SymbolRegular.Add24 },
-            Cursor = System.Windows.Input.Cursors.Hand
+            Cursor = new Cursor(StandardCursorType.Hand)
         };
-        _addBtn.SetResourceReference(ForegroundProperty, "TextFillColorPrimaryBrush");
+        _addBtn.SetDynamicResource(Button.ForegroundProperty, "TextFillColorPrimaryBrush");
         SettingsProperties.SetExcludeFromUnsaved(_addBtn, true);
         _addBtn.Click += (_, _) => RowAdded?.Invoke(AddRow());
 
@@ -69,7 +72,7 @@ public class TrackedValueRowsControl : UserControl
     {
         if (_rows.Count == 0)
         {
-            _headerPanel.Visibility = Visibility.Collapsed;
+            _headerPanel.IsVisible = false;
             return;
         }
         if (_headerPanel.Children.Count == 0)
@@ -89,12 +92,12 @@ public class TrackedValueRowsControl : UserControl
                 Margin = new Thickness(4, 0, 0, 0),
                 FontSize = 11
             };
-            secondsLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-            pointsLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+            secondsLabel.SetDynamicResource(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+            pointsLabel.SetDynamicResource(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
             _headerPanel.Children.Add(secondsLabel);
             _headerPanel.Children.Add(pointsLabel);
         }
-        _headerPanel.Visibility = Visibility.Visible;
+        _headerPanel.IsVisible = true;
     }
 
     public TrackedValueRow AddRow(object? item = null, string key = "", string? name = null,
@@ -103,69 +106,65 @@ public class TrackedValueRowsControl : UserControl
         var rowGrid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
         var panelRow = new StackPanel { Orientation = Orientation.Horizontal };
 
-        var keyBox = new Wpf.Ui.Controls.TextBox
+        var keyBox = new TextBox
         {
             Width = KeyBoxWidth,
             Text = key,
             PlaceholderText = KeyPlaceholder,
-            ToolTip = KeyToolTip,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
+        if (KeyToolTip != null) ToolTip.SetTip(keyBox, KeyToolTip);
 
-        Wpf.Ui.Controls.TextBox? nameBox = null;
+        TextBox? nameBox = null;
         if (ShowNameBox)
         {
-            nameBox = new Wpf.Ui.Controls.TextBox
+            nameBox = new TextBox
             {
                 Width = NameBoxWidth,
                 Text = name ?? "",
                 PlaceholderText = NamePlaceholder,
-                ToolTip = NameToolTip,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, 8, 0)
             };
+            if (NameToolTip != null) ToolTip.SetTip(nameBox, NameToolTip);
         }
 
-        var secondsBox = new Wpf.Ui.Controls.TextBox
+        var secondsBox = new TextBox
         {
             Width = OverrideBoxWidth,
             Text = seconds,
             PlaceholderText = OverridePlaceholder,
-            ToolTip = SecondsToolTip,
-            ClearButtonEnabled = false,
             VerticalAlignment = VerticalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 4, 0)
         };
-        var pointsBox = new Wpf.Ui.Controls.TextBox
+        ToolTip.SetTip(secondsBox, SecondsToolTip);
+        var pointsBox = new TextBox
         {
             Width = OverrideBoxWidth,
             Text = points,
             PlaceholderText = OverridePlaceholder,
-            ToolTip = PointsToolTip,
-            ClearButtonEnabled = false,
             VerticalAlignment = VerticalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0)
         };
-        InputValidationBehavior.SetIsDecimalOnly(secondsBox, true);
-        InputValidationBehavior.SetIsDecimalOnly(pointsBox, true);
+        ToolTip.SetTip(pointsBox, PointsToolTip);
+        NumericInputBehaviour.SetMode(secondsBox, NumericInputBehaviour.NumericMode.SignedDecimal);
+        NumericInputBehaviour.SetMode(pointsBox, NumericInputBehaviour.NumericMode.SignedDecimal);
 
-        var deleteBtn = new Wpf.Ui.Controls.Button
+        var deleteBtn = new Button
         {
-            ToolTip = "Delete",
-            Icon = new Wpf.Ui.Controls.SymbolIcon
-            {
-                Symbol = Wpf.Ui.Controls.SymbolRegular.Delete24,
-                Margin = new Thickness(2),
-                HorizontalAlignment = HorizontalAlignment.Center
-            },
+            Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
             Foreground = Brushes.Red,
-            Cursor = System.Windows.Input.Cursors.Hand,
-            Width = 36, Height = 36,
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Width = 32, Height = 32,
             Margin = new Thickness(0, 0, 12, 0)
         };
+        ToolTip.SetTip(deleteBtn, "Delete");
 
         var infoPanel = new StackPanel
         {
@@ -221,10 +220,10 @@ public sealed class TrackedValueRow
 {
     public object? Item { get; set; }
     public object? HostState { get; set; }
-    public required Wpf.Ui.Controls.TextBox KeyBox { get; init; }
-    public Wpf.Ui.Controls.TextBox? NameBox { get; init; }
-    public required Wpf.Ui.Controls.TextBox SecondsBox { get; init; }
-    public required Wpf.Ui.Controls.TextBox PointsBox { get; init; }
+    public required TextBox KeyBox { get; init; }
+    public TextBox? NameBox { get; init; }
+    public required TextBox SecondsBox { get; init; }
+    public required TextBox PointsBox { get; init; }
     public required StackPanel InfoPanel { get; init; }
     public required Grid RowGrid { get; init; }
 }

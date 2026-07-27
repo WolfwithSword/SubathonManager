@@ -1,0 +1,72 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:components="using:SubathonManager.UI.Views.SettingsViews.Components"
+                       xmlns:v="using:SubathonManager.UI.Validation"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.External.MakeShipSettings">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
+            <TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12"/>
+            <TextBlock x:Name="MakeShipStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12"/>
+        </StackPanel>
+
+        <Grid Margin="10,5,0,5" ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8,4,8,0">
+                <AutoCompleteBox x:Name="SimNameBox" Width="244" Height="34" FilterMode="Contains"
+                                 MinimumPrefixLength="0"
+                                 Margin="0,0,0,6" FontSize="12" ToolTip.Tip="Product Name"
+                                 views:SettingsProperties.ExcludeFromUnsaved="True"/>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox x:Name="SimTypeBox" Width="120" Height="34" SelectedIndex="0" FontSize="12"
+                              views:SettingsProperties.ExcludeFromUnsaved="True">
+                        <ComboBoxItem Content="Pledge"/>
+                        <ComboBoxItem Content="Campaign"/>
+                    </ComboBox>
+                    <TextBox x:Name="SimCountBox" Width="52" Height="34" Text="1" Margin="6,0,0,0"
+                             FontSize="12" ToolTip.Tip="Quantity" v:NumericInputBehaviour.Mode="Integer"
+                             views:SettingsProperties.ExcludeFromUnsaved="True"/>
+                    <Button Content="Test" Width="60" Height="34" Padding="2" Margin="6,0,0,0"
+                            Click="TestMakeShip_Click"
+                            Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                            views:SettingsProperties.ExcludeFromUnsaved="True"/>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Grid.Column="0">
+                <Grid Margin="0,4">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Petition Pledges:" Width="120" VerticalAlignment="Center"
+                                   ToolTip.Tip="Default value applied per pledge on tracked petitions"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="PledgeBox"/>
+                        <TextBlock Margin="8,0,0,0" Text="Seconds per pledge" Width="150" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="PledgeBox2"/>
+                        <TextBlock Margin="8,0,0,0" Text="Points per pledge" Width="180" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+                <Grid Margin="0,4">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Campaign Sales:" Width="120" VerticalAlignment="Center"
+                                   ToolTip.Tip="Default value applied per sold item on tracked product campaigns"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="60" x:Name="OrderBox"/>
+                        <TextBlock Margin="8,0,0,0" Text="Seconds per sale" Width="150" VerticalAlignment="Center"/>
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0" x:Name="OrderBox2"/>
+                        <TextBlock Margin="8,0,0,0" Text="Points per sale" Width="180" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Grid>
+
+        <Separator Margin="0,8,0,8"/>
+
+        <TextBlock Text="Tracked Petitions and Campaigns" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Margin="0,0,0,6" TextWrapping="Wrap"
+                   ToolTip.Tip="Petitions must be a valid petition Url. Product pages must be for an active and valid campaign Url - permanent products are invalid."
+                   Text="Paste your MakeShip Petition or Product page Url"/>
+
+        <components:TrackedValueRowsControl x:Name="TrackingRows"/>
+    </StackPanel>
+</views:SettingsControl>
