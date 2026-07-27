@@ -319,10 +319,10 @@ jobs:
       - name: Resolve Nextcloud upload path
         shell: bash
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            echo "NC_UPLOAD_PATH=build-avalonia" >> "$GITHUB_ENV"
+          if [[ "${{ matrix.runtime }}" == osx-* ]]; then
+            echo "NC_UPLOAD_PATH=bundle" >> "$GITHUB_ENV"
           else
-            echo "NC_UPLOAD_PATH=SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip" >> "$GITHUB_ENV"
+            echo "NC_UPLOAD_PATH=build-avalonia" >> "$GITHUB_ENV"
           fi
 
       - name: Decide artifact storage
