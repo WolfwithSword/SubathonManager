@@ -86,11 +86,24 @@ jobs:
           --results-directory ./coverage \
           -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
 
+      - name: List raw coverage files
+        if: always()
+        shell: bash
+        run: ls -la coverage/**/coverage.cobertura.xml || true
+
+      - name: Merge coverage reports
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        with:
+          reports: coverage/**/coverage.cobertura.xml
+          targetdir: coverage-merged
+          reporttypes: Cobertura
+
       - name: Code Coverage Summary Report
         if: always()
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: coverage/**/coverage.cobertura.xml
+          filename: coverage-merged/Cobertura.xml
           fail_below_min: false
           hide_branch_rate: false
           hide_complexity: true
@@ -107,11 +120,10 @@ jobs:
           shopt -s globstar nullglob
 
           line_rate=""; branch_rate=""
-          for f in coverage/**/coverage.cobertura.xml; do
-            line_rate=$(sed -n 's/.*<coverage[^>]*line-rate="\([0-9.]*\)".*/\1/p' "$f" | head -n1)
-            branch_rate=$(sed -n 's/.*<coverage[^>]*branch-rate="\([0-9.]*\)".*/\1/p' "$f" | head -n1)
-            break
-          done
+          if [ -f coverage-merged/Cobertura.xml ]; then
+            line_rate=$(sed -n 's/.*<coverage[^>]*line-rate="\([0-9.]*\)".*/\1/p' coverage-merged/Cobertura.xml | head -n1)
+            branch_rate=$(sed -n 's/.*<coverage[^>]*branch-rate="\([0-9.]*\)".*/\1/p' coverage-merged/Cobertura.xml | head -n1)
+          fi
           pct() { [ -z "$1" ] && echo "n/a" || awk -v r="$1" 'BEGIN{printf "%.1f%%", r*100}'; }
           echo "line_rate=$(pct "$line_rate")" >> "$GITHUB_OUTPUT"
           echo "branch_rate=$(pct "$branch_rate")" >> "$GITHUB_OUTPUT"
@@ -136,26 +148,6 @@ jobs:
             echo "tests_failed=$failed"
             echo "tests_skipped=$skipped"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Write test & coverage job summary
-        if: always()
-        shell: bash
-        run: |
-          {
-            echo "## Tests"
-            echo
-            echo "| Total | Passed | Failed | Skipped |"
-            echo "| --- | --- | --- | --- |"
-            echo "| ${{ steps.covstats.outputs.tests_total }} | ✅ ${{ steps.covstats.outputs.tests_passed }} | ❌ ${{ steps.covstats.outputs.tests_failed }} | ⏭️ ${{ steps.covstats.outputs.tests_skipped }} |"
-            echo
-            echo "## Test Coverage"
-            echo
-            if [ -f code-coverage-results.md ]; then
-              cat code-coverage-results.md
-            else
-              echo "_No coverage report produced._"
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage report
         if: always()
