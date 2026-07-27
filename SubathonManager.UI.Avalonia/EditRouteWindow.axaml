@@ -13,7 +13,7 @@
         Title="Overlay Editor"
         Icon="/Assets/icon.png"
         Width="1740" Height="900" MinWidth="940" MinHeight="500"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppGeneralBackground}">
     <Window.Resources>
         <conv:CssColorStringToColorConverter x:Key="CssColorConverter"/>

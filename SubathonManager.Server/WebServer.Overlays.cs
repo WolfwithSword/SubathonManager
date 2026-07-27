@@ -401,8 +401,9 @@ public partial class WebServer
 
                 wrapper.addEventListener('mousedown', async e => {
                     isDragging = true;
-                    offsetX = e.clientX - wrapper.offsetLeft;
-                    offsetY = e.clientY - wrapper.offsetTop;
+                    const z = window.__previewZoom || 1;
+                    offsetX = e.clientX / z - wrapper.offsetLeft;
+                    offsetY = e.clientY / z - wrapper.offsetTop;
 
                     const maxZ = Math.max(...[...document.querySelectorAll('.widget-wrapper')]
                         .map(w => parseInt(w.style.zIndex) || 0));
@@ -418,8 +419,9 @@ public partial class WebServer
 
                 document.addEventListener('mousemove', e => {
                     if (!isDragging) return;
-                    const rawX = e.clientX - offsetX;
-                    const rawY = e.clientY - offsetY;
+                    const z = window.__previewZoom || 1;
+                    const rawX = e.clientX / z - offsetX;
+                    const rawY = e.clientY / z - offsetY;
                     wrapper.style.left = (snapEnabled ? snapTo(rawX, SNAP_SIZE) : rawX) + 'px';
                     wrapper.style.top  = (snapEnabled ? snapTo(rawY, SNAP_SIZE) : rawY) + 'px';
                 });
@@ -530,8 +532,9 @@ public partial class WebServer
                 document.addEventListener('mousemove', e => {{
                     if (!isResizing) return;
 
-                    const dx = (e.clientX - startX) / scaleX;
-                    const dy = (e.clientY - startY) / scaleY;
+                    const z = window.__previewZoom || 1;
+                    const dx = (e.clientX - startX) / z / scaleX;
+                    const dy = (e.clientY - startY) / z / scaleY;
 
                     if (e.ctrlKey && !e.shiftKey) {{
                         let newWidth  = baselineWidth;
@@ -669,8 +672,8 @@ public partial class WebServer
                     iframe.style.transform = `scale(${{newScaleX * scaleX}}, ${{newScaleY * scaleY}})`;
 
                     const rect = iframe.getBoundingClientRect();
-                    wrapper.style.width  = rect.width + 'px';
-                    wrapper.style.height = rect.height + 'px';
+                    wrapper.style.width  = (rect.width / z) + 'px';
+                    wrapper.style.height = (rect.height / z) + 'px';
                     wrapper.style.left   = newLeft + 'px';
                     wrapper.style.top    = newTop + 'px';
                 }});

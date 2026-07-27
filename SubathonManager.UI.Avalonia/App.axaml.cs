@@ -129,6 +129,9 @@ public partial class App : Application
 
             var window = new MainWindow();
             desktop.MainWindow = window;
+            window.Closing += (_, _) => window.CloseEditor(); 
+            
+            desktop.ShutdownMode = global::Avalonia.Controls.ShutdownMode.OnMainWindowClose;
 
             if (Utils.PendingOAuthCallback != null)
             {

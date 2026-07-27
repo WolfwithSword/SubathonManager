@@ -88,7 +88,17 @@ public static class ExternalEventService
             }
         }
 
-        subathonEvent.Amount = elemAmount.ValueKind == JsonValueKind.Number ? elemAmount.GetInt16() : 1;
+        if (elemAmount.ValueKind == JsonValueKind.String)
+        {
+            subathonEvent.Amount = 1;
+            if (int.TryParse(elemAmount.GetString(), out var amtInt) && amtInt > 0)
+                subathonEvent.Amount = amtInt;
+        }
+        else
+        {
+            subathonEvent.Amount = elemAmount.ValueKind == JsonValueKind.Number ? elemAmount.GetInt16() : 1;
+        }
+
         subathonEvent.Source = user == "SYSTEM" ? SubathonEventSource.Simulated : ((SubathonEventType?)type).GetSource();
         subathonEvent.EventType = type;
         

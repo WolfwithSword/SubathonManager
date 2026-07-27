@@ -255,6 +255,17 @@ public partial class MainWindow
         }
     }
 
+    public void CloseEditor()
+    {
+        if (_editWindow != null)
+        {
+            try
+            {
+                _editWindow.Close();
+            } finally {/**/}
+        }
+    }
+
     private EditRouteWindow? _editWindow;
 
     internal void OpenRouteEditor(Route route)
@@ -275,7 +286,8 @@ public partial class MainWindow
             LoadRoutes();
             _editWindow = null;
         };
-        _editWindow.Show(this);
+        
+        _editWindow.Show();
         _editWindow.Activate();
     }
 }

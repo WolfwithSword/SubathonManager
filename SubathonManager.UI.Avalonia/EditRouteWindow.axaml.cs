@@ -645,8 +645,9 @@ public partial class EditRouteWindow : Window
         if (!_loadedWebView) return;
         try
         {
+            var s = scale.ToString(CultureInfo.InvariantCulture);
             await PreviewWebView.InvokeScript(
-                $"document.documentElement.style.zoom='{scale.ToString(CultureInfo.InvariantCulture)}';");
+                $"document.documentElement.style.zoom='{s}';window.__previewZoom={s};");
         }
         catch { /**/ }
     }

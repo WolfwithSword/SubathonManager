@@ -38,15 +38,18 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Height="36"
-                                Content="Add Subscription" x:Name="AddBtn" Click="AddMembership_Click"
-                                Width="160" Margin="4,5,4,5"/>
+                                Content="Add New" x:Name="AddBtn" Click="AddMembership_Click"
+                                Width="100" Margin="0,4,4,4"/>
+                        <TextBox Width="34" v:NumericInputBehaviour.Mode="Integer" Height="36" Margin="4,4,4,4"
+                                 PlaceholderText="1" x:Name="SimCount" Text="1" 
+                                 views:SettingsProperties.ExcludeFromUnsaved="True" />
                         <ComboBox Width="150" Height="36" FontSize="12" x:Name="SimTierSelection"
                                   ToolTip.Tip="Select Sub Tier"
-                                  views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4 0 4 0">
+                                  views:SettingsProperties.ExcludeFromUnsaved="True" SelectedIndex="0" Margin="4 4 4 4">
                             <ComboBoxItem Content="DEFAULT"/>
                         </ComboBox>
                         <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Test"
-                                Click="TestSub_Click" Width="60" Padding="2" Height="36" Margin="4,0,0,0"/>
+                                Click="TestSub_Click" Width="60" Padding="2" Height="36" Margin="4,4,0,4"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>

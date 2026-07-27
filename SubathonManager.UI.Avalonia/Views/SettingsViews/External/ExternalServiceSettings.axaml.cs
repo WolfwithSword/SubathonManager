@@ -204,12 +204,14 @@ public partial class ExternalServiceSettings : SettingsControl
     private void TestSub_Click(object? sender, RoutedEventArgs e)
     {
         string selectedTier = (SimTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+        string amount = SimCount.Text ?? "1";
         var data = new Dictionary<string, JsonElement>
         {
             { "user", JsonSerializer.SerializeToElement("SYSTEM") },
             { "type", JsonSerializer.SerializeToElement(nameof(SubathonEventType.ExternalSub)) },
             { "value", JsonSerializer.SerializeToElement(selectedTier) },
-            { "currency", JsonSerializer.SerializeToElement("member") }
+            { "currency", JsonSerializer.SerializeToElement("member") },
+            { "amount", JsonSerializer.SerializeToElement(amount) }
         };
         ExternalEventService.ProcessExternalSub(data);
     }
