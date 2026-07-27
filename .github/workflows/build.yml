@@ -316,6 +316,15 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip
 
+      - name: Resolve Nextcloud upload path
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "NC_UPLOAD_PATH=build-avalonia" >> "$GITHUB_ENV"
+          else
+            echo "NC_UPLOAD_PATH=SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip" >> "$GITHUB_ENV"
+          fi
+
       - name: Decide artifact storage
         shell: bash
         run: |
@@ -353,7 +362,7 @@ jobs:
         continue-on-error: false
         with:
           name: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}
-          path: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip
+          path: ${{ env.NC_UPLOAD_PATH }}
           nextcloud-url: ${{ vars.NEXTCLOUD_URL }}
           nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
           nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
