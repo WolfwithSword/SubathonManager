@@ -49,6 +49,13 @@ jobs:
     # if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]' # reconsider when more tests
     name: Run Tests & Generate Coverage
     runs-on: ubuntu-latest
+    outputs:
+      line_rate: ${{ steps.covstats.outputs.line_rate }}
+      branch_rate: ${{ steps.covstats.outputs.branch_rate }}
+      tests_total: ${{ steps.covstats.outputs.tests_total }}
+      tests_passed: ${{ steps.covstats.outputs.tests_passed }}
+      tests_failed: ${{ steps.covstats.outputs.tests_failed }}
+      tests_skipped: ${{ steps.covstats.outputs.tests_skipped }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -74,11 +81,13 @@ jobs:
           dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
           --configuration Release \
           --logger "console;verbosity=detailed" \
+          --logger "trx;LogFileName=test-results.trx" \
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
           -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
 
       - name: Code Coverage Summary Report
+        if: always()
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
           filename: coverage/**/coverage.cobertura.xml
@@ -89,6 +98,73 @@ jobs:
           format: markdown
           output: both
           thresholds: '60 80'
+
+      - name: Extract test & coverage totals
+        id: covstats
+        if: always()
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+
+          line_rate=""; branch_rate=""
+          for f in coverage/**/coverage.cobertura.xml; do
+            line_rate=$(sed -n 's/.*<coverage[^>]*line-rate="\([0-9.]*\)".*/\1/p' "$f" | head -n1)
+            branch_rate=$(sed -n 's/.*<coverage[^>]*branch-rate="\([0-9.]*\)".*/\1/p' "$f" | head -n1)
+            break
+          done
+          pct() { [ -z "$1" ] && echo "n/a" || awk -v r="$1" 'BEGIN{printf "%.1f%%", r*100}'; }
+          echo "line_rate=$(pct "$line_rate")" >> "$GITHUB_OUTPUT"
+          echo "branch_rate=$(pct "$branch_rate")" >> "$GITHUB_OUTPUT"
+
+          total=0; passed=0; failed=0; skipped=0
+          for f in coverage/**/*.trx; do
+            counters=$(tr -d '\n' < "$f" | sed -n 's/.*<Counters \([^>]*\)>.*/\1/p')
+            [ -z "$counters" ] && continue
+            get() {
+              local v
+              v=$(printf ' %s' "$counters" | sed -n "s/.*[ \"]$1=\"\([0-9]*\)\".*/\1/p")
+              printf '%s' "${v:-0}"
+            }
+            total=$((total + $(get total)))
+            passed=$((passed + $(get passed)))
+            failed=$((failed + $(get failed)))
+            skipped=$((skipped + $(get notExecuted)))
+          done
+          {
+            echo "tests_total=$total"
+            echo "tests_passed=$passed"
+            echo "tests_failed=$failed"
+            echo "tests_skipped=$skipped"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write test & coverage job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Tests"
+            echo
+            echo "| Total | Passed | Failed | Skipped |"
+            echo "| --- | --- | --- | --- |"
+            echo "| ${{ steps.covstats.outputs.tests_total }} | ✅ ${{ steps.covstats.outputs.tests_passed }} | ❌ ${{ steps.covstats.outputs.tests_failed }} | ⏭️ ${{ steps.covstats.outputs.tests_skipped }} |"
+            echo
+            echo "## Test Coverage"
+            echo
+            if [ -f code-coverage-results.md ]; then
+              cat code-coverage-results.md
+            else
+              echo "_No coverage report produced._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: code-coverage-results.md
+          retention-days: 3
+          if-no-files-found: ignore
 
   avalonia-matrix:
     name: Compute Avalonia build matrix
@@ -305,6 +381,33 @@ jobs:
           path: ncmeta-${{ matrix.runtime }}.txt
           retention-days: 3
 
+      - name: Record build status
+        if: always()
+        shell: bash
+        env:
+          GH_URL: ${{ steps.gh.outputs.artifact-url }}
+          NC_URL: ${{ steps.nc.outputs.SHAREABLE_URL }}
+        run: |
+          STATUS="${{ job.status }}"
+          STORAGE="-"; URL=""
+          if [ "${{ steps.gh.outcome }}" = "success" ] && [ -n "$GH_URL" ]; then
+            STORAGE="GitHub"; URL="$GH_URL"
+          elif [ "${{ steps.nc.outcome }}" = "success" ] && [ -n "$NC_URL" ]; then
+            STORAGE="Nextcloud"; URL="$NC_URL"
+          fi
+          printf '%s|%s|%s|%s\n' \
+            "${{ matrix.runtime }}" "$STATUS" "$STORAGE" "$URL" \
+            > "buildmeta-${{ matrix.runtime }}.txt"
+          cat "buildmeta-${{ matrix.runtime }}.txt"
+
+      - name: Upload build status manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: buildmeta-${{ matrix.runtime }}
+          path: buildmeta-${{ matrix.runtime }}.txt
+          retention-days: 3
+
   build-pr:
     name: PR Build (win-x64)
     if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
@@ -358,6 +461,98 @@ jobs:
           name: SubathonManager_pr-${{ github.event.pull_request.number }}_win-x64
           path: build-pr
           retention-days: 2
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [test, avalonia-matrix, build-avalonia, build-pr, release]
+    if: always()
+    steps:
+      - name: Download build status manifests
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          pattern: buildmeta-*
+          path: buildmeta
+          merge-multiple: true
+
+      - name: Download coverage report
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-report
+          path: coverage-report
+
+      - name: Render summary
+        shell: bash
+        run: |
+          icon() {
+            case "$1" in
+              success)   echo "✅ Success" ;;
+              failure)   echo "❌ Failed" ;;
+              cancelled) echo "⚠️ Cancelled" ;;
+              skipped)   echo "⏭️ Skipped" ;;
+              *)         echo "❔ $1" ;;
+            esac
+          }
+
+          {
+            echo "# SubathonManager Build Summary"
+            echo
+            echo "**Ref:** \`${GITHUB_REF_NAME}\` &nbsp;•&nbsp; **Commit:** \`${GITHUB_SHA:0:8}\` &nbsp;•&nbsp; **Trigger:** \`${GITHUB_EVENT_NAME}\`"
+            echo
+            echo "## Jobs"
+            echo
+            echo "| Job | Result |"
+            echo "| --- | --- |"
+            echo "| Tests & Coverage | $(icon "${{ needs.test.result }}") |"
+            echo "| Builds | $(icon "${{ needs['build-avalonia'].result }}") |"
+            echo "| PR build (win-x64) | $(icon "${{ needs['build-pr'].result }}") |"
+            echo "| Release | $(icon "${{ needs.release.result }}") |"
+            echo
+            echo "## Tests"
+            echo
+            echo "| Total | Passed | Failed | Skipped |"
+            echo "| --- | --- | --- | --- |"
+            echo "| ${{ needs.test.outputs.tests_total || 'n/a' }} | ✅ ${{ needs.test.outputs.tests_passed || '0' }} | ❌ ${{ needs.test.outputs.tests_failed || '0' }} | ⏭️ ${{ needs.test.outputs.tests_skipped || '0' }} |"
+            echo
+            echo "## Coverage"
+            echo
+            echo "| Metric | Value |"
+            echo "| --- | --- |"
+            echo "| Line rate | ${{ needs.test.outputs.line_rate || 'n/a' }} |"
+            echo "| Branch rate | ${{ needs.test.outputs.branch_rate || 'n/a' }} |"
+            echo
+            if [ -f coverage-report/code-coverage-results.md ]; then
+              echo "<details><summary>Per-assembly coverage</summary>"
+              echo
+              cat coverage-report/code-coverage-results.md
+              echo
+              echo "</details>"
+              echo
+            fi
+            echo "## Platform Builds"
+            echo
+            echo "| Platform | Result | Storage | Artifact |"
+            echo "| --- | --- | --- | --- |"
+            shopt -s nullglob
+            found=0
+            for f in buildmeta/*.txt; do
+              found=1
+              IFS='|' read -r RUNTIME STATUS STORAGE URL < "$f"
+              if [ -n "$URL" ]; then
+                LINK="[Download]($URL)"
+              else
+                LINK="-"
+              fi
+              echo "| \`${RUNTIME}\` | $(icon "$STATUS") | ${STORAGE:-–} | ${LINK} |"
+            done
+            if [ "$found" -eq 0 ]; then
+              echo "| - | no platform builds ran | - | - |"
+            fi
+            echo
+            echo "[View full run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
     name: Create Release
@@ -417,10 +612,8 @@ jobs:
             rm -rf nctmp && mkdir nctmp
             unzip -o outer.zip -d nctmp || true
             if [ -f "nctmp/${NAME}.zip" ]; then
-              # Nextcloud wrapped our zip in an outer archive of the same name.
               mv "nctmp/${NAME}.zip" "dist/${NAME}.zip"
             else
-              # The downloaded file was already our platform zip.
               cp outer.zip "dist/${NAME}.zip"
             fi
             rm -rf nctmp outer.zip
