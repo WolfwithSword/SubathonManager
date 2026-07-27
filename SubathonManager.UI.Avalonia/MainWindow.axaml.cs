@@ -24,7 +24,11 @@ public partial class MainWindow : Window
         InitHome();
         InitOverlays();
 
-        Loaded += async (_, _) => await ImportPendingOverlayAsync();
+        Loaded += async (_, _) =>
+        {
+            await MaybeShowTelemetryPromptAsync();
+            await ImportPendingOverlayAsync();
+        };
     }
 
     private async void CopyVersion_Click(object? sender, RoutedEventArgs e)
