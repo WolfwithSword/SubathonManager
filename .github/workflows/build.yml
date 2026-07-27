@@ -65,10 +65,10 @@ jobs:
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-          
+
       - name: Restore dependencies
         run: dotnet restore SubathonManager.Tests/SubathonManager.Tests.csproj -p:EnableWindowsTargeting=true
-        
+
       - name: Run tests
         run: |
           dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
@@ -77,7 +77,7 @@ jobs:
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
           -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI.Avalonia/**"
-               
+
       - name: Code Coverage Summary Report
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
@@ -89,138 +89,13 @@ jobs:
           format: markdown
           output: both
           thresholds: '60 80'
-    
-  build:
-    if: github.event_name != 'pull_request' || github.actor != 'dependabot[bot]'
-    env:
-      RUNTIME: win-x64
-    name: Build Windows App
-    runs-on: windows-latest  
-    needs: test
-    outputs:
-      artifact_failed: ${{ steps.artifact-upload.outcome != 'success' }}
-      version: ${{ steps.vars.outputs.version }}
-      filename: ${{ steps.vars.outputs.filename }}
-      nextcloud_url: ${{ steps.nextcloud-fallback.outcome == 'success' && steps.nextcloud-fallback.outputs.SHAREABLE_URL || '' }}
-      artifact_name: WPF_SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
-    steps:
-      - name: Set Path Registry
-        shell: pwsh
-        run: Set-ItemProperty 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -value 1
-        
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v6
-        with:
-          path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            nuget-${{ runner.os }}-
-
-      - name: Restore dependencies
-        run: dotnet restore SubathonManager.sln
-
-      - name: Determine version and filename
-        id: vars
-        shell: bash
-        run: |
-          RUNTIME=${{ env.RUNTIME }}
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
-            echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          else
-            SAFE_REF=${GITHUB_REF_NAME//\//-}
-            echo "version=${SAFE_REF}" >> $GITHUB_OUTPUT
-          fi
-          
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "filename=WPF_SubathonManager_${RUNTIME}_nightly.zip" >> $GITHUB_OUTPUT
-          elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
-            echo "filename=WPF_SubathonManager_${RUNTIME}_${GITHUB_SHA}.zip" >> $GITHUB_OUTPUT
-          else
-            SAFE_REF=${GITHUB_REF_NAME//\//-}
-            echo "filename=WPF_SubathonManager_${RUNTIME}_${SAFE_REF}.zip" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            CLEAN_VERSION="${GITHUB_REF_NAME#v}"
-            echo "file_version=$CLEAN_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "file_version=0.0.0.0" >> $GITHUB_OUTPUT
-          fi
-          
-      - name: Set copyright year
-        shell: bash
-        run: |
-          echo "CopyrightYear=$(date +%Y)" >> $GITHUB_ENV
-          
-      - name: Inject telemetry key
-        shell: bash
-        run: |
-          sed -i 's/BUILD_TELEMETRY_KEY/${{ secrets.TELEMETRY_KEY }}/g' \
-            SubathonManager.Services/TelemetryService.cs     
-
-      - name: Build project
-        run: >
-          dotnet publish SubathonManager.UI/SubathonManager.UI.csproj 
-          -c Release 
-          -r ${{ env.RUNTIME }}
-          --self-contained true 
-          -p:PublishSingleFile=true 
-          -p:IncludeAllContentForSelfExtract=true 
-          -p:PublishTrimmed=false 
-          -p:FileVersion=${{ steps.vars.outputs.file_version }}
-          -p:AssemblyVersion=${{ steps.vars.outputs.file_version }}
-          -p:InformationalVersion=${{ steps.vars.outputs.version }} 
-          -p:Copyright="© 2025–${{ env.CopyrightYear }} WolfwithSword and contributors"
-          -o build
-
-      - name: Copy presets folder and license into build output
-        run: |
-          mkdir -Force build\presets
-          xcopy presets build\presets /E /I /Y
-          copy LICENSE build\
-          rm build\*.pdb
-
-      - name: Upload build artifact (GitHub)
-        if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.upload_target == 'github' || github.event.inputs.upload_target == 'default')) ||
-          ((github.ref_type == 'tag' && github.ref != 'refs/tags/nightly') || github.ref_name == 'main') && github.ref_name != 'dev' }}
-        uses: actions/upload-artifact@v7
-        id: artifact-upload
-        continue-on-error: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'github') }}
-        with:
-          name: WPF_SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
-          path: build
-          retention-days: 3
-
-      - name: Upload build artifact (Nextcloud)
-        id: nextcloud-fallback
-        if: ${{ github.event_name == 'pull_request'
-          || (github.event_name == 'workflow_dispatch' && github.event.inputs.upload_target == 'nextcloud')
-          || (steps.artifact-upload.outcome != 'success' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_target != 'github')) }}
-        uses: trympet/nextcloud-artifacts-action@v2
-        continue-on-error: false
-        with:
-          name: WPF_SubathonManager_${{env.RUNTIME}}_${{steps.vars.outputs.version}}
-          path: build
-          nextcloud-url: ${{ vars.NEXTCLOUD_URL }}
-          nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
-          nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
-
 
   avalonia-matrix:
     name: Compute Avalonia build matrix
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev') )
-      || github.event.inputs.force_nightly == 'true'
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'push'
+          && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/tags/v')))
     needs: test
     runs-on: ubuntu-latest
     outputs:
@@ -296,13 +171,17 @@ jobs:
         id: avars
         shell: bash
         run: |
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+          FORCE_NIGHTLY="${{ github.event.inputs.force_nightly }}"
+          if [ "${GITHUB_REF_NAME}" = "main" ] || [ "$FORCE_NIGHTLY" = "true" ]; then
             echo "version=nightly-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+            echo "suffix=nightly" >> $GITHUB_OUTPUT
           elif [ "${GITHUB_EVENT_NAME}" = "pull_request" ] || [ "${GITHUB_REF_NAME}" = "dev" ]; then
             echo "version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+            echo "suffix=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           else
             SAFE_REF=${GITHUB_REF_NAME//\//-}
             echo "version=${SAFE_REF}" >> $GITHUB_OUTPUT
+            echo "suffix=${SAFE_REF}" >> $GITHUB_OUTPUT
           fi
           if [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "file_version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
@@ -353,7 +232,7 @@ jobs:
         shell: bash
         run: |
           cd build-avalonia
-          zip -r ../SubathonManager_${{ matrix.runtime }}_nightly.zip .
+          zip -r ../SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip .
 
       - name: Assemble macOS .app bundle and zip (macOS only)
         if: startsWith(matrix.runtime, 'osx')
@@ -362,27 +241,128 @@ jobs:
           chmod +x external/macos/make-app-bundle.sh
           bash external/macos/make-app-bundle.sh build-avalonia bundle external/macos/Info.plist assets/icon.png SubathonManager "${{ steps.avars.outputs.file_version }}"
           cd bundle
-          zip -ry ../SubathonManager_${{ matrix.runtime }}_nightly.zip SubathonManager.app
+          zip -ry ../SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip SubathonManager.app
 
       - name: Zip build (windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
-        run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_${{ matrix.runtime }}_nightly.zip
+        run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip
 
-      - name: Upload build artifact
+      - name: Decide artifact storage
+        shell: bash
+        run: |
+          EVENT="${GITHUB_EVENT_NAME}"
+          TARGET="${{ github.event.inputs.upload_target }}"
+          PRIMARY=nextcloud
+          ALLOW_FALLBACK=false
+          if [ "$EVENT" = "workflow_dispatch" ] && [ "$TARGET" = "github" ]; then
+            PRIMARY=github; ALLOW_FALLBACK=false
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ "$TARGET" = "nextcloud" ]; then
+            PRIMARY=nextcloud; ALLOW_FALLBACK=false
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            PRIMARY=github; ALLOW_FALLBACK=true
+          else
+            PRIMARY=nextcloud; ALLOW_FALLBACK=false
+          fi
+          echo "PRIMARY=$PRIMARY" >> "$GITHUB_ENV"
+          echo "ALLOW_FALLBACK=$ALLOW_FALLBACK" >> "$GITHUB_ENV"
+          echo "Storage: primary=$PRIMARY fallback=$ALLOW_FALLBACK"
+
+      - name: Upload build artifact (GitHub)
+        id: gh
+        if: ${{ env.PRIMARY == 'github' }}
+        continue-on-error: ${{ env.ALLOW_FALLBACK == 'true' }}
         uses: actions/upload-artifact@v7
         with:
-          name: SubathonManager_${{ matrix.runtime }}_nightly
-          path: SubathonManager_${{ matrix.runtime }}_nightly.zip
+          name: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}
+          path: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip
           retention-days: 3
 
+      - name: Upload build artifact (Nextcloud)
+        id: nc
+        if: ${{ env.PRIMARY == 'nextcloud' || steps.gh.outcome == 'failure' }}
+        uses: trympet/nextcloud-artifacts-action@v2
+        continue-on-error: false
+        with:
+          name: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}
+          path: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip
+          nextcloud-url: ${{ vars.NEXTCLOUD_URL }}
+          nextcloud-username: ${{ vars.NEXTCLOUD_USERNAME }}
+          nextcloud-password: ${{ secrets.NEXTCLOUD_PASSWORD }}
+
+      - name: Record Nextcloud location
+        if: ${{ steps.nc.outcome == 'success' }}
+        shell: bash
+        run: |
+          echo "SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}|${{ steps.nc.outputs.SHAREABLE_URL }}" \
+            > "ncmeta-${{ matrix.runtime }}.txt"
+
+      - name: Upload Nextcloud manifest
+        if: ${{ steps.nc.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ncmeta-${{ matrix.runtime }}
+          path: ncmeta-${{ matrix.runtime }}.txt
+          retention-days: 3
+
+  build-pr:
+    name: PR Build (win-x64)
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: Set Path Registry (Windows long paths)
+        shell: pwsh
+        run: Set-ItemProperty 'HKLM:\System\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -value 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+
+      - name: Publish Avalonia (win-x64)
+        run: >
+          dotnet publish SubathonManager.UI.Avalonia/SubathonManager.UI.Avalonia.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=false
+          -p:PublishTrimmed=false
+          -o build-pr
+
+      - name: Copy presets folder and license into build output
+        shell: bash
+        run: |
+          mkdir -p build-pr/presets
+          cp -R presets/. build-pr/presets/
+          cp LICENSE build-pr/
+          rm -f build-pr/*.pdb
+
+      - name: Upload PR build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SubathonManager_pr-${{ github.event.pull_request.number }}_win-x64
+          path: build-pr
+          retention-days: 2
 
   release:
-    env:
-      RUNTIME: win-x64
     name: Create Release
     runs-on: ubuntu-latest
-    needs: build
+    needs: [test, build-avalonia]
     outputs:
       release_ok: ${{ steps.create_release.outcome == 'success' }}
     if: >
@@ -397,88 +377,107 @@ jobs:
           sparse-checkout: |
             external
           sparse-checkout-cone-mode: false
-          
-      - name: Download build artifact (GitHub)
-        if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick zip unzip curl
+
+      - name: Download GitHub build artifacts
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
-          name: ${{ needs.build.outputs.artifact_name }}
-          path: build/
+          pattern: SubathonManager_*
+          path: dist
+          merge-multiple: true
 
-      - name: Download build artifact (Nextcloud)
-        if: needs.build.outputs.artifact_failed == 'true' && github.event.inputs.upload_target != 'github'
-        run: |
-          echo "Downloading release zip from Nextcloud fallback..."
-          mkdir build
-          curl -L "${{ needs.build.outputs.nextcloud_url }}/download?path=&files=${{ needs.build.outputs.artifact_name }}.zip" \
-            -o "build/${{ needs.build.outputs.filename }}"
-          mv build/${{ needs.build.outputs.filename }} ./
+      - name: Download Nextcloud manifests
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ncmeta-*
+          path: ncmeta
+          merge-multiple: true
 
-      - name: Zip release files
-        if: needs.build.outputs.artifact_failed == 'false' && github.event.inputs.upload_target != 'nextcloud'
+      - name: Resolve Nextcloud artifacts
+        shell: bash
         run: |
-          cd build
-          zip -r ../${{ needs.build.outputs.filename }} .
-          echo "${{ needs.build.outputs.filename }} successfully zipped"
-          
+          mkdir -p dist
+          shopt -s nullglob
+          for f in ncmeta/*.txt; do
+            NAME="$(cut -d'|' -f1 "$f")"
+            URL="$(cut -d'|' -f2 "$f")"
+            [ -z "$NAME" ] && continue
+            [ -z "$URL" ]  && continue
+            if [ -f "dist/${NAME}.zip" ]; then
+              echo "Already have ${NAME}.zip from GitHub"; continue
+            fi
+            echo "Fetching ${NAME}.zip from Nextcloud..."
+            curl -fL "${URL}/download?path=&files=${NAME}.zip" -o outer.zip
+            rm -rf nctmp && mkdir nctmp
+            unzip -o outer.zip -d nctmp || true
+            if [ -f "nctmp/${NAME}.zip" ]; then
+              # Nextcloud wrapped our zip in an outer archive of the same name.
+              mv "nctmp/${NAME}.zip" "dist/${NAME}.zip"
+            else
+              # The downloaded file was already our platform zip.
+              cp outer.zip "dist/${NAME}.zip"
+            fi
+            rm -rf nctmp outer.zip
+          done
+          echo "Release assets:"; ls -la dist || true
+
+      - name: Ensure at least one build is present
+        shell: bash
+        run: |
+          if ! ls dist/*.zip >/dev/null 2>&1; then
+            echo "ERROR: no build zips found (GitHub or Nextcloud)"; exit 1
+          fi
+
       - name: Fetch SB Extension
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "external/streamerbot" | Out-Null
-      
+
           Invoke-WebRequest `
           -Uri "https://sb-assets.wolfwithsword.com/extensions/subathonmanager/latest/subathonmanager-extension.sb" `
           -OutFile "external/streamerbot/SubathonManager_Extension.sb"
-          
-      - name: Move files 
-        run: |
-          if [ -f "build/${{ needs.build.outputs.filename }}" ]; then
-            mv build/${{ needs.build.outputs.filename }} ./
-          fi
-          if [ ! -f "${{ needs.build.outputs.filename }}" ]; then
-            echo "ERROR: ZIP not found!"
-            exit 1
-          fi
-          cp external/streamerbot/*.sb ./ || true
 
-      - name: Install ImageMagick
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick zip
-          
+      - name: Stage streamerbot extension
+        run: cp external/streamerbot/*.sb ./ || true
+
       - name: Download icon
         shell: bash
-        run: |
-          curl -L "https://assets.subathonmanager.app/docs/icon.png" -o icon.png
-    
+        run: curl -L "https://assets.subathonmanager.app/docs/icon.png" -o icon.png
+
       - name: Package Stream Deck plugin
         shell: bash
         run: |
           set -e
-          
+
           sdplugin="external/streamdeck/com.wolfwithsword.subathonmanager.sdPlugin"
           mkdir -p "$sdplugin/images"
-          
+
           for spec in pluginIcon:28 categoryIcon:28 actionIcon:20 keyIcon:72; do
             name="${spec%%:*}"
             size="${spec##*:}"
-          
+
             convert icon.png -resize "${size}x${size}" "$sdplugin/images/${name}.png"
             convert icon.png -resize "$((size*2))x$((size*2))" "$sdplugin/images/${name}@2x.png"
           done
-          
+
           (
             cd external/streamdeck
             zip -r ../../SubathonManager_StreamDeck.streamDeckPlugin com.wolfwithsword.subathonmanager.sdPlugin
           )
-           
+
       - name: Create GitHub Release
         id: create_release
         if: startsWith(github.ref, 'refs/tags/') && github.ref != 'refs/tags/nightly' && (github.event_name != 'workflow_dispatch' || github.event.inputs.force_nightly != 'true')
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            ${{ needs.build.outputs.filename }}
+            dist/*.zip
             *.sb
             *.streamDeckPlugin
         env:
@@ -509,33 +508,9 @@ jobs:
           body: "Latest build from main branch."
           prerelease: true
           files: |
-            ${{ needs.build.outputs.filename }}
+            dist/*.zip
             *.sb
             *.streamDeckPlugin
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  attach-avalonia-nightly:
-    name: Add Avalonia builds to nightly
-    runs-on: ubuntu-latest
-    needs: [release, build-avalonia]
-    if: >
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-      || github.event.inputs.force_nightly == 'true'
-    steps:
-      - name: Download Avalonia artifacts
-        uses: actions/download-artifact@v8
-        with:
-          pattern: SubathonManager_*
-          path: avalonia-dist
-          merge-multiple: true
-
-      - name: Upload Avalonia zips to Nightly release
-        uses: softprops/action-gh-release@v3
-        with:
-          name: "Nightly Build"
-          tag_name: "nightly"
-          prerelease: true
-          files: avalonia-dist/*.zip
           token: ${{ secrets.GITHUB_TOKEN }}
 
   notify:
@@ -579,12 +554,12 @@ jobs:
             ]
           }
           EOF
-          
+
           curl -X POST \
                -H "Content-Type: application/json" \
                -d @payload.json \
                "$WEBHOOK_URL"
-          
+
           curl -X POST \
                -H "Content-Type: application/json" \
                -d @payload.json \
