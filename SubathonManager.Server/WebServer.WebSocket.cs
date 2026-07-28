@@ -852,15 +852,11 @@ public partial class WebServer
                                             const iframe = document.querySelector(`iframe[data-widget-id=""${{data.widgetId}}""]`);
                                             if (iframe) {{
                                                 const wrapper = iframe.parentElement;
-                                                if (data.width != null) {{
-                                                    iframe.dataset.origWidth  = data.width;
-                                                    iframe.dataset.origHeight = data.height;
-                                                    iframe.dataset.scalex = data.scaleX;
-                                                    iframe.dataset.scaley = data.scaleY;
+                                                if (data.width != null && typeof window.applyWidgetLayout === 'function') {{
+                                                    window.applyWidgetLayout(wrapper, data.width, data.height, data.scaleX, data.scaleY);
                                                     wrapper.style.left = data.x + 'px';
                                                     wrapper.style.top = data.y + 'px';
                                                 }}
-                                                iframe.onload = () => resizeIframe(iframe);
                                                 iframe.src = iframe.src;
                                             }}
                                             

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Globalization;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -211,6 +212,10 @@ public partial class WebServer
                     height: {route.Height}px;
                     margin: 0 auto;
                     background: transparent;
+                    transform-origin: top left;
+                    --handle-size: 12px;
+                    --handle-half: 6px;
+                    --chrome-outline: 2px;
                 }}
 
                 .overlay-edit {{
@@ -219,12 +224,13 @@ public partial class WebServer
                 
                 .widget-wrapper {{
                     position: absolute;
-                    pointer-events: auto; 
-                    background: rgba(0,0,0,0); 
-                    user-select: none; 
+                    pointer-events: auto;
+                    background: rgba(0,0,0,0);
+                    user-select: none;
                     -webkit-user-select: none;
                     -moz-user-select: none;
                     -ms-user-select: none;
+                    transform-origin: top left;
                 }}
 
                 .widget-wrapper iframe {{
@@ -233,7 +239,6 @@ public partial class WebServer
                     border: none;
                     background: transparent;
                     pointer-events: none;
-                    transform-origin: top left;
                 }}
 
                 @keyframes pulse {{
@@ -241,32 +246,53 @@ public partial class WebServer
                   50% {{ box-shadow: 0 0 16px rgba(100,180,255,0.6); }}
                   100% {{ box-shadow: 0 0 10px rgba(255,255,255,0.3); }}
                 }}
-                .widget-edit {{
-                    outline: 2px solid;
+
+                #chrome-layer {{
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    pointer-events: none;
+                }}
+
+                .widget-chrome {{
+                    position: absolute;
+                    pointer-events: auto;
+                    user-select: none;
+                    -webkit-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    outline: var(--chrome-outline) solid;
                     cursor: move;
                     outline-color: rgba(50, 50, 50, 0.4);
                     border-radius: 8px;
                     box-shadow: 0 0 10px rgba(55,55,55,0.3);
                     transition: outline-color 0.2s, box-shadow 0.2s;
-                  }}
-                .widget-edit:hover {{
+                }}
+                .widget-chrome:hover {{
                     outline-color: rgba(100, 180, 255, 0.9);
                     animation: pulse 1.5s infinite;
-                 }}
-                .widget-hidden {{
+                }}
+                .chrome-hidden {{
                     opacity: 0.4 !important;
                     outline-color: rgba(60, 10, 10, 0.4);
                 }}
-             
+
+                .widget-hidden {{
+                    opacity: 0.4 !important;
+                }}
+
                 .resize-handle {{
                     position: absolute;
-                    width: 12px;
-                    height: 12px;
+                    width: var(--handle-size);
+                    height: var(--handle-size);
                     background: rgba(180,180,255,0.7);
-                    border: 1px solid rgba(100,100,255,0.9);
+                    border: calc(var(--chrome-outline) / 2) solid rgba(100,100,255,0.9);
                     border-radius: 2px;
                     z-index: 9999;
                     cursor: pointer;
+                    box-sizing: border-box;
                 }}
 
                 .resize-handle.shift-active {{
@@ -279,15 +305,15 @@ public partial class WebServer
                     border-color: #20b860 !important;
                 }}
 
-                .handle-nw {{ top: -6px; left: -6px; cursor: nwse-resize; }}
-                .handle-ne {{ top: -6px; right: -6px; cursor: nesw-resize; }}
-                .handle-sw {{ bottom: -6px; left: -6px; cursor: nesw-resize; }}
-                .handle-se {{ bottom: -6px; right: -6px; cursor: nwse-resize; }}
+                .handle-nw {{ top: calc(0px - var(--handle-half)); left: calc(0px - var(--handle-half)); cursor: nwse-resize; }}
+                .handle-ne {{ top: calc(0px - var(--handle-half)); right: calc(0px - var(--handle-half)); cursor: nesw-resize; }}
+                .handle-sw {{ bottom: calc(0px - var(--handle-half)); left: calc(0px - var(--handle-half)); cursor: nesw-resize; }}
+                .handle-se {{ bottom: calc(0px - var(--handle-half)); right: calc(0px - var(--handle-half)); cursor: nwse-resize; }}
 
-                .handle-n {{ top: -6px; left: 50%; transform: translateX(-50%); cursor: n-resize; }}
-                .handle-s {{ bottom: -6px; left: 50%; transform: translateX(-50%); cursor: s-resize; }}
-                .handle-e {{ right: -6px; top: 50%; transform: translateY(-50%); cursor: e-resize; }}
-                .handle-w {{ left: -6px; top: 50%; transform: translateY(-50%); cursor: w-resize; }}
+                .handle-n {{ top: calc(0px - var(--handle-half)); left: 50%; transform: translateX(-50%); cursor: n-resize; }}
+                .handle-s {{ bottom: calc(0px - var(--handle-half)); left: 50%; transform: translateX(-50%); cursor: s-resize; }}
+                .handle-e {{ right: calc(0px - var(--handle-half)); top: 50%; transform: translateY(-50%); cursor: e-resize; }}
+                .handle-w {{ left: calc(0px - var(--handle-half)); top: 50%; transform: translateY(-50%); cursor: w-resize; }}
             </style>
         ");
         if (isEditor)
@@ -315,41 +341,52 @@ public partial class WebServer
             if (w.ScaleY == 0) w.ScaleY = 1;
 
             string cssClass = "widget-wrapper";
-            if (isEditor) cssClass += " widget-edit";
             if (!w.Visibility) cssClass += " widget-hidden";
 
-            string titleAttr = isEditor ? $" title=\"{WebUtility.HtmlEncode(w.Name)}\nZ:{w.Z}\"" : "";
-            sb.AppendLine($@"<div data-id=""{w.Id.ToString()}"" class=""{cssClass}"" {titleAttr} 
-                           style=""left:{w.X}px; top:{w.Y}px; z-index:{w.Z}; 
-                                    width:{w.Width * w.ScaleX}px; height:{w.Height * w.ScaleY}px;"">");
-            if (isEditor)
-            {
-                sb.AppendLine(@"
-                 <div class='resize-handle handle-nw'></div>
-                 <div class='resize-handle handle-ne'></div>
-                 <div class='resize-handle handle-sw'></div>
+            string sx = w.ScaleX.ToString(CultureInfo.InvariantCulture);
+            string sy = w.ScaleY.ToString(CultureInfo.InvariantCulture);
+            string px = w.X.ToString(CultureInfo.InvariantCulture);
+            string py = w.Y.ToString(CultureInfo.InvariantCulture);
 
-                 <div class='resize-handle handle-se'></div>
+            sb.AppendLine($@"<div data-id=""{w.Id.ToString()}"" class=""{cssClass}""
+                           data-scalex=""{sx}""
+                           data-scaley=""{sy}""
+                           data-orig-width=""{w.Width}""
+                           data-orig-height=""{w.Height}""
+                           style=""left:{px}px; top:{py}px; z-index:{w.Z};
+                                    width:{w.Width}px; height:{w.Height}px;
+                                    transform:scale({sx}, {sy});"">");
 
-                 <div class='resize-handle handle-n'></div>
-
-                 <div class='resize-handle handle-s'></div>
-                 <div class='resize-handle handle-e'></div>
-
-                 <div class='resize-handle handle-w'></div>
-             ");
-            }
-
-            sb.AppendLine($@"<iframe src=""/widget/{w.Id}/"" 
+            sb.AppendLine($@"<iframe src=""/widget/{w.Id}/""
                             data-widget-id=""{w.Id}""
-                            data-scalex=""{w.ScaleX}""
-                            data-scaley=""{w.ScaleY}""
-                            data-orig-width=""{w.Width}""
-                            data-orig-height=""{w.Height}""
-                            sandbox=""allow-scripts allow-same-origin"" 
+                            sandbox=""allow-scripts allow-same-origin""
                             frameborder=""0"" scrolling=""no"">
                          </iframe>");
 
+            sb.AppendLine("</div>");
+        }
+
+        if (isEditor)
+        {
+            sb.AppendLine(@"<div id=""chrome-layer"">");
+            foreach (var w in route.Widgets)
+            {
+                string chromeClass = "widget-chrome";
+                if (!w.Visibility) chromeClass += " chrome-hidden";
+
+                sb.AppendLine($@"<div data-id=""{w.Id}"" class=""{chromeClass}""
+                               title=""{WebUtility.HtmlEncode(w.Name)}&#10;Z:{w.Z}""
+                               style=""z-index:{w.Z};"">
+                     <div class='resize-handle handle-nw'></div>
+                     <div class='resize-handle handle-ne'></div>
+                     <div class='resize-handle handle-sw'></div>
+                     <div class='resize-handle handle-se'></div>
+                     <div class='resize-handle handle-n'></div>
+                     <div class='resize-handle handle-s'></div>
+                     <div class='resize-handle handle-e'></div>
+                     <div class='resize-handle handle-w'></div>
+                 </div>");
+            }
             sb.AppendLine("</div>");
         }
 
@@ -357,34 +394,72 @@ public partial class WebServer
 
         sb.AppendLine(@$"
          <script>
-            function resizeIframe(iframe) {{
-                try {{
-                    const sx = parseFloat(iframe.dataset.scalex) || 1;
-                    const sy = parseFloat(iframe.dataset.scaley) || 1;
+            window.applyWidgetLayout = function (wrapper, width, height, sx, sy) {{
+                if (!wrapper) return;
+                width  = parseFloat(width)  || parseFloat(wrapper.dataset.origWidth)  || 400;
+                height = parseFloat(height) || parseFloat(wrapper.dataset.origHeight) || 400;
+                sx = parseFloat(sx) || 1;
+                sy = parseFloat(sy) || 1;
 
-                    const wrapper = iframe.parentElement;
-                    const originalWidth  = parseFloat(iframe.dataset.origWidth)
-                                        || parseFloat(wrapper.dataset.origWidth)
-                                        || (iframe.offsetWidth > 0 ? iframe.offsetWidth  / sx : 400);
-                    const originalHeight = parseFloat(iframe.dataset.origHeight)
-                                        || parseFloat(wrapper.dataset.origHeight)
-                                        || (iframe.offsetHeight > 0 ? iframe.offsetHeight / sy : 400);
+                wrapper.dataset.origWidth  = width;
+                wrapper.dataset.origHeight = height;
+                wrapper.dataset.scalex = sx;
+                wrapper.dataset.scaley = sy;
 
-                    iframe.style.width  = originalWidth + 'px';
-                    iframe.style.height = originalHeight + 'px';
-                    iframe.style.transform = `scale(${{sx}}, ${{sy}})`;
-                    iframe.style.transformOrigin = ""top left"";
+                wrapper.style.width  = width  + 'px';
+                wrapper.style.height = height + 'px';
+                wrapper.style.transformOrigin = 'top left';
+                wrapper.style.transform = 'scale(' + sx + ', ' + sy + ')';
 
-                    wrapper.style.width  = (originalWidth  * sx) + 'px';
-                    wrapper.style.height = (originalHeight * sy) + 'px';
+                syncChrome(wrapper);
+            }};
 
-                }} catch (e) {{
-                    console.error('Cannot resize iframe:', e);
-                }}
-            }}
-            document.querySelectorAll('iframe').forEach(iframe => {{
-                iframe.onload = () => resizeIframe(iframe);
+
+            window.syncChrome = function (wrapper) {{
+                const chrome = document.querySelector(
+                    '.widget-chrome[data-id=""' + wrapper.dataset.id + '""]');
+                if (!chrome) return;
+                chrome.style.left   = wrapper.style.left || '0px';
+                chrome.style.top    = wrapper.style.top  || '0px';
+                chrome.style.width  = (parseFloat(wrapper.dataset.origWidth)
+                                     * parseFloat(wrapper.dataset.scalex)) + 'px';
+                chrome.style.height = (parseFloat(wrapper.dataset.origHeight)
+                                     * parseFloat(wrapper.dataset.scaley)) + 'px';
+            }};
+
+            window.setWidgetPosition = function (wrapper, x, y) {{
+                wrapper.style.left = x + 'px';
+                wrapper.style.top  = y + 'px';
+                syncChrome(wrapper);
+            }};
+
+            document.querySelectorAll('.widget-wrapper').forEach(wrapper => {{
+                applyWidgetLayout(wrapper,
+                    wrapper.dataset.origWidth, wrapper.dataset.origHeight,
+                    wrapper.dataset.scalex,    wrapper.dataset.scaley);
             }});
+
+            window.snapTo = function (val, grid) {{ return Math.round(val / grid) * grid; }};
+
+            window.__previewZoom = 1;
+            window.__setPreviewZoom = function (z) {{
+                z = parseFloat(z) || 1;
+                window.__previewZoom = z;
+                const overlay = document.getElementById('overlay');
+                if (!overlay) return;
+                overlay.style.transformOrigin = 'top left';
+                if (z === 1) {{
+                    overlay.style.transform = '';
+                    overlay.style.margin = '';
+                }} else {{
+                    overlay.style.margin = '0';
+                    overlay.style.transform = 'scale(' + z + ')';
+                }}
+
+                overlay.style.setProperty('--handle-size',    (12 / z) + 'px');
+                overlay.style.setProperty('--handle-half',    (6  / z) + 'px');
+                overlay.style.setProperty('--chrome-outline', (2  / z) + 'px');
+            }};
          </script>
      ");
 
@@ -395,18 +470,19 @@ public partial class WebServer
         {
             sb.AppendLine(@"
             <script>
-            document.querySelectorAll('.widget-wrapper').forEach(wrapper => {
+            document.querySelectorAll('.widget-chrome').forEach(chrome => {
+                const wrapper = document.querySelector(
+                    '.widget-wrapper[data-id=""' + chrome.dataset.id + '""]');
+                if (!wrapper) return;
+
                 let isDragging = false;
                 let offsetX = 0, offsetY = 0;
 
-                wrapper.addEventListener('mousedown', async e => {
+                chrome.addEventListener('mousedown', async e => {
                     isDragging = true;
                     const z = window.__previewZoom || 1;
                     offsetX = e.clientX / z - wrapper.offsetLeft;
                     offsetY = e.clientY / z - wrapper.offsetTop;
-
-                    const maxZ = Math.max(...[...document.querySelectorAll('.widget-wrapper')]
-                        .map(w => parseInt(w.style.zIndex) || 0));
 
                     const id = wrapper.dataset.id;
                     await fetch(`/api/select/${id}`, {
@@ -415,15 +491,14 @@ public partial class WebServer
                     e.preventDefault();
                 });
 
-                function snapTo(val, grid) { return Math.round(val / grid) * grid; }
-
                 document.addEventListener('mousemove', e => {
                     if (!isDragging) return;
                     const z = window.__previewZoom || 1;
                     const rawX = e.clientX / z - offsetX;
                     const rawY = e.clientY / z - offsetY;
-                    wrapper.style.left = (snapEnabled ? snapTo(rawX, SNAP_SIZE) : rawX) + 'px';
-                    wrapper.style.top  = (snapEnabled ? snapTo(rawY, SNAP_SIZE) : rawY) + 'px';
+                    setWidgetPosition(wrapper,
+                        snapEnabled ? snapTo(rawX, SNAP_SIZE) : rawX,
+                        snapEnabled ? snapTo(rawY, SNAP_SIZE) : rawY);
                 });
 
                 document.addEventListener('mouseup', e => {
@@ -455,24 +530,19 @@ public partial class WebServer
             let snapEnabled = false;
             const SNAP_SIZE = 20;
 
-            document.querySelectorAll('.widget-wrapper').forEach(wrapper => {{
-                const iframe = wrapper.querySelector('iframe');
+            document.querySelectorAll('.widget-chrome').forEach(chrome => {{
+                const wrapper = document.querySelector(
+                    '.widget-wrapper[data-id=""' + chrome.dataset.id + '""]');
+                if (!wrapper) return;
 
-                let scaleX = parseFloat(iframe.dataset.scalex) || 1;
-                let scaleY = parseFloat(iframe.dataset.scaley) || 1;
+                let scaleX = parseFloat(wrapper.dataset.scalex) || 1;
+                let scaleY = parseFloat(wrapper.dataset.scaley) || 1;
 
-                const originalWidth  = wrapper.dataset.origWidth  || wrapper.offsetWidth  / scaleX;
-                const originalHeight = wrapper.dataset.origHeight || wrapper.offsetHeight / scaleY;
+                applyWidgetLayout(wrapper,
+                    wrapper.dataset.origWidth, wrapper.dataset.origHeight, scaleX, scaleY);
 
-                wrapper.dataset.origWidth  = originalWidth;
-                wrapper.dataset.origHeight = originalHeight;
-
-                iframe.style.width  = originalWidth + 'px';
-                iframe.style.height = originalHeight + 'px';
-                iframe.style.transform = `scale(${{scaleX}}, ${{scaleY}})`;
-                iframe.style.transformOrigin = 'top left';
-                wrapper.style.width  = (originalWidth * scaleX) + 'px';
-                wrapper.style.height = (originalHeight * scaleY) + 'px';
+                let pendingScaleX = scaleX;
+                let pendingScaleY = scaleY;
 
                 let isResizing = false;
                 let activeHandle = null;
@@ -494,7 +564,7 @@ public partial class WebServer
                 }}
 
                 function updateHandleIndicators() {{
-                    wrapper.querySelectorAll('.resize-handle').forEach(h => {{
+                    chrome.querySelectorAll('.resize-handle').forEach(h => {{
                         h.classList.remove('shift-active', 'ctrl-dimension');
                         if (isCtrlHeld && !isShiftHeld) {{
                             h.classList.add('ctrl-dimension');
@@ -515,7 +585,7 @@ public partial class WebServer
                     if (e.key === 'Alt') {{ isAltHeld = false; snapEnabled = false; }}
                 }});
 
-                wrapper.querySelectorAll('.resize-handle').forEach(handle => {{
+                chrome.querySelectorAll('.resize-handle').forEach(handle => {{
                     handle.addEventListener('mousedown', e => {{
                         e.stopPropagation();
                         isResizing = true;
@@ -526,6 +596,8 @@ public partial class WebServer
                         baselineHeight = parseFloat(wrapper.dataset.origHeight);
                         startLeft = wrapper.offsetLeft;
                         startTop = wrapper.offsetTop;
+                        pendingScaleX = scaleX;
+                        pendingScaleY = scaleY;
                     }});
                 }});
 
@@ -577,13 +649,8 @@ public partial class WebServer
                             newTop    = snapTo(newTop,    SNAP_SIZE);
                         }}
 
-                        iframe.style.width  = newWidth  + 'px';
-                        iframe.style.height = newHeight + 'px';
-                        iframe.style.transform = `scale(${{scaleX}}, ${{scaleY}})`;
-                        wrapper.style.width  = (newWidth  * scaleX) + 'px';
-                        wrapper.style.height = (newHeight * scaleY) + 'px';
-                        wrapper.style.left   = newLeft + 'px';
-                        wrapper.style.top    = newTop  + 'px';
+                        applyWidgetLayout(wrapper, newWidth, newHeight, scaleX, scaleY);
+                        setWidgetPosition(wrapper, newLeft, newTop);
                         return;
                     }}
 
@@ -666,16 +733,12 @@ public partial class WebServer
                         newTop    = snapTo(newTop,    SNAP_SIZE);
                     }}
 
-                    const newScaleX = newWidth / baselineWidth;
-                    const newScaleY = newHeight / baselineHeight;
+                    pendingScaleX = (newWidth  / baselineWidth)  * scaleX;
+                    pendingScaleY = (newHeight / baselineHeight) * scaleY;
 
-                    iframe.style.transform = `scale(${{newScaleX * scaleX}}, ${{newScaleY * scaleY}})`;
-
-                    const rect = iframe.getBoundingClientRect();
-                    wrapper.style.width  = (rect.width / z) + 'px';
-                    wrapper.style.height = (rect.height / z) + 'px';
-                    wrapper.style.left   = newLeft + 'px';
-                    wrapper.style.top    = newTop + 'px';
+                    applyWidgetLayout(wrapper, baselineWidth, baselineHeight,
+                                      pendingScaleX, pendingScaleY);
+                    setWidgetPosition(wrapper, newLeft, newTop);
                 }});
 
                 document.addEventListener('mouseup', e => {{
@@ -685,13 +748,12 @@ public partial class WebServer
                     const id = wrapper.dataset.id;
 
                     if (e.ctrlKey && !e.shiftKey) {{
-                        const newWidth  = Math.round(parseFloat(iframe.style.width));
-                        const newHeight = Math.round(parseFloat(iframe.style.height));
+                        const newWidth  = Math.round(parseFloat(wrapper.dataset.origWidth));
+                        const newHeight = Math.round(parseFloat(wrapper.dataset.origHeight));
                         const x = wrapper.offsetLeft;
                         const y = wrapper.offsetTop;
 
-                        wrapper.dataset.origWidth  = newWidth;
-                        wrapper.dataset.origHeight = newHeight;
+                        applyWidgetLayout(wrapper, newWidth, newHeight, scaleX, scaleY);
 
                         fetch(`/api/update-dimensions/${{id}}`, {{
                             method: 'POST',
@@ -701,11 +763,8 @@ public partial class WebServer
                         return;
                     }}
 
-                    scaleX = parseFloat(iframe.style.transform.match(/scale\(([^,]+)/)[1]);
-                    scaleY = parseFloat(iframe.style.transform.match(/scale\([^,]+,\s*([^)]+)/)[1]);
-
-                    iframe.dataset.scalex = scaleX;
-                    iframe.dataset.scaley = scaleY;
+                    scaleX = pendingScaleX;
+                    scaleY = pendingScaleY;
 
                     fetch(`/api/update-size/${{id}}`, {{
                         method: 'POST',
