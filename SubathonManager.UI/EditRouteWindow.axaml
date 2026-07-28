@@ -350,6 +350,22 @@
             <Grid Margin="12,-18,0,0" ColumnDefinitions="*,Auto" VerticalAlignment="Top" ZIndex="1">
                 <TextBlock Grid.Column="0" Text="Shift: Resize Ratio                Ctrl: Adjust or Crop Height/Width                Alt: Grid Snapping" FontSize="12" xml:space="preserve" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Button x:Name="WebViewWarningButton" Classes="iconbtn" Padding="2" Width="24" Height="24" IsVisible="False"
+                            VerticalAlignment="Center" Margin="0,0,6,0" Background="Transparent"
+                            ToolTip.Tip="Preview support notice">
+                        <ctl:SymIcon Glyph="Warning16" Foreground="{DynamicResource SystemFillColorCautionBrush}"/>
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom">
+                                <StackPanel Spacing="8" MaxWidth="340">
+                                    <TextBlock Text="Overlay Preview Notice" FontWeight="SemiBold"/>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Text="This operating system is not fully supported for the built-in overlay editor preview. The preview may render incorrectly or not scale properly."/>
+                                    <TextBlock TextWrapping="Wrap"
+                                               Text="Please click the &quot;Browser Editor&quot; button to move widgets around and view the preview in your web browser."/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
                     <Button x:Name="BrowserEditorButton" Content="Browser Editor" Height="24" Padding="8,0" IsVisible="False"
                             VerticalAlignment="Center" Margin="0,0,12,0"
                             ToolTip.Tip="Open the preview editor in your web browser"

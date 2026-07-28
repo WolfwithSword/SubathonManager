@@ -3,6 +3,7 @@
              xmlns:sty="using:FluentAvalonia.Styling"
              xmlns:conv="using:SubathonManager.UI.Converters"
              x:Class="SubathonManager.UI.App"
+             Name="Subathon Manager"
              RequestedThemeVariant="Dark">
 
     <Application.Resources>

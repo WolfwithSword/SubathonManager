@@ -68,7 +68,8 @@ public partial class EditRouteWindow : Window
         InitializeComponent();
         EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
-        BrowserEditorButton.IsVisible = OperatingSystem.IsLinux();
+        BrowserEditorButton.IsVisible = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+        WebViewWarningButton.IsVisible = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
         UiUtils.UiHelpers.EnableClickAwayUnfocus(this);
 
         PreviewWebView.EnvironmentRequested += (_, e) =>
@@ -669,6 +670,7 @@ public partial class EditRouteWindow : Window
         WebViewBgToggle.Content = _webViewLightBg ? "Light" : "Dark";
         ApplyWebViewBackground(_webViewLightBg);
     }
+
 
     protected override void OnClosed(EventArgs e)
     {

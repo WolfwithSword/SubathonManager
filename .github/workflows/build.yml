@@ -308,8 +308,9 @@ jobs:
         run: |
           chmod +x external/macos/make-app-bundle.sh
           bash external/macos/make-app-bundle.sh build-avalonia bundle external/macos/Info.plist assets/icon.png SubathonManager "${{ steps.avars.outputs.file_version }}"
+          cp external/macos/README.txt bundle/
           cd bundle
-          zip -ry ../SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip SubathonManager.app
+          zip -ry ../SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip SubathonManager.app READ-ME-FIRST.txt
 
       - name: Zip build (windows)
         if: matrix.os == 'windows-latest'

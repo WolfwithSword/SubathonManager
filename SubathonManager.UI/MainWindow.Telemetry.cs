@@ -48,8 +48,7 @@ public partial class MainWindow
             bool enabled = result == FAContentDialogResult.Primary && (checkBox.IsChecked ?? false);
 
             config.SetBool("Telemetry", "Enabled", enabled);
-            if (!enabled)
-                config.Set("Telemetry", "InstallId", Guid.NewGuid().ToString());
+            config.Set("Telemetry", "InstallId", Guid.NewGuid().ToString());
             config.Save();
         }
         catch { /**/ }

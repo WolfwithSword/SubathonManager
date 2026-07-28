@@ -42,4 +42,8 @@ if [ -n "$ICON_PNG" ] && [ -f "$ICON_PNG" ] \
     iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/icon.icns" || true
 fi
 
+if command -v codesign >/dev/null 2>&1; then
+    codesign --force --deep --sign - "$APP" || true
+fi
+
 echo "built $APP"
