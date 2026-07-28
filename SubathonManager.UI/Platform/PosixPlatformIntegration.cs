@@ -9,6 +9,9 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
     private const string OverlayMime = "application/x-subathonmanager-overlay";
     private const string DesktopFileName = "subathonmanager.desktop";
     private const string MimePackageFileName = "subathonmanager-overlay.xml";
+    private const string IconName = "subathonmanager";
+
+    private static readonly int[] IconSizes = [48, 64, 128, 256];
 
     public override void RegisterFileAssociations()
     {
@@ -40,10 +43,18 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
         string desktopPath = Path.Combine(appsDir, DesktopFileName);
         string mimePath = Path.Combine(mimePackagesDir, MimePackageFileName);
 
-        string iconLine = string.Empty;
-        string iconFile = Path.Combine(Path.GetDirectoryName(exePath)!, "Assets", "icon.png");
-        if (File.Exists(iconFile))
-            iconLine = $"Icon={iconFile}\n";
+        bool iconInstalled = InstallHicolorIcons(Path.GetDirectoryName(exePath)!, dataHome);
+
+        string iconLine;
+        if (iconInstalled)
+        {
+            iconLine = $"Icon={IconName}\n";
+        }
+        else
+        {
+            string iconFile = Path.Combine(Path.GetDirectoryName(exePath)!, "Assets", "icon.png");
+            iconLine = File.Exists(iconFile) ? $"Icon={iconFile}\n" : string.Empty;
+        }
 
         string desktopContent =
             "[Desktop Entry]\n" +
@@ -79,6 +90,56 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
 
         Run("xdg-mime", "default", DesktopFileName, SchemeMime);
         Run("xdg-mime", "default", DesktopFileName, OverlayMime);
+    }
+
+    private static bool InstallHicolorIcons(string appDir, string dataHome)
+    {
+        string hicolor = Path.Combine(dataHome, "icons", "hicolor");
+        bool anyPresent = false;
+        bool anyChanged = false;
+
+        foreach (int size in IconSizes)
+        {
+            string source = Path.Combine(appDir, "Assets", $"icon_{size}.png");
+            if (!File.Exists(source))
+                continue;
+
+            string targetDir = Path.Combine(hicolor, $"{size}x{size}", "apps");
+            string target = Path.Combine(targetDir, $"{IconName}.png");
+
+            try
+            {
+                Directory.CreateDirectory(targetDir);
+                if (!FilesEqual(source, target))
+                {
+                    File.Copy(source, target, true);
+                    anyChanged = true;
+                }
+                anyPresent = true;
+            }
+            catch { /**/ }
+        }
+
+        if (anyChanged)
+            Run("gtk-update-icon-cache", "-f", "-t", hicolor);
+
+        return anyPresent;
+    }
+
+    private static bool FilesEqual(string a, string b)
+    {
+        try
+        {
+            var infoA = new FileInfo(a);
+            var infoB = new FileInfo(b);
+            if (!infoB.Exists || infoA.Length != infoB.Length)
+                return false;
+            return File.ReadAllBytes(a).AsSpan().SequenceEqual(File.ReadAllBytes(b));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool WriteIfChanged(string path, string content)

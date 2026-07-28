@@ -12,15 +12,22 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 APPS="$DATA_HOME/applications"
 MIME="$DATA_HOME/mime"
+HICOLOR="$DATA_HOME/icons/hicolor"
 DESKTOP="$APPS/subathonmanager.desktop"
 MIME_XML="$MIME/packages/subathonmanager-overlay.xml"
 SCHEME="x-scheme-handler/subathonmanager"
 OVERLAY="application/x-subathonmanager-overlay"
+ICON_NAME="subathonmanager"
+ICON_SIZES="48 64 128 256"
 
 if [ "${1:-}" = "--uninstall" ]; then
     rm -f "$DESKTOP" "$MIME_XML"
+    for size in $ICON_SIZES; do
+        rm -f "$HICOLOR/${size}x${size}/apps/$ICON_NAME.png"
+    done
     update-mime-database "$MIME" >/dev/null 2>&1 || true
     update-desktop-database "$APPS" >/dev/null 2>&1 || true
+    gtk-update-icon-cache -f -t "$HICOLOR" >/dev/null 2>&1 || true
     echo "removed SubathonManager handlers"
     exit 0
 fi
@@ -35,8 +42,24 @@ fi
 
 mkdir -p "$APPS" "$MIME/packages"
 
-ICON_LINE=""
-[ -f "$APP_DIR/Assets/icon.png" ] && ICON_LINE="Icon=$APP_DIR/Assets/icon.png"
+ICON_INSTALLED=0
+for size in $ICON_SIZES; do
+    src="$APP_DIR/Assets/icon_${size}.png"
+    [ -f "$src" ] || continue
+    mkdir -p "$HICOLOR/${size}x${size}/apps"
+    cp -f "$src" "$HICOLOR/${size}x${size}/apps/$ICON_NAME.png"
+    ICON_INSTALLED=1
+done
+
+if [ "$ICON_INSTALLED" = "1" ]; then
+    gtk-update-icon-cache -f -t "$HICOLOR" >/dev/null 2>&1 || true
+    ICON_LINE="Icon=$ICON_NAME"
+else
+    ICON_LINE=""
+    if [ -f "$APP_DIR/Assets/icon.png" ]; then
+        ICON_LINE="Icon=$APP_DIR/Assets/icon.png"
+    fi
+fi
 
 cat > "$DESKTOP" <<EOF
 [Desktop Entry]

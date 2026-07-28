@@ -287,6 +287,23 @@ jobs:
           cp LICENSE build-avalonia/
           rm -f build-avalonia/*.pdb
 
+      - name: Generate hicolor icon sizes (linux)
+        if: matrix.runtime == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y imagemagick
+          fi
+          IM=$(command -v magick || command -v convert)
+          mkdir -p build-avalonia/Assets
+          for size in 48 64 128 256; do
+            "$IM" assets/icon.png -resize "${size}x${size}" \
+              -background none -gravity center -extent "${size}x${size}" \
+              "build-avalonia/Assets/icon_${size}.png"
+          done
+          ls -l build-avalonia/Assets/icon_*.png
+
       - name: Bundle Linux association helper (linux)
         if: matrix.runtime == 'linux-x64'
         shell: bash
