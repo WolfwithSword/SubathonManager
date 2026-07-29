@@ -18,6 +18,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
+using SubathonManager.Data.Widgets;
 using SubathonManager.UI.Views;
 using SubathonManager.UI.Services;
 
@@ -191,6 +192,7 @@ public partial class EditRouteWindow : Window
 
     private async Task LoadRouteAsync()
     {
+        WidgetPackPaths.InvalidateVersionCache();
         await using var db = await _factory.CreateDbContextAsync();
         _route = await db.Routes
             .Include(r => r.Widgets).ThenInclude(w => w.CssVariables)
@@ -222,7 +224,7 @@ public partial class EditRouteWindow : Window
                 w.Z = index;
             }
             index -= 1;
-            if (!File.Exists(w.HtmlPath))
+            if (!WidgetFiles.Current.Exists(w.HtmlPath))
             {
                 _erroredWidgets.Add(w.Id);
                 _logger?.LogWarning("Widget {Name} ({Id}) file not found: {Path}", w.Name, w.Id, w.HtmlPath);
@@ -495,16 +497,56 @@ public partial class EditRouteWindow : Window
         }
         catch { /**/ }
     }
+    
+    public async Task AddWidgetPackAsync(string smwPath)
+    {
+        if (_route == null) return;
 
-    private async Task ImportSingleWidgetAsync(string path, AppDbContext db, WidgetEntityHelper helper)
+        try
+        {
+            await using var db = await _factory.CreateDbContextAsync();
+            var helper = new WidgetEntityHelper(_factory, null);
+            await ImportWidgetPackAsync(smwPath, db, helper);
+
+            foreach (var existing in _widgets.ToList())
+                ReseatWidgetCard(existing);
+
+            await RefreshWidgetZIndicesAsync();
+            OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+            RefreshWebView();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to add widget package {Path}", smwPath);
+        }
+    }
+
+    private async Task ImportWidgetPackAsync(string smwPath, AppDbContext db, WidgetEntityHelper helper)
+    {
+        var installed = WidgetPackInstaller.Install(smwPath);
+        if (installed == null)
+        {
+            _logger?.LogError("Could not read widget package {Path}", smwPath);
+            return;
+        }
+
+        var manifest = installed.Manifest;
+        await ImportSingleWidgetAsync(installed.HtmlPath, db, helper, manifest.Name, manifest.ScaleX, manifest.ScaleY);
+    }
+
+    private async Task ImportSingleWidgetAsync(string path, AppDbContext db, WidgetEntityHelper helper,
+        string? displayName = null, float scaleX = 1f, float scaleY = 1f)
     {
         var widgetType = WidgetTypeHelper.DetectFromPath(path);
-        var newWidget = new Widget(Path.GetFileNameWithoutExtension(path), path)
+        var newWidget = new Widget(
+            string.IsNullOrWhiteSpace(displayName) ? Path.GetFileNameWithoutExtension(path) : displayName, path)
         {
             Type = widgetType,
             RouteId = _route!.Id,
             X = 0,
             Y = 0,
+            ScaleX = scaleX > 0 ? scaleX : 1f,
+            ScaleY = scaleY > 0 ? scaleY : 1f,
             Z = _widgets.Count > 0 ? _widgets.Max(x => x.Z) + 1 : 1
         };
 

@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using System.Net.WebSockets;
-using SubathonManager.Server;
+using SubathonManager.Server.Interfaces;
 
 namespace SubathonManager.Tests.ServerUnitTests;
 
@@ -25,6 +25,16 @@ public class MockHttpContext: IHttpContext
 
     public Task ServeFile(string fullPath, string contentType)
     {
+        return Task.CompletedTask;
+    }
+
+    public byte[]? ServedBytes { get; private set; }
+
+    public Task ServeBytes(byte[] data, string contentType)
+    {
+        ServedBytes = data;
+        StatusCode = 200;
+        ResponseBodyStream.Write(data);
         return Task.CompletedTask;
     }
     

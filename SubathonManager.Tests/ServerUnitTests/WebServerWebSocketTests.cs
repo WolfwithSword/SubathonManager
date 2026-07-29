@@ -9,6 +9,7 @@ using SubathonManager.Server;
 using SubathonManager.Data;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Server.Interfaces;
 using SubathonManager.Tests.Utility;
 // ReSharper disable NullableWarningSuppressionIsUsed
 

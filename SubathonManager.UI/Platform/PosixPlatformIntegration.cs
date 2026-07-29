@@ -7,6 +7,7 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
 {
     private const string SchemeMime = "x-scheme-handler/subathonmanager";
     private const string OverlayMime = "application/x-subathonmanager-overlay";
+    private const string WidgetMime = "application/x-subathonmanager-widget";
     private const string DesktopFileName = "subathonmanager.desktop";
     private const string MimePackageFileName = "subathonmanager-overlay.xml";
     private const string IconName = "subathonmanager";
@@ -66,14 +67,20 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
             "NoDisplay=false\n" +
             "Categories=Utility;\n" +
             "StartupWMClass=SubathonManager\n" +
-            $"MimeType={OverlayMime};{SchemeMime};\n";
+            $"MimeType={OverlayMime};{WidgetMime};{SchemeMime};\n";
 
         string mimeContent =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
             "<mime-info xmlns=\"http://www.freedesktop.org/standards/shared-mime-info\">\n" +
             $"  <mime-type type=\"{OverlayMime}\">\n" +
             "    <comment>Subathon Manager Overlay</comment>\n" +
+            $"    <icon name=\"{IconName}\"/>\n" +
             "    <glob pattern=\"*.smo\"/>\n" +
+            "  </mime-type>\n" +
+            $"  <mime-type type=\"{WidgetMime}\">\n" +
+            "    <comment>Subathon Manager Widget</comment>\n" +
+            $"    <icon name=\"{IconName}\"/>\n" +
+            "    <glob pattern=\"*.smw\"/>\n" +
             "  </mime-type>\n" +
             "</mime-info>\n";
 
@@ -90,6 +97,7 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
 
         Run("xdg-mime", "default", DesktopFileName, SchemeMime);
         Run("xdg-mime", "default", DesktopFileName, OverlayMime);
+        Run("xdg-mime", "default", DesktopFileName, WidgetMime);
     }
 
     private static bool InstallHicolorIcons(string appDir, string dataHome)

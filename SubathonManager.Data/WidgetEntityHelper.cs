@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -7,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Objects;
@@ -250,26 +250,14 @@ public class WidgetEntityHelper
     public WidgetMeta ExtractWidgetMetadataSync(string htmlpath)
     {
         var jsonPath = htmlpath + ".json";
-        if (!File.Exists(jsonPath))
-        {
-            var html = File.ReadAllText(htmlpath);
-            Dictionary<string, string> data = GetMetaDataHtml(html);
-            try
-            {
-                File.WriteAllText(jsonPath, JsonSerializer.Serialize(ConvertHtmlMetaToJsonMeta(data), JsonOptions));
-                _logger?.LogDebug("Wrote widget meta JSON to {Path}", jsonPath);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to write widget meta JSON to {Path}", jsonPath);
-                return new WidgetMeta();
-            }
-            
-        }
+        if (!EnsureMetaSidecar(htmlpath, jsonPath, out var packedFallback))
+            return packedFallback;
+
         try
         {
-            var json = File.ReadAllText(jsonPath);
-            return JsonSerializer.Deserialize<WidgetMeta>(json, JsonOptions) ?? new WidgetMeta();
+            var json = WidgetFiles.Current.ReadAllText(jsonPath);
+            if (json != null)
+                return JsonSerializer.Deserialize<WidgetMeta>(json, JsonOptions) ?? new WidgetMeta();
         }
         catch (Exception ex)
         {
@@ -279,36 +267,31 @@ public class WidgetEntityHelper
         return new WidgetMeta();
     }
 
-    public async Task<WidgetMeta> ExtractWidgetMetadata(string htmlpath)
+    public Task<WidgetMeta> ExtractWidgetMetadata(string htmlpath)
+        => Task.FromResult(ExtractWidgetMetadataSync(htmlpath));
+    
+    private bool EnsureMetaSidecar(string htmlpath, string jsonPath, out WidgetMeta packedFallback)
     {
-        var jsonPath = htmlpath + ".json";
-        if (!File.Exists(jsonPath))
-        {
-            var html = await File.ReadAllTextAsync(htmlpath);
-            Dictionary<string, string> data = GetMetaDataHtml(html);
-            try
-            {
-                await File.WriteAllTextAsync(jsonPath, JsonSerializer.Serialize(ConvertHtmlMetaToJsonMeta(data), JsonOptions));
-                _logger?.LogDebug("Wrote widget meta JSON to {Path}", jsonPath);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "Failed to write widget meta JSON to {Path}", jsonPath);
-                return new WidgetMeta();
-            }
-        }
-        
+        packedFallback = new WidgetMeta();
+
+        if (WidgetFiles.Current.Exists(jsonPath)) return true;
+        if (WidgetFiles.Current.IsPacked(htmlpath)) return false;
+
+        var html = WidgetFiles.Current.ReadAllText(htmlpath);
+        if (html == null) return false;
+
         try
         {
-            var json = await File.ReadAllTextAsync(jsonPath);
-            return JsonSerializer.Deserialize<WidgetMeta>(json, JsonOptions) ?? new WidgetMeta();
+            var meta = ConvertHtmlMetaToJsonMeta(GetMetaDataHtml(html));
+            File.WriteAllText(jsonPath, JsonSerializer.Serialize(meta, JsonOptions));
+            _logger?.LogDebug("Wrote widget meta JSON to {Path}", jsonPath);
+            return true;
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to read widget meta JSON at {Path}", jsonPath);
+            _logger?.LogWarning(ex, "Failed to write widget meta JSON to {Path}", jsonPath);
+            return false;
         }
-
-        return new WidgetMeta();
     }
 
    internal WidgetMeta ConvertHtmlMetaToJsonMeta(Dictionary<string, string> data)

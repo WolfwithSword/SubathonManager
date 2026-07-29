@@ -1,9 +1,13 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
-using SubathonManager.UI.Platform;
+using SubathonManager.Data.Widgets;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Services;
+using ActivationKind = SubathonManager.UI.Platform.ActivationKind;
 
 namespace SubathonManager.UI;
 
@@ -39,8 +43,15 @@ public partial class MainWindow : Window
     
     public void HandlePendingActivation(ActivationKind kind)
     {
-        if (kind == ActivationKind.SmoFile)
-            _ = ImportPendingOverlayAsync();
+        switch (kind)
+        {
+            case ActivationKind.SmoFile:
+                _ = ImportPendingOverlayAsync();
+                break;
+            case ActivationKind.SmwFile:
+                CollectPendingWidgetPack();
+                break;
+        }
     }
 
     private async Task ImportPendingOverlayAsync()
@@ -52,5 +63,36 @@ public partial class MainWindow : Window
         await Task.Delay(300);
         await ImportRouteFromFile(path);
         Utils.PendingOverlayImportPath = null;
+    }
+    
+    private void CollectPendingWidgetPack()
+    {
+        var path = Utils.PendingWidgetPackImportPath;
+        Utils.PendingWidgetPackImportPath = null;
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        var installed = WidgetPackInstaller.DropIntoImports(path);
+        if (installed == null)
+        {
+            _logger?.LogWarning("Failed to collect widget package {Path}", path);
+            return;
+        }
+
+        _logger?.LogInformation("Collected widget package into {Path}", installed);
+
+        var editor = FindOpenOverlayEditor();
+        if (editor == null) return;
+
+        editor.Activate();
+        _ = editor.AddWidgetPackAsync(installed);
+    }
+
+    private static EditRouteWindow? FindOpenOverlayEditor()
+    {
+        if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            return null;
+
+        var editors = desktop.Windows.OfType<EditRouteWindow>().ToList();
+        return editors.FirstOrDefault(w => w.IsActive) ?? editors.FirstOrDefault();
     }
 }

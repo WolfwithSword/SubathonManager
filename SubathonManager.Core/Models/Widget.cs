@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
@@ -300,36 +301,51 @@ public partial class Widget
         CssVariables = ExtractCssVariablesFromFiles();
     }
     
-    public List<CssVariable> ExtractCssVariablesFromFiles()
+    public List<string> GetLinkedCssPaths()
     {
-        var extractedVars = new List<CssVariable>();
+        var paths = new List<string>();
 
-        if (!File.Exists(HtmlPath))
-            return extractedVars;
+        var html = WidgetFiles.Current.ReadAllText(HtmlPath);
+        if (html == null)
+            return paths;
 
-        string htmlContent = File.ReadAllText(HtmlPath);
         string baseDir = Path.GetDirectoryName(HtmlPath)!;
 
-        var cssMatches = CssLinkRegex().Matches(htmlContent);
-
-        foreach (Match match in cssMatches)
+        foreach (Match match in CssLinkMatches(html))
         {
             string cssFile = match.Groups[1].Value;
             string cssPath = Path.IsPathRooted(cssFile)
                 ? cssFile
                 : Path.Combine(baseDir, cssFile);
 
-            if (!File.Exists(cssPath))
+            if (!WidgetFiles.Current.Exists(cssPath))
+                continue;
+            if (paths.Contains(cssPath, StringComparer.OrdinalIgnoreCase))
                 continue;
 
-            string cssContent = File.ReadAllText(cssPath);
+            paths.Add(cssPath);
+        }
+
+        return paths;
+    }
+
+    public static MatchCollection CssLinkMatches(string htmlContent) => CssLinkRegex().Matches(htmlContent);
+
+    public List<CssVariable> ExtractCssVariablesFromFiles()
+    {
+        var extractedVars = new List<CssVariable>();
+
+        foreach (var cssPath in GetLinkedCssPaths())
+        {
+            string? cssContent = WidgetFiles.Current.ReadAllText(cssPath);
+            if (cssContent == null) continue;
             var varMatches = CssVarRegex().Matches(cssContent);
 
             string metaPath = cssPath + ".json";
             Dictionary<string, Dictionary<string, string>>? varTypes = null;
-            if (File.Exists(metaPath))
+            var metaJson = WidgetFiles.Current.ReadAllText(metaPath);
+            if (metaJson != null)
             {
-                var metaJson = File.ReadAllText(metaPath);
                 varTypes = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(metaJson,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = false });
             }

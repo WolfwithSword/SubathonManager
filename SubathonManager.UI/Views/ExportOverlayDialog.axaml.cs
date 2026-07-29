@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.UI.Controls;
@@ -68,15 +69,15 @@ public partial class ExportOverlayDialog : Window
 
             if (widget.Type.IsAsset())
             {
-                if (File.Exists(widget.HtmlPath))
+                if (WidgetFiles.Current.Exists(widget.HtmlPath))
                 {
                     string fileName = Path.GetFileName(widget.HtmlPath);
                     result.Add(($"{zipWidgetRoot}/{fileName}", widget.HtmlPath));
                 }
             }
-            else if (Directory.Exists(widgetRoot))
+            else
             {
-                result.AddRange(from file in Directory.EnumerateFiles(widgetRoot, "*", SearchOption.AllDirectories)
+                result.AddRange(from file in WidgetFiles.Current.EnumerateFiles(widgetRoot)
                     let relative = Path.GetRelativePath(widgetRoot, file).Replace('\\', '/')
                     select ($"{zipWidgetRoot}/{relative}", file));
             }

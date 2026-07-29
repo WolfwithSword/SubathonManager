@@ -15,6 +15,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
+using SubathonManager.Data.Widgets;
 using SubathonManager.Server;
 using Avalonia.Platform.Storage;
 using SubathonManager.Services;
@@ -59,6 +60,8 @@ public partial class App : Application
         string folder = Path.GetFullPath(Path.Combine(string.Empty, "data"));
         Directory.CreateDirectory(folder);
 
+        WidgetFiles.Current = new WidgetPackFileSystem();
+
         try
         {
             services.SetupInfrastructure();
@@ -71,6 +74,7 @@ public partial class App : Application
             config.LoadOrCreateDefault();
             config.MigrateConfig();
             MigrateSecureStore(config);
+            SweepWidgetPackCache();
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation", false);
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
@@ -191,6 +195,9 @@ public partial class App : Application
                 case Platform.ActivationKind.SmoFile:
                     Utils.PendingOverlayImportPath = request.Payload;
                     break;
+                case Platform.ActivationKind.SmwFile:
+                    Utils.PendingWidgetPackImportPath = request.Payload;
+                    break;
                 case Platform.ActivationKind.OAuth:
                     ProtocolParser.Parse([request.Payload]);
                     break;
@@ -272,6 +279,24 @@ public partial class App : Application
         (AppServices.Provider as IDisposable)?.Dispose();
         _logger?.LogInformation("======== Subathon Manager exit ========");
         //
+    }
+    
+    private void SweepWidgetPackCache()
+    {
+        try
+        {
+            var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+            using var db = factory.CreateDbContext();
+            var paths = db.Widgets.AsNoTracking().Select(w => w.HtmlPath).ToList();
+
+            int removed = WidgetPackInstaller.SweepCache(paths);
+            if (removed > 0)
+                _logger?.LogInformation("Swept {Count} stale widget pack cache folder(s)", removed);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to sweep widget pack cache");
+        }
     }
 
     private void MigrateSecureStore(IConfig config)

@@ -18,6 +18,7 @@ public static class Utils
     private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection> ConnectionDetails = new();
     
     public static string? PendingOverlayImportPath { get; set; }
+    public static string? PendingWidgetPackImportPath { get; set; }
     public static OAuthCallback? PendingOAuthCallback { get; set; }
     
     public static IEnumerable<IntegrationConnection> GetAllConnections() 

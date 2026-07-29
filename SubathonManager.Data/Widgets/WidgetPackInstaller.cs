@@ -1,0 +1,235 @@
+using System.IO.Compression;
+using System.Text.Json;
+// ReSharper disable NullableWarningSuppressionIsUsed
+
+namespace SubathonManager.Data.Widgets;
+
+public class WidgetPackManifest
+{
+    public string FormatVersion { get; init; } = "1";
+    public string AppVersion { get; init; } = string.Empty;
+    public string PackId { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
+    public string Author { get; init; } = string.Empty;
+
+    public string Group { get; init; } = WidgetPackPaths.DefaultGroup;
+    public string Version { get; init; } = "1.0.0";
+    public string DocsUrl { get; init; } = string.Empty;
+
+    public List<string> Tags { get; init; } = new();
+
+    public string Entry { get; init; } = string.Empty;
+
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public float ScaleX { get; init; } = 1;
+    public float ScaleY { get; init; } = 1;
+}
+
+public static class WidgetPackInstaller
+{
+    public const string ManifestFileName = "widget.json";
+    public record InstalledPack(WidgetPackManifest Manifest, string HtmlPath, string PackFile);
+
+    public static WidgetPackManifest? ReadManifest(string smwPath)
+    {
+        try
+        {
+            using var stream = new FileStream(smwPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+
+            var entry = archive.Entries.FirstOrDefault(e =>
+                string.Equals(e.FullName.Replace('\\', '/'), ManifestFileName, StringComparison.OrdinalIgnoreCase));
+            if (entry == null) return null;
+
+            using var reader = new StreamReader(entry.Open());
+            using var doc = JsonDocument.Parse(reader.ReadToEnd());
+            return Parse(doc.RootElement, smwPath);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static InstalledPack? Install(string smwPath)
+    {
+        var manifest = ReadManifest(smwPath);
+        if (manifest == null || string.IsNullOrWhiteSpace(manifest.Entry)) return null;
+
+        string packId = manifest.PackId;
+        string version = WidgetPackPaths.Slug(manifest.Version);
+        if (string.IsNullOrWhiteSpace(version)) version = "1-0-0";
+
+        string target = WidgetPackPaths.PackFile(packId, version);
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            if (!string.Equals(Path.GetFullPath(smwPath), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
+                File.Copy(smwPath, target, overwrite: true);
+
+            string cacheDir = Path.Combine(WidgetPackPaths.CacheRoot, packId, version);
+            if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, recursive: true);
+
+            WidgetPackPaths.InvalidateVersionCache(packId);
+        }
+        catch
+        {
+            return null;
+        }
+
+        string htmlPath = WidgetPackPaths.EntryPath(packId, version, manifest.Entry);
+        return new InstalledPack(manifest, htmlPath, target);
+    }
+
+    public static string? DropIntoImports(string smwPath)
+    {
+        try
+        {
+            if (!File.Exists(smwPath)) return null;
+
+            var installed = Install(smwPath);
+            if (installed != null) return installed.PackFile;
+
+            Directory.CreateDirectory(WidgetPackPaths.PackedRoot);
+            string target = Path.Combine(WidgetPackPaths.PackedRoot, Path.GetFileName(smwPath));
+            if (string.Equals(Path.GetFullPath(smwPath), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
+                return target;
+
+            File.Copy(smwPath, target, overwrite: true);
+            return target;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static int SweepCache(IEnumerable<string> liveWidgetPaths)
+    {
+        string cacheRoot = WidgetPackPaths.CacheRoot;
+        if (!Directory.Exists(cacheRoot)) return 0;
+
+        var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in liveWidgetPaths)
+        {
+            if (WidgetPackPaths.TryResolve(path, out _, out _, out var packId, out var version))
+                live.Add(Path.Combine(cacheRoot, packId, version));
+        }
+
+        int removed = 0;
+
+        try
+        {
+            foreach (var packDir in Directory.EnumerateDirectories(cacheRoot))
+            {
+                foreach (var versionDir in Directory.EnumerateDirectories(packDir))
+                {
+                    if (live.Contains(versionDir)) continue;
+                    try
+                    {
+                        Directory.Delete(versionDir, recursive: true);
+                        removed++;
+                    }
+                    catch { /**/ }
+                }
+
+                try
+                {
+                    if (!Directory.EnumerateFileSystemEntries(packDir).Any())
+                        Directory.Delete(packDir);
+                }
+                catch { /**/ }
+            }
+        }
+        catch { /**/ }
+
+        return removed;
+    }
+
+    public static string? FindNewerVersion(string widgetHtmlPath)
+    {
+        if (!WidgetPackPaths.TryResolve(widgetHtmlPath, out _, out _, out var packId, out var version))
+            return null;
+
+        string? best = null;
+        foreach (var candidate in WidgetPackPaths.InstalledVersions(packId))
+        {
+            if (WidgetPackPaths.CompareVersions(candidate, version) <= 0) continue;
+            if (best == null || WidgetPackPaths.CompareVersions(candidate, best) > 0) best = candidate;
+        }
+
+        return best;
+    }
+
+    private static WidgetPackManifest Parse(JsonElement root, string smwPath)
+    {
+        var widget = root.TryGetProperty("widget", out var w) ? w : default;
+
+        string name = Str(widget, "name");
+        if (string.IsNullOrWhiteSpace(name)) name = Path.GetFileNameWithoutExtension(smwPath);
+        string author = Str(widget, "author");
+        string group = WidgetPackPaths.NormalizeGroup(Str(widget, "group"));
+
+        string packId = Str(widget, "pack_id");
+        if (string.IsNullOrWhiteSpace(packId)) packId = WidgetPackPaths.MakePackId(author, group, name);
+
+        string version = Str(widget, "widget_version");
+        if (string.IsNullOrWhiteSpace(version)) version = "1.0.0";
+
+        var size = widget.ValueKind == JsonValueKind.Object && widget.TryGetProperty("size", 
+            out var s) ? s : default;
+        var scale = widget.ValueKind == JsonValueKind.Object && widget.TryGetProperty("scale", 
+            out var c) ? c : default;
+
+        return new WidgetPackManifest
+        {
+            FormatVersion = Str(root, "version"),
+            AppVersion = Str(root, "app_version"),
+            PackId = packId,
+            Name = name,
+            Author = author,
+            Group = group,
+            Version = version,
+            DocsUrl = Str(widget, "docsUrl"),
+            Tags = StrList(widget, "tags"),
+            Entry = Str(widget, "entry").Replace('\\', '/').TrimStart('/'),
+            Width = Int(size, "width", 400),
+            Height = Int(size, "height", 400),
+            ScaleX = Flt(scale, "x", 1f),
+            ScaleY = Flt(scale, "y", 1f)
+        };
+    }
+
+    private static string Str(JsonElement el, string name)
+        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() ?? string.Empty
+            : string.Empty;
+
+    private static List<string> StrList(JsonElement el, string name)
+    {
+        if (el.ValueKind != JsonValueKind.Object ||
+            !el.TryGetProperty(name, out var v) ||
+            v.ValueKind != JsonValueKind.Array)
+            return new List<string>();
+
+        return v.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString() ?? string.Empty)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+    }
+
+    private static int Int(JsonElement el, string name, int fallback)
+        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, 
+            out var v) && v.TryGetInt32(out var i)
+            ? i
+            : fallback;
+
+    private static float Flt(JsonElement el, string name, float fallback)
+        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name,
+            out var v) && v.TryGetSingle(out var f) && f > 0
+            ? f
+            : fallback;
+}

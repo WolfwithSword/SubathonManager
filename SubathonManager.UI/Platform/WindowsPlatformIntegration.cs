@@ -24,6 +24,12 @@ public sealed class WindowsPlatformIntegration : PlatformIntegrationBase
 
         EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\Applications\SubathonManager.exe", "FriendlyAppName", "Subathon Manager");
         EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smo\OpenWithProgids", "SubathonManager.Overlay", "");
+
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smw", "", "SubathonManager.Widget");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Widget", "", "Subathon Manager Widget");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Widget\DefaultIcon", "", $"{exePath},0");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Widget\shell\open\command", "", $"\"{exePath}\" \"%1\"");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smw\OpenWithProgids", "SubathonManager.Widget", "");
     }
 
     private static void EnsureRegistryValue(string keyPath, string name, string expectedValue)

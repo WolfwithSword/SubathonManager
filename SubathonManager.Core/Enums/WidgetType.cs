@@ -7,6 +7,14 @@ public enum WidgetType
     Video = 2
 }
 
+public enum WidgetDisplayKind
+{
+    Widget,//
+    UnpackedWidget,//
+    Image,
+    Video
+}
+
 public static class WidgetTypeHelper
 {
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)

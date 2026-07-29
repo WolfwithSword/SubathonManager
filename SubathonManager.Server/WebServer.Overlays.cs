@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
+using SubathonManager.Server.Interfaces;
 
 namespace SubathonManager.Server;
 
@@ -59,11 +61,11 @@ public partial class WebServer
                         ? widget.HtmlPath
                         : Path.Combine(folder, relativePath.Replace('/', Path.DirectorySeparatorChar));
 
-                    if (File.Exists(filePath))
+                    if (WidgetFiles.Current.Exists(filePath))
                     {
                         if (Path.GetExtension(filePath).Equals(".html", StringComparison.OrdinalIgnoreCase))
                         {
-                            string html = await File.ReadAllTextAsync(filePath);
+                            string html = WidgetFiles.Current.ReadAllText(filePath) ?? string.Empty;
 
                             var cssOverrides = new StringBuilder();
                             cssOverrides.AppendLine(GetWebsocketInjectionScript());
@@ -153,8 +155,20 @@ public partial class WebServer
                             await ctx.WriteResponse(200, html, true, "text/html");
                             return;
                         }
-                        await ctx.ServeFile(filePath, GetContentType(filePath));
-                        return;
+
+                        var realPath = WidgetFiles.Current.GetRealFilePath(filePath);
+                        if (realPath != null)
+                        {
+                            await ctx.ServeFile(realPath, GetContentType(filePath));
+                            return;
+                        }
+
+                        var bytes = WidgetFiles.Current.ReadAllBytes(filePath);
+                        if (bytes != null)
+                        {
+                            await ctx.ServeBytes(bytes, GetContentType(filePath));
+                            return;
+                        }
                     }
                 }
             }

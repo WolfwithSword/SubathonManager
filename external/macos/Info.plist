@@ -40,7 +40,7 @@
         </dict>
     </array>
 
-    <!-- .smo overlay files -->
+    <!-- .smo overlay files, .smw widget packages -->
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
@@ -48,11 +48,27 @@
             <string>Subathon Manager Overlay</string>
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
             <key>LSHandlerRank</key>
             <string>Owner</string>
             <key>LSItemContentTypes</key>
             <array>
                 <string>com.wolfwithsword.subathonmanager.overlay</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Subathon Manager Widget</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.wolfwithsword.subathonmanager.widget</string>
             </array>
         </dict>
     </array>
@@ -73,6 +89,25 @@
                 <key>public.filename-extension</key>
                 <array>
                     <string>smo</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.wolfwithsword.subathonmanager.widget</string>
+            <key>UTTypeDescription</key>
+            <string>Subathon Manager Widget</string>
+            <key>UTTypeIconFile</key>
+            <string>icon</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>smw</string>
                 </array>
             </dict>
         </dict>

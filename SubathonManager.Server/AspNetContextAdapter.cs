@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using SubathonManager.Server.Interfaces;
 
 namespace SubathonManager.Server;
 
@@ -47,6 +48,14 @@ public sealed class AspNetContextAdapter(HttpContext ctx) : IHttpContext
         ctx.Response.ContentType = contentType;
         AddCorsHeaders(ctx.Response);
         await ctx.Response.SendFileAsync(fullPath);
+    }
+
+    public async Task ServeBytes(byte[] data, string contentType)
+    {
+        ctx.Response.ContentType = contentType;
+        ctx.Response.ContentLength = data.Length;
+        AddCorsHeaders(ctx.Response);
+        await ctx.Response.Body.WriteAsync(data);
     }
 
     private static void AddCorsHeaders(HttpResponse response)

@@ -5,6 +5,7 @@ using Avalonia.Media;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
+using SubathonManager.Data.Widgets;
 
 namespace SubathonManager.UI.Converters;
 
@@ -311,10 +312,50 @@ public class WidgetAssetTypeLabelConverter : IValueConverter
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         => value switch
         {
+            // wait this actually works
+            Widget widget => widget.GetDisplayKind().GetLabel(),
             WidgetType.Image => "Image",
             WidgetType.Video => "Video",
             _ => "Widget"
         };
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class WidgetIsHtmlConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is WidgetType.Html;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class WidgetIsPackedConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is string path && WidgetPackPaths.TryResolve(path, out _, out _, out _, out _);
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class WidgetHasUpdateConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is string path && WidgetPackInstaller.FindNewerVersion(path) != null;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+public class WidgetUpdateLabelConverter : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is string path && WidgetPackInstaller.FindNewerVersion(path) is { } newer
+            ? $"Update to {WidgetPackPaths.DisplayVersion(newer)}"
+            : string.Empty;
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();

@@ -7,6 +7,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -37,10 +38,21 @@ public static class OverlayPorter
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var (srcFile, zipEntry) in plan.FileCopies)
         {
-            if (!File.Exists(srcFile)) continue;
+            if (!WidgetFiles.Current.Exists(srcFile)) continue;
             if (!seen.Add(zipEntry)) continue;
             if (excludedZipEntries != null && excludedZipEntries.Contains(zipEntry)) continue;
-            archive.CreateEntryFromFile(srcFile, zipEntry, CompressionLevel.Optimal);
+
+            if (File.Exists(srcFile))
+            {
+                await archive.CreateEntryFromFileAsync(srcFile, zipEntry, CompressionLevel.Optimal);
+                continue;
+            }
+
+            var bytes = WidgetFiles.Current.ReadAllBytes(srcFile);
+            if (bytes == null) continue;
+            var packedEntry = archive.CreateEntry(zipEntry, CompressionLevel.Optimal);
+            await using var packedStream = packedEntry.Open();
+            await packedStream.WriteAsync(bytes);
         }
 
         var manifest = BuildManifest(route, widgets, plan, exportName, version, appVersion);
@@ -88,15 +100,15 @@ public static class OverlayPorter
 
             if (widget.Type.IsAsset())
             {
-                if (File.Exists(widget.HtmlPath))
+                if (WidgetFiles.Current.Exists(widget.HtmlPath))
                 {
                     string fileName = Path.GetFileName(widget.HtmlPath);
                     plan.FileCopies.Add((widget.HtmlPath, $"{zipWidgetRoot}/{fileName}"));
                 }
             }
-            else if (Directory.Exists(widgetRoot))
+            else
             {
-                foreach (var file in Directory.EnumerateFiles(widgetRoot, "*", SearchOption.AllDirectories))
+                foreach (var file in WidgetFiles.Current.EnumerateFiles(widgetRoot))
                 {
                     string relative = Path.GetRelativePath(widgetRoot, file).Replace('\\', '/');
                     plan.FileCopies.Add((file, $"{zipWidgetRoot}/{relative}"));

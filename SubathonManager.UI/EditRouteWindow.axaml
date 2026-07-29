@@ -24,6 +24,10 @@
         <conv:StringToBoolConverter x:Key="StringToBoolConverter"/>
         <conv:VarTooltipConverter x:Key="VarTooltipConverter"/>
         <conv:WidgetAssetTypeLabelConverter x:Key="AssetTypeLabel"/>
+        <conv:WidgetIsHtmlConverter x:Key="WidgetIsHtml"/>
+        <conv:WidgetIsPackedConverter x:Key="WidgetIsPacked"/>
+        <conv:WidgetHasUpdateConverter x:Key="WidgetHasUpdate"/>
+        <conv:WidgetUpdateLabelConverter x:Key="WidgetUpdateLabel"/>
 
         <uiUtils:CssVariableTemplateSelector x:Key="CssVarSelector">
             <uiUtils:CssVariableTemplateSelector.DefaultTemplate>
@@ -308,13 +312,38 @@
                         <DataTemplate>
                             <Border Classes="widgetcard" Margin="0,0,0,8" Padding="0" Background="{DynamicResource UiBrushControlBackground}"
                                     DoubleTapped="WidgetCard_DoubleTapped">
+                                <Border.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="Open Folder" Tag="{Binding}" Click="OpenWidgetFolder_Click"
+                                                  ToolTip.Tip="Reveal this widget's file in your file manager">
+                                            <MenuItem.Icon>
+                                                <ctl:SymIcon Glyph="FolderOpen16"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <Separator/>
+                                        <MenuItem Header="Export Packed Widget" Tag="{Binding}" Click="ExportWidget_Click"
+                                                  IsEnabled="{Binding Type, Converter={StaticResource WidgetIsHtml}}"
+                                                  ToolTip.Tip="Package this widget and its current settings into a portable .smw file">
+                                            <MenuItem.Icon>
+                                                <ctl:SymIcon Glyph="ArrowExportUp16"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Unpack Widget" Tag="{Binding}" Click="UnpackWidget_Click"
+                                                  IsVisible="{Binding HtmlPath, Converter={StaticResource WidgetIsPacked}}"
+                                                  ToolTip.Tip="Extract this packaged widget to loose files so its source can be edited">
+                                            <MenuItem.Icon>
+                                                <ctl:SymIcon Glyph="ArrowDownload16"/>
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </MenuFlyout>
+                                </Border.ContextFlyout>
                                 <Border x:Name="WidgetDirtyBorder" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent"
                                         Padding="10" Tag="{Binding Id}" Loaded="WidgetDirtyBorder_Loaded" Unloaded="WidgetDirtyBorder_Unloaded">
                                     <Grid>
                                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch">
                                             <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" ToolTip.Tip="{Binding Name}"/>
                                             <TextBlock Text="{Binding Z, StringFormat='Z: {0}'}" FontSize="11" Foreground="{DynamicResource UiBrushTextTertiary}"/>
-                                            <TextBlock FontSize="10" FontStyle="Italic" Foreground="#FF6B8FC9" Text="{Binding Type, Converter={StaticResource AssetTypeLabel}}"/>
+                                            <TextBlock FontSize="10" FontStyle="Italic" Foreground="#FF6B8FC9" Text="{Binding Converter={StaticResource AssetTypeLabel}}"/>
                                         </StackPanel>
                                         <StackPanel Classes="actions" Orientation="Horizontal" VerticalAlignment="Top" ZIndex="1" HorizontalAlignment="Right">
                                             <Button Classes="opaquesecondary iconbtn" Padding="2" Margin="2,0" ToolTip.Tip="Toggle Visibility" Click="ToggleVisibility_Click" Width="24" Height="24">
@@ -336,6 +365,12 @@
                                                 <ctl:SymIcon Glyph="Delete16"/>
                                             </Button>
                                         </StackPanel>
+                                        <Button Classes="accent" Padding="8,2" FontSize="11" ZIndex="1"
+                                                VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                                                Tag="{Binding}" Click="UpdateWidgetVersion_Click"
+                                                Content="{Binding HtmlPath, Converter={StaticResource WidgetUpdateLabel}}"
+                                                IsVisible="{Binding HtmlPath, Converter={StaticResource WidgetHasUpdate}}"
+                                                ToolTip.Tip="A newer version of this widget package is installed"/>
                                     </Grid>
                                 </Border>
                             </Border>

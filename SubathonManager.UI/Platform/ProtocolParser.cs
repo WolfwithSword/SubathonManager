@@ -21,6 +21,12 @@ public static class ProtocolParser
             return new ActivationRequest(ActivationKind.SmoFile, arg);
         }
 
+        if (arg.EndsWith(".smw", StringComparison.OrdinalIgnoreCase) && File.Exists(arg))
+        {
+            Utils.PendingWidgetPackImportPath = arg;
+            return new ActivationRequest(ActivationKind.SmwFile, arg);
+        }
+
         if (!arg.StartsWith("subathonmanager://"))
             return new ActivationRequest(ActivationKind.Unknown, arg);
 

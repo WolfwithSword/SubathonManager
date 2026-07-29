@@ -14,5 +14,6 @@ public enum ActivationKind
 {
     Unknown,
     SmoFile,
+    SmwFile,
     OAuth
 }

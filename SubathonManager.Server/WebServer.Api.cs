@@ -6,6 +6,8 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
 using SubathonManager.Integration;
 using SubathonManager.Data;
+using SubathonManager.Server.Interfaces;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Server;

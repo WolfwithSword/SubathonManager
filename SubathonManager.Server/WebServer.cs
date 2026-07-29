@@ -9,6 +9,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Server.Interfaces;
 
 namespace SubathonManager.Server;
 

@@ -17,7 +17,10 @@ riderModule.iml
 
 exports/
 imports/
+cache/
 *.smo
+*.smw
+!presets/**/*.smw
 
 # If we set this up
 !.idea/codeStyles/

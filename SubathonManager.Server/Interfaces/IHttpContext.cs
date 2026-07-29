@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using System.Net.WebSockets;
-namespace SubathonManager.Server;
+namespace SubathonManager.Server.Interfaces;
 
 public interface IHttpContext
 {
@@ -16,8 +16,7 @@ public interface IHttpContext
     bool IsWebSocket { get; }
     
     Task<WebSocket>? AcceptWebSocketAsync(string? subProtocol = null);
-
     Task WriteResponse(int statusCode, string body, bool addCors = false, string? contentType = null); 
-    
     Task ServeFile(string fullPath, string contentType);
+    Task ServeBytes(byte[] data, string contentType);
 }
