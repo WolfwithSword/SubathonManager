@@ -36,6 +36,43 @@ public partial class WebServer
         _routes.Add((new RouteKey("POST", "/api/update-position/"),HandleWidgetUpdateAsync ));
         _routes.Add((new RouteKey("POST", "/api/update-size/"),HandleWidgetUpdateAsync));
         _routes.Add((new RouteKey("POST", "/api/update-dimensions/"),HandleWidgetUpdateAsync));
+        _routes.Add((new RouteKey("POST", "/api/widget-action/"),HandleWidgetActionAsync));
+    }
+
+    internal async Task HandleWidgetActionAsync(IHttpContext ctx)
+    {
+        var parts = ctx.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3 || !Guid.TryParse(parts[2], out var widgetId))
+        {
+            await ctx.WriteResponse(400, "Invalid Widget ID");
+            return;
+        }
+
+        string body;
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
+            body = await reader.ReadToEndAsync();
+
+        try
+        {
+            var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body);
+            string name = data != null && data.TryGetValue("action", out var el) && el.ValueKind == JsonValueKind.String
+                ? el.GetString() ?? string.Empty
+                : string.Empty;
+
+            if (!Enum.TryParse<WidgetContextAction>(name, ignoreCase: true, out var action))
+            {
+                await ctx.WriteResponse(400, "Unknown action");
+                return;
+            }
+
+            WidgetEvents.RaiseWidgetAction(widgetId, action);
+            await ctx.WriteResponse(200, "OK");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to handle widget context action");
+            await ctx.WriteResponse(400, "Invalid action data");
+        }
     }
     
     internal async Task HandleSelectAsync(IHttpContext ctx)

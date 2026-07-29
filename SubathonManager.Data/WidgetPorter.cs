@@ -69,8 +69,45 @@ public static partial class WidgetPorter
         public string AppVersion { get; init; } = string.Empty;
 
         public List<string> Tags { get; init; } = [];
+
+        public string PreviewImagePath { get; init; } = string.Empty;
+    }
+
+    public static readonly string[] PreviewExtensions = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
+
+    public static string PreviewEntryName(string sourcePath)
+    {
+        string ext = Path.GetExtension(sourcePath).ToLowerInvariant();
+        if (!PreviewExtensions.Contains(ext)) ext = ".png";
+        return "preview" + ext;
     }
     
+    public static string? ExtractExistingPreview(Widget widget)
+    {
+        var location = WidgetPackPaths.Resolve(widget.HtmlPath);
+        if (location == null) return null;
+
+        var manifest = WidgetPackInstaller.ReadManifest(location.PackFileStr);
+        if (manifest == null || string.IsNullOrWhiteSpace(manifest.PreviewImage)) return null;
+
+        var bytes = WidgetFiles.Current.ReadAllBytes(
+            WidgetPackPaths.EntryPathIn(location.MountRootStr, manifest.PreviewImage));
+        if (bytes == null) return null;
+
+        try
+        {
+            string temp = Path.Combine(Path.GetTempPath(),
+                $"smw-preview-{Guid.NewGuid():N}{Path.GetExtension(manifest.PreviewImage)}");
+            File.WriteAllBytes(temp, bytes);
+            return temp;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+
     public static List<string> ParseTags(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return [];
@@ -297,6 +334,7 @@ public static partial class WidgetPorter
                 Group = options.Group,
                 Version = options.Version,
                 Tags = options.Tags,
+                PreviewImagePath = options.PreviewImagePath,
                 AppVersion = AppServices.AppVersion
             };
         }
@@ -332,6 +370,13 @@ public static partial class WidgetPorter
             var zipEntry = archive.CreateEntry(entry.ZipEntry, CompressionLevel.Optimal);
             await using var stream = await zipEntry.OpenAsync();
             await stream.WriteAsync(bytes);
+        }
+
+        if (!string.IsNullOrWhiteSpace(opts.PreviewImagePath) && File.Exists(opts.PreviewImagePath))
+        {
+            string previewEntry = PreviewEntryName(opts.PreviewImagePath);
+            if (written.Add(previewEntry))
+                await archive.CreateEntryFromFileAsync(opts.PreviewImagePath, previewEntry, CompressionLevel.Optimal);
         }
     }
     
@@ -382,6 +427,9 @@ public static partial class WidgetPorter
                 group,
                 widget_version = opts.Version,
                 tags = opts.Tags,
+                preview_image = string.IsNullOrWhiteSpace(opts.PreviewImagePath)
+                    ? string.Empty
+                    : PreviewEntryName(opts.PreviewImagePath),
                 docsUrl = widget.DocsUrl ?? string.Empty,
                 type = widget.Type.ToString(),
                 entry = plan.EntryZipPath,

@@ -42,7 +42,9 @@ namespace SubathonManager.Data
         public DbSet<JuniperProduct> JuniperProducts { get; set; }
 
         public DbSet<StateValue> StateValues { get; set; }
-        
+
+        public DbSet<WidgetCatalogEntry> WidgetCatalogEntries => Set<WidgetCatalogEntry>();
+
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
@@ -168,6 +170,10 @@ namespace SubathonManager.Data
                 .HasKey(e => new { e.RowId });
             modelBuilder.Entity<GoAffProStore>()
                 .HasIndex(s => new { s.SiteId })
+                .IsUnique();
+
+            modelBuilder.Entity<WidgetCatalogEntry>()
+                .HasIndex(e => e.PackPath)
                 .IsUnique();
 
             modelBuilder.Entity<JuniperProduct>()

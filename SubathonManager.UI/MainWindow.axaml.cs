@@ -71,20 +71,25 @@ public partial class MainWindow : Window
         Utils.PendingWidgetPackImportPath = null;
         if (string.IsNullOrWhiteSpace(path)) return;
 
-        var installed = WidgetPackInstaller.DropIntoImports(path);
-        if (installed == null)
+        var editor = FindOpenOverlayEditor();
+        if (editor != null)
         {
-            _logger?.LogWarning("Failed to collect widget package {Path}", path);
+            editor.Activate();
+            _ = editor.AddWidgetPackAsync(path);
             return;
         }
 
-        _logger?.LogInformation("Collected widget package into {Path}", installed);
+        bool isCollection = path.EndsWith(WidgetCollectionInstaller.CollectionExtension,
+            StringComparison.OrdinalIgnoreCase);
 
-        var editor = FindOpenOverlayEditor();
-        if (editor == null) return;
+        string? installed = isCollection
+            ? (WidgetCollectionInstaller.InstallAll(path) != null ? path : null)
+            : WidgetPackInstaller.DropIntoImports(path);
 
-        editor.Activate();
-        _ = editor.AddWidgetPackAsync(installed);
+        if (installed == null)
+            _logger?.LogWarning("Failed to collect widget package {Path}", path);
+        else
+            _logger?.LogDebug("Collected widget package {Path}", installed);
     }
 
     private static EditRouteWindow? FindOpenOverlayEditor()

@@ -1,4 +1,5 @@
-﻿using SubathonManager.Core.Models;
+﻿using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Core.Events;
 
@@ -9,6 +10,12 @@ public static class WidgetEvents
     public static event Action<Widget>? WidgetScaleUpdated;
     public static event Action<Widget>? WidgetSizeUpdated;
     public static event Action<Guid>? SelectEditorWidget;
+    public static event Action<Guid, WidgetContextAction>? WidgetActionRequested;
+
+    public static void RaiseWidgetAction(Guid widgetId, WidgetContextAction action)
+    {
+        WidgetActionRequested?.Invoke(widgetId, action);
+    }
 
     public static void RaisePositionUpdated(Widget widget)
     {

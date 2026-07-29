@@ -12,6 +12,8 @@ using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.Data.Overlays;
+using SubathonManager.Data.Widgets;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views;
 
@@ -55,6 +57,18 @@ public partial class MainWindow
             FileName = "https://docs.subathonmanager.app/latest/widgets/presets/Presets/",
             UseShellExecute = true
         });
+    }
+
+    private async void BrowseWidgets_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await new WidgetBrowserDialog().ShowDialog(this);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to open the widget browser");
+        }
     }
 
     private void OpenPresets_Click(object? sender, RoutedEventArgs e) => OpenRelativeFolder("presets");
@@ -213,10 +227,24 @@ public partial class MainWindow
             filePath = tempFile;
         }
 
-        string importsDir = Path.GetFullPath("./imports");
         try
         {
-            var result = await OverlayPorter.ImportRouteAsync(filePath, importsDir, _factory);
+            var installed = OverlayPackInstaller.Install(filePath);
+            if (installed == null)
+            {
+                _logger?.LogError("Import failed: could not read overlay archive {Path}", filePath);
+                return false;
+            }
+
+            WidgetPackPaths.InvalidateResolveCache();
+            WidgetPackPaths.InvalidateVersionCache();
+
+            var manifest = installed.Manifest;
+            var result = await OverlayPorter.ImportExtractedRouteAsync(
+                installed.UnpackDir,
+                _factory,
+                manifest.Name,
+                OverlayPackPaths.RouteName(manifest.Name, manifest.Version));
 
             if (result.Failed)
             {
@@ -244,7 +272,29 @@ public partial class MainWindow
             if (result.NewJsVariables.Count > 0)
                 db.JsVariables.AddRange(result.NewJsVariables);
 
+            foreach (var repointed in result.RepointedWidgets)
+            {
+                var tracked = await db.Widgets.FirstOrDefaultAsync(w => w.Id == repointed.Id);
+                tracked?.HtmlPath = repointed.HtmlPath;
+            }
+
+            if (result is { MergedRouteId: { } mergedId, MergedRouteName: { } mergedName })
+            {
+                var existing = await db.Routes.FirstOrDefaultAsync(r => r.Id == mergedId);
+                existing?.Name = mergedName;
+            }
+
             await db.SaveChangesAsync();
+
+            if (result.RepointedWidgets.Count > 0)
+            {
+                var helper = new WidgetEntityHelper(_factory, null);
+                foreach (var repointed in result.RepointedWidgets)
+                {
+                    helper.SyncCssVariables(repointed);
+                    helper.SyncJsVariables(repointed);
+                }
+            }
             await Dispatcher.UIThread.InvokeAsync(LoadRoutes);
             return true;
         }

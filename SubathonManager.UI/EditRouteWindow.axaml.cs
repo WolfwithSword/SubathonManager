@@ -104,7 +104,11 @@ public partial class EditRouteWindow : Window
         Loaded += EditRouteWindow_Loaded;
         ObsConnected = ServiceManager.OBS.Connected;
         IntegrationEvents.ConnectionUpdated += OnObsConnectionUpdated;
-        Closed += (_, _) => IntegrationEvents.ConnectionUpdated -= OnObsConnectionUpdated;
+        Closed += (_, _) =>
+        {
+            IntegrationEvents.ConnectionUpdated -= OnObsConnectionUpdated;
+            WidgetEvents.WidgetActionRequested -= OnWidgetActionRequested;
+        };
 
         _cssLivePreviewTimer = new Timer(_ =>
         {
@@ -147,6 +151,7 @@ public partial class EditRouteWindow : Window
             WidgetEvents.WidgetScaleUpdated += OnWidgetScaleUpdated;
             WidgetEvents.WidgetSizeUpdated += OnWidgetSizeUpdated;
             WidgetEvents.SelectEditorWidget += SelectWidgetFromEvent;
+            WidgetEvents.WidgetActionRequested += OnWidgetActionRequested;
         }
     }
 
@@ -498,15 +503,31 @@ public partial class EditRouteWindow : Window
         catch { /**/ }
     }
     
-    public async Task AddWidgetPackAsync(string smwPath)
+    private async void BrowseWidgetsButton_Click(object? sender, RoutedEventArgs e)
     {
         if (_route == null) return;
+
+        var dialog = new WidgetBrowserDialog(async entry =>
+        {
+            string file = WidgetCatalog.ToAbsolutePath(entry.PackPath);
+            return File.Exists(file) && await AddWidgetPackAsync(file);
+        });
+
+        await dialog.ShowDialog(this);
+    }
+
+    public async Task<bool> AddWidgetPackAsync(string packPath)
+    {
+        if (_route == null) return false;
 
         try
         {
             await using var db = await _factory.CreateDbContextAsync();
             var helper = new WidgetEntityHelper(_factory, null);
-            await ImportWidgetPackAsync(smwPath, db, helper);
+
+            bool added = packPath.EndsWith(WidgetCollectionInstaller.CollectionExtension, StringComparison.OrdinalIgnoreCase)
+                ? await ImportWidgetCollectionAsync(packPath, db, helper)
+                : await ImportWidgetPackAsync(packPath, db, helper);
 
             foreach (var existing in _widgets.ToList())
                 ReseatWidgetCard(existing);
@@ -514,24 +535,49 @@ public partial class EditRouteWindow : Window
             await RefreshWidgetZIndicesAsync();
             OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
             RefreshWebView();
+
+            return added;
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to add widget package {Path}", smwPath);
+            _logger?.LogError(ex, "Failed to add widget package {Path}", packPath);
+            return false;
         }
     }
 
-    private async Task ImportWidgetPackAsync(string smwPath, AppDbContext db, WidgetEntityHelper helper)
+    private async Task<bool> ImportWidgetCollectionAsync(string smwcPath, AppDbContext db, WidgetEntityHelper helper)
+    {
+        var collection = WidgetCollectionInstaller.InstallAll(smwcPath);
+        if (collection == null)
+        {
+            _logger?.LogError("Could not read widget collection {Path}", smwcPath);
+            return false;
+        }
+
+        if (collection.Failed > 0)
+            _logger?.LogWarning("Skipped {Count} unreadable package(s) in {Path}", collection.Failed, smwcPath);
+
+        foreach (var pack in collection.Packs)
+        {
+            var manifest = pack.Manifest;
+            await ImportSingleWidgetAsync(pack.HtmlPath, db, helper, manifest.Name, manifest.ScaleX, manifest.ScaleY);
+        }
+
+        return collection.Packs.Count > 0;
+    }
+
+    private async Task<bool> ImportWidgetPackAsync(string smwPath, AppDbContext db, WidgetEntityHelper helper)
     {
         var installed = WidgetPackInstaller.Install(smwPath);
         if (installed == null)
         {
             _logger?.LogError("Could not read widget package {Path}", smwPath);
-            return;
+            return false;
         }
 
         var manifest = installed.Manifest;
         await ImportSingleWidgetAsync(installed.HtmlPath, db, helper, manifest.Name, manifest.ScaleX, manifest.ScaleY);
+        return true;
     }
 
     private async Task ImportSingleWidgetAsync(string path, AppDbContext db, WidgetEntityHelper helper,

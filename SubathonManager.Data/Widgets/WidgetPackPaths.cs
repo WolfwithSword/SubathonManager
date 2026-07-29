@@ -23,14 +23,14 @@ public static partial class WidgetPackPaths
     private static readonly Lock VersionCacheLock = new();
     private static readonly Dictionary<string, List<string>> VersionCache = new(StringComparer.OrdinalIgnoreCase);
 
-    public static List<string> InstalledVersions(string packId)
+    public static List<string> InstalledVersions(string packId) => VersionsIn(PackFolder(packId));
+    public static List<string> VersionsIn(string folder)
     {
         lock (VersionCacheLock)
         {
-            if (VersionCache.TryGetValue(packId, out var cached)) return cached;
+            if (VersionCache.TryGetValue(folder, out var cached)) return cached;
 
             var versions = new List<string>();
-            string folder = PackFolder(packId);
 
             if (Directory.Exists(folder))
             {
@@ -45,7 +45,7 @@ public static partial class WidgetPackPaths
                 catch { /**/ }
             }
 
-            VersionCache[packId] = versions;
+            VersionCache[folder] = versions;
             return versions;
         }
     }
@@ -60,7 +60,7 @@ public static partial class WidgetPackPaths
         lock (VersionCacheLock)
         {
             if (packId == null) VersionCache.Clear();
-            else VersionCache.Remove(packId);
+            else VersionCache.Remove(PackFolder(packId));
         }
     }
 
@@ -88,6 +88,25 @@ public static partial class WidgetPackPaths
     public static string NormalizeGroup(string? group)
         => string.IsNullOrWhiteSpace(group) ? DefaultGroup : group.Trim();
     
+    public static bool IsInGlobalStore(string packFileOrFolder)
+    {
+        try
+        {
+            return Path.GetFullPath(packFileOrFolder)
+                .StartsWith(PackedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    public static string UnpackRootFor(PackLocation location, string author, string group, string name)
+    {
+        if (IsInGlobalStore(location.PackFolderStr))
+            return UnpackRoot(author, group, name, location.VersionStr);
+
+        string container = Path.GetDirectoryName(location.PackFolderStr) ?? location.PackFolderStr;
+        return Path.Combine(container, "unpacked", location.PackIdStr, location.VersionStr);
+    }
+
     public static string UnpackRoot(string author, string group, string name, string version)
     {
         string authorFolder = Slug(author);
@@ -114,6 +133,71 @@ public static partial class WidgetPackPaths
 
     public static string EntryPath(string packId, string version, string entry)
         => Path.Combine(MountRoot(packId, version), entry.Replace('/', Path.DirectorySeparatorChar));
+    
+    public record PackLocation(string PackFileStr, string PackFolderStr, string MountRootStr, string PackIdStr, string VersionStr);
+
+    private static readonly Lock ResolveCacheLock = new();
+    private static readonly Dictionary<string, PackLocation?> ResolveCache = new(StringComparer.OrdinalIgnoreCase);
+    private const int MaxMountDepth = 16;
+
+    public static PackLocation? Resolve(string widgetPath)
+    {
+        if (string.IsNullOrWhiteSpace(widgetPath)) return null;
+
+        string full;
+        try { full = Path.GetFullPath(widgetPath); }
+        catch { return null; }
+
+        string? dir = Path.GetDirectoryName(full);
+        if (dir == null) return null;
+
+        var found = ResolveDirectory(dir);
+        return found;
+    }
+
+    private static PackLocation? ResolveDirectory(string directory)
+    {
+        lock (ResolveCacheLock)
+        {
+            if (ResolveCache.TryGetValue(directory, out var cached)) return cached;
+        }
+
+        PackLocation? result = null;
+        string? current = directory;
+
+        for (int depth = 0; depth < MaxMountDepth && current != null; depth++)
+        {
+            string candidate = current + PackExtension;
+            if (File.Exists(candidate))
+            {
+                string packFolder = Path.GetDirectoryName(current) ?? current;
+                result = new PackLocation(
+                    PackFileStr: candidate,
+                    PackFolderStr: packFolder,
+                    MountRootStr: current,
+                    PackIdStr: Path.GetFileName(packFolder),
+                    VersionStr: Path.GetFileName(current));
+                break;
+            }
+
+            current = Path.GetDirectoryName(current);
+        }
+
+        lock (ResolveCacheLock)
+        {
+            ResolveCache[directory] = result;
+        }
+
+        return result;
+    }
+
+    public static void InvalidateResolveCache()
+    {
+        lock (ResolveCacheLock)
+        {
+            ResolveCache.Clear();
+        }
+    }
 
     public static bool TryResolve(string widgetPath, out string packFile, out string entry,
         out string packId, out string version)
@@ -123,41 +207,33 @@ public static partial class WidgetPackPaths
         packId = string.Empty;
         version = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(widgetPath)) return false;
+        var found = Resolve(widgetPath);
+        if (found == null) return false;
 
-        string full;
-        try { full = Path.GetFullPath(widgetPath); }
-        catch { return false; }
+        packFile = found.PackFileStr;
+        packId = found.PackIdStr;
+        version = found.VersionStr;
+        entry = Path.GetRelativePath(found.MountRootStr, Path.GetFullPath(widgetPath)).Replace('\\', '/');
 
-        string root = PackedRoot;
-        if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        var parts = full[(root.Length + 1)..]
-            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-                StringSplitOptions.RemoveEmptyEntries);
-
-        if (parts.Length < 3) return false;
-
-        packId = parts[0];
-        version = parts[1];
-        entry = string.Join('/', parts.Skip(2));
-        packFile = PackFile(packId, version);
-
-        return File.Exists(packFile);
+        return true;
     }
 
-    public static bool IsMountPath(string widgetPath)
-    {
-        if (string.IsNullOrWhiteSpace(widgetPath)) return false;
-        try
-        {
-            return Path.GetFullPath(widgetPath)
-                .StartsWith(PackedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-        }
-        catch { return false; }
-    }
+    public static string EntryPathIn(string mountRoot, string entry)
+        => Path.Combine(mountRoot, entry.Replace('/', Path.DirectorySeparatorChar));
     
+    public static string CacheDirFor(string packFile)
+    {
+        string key;
+        try { key = Path.GetFullPath(packFile).ToLowerInvariant(); }
+        catch { key = packFile.ToLowerInvariant(); }
+
+        byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(key));
+        string folder = $"{Slug(Path.GetFileNameWithoutExtension(packFile))}-{Convert.ToHexString(hash)[..8].ToLowerInvariant()}";
+
+        return Path.Combine(CacheRoot, folder);
+    }
+
+
     public static string MakePackId(string author, string group, string name)
     {
         string n = Slug(name);

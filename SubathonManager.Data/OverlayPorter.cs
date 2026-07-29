@@ -9,6 +9,9 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Data.Overlays;
+using SubathonManager.Data.Widgets;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data;
@@ -17,7 +20,9 @@ public static class OverlayPorter
 {
     private const int SegmentHashLength = 4;
     private const string ExternalFolder = "_external";
-    private const string ManifestFileName = "overlay.json";
+    private const string PacksFolder = "packs";
+    private const string ManifestFileName = OverlayPackInstaller.ManifestFileName;
+    public const string FormatVersion = "2";
 
     private static readonly JsonSerializerOptions SerializeOptions = new JsonSerializerOptions
     {
@@ -27,7 +32,9 @@ public static class OverlayPorter
 
     #region EXPORT
 
-    public static async Task ExportRouteAsync(Route route, string outputPath, string exportName, HashSet<string>? excludedZipEntries = null, string version = "1", string appVersion = "")
+    public static async Task ExportRouteAsync(Route route, string outputPath, string exportName,
+        HashSet<string>? excludedZipEntries = null, string version = "1", string appVersion = "",
+        string author = "", List<string>? tags = null)
     {
         var widgets = route.Widgets.ToList();
         var plan = BuildExportPlan(widgets);
@@ -51,14 +58,14 @@ public static class OverlayPorter
             var bytes = WidgetFiles.Current.ReadAllBytes(srcFile);
             if (bytes == null) continue;
             var packedEntry = archive.CreateEntry(zipEntry, CompressionLevel.Optimal);
-            await using var packedStream = packedEntry.Open();
+            await using var packedStream = await packedEntry.OpenAsync();
             await packedStream.WriteAsync(bytes);
         }
 
-        var manifest = BuildManifest(route, widgets, plan, exportName, version, appVersion);
+        var manifest = BuildManifest(route, widgets, plan, exportName, version, appVersion, author, tags);
         var manifestJson = JsonSerializer.Serialize(manifest, SerializeOptions);
         var manifestEntry = archive.CreateEntry(ManifestFileName, CompressionLevel.Optimal);
-        await using var manifestStream = manifestEntry.Open();
+        await using var manifestStream = await manifestEntry.OpenAsync();
         await manifestStream.WriteAsync(Encoding.UTF8.GetBytes(manifestJson));
         OpenExportFolder(outputPath);
     }
@@ -98,7 +105,16 @@ public static class OverlayPorter
 
             plan.WidgetFolderMap[widget.Id] = zipWidgetRoot;
 
-            if (widget.Type.IsAsset())
+            bool isPacked = WidgetPackPaths.TryResolve(widget.HtmlPath, out var packFile, out var packEntry,
+                out var packId, out var packVersion);
+
+            if (isPacked)
+            {
+                string packZipPath = $"{PacksFolder}/{packId}/{packVersion}{WidgetPackPaths.PackExtension}";
+                plan.FileCopies.Add((packFile, packZipPath));
+                plan.WidgetPacks[widget.Id] = new PackReference(packId, packVersion, packEntry, packZipPath);
+            }
+            else if (widget.Type.IsAsset())
             {
                 if (WidgetFiles.Current.Exists(widget.HtmlPath))
                 {
@@ -147,7 +163,8 @@ public static class OverlayPorter
         return plan;
     }
 
-    private static JsonElement BuildManifest(Route route, List<Widget> widgets, ExportPlan plan, string exportName, string version = "1", string appVersion = "")
+    private static JsonElement BuildManifest(Route route, List<Widget> widgets, ExportPlan plan, string exportName,
+        string version = "1", string appVersion = "", string author = "", List<string>? tags = null)
     {
         if (string.IsNullOrWhiteSpace(appVersion)) appVersion = AppServices.AppVersion;
         var widgetList = widgets.Select(w =>
@@ -163,11 +180,16 @@ public static class OverlayPorter
                 return new { name = v.Name, value, type = v.Type };
             });
 
+            var pack = plan.WidgetPacks.TryGetValue(w.Id, out var packRef)
+                ? new { id = packRef.PackId, version = packRef.Version, entry = packRef.Entry, file = packRef.ZipPath }
+                : null;
+
             return new
             {
                 id = w.Id,
                 name = w.Name,
                 htmlPath = htmlZipRelPath,
+                pack,
                 type = w.Type.ToString(),
                 position = new { x = w.X, y = w.Y, z = w.Z },
                 size = new { width = w.Width, height = w.Height },
@@ -181,13 +203,18 @@ public static class OverlayPorter
 
         var obj = new
         {
+            // formatversion helps determine some behaviour from old stuff
             version = version,
+            format_version = FormatVersion,
             app_version = appVersion,
             exported_at = DateTime.UtcNow,
             route = new
             {
                 id = route.Id,
                 name = exportName,
+                author = author,
+                overlay_version = version,
+                tags = tags ?? new List<string>(),
                 resolution = new { width = route.Width, height = route.Height },
                 created = route.CreatedTimestamp,
                 updated = route.UpdatedTimestamp
@@ -214,8 +241,17 @@ public static class OverlayPorter
         string archiveName = Path.GetFileNameWithoutExtension(smoPath);
         string extractDir = Path.Combine(extractRoot, SanitizeName(archiveName));
         Directory.CreateDirectory(extractDir);
-        ZipFile.ExtractToDirectory(smoPath, extractDir, overwriteFiles: true);
+        await ZipFile.ExtractToDirectoryAsync(smoPath, extractDir, overwriteFiles: true);
 
+        return await ImportExtractedRouteAsync(extractDir, factory, archiveName);
+    }
+    
+    public static async Task<ImportResult> ImportExtractedRouteAsync(
+        string extractDir,
+        IDbContextFactory<AppDbContext> factory,
+        string fallbackName,
+        string? routeNameOverride = null)
+    {
         string manifestPath = Path.Combine(extractDir, ManifestFileName);
         if (!File.Exists(manifestPath)) return ImportResult.Fail("overlay.json not found in archive");
 
@@ -226,57 +262,98 @@ public static class OverlayPorter
         await using var db = await factory.CreateDbContextAsync();
 
         var routeEl = root.GetProperty("route");
-        string routeName = routeEl.GetProperty("name").GetString() ?? archiveName;
-
-        var existingWidgetPaths = new HashSet<string>(
-            db.Widgets.Select(w => w.HtmlPath),
-            StringComparer.OrdinalIgnoreCase);
+        string routeName = routeNameOverride
+                           ?? routeEl.GetProperty("name").GetString()
+                           ?? fallbackName;
 
         var manifestWidgets = root.GetProperty("widgets").EnumerateArray()
-            .Select(wEl =>
+            .Select(wEl => ResolveManifestWidget(wEl, extractDir))
+            .ToList();
+
+        var existing = db.Widgets
+            .Select(w => new { w.Id, w.HtmlPath, w.RouteId })
+            .ToList()
+            .Select(w => new
             {
-                string htmlZipRelPath = wEl.GetProperty("htmlPath").GetString() ?? "";
-                string htmlAbsPath = Path.GetFullPath(
-                    Path.Combine(extractDir, htmlZipRelPath.Replace('/', Path.DirectorySeparatorChar)));
-                return (wEl, htmlAbsPath);
+                w.Id,
+                w.HtmlPath,
+                w.RouteId,
+                PackFolder = WidgetPackPaths.Resolve(w.HtmlPath)?.PackFolderStr
             })
             .ToList();
 
-        bool anyWidgetExists = manifestWidgets.Any(w => existingWidgetPaths.Contains(w.htmlAbsPath));
+        Guid? matchedRouteId = null;
+        foreach (var mw in manifestWidgets)
+        {
+            var hit = existing.FirstOrDefault(w =>
+                mw.PackFolder != null
+                    ? string.Equals(w.PackFolder, mw.PackFolder, StringComparison.OrdinalIgnoreCase)
+                    : string.Equals(w.HtmlPath, mw.HtmlAbsPath, StringComparison.OrdinalIgnoreCase));
 
-        Route? route;
+            if (hit == null) continue;
+            matchedRouteId = hit.RouteId;
+            break;
+        }
+
+        if (matchedRouteId == null)
+        {
+            string baseName = OverlayPackPaths.BaseRouteName(routeName);
+            if (!string.IsNullOrWhiteSpace(baseName))
+            {
+                matchedRouteId = db.Routes
+                    .Select(r => new { r.Id, r.Name })
+                    .ToList()
+                    .FirstOrDefault(r => string.Equals(
+                        OverlayPackPaths.BaseRouteName(r.Name), 
+                        baseName, StringComparison.OrdinalIgnoreCase))
+                    ?.Id;
+            }
+        }
+
+        Route? route = null;
         bool routeIsNew;
 
-        if (anyWidgetExists)
+        if (matchedRouteId != null)
         {
-            string? matchedPath = manifestWidgets
-                .Select(w => w.htmlAbsPath)
-                .FirstOrDefault(p => existingWidgetPaths.Contains(p));
-
             route = await db.Routes
                 .Include(r => r.Widgets).ThenInclude(w => w.JsVariables)
                 .Include(r => r.Widgets).ThenInclude(w => w.CssVariables)
-                .FirstOrDefaultAsync(r => r.Widgets.Any(w => w.HtmlPath == matchedPath));
-
-            if (route == null) { route = BuildNewRoute(routeEl, routeName); routeIsNew = true; }
-            else routeIsNew = false;
+                .FirstOrDefaultAsync(r => r.Id == matchedRouteId);
         }
-        else
+
+        if (route == null)
         {
             route = BuildNewRoute(routeEl, routeName);
             routeIsNew = true;
+        }
+        else
+        {
+            routeIsNew = false;
         }
 
         var newWidgets = new List<Widget>();
         var newCssVariables = new List<CssVariable>();
         var newJsVariables = new List<JsVariable>();
+        var repointedWidgets = new List<Widget>();
 
-        foreach (var (wEl, htmlAbsPath) in manifestWidgets)
+        foreach (var mw in manifestWidgets)
         {
-            string widgetExtractFolder = Path.GetDirectoryName(htmlAbsPath)!;
+            var wEl = mw.Element;
+            string htmlAbsPath = mw.HtmlAbsPath;
+
+            string widgetExtractFolder = mw.PackFolder != null
+                ? mw.OverlayFolder
+                : Path.GetDirectoryName(htmlAbsPath)!;
+
             Widget? existingWidget = routeIsNew ? null
-                : route.Widgets.FirstOrDefault(w =>
-                    string.Equals(w.HtmlPath, htmlAbsPath, StringComparison.OrdinalIgnoreCase));
+                : route.Widgets.FirstOrDefault(w => MatchesManifestWidget(w, mw));
+
+            if (existingWidget != null &&
+                !string.Equals(existingWidget.HtmlPath, htmlAbsPath, StringComparison.OrdinalIgnoreCase))
+            {
+                existingWidget.HtmlPath = htmlAbsPath;
+                repointedWidgets.Add(existingWidget);
+            }
 
             if (existingWidget == null)
             {
@@ -313,7 +390,8 @@ public static class OverlayPorter
                         widget.CssVariables.Add(v);
                     }
                     foreach (var v in wEl.GetProperty("jsVariables").EnumerateArray().Select(jsEl =>
-                                 BuildJsVariable(jsEl, widget.Id, widgetExtractFolder)).OfType<JsVariable>())
+                                 BuildJsVariable(jsEl, widget.Id, widgetExtractFolder, mw.PackFolder != null))
+                                 .OfType<JsVariable>())
                     {
                         widget.JsVariables.Add(v);
                     }
@@ -337,11 +415,30 @@ public static class OverlayPorter
                 {
                     string? name = jsEl.TryGetProperty("name", out var n) ? n.GetString() : null;
                     if (name == null || existingJsNames.Contains(name)) continue;
-                    var v = BuildJsVariable(jsEl, existingWidget.Id, widgetExtractFolder);
+                    var v = BuildJsVariable(jsEl, existingWidget.Id, widgetExtractFolder, mw.PackFolder != null);
                     if (v != null) newJsVariables.Add(v);
                 }
             }
         }
+
+        var repointedIds = new HashSet<Guid>(repointedWidgets.Select(w => w.Id));
+        foreach (var mw in manifestWidgets.Where(m => m.PackFolder != null))
+        {
+            var strays = existing.Where(w =>
+                string.Equals(w.PackFolder, mw.PackFolder, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(w.HtmlPath, mw.HtmlAbsPath, StringComparison.OrdinalIgnoreCase) &&
+                !repointedIds.Contains(w.Id));
+
+            foreach (var stray in strays)
+            {
+                var tracked = await db.Widgets.FirstOrDefaultAsync(w => w.Id == stray.Id);
+                if (tracked == null || !repointedIds.Add(tracked.Id)) continue;
+                tracked.HtmlPath = mw.HtmlAbsPath;
+                repointedWidgets.Add(tracked);
+            }
+        }
+
+        bool renameMerged = !routeIsNew && !string.Equals(route!.Name, routeName, StringComparison.Ordinal);
 
         return new ImportResult
         {
@@ -349,19 +446,72 @@ public static class OverlayPorter
             NewWidgets = newWidgets,
             NewCssVariables = newCssVariables,
             NewJsVariables = newJsVariables,
-            RouteIsNew = routeIsNew
+            RepointedWidgets = repointedWidgets,
+            RouteIsNew = routeIsNew,
+            MergedRouteId = routeIsNew ? null : route!.Id,
+            MergedRouteName = renameMerged ? routeName : null
         };
     }
 
-    private static Route BuildNewRoute(JsonElement routeEl, string fallbackName) => new Route
+    private record ManifestWidget(JsonElement Element, string HtmlAbsPath, string OverlayFolder, string? PackFolder);
+
+    private static ManifestWidget ResolveManifestWidget(JsonElement wEl, string extractDir)
+    {
+        string htmlZipRelPath = wEl.TryGetProperty("htmlPath", out var hp) ? hp.GetString() ?? "" : "";
+        
+        string overlayPath = Path.GetFullPath(
+            Path.Combine(extractDir, htmlZipRelPath.Replace('/', Path.DirectorySeparatorChar)));
+        string overlayFolder = Path.GetDirectoryName(overlayPath) ?? extractDir;
+
+        if (!wEl.TryGetProperty("pack", out var packEl) || packEl.ValueKind != JsonValueKind.Object)
+            return new ManifestWidget(wEl, overlayPath, overlayFolder, null);
+
+        string file = packEl.TryGetProperty("file", out var f) ? f.GetString() ?? "" : "";
+        if (string.IsNullOrWhiteSpace(file))
+            return new ManifestWidget(wEl, overlayPath, overlayFolder, null);
+
+        string smwPath = Path.GetFullPath(
+            Path.Combine(extractDir, file.Replace('/', Path.DirectorySeparatorChar)));
+
+        var packManifest = WidgetPackInstaller.ReadManifest(smwPath);
+        string entry = packManifest?.Entry ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(entry))
+            entry = packEl.TryGetProperty("entry", out var en) ? en.GetString() ?? "" : "";
+
+        if (string.IsNullOrWhiteSpace(entry) || !File.Exists(smwPath))
+            return new ManifestWidget(wEl, overlayPath, overlayFolder, null);
+
+        string mountRoot = Path.Combine(
+            Path.GetDirectoryName(smwPath)!,
+            Path.GetFileNameWithoutExtension(smwPath));
+
+        string packFolder = Path.GetDirectoryName(smwPath)!;
+        string htmlPath = WidgetPackPaths.EntryPathIn(mountRoot, entry);
+
+        return new ManifestWidget(wEl, htmlPath, overlayFolder, packFolder);
+    }
+    
+    private static bool MatchesManifestWidget(Widget widget, ManifestWidget mw)
+    {
+        if (mw.PackFolder != null)
+        {
+            var location = WidgetPackPaths.Resolve(widget.HtmlPath);
+            return location != null &&
+                   string.Equals(location.PackFolderStr, mw.PackFolder, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(widget.HtmlPath, mw.HtmlAbsPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Route BuildNewRoute(JsonElement routeEl, string routeName) => new Route
     {
         Id = Guid.NewGuid(),
-        Name = routeEl.TryGetProperty("name", out var n) ? n.GetString() ?? fallbackName : fallbackName,
+        Name = routeName,
         Width = routeEl.GetProperty("resolution").GetProperty("width").GetInt32(),
         Height = routeEl.GetProperty("resolution").GetProperty("height").GetInt32(),
     };
 
-    private static JsVariable? BuildJsVariable(JsonElement jsEl, Guid widgetId, string widgetFolder)
+    private static JsVariable? BuildJsVariable(JsonElement jsEl, Guid widgetId, string widgetFolder, bool isPacked)
     {
         var v = JsVariable.FromJson(jsEl, widgetId);
         if (v == null) return null;
@@ -376,9 +526,18 @@ public static class OverlayPorter
         resolvedValue = resolvedValue.Replace('\\', '/');
         string normWidgetFolder = widgetFolder.Replace('\\', '/').TrimEnd('/') + "/";
 
-        v.Value = resolvedValue.StartsWith(normWidgetFolder, StringComparison.OrdinalIgnoreCase)
-            ? "./" + resolvedValue[normWidgetFolder.Length..]
-            : resolvedValue;
+        if (!resolvedValue.StartsWith(normWidgetFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            v.Value = resolvedValue;
+            return v;
+        }
+
+        string relative = resolvedValue[normWidgetFolder.Length..];
+        bool bundledByOverlay = isPacked &&
+                                relative.StartsWith(ExternalFolder + "/", 
+                                    StringComparison.OrdinalIgnoreCase);
+
+        v.Value = bundledByOverlay ? resolvedValue : "./" + relative;
 
         return v;
     }
@@ -489,22 +648,32 @@ public static class OverlayPorter
     public class ImportResult
     {
         public Route? Route { get; init; }
-        public List<Widget> NewWidgets { get; init; } = new();
-        public List<CssVariable> NewCssVariables { get; init; } = new();
-        public List<JsVariable> NewJsVariables { get; init; } = new();
+        public List<Widget> NewWidgets { get; init; } = [];
+        public List<CssVariable> NewCssVariables { get; init; } = [];
+        public List<JsVariable> NewJsVariables { get; init; } = [];
         public bool RouteIsNew { get; init; }
         public bool Failed { get; init; }
         public string? FailReason { get; init; }
+
+        public List<Widget> RepointedWidgets { get; init; } = [];
+        public Guid? MergedRouteId { get; init; }
+        public string? MergedRouteName { get; init; }
+
         public bool HasAnythingNew =>
-            RouteIsNew || NewWidgets.Count > 0 || NewCssVariables.Count > 0 || NewJsVariables.Count > 0;
+            RouteIsNew || NewWidgets.Count > 0 || NewCssVariables.Count > 0 || NewJsVariables.Count > 0
+            || RepointedWidgets.Count > 0
+            || (MergedRouteName != null && MergedRouteId != null);
         public static ImportResult Fail(string reason) =>
             new ImportResult { Failed = true, FailReason = reason };
     }
 
+    private record PackReference(string PackId, string Version, string Entry, string ZipPath);
+
     private class ExportPlan
     {
         public Dictionary<Guid, string> WidgetFolderMap { get; } = new(); // debug helper
-        public List<(string Src, string ZipEntry)> FileCopies { get; } = new();
+        public Dictionary<Guid, PackReference> WidgetPacks { get; } = new();
+        public List<(string Src, string ZipEntry)> FileCopies { get; } = [];
         public Dictionary<Guid, Dictionary<string, string>> VariableRewrites { get; } = new();
     }
     #endregion

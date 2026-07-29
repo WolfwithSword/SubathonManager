@@ -40,11 +40,14 @@ public sealed class WidgetPackFileSystem : IWidgetFileSystem
             out var version, requireEntry: false);
         
         if (reader == null) return _disk.EnumerateFiles(directory);
+
+        string? mountRoot = MountRootFor(Path.Combine(directory, "_"));
+        if (mountRoot == null) return _disk.EnumerateFiles(directory);
         string normalized = string.IsNullOrEmpty(prefix) ? string.Empty : prefix.TrimEnd('/') + "/";
 
         return reader.Entries
             .Where(e => normalized.Length == 0 || e.StartsWith(normalized, StringComparison.OrdinalIgnoreCase))
-            .Select(e => WidgetPackPaths.EntryPath(packId, version, e))
+            .Select(e => WidgetPackPaths.EntryPathIn(mountRoot, e))
             .ToList();
     }
 
@@ -64,18 +67,23 @@ public sealed class WidgetPackFileSystem : IWidgetFileSystem
         packId = string.Empty;
         version = string.Empty;
 
-        if (string.IsNullOrWhiteSpace(path) || !WidgetPackPaths.IsMountPath(path)) return null;
+        if (string.IsNullOrWhiteSpace(path)) return null;
 
         string probe = requireEntry ? path : Path.Combine(path, "_");
-        if (!WidgetPackPaths.TryResolve(probe, out var packFile,
-                out var resolved, out packId, out version))
-            return null;
+        var location = WidgetPackPaths.Resolve(probe);
+        if (location == null) return null;
 
-        entry = requireEntry ? resolved : TrimProbe(resolved);
+        packId = location.PackIdStr;
+        version = location.VersionStr;
 
-        string cacheDir = Path.Combine(WidgetPackPaths.CacheRoot, packId, version);
-        return _readers.GetOrAdd(packFile, key => new WidgetPackReader(key, cacheDir));
+        entry = Path.GetRelativePath(location.MountRootStr, Path.GetFullPath(probe)).Replace('\\', '/');
+        if (!requireEntry) entry = TrimProbe(entry);
+
+        return _readers.GetOrAdd(location.PackFileStr,
+            key => new WidgetPackReader(key, WidgetPackPaths.CacheDirFor(key)));
     }
+
+    private static string? MountRootFor(string path) => WidgetPackPaths.Resolve(path)?.MountRootStr;
 
     private static string TrimProbe(string resolved)
     {

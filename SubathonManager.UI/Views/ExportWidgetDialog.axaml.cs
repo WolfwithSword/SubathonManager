@@ -2,6 +2,8 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform.Storage;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,6 +61,7 @@ public partial class ExportWidgetDialog : Window
             if (!string.IsNullOrWhiteSpace(manifest.Version)) VersionBox.Text = manifest.Version;
             if (manifest.Tags.Count > 0) TagsBox.Text = string.Join(", ", manifest.Tags);
             GroupBox.Text = manifest.Group;
+            SetPreview(WidgetPorter.ExtractExistingPreview(_widget));
         }
 
         bool isDevOrBeta = AppServices.AppVersion.Contains('+');
@@ -242,6 +245,69 @@ public partial class ExportWidgetDialog : Window
 
     private void MetaField_Changed(object? sender, TextChangedEventArgs e) => UpdateOutputPathText();
 
+    #region PREVIEW
+
+    private string _previewImagePath = string.Empty;
+
+    private async void PreviewPick_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picked = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select preview image",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("Images")
+                    {
+                        Patterns = WidgetPorter.PreviewExtensions.Select(ext => "*" + ext).ToArray()
+                    }
+                ]
+            });
+
+            var file = picked.FirstOrDefault();
+            if (file == null) return;
+
+            SetPreview(file.Path.LocalPath);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to pick a preview image");
+        }
+    }
+
+    private void PreviewClear_Click(object? sender, RoutedEventArgs e) => SetPreview(null);
+
+    private void SetPreview(string? path)
+    {
+        _previewImagePath = string.IsNullOrWhiteSpace(path) || !File.Exists(path) ? string.Empty : path;
+
+        bool has = _previewImagePath.Length > 0;
+        PreviewClearButton.IsVisible = has;
+        PreviewNameText.Text = has ? Path.GetFileName(_previewImagePath) : "No preview";
+        ToolTip.SetTip(PreviewNameText, has ? _previewImagePath : null);
+
+        if (!has)
+        {
+            PreviewThumb.Source = null;
+            return;
+        }
+
+        try
+        {
+            using var stream = new MemoryStream(File.ReadAllBytes(_previewImagePath));
+            PreviewThumb.Source = new Bitmap(stream);
+        }
+        catch (Exception ex)
+        {
+            PreviewThumb.Source = null;
+            _logger?.LogWarning(ex, "Could not render preview thumbnail for {Path}", _previewImagePath);
+        }
+    }
+
+    #endregion
+
     private WidgetPorter.SmwExportOptions BuildOptions() => new()
     {
         Name = string.IsNullOrWhiteSpace(WidgetNameBox.Text) ? _widget?.Name ?? "widget" : WidgetNameBox.Text.Trim(),
@@ -249,6 +315,7 @@ public partial class ExportWidgetDialog : Window
         Group = WidgetPackPaths.NormalizeGroup(GroupBox.Text),
         Version = string.IsNullOrWhiteSpace(VersionBox.Text) ? "1.0.0" : VersionBox.Text.Trim(),
         Tags = WidgetPorter.ParseTags(TagsBox.Text),
+        PreviewImagePath = _previewImagePath,
         AppVersion = AppVersionBox.Text?.Trim() ?? string.Empty
     };
 
@@ -293,6 +360,10 @@ public partial class ExportWidgetDialog : Window
                 entry.Entry.DefaultSelected = entry.IsIncluded;
 
             await WidgetPorter.ExportWidgetAsync(_plan, BuildOptions(), outputPath);
+
+            if (WidgetPackInstaller.Install(outputPath) == null)
+                _logger?.LogWarning("Exported {Path} but could not file it into the widget store", outputPath);
+
             UiHelpers.RevealInFileManager(outputPath);
             Close();
         }

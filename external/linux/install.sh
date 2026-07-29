@@ -19,6 +19,7 @@ MIME_XML="$MIME/packages/subathonmanager-overlay.xml"
 SCHEME="x-scheme-handler/subathonmanager"
 OVERLAY="application/x-subathonmanager-overlay"
 WIDGET="application/x-subathonmanager-widget"
+COLLECTION="application/x-subathonmanager-widget-collection"
 ICON_NAME="subathonmanager"
 ICON_SIZES="48 64 128 256"
 
@@ -73,7 +74,7 @@ Terminal=false
 NoDisplay=false
 Categories=Utility;
 StartupWMClass=SubathonManager
-MimeType=$OVERLAY;$WIDGET;$SCHEME;
+MimeType=$OVERLAY;$WIDGET;$COLLECTION;$SCHEME;
 EOF
 
 cat > "$MIME_XML" <<EOF
@@ -89,6 +90,11 @@ cat > "$MIME_XML" <<EOF
     <icon name="$ICON_NAME"/>
     <glob pattern="*.smw"/>
   </mime-type>
+  <mime-type type="$COLLECTION">
+    <comment>Subathon Manager Widget Collection</comment>
+    <icon name="$ICON_NAME"/>
+    <glob pattern="*.smwc"/>
+  </mime-type>
 </mime-info>
 EOF
 
@@ -97,6 +103,7 @@ update-desktop-database "$APPS" >/dev/null 2>&1 || true
 xdg-mime default subathonmanager.desktop "$SCHEME"
 xdg-mime default subathonmanager.desktop "$OVERLAY"
 xdg-mime default subathonmanager.desktop "$WIDGET"
+xdg-mime default subathonmanager.desktop "$COLLECTION"
 
 echo "installed:"
 echo "  $DESKTOP  ->  $BIN"

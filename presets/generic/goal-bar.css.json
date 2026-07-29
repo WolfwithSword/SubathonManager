@@ -1,7 +1,0 @@
-﻿{
-  "bar-fg-color": {"type": "color", "description": "Colour of the filled part of the progress bar"},
-  "bar-bg-color": {"type": "color", "description": "Colour of the empty part of the progress bar"},
-  "font-color": {"type": "color"},
-  "bar-height": {"type": "size", "description": "Bar thickness"},
-  "font-size": {"type": "size"}
-}

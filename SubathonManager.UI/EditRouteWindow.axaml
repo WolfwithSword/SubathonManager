@@ -303,6 +303,11 @@
                     <TextBlock Text="Widgets" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
                     <Button x:Name="ImportWidgetButton" Padding="6,2" Content="Import Widget" Margin="8,0,0,0" Click="ImportWidgetButton_Click"/>
                     <Button x:Name="ImportAssetButton" Padding="6,2" Content="Import Asset" Margin="8,0,0,0" Click="ImportAssetButton_Click"/>
+                    <Button x:Name="BrowseWidgetsButton" Padding="4" Width="28" Height="28" Margin="8,0,0,0"
+                            ToolTip.Tip="Browse installed widgets"
+                            Click="BrowseWidgetsButton_Click">
+                        <ctl:SymIcon Glyph="Search16"/>
+                    </Button>
                 </StackPanel>
             </StackPanel>
 

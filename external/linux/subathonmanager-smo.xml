@@ -10,4 +10,9 @@
     <icon name="subathonmanager"/>
     <glob pattern="*.smw"/>
   </mime-type>
+  <mime-type type="application/x-subathonmanager-widget-collection">
+    <comment>Subathon Manager Widget Collection</comment>
+    <icon name="subathonmanager"/>
+    <glob pattern="*.smwc"/>
+  </mime-type>
 </mime-info>

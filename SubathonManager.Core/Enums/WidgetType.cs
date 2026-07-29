@@ -7,12 +7,26 @@ public enum WidgetType
     Video = 2
 }
 
+public enum WidgetContextAction
+{
+    ToggleVisibility,
+    Clone,
+    Delete,
+    ResetScale
+}
+
 public enum WidgetDisplayKind
 {
     Widget,//
     UnpackedWidget,//
     Image,
     Video
+}
+
+public enum WidgetCatalogSource
+{
+    Imported,
+    Preset
 }
 
 public static class WidgetTypeHelper

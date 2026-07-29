@@ -1,0 +1,180 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:ctl="using:SubathonManager.UI.Controls"
+        xmlns:views="using:SubathonManager.UI.Views"
+        xmlns:sys="using:System"
+        mc:Ignorable="d"
+        x:Class="SubathonManager.UI.Views.WidgetBrowserDialog"
+        Title="Widget Browser"
+        Width="900" Height="700"
+        MinWidth="620" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppGeneralBackground}">
+
+    <Window.Styles>
+        <Style Selector="Border.browsercard:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
+
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,10">
+            <TextBox Grid.Column="0" x:Name="SearchBox"
+                     PlaceholderText="Search by name, author, group, or tag..."
+                     VerticalContentAlignment="Center"
+                     TextChanged="SearchBox_TextChanged">
+                <TextBox.InnerLeftContent>
+                    <ctl:SymIcon Glyph="Search16" Margin="8,0,4,0" Opacity="0.6"/>
+                </TextBox.InnerLeftContent>
+            </TextBox>
+
+            <CheckBox Grid.Column="1" x:Name="AllVersionsCheck" Content="All versions" Margin="12,0,0,0"
+                      VerticalAlignment="Center"
+                      ToolTip.Tip="Show every installed version instead of only the newest of each widget"
+                      IsCheckedChanged="AllVersionsCheck_Changed"/>
+
+            <Button Grid.Column="2" Padding="4" Width="32" Height="32" Margin="8,0,0,0"
+                    ToolTip.Tip="Rescan the presets and imports folders" Click="Refresh_Click">
+                <ctl:SymIcon Glyph="ArrowSync16"/>
+            </Button>
+        </Grid>
+
+        <TextBlock Grid.Row="1" x:Name="EmptyText" Margin="4,20,0,0"
+                   Foreground="{DynamicResource UiBrushTextTertiary}"
+                   IsVisible="False"/>
+
+        <!-- ReSharper disable all Xaml.InvalidType -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+            <ItemsControl x:Name="SectionsList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="views:CatalogSection">
+                        <Expander IsExpanded="True" Margin="0,0,0,6" HorizontalAlignment="Stretch">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                </StackPanel>
+                            </Expander.Header>
+
+                            <ItemsControl ItemsSource="{Binding Groups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="views:CatalogGroup">
+                                        <StackPanel Margin="0,2,0,10">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                                       Margin="4,0,0,6"
+                                                       Foreground="{DynamicResource UiBrushTextTertiary}"/>
+
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="views:CatalogItem">
+                                                        <Border Classes="browsercard" Width="168" Margin="0,0,8,8" Padding="8"
+                                                                CornerRadius="6" BorderThickness="1"
+                                                                BorderBrush="Transparent"
+                                                                Background="{DynamicResource UiBrushControlBackground}"
+                                                                Tag="{Binding}"
+                                                                DoubleTapped="Card_DoubleTapped">
+                                                            <Border.ContextFlyout>
+                                                                <MenuFlyout>
+                                                                    <MenuItem Header="Add to Overlay" Tag="{Binding}" Click="AddEntry_Click"
+                                                                              IsEnabled="{Binding CanAdd}"
+                                                                              ToolTip.Tip="{Binding AddHint}">
+                                                                        <MenuItem.Icon>
+                                                                            <ctl:SymIcon Glyph="Add16"/>
+                                                                        </MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <Separator/>
+                                                                    <MenuItem Header="Open Containing Folder" Tag="{Binding}" Click="OpenEntryFolder_Click">
+                                                                        <MenuItem.Icon>
+                                                                            <ctl:SymIcon Glyph="FolderOpen16"/>
+                                                                        </MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <MenuItem Header="Delete" Tag="{Binding}" Click="DeleteEntry_Click"
+                                                                              IsEnabled="{Binding CanDelete}"
+                                                                              ToolTip.Tip="{Binding DeleteHint}">
+                                                                        <MenuItem.Icon>
+                                                                            <ctl:SymIcon Glyph="Delete16"/>
+                                                                        </MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                </MenuFlyout>
+                                                            </Border.ContextFlyout>
+
+                                                            <StackPanel Spacing="6">
+                                                                <Border Width="150" Height="150" CornerRadius="4" ClipToBounds="True"
+                                                                        Background="{DynamicResource UiBrushSurface}">
+                                                                    <Panel>
+                                                                        <ctl:SymIcon Glyph="Image32" Opacity="0.25"
+                                                                                     IsVisible="{Binding !HasPreview}"
+                                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                                                        <Border IsVisible="{Binding HasPreview}" Background="Transparent">
+                                                                            <ToolTip.Tip>
+                                                                                <StackPanel MaxWidth="420" Spacing="8">
+                                                                                    <Image Source="{Binding Preview}" MaxWidth="420" MaxHeight="420"
+                                                                                           Stretch="Uniform"
+                                                                                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
+
+                                                                                    <ItemsControl ItemsSource="{Binding TagList}" IsVisible="{Binding HasTags}">
+                                                                                        <ItemsControl.ItemsPanel>
+                                                                                            <ItemsPanelTemplate>
+                                                                                                <WrapPanel Orientation="Horizontal"/>
+                                                                                            </ItemsPanelTemplate>
+                                                                                        </ItemsControl.ItemsPanel>
+                                                                                        <ItemsControl.ItemTemplate>
+                                                                                            <DataTemplate x:DataType="sys:String">
+                                                                                                <Border Margin="0,0,4,4" Padding="7,2" CornerRadius="10"
+                                                                                                        Background="{DynamicResource UiBrushControlBackground}">
+                                                                                                    <TextBlock Text="{Binding}" FontSize="11"/>
+                                                                                                </Border>
+                                                                                            </DataTemplate>
+                                                                                        </ItemsControl.ItemTemplate>
+                                                                                    </ItemsControl>
+                                                                                </StackPanel>
+                                                                            </ToolTip.Tip>
+                                                                            <Image Source="{Binding Preview}" Stretch="Uniform" Margin="4"
+                                                                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                                        </Border>
+                                                                    </Panel>
+                                                                </Border>
+
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                                                           TextWrapping="Wrap" MaxLines="2"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           ToolTip.Tip="{Binding TooltipText}"/>
+                                                                <TextBlock Text="{Binding AuthorLabel}" FontSize="11"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                                <TextBlock Text="{Binding VersionLabel}" FontSize="11"
+                                                                           Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                                
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Expander>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <TextBlock Grid.Column="0" x:Name="StatusText" VerticalAlignment="Center" FontSize="12"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource UiBrushTextTertiary}"/>
+            <Button Grid.Column="1" x:Name="CloseButton" Content="Close" Width="90" Click="Close_Click"/>
+        </Grid>
+    </Grid>
+</Window>

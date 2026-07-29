@@ -11,6 +11,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.Data.Overlays;
 using SubathonManager.UI.Controls;
 
 namespace SubathonManager.UI.Views;
@@ -46,6 +47,7 @@ public partial class ExportOverlayDialog : Window
         }
 
         ExportNameBox.Text = $"{_route.Name} Export";
+        VersionBox.Text = "1.0.0";
         var fileList = BuildFileList(_route);
         PopulateTree(fileList);
         bool isDevOrBeta = AppServices.AppVersion.Contains('+');
@@ -264,8 +266,8 @@ public partial class ExportOverlayDialog : Window
         string version = VersionBox.Text?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(version)) version = "1";
 
-        string safeFileName = string.Concat(exportName.Select(c =>
-            Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        string safeFileName = Path.GetFileNameWithoutExtension(
+            OverlayPackPaths.BuildFileName(AuthorBox.Text?.Trim() ?? string.Empty, exportName, version));
         string exportsDir = Path.GetFullPath("./exports");
         Directory.CreateDirectory(exportsDir);
 
@@ -302,7 +304,8 @@ public partial class ExportOverlayDialog : Window
                 .Select(entry => entry.ZipEntry)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            await OverlayPorter.ExportRouteAsync(_route, outputPath, exportName, excludedZipEntries, version, appVersion);
+            await OverlayPorter.ExportRouteAsync(_route, outputPath, exportName, excludedZipEntries, version, appVersion,
+                AuthorBox.Text?.Trim() ?? string.Empty, WidgetPorter.ParseTags(TagsBox.Text));
             Close();
         }
         catch (Exception ex)

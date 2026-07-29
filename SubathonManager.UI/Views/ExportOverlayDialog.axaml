@@ -6,21 +6,16 @@
         mc:Ignorable="d"
         x:Class="SubathonManager.UI.Views.ExportOverlayDialog"
         Title="Export Overlay"
-        Width="560" Height="580"
+        Width="560" Height="640"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppGeneralBackground}">
-    <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto">
+    <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto">
 
-        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,12">
+        <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,10">
             <StackPanel DockPanel.Dock="Left">
                 <TextBlock FontWeight="SemiBold" Text="Export Name" Margin="4,0,0,4"/>
                 <TextBox Width="240" x:Name="ExportNameBox" PlaceholderText="Overlay name..." VerticalContentAlignment="Center"/>
-            </StackPanel>
-            <StackPanel x:Name="AppOverrideSection" DockPanel.Dock="Left" IsVisible="False" Margin="32,0,0,0">
-                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4"/>
-                <TextBox Width="120" x:Name="AppVersionBox" ToolTip.Tip="Override App Version" PlaceholderText="v1.0.0"
-                         VerticalContentAlignment="Center"/>
             </StackPanel>
             <StackPanel DockPanel.Dock="Right">
                 <TextBlock FontWeight="SemiBold" Text="Version" Margin="4,0,4,4"/>
@@ -29,7 +24,25 @@
             </StackPanel>
         </DockPanel>
 
-        <StackPanel Grid.Row="1" Orientation="Vertical">
+        <DockPanel Grid.Row="1" LastChildFill="True" Margin="0,0,0,12">
+            <StackPanel x:Name="AppOverrideSection" DockPanel.Dock="Right" IsVisible="False" Margin="16,0,0,0">
+                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4"/>
+                <TextBox Width="120" x:Name="AppVersionBox" ToolTip.Tip="Override App Version" PlaceholderText="v1.0.0"
+                         VerticalContentAlignment="Center"/>
+            </StackPanel>
+            <StackPanel DockPanel.Dock="Left" Width="240" Margin="0,0,16,0">
+                <TextBlock FontWeight="SemiBold" Text="Author" Margin="4,0,0,4"/>
+                <TextBox x:Name="AuthorBox" PlaceholderText="Author name..." VerticalContentAlignment="Center"
+                         ToolTip.Tip="Groups this overlay under imports/overlays/&lt;author&gt; when imported"/>
+            </StackPanel>
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold" Text="Tags" Margin="4,0,0,4"/>
+                <TextBox x:Name="TagsBox" PlaceholderText="alerts, goals..." VerticalContentAlignment="Center"
+                         ToolTip.Tip="Comma separated labels describing the overlay"/>
+            </StackPanel>
+        </DockPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Vertical">
             <DockPanel Margin="0,0,0,6" LastChildFill="False">
                 <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Files to be included" VerticalAlignment="Center"/>
                 <CheckBox x:Name="SelectAllBox" DockPanel.Dock="Right" Content="Select all" IsChecked="True"
@@ -39,14 +52,14 @@
                        Text="Please verify the files to be included in the export. Not all selected may be in use."/>
         </StackPanel>
 
-        <Border Grid.Row="2" BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="2"
+        <Border Grid.Row="3" BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="2"
                 CornerRadius="4" Margin="0,0,0,10">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="4">
                 <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0" Padding="2"/>
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Row="3"
+        <Border Grid.Row="4"
                 Background="{DynamicResource SystemFillColorCautionBackgroundBrush}"
                 BorderBrush="{DynamicResource SystemFillColorCautionBrush}"
                 BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,14">
@@ -58,7 +71,7 @@
             </StackPanel>
         </Border>
 
-        <DockPanel Grid.Row="4" LastChildFill="False">
+        <DockPanel Grid.Row="5" LastChildFill="False">
             <Button DockPanel.Dock="Right" x:Name="ConfirmButton" Content="Export..." Classes="accent"
                     Width="110" Margin="8,0,0,0" Click="ConfirmButton_Click"/>
             <Button DockPanel.Dock="Right" x:Name="CancelButton" Content="Cancel" Width="90" Click="CancelButton_Click"/>

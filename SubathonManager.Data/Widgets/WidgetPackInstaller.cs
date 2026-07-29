@@ -17,7 +17,7 @@ public class WidgetPackManifest
     public string DocsUrl { get; init; } = string.Empty;
 
     public List<string> Tags { get; init; } = new();
-
+    public string PreviewImage { get; init; } = string.Empty;
     public string Entry { get; init; } = string.Empty;
 
     public int Width { get; init; }
@@ -69,10 +69,12 @@ public static class WidgetPackInstaller
             if (!string.Equals(Path.GetFullPath(smwPath), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
                 File.Copy(smwPath, target, overwrite: true);
 
-            string cacheDir = Path.Combine(WidgetPackPaths.CacheRoot, packId, version);
+            string cacheDir = WidgetPackPaths.CacheDirFor(target);
             if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, recursive: true);
 
+            WidgetPackMemoryCache.InvalidatePack(target);
             WidgetPackPaths.InvalidateVersionCache(packId);
+            WidgetPackPaths.InvalidateResolveCache();
         }
         catch
         {
@@ -114,31 +116,21 @@ public static class WidgetPackInstaller
         var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in liveWidgetPaths)
         {
-            if (WidgetPackPaths.TryResolve(path, out _, out _, out var packId, out var version))
-                live.Add(Path.Combine(cacheRoot, packId, version));
+            var location = WidgetPackPaths.Resolve(path);
+            if (location != null) live.Add(WidgetPackPaths.CacheDirFor(location.PackFileStr));
         }
 
         int removed = 0;
 
         try
         {
-            foreach (var packDir in Directory.EnumerateDirectories(cacheRoot))
+            foreach (var dir in Directory.EnumerateDirectories(cacheRoot))
             {
-                foreach (var versionDir in Directory.EnumerateDirectories(packDir))
-                {
-                    if (live.Contains(versionDir)) continue;
-                    try
-                    {
-                        Directory.Delete(versionDir, recursive: true);
-                        removed++;
-                    }
-                    catch { /**/ }
-                }
-
+                if (live.Contains(dir)) continue;
                 try
                 {
-                    if (!Directory.EnumerateFileSystemEntries(packDir).Any())
-                        Directory.Delete(packDir);
+                    Directory.Delete(dir, recursive: true);
+                    removed++;
                 }
                 catch { /**/ }
             }
@@ -150,13 +142,13 @@ public static class WidgetPackInstaller
 
     public static string? FindNewerVersion(string widgetHtmlPath)
     {
-        if (!WidgetPackPaths.TryResolve(widgetHtmlPath, out _, out _, out var packId, out var version))
-            return null;
+        var location = WidgetPackPaths.Resolve(widgetHtmlPath);
+        if (location == null) return null;
 
         string? best = null;
-        foreach (var candidate in WidgetPackPaths.InstalledVersions(packId))
+        foreach (var candidate in WidgetPackPaths.VersionsIn(location.PackFolderStr))
         {
-            if (WidgetPackPaths.CompareVersions(candidate, version) <= 0) continue;
+            if (WidgetPackPaths.CompareVersions(candidate, location.VersionStr) <= 0) continue;
             if (best == null || WidgetPackPaths.CompareVersions(candidate, best) > 0) best = candidate;
         }
 
@@ -194,6 +186,7 @@ public static class WidgetPackInstaller
             Version = version,
             DocsUrl = Str(widget, "docsUrl"),
             Tags = StrList(widget, "tags"),
+            PreviewImage = Str(widget, "preview_image"),
             Entry = Str(widget, "entry").Replace('\\', '/').TrimStart('/'),
             Width = Int(size, "width", 400),
             Height = Int(size, "height", 400),

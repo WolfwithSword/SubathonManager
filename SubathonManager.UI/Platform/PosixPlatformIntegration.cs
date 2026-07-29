@@ -8,6 +8,7 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
     private const string SchemeMime = "x-scheme-handler/subathonmanager";
     private const string OverlayMime = "application/x-subathonmanager-overlay";
     private const string WidgetMime = "application/x-subathonmanager-widget";
+    private const string CollectionMime = "application/x-subathonmanager-widget-collection";
     private const string DesktopFileName = "subathonmanager.desktop";
     private const string MimePackageFileName = "subathonmanager-overlay.xml";
     private const string IconName = "subathonmanager";
@@ -67,7 +68,7 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
             "NoDisplay=false\n" +
             "Categories=Utility;\n" +
             "StartupWMClass=SubathonManager\n" +
-            $"MimeType={OverlayMime};{WidgetMime};{SchemeMime};\n";
+            $"MimeType={OverlayMime};{WidgetMime};{CollectionMime};{SchemeMime};\n";
 
         string mimeContent =
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
@@ -81,6 +82,11 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
             "    <comment>Subathon Manager Widget</comment>\n" +
             $"    <icon name=\"{IconName}\"/>\n" +
             "    <glob pattern=\"*.smw\"/>\n" +
+            "  </mime-type>\n" +
+            $"  <mime-type type=\"{CollectionMime}\">\n" +
+            "    <comment>Subathon Manager Widget Collection</comment>\n" +
+            $"    <icon name=\"{IconName}\"/>\n" +
+            "    <glob pattern=\"*.smwc\"/>\n" +
             "  </mime-type>\n" +
             "</mime-info>\n";
 
@@ -98,6 +104,7 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
         Run("xdg-mime", "default", DesktopFileName, SchemeMime);
         Run("xdg-mime", "default", DesktopFileName, OverlayMime);
         Run("xdg-mime", "default", DesktopFileName, WidgetMime);
+        Run("xdg-mime", "default", DesktopFileName, CollectionMime);
     }
 
     private static bool InstallHicolorIcons(string appDir, string dataHome)

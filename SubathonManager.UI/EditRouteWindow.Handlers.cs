@@ -166,22 +166,24 @@ public partial class EditRouteWindow
     }
 
     private async void ImportWidgetButton_Click(object? sender, RoutedEventArgs e)
-        => await RunImportAsync("Select widget file(s)", new[]
-        {
-            new FilePickerFileType("Widgets") { Patterns = new[] { "*.html", "*.htm", "*.smw" } },
-            new FilePickerFileType("Widget Packages (*.smw)") { Patterns = new[] { "*.smw" } },
-            new FilePickerFileType("HTML Widgets") { Patterns = new[] { "*.html", "*.htm" } }
-        });
+        => await RunImportAsync("Select widget file(s)", [
+            new FilePickerFileType("Widgets") { Patterns = ["*.html", "*.htm", "*.smw", "*.smwc"] },
+            new FilePickerFileType("Widget Packages (*.smw)") { Patterns = ["*.smw"] },
+            new FilePickerFileType("Widget Collections (*.smwc)") { Patterns = ["*.smwc"] },
+            new FilePickerFileType("HTML Widgets") { Patterns = ["*.html", "*.htm"] }
+        ]);
 
     private async void ImportAssetButton_Click(object? sender, RoutedEventArgs e)
-        => await RunImportAsync("Select asset file(s)", new[]
-        {
+        => await RunImportAsync("Select asset file(s)", [
             new FilePickerFileType("Asset Files")
             {
-                Patterns = new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.avif", "*.bmp", "*.svg",
-                    "*.mp4", "*.m4v", "*.webm", "*.ogm", "*.mkv", "*.mov" }
+                Patterns =
+                [
+                    "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.avif", "*.bmp", "*.svg",
+                    "*.mp4", "*.m4v", "*.webm", "*.ogm", "*.mkv", "*.mov"
+                ]
             }
-        });
+        ]);
 
     private async Task RunImportAsync(string title, FilePickerFileType[] filters)
     {
@@ -213,7 +215,12 @@ public partial class EditRouteWindow
                 _lastFolder = Path.GetDirectoryName(path)!;
                 try
                 {
-                    if (path.EndsWith(WidgetPackPaths.PackExtension, StringComparison.OrdinalIgnoreCase))
+                    if (path.EndsWith(WidgetCollectionInstaller.CollectionExtension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        await ImportWidgetCollectionAsync(path, db, helper);
+                        importedPack = true;
+                    }
+                    else if (path.EndsWith(WidgetPackPaths.PackExtension, StringComparison.OrdinalIgnoreCase))
                     {
                         await ImportWidgetPackAsync(path, db, helper);
                         importedPack = true;
@@ -361,36 +368,98 @@ public partial class EditRouteWindow
             icon.Glyph = widget.Visibility ? "Eye16" : "EyeOff16";
     }
 
+    private void OnWidgetActionRequested(Guid widgetId, WidgetContextAction action)
+    {
+        Dispatcher.UIThread.Post(async void () =>
+        {
+            try
+            {
+                var widget = _widgets.FirstOrDefault(w => w.Id == widgetId);
+                if (widget == null) return;
+
+                switch (action)
+                {
+                    case WidgetContextAction.ToggleVisibility:
+                        await SetWidgetVisibilityAsync(widget, !widget.Visibility);
+                        break;
+                    case WidgetContextAction.Clone:
+                        await CloneWidgetAsync(widget);
+                        break;
+                    case WidgetContextAction.Delete:
+                        await DeleteWidgetAsync(widget);
+                        break;
+                    case WidgetContextAction.ResetScale:
+                        await ResetWidgetScaleAsync(widget);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Widget context action {Action} failed", action);
+            }
+        });
+    }
+
+    private async Task ResetWidgetScaleAsync(Widget widget)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var tracked = await db.Widgets.FirstOrDefaultAsync(w => w.Id == widget.Id);
+        if (tracked == null) return;
+
+        tracked.ScaleX = 1;
+        tracked.ScaleY = 1;
+        await db.SaveChangesAsync();
+
+        widget.ScaleX = 1;
+        widget.ScaleY = 1;
+        if (_selectedWidget?.Id == widget.Id)
+        {
+            _selectedWidget.ScaleX = 1;
+            _selectedWidget.ScaleY = 1;
+            WidgetScaleXBox.Text = "1";
+            WidgetScaleYBox.Text = "1";
+        }
+
+        RefreshWebView();
+        if (_route != null) OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+    }
+
     private async void ToggleVisibility_Click(object? sender, RoutedEventArgs e)
     {
         try
         {
             var widget = GetWidgetFromSender(sender);
             if (widget == null) return;
-            bool visibility = !widget.Visibility;
-            widget.Visibility = visibility;
 
-            await using var db = await _factory.CreateDbContextAsync();
-            var wa = await db.Widgets.Include(w => w.CssVariables)
-                .Include(w => w.JsVariables)
-                .FirstOrDefaultAsync(w => w.Id == widget.Id);
-            if (wa == null) return;
-
-            widget = wa;
-            widget.Visibility = visibility;
-            if (_selectedWidget?.Id == widget.Id) _selectedWidget.Visibility = visibility;
-
-            await db.SaveChangesAsync();
-            RefreshWebView();
+            bool visibility = await SetWidgetVisibilityAsync(widget, !widget.Visibility);
             if (sender is Button { Content: SymIcon icon })
-                icon.Glyph = widget.Visibility ? "Eye16" : "EyeOff16";
-
-            OverlayEvents.RaiseOverlayRefreshRequested(widget.RouteId);
+                icon.Glyph = visibility ? "Eye16" : "EyeOff16";
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to update widget visibility");
         }
+    }
+
+    private async Task<bool> SetWidgetVisibilityAsync(Widget widget, bool visibility)
+    {
+        widget.Visibility = visibility;
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var tracked = await db.Widgets.Include(w => w.CssVariables)
+            .Include(w => w.JsVariables)
+            .FirstOrDefaultAsync(w => w.Id == widget.Id);
+        if (tracked == null) return visibility;
+
+        tracked.Visibility = visibility;
+        if (_selectedWidget?.Id == tracked.Id) _selectedWidget.Visibility = visibility;
+
+        await db.SaveChangesAsync();
+        RefreshWebView();
+        ReseatWidgetCard(widget);
+        OverlayEvents.RaiseOverlayRefreshRequested(tracked.RouteId);
+
+        return visibility;
     }
 
     private void EditWidget_Click(object? sender, RoutedEventArgs e)
@@ -586,7 +655,7 @@ public partial class EditRouteWindow
         var widget = button.Tag as Widget ?? GetWidgetFromSender(sender);
         if (widget == null) return;
 
-        if (!WidgetPackPaths.TryResolve(widget.HtmlPath, out _, out var entry, out var packId, out var version))
+        if (!WidgetPackPaths.TryResolve(widget.HtmlPath, out _, out var entry, out _, out var version))
             return;
 
         var newer = WidgetPackInstaller.FindNewerVersion(widget.HtmlPath);
@@ -599,17 +668,21 @@ public partial class EditRouteWindow
                 + "Anything it dropped or renamed will be lost.",
             "Update",
             destructive: false,
-            onConfirm: () => _ = ApplyWidgetVersionUpdateAsync(widget, packId, entry, newer, button));
+            onConfirm: () => _ = ApplyWidgetVersionUpdateAsync(widget, entry, newer, button));
     }
 
-    private async Task ApplyWidgetVersionUpdateAsync(Widget widget, string packId, string entry, string newer,
-        Control anchor)
+    private async Task ApplyWidgetVersionUpdateAsync(Widget widget, string entry, string newer, Control anchor)
     {
         try
         {
-            var manifest = WidgetPackInstaller.ReadManifest(WidgetPackPaths.PackFile(packId, newer));
+            var location = WidgetPackPaths.Resolve(widget.HtmlPath);
+            if (location == null) return;
+
+            string newPackFile = Path.Combine(location.PackFolderStr, newer + WidgetPackPaths.PackExtension);
+            var manifest = WidgetPackInstaller.ReadManifest(newPackFile);
             string newEntry = string.IsNullOrWhiteSpace(manifest?.Entry) ? entry : manifest.Entry;
-            string newPath = WidgetPackPaths.EntryPath(packId, newer, newEntry);
+            string newPath = WidgetPackPaths.EntryPathIn(
+                Path.Combine(location.PackFolderStr, newer), newEntry);
 
             if (!WidgetFiles.Current.Exists(newPath))
             {
@@ -675,15 +748,18 @@ public partial class EditRouteWindow
         var widget = (sender as Control)?.Tag as Widget ?? GetWidgetFromSender(sender);
         if (widget == null) return;
 
-        if (!WidgetPackPaths.TryResolve(widget.HtmlPath, out var packFile, out var entry, out _, out var version))
+        var location = WidgetPackPaths.Resolve(widget.HtmlPath);
+        if (location == null) return;
+
+        if (!WidgetPackPaths.TryResolve(widget.HtmlPath, out _, out var entry, out _, out _))
             return;
 
-        var manifest = WidgetPackInstaller.ReadManifest(packFile);
-        string targetDir = WidgetPackPaths.UnpackRoot(
+        var manifest = WidgetPackInstaller.ReadManifest(location.PackFileStr);
+        string targetDir = WidgetPackPaths.UnpackRootFor(
+            location,
             manifest?.Author ?? string.Empty,
             manifest?.Group ?? string.Empty,
-            string.IsNullOrWhiteSpace(manifest?.Name) ? widget.Name : manifest.Name,
-            string.IsNullOrWhiteSpace(manifest?.Version) ? version : manifest.Version);
+            string.IsNullOrWhiteSpace(manifest?.Name) ? widget.Name : manifest.Name);
 
         bool wouldOverwrite = Directory.Exists(targetDir) &&
                               Directory.EnumerateFileSystemEntries(targetDir).Any();
@@ -750,23 +826,30 @@ public partial class EditRouteWindow
         {
             var w = GetWidgetFromSender(sender);
             if (w == null) return;
-            await using var db = await _factory.CreateDbContextAsync();
-            await db.Entry(w).ReloadAsync();
-
-            var clone = w.Clone(w.RouteId, w.Name + " (Copy)", _widgets.Count + 1);
-            db.Widgets.Add(clone);
-            db.CssVariables.AddRange(clone.CssVariables);
-            db.JsVariables.AddRange(clone.JsVariables);
-            await db.SaveChangesAsync();
-
-            _widgets.Insert(0, clone);
-            await RefreshWidgetZIndicesAsync();
-            RefreshWebView();
+            await CloneWidgetAsync(w);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to duplicate widget");
         }
+    }
+
+    private async Task CloneWidgetAsync(Widget widget)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        await db.Entry(widget).ReloadAsync();
+
+        var clone = widget.Clone(widget.RouteId, widget.Name + " (Copy)", _widgets.Count + 1);
+        db.Widgets.Add(clone);
+        db.CssVariables.AddRange(clone.CssVariables);
+        db.JsVariables.AddRange(clone.JsVariables);
+        await db.SaveChangesAsync();
+
+        _widgets.Insert(0, clone);
+        await RefreshWidgetZIndicesAsync();
+        RefreshWebView();
+
+        if (_route != null) OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
     }
 
     private async void MoveUp_Click(object? sender, RoutedEventArgs e)

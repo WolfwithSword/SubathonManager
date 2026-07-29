@@ -30,6 +30,12 @@ public sealed class WindowsPlatformIntegration : PlatformIntegrationBase
         EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Widget\DefaultIcon", "", $"{exePath},0");
         EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.Widget\shell\open\command", "", $"\"{exePath}\" \"%1\"");
         EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smw\OpenWithProgids", "SubathonManager.Widget", "");
+
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smwc", "", "SubathonManager.WidgetCollection");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.WidgetCollection", "", "Subathon Manager Widget Collection");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.WidgetCollection\DefaultIcon", "", $"{exePath},0");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\SubathonManager.WidgetCollection\shell\open\command", "", $"\"{exePath}\" \"%1\"");
+        EnsureRegistryValue(@"HKEY_CURRENT_USER\Software\Classes\.smwc\OpenWithProgids", "SubathonManager.WidgetCollection", "");
     }
 
     private static void EnsureRegistryValue(string keyPath, string name, string expectedValue)

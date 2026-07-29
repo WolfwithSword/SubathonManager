@@ -71,6 +71,20 @@
                 <string>com.wolfwithsword.subathonmanager.widget</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Subathon Manager Widget Collection</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.wolfwithsword.subathonmanager.widgetcollection</string>
+            </array>
+        </dict>
     </array>
 
     <key>UTExportedTypeDeclarations</key>
@@ -108,6 +122,25 @@
                 <key>public.filename-extension</key>
                 <array>
                     <string>smw</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.wolfwithsword.subathonmanager.widgetcollection</string>
+            <key>UTTypeDescription</key>
+            <string>Subathon Manager Widget Collection</string>
+            <key>UTTypeIconFile</key>
+            <string>icon</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>smwc</string>
                 </array>
             </dict>
         </dict>

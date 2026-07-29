@@ -230,6 +230,15 @@
                         <Style Selector="Border.routecard:pointerover StackPanel.actions">
                             <Setter Property="Opacity" Value="1"/>
                         </Style>
+
+                        <Style Selector="Button.tile">
+                            <Setter Property="Width" Value="164"/>
+                            <Setter Property="Height" Value="44"/>
+                            <Setter Property="Margin" Value="0,0,8,8"/>
+                            <Setter Property="Padding" Value="12,0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        </Style>
+                        
                     </Grid.Styles>
 
                     <Grid Grid.Row="0" Grid.Column="0" Margin="6,0,2,10" ColumnDefinitions="*,Auto,Auto">
@@ -306,26 +315,57 @@
                         <StackPanel Grid.Row="0" Orientation="Vertical">
                             <TextBlock TextWrapping="Wrap" FontSize="16" Margin="2,2,2,4"
                                        Text="Create and manage your overlays in the list to the left.&#x0a;Copy the URL to a browser source in OBS and set its resolution to match.&#x0a;Double click or press the edit button to configure your overlay."/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Click="SendRefreshRequest_Click" Width="154" Height="48" Margin="0,16,2,8">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-                                        <TextBlock Text="Refresh All" VerticalAlignment="Center"/>
-                                        <ctl:SymIcon Glyph="Recycle16" VerticalAlignment="Center"/>
+                            <WrapPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                <Button Classes="tile" Click="BrowseWidgets_Click"
+                                        ToolTip.Tip="Browse installed widgets and presets">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:SymIcon Glyph="Search20" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Browse Widgets" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
-                                <Button Content="Browse Presets" Width="154" Height="48"
-                                        Click="OpenBrowsePresets_Click" Margin="8,16,2,8"/>
-                                <Button Content="Browse Premade" Width="154" Height="48"
-                                        Click="OpenMarketplace_Click" Margin="8,16,2,8"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="Open Presets" Width="154" Height="48"
-                                        Click="OpenPresets_Click" Margin="0,8,2,8"/>
-                                <Button Content="Open Imports" Width="154" Height="48" Margin="8,8,2,8"
-                                        Click="OpenImports_Click"/>
-                                <Button Content="Open Exports" Width="154" Height="48" Margin="8,8,2,8"
-                                        Click="OpenExports_Click"/>
-                            </StackPanel>
+                                <Button Classes="tile" Click="OpenBrowsePresets_Click"
+                                        ToolTip.Tip="View preset documentation">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:SymIcon Glyph="Apps20" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Explore Presets" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="tile" Click="OpenMarketplace_Click"
+                                        ToolTip.Tip="Premade overlays">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:SymIcon Glyph="Globe20" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Explore Overlays" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="tile" Click="SendRefreshRequest_Click"
+                                        ToolTip.Tip="Reload every live overlay">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:SymIcon Glyph="Recycle20" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Refresh Overlays" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <!-- <Button Classes="tile" Click="OpenPresets_Click" -->
+                                <!--         ToolTip.Tip="Open the presets folder"> -->
+                                <!--     <StackPanel Orientation="Horizontal" Spacing="8"> -->
+                                <!--         <ctl:SymIcon Glyph="FolderOpen20" VerticalAlignment="Center"/> -->
+                                <!--         <TextBlock Text="Open Presets" VerticalAlignment="Center"/> -->
+                                <!--     </StackPanel> -->
+                                <!-- </Button> -->
+                                <Button Classes="tile" Click="OpenImports_Click"
+                                        ToolTip.Tip="Open the imports folder">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:SymIcon Glyph="FolderOpen20" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Open Imports" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="tile" Click="OpenExports_Click"
+                                        ToolTip.Tip="Open the exports folder">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <ctl:SymIcon Glyph="FolderOpen20" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Open Exports" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </WrapPanel>
                         </StackPanel>
                         <views:ObsBrowserSourcesPanel Grid.Row="1" x:Name="ObsSourcesPanel"
                                                       IsVisible="{Binding ObsConnected, RelativeSource={RelativeSource AncestorType=Window}}"/>
