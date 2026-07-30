@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -71,6 +72,7 @@ public partial class ExportWidgetDialog : Window
         PopulateTree(_plan);
         SyncSelectAllBox();
         UpdateOutputPathText();
+        TryEnableDragDrop();
     }
 
     #region TREE
@@ -279,13 +281,99 @@ public partial class ExportWidgetDialog : Window
 
     private void PreviewClear_Click(object? sender, RoutedEventArgs e) => SetPreview(null);
 
+    #region PREVIEW DRAG AND DROP
+
+    private bool _dropEnabled;
+    private string EmptyPreviewText => _dropEnabled ? "select or drop an image here" : "No preview";
+
+    private void TryEnableDragDrop()
+    {
+        try
+        {
+            DragDrop.SetAllowDrop(PreviewDropZone, true);
+            PreviewDropZone.AddHandler(DragDrop.DragOverEvent, PreviewDragOver);
+            PreviewDropZone.AddHandler(DragDrop.DragLeaveEvent, PreviewDragLeave);
+            PreviewDropZone.AddHandler(DragDrop.DropEvent, PreviewDrop);
+
+            _dropEnabled = true;
+            ToolTip.SetTip(PreviewDropZone, "Drop an image here, or use Choose...");
+
+            if (_previewImagePath.Length == 0) PreviewNameText.Text = EmptyPreviewText;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Drag and drop is unavailable for the preview image");
+        }
+    }
+
+    private void PreviewDragOver(object? sender, DragEventArgs e)
+    {
+        bool accepted = FirstImagePath(e.DataTransfer) != null;
+
+        e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
+        SetDropHighlight(accepted);
+        e.Handled = true;
+    }
+
+    private void PreviewDragLeave(object? sender, DragEventArgs e) => SetDropHighlight(false);
+
+    private void PreviewDrop(object? sender, DragEventArgs e)
+    {
+        SetDropHighlight(false);
+        e.Handled = true;
+
+        string? path = FirstImagePath(e.DataTransfer);
+        if (path == null)
+        {
+            _logger?.LogDebug("Ignored a drop carrying no supported image file");
+            return;
+        }
+
+        SetPreview(path);
+    }
+
+    private static string? FirstImagePath(IDataTransfer data)
+    {
+        try
+        {
+            var files = data.TryGetFiles();
+            if (files == null) return null;
+
+            foreach (var item in files)
+            {
+                string? path = item.TryGetLocalPath();
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) continue;
+
+                if (WidgetPorter.PreviewExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase))
+                    return path;
+            }
+        }
+        catch {/**/}
+
+        return null;
+    }
+
+    private void SetDropHighlight(bool active)
+    {
+        PreviewDropZone.BorderBrush = active && AccentBrush() is { } accent
+            ? accent
+            : Brushes.Transparent;
+    }
+
+    private IBrush? AccentBrush()
+        => this.TryFindResource("AccentFillColorDefaultBrush", ActualThemeVariant, out var b) && b is IBrush brush
+            ? brush
+            : null;
+
+    #endregion
+
     private void SetPreview(string? path)
     {
         _previewImagePath = string.IsNullOrWhiteSpace(path) || !File.Exists(path) ? string.Empty : path;
 
         bool has = _previewImagePath.Length > 0;
         PreviewClearButton.IsVisible = has;
-        PreviewNameText.Text = has ? Path.GetFileName(_previewImagePath) : "No preview";
+        PreviewNameText.Text = has ? Path.GetFileName(_previewImagePath) : EmptyPreviewText;
         ToolTip.SetTip(PreviewNameText, has ? _previewImagePath : null);
 
         if (!has)

@@ -54,25 +54,29 @@
             </StackPanel>
         </DockPanel>
 
-        <DockPanel Grid.Row="3" LastChildFill="True" Margin="0,0,0,12">
-            <Border DockPanel.Dock="Left" Width="64" Height="64" Margin="0,0,10,0" CornerRadius="4"
-                    BorderThickness="1" BorderBrush="{DynamicResource UiBrushBorder}"
-                    Background="{DynamicResource UiBrushControlBackground}">
-                <Image x:Name="PreviewThumb" Stretch="Uniform" Margin="2"
-                       RenderOptions.BitmapInterpolationMode="HighQuality"/>
-            </Border>
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock FontWeight="SemiBold" Text="Preview Image" Margin="4,0,0,4"/>
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Button x:Name="PreviewPickButton" Content="Choose..." Click="PreviewPick_Click" MinWidth="90"/>
-                    <Button x:Name="PreviewClearButton" Content="Clear" Click="PreviewClear_Click" MinWidth="70"
-                            IsVisible="False"/>
-                    <TextBlock x:Name="PreviewNameText" VerticalAlignment="Center" FontSize="11"
-                               TextTrimming="CharacterEllipsis" MaxWidth="200"
-                               Foreground="{DynamicResource UiBrushTextTertiary}" Text="No preview"/>
+        <Border x:Name="PreviewDropZone" Grid.Row="3" Margin="0,0,0,12" Padding="6" CornerRadius="6"
+                BorderThickness="1" BorderBrush="Transparent" Background="Transparent">
+            <DockPanel LastChildFill="True">
+                <Border x:Name="PreviewThumbFrame" DockPanel.Dock="Left" Width="64" Height="64"
+                        Margin="0,0,10,0" CornerRadius="4"
+                        BorderThickness="1" BorderBrush="{DynamicResource UiBrushBorder}"
+                        Background="{DynamicResource UiBrushControlBackground}">
+                    <Image x:Name="PreviewThumb" Stretch="Uniform" Margin="2"
+                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock FontWeight="SemiBold" Text="Preview Image" Margin="4,0,0,4"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button x:Name="PreviewPickButton" Content="Choose..." Click="PreviewPick_Click" MinWidth="90"/>
+                        <Button x:Name="PreviewClearButton" Content="Clear" Click="PreviewClear_Click" MinWidth="70"
+                                IsVisible="False"/>
+                        <TextBlock x:Name="PreviewNameText" VerticalAlignment="Center" FontSize="11"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="200"
+                                   Foreground="{DynamicResource UiBrushTextTertiary}" Text="No preview"/>
+                    </StackPanel>
                 </StackPanel>
-            </StackPanel>
-        </DockPanel>
+            </DockPanel>
+        </Border>
 
         <StackPanel Grid.Row="4" Orientation="Vertical">
             <DockPanel Margin="0,0,0,6" LastChildFill="False" ToolTip.Tip = "The widget html and some linked resources are preselected - please add any missing">

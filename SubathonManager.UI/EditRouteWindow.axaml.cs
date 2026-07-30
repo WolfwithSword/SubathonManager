@@ -69,8 +69,8 @@ public partial class EditRouteWindow : Window
         InitializeComponent();
         EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
-        BrowserEditorButton.IsVisible = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
-        WebViewWarningButton.IsVisible = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
+        BrowserEditorButton.IsVisible = OperatingSystem.IsLinux();
+        WebViewWarningButton.IsVisible = OperatingSystem.IsLinux();
         UiUtils.UiHelpers.EnableClickAwayUnfocus(this);
 
         PreviewWebView.EnvironmentRequested += (_, e) =>

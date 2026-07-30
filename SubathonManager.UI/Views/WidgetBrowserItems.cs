@@ -29,6 +29,15 @@ public sealed class CatalogItem
 
     public bool CanDelete => Entry.Source != WidgetCatalogSource.Preset;
 
+    public string? DocsUrl
+        => !string.IsNullOrWhiteSpace(Entry.DocsUrl) &&
+           Uri.TryCreate(Entry.DocsUrl, UriKind.Absolute, out var uri) &&
+           (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            ? Entry.DocsUrl
+            : null;
+
+    public bool HasDocs => DocsUrl != null;
+
     public string DeleteHint => CanDelete
         ? "Delete this package file from disk"
         : "Widgets included with the app cannot be deleted";

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -224,6 +225,21 @@ public partial class WidgetBrowserDialog : Window
         finally
         {
             _busy = false;
+        }
+    }
+
+    private void ViewEntryDocs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ItemFrom(sender) is not { DocsUrl: { } url }) return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to open docs {Url}", url);
+            SetStatus($"Could not open the docs for \"{ItemFrom(sender)?.Name}\".");
         }
     }
 

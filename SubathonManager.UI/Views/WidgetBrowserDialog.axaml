@@ -92,6 +92,13 @@
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
                                                                     <Separator/>
+                                                                    <MenuItem Header="View Docs" Tag="{Binding}" Click="ViewEntryDocs_Click"
+                                                                              IsVisible="{Binding HasDocs}"
+                                                                              ToolTip.Tip="{Binding DocsUrl}">
+                                                                        <MenuItem.Icon>
+                                                                            <ctl:SymIcon Glyph="BookOpen16"/>
+                                                                        </MenuItem.Icon>
+                                                                    </MenuItem>
                                                                     <MenuItem Header="Open Containing Folder" Tag="{Binding}" Click="OpenEntryFolder_Click">
                                                                         <MenuItem.Icon>
                                                                             <ctl:SymIcon Glyph="FolderOpen16"/>

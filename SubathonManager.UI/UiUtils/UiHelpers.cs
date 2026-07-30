@@ -85,11 +85,17 @@ public static class UiHelpers
         {
             // diff actions so not calling raw open folder, doesn't matter for linux
             if (OperatingSystem.IsWindows())
+            {
+                if (FileManagerFocus.TryFocusExplorer(Path.GetDirectoryName(path), path)) return true;
                 Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+            }
             else if (OperatingSystem.IsMacOS())
                 Process.Start(new ProcessStartInfo("open") { ArgumentList = { "-R", path } });
             else
+            {
+                if (FileManagerFocus.TryShowItemsOverDBus(path)) return true;
                 return OpenFolder(Path.GetDirectoryName(path));
+            }
             return true;
         }
         catch
@@ -104,7 +110,10 @@ public static class UiHelpers
         try
         {
             if (OperatingSystem.IsWindows())
+            {
+                if (FileManagerFocus.TryFocusExplorer(dir)) return true;
                 Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+            }
             else if (OperatingSystem.IsMacOS())
                 Process.Start(new ProcessStartInfo("open") { ArgumentList = { dir } });
             else
