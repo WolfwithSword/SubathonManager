@@ -82,12 +82,20 @@ public sealed class CatalogItem
 public sealed class CatalogGroup
 {
     public required string Title { get; init; }
+
+    public required string Key { get; init; }
+    public bool IsExpanded { get; set; } = true;
+    public string CountLabel { get; set; } = string.Empty;
+
     public ObservableCollection<CatalogItem> Items { get; } = [];
 }
 
 public sealed class CatalogSection
 {
     public required string Title { get; init; }
+
+    public required string Key { get; init; }
+    public bool IsExpanded { get; set; } = true;
     public ObservableCollection<CatalogGroup> Groups { get; } = [];
     public string CountLabel { get; set; } = string.Empty;
 }

@@ -391,6 +391,9 @@ public partial class EditRouteWindow
                     case WidgetContextAction.ResetScale:
                         await ResetWidgetScaleAsync(widget);
                         break;
+                    case WidgetContextAction.Refresh:
+                        RefreshWidget(widget);
+                        break;
                 }
             }
             catch (Exception ex)
@@ -399,6 +402,10 @@ public partial class EditRouteWindow
             }
         });
     }
+
+    private static void RefreshWidget(Widget widget)
+        => OverlayEvents.RaiseWidgetRefreshRequested(widget.Id, widget.X, widget.Y,
+            widget.Width, widget.Height, widget.ScaleX, widget.ScaleY);
 
     private async Task ResetWidgetScaleAsync(Widget widget)
     {

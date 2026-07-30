@@ -208,6 +208,7 @@ public partial class WebServer
     <script>
     (function () {
         const actions = [
+            { label: 'Refresh', action: 'Refresh' },
             { label: 'Toggle Visibility', action: 'ToggleVisibility' },
             { label: 'Reset Scale', action: 'ResetScale'},
             { label: 'Clone', action: 'Clone' },

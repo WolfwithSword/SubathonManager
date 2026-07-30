@@ -17,6 +17,52 @@
         <Style Selector="Border.browsercard:pointerover">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
         </Style>
+
+        <Style Selector="ToggleButton.groupheader">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="2,1"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ToggleButton.groupheader /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Transitions" Value="{x:Null}"/>
+        </Style>
+        <Style Selector="ToggleButton.groupheader:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.groupheader:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.groupheader:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.groupheader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#18808080"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ToggleButton.groupheader:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#18808080"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style Selector="ToggleButton.groupheader ctl|SymIcon.chevron">
+            <Setter Property="RenderTransform" Value="rotate(-90deg)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ToggleButton.groupheader:checked ctl|SymIcon.chevron">
+            <Setter Property="RenderTransform" Value="rotate(0deg)"/>
+        </Style>
     </Window.Styles>
 
     <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
@@ -51,7 +97,9 @@
             <ItemsControl x:Name="SectionsList">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="views:CatalogSection">
-                        <Expander IsExpanded="True" Margin="0,0,0,6" HorizontalAlignment="Stretch">
+                        <Expander IsExpanded="{Binding IsExpanded, Mode=OneWay}" Tag="{Binding}"
+                                  Expanded="SectionExpander_Changed" Collapsed="SectionExpander_Changed"
+                                  Margin="0,0,0,6" HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -64,11 +112,25 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="views:CatalogGroup">
                                         <StackPanel Margin="0,2,0,10">
-                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
-                                                       Margin="4,0,0,6"
-                                                       Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                            <ToggleButton x:Name="GroupToggle" Classes="groupheader"
+                                                          Margin="0,0,0,6" Tag="{Binding}"
+                                                          IsChecked="{Binding IsExpanded, Mode=OneWay}"
+                                                          IsCheckedChanged="GroupToggle_Changed">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <ctl:SymIcon Classes="chevron" Glyph="ChevronDown12"
+                                                                 VerticalAlignment="Center"
+                                                                 Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                    <TextBlock Text="{Binding CountLabel}" FontSize="11" Opacity="0.7"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                </StackPanel>
+                                            </ToggleButton>
 
-                                            <ItemsControl ItemsSource="{Binding Items}">
+                                            <ItemsControl ItemsSource="{Binding Items}"
+                                                          IsVisible="{Binding #GroupToggle.IsChecked}">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
                                                         <WrapPanel Orientation="Horizontal"/>
@@ -89,6 +151,13 @@
                                                                               ToolTip.Tip="{Binding AddHint}">
                                                                         <MenuItem.Icon>
                                                                             <ctl:SymIcon Glyph="Add16"/>
+                                                                        </MenuItem.Icon>
+                                                                    </MenuItem>
+                                                                    <Separator/>
+                                                                    <MenuItem Header="Refresh" Tag="{Binding}" Click="RefreshEntry_Click"
+                                                                              ToolTip.Tip="Refresh widget package from disk">
+                                                                        <MenuItem.Icon>
+                                                                            <ctl:SymIcon Glyph="ArrowSync16"/>
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
                                                                     <Separator/>

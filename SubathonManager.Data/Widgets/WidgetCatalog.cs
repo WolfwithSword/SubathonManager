@@ -80,23 +80,7 @@ public static class WidgetCatalog
                     db.WidgetCatalogEntries.Add(entry);
                 }
 
-                entry.FileSize = info.Length;
-                entry.FileModifiedTicks = info.LastWriteTimeUtc.Ticks;
-                entry.Source = root.Source;
-                entry.PackId = manifest.PackId;
-                entry.Name = manifest.Name;
-                entry.Author = manifest.Author;
-                entry.Group = WidgetPackPaths.NormalizeGroup(manifest.Group);
-                entry.Version = manifest.Version;
-                entry.Entry = manifest.Entry;
-                entry.DocsUrl = manifest.DocsUrl;
-                entry.Tags = string.Join(", ", manifest.Tags);
-                entry.PreviewImage = manifest.PreviewImage;
-                entry.PreviewCachePath = ExtractPreview(file, manifest.PreviewImage, force: true) ?? string.Empty;
-                entry.ScaleX = manifest.ScaleX;
-                entry.ScaleY = manifest.ScaleY;
-                entry.LastSeenUtc = now;
-
+                Fill(entry, file, info, manifest, root.Source, now);
                 live.Add(entry);
             }
         }
@@ -119,6 +103,92 @@ public static class WidgetCatalog
             .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
             .ThenByDescending(e => e.Version, Comparer<string>.Create(WidgetPackPaths.CompareVersions))
             .ToList();
+    }
+
+    private static void Fill(WidgetCatalogEntry entry, string file, FileInfo info,
+        WidgetPackManifest manifest, WidgetCatalogSource source, DateTime now)
+    {
+        entry.FileSize = info.Length;
+        entry.FileModifiedTicks = info.LastWriteTimeUtc.Ticks;
+        entry.Source = source;
+        entry.PackId = manifest.PackId;
+        entry.Name = manifest.Name;
+        entry.Author = manifest.Author;
+        entry.Group = WidgetPackPaths.NormalizeGroup(manifest.Group);
+        entry.Version = manifest.Version;
+        entry.Entry = manifest.Entry;
+        entry.DocsUrl = manifest.DocsUrl;
+        entry.Tags = string.Join(", ", manifest.Tags);
+        entry.PreviewImage = manifest.PreviewImage;
+        entry.PreviewCachePath = ExtractPreview(file, manifest.PreviewImage, force: true) ?? string.Empty;
+        entry.ScaleX = manifest.ScaleX;
+        entry.ScaleY = manifest.ScaleY;
+        entry.LastSeenUtc = now;
+    }
+
+    public static async Task<WidgetCatalogEntry?> RefreshEntryAsync(IDbContextFactory<AppDbContext> factory,
+        string packPath, CancellationToken ct = default)
+    {
+        string file = ToAbsolutePath(packPath);
+
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var entry = await db.WidgetCatalogEntries.FirstOrDefaultAsync(e => e.PackPath == packPath, ct);
+
+        if (!File.Exists(file))
+        {
+            if (entry != null)
+            {
+                db.WidgetCatalogEntries.Remove(entry);
+                DeletePreview(entry.PreviewCachePath);
+                try { await db.SaveChangesAsync(ct); } catch { /**/ }
+            }
+
+            return null;
+        }
+
+        var manifest = WidgetPackInstaller.ReadManifest(file);
+        if (manifest == null || string.IsNullOrWhiteSpace(manifest.Entry)) return null;
+
+        FileInfo info;
+        try { info = new FileInfo(file); }
+        catch { return null; }
+
+        if (entry == null)
+        {
+            entry = new WidgetCatalogEntry { PackPath = ToStoredPath(file) };
+            db.WidgetCatalogEntries.Add(entry);
+        }
+
+        Fill(entry, file, info, manifest, SourceFor(file), DateTime.UtcNow);
+        try
+        {
+            string cacheDir = WidgetPackPaths.CacheDirFor(file);
+            if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, recursive: true);
+        }
+        catch { /**/ }
+
+        WidgetPackMemoryCache.InvalidatePack(file);
+        WidgetPackPaths.InvalidateVersionCache();
+        WidgetPackPaths.InvalidateResolveCache();
+
+        try { await db.SaveChangesAsync(ct); } catch { /**/ }
+
+        return entry;
+    }
+
+    private static WidgetCatalogSource SourceFor(string file)
+    {
+        try
+        {
+            return Path.GetFullPath(file).StartsWith(PresetsRoot + Path.DirectorySeparatorChar,
+                StringComparison.OrdinalIgnoreCase)
+                ? WidgetCatalogSource.Preset
+                : WidgetCatalogSource.Imported;
+        }
+        catch
+        {
+            return WidgetCatalogSource.Imported;
+        }
     }
 
     public static async Task<bool> DeleteAsync(IDbContextFactory<AppDbContext> factory, WidgetCatalogEntry entry,

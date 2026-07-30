@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +30,9 @@ public partial class WidgetBrowserDialog : Window
     private readonly List<CatalogItem> _all = [];
     private readonly ObservableCollection<CatalogSection> _sections = [];
     private readonly Dictionary<string, Bitmap> _previews = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly HashSet<string> _collapsed = new(StringComparer.OrdinalIgnoreCase);
+    private bool _skipDeleteConfirm;
     private bool _busy;
 
     public WidgetBrowserDialog() : this(null) { }
@@ -37,8 +43,57 @@ public partial class WidgetBrowserDialog : Window
         SectionsList.ItemsSource = _sections;
 
         _onAdd = onAdd;
+        LoadState();
+
         Opened += async (_, _) => await RefreshAsync();
     }
+
+    #region persisted state
+
+    private void LoadState()
+    {
+        try
+        {
+            using var db = _factory.CreateDbContext();
+
+            string packed = StateValueHelper.Get<string>(db, StateKeys.WidgetBrowserCollapsed);
+            foreach (var key in packed.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                _collapsed.Add(key);
+
+            _skipDeleteConfirm = StateValueHelper.Get(db, StateKeys.WidgetBrowserSkipDeleteConfirm, false);
+            AllVersionsCheck.IsChecked = StateValueHelper.Get(db, StateKeys.WidgetBrowserAllVersions, false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not read widget browser state");
+        }
+    }
+
+    private void SaveState()
+    {
+        try
+        {
+            using var db = _factory.CreateDbContext();
+
+            StateValueHelper.Set(db, StateKeys.WidgetBrowserCollapsed, string.Join('\n', _collapsed));
+            StateValueHelper.Set(db, StateKeys.WidgetBrowserSkipDeleteConfirm, _skipDeleteConfirm);
+            StateValueHelper.Set(db, StateKeys.WidgetBrowserAllVersions, AllVersionsCheck.IsChecked == true);
+
+            db.SaveChanges();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not save widget browser state");
+        }
+    }
+
+    private void SetCollapsed(string key, bool collapsed)
+    {
+        if (collapsed) _collapsed.Add(key);
+        else _collapsed.Remove(key);
+    }
+
+    #endregion
 
     #region scanning
 
@@ -133,14 +188,28 @@ public partial class WidgetBrowserDialog : Window
                      .OrderBy(g => g.Key == CatalogItem.PresetSection ? 1 : 0)
                      .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var section = new CatalogSection { Title = sectionGroup.Key };
+            string sectionKey = "S:" + sectionGroup.Key;
+            var section = new CatalogSection
+            {
+                Title = sectionGroup.Key,
+                Key = sectionKey,
+                IsExpanded = !_collapsed.Contains(sectionKey)
+            };
 
             foreach (var groupGroup in sectionGroup
                          .GroupBy(i => i.GroupTitle, StringComparer.OrdinalIgnoreCase)
                          .OrderBy(g => g.Key == CatalogItem.UngroupedName ? 1 : 0)
                          .ThenBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
             {
-                var group = new CatalogGroup { Title = groupGroup.Key };
+                string key = $"G:{sectionGroup.Key}|{groupGroup.Key}";
+                var group = new CatalogGroup
+                {
+                    Title = groupGroup.Key,
+                    Key = key,
+                    IsExpanded = !_collapsed.Contains(key),
+                    CountLabel = $"({groupGroup.Count()})"
+                };
+
                 foreach (var item in groupGroup.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase))
                     group.Items.Add(item);
 
@@ -156,6 +225,23 @@ public partial class WidgetBrowserDialog : Window
         EmptyText.Text = _all.Count == 0
             ? "No .smw packages found under presets or imports/widgets."
             : "Nothing matches that search.";
+    }
+
+    private void GroupToggle_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleButton { Tag: CatalogGroup group } toggle) return;
+        bool expanded = toggle.IsChecked == true;
+
+        group.IsExpanded = expanded;
+        SetCollapsed(group.Key, !expanded);
+    }
+
+    private void SectionExpander_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Expander { Tag: CatalogSection section } expander) return;
+
+        section.IsExpanded = expander.IsExpanded;
+        SetCollapsed(section.Key, !expander.IsExpanded);
     }
 
     private void SearchBox_TextChanged(object? sender, TextChangedEventArgs e) => BuildTree();
@@ -228,6 +314,63 @@ public partial class WidgetBrowserDialog : Window
         }
     }
 
+    private async void RefreshEntry_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ItemFrom(sender) is not { } item || _busy) return;
+
+        _busy = true;
+        SetStatus($"Refreshing \"{item.Name}\"...");
+
+        try
+        {
+            string packPath = item.Entry.PackPath;
+            var updated = await Task.Run(() => WidgetCatalog.RefreshEntryAsync(_factory, packPath));
+
+            DropCachedPreview(item.Entry.PreviewCachePath);
+            if (updated == null)
+            {
+                _all.Remove(item);
+                BuildTree();
+                SetStatus($"\"{item.Name}\" is no longer readable and was removed from the list.");
+                return;
+            }
+
+            int index = _all.IndexOf(item);
+            var replacement = new CatalogItem
+            {
+                Entry = updated,
+                Preview = LoadPreview(updated.PreviewCachePath),
+                TagList = CatalogItem.SplitTags(updated.Tags),
+                CanAdd = _onAdd != null,
+                SearchBlob = BuildSearchBlob(updated)
+            };
+
+            if (index >= 0) _all[index] = replacement;
+            else _all.Add(replacement);
+
+            BuildTree();
+            SetStatus($"Refreshed \"{replacement.Name}\".");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to refresh catalogued widget {Path}", item.Entry.PackPath);
+            SetStatus($"Could not refresh \"{item.Name}\".");
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void DropCachedPreview(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        if (!_previews.Remove(path, out var bitmap)) return;
+
+        try { bitmap.Dispose(); }
+        catch { /**/ }
+    }
+
     private void ViewEntryDocs_Click(object? sender, RoutedEventArgs e)
     {
         if (ItemFrom(sender) is not { DocsUrl: { } url }) return;
@@ -256,15 +399,7 @@ public partial class WidgetBrowserDialog : Window
     {
         if (ItemFrom(sender) is not { CanDelete: true } item) return;
 
-        var confirm = new FAContentDialog
-        {
-            Title = "Delete Widget Package",
-            Content = $"Permanently delete \"{item.Name}\" {item.VersionLabel} from disk?\n\n",
-            PrimaryButtonText = "Delete",
-            CloseButtonText = "Cancel"
-        };
-
-        if (await confirm.ShowAsync() != FAContentDialogResult.Primary) return;
+        if (!_skipDeleteConfirm && !await ConfirmDeleteAsync(item)) return;
 
         bool deleted = await Task.Run(() => WidgetCatalog.DeleteAsync(_factory, item.Entry));
 
@@ -279,11 +414,47 @@ public partial class WidgetBrowserDialog : Window
         SetStatus($"Deleted \"{item.Name}\".");
     }
 
+    private async Task<bool> ConfirmDeleteAsync(CatalogItem item)
+    {
+        var skipBox = new CheckBox
+        {
+            Content = "Don't ask again",
+            Margin = new Thickness(0, 14, 0, 0)
+        };
+
+        var body = new StackPanel();
+        body.Children.Add(new TextBlock
+        {
+            Text = $"Permanently delete \"{item.Name}\" {item.VersionLabel} from disk?",
+            TextWrapping = TextWrapping.Wrap
+        });
+        body.Children.Add(skipBox);
+
+        var confirm = new FAContentDialog
+        {
+            Title = "Delete Widget Package",
+            Content = body,
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel"
+        };
+
+        if (await confirm.ShowAsync() != FAContentDialogResult.Primary) return false;
+
+        if (skipBox.IsChecked == true)
+        {
+            _skipDeleteConfirm = true;
+            SaveState();
+        }
+
+        return true;
+    }
+
     #endregion
 
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+        SaveState();
 
         foreach (var bitmap in _previews.Values)
         {

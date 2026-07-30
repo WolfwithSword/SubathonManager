@@ -12,7 +12,8 @@ public enum WidgetContextAction
     ToggleVisibility,
     Clone,
     Delete,
-    ResetScale
+    ResetScale,
+    Refresh
 }
 
 public enum WidgetDisplayKind
