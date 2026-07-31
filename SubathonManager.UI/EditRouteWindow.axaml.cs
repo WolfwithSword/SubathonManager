@@ -72,6 +72,7 @@ public partial class EditRouteWindow : Window
         BrowserEditorButton.IsVisible = OperatingSystem.IsLinux();
         WebViewWarningButton.IsVisible = OperatingSystem.IsLinux();
         UiUtils.UiHelpers.EnableClickAwayUnfocus(this);
+        LoadPreviewBgPreference();
 
         PreviewWebView.EnvironmentRequested += (_, e) =>
         {
@@ -756,6 +757,27 @@ public partial class EditRouteWindow : Window
     private void WebViewBgToggle_Click(object? sender, RoutedEventArgs e)
     {
         _webViewLightBg = WebViewBgToggle.IsChecked != true;
+        ApplyWebViewBgToggle();
+        _ = StateValueHelper.SetAsync(_factory, StateKeys.EditorPreviewLightBg, _webViewLightBg);
+    }
+
+    private void LoadPreviewBgPreference()
+    {
+        try
+        {
+            using var db = _factory.CreateDbContext();
+            _webViewLightBg = StateValueHelper.Get(db, StateKeys.EditorPreviewLightBg, true);
+            ApplyWebViewBgToggle();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Could not read the editor preview background preference");
+        }
+    }
+
+    private void ApplyWebViewBgToggle()
+    {
+        WebViewBgToggle.IsChecked = !_webViewLightBg;
         WebViewBgToggle.Content = _webViewLightBg ? "Light" : "Dark";
         ApplyWebViewBackground(_webViewLightBg);
     }
