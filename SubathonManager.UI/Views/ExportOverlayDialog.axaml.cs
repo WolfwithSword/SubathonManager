@@ -50,14 +50,24 @@ public partial class ExportOverlayDialog : Window
         VersionBox.Text = "1.0.0";
         var fileList = BuildFileList(_route);
         PopulateTree(fileList);
+        SyncSelectAllBox();
         bool isDevOrBeta = AppServices.AppVersion.Contains('+');
         AppOverrideSection.IsVisible = isDevOrBeta;
         AppVersionBox.Text = $"{AppServices.AppVersion}";
     }
 
-    private static List<(string zipEntry, string? absSource)> BuildFileList(Route route)
+    private sealed record PreviewEntry(
+        string ZipEntry,
+        string? AbsSource,
+        bool DefaultSelected = true,
+        bool InUse = false,
+        string? UsageHint = null);
+
+    private static List<PreviewEntry> BuildFileList(Route route)
     {
-        var result = new List<(string, string?)>();
+        var result = new List<PreviewEntry>();
+        var resourceUsage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        void Add(string zipEntry, string? absSource) => result.Add(new PreviewEntry(zipEntry, absSource));
 
         var widgets = route.Widgets.ToList();
         var widgetRoots = widgets.Select(w => w.GetPath()).ToList();
@@ -74,48 +84,65 @@ public partial class ExportOverlayDialog : Window
                 if (WidgetFiles.Current.Exists(widget.HtmlPath))
                 {
                     string fileName = Path.GetFileName(widget.HtmlPath);
-                    result.Add(($"{zipWidgetRoot}/{fileName}", widget.HtmlPath));
+                    Add($"{zipWidgetRoot}/{fileName}", widget.HtmlPath);
                 }
             }
             else
             {
-                result.AddRange(from file in WidgetFiles.Current.EnumerateFiles(widgetRoot)
-                    let relative = Path.GetRelativePath(widgetRoot, file).Replace('\\', '/')
-                    select ($"{zipWidgetRoot}/{relative}", file));
+                foreach (var file in WidgetFiles.Current.EnumerateFiles(widgetRoot))
+                    Add($"{zipWidgetRoot}/{Path.GetRelativePath(widgetRoot, file).Replace('\\', '/')}", file);
             }
 
             foreach (var jsVar in widget.JsVariables)
             {
                 if (!((WidgetVariableType?)jsVar.Type).IsFileVariable()) continue;
                 if (string.IsNullOrWhiteSpace(jsVar.Value)) continue;
+
+                if (ResourcePaths.RelativeFromUrl(jsVar.Value) is { } resourceRel)
+                {
+                    resourceUsage[resourceRel] = $"Used by \"{widget.Name}\" - variable \"{jsVar.Name}\"";
+                    continue;
+                }
+
                 bool isAbsolute = !jsVar.Value.StartsWith("./") && !jsVar.Value.StartsWith("../")
                                   && Path.IsPathRooted(jsVar.Value);
                 if (!isAbsolute) continue;
                 bool isFolderType = jsVar.Type == WidgetVariableType.FolderPath;
                 if (isFolderType && Directory.Exists(jsVar.Value))
                 {
-                    result.AddRange(from file in Directory.EnumerateFiles(jsVar.Value, "*", SearchOption.AllDirectories)
-                        let rel = Path.GetRelativePath(jsVar.Value, file).Replace('\\', '/')
-                        select ($"{zipWidgetRoot}/_external/{jsVar.Name}/{rel}", file));
+                    foreach (var file in Directory.EnumerateFiles(jsVar.Value, "*", SearchOption.AllDirectories))
+                        Add($"{zipWidgetRoot}/_external/{jsVar.Name}/" +
+                            $"{Path.GetRelativePath(jsVar.Value, file).Replace('\\', '/')}", file);
                 }
                 else if (!isFolderType && File.Exists(jsVar.Value))
                 {
-                    result.Add(($"{zipWidgetRoot}/_external/{Path.GetFileName(jsVar.Value)}", jsVar.Value));
+                    Add($"{zipWidgetRoot}/_external/{Path.GetFileName(jsVar.Value)}", jsVar.Value);
                 }
             }
         }
 
-        result.Add(("overlay.json", null));
+        foreach (var rel in ResourcePaths.EnumerateRelative())
+        {
+            bool inUse = resourceUsage.TryGetValue(rel, out var hint);
+            result.Add(new PreviewEntry(
+                $"{OverlayPorter.ResourcesFolder}/{rel}",
+                ResourcePaths.ToLocalPath(ResourcePaths.UrlPrefix + rel),
+                DefaultSelected: false,
+                InUse: inUse,
+                UsageHint: hint));
+        }
+
+        Add("overlay.json", null);
         return result;
     }
 
-    private void PopulateTree(List<(string zipEntry, string? absSource)> files)
+    private void PopulateTree(List<PreviewEntry> files)
     {
         var root = new TreeNode("root");
 
-        foreach (var (zipEntry, absSource) in files)
+        foreach (var file in files)
         {
-            var parts = zipEntry.Split('/');
+            var parts = file.ZipEntry.Split('/');
             var node = root;
             for (int i = 0; i < parts.Length; i++)
             {
@@ -124,9 +151,13 @@ public partial class ExportOverlayDialog : Window
                 {
                     child = new TreeNode(parts[i])
                     {
-                        AbsSource = isLeaf ? absSource : null,
+                        AbsSource = isLeaf ? file.AbsSource : null,
                         IsLeaf = isLeaf,
-                        ZipEntry = isLeaf ? zipEntry : null
+                        ZipEntry = isLeaf ? file.ZipEntry : null,
+                        ZipPath = string.Join('/', parts.Take(i + 1)),
+                        DefaultSelected = !isLeaf || file.DefaultSelected,
+                        InUse = isLeaf && file.InUse,
+                        UsageHint = isLeaf ? file.UsageHint : null
                     };
                     node.Children[parts[i]] = child;
                 }
@@ -142,10 +173,11 @@ public partial class ExportOverlayDialog : Window
     {
         bool isLeaf = node.Children.Count == 0;
         bool isGenerated = isLeaf && node.AbsSource == null;
+        bool isSharedResources = IsSharedResourceNode(node);
 
         var checkBox = new CheckBox
         {
-            IsChecked = true,
+            IsChecked = node.DefaultSelected,
             Margin = new global::Avalonia.Thickness(0, 0, 4, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsEnabled = !isGenerated
@@ -177,14 +209,21 @@ public partial class ExportOverlayDialog : Window
         var item = new TreeViewItem
         {
             Header = header,
-            IsExpanded = true,
+            IsExpanded = !isSharedResources,
             Padding = new global::Avalonia.Thickness(2)
         };
 
         if (isLeaf)
         {
-            var entry = new FileEntry(node.ZipEntry ?? node.Name, node.AbsSource, checkBox, icon, label);
+            var entry = new FileEntry(node.ZipEntry ?? node.Name, node.AbsSource, checkBox, icon, label)
+            {
+                IsIncluded = node.DefaultSelected,
+                InUse = node.InUse
+            };
             _allEntries.Add(entry);
+
+            if (node.UsageHint != null) ToolTip.SetTip(label, node.UsageHint);
+            ApplyEntryStyle(entry, entry.IsIncluded);
 
             checkBox.IsCheckedChanged += (_, _) => OnEntryCheckedChanged(entry, checkBox.IsChecked ?? false);
         }
@@ -193,6 +232,7 @@ public partial class ExportOverlayDialog : Window
             foreach (var child in node.Children.Values)
                 item.Items.Add(BuildTreeItem(child));
 
+            checkBox.IsChecked = DescendantState(item);
             checkBox.IsCheckedChanged += (_, _) => SetDescendantLeaves(item, checkBox.IsChecked ?? false);
         }
 
@@ -206,6 +246,8 @@ public partial class ExportOverlayDialog : Window
         SyncSelectAllBox();
     }
 
+    private static readonly SolidColorBrush InUseBrush = new(Color.FromRgb(230, 170, 60));
+
     private void ApplyEntryStyle(FileEntry entry, bool isChecked)
     {
         if (isChecked)
@@ -216,11 +258,16 @@ public partial class ExportOverlayDialog : Window
         }
         else
         {
-            entry.Label.Foreground = new SolidColorBrush(Color.FromArgb(200, 180, 60, 60));
-            entry.Label.Opacity = 0.75;
-            entry.Icon.Opacity = 0.4;
+            entry.Label.Foreground = entry.InUse
+                ? InUseBrush
+                : new SolidColorBrush(Color.FromArgb(200, 180, 60, 60));
+            entry.Label.Opacity = entry.InUse ? 1.0 : 0.75;
+            entry.Icon.Opacity = entry.InUse ? 0.8 : 0.4;
         }
     }
+
+    private static bool IsSharedResourceNode(TreeNode node)
+        => node.ZipPath.Equals(OverlayPorter.ResourcesFolder, StringComparison.OrdinalIgnoreCase);
 
     private void SetDescendantLeaves(TreeViewItem parent, bool isChecked)
     {
@@ -234,6 +281,33 @@ public partial class ExportOverlayDialog : Window
                     cb.IsChecked = isChecked;
             }
             SetDescendantLeaves(child, isChecked);
+        }
+    }
+
+    private static bool? DescendantState(TreeViewItem parent)
+    {
+        var boxes = new List<CheckBox>();
+        CollectLeafBoxes(parent, boxes);
+        if (boxes.Count == 0) return false;
+        if (boxes.All(b => b.IsChecked == true)) return true;
+        if (boxes.All(b => b.IsChecked != true)) return false;
+        return null;
+    }
+
+    private static void CollectLeafBoxes(TreeViewItem parent, List<CheckBox> into)
+    {
+        foreach (var obj in parent.Items)
+        {
+            if (obj is not TreeViewItem child) continue;
+            if (child.Items.Count == 0)
+            {
+                if (child.Header is StackPanel sp && sp.Children.OfType<CheckBox>().FirstOrDefault() is { } cb)
+                    into.Add(cb);
+            }
+            else
+            {
+                CollectLeafBoxes(child, into);
+            }
         }
     }
 
@@ -345,6 +419,10 @@ public partial class ExportOverlayDialog : Window
         public string? AbsSource { get; set; }
         public bool IsLeaf { get; set; }
         public string? ZipEntry { get; set; }
+        public string ZipPath { get; init; } = string.Empty;
+        public bool DefaultSelected { get; init; } = true;
+        public bool InUse { get; init; }
+        public string? UsageHint { get; init; }
         public Dictionary<string, TreeNode> Children { get; } = new();
     }
 
@@ -356,5 +434,6 @@ public partial class ExportOverlayDialog : Window
         public SymIcon Icon { get; } = icon;
         public TextBlock Label { get; } = label;
         public bool IsIncluded { get; set; } = true;
+        public bool InUse { get; init; }
     }
 }

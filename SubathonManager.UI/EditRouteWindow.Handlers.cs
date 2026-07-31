@@ -1367,7 +1367,12 @@ public partial class EditRouteWindow
         {
             var file = jsVar.Value;
             if (string.IsNullOrWhiteSpace(file)) return;
-            if (file.StartsWith('.'))
+            if (ResourcePaths.IsResourceUrl(file))
+            {
+                file = ResourcePaths.ToLocalPath(file) ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(file)) return;
+            }
+            else if (file.StartsWith('.'))
                 file = Path.Join(Path.GetDirectoryName(_selectedWidget!.HtmlPath), file.Replace("./", ""));
             Process.Start(new ProcessStartInfo { FileName = file, UseShellExecute = true });
         };
@@ -1400,10 +1405,17 @@ public partial class EditRouteWindow
     {
         if (_selectedWidget == null) return;
 
-        path = Path.GetFullPath(path).Replace('\\', '/');
-        var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath)!.Replace('\\', '/');
-        if (path.Contains(widgetDir))
-            path = path.Replace(widgetDir, "./").Replace("//", "/");
+        if (ResourcePaths.ToResourceUrl(path) is { } resourceUrl)
+        {
+            path = resourceUrl;
+        }
+        else
+        {
+            path = Path.GetFullPath(path).Replace('\\', '/');
+            var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath)!.Replace('\\', '/');
+            if (path.Contains(widgetDir))
+                path = path.Replace(widgetDir, "./").Replace("//", "/");
+        }
 
         jsVar.Value = path;
         valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();

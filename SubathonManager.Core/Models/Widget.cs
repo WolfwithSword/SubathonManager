@@ -156,7 +156,11 @@ public class JsVariable
         }
         else if (((WidgetVariableType?)Type).IsFileVariable())
         {
-            if (!Value.StartsWith("./") && !string.IsNullOrWhiteSpace(Value))
+            if (ResourcePaths.IsResourceUrl(Value))
+            {
+                sb.Append($"\"{Value}\"");
+            }
+            else if (!Value.StartsWith("./") && !string.IsNullOrWhiteSpace(Value))
             {
                 sb.Append($"\"externalPath/{Value}\"");
             }

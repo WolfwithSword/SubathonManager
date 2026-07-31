@@ -90,7 +90,11 @@ public partial class ExportWidgetDialog : Window
                 bool isLeaf = i == parts.Length - 1;
                 if (!node.Children.TryGetValue(parts[i], out var child))
                 {
-                    child = new TreeNode(parts[i]) { Entry = isLeaf ? entry : null };
+                    child = new TreeNode(parts[i])
+                    {
+                        Entry = isLeaf ? entry : null,
+                        ZipPath = string.Join('/', parts.Take(i + 1))
+                    };
                     node.Children[parts[i]] = child;
                 }
                 node = child;
@@ -134,7 +138,7 @@ public partial class ExportWidgetDialog : Window
         var item = new TreeViewItem
         {
             Header = header,
-            IsExpanded = true,
+            IsExpanded = !IsSharedResourceNode(node),
             Padding = new global::Avalonia.Thickness(2)
         };
 
@@ -150,6 +154,8 @@ public partial class ExportWidgetDialog : Window
             checkBox.IsChecked = entry.IsIncluded;
             if (node.Entry.Locked)
                 ToolTip.SetTip(checkBox, "Always included");
+            else if (node.Entry.UsageHint != null)
+                ToolTip.SetTip(label, node.Entry.UsageHint);
 
             ApplyEntryStyle(entry, entry.IsIncluded);
             checkBox.IsCheckedChanged += (_, _) => OnEntryCheckedChanged(entry, checkBox.IsChecked ?? false);
@@ -214,14 +220,23 @@ public partial class ExportWidgetDialog : Window
         SyncSelectAllBox();
     }
 
+    private static readonly SolidColorBrush InUseBrush = new(Color.FromRgb(230, 170, 60));
+
     private void ApplyEntryStyle(FileEntry entry, bool isChecked)
     {
         entry.Label.Foreground = isChecked
             ? PrimaryTextBrush()
-            : new SolidColorBrush(Color.FromArgb(160, 150, 150, 150));
-        entry.Label.Opacity = isChecked ? 1.0 : 0.75;
-        entry.Icon.Opacity = isChecked ? 1.0 : 0.4;
+            : entry.Entry.InUse
+                ? InUseBrush
+                : new SolidColorBrush(Color.FromArgb(160, 150, 150, 150));
+        entry.Label.Opacity = isChecked || entry.Entry.InUse ? 1.0 : 0.75;
+        entry.Icon.Opacity = isChecked ? 1.0 : entry.Entry.InUse ? 0.8 : 0.4;
     }
+
+    private static bool IsSharedResourceNode(TreeNode node)
+        => node.ZipPath.Equals(
+            $"{WidgetPorter.ContentFolder}/{WidgetPorter.ExternalFolder}/{ResourcePaths.BundleFolder}",
+            StringComparison.OrdinalIgnoreCase);
 
     private void SyncSelectAllBox()
     {
@@ -491,6 +506,7 @@ public partial class ExportWidgetDialog : Window
     private class TreeNode(string name)
     {
         public string Name { get; } = name;
+        public string ZipPath { get; init; } = string.Empty;
         public WidgetPorter.SmwEntry? Entry { get; set; }
         public Dictionary<string, TreeNode> Children { get; } = new();
     }

@@ -37,7 +37,7 @@ public static class OverlayPorter
         string author = "", List<string>? tags = null)
     {
         var widgets = route.Widgets.ToList();
-        var plan = BuildExportPlan(widgets);
+        var plan = BuildExportPlan(widgets, excludedZipEntries);
 
         await using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, leaveOpen: false);
@@ -89,9 +89,20 @@ public static class OverlayPorter
         catch {/**/}
     }
     
-    private static ExportPlan BuildExportPlan(List<Widget> widgets)
+    public const string ResourcesFolder = "_resources";
+
+    private static ExportPlan BuildExportPlan(List<Widget> widgets, HashSet<string>? excludedZipEntries = null)
     {
         var plan = new ExportPlan();
+        bool IsKept(string zipEntry) => excludedZipEntries?.Contains(zipEntry) != true;
+
+        foreach (var rel in ResourcePaths.EnumerateRelative())
+        {
+            string zipEntry = $"{ResourcesFolder}/{rel}";
+            if (!IsKept(zipEntry)) continue;
+            if (ResourcePaths.ToLocalPath(ResourcePaths.UrlPrefix + rel) is { } source)
+                plan.FileCopies.Add((source, zipEntry));
+        }
 
         var widgetRoots = widgets.Select(w => w.GetPath()).ToList();
         var zipRoots = GetZipWidgetRoots(widgetRoots);
@@ -135,6 +146,16 @@ public static class OverlayPorter
             {
                 if (!((WidgetVariableType?)jsVar.Type).IsFileVariable()) continue;
                 if (string.IsNullOrWhiteSpace(jsVar.Value)) continue;
+
+                if (ResourcePaths.RelativeFromUrl(jsVar.Value) is { } resourceRel)
+                {
+                    if (!IsKept($"{ResourcesFolder}/{resourceRel}")) continue;
+                    string upToRoot = string.Concat(
+                        Enumerable.Repeat("../", zipWidgetRoot.Split('/').Length));
+                    SetRewrite(plan.VariableRewrites, widget.Id, jsVar.Name,
+                        $"{upToRoot}{ResourcesFolder}/{resourceRel}");
+                    continue;
+                }
 
                 bool isAbsolute = !jsVar.Value.StartsWith("./") && !jsVar.Value.StartsWith("../")
                                   && Path.IsPathRooted(jsVar.Value);

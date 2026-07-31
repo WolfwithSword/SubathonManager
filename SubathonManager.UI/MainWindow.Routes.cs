@@ -74,6 +74,7 @@ public partial class MainWindow
     private void OpenPresets_Click(object? sender, RoutedEventArgs e) => OpenRelativeFolder("presets");
     private void OpenImports_Click(object? sender, RoutedEventArgs e) => OpenRelativeFolder("imports");
     private void OpenExports_Click(object? sender, RoutedEventArgs e) => OpenRelativeFolder("exports");
+    private void OpenResources_Click(object? sender, RoutedEventArgs e) => OpenRelativeFolder("resources");
 
     private void OpenRelativeFolder(string name)
     {

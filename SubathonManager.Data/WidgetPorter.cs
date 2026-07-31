@@ -57,6 +57,8 @@ public static partial class WidgetPorter
         public bool DefaultSelected { get; set; }
         public bool Locked { get; init; }
         public Func<SmwExportOptions, byte[]>? Generator { get; init; }
+        public bool InUse { get; init; }
+        public string? UsageHint { get; init; }
     }
 
     public class SmwExportOptions
@@ -123,6 +125,21 @@ public static partial class WidgetPorter
         public List<SmwEntry> Entries { get; } = [];
         public Dictionary<string, string> VariableRewrites { get; } = new(StringComparer.OrdinalIgnoreCase);
         public string EntryZipPath { get; set; } = string.Empty;
+
+        public Dictionary<string, (string ZipEntry, string Value)> OptionalRewrites { get; }
+            = new(StringComparer.OrdinalIgnoreCase);
+
+        public bool IsSelected(string zipEntry)
+            => Entries.Any(e => e.ZipEntry.Equals(zipEntry, StringComparison.OrdinalIgnoreCase)
+                                && (e.Locked || e.DefaultSelected));
+
+        public string ResolveVarValue(JsVariable jsVar)
+        {
+            if (VariableRewrites.TryGetValue(jsVar.Name, out var rewritten)) return rewritten;
+            if (OptionalRewrites.TryGetValue(jsVar.Name, out var optional) && IsSelected(optional.ZipEntry))
+                return optional.Value;
+            return jsVar.Value ?? string.Empty;
+        }
     }
 
     #endregion
@@ -164,10 +181,16 @@ public static partial class WidgetPorter
             Generator = opts => Encoding.UTF8.GetBytes(BuildManifest(widget, plan, opts))
         });
 
+        string htmlText = WidgetFiles.Current.ReadAllText(widget.HtmlPath) ?? string.Empty;
+        var hardcodedResources = new HashSet<string>(ResourcePaths.FindReferences(htmlText),
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var cssPath in cssPaths)
+            hardcodedResources.UnionWith(ResourcePaths.FindReferences(WidgetFiles.Current.ReadAllText(cssPath)));
+
         Func<SmwExportOptions, byte[]>? htmlGenerator = null;
-        if (htmlLinkRewrites.Count > 0)
+        if (htmlLinkRewrites.Count > 0 || hardcodedResources.Count > 0)
             htmlGenerator = _ => Encoding.UTF8.GetBytes(
-                RewriteHtmlLinks(WidgetFiles.Current.ReadAllText(widget.HtmlPath) ?? string.Empty, htmlLinkRewrites));
+                RewriteResourceUrls(RewriteHtmlLinks(htmlText, htmlLinkRewrites), htmlEntry, plan));
 
         plan.Entries.Add(new SmwEntry
         {
@@ -194,13 +217,16 @@ public static partial class WidgetPorter
             string cssEntry = cssZipMap[cssPath];
             var varsInFile = ClaimCssVariables(widget, cssPath, consumed);
 
+            string cssText = WidgetFiles.Current.ReadAllText(cssPath) ?? string.Empty;
+            bool cssUsesResources = ResourcePaths.FindReferences(cssText).Any();
+
             Func<SmwExportOptions, byte[]>? cssGenerator = null;
-            if (varsInFile.Count > 0)
+            if (varsInFile.Count > 0 || cssUsesResources)
             {
-                string capturedPath = cssPath;
                 var capturedVars = varsInFile;
+                string capturedEntry = cssEntry;
                 cssGenerator = _ => Encoding.UTF8.GetBytes(
-                    OverrideCssValues(WidgetFiles.Current.ReadAllText(capturedPath) ?? string.Empty, capturedVars));
+                    RewriteResourceUrls(OverrideCssValues(cssText, capturedVars), capturedEntry, plan));
             }
 
             plan.Entries.Add(new SmwEntry
@@ -248,7 +274,44 @@ public static partial class WidgetPorter
         }
 
         AddFileVariableEntries(widget, widgetRoot, plan, claimed);
+        AddSharedResourceEntries(widget, plan, claimed, hardcodedResources);
         return plan;
+    }
+
+    private static void AddSharedResourceEntries(Widget widget, ExportPlan plan, HashSet<string> claimed,
+        HashSet<string> hardcodedResources)
+    {
+        var varUsed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var jsVar in widget.JsVariables)
+        {
+            if (!((WidgetVariableType?)jsVar.Type).IsFileVariable()) continue;
+            if (ResourcePaths.RelativeFromUrl(jsVar.Value) is { } rel) varUsed[rel] = jsVar.Name;
+        }
+
+        foreach (var rel in ResourcePaths.EnumerateRelative())
+        {
+            string entry = $"{ContentFolder}/{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}";
+            if (!claimed.Add(entry)) continue;
+
+            bool byVar = varUsed.TryGetValue(rel, out var varName);
+            bool byMarkup = hardcodedResources.Contains(rel);
+
+            plan.Entries.Add(new SmwEntry
+            {
+                ZipEntry = entry,
+                AbsSource = ResourcePaths.ToLocalPath(ResourcePaths.UrlPrefix + rel),
+                Kind = SmwEntryKind.External,
+                DefaultSelected = false,
+                InUse = byVar || byMarkup,
+                UsageHint = byVar
+                    ? $"Used by variable \"{varName}\""
+                    : byMarkup ? "Referenced directly by this widget's html/css" : null
+            });
+
+            if (byVar)
+                plan.OptionalRewrites[varName!] =
+                    (entry, $"./{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}");
+        }
     }
 
     private static void AddFileVariableEntries(Widget widget, string widgetRoot, ExportPlan plan, HashSet<string> claimed)
@@ -257,6 +320,7 @@ public static partial class WidgetPorter
         {
             if (!((WidgetVariableType?)jsVar.Type).IsFileVariable()) continue;
             if (string.IsNullOrWhiteSpace(jsVar.Value)) continue;
+            if (ResourcePaths.IsResourceUrl(jsVar.Value)) continue;
 
             bool isFolderType = jsVar.Type == WidgetVariableType.FolderPath;
             bool isRelative = jsVar.Value.StartsWith("./") || jsVar.Value.StartsWith("../");
@@ -462,6 +526,26 @@ public static partial class WidgetPorter
         return result;
     }
 
+    private static string RewriteResourceUrls(string text, string ownZipEntry, ExportPlan plan)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+
+        int depth = ownZipEntry.Split('/').Length - 2;
+        string upToContent = depth <= 0 ? "./" : string.Concat(Enumerable.Repeat("../", depth));
+
+        foreach (var rel in ResourcePaths.FindReferences(text).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string entry = $"{ContentFolder}/{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}";
+            if (!plan.IsSelected(entry)) continue;
+
+            text = text.Replace($"{ResourcePaths.UrlPrefix}{rel}",
+                $"{upToContent}{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        return text;
+    }
+
     private static string OverrideCssValues(string css, List<CssVariable> variables)
     {
         foreach (var variable in variables)
@@ -521,11 +605,7 @@ public static partial class WidgetPorter
             metaVar.Type = jsVar.Type;
             metaVar.Description = jsVar.Description ?? string.Empty;
 
-            string value = plan.VariableRewrites.TryGetValue(jsVar.Name, out var rewritten)
-                ? rewritten
-                : jsVar.Value ?? string.Empty;
-
-            metaVar.Value = ToMetaValue(jsVar.Type, value, metaVar);
+            metaVar.Value = ToMetaValue(jsVar.Type, plan.ResolveVarValue(jsVar), metaVar);
         }
 
         return JsonSerializer.Serialize(meta, MetaOptions);
