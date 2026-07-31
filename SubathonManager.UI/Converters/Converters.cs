@@ -353,9 +353,16 @@ public class WidgetHasUpdateConverter : IValueConverter
 public class WidgetUpdateLabelConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-        => value is string path && WidgetPackInstaller.FindNewerVersion(path) is { } newer
+    {
+        if (value is not string path || WidgetPackInstaller.FindNewerVersion(path) is not { } newer)
+            return string.Empty;
+
+        string current = WidgetPackPaths.Resolve(path)?.VersionStr ?? string.Empty;
+
+        return string.IsNullOrEmpty(current)
             ? $"Update to {WidgetPackPaths.DisplayVersion(newer)}"
-            : string.Empty;
+            : $"Update to {WidgetPackPaths.DisplayVersion(newer)}, replacing {WidgetPackPaths.DisplayVersion(current)}";
+    }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         => throw new NotImplementedException();

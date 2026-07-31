@@ -279,11 +279,12 @@ jobs:
           -p:Copyright="© 2025–${{ env.CopyrightYear }} WolfwithSword and contributors"
           -o build-avalonia
 
-      - name: Copy presets folder and license into build output
+      - name: Copy presets, resources folder and license into build output
         shell: bash
         run: |
-          mkdir -p build-avalonia/presets
+          mkdir -p build-avalonia/presets build-avalonia/resources
           cp -R presets/. build-avalonia/presets/
+          cp -R resources/. build-avalonia/resources/
           cp LICENSE build-avalonia/
           rm -f build-avalonia/*.pdb
 
@@ -466,11 +467,12 @@ jobs:
           -p:PublishTrimmed=false
           -o build-pr
 
-      - name: Copy presets folder and license into build output
+      - name: Copy presets, resources folder and license into build output
         shell: bash
         run: |
-          mkdir -p build-pr/presets
+          mkdir -p build-pr/presets build-pr/resources
           cp -R presets/. build-pr/presets/
+          cp -R resources/. build-pr/resources/
           cp LICENSE build-pr/
           rm -f build-pr/*.pdb
 

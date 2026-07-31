@@ -14,8 +14,24 @@
         Background="{DynamicResource AppGeneralBackground}">
 
     <Window.Styles>
+        <Style Selector="Border.browsercard">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
         <Style Selector="Border.browsercard:pointerover">
             <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
+        </Style>
+        <Style Selector="Border.browsercard.selected">
+            <Setter Property="BorderBrush" Value="#4DA6FF"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BoxShadow" Value="0 0 14 2 #703B9EFF"/>
+        </Style>
+        <Style Selector="Border.browsercard.selected:pointerover">
+            <Setter Property="BorderBrush" Value="#7ABEFF"/>
+            <Setter Property="BoxShadow" Value="0 0 18 3 #8A3B9EFF"/>
         </Style>
 
         <Style Selector="ToggleButton.groupheader">
@@ -138,11 +154,13 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="views:CatalogItem">
-                                                        <Border Classes="browsercard" Width="168" Margin="0,0,8,8" Padding="8"
+                                                        <Border Classes="browsercard" Classes.selected="{Binding IsSelected}"
+                                                                Width="168" Margin="10" Padding="8"
                                                                 CornerRadius="6" BorderThickness="1"
                                                                 BorderBrush="Transparent"
                                                                 Background="{DynamicResource UiBrushControlBackground}"
                                                                 Tag="{Binding}"
+                                                                Tapped="Card_Tapped"
                                                                 DoubleTapped="Card_DoubleTapped">
                                                             <Border.ContextFlyout>
                                                                 <MenuFlyout>
@@ -246,11 +264,15 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,12,0,0">
             <TextBlock Grid.Column="0" x:Name="StatusText" VerticalAlignment="Center" FontSize="12"
                        TextTrimming="CharacterEllipsis"
                        Foreground="{DynamicResource UiBrushTextTertiary}"/>
-            <Button Grid.Column="1" x:Name="CloseButton" Content="Close" Width="90" Click="Close_Click"/>
+            <Button Grid.Column="1" x:Name="AddSelectedButton" Classes="accent" Content="Add Widget(s)"
+                    MinWidth="130" Margin="0,0,8,0" IsEnabled="False" IsVisible="False"
+                    ToolTip.Tip="Add selected widgets"
+                    Click="AddSelected_Click"/>
+            <Button Grid.Column="2" x:Name="CloseButton" Content="Close" Width="90" Click="Close_Click"/>
         </Grid>
     </Grid>
 </Window>

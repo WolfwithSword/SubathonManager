@@ -43,6 +43,8 @@ public partial class WidgetBrowserDialog : Window
         SectionsList.ItemsSource = _sections;
 
         _onAdd = onAdd;
+        AddSelectedButton.IsVisible = onAdd != null;
+
         LoadState();
 
         Opened += async (_, _) => await RefreshAsync();
@@ -121,6 +123,7 @@ public partial class WidgetBrowserDialog : Window
             }
 
             BuildTree();
+            UpdateAddSelectedButton();
             SetStatus($"{_all.Count} widget package(s) found");
         }
         catch (Exception ex)
@@ -265,15 +268,92 @@ public partial class WidgetBrowserDialog : Window
     private static CatalogItem? ItemFrom(object? sender)
         => sender is Control { Tag: CatalogItem item } ? item : null;
 
+    private void Card_Tapped(object? sender, TappedEventArgs e)
+    {
+        if (_onAdd == null || ItemFrom(sender) is not { } item) return;
+
+        item.IsSelected = !item.IsSelected;
+        UpdateAddSelectedButton();
+    }
+
     private async void Card_DoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (ItemFrom(sender) is { } item) await AddAsync(item);
+        if (ItemFrom(sender) is not { } item) return;
+        if (item.IsSelected)
+        {
+            item.IsSelected = false;
+            UpdateAddSelectedButton();
+        }
+
+        await AddAsync(item);
     }
 
     private async void AddEntry_Click(object? sender, RoutedEventArgs e)
     {
-        if (ItemFrom(sender) is { } item) await AddAsync(item);
+        if (ItemFrom(sender) is not { } item) return;
+
+        if (item.IsSelected)
+        {
+            item.IsSelected = false;
+            UpdateAddSelectedButton();
+        }
+
+        await AddAsync(item);
     }
+
+    private async void AddSelected_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_onAdd == null || _busy) return;
+
+        var selected = _all.Where(i => i.IsSelected).ToList();
+        if (selected.Count == 0) return;
+
+        _busy = true;
+        AddSelectedButton.IsEnabled = false;
+        SetStatus($"Adding {selected.Count} widget(s)...");
+
+        int added = 0;
+
+        try
+        {
+            foreach (var item in from item in selected 
+                     let file = WidgetCatalog.ToAbsolutePath(item.Entry.PackPath) 
+                     where File.Exists(file) select item)
+            {
+                try
+                {
+                    if (await _onAdd(item.Entry)) added++;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to add catalogued widget {Path}", 
+                        item.Entry.PackPath);
+                }
+            }
+
+            foreach (var item in selected) item.IsSelected = false;
+
+            SetStatus(added == selected.Count
+                ? $"Added {added} widget(s) to the overlay."
+                : $"Added {added} of {selected.Count} widget(s); the rest could not be added.");
+        }
+        finally
+        {
+            _busy = false;
+            UpdateAddSelectedButton();
+        }
+    }
+
+    private void UpdateAddSelectedButton()
+    {
+        if (_onAdd == null) return;
+
+        int count = _all.Count(i => i.IsSelected);
+
+        AddSelectedButton.IsEnabled = count > 0 && !_busy;
+        AddSelectedButton.Content = count > 0 ? $"Add {count} Widget(s)" : "Add Widget(s)";
+    }
+
 
     private async Task AddAsync(CatalogItem item)
     {
@@ -331,6 +411,7 @@ public partial class WidgetBrowserDialog : Window
             {
                 _all.Remove(item);
                 BuildTree();
+                UpdateAddSelectedButton();
                 SetStatus($"\"{item.Name}\" is no longer readable and was removed from the list.");
                 return;
             }
@@ -342,7 +423,8 @@ public partial class WidgetBrowserDialog : Window
                 Preview = LoadPreview(updated.PreviewCachePath),
                 TagList = CatalogItem.SplitTags(updated.Tags),
                 CanAdd = _onAdd != null,
-                SearchBlob = BuildSearchBlob(updated)
+                SearchBlob = BuildSearchBlob(updated),
+                IsSelected = item.IsSelected
             };
 
             if (index >= 0) _all[index] = replacement;
@@ -411,6 +493,7 @@ public partial class WidgetBrowserDialog : Window
 
         _all.Remove(item);
         BuildTree();
+        UpdateAddSelectedButton();
         SetStatus($"Deleted \"{item.Name}\".");
     }
 

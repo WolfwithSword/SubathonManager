@@ -59,6 +59,7 @@ public partial class App : Application
 
         string folder = Path.GetFullPath(Path.Combine(string.Empty, "data"));
         Directory.CreateDirectory(folder);
+        ResourcePaths.EnsureCreated();
 
         WidgetFiles.Current = new WidgetPackFileSystem();
 

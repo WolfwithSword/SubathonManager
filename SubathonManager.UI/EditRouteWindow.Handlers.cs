@@ -185,6 +185,87 @@ public partial class EditRouteWindow
             }
         ]);
 
+    #region EDITOR FILE DROP
+
+    private static readonly string[] DroppableExtensions =
+    [
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".svg",
+        ".mp4", ".m4v", ".webm", ".ogm", ".mkv", ".mov",
+        ".html", ".htm", WidgetPackPaths.PackExtension, WidgetCollectionInstaller.CollectionExtension
+    ];
+
+    private void TryEnableEditorFileDrop()
+    {
+        try
+        {
+            DragDrop.SetAllowDrop(this, true);
+            AddHandler(DragDrop.DragOverEvent, EditorDragOver);
+            AddHandler(DragDrop.DropEvent, EditorDrop);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Drag and drop unavailable for the overlay editor");
+        }
+    }
+
+    private void EditorDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = AcceptedDropPaths(e).Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private async void EditorDrop(object? sender, DragEventArgs e)
+    {
+        e.Handled = true;
+
+        var paths = AcceptedDropPaths(e);
+        if (paths.Count == 0) return;
+
+        try
+        {
+            await ImportPathsAsync(paths);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to import dropped file(s)");
+        }
+    }
+
+    private List<string> AcceptedDropPaths(DragEventArgs e)
+    {
+        var accepted = new List<string>();
+
+        if (_route == null || IsOverWidgetEditorColumn(e)) return accepted;
+
+        try
+        {
+            var files = e.DataTransfer.TryGetFiles();
+            if (files == null) return accepted;
+
+            accepted.AddRange(from item in files select item.TryGetLocalPath() into path where !string.IsNullOrWhiteSpace(path) && File.Exists(path) where DroppableExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase) select path);
+        }
+        catch {/**/}
+
+        return accepted;
+    }
+
+    private bool IsOverWidgetEditorColumn(DragEventArgs e)
+    {
+        try
+        {
+            var p = e.GetPosition(WidgetEditorColumn);
+            var size = WidgetEditorColumn.Bounds.Size;
+
+            return p is { X: >= 0, Y: >= 0 } && p.X <= size.Width && p.Y <= size.Height;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    #endregion
+
     private async Task RunImportAsync(string title, FilePickerFileType[] filters)
     {
         try
@@ -205,49 +286,55 @@ public partial class EditRouteWindow
 
             if (files.Count == 0) return;
 
-            await using var db = await _factory.CreateDbContextAsync();
-            var helper = new WidgetEntityHelper(_factory, null);
-            bool importedPack = false;
-
-            foreach (var file in files)
-            {
-                var path = file.Path.LocalPath;
-                _lastFolder = Path.GetDirectoryName(path)!;
-                try
-                {
-                    if (path.EndsWith(WidgetCollectionInstaller.CollectionExtension, StringComparison.OrdinalIgnoreCase))
-                    {
-                        await ImportWidgetCollectionAsync(path, db, helper);
-                        importedPack = true;
-                    }
-                    else if (path.EndsWith(WidgetPackPaths.PackExtension, StringComparison.OrdinalIgnoreCase))
-                    {
-                        await ImportWidgetPackAsync(path, db, helper);
-                        importedPack = true;
-                    }
-                    else
-                    {
-                        await ImportSingleWidgetAsync(path, db, helper);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogError(ex, "Failed to import widget file {Path}", path);
-                }
-            }
-
-            if (importedPack)
-                foreach (var existing in _widgets.ToList())
-                    ReseatWidgetCard(existing);
-
-            await RefreshWidgetZIndicesAsync();
-            if (_route != null) OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
-            RefreshWebView();
+            await ImportPathsAsync(files.Select(f => f.Path.LocalPath).ToList());
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to import widget file(s)");
         }
+    }
+
+    private async Task ImportPathsAsync(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0) return;
+
+        await using var db = await _factory.CreateDbContextAsync();
+        var helper = new WidgetEntityHelper(_factory, null);
+        bool importedPack = false;
+
+        foreach (var path in paths)
+        {
+            _lastFolder = Path.GetDirectoryName(path)!;
+            try
+            {
+                if (path.EndsWith(WidgetCollectionInstaller.CollectionExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ImportWidgetCollectionAsync(path, db, helper);
+                    importedPack = true;
+                }
+                else if (path.EndsWith(WidgetPackPaths.PackExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    await ImportWidgetPackAsync(path, db, helper);
+                    importedPack = true;
+                }
+                else
+                {
+                    await ImportSingleWidgetAsync(path, db, helper);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to import widget file {Path}", path);
+            }
+        }
+
+        if (importedPack)
+            foreach (var existing in _widgets.ToList())
+                ReseatWidgetCard(existing);
+
+        await RefreshWidgetZIndicesAsync();
+        if (_route != null) OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+        RefreshWebView();
     }
 
     private void ReloadVars_Click(object? sender, RoutedEventArgs e)
@@ -665,36 +752,37 @@ public partial class EditRouteWindow
         if (!WidgetPackPaths.TryResolve(widget.HtmlPath, out _, out var entry, out _, out var version))
             return;
 
-        var newer = WidgetPackInstaller.FindNewerVersion(widget.HtmlPath);
-        if (newer == null) return;
+        var update = WidgetPackInstaller.FindUpdate(widget.HtmlPath);
+        if (update == null) return;
 
         ShowConfirmFlyout(button,
             $"Update \"{widget.Name}\"?",
-            $"{WidgetPackPaths.DisplayVersion(version)}  -  {WidgetPackPaths.DisplayVersion(newer)}",
+            $"{WidgetPackPaths.DisplayVersion(version)}  -  {WidgetPackPaths.DisplayVersion(update.Version)}",
             "Your configured values are kept if the new version still has a matching variable. "
                 + "Anything it dropped or renamed will be lost.",
             "Update",
             destructive: false,
-            onConfirm: () => _ = ApplyWidgetVersionUpdateAsync(widget, entry, newer, button));
+            onConfirm: () => _ = ApplyWidgetVersionUpdateAsync(widget, entry, update, button));
     }
 
-    private async Task ApplyWidgetVersionUpdateAsync(Widget widget, string entry, string newer, Control anchor)
+    private async Task ApplyWidgetVersionUpdateAsync(Widget widget, string entry,
+        WidgetPackInstaller.PackUpdate update, Control anchor)
     {
         try
         {
-            var location = WidgetPackPaths.Resolve(widget.HtmlPath);
-            if (location == null) return;
+            string newMountRoot = Path.Combine(
+                Path.GetDirectoryName(update.PackFile)!,
+                Path.GetFileNameWithoutExtension(update.PackFile));
 
-            string newPackFile = Path.Combine(location.PackFolderStr, newer + WidgetPackPaths.PackExtension);
-            var manifest = WidgetPackInstaller.ReadManifest(newPackFile);
-            string newEntry = string.IsNullOrWhiteSpace(manifest?.Entry) ? entry : manifest.Entry;
-            string newPath = WidgetPackPaths.EntryPathIn(
-                Path.Combine(location.PackFolderStr, newer), newEntry);
+            string newEntry = string.IsNullOrWhiteSpace(update.Entry) ? entry : update.Entry;
+            string newPath = WidgetPackPaths.EntryPathIn(newMountRoot, newEntry);
+
+            WidgetPackPaths.InvalidateResolveCache();
 
             if (!WidgetFiles.Current.Exists(newPath))
             {
                 ShowMessageFlyout(anchor, "Update Failed",
-                    $"Version {WidgetPackPaths.DisplayVersion(newer)} does not contain \"{newEntry}\".");
+                    $"Version {WidgetPackPaths.DisplayVersion(update.Version)} does not contain \"{newEntry}\".");
                 return;
             }
 
@@ -718,7 +806,7 @@ public partial class EditRouteWindow
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to update widget {Name} to version {Version}", widget.Name, newer);
+            _logger?.LogError(ex, "Failed to update widget {Name} to version {Version}", widget.Name, update.Version);
             ShowMessageFlyout(anchor, "Update Failed", ex.Message);
         }
     }
@@ -1254,6 +1342,8 @@ public partial class EditRouteWindow
     {
         if (sender is not StackPanel { Tag: JsVariable jsVar } panel) return;
 
+        if (panel.Children.Count > 0) return;
+
         var shortContent = string.IsNullOrWhiteSpace(jsVar.Value) ? "Empty" : jsVar.Value.Split('/').Last();
         if (string.IsNullOrWhiteSpace(shortContent)) shortContent = "./";
 
@@ -1263,14 +1353,7 @@ public partial class EditRouteWindow
         {
             var path = await SelectFileVarPathDialog(jsVar.Type);
             if (string.IsNullOrWhiteSpace(path)) return;
-            path = Path.GetFullPath(path).Replace('\\', '/');
-            var widgetDir = Path.GetDirectoryName(_selectedWidget!.HtmlPath)!.Replace('\\', '/');
-            if (path.Contains(widgetDir))
-                path = path.Replace(widgetDir, "./").Replace("//", "/");
-            jsVar.Value = path;
-            valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
-            ToolTip.SetTip(valueBtn, path);
-            UpdateSaveButtonBorder(SaveButtonBorder, true);
+            ApplyFileVarPath(jsVar, valueBtn, path);
         };
 
         var openBtn = new Button
@@ -1309,6 +1392,88 @@ public partial class EditRouteWindow
         btnRow2.Children.Add(removeBtn);
         panel.Children.Add(valueBtn);
         panel.Children.Add(btnRow2);
+
+        TryEnableFileVarDrop(panel, valueBtn, jsVar);
+    }
+
+    private void ApplyFileVarPath(JsVariable jsVar, Button valueBtn, string path)
+    {
+        if (_selectedWidget == null) return;
+
+        path = Path.GetFullPath(path).Replace('\\', '/');
+        var widgetDir = Path.GetDirectoryName(_selectedWidget.HtmlPath)!.Replace('\\', '/');
+        if (path.Contains(widgetDir))
+            path = path.Replace(widgetDir, "./").Replace("//", "/");
+
+        jsVar.Value = path;
+        valueBtn.Content = path == "./" ? "./" : path.Split('/').Last();
+        ToolTip.SetTip(valueBtn, path);
+        UpdateSaveButtonBorder(SaveButtonBorder, true);
+    }
+
+    private void TryEnableFileVarDrop(StackPanel panel, Button valueBtn, JsVariable jsVar)
+    {
+        try
+        {
+            panel.Background = Brushes.Transparent;
+            DragDrop.SetAllowDrop(panel, true);
+
+            panel.AddHandler(DragDrop.DragOverEvent, (_, e) =>
+            {
+                bool accepted = FirstAcceptedPath(e.DataTransfer, jsVar.Type) != null;
+
+                e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
+                SetFileVarDropHighlight(valueBtn, accepted);
+                e.Handled = true;
+            });
+
+            panel.AddHandler(DragDrop.DragLeaveEvent, (_, _) =>
+                SetFileVarDropHighlight(valueBtn, false));
+
+            panel.AddHandler(DragDrop.DropEvent, (_, e) =>
+            {
+                SetFileVarDropHighlight(valueBtn, false);
+                e.Handled = true;
+
+                string? path = FirstAcceptedPath(e.DataTransfer, jsVar.Type);
+                if (path != null) ApplyFileVarPath(jsVar, valueBtn, path);
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Drag and drop unavailable for file variable {Name}", jsVar.Name);
+        }
+    }
+
+    private static string? FirstAcceptedPath(IDataTransfer data, WidgetVariableType type)
+    {
+        try
+        {
+            var files = data.TryGetFiles();
+            if (files == null) return null;
+
+            foreach (var item in files)
+            {
+                string? path = item.TryGetLocalPath();
+                if (!string.IsNullOrWhiteSpace(path) && FileVarAccepts(type, path)) return path;
+            }
+        }
+        catch { /**/ }
+
+        return null;
+    }
+
+    private void SetFileVarDropHighlight(Button valueBtn, bool active)
+    {
+        if (!active)
+        {
+            valueBtn.ClearValue(Button.BorderBrushProperty);
+            return;
+        }
+
+        if (this.TryFindResource("AccentFillColorDefaultBrush", 
+                ActualThemeVariant, out var res) && res is IBrush brush)
+            valueBtn.BorderBrush = brush;
     }
 
     private void JsEventTypeList_Loaded(object? sender, RoutedEventArgs e)

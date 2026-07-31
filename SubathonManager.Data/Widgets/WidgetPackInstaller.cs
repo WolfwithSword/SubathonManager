@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using SubathonManager.Core.Enums;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data.Widgets;
@@ -85,6 +86,23 @@ public static class WidgetPackInstaller
         return new InstalledPack(manifest, htmlPath, target);
     }
 
+    public static InstalledPack? MountInPlace(string smwPath)
+    {
+        if (!File.Exists(smwPath)) return null;
+
+        var manifest = ReadManifest(smwPath);
+        if (manifest == null || string.IsNullOrWhiteSpace(manifest.Entry)) return null;
+
+        string full = Path.GetFullPath(smwPath);
+        string mountRoot = Path.Combine(
+            Path.GetDirectoryName(full)!,
+            Path.GetFileNameWithoutExtension(full));
+
+        WidgetPackPaths.InvalidateResolveCache();
+
+        return new InstalledPack(manifest, WidgetPackPaths.EntryPathIn(mountRoot, manifest.Entry), full);
+    }
+
     public static string? DropIntoImports(string smwPath)
     {
         try
@@ -140,20 +158,58 @@ public static class WidgetPackInstaller
         return removed;
     }
 
-    public static string? FindNewerVersion(string widgetHtmlPath)
+    public record PackUpdate(string PackFile, string Version, string Entry);
+
+    public static PackUpdate? FindUpdate(string widgetHtmlPath)
     {
         var location = WidgetPackPaths.Resolve(widgetHtmlPath);
         if (location == null) return null;
 
-        string? best = null;
-        foreach (var candidate in WidgetPackPaths.VersionsIn(location.PackFolderStr))
+        return WidgetPackPaths.IsInPresets(location.PackFileStr)
+            ? FindPresetUpdate(location)
+            : FindVersionedFolderUpdate(location);
+    }
+
+    private static PackUpdate? FindPresetUpdate(WidgetPackPaths.PackLocation location)
+    {
+        var current = WidgetCatalog.EntryForPackFile(location.PackFileStr);
+        if (current == null || string.IsNullOrWhiteSpace(current.PackId)) return null;
+
+        PackUpdate? best = null;
+        string bestVersion = current.Version;
+
+        foreach (var candidate in WidgetCatalog.EntriesForPackId(current.PackId))
         {
-            if (WidgetPackPaths.CompareVersions(candidate, location.VersionStr) <= 0) continue;
-            if (best == null || WidgetPackPaths.CompareVersions(candidate, best) > 0) best = candidate;
+            if (candidate.Source != WidgetCatalogSource.Preset) continue;
+            if (string.Equals(candidate.PackPath, current.PackPath, StringComparison.OrdinalIgnoreCase)) continue;
+            if (WidgetPackPaths.CompareVersions(candidate.Version, bestVersion) <= 0) continue;
+
+            bestVersion = candidate.Version;
+            best = new PackUpdate(WidgetCatalog.ToAbsolutePath(candidate.PackPath), candidate.Version, candidate.Entry);
         }
 
         return best;
     }
+
+    private static PackUpdate? FindVersionedFolderUpdate(WidgetPackPaths.PackLocation location)
+    {
+        if (!WidgetPackPaths.IsVersionName(location.VersionStr)) return null;
+
+        string? best = null;
+        foreach (var candidate in WidgetPackPaths.VersionsIn(location.PackFolderStr))
+        {
+            if (!WidgetPackPaths.IsVersionName(candidate)) continue;
+            if (WidgetPackPaths.CompareVersions(candidate, location.VersionStr) <= 0) continue;
+            if (best == null || WidgetPackPaths.CompareVersions(candidate, best) > 0) best = candidate;
+        }
+
+        if (best == null) return null;
+
+        string file = Path.Combine(location.PackFolderStr, best + WidgetPackPaths.PackExtension);
+        return new PackUpdate(file, best, ReadManifest(file)?.Entry ?? string.Empty);
+    }
+
+    public static string? FindNewerVersion(string widgetHtmlPath) => FindUpdate(widgetHtmlPath)?.Version;
 
     private static WidgetPackManifest Parse(JsonElement root, string smwPath)
     {

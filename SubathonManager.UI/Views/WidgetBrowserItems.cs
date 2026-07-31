@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Avalonia.Media.Imaging;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
@@ -6,8 +7,21 @@ using SubathonManager.Data.Widgets;
 
 namespace SubathonManager.UI.Views;
 
-public sealed class CatalogItem
+public sealed class CatalogItem : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
     public const string PresetSection = "Presets";
     public const string UnknownAuthor = "Unknown Author";
     public const string UngroupedName = "Ungrouped";

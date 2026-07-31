@@ -10,7 +10,7 @@ namespace SubathonManager.Data.Widgets;
 
 public static class WidgetCatalog
 {
-    public static string PresetsRoot => Path.GetFullPath("./presets");
+    public static string PresetsRoot => WidgetPackPaths.PresetsRoot;
     public static string ImportsRoot => WidgetPackPaths.ImportsRoot;
     public static string PreviewCacheRoot => Path.GetFullPath(Path.Combine("./cache", "widget-previews"));
 
@@ -96,6 +96,8 @@ public static class WidgetCatalog
             await db.SaveChangesAsync(ct);
         }
         catch { /**/ }
+
+        BuildIndex(live);
 
         return live
             .OrderBy(e => e.Author, StringComparer.OrdinalIgnoreCase)
@@ -234,6 +236,70 @@ public static class WidgetCatalog
 
         return true;
     }
+
+    #region pack id index
+
+    private static readonly Lock IndexLock = new();
+    private static Dictionary<string, List<WidgetCatalogEntry>> _byPackId = new(StringComparer.OrdinalIgnoreCase);
+    private static Dictionary<string, WidgetCatalogEntry> _byPath = new(StringComparer.OrdinalIgnoreCase);
+
+    public static void BuildIndex(IEnumerable<WidgetCatalogEntry> entries)
+    {
+        var byPackId = new Dictionary<string, List<WidgetCatalogEntry>>(StringComparer.OrdinalIgnoreCase);
+        var byPath = new Dictionary<string, WidgetCatalogEntry>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in entries)
+        {
+            byPath[entry.PackPath] = entry;
+
+            if (string.IsNullOrWhiteSpace(entry.PackId)) continue;
+
+            if (!byPackId.TryGetValue(entry.PackId, out var list))
+                byPackId[entry.PackId] = list = new List<WidgetCatalogEntry>();
+
+            list.Add(entry);
+        }
+
+        lock (IndexLock)
+        {
+            _byPackId = byPackId;
+            _byPath = byPath;
+        }
+    }
+
+    public static async Task LoadIndexAsync(IDbContextFactory<AppDbContext> factory, CancellationToken ct = default)
+    {
+        try
+        {
+            await using var db = await factory.CreateDbContextAsync(ct);
+            BuildIndex(await db.WidgetCatalogEntries.AsNoTracking().ToListAsync(ct));
+        }
+        catch {/**/}
+    }
+
+    public static WidgetCatalogEntry? EntryForPackFile(string packFile)
+    {
+        string stored = ToStoredPath(packFile);
+
+        lock (IndexLock)
+        {
+            if (_byPath.TryGetValue(stored, out var byStored)) 
+                return byStored;
+            
+            return _byPath.GetValueOrDefault(Path.GetFullPath(packFile));
+        }
+    }
+
+    public static List<WidgetCatalogEntry> EntriesForPackId(string packId)
+    {
+        lock (IndexLock)
+        {
+            return _byPackId.TryGetValue(packId, out var list)
+                ? [..list] : [];
+        }
+    }
+
+    #endregion
 
     public static string ToAbsolutePath(string storedPath)
     {

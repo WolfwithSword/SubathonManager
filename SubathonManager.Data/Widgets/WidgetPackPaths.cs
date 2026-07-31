@@ -11,6 +11,7 @@ public static partial class WidgetPackPaths
     public static string PackedRoot => Path.Combine(ImportsRoot, "packed");
     public static string UnpackedRoot => Path.Combine(ImportsRoot, "unpacked");
     public static string CacheRoot => Path.GetFullPath(Path.Combine("./cache", "widgets"));
+    public static string PresetsRoot => Path.GetFullPath("./presets");
 
     public static string MountRoot(string packId, string version)
         => Path.Combine(PackedRoot, packId, version);
@@ -88,12 +89,27 @@ public static partial class WidgetPackPaths
     public static string NormalizeGroup(string? group)
         => string.IsNullOrWhiteSpace(group) ? DefaultGroup : group.Trim();
     
-    public static bool IsInGlobalStore(string packFileOrFolder)
+    public static bool IsInPresets(string packFileOrFolder)
     {
         try
         {
             return Path.GetFullPath(packFileOrFolder)
-                .StartsWith(PackedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                .StartsWith(PresetsRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    public static bool IsVersionName(string? name)
+        => !string.IsNullOrWhiteSpace(name) && VersionNameRegex().IsMatch(name);
+
+    public static bool IsInGlobalStore(string packFileOrFolder)
+    {
+        try
+        {
+            string full = Path.GetFullPath(packFileOrFolder);
+
+            return full.StartsWith(PackedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || full.StartsWith(PresetsRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
         catch { return false; }
     }
@@ -261,6 +277,9 @@ public static partial class WidgetPackPaths
 
     [GeneratedRegex(@"\d+")]
     private static partial Regex VersionSegmentRegex();
+
+    [GeneratedRegex(@"^\d+([._-]\d+)*$")]
+    private static partial Regex VersionNameRegex();
 
     [GeneratedRegex(@"(?<=\d)-(?=\d)")]
     private static partial Regex VersionSeparatorRegex();

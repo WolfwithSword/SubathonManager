@@ -73,6 +73,7 @@ public partial class EditRouteWindow : Window
         WebViewWarningButton.IsVisible = OperatingSystem.IsLinux();
         UiUtils.UiHelpers.EnableClickAwayUnfocus(this);
         LoadPreviewBgPreference();
+        TryEnableEditorFileDrop();
 
         PreviewWebView.EnvironmentRequested += (_, e) =>
         {
@@ -199,6 +200,8 @@ public partial class EditRouteWindow : Window
     private async Task LoadRouteAsync()
     {
         WidgetPackPaths.InvalidateVersionCache();
+        await WidgetCatalog.LoadIndexAsync(_factory);
+
         await using var db = await _factory.CreateDbContextAsync();
         _route = await db.Routes
             .Include(r => r.Widgets).ThenInclude(w => w.CssVariables)
@@ -413,13 +416,7 @@ public partial class EditRouteWindow : Window
                 return folders.FirstOrDefault()?.Path.LocalPath ?? string.Empty;
             }
 
-            var patterns = type switch
-            {
-                WidgetVariableType.ImageFile => new[] { "*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.avif", "*.bmp", "*.svg", "*.ico" },
-                WidgetVariableType.SoundFile => new[] { "*.wav", "*.mp3", "*.ogg", "*.oga", "*.opus", "*.m4a" },
-                WidgetVariableType.VideoFile => new[] { "*.mp4", "*.m4v", "*.webm", "*.ogm", "*.mkv", "*.mov" },
-                _ => new[] { "*.*" }
-            };
+            var patterns = FileVarPatterns(type);
 
             var files = await StorageProvider.OpenFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerOpenOptions
             {
@@ -434,6 +431,26 @@ public partial class EditRouteWindow : Window
             _logger?.LogError(ex, "Failed to parse filepath");
             return string.Empty;
         }
+    }
+
+    private static string[] FileVarPatterns(WidgetVariableType type) => type switch
+    {
+        WidgetVariableType.ImageFile => ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.webp", "*.avif", "*.bmp", "*.svg", "*.ico"],
+        WidgetVariableType.SoundFile => ["*.wav", "*.mp3", "*.ogg", "*.oga", "*.opus", "*.m4a"],
+        WidgetVariableType.VideoFile => ["*.mp4", "*.m4v", "*.webm", "*.ogm", "*.mkv", "*.mov"],
+        _ => ["*.*"]
+    };
+
+    private static bool FileVarAccepts(WidgetVariableType type, string path)
+    {
+        if (type == WidgetVariableType.FolderPath) return Directory.Exists(path);
+        if (!File.Exists(path)) return false;
+
+        var patterns = FileVarPatterns(type);
+        if (patterns.Contains("*.*")) return true;
+
+        string ext = Path.GetExtension(path);
+        return patterns.Any(p => string.Equals(p[1..], ext, StringComparison.OrdinalIgnoreCase));
     }
 
     private static IEnumerable<CheckBox> GetAllCheckBoxes(Panel panel)
@@ -486,8 +503,7 @@ public partial class EditRouteWindow : Window
         {
             var wi = _widgets[i];
             var w = await db.Widgets.FirstOrDefaultAsync(x => x.Id == wi.Id);
-            if (w == null) continue;
-            w.Z = start - i;
+            w?.Z = start - i;
         }
         await db.SaveChangesAsync();
         await LoadRouteAsync();
@@ -511,10 +527,46 @@ public partial class EditRouteWindow : Window
         var dialog = new WidgetBrowserDialog(async entry =>
         {
             string file = WidgetCatalog.ToAbsolutePath(entry.PackPath);
-            return File.Exists(file) && await AddWidgetPackAsync(file);
+            return File.Exists(file) && await AddWidgetPackInPlaceAsync(file);
         });
 
         await dialog.ShowDialog(this);
+    }
+
+    public async Task<bool> AddWidgetPackInPlaceAsync(string packFile)
+    {
+        if (_route == null) return false;
+
+        try
+        {
+            var mounted = WidgetPackInstaller.MountInPlace(packFile);
+            if (mounted == null)
+            {
+                _logger?.LogError("Could not read widget package {Path}", packFile);
+                return false;
+            }
+
+            await using var db = await _factory.CreateDbContextAsync();
+            var helper = new WidgetEntityHelper(_factory, null);
+
+            var manifest = mounted.Manifest;
+            await ImportSingleWidgetAsync(mounted.HtmlPath, db, helper,
+                manifest.Name, manifest.ScaleX, manifest.ScaleY);
+
+            foreach (var existing in _widgets.ToList())
+                ReseatWidgetCard(existing);
+
+            await RefreshWidgetZIndicesAsync();
+            OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+            RefreshWebView();
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to add widget package in place {Path}", packFile);
+            return false;
+        }
     }
 
     public async Task<bool> AddWidgetPackAsync(string packPath)
@@ -737,7 +789,8 @@ public partial class EditRouteWindow : Window
         {
             var s = scale.ToString(CultureInfo.InvariantCulture);
             await PreviewWebView.InvokeScript(
-                $"(function(){{var z={s};if(window.__setPreviewZoom){{window.__setPreviewZoom(z);}}" +
+                $"(function(){{var z={s};if(window.__setPreviewZoom){{" +
+                $"document.documentElement.style.zoom='';window.__setPreviewZoom(z);}}" +
                 $"else{{document.documentElement.style.zoom=z;window.__previewZoom=z;}}}})();");
         }
         catch { /**/ }

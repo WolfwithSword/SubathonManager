@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Server.Interfaces;
@@ -174,6 +175,18 @@ public partial class WebServer
             }
         }
         await ctx.WriteResponse(404, "Widget not found");
+    }
+
+    internal async Task HandleResourceRequest(IHttpContext ctx)
+    {
+        var filePath = ResourcePaths.ResolveRequestPath(ctx.Path);
+        if (filePath != null)
+        {
+            await ctx.ServeFile(filePath, GetContentType(filePath));
+            return;
+        }
+
+        await ctx.WriteResponse(404, "Resource not found");
     }
 
     internal async Task HandleRouteRequest(IHttpContext ctx)
