@@ -533,17 +533,10 @@ public static partial class WidgetPorter
         int depth = ownZipEntry.Split('/').Length - 2;
         string upToContent = depth <= 0 ? "./" : string.Concat(Enumerable.Repeat("../", depth));
 
-        foreach (var rel in ResourcePaths.FindReferences(text).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            string entry = $"{ContentFolder}/{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}";
-            if (!plan.IsSelected(entry)) continue;
-
-            text = text.Replace($"{ResourcePaths.UrlPrefix}{rel}",
-                $"{upToContent}{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}",
-                StringComparison.OrdinalIgnoreCase);
-        }
-
-        return text;
+        return ResourcePaths.RewriteReferences(text, rel =>
+            plan.IsSelected($"{ContentFolder}/{ExternalFolder}/{ResourcePaths.BundleFolder}/{rel}")
+                ? $"{upToContent}{ExternalFolder}/{ResourcePaths.BundleFolder}/"
+                : null);
     }
 
     private static string OverrideCssValues(string css, List<CssVariable> variables)

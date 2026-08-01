@@ -62,6 +62,7 @@ public partial class WheelEditor : UserControl
             SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
             WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
             WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
+            RefreshSpinsOwed();
         };
         Unloaded += (_, _) =>
         {
@@ -820,6 +821,16 @@ public partial class WheelEditor : UserControl
         SuppressChanges(() => SpinDelayBox.Text = delay.ToString());
     }
 
+    private void RefreshSpinsOwed()
+    {
+        using var db = _factory.CreateDbContext();
+        int stored = StateValueHelper.Get<int>(db, StateKeys.WheelSpinsOwed);
+        if (stored == _spinsOwed) return;
+        _spinsOwed = stored;
+        SuppressChanges(() => SpinsOwedBox.Text = stored.ToString());
+        RaiseWheelDataChanged();
+    }
+
     private void AdjustSpinsBoxByEvent(int val)
     {
         Dispatcher.UIThread.Post(() =>
@@ -1509,6 +1520,33 @@ public partial class WheelEditor : UserControl
             UiHelpers.OpenFolder(exportDir);
         }
         catch { /**/ }
+    }
+
+    private async void DeleteAllSpinHistory_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_activeWheel == null) return;
+        var wheelId = _activeWheel.Id;
+
+        var dialog = new FAContentDialog
+        {
+            Title = "Delete Spin History",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            Content = new TextBlock
+            {
+                Text = $"Are you sure you want to delete all spin history for \"{_activeWheel.Name}\"?",
+                TextWrapping = TextWrapping.Wrap,
+                Width = 320,
+                Margin = new global::Avalonia.Thickness(4)
+            }
+        };
+
+        if (await dialog.ShowAsync() != FAContentDialogResult.Primary) return;
+
+        await using var db = await _factory.CreateDbContextAsync();
+        await db.WheelSpinHistories.Where(h => h.WheelId == wheelId).ExecuteDeleteAsync();
+
+        await Dispatcher.UIThread.InvokeAsync(async () => await LoadHistoryAsync());
     }
 
     private async void ExportWheel_Click(object? sender, RoutedEventArgs e)

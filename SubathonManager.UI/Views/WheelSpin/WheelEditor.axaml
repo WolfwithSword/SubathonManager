@@ -74,7 +74,7 @@
                 <Border Grid.Column="0" Grid.Row="1" Padding="8" Margin="16,80,8,16"
                         BorderThickness="1" BorderBrush="#333" CornerRadius="8">
                     <Grid RowDefinitions="Auto,Auto,*">
-                        <Grid Grid.Row="0" Margin="0,0,0,4" ColumnDefinitions="*,Auto,Auto">
+                        <Grid Grid.Row="0" Margin="0,0,0,4" ColumnDefinitions="*,Auto,Auto,Auto">
                             <TextBlock Text="Spin History" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             <ComboBox x:Name="HistoryFilterBox" Grid.Column="1" Width="116" Height="26" Margin="0,0,4,0"
                                       FontSize="10" SelectedIndex="0" Padding="4,0" VerticalContentAlignment="Center"
@@ -87,6 +87,10 @@
                             <Button Grid.Column="2" Classes="iconbtn" Width="28" Height="28"
                                     ToolTip.Tip="Export all spin history to CSV" Click="ExportHistory_Click">
                                 <ctl:SymIcon Glyph="ArrowExportUp16"/>
+                            </Button>
+                            <Button Grid.Column="3" Classes="iconbtn" Width="28" Height="28" Margin="4,0,0,0"
+                                    ToolTip.Tip="Delete all spin history for this wheel" Click="DeleteAllSpinHistory_Click" Foreground="Red">
+                                <ctl:SymIcon Glyph="Delete16"/>
                             </Button>
                         </Grid>
 

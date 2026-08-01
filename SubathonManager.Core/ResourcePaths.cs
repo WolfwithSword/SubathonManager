@@ -43,10 +43,32 @@ public static partial class ResourcePaths
 
         foreach (Match m in ReferenceRegex().Matches(text))
         {
-            string rel = m.Groups[1].Value.Split('?')[0].Split('#')[0].Trim('/');
-            if (rel.Length == 0) continue;
-            yield return Uri.UnescapeDataString(rel);
+            string? rel = NormalizeReference(m.Groups[1].Value);
+            if (rel != null) yield return rel;
         }
+    }
+
+    public static string RewriteReferences(string text, Func<string, string?> prefixFor)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+
+        return ReferenceRegex().Replace(text, m =>
+        {
+            string? rel = NormalizeReference(m.Groups[1].Value);
+            if (rel == null) return m.Value;
+
+            string? prefix = prefixFor(rel);
+            return prefix == null ? m.Value : prefix + m.Groups[1].Value;
+        });
+    }
+
+    private static string? NormalizeReference(string captured)
+    {
+        string rel = captured.Split('?')[0].Split('#')[0].Trim('/');
+        if (rel.Length == 0) return null;
+
+        try { return Uri.UnescapeDataString(rel); }
+        catch { return rel; }
     }
 
     public static string? RelativeFromUrl(string? value)
@@ -96,7 +118,7 @@ public static partial class ResourcePaths
         catch { return null; }
     }
 
-    [GeneratedRegex(@"/resources/([^""'\s\\>\)]+)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(?<![^\s""'`(=,;\[])/resources/([^""'`\s\\>)]+)", RegexOptions.IgnoreCase)]
     private static partial Regex ReferenceRegex();
 
     public static string? ResolveRequestPath(string? requestPath)
