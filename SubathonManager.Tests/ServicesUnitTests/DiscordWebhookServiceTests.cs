@@ -12,7 +12,6 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
-[Collection("ServicesTests")]
 public class DiscordWebhookServiceTests
 {
     // TODO mock webserver for urls posting?

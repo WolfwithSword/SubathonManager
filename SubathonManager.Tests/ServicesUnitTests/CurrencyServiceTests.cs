@@ -9,7 +9,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
-[Collection("ServicesTests")]
+[Collection("CurrencyServiceTests")]
 public class CurrencyServiceTests
 {
     private static string _usdRatesJson = """

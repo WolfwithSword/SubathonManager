@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using SubathonManager.Data;
 namespace SubathonManager.Tests.DataUnitTests;
 
-[Collection("SequentialParallel")]
 public class DbContextTests
 {
     private AppDbContext CreateInMemorySqliteDb()

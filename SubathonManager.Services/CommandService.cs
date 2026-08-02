@@ -4,6 +4,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Services;
 
@@ -66,14 +67,13 @@ public static class CommandService
         if (isBroadcaster) return true;
 
         string configKey = $"Commands.{subathonEvent.Command}.permissions";
-        // All Commands are under twitch section at the moment, despite being cross platform chat commands
-        // Should update eventually, or is it too late
         if (isModerator && AppConfig!.GetBool("Chat", $"{configKey}.Mods", false))
             return true;
         if (isVip && AppConfig!.GetBool("Chat", $"{configKey}.VIPs", false))
             return true;
         
-        string[] whitelist = AppConfig!.Get("Chat", $"{configKey}.Whitelist")!.ToLower().Split(',');
+        string[] whitelist = AppConfig!.Get("Chat", $"{configKey}.Whitelist")!.ToLower()
+            .Split(',').Select(s => s.Trim()).ToArray();
 
         if (whitelist.Contains(user.ToLower().Trim())) return true;
         

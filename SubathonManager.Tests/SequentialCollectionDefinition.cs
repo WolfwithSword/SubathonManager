@@ -20,5 +20,11 @@ public class NonParallelCollection { }
 [CollectionDefinition("ServicesTests", DisableParallelization = true)]
 public class ServicesTestsCollection { }
 
+[CollectionDefinition("CurrencyServiceTests", DisableParallelization = true)]
+public class CurrencyServiceTestsCollection { }
+
 [CollectionDefinition("ProviderOverrideTests", DisableParallelization = true)]
 public class ProviderOverrideTestsCollection { }
+
+[CollectionDefinition("WorkingDirectory", DisableParallelization = true)]
+public class WorkingDirectoryCollection { }
