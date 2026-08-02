@@ -1563,7 +1563,7 @@ public partial class WheelEditor : UserControl
         string exportDir = Path.Combine(Config.DataFolder, "exports");
         Directory.CreateDirectory(exportDir);
 
-        string safeName = string.Concat(wheel.Name.Split(Path.GetInvalidFileNameChars()));
+        string safeName = SafeFileName.Sanitize(wheel.Name, replacement: string.Empty, fallback: "wheel");
         string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
 

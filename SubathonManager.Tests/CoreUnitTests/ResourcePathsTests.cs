@@ -4,8 +4,7 @@ namespace SubathonManager.Tests.CoreUnitTests;
 
 public class ResourcePathsPureTests
 {
-    #region IsResourceUrl
-
+    
     [Theory]
     [InlineData("/resources/images/logo.png", true)]
     [InlineData("/RESOURCES/images/logo.png", true)]
@@ -19,10 +18,7 @@ public class ResourcePathsPureTests
     public void IsResourceUrl_Branches(string? value, bool expected)
         => Assert.Equal(expected, ResourcePaths.IsResourceUrl(value));
 
-    #endregion
-
-    #region RelativeFromUrl
-
+        
     [Theory]
     [InlineData("/resources/images/logo.png", "images/logo.png")]
     [InlineData("\\resources\\images\\logo.png", "images/logo.png")]
@@ -41,10 +37,7 @@ public class ResourcePathsPureTests
     public void RelativeFromUrl_ReturnsNull_WhenNoUsableRelative(string? url)
         => Assert.Null(ResourcePaths.RelativeFromUrl(url));
 
-    #endregion
-
-    #region FindReferences
-
+        
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -103,10 +96,7 @@ public class ResourcePathsPureTests
         Assert.Empty(ResourcePaths.FindReferences("<img src=\"/resources/\">"));
     }
 
-    #endregion
-
-    #region RewriteReferences
-
+        
     [Theory]
     [InlineData("")]
     public void RewriteReferences_EmptyText_ReturnedAsIs(string text)
@@ -165,10 +155,7 @@ public class ResourcePathsPureTests
         Assert.Equal(css, ResourcePaths.RewriteReferences(css, _ => "./x/"));
     }
 
-    #endregion
-
-    #region ToResourceUrl / ToLocalPath - non-filesystem branches
-
+        
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -203,10 +190,7 @@ public class ResourcePathsPureTests
     public void ResolveRequestPath_EmptyRelative_ReturnsNull(string value)
         => Assert.Null(ResourcePaths.ResolveRequestPath(value));
 
-    #endregion
-
-    #region constants
-
+        
     [Fact]
     public void DefaultFolders_AreTheDocumentedThree()
         => Assert.Equal(new[] {"images", "images/logos", "audio"}, ResourcePaths.DefaultFolders);
@@ -215,7 +199,6 @@ public class ResourcePathsPureTests
     public void UrlPrefix_MatchesBundleFolder()
         => Assert.Equal($"/{ResourcePaths.BundleFolder}/", ResourcePaths.UrlPrefix);
 
-    #endregion
 }
 
 [Collection("WorkingDirectory")]

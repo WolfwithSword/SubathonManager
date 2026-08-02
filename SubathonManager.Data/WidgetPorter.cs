@@ -664,11 +664,7 @@ public static partial class WidgetPorter
         return html;
     }
 
-    private static string SanitizeName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-    }
+    private static string SanitizeName(string name) => SafeFileName.Sanitize(name);
 
     [GeneratedRegex(@"--([a-zA-Z0-9-_]+)\s*:\s*([^;]+);")]
     private static partial Regex CssVarRegex();

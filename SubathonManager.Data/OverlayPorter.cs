@@ -658,11 +658,7 @@ public static class OverlayPorter
         return Convert.ToHexString(bytes)[..SegmentHashLength].ToLowerInvariant();
     }
 
-    private static string SanitizeName(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(name.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-    }
+    private static string SanitizeName(string name) => SafeFileName.Sanitize(name);
     #endregion
 
     #region TYPES

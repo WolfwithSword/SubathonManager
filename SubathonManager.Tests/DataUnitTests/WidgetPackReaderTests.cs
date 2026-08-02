@@ -14,7 +14,6 @@ public class WidgetPackReaderTests
         => TestPacks.WriteZip(ws.Path_("packs", $"{Guid.NewGuid():N}.smw"),
             files.Select(f => new KeyValuePair<string, string>(f.entry, f.content)));
 
-    #region Contains / Entries / LengthOf
     [Fact]
     public void MissingPackFile_BehavesLikeAnEmptyArchive()
     {
@@ -87,10 +86,7 @@ public class WidgetPackReaderTests
         Assert.Equal(10, reader.LengthOf("a.txt"));
     }
 
-    #endregion
-
-    #region Read / ReadText
-
+        
     [Fact]
     public void Read_ReturnsTheEntryBytes()
     {
@@ -148,10 +144,7 @@ public class WidgetPackReaderTests
         Assert.Equal("second", reader.ReadText("a.txt"));
     }
 
-    #endregion
-
-    #region Materialize
-
+        
     [Fact]
     public void Materialize_UnknownEntry_ReturnsNull()
     {
@@ -212,10 +205,7 @@ public class WidgetPackReaderTests
         Assert.Empty(Directory.EnumerateFiles(cacheDir, "*.partial", SearchOption.AllDirectories));
     }
 
-    #endregion
-
-    #region ExtractAll
-
+        
     [Fact]
     public void ExtractAll_WritesEveryEntry()
     {
@@ -267,7 +257,6 @@ public class WidgetPackReaderTests
         Assert.Equal("content", File.ReadAllText(Path.Combine(target, "a.txt")));
     }
 
-    #endregion
 }
 
 [Collection("WorkingDirectory")]

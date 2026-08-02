@@ -8,8 +8,6 @@ namespace SubathonManager.Tests.DataUnitTests;
 [Collection("WorkingDirectory")]
 public class OverlayPackInstallerTests
 {
-    #region ReadManifest
-
     [Fact]
     public void ReadManifest_MissingFile_ReturnsNull()
     {
@@ -119,10 +117,6 @@ public class OverlayPackInstallerTests
 
         Assert.Equal(new[] {"a", "b"}, OverlayPackInstaller.ReadManifest(path)!.Tags);
     }
-
-    #endregion
-
-    #region Install
 
     [Fact]
     public void Install_MissingFile_ReturnsNull()
@@ -281,8 +275,6 @@ public class OverlayPackInstallerTests
 
         Assert.Equal("deep", File.ReadAllText(Path.Combine(installed.UnpackDir, "a", "b", "c", "d.txt")));
     }
-
-    #endregion
 
     [Fact]
     public void ManifestFileName_IsOverlayJson()

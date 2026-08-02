@@ -17,8 +17,6 @@ public class WidgetPackFileSystemTests
         return Path.Combine(folder, "1-0-0");
     }
 
-    #region packed paths
-
     [Fact]
     public void Exists_PackedEntry_IsTrue()
     {
@@ -142,10 +140,6 @@ public class WidgetPackFileSystemTests
         Assert.False(fs.Unpack(loose, Path.Combine(ws.Root, "out")));
     }
 
-    #endregion
-
-    #region disk fallback
-
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -207,8 +201,6 @@ public class WidgetPackFileSystemTests
 
         Assert.Empty(fs.EnumerateFiles(Path.Combine(ws.Root, "nope")));
     }
-
-    #endregion
 
     [Fact]
     public void ReadersAreReusedPerPackFile()

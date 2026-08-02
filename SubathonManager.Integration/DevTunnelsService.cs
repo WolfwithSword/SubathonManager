@@ -72,6 +72,7 @@ public class DevTunnelsService(
         BroadcastTunnelStatus(false, null);
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool> TryInstallAsync(CancellationToken ct = default)
     {
         var probe = await client.ProbeCliAsync(ct);

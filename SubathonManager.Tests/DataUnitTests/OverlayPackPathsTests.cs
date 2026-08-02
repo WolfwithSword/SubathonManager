@@ -6,8 +6,7 @@ namespace SubathonManager.Tests.DataUnitTests;
 /// <summary>Naming helpers that never look at the filesystem, so this class runs in parallel.</summary>
 public class OverlayPackPathsPureTests
 {
-    #region RouteName
-
+    
     [Theory]
     [InlineData("Main Overlay", "1.2.0", "Main Overlay v1.2.0")]
     [InlineData("Main Overlay", "1-2-0", "Main Overlay v1.2.0")]
@@ -20,11 +19,7 @@ public class OverlayPackPathsPureTests
     [InlineData(null, "1.0.0", "Imported Overlay v1.0.0")]
     public void RouteName_Branches(string? name, string? version, string expected)
         => Assert.Equal(expected, OverlayPackPaths.RouteName(name!, version!));
-
-    #endregion
-
-    #region BaseRouteName
-
+        
     [Theory]
     [InlineData("Main Overlay v1.2.0", "Main Overlay")]
     [InlineData("Main Overlay v1", "Main Overlay")]
@@ -51,10 +46,7 @@ public class OverlayPackPathsPureTests
     public void BaseRouteName_OnlyStripsTheTrailingVersion()
         => Assert.Equal("Overlay v1.0.0 Copy", OverlayPackPaths.BaseRouteName("Overlay v1.0.0 Copy"));
 
-    #endregion
-
-    #region BuildFileName
-
+        
     [Fact]
     public void BuildFileName_JoinsSanitisedPartsWithUnderscores()
         => Assert.Equal("Wolf_Main-Overlay_1.0.0.smo",
@@ -79,15 +71,38 @@ public class OverlayPackPathsPureTests
         Assert.Equal("Wolf_A_B_C_1.0.0.smo", name);
     }
 
+    [Theory]
+    [InlineData('/')]
+    [InlineData('\\')]
+    [InlineData(':')]
+    [InlineData('*')]
+    [InlineData('?')]
+    [InlineData('<')]
+    [InlineData('>')]
+    [InlineData('|')]
+    [InlineData('"')]
+    public void BuildFileName_RejectsEveryInvalidChar_OnEveryPlatform(char bad)
+    {
+        string name = OverlayPackPaths.BuildFileName("Wolf", $"Main{bad}Overlay", "1.0.0");
+
+        Assert.DoesNotContain(bad, name);
+        Assert.Equal("Wolf_Main_Overlay_1.0.0.smo", name);
+    }
+
+    [Fact]
+    public void BuildFileName_ReservedDeviceName_IsEscaped()
+        => Assert.Equal("_CON.smo", OverlayPackPaths.BuildFileName("", "CON", null!));
+
+    [Fact]
+    public void BuildFileName_TrailingDotsAndSpaces_AreStripped()
+        => Assert.Equal("Wolf_Main_1.0.0.smo", OverlayPackPaths.BuildFileName("Wolf ", "Main.", "1.0.0"));
+
     [Fact]
     public void BuildFileName_AlwaysEndsWithTheOverlayExtension()
         => Assert.EndsWith(OverlayPackPaths.OverlayExtension,
             OverlayPackPaths.BuildFileName("a", "b", "c"));
 
-    #endregion
-
-    #region constants
-
+        
     [Fact]
     public void Constants()
     {
@@ -95,8 +110,7 @@ public class OverlayPackPathsPureTests
         Assert.Equal("unpack", OverlayPackPaths.UnpackFolderName);
     }
 
-    #endregion
-}
+    }
 
 [Collection("WorkingDirectory")]
 public class OverlayPackPathsWorkspaceTests
@@ -160,6 +174,8 @@ public class OverlayPackPathsWorkspaceTests
 
         Assert.Equal(Path.Combine(OverlayPackPaths.OverlayRoot("Wolf", "Main"), "1.0_0.smo"),
             OverlayPackPaths.ArchiveFile("Wolf", "Main", "1.0:0"));
+        Assert.Equal(Path.Combine(OverlayPackPaths.OverlayRoot("Wolf", "Main"), "1.0_0.smo"),
+            OverlayPackPaths.ArchiveFile("Wolf", "Main", "1.0/0"));
     }
 
     [Fact]

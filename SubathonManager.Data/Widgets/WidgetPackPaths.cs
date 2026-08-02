@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using SubathonManager.Core;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data.Widgets;
@@ -140,12 +141,7 @@ public static partial class WidgetPackPaths
         return Path.Combine(UnpackedRoot, authorFolder, groupFolder, nameFolder, versionFolder);
     }
 
-    private static string SanitizeSegment(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(value.Trim().Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-    }
+    private static string SanitizeSegment(string? value) => SafeFileName.Sanitize(value);
 
     public static string EntryPath(string packId, string version, string entry)
         => Path.Combine(MountRoot(packId, version), entry.Replace('/', Path.DirectorySeparatorChar));

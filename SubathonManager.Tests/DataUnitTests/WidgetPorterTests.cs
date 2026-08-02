@@ -13,8 +13,7 @@ namespace SubathonManager.Tests.DataUnitTests;
 
 public class WidgetPorterPureTests
 {
-    #region PreviewEntryName
-
+    
     [Theory]
     [InlineData("logo.png", "preview.png")]
     [InlineData("logo.JPG", "preview.jpg")]
@@ -30,10 +29,7 @@ public class WidgetPorterPureTests
     public void PreviewExtensions_AreTheDocumentedSet()
         => Assert.Equal(new[] {".png", ".jpg", ".jpeg", ".webp", ".gif"}, WidgetPorter.PreviewExtensions);
 
-    #endregion
-
-    #region ParseTags
-
+        
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -50,10 +46,7 @@ public class WidgetPorterPureTests
     public void ParseTags_DedupesCaseInsensitively_KeepingFirstSpelling()
         => Assert.Equal(new[] {"Timer", "sub"}, WidgetPorter.ParseTags("Timer, timer, TIMER, sub"));
 
-    #endregion
-
-    #region BuildFileName
-
+        
     [Fact]
     public void BuildFileName_JoinsAllFourParts()
         => Assert.Equal("Wolf_Alerts_Sub-Timer_1.0.0.smw",
@@ -74,14 +67,39 @@ public class WidgetPorterPureTests
         => Assert.Equal("Wolf_widgets_A_B_1.0.0.smw",
             WidgetPorter.BuildFileName("Wolf", "widgets", "A/B", "1.0.0"));
 
+    [Theory]
+    [InlineData('/')]
+    [InlineData('\\')]
+    [InlineData(':')]
+    [InlineData('*')]
+    [InlineData('?')]
+    [InlineData('<')]
+    [InlineData('>')]
+    [InlineData('|')]
+    [InlineData('"')]
+    public void BuildFileName_RejectsEveryInvalidChar_OnEveryPlatform(char bad)
+    {
+        string name = WidgetPorter.BuildFileName("Wolf", "widgets", $"A{bad}B", "1.0.0");
+
+        Assert.DoesNotContain(bad, name);
+        Assert.Equal("Wolf_widgets_A_B_1.0.0.smw", name);
+    }
+
+    [Fact]
+    public void BuildFileName_ReservedDeviceName_IsEscaped()
+        => Assert.Equal("Wolf_widgets__CON_1.0.0.smw",
+            WidgetPorter.BuildFileName("Wolf", "widgets", "CON", "1.0.0"));
+
+    [Fact]
+    public void BuildFileName_TrailingDotsAndSpaces_AreStripped()
+        => Assert.Equal("Wolf_widgets_Timer_1.0.0.smw",
+            WidgetPorter.BuildFileName("Wolf", "widgets", "Timer.", "1.0.0"));
+
     [Fact]
     public void BuildFileName_AlwaysEndsInSmw()
         => Assert.EndsWith(".smw", WidgetPorter.BuildFileName("a", "b", "c", "d"));
 
-    #endregion
-
-    #region ExportPlan
-
+        
     private static WidgetPorter.ExportPlan PlanWith(params WidgetPorter.SmwEntry[] entries)
     {
         var plan = new WidgetPorter.ExportPlan();
@@ -152,10 +170,7 @@ public class WidgetPorterPureTests
         Assert.Equal(string.Empty, plan.ResolveVarValue(new JsVariable { Name = "x", Value = null! }));
     }
 
-    #endregion
-
-    #region constants
-
+        
     [Fact]
     public void Constants()
     {
@@ -166,7 +181,6 @@ public class WidgetPorterPureTests
         Assert.Equal("1", WidgetPorter.FormatVersion);
     }
 
-    #endregion
 }
 
 [Collection("WorkingDirectory")]
@@ -192,8 +206,7 @@ public class WidgetPorterWorkspaceTests
         return reader.ReadToEnd();
     }
 
-    #region ExportsDirectory
-
+    
     [Fact]
     public void ExportsDirectory_IsUnderTheWorkingDirectory()
     {
@@ -201,10 +214,7 @@ public class WidgetPorterWorkspaceTests
         Assert.Equal(Path.Combine(ws.Root, "exports", "widgets"), WidgetPorter.ExportsDirectory);
     }
 
-    #endregion
-
-    #region ReadExistingMeta
-
+        
     [Fact]
     public void ReadExistingMeta_NoMetaFile_ReturnsDefaults()
     {
@@ -241,10 +251,7 @@ public class WidgetPorterWorkspaceTests
         Assert.Equal(480, meta.Height);
     }
 
-    #endregion
-
-    #region BuildPlan - early exits
-
+        
     [Theory]
     [InlineData(WidgetType.Image)]
     [InlineData(WidgetType.Video)]
@@ -269,10 +276,7 @@ public class WidgetPorterWorkspaceTests
         Assert.Empty(WidgetPorter.BuildPlan(widget).Entries);
     }
 
-    #endregion
-
-    #region BuildPlan - core entries
-
+        
     [Fact]
     public void BuildPlan_AlwaysEmitsManifestEntryAndMeta()
     {
@@ -445,10 +449,7 @@ public class WidgetPorterWorkspaceTests
             e => e.Kind == WidgetPorter.SmwEntryKind.Asset && e.ZipEntry == "content/widget.html");
     }
 
-    #endregion
-
-    #region BuildPlan - file variables
-
+        
     [Fact]
     public void BuildPlan_AbsoluteFileVariable_BecomesAnExternalEntryAndRewrite()
     {
@@ -492,6 +493,25 @@ public class WidgetPorterWorkspaceTests
         Assert.Contains(external, e => e.ZipEntry == "content/_external/videoFolder/sub/b.mp4");
         Assert.All(external, e => Assert.True(e.DefaultSelected));
         Assert.Equal("./_external/videoFolder", plan.VariableRewrites["videoFolder"]);
+    }
+
+    [Fact]
+    public void BuildPlan_FolderVariableWithInvalidCharsInItsName_IsSanitisedInTheZipPath()
+    {
+        using var ws = new TempWorkspace("porter");
+        string folder = ws.Dir("media");
+        File.WriteAllText(Path.Combine(folder, "a.mp4"), "a");
+
+        var widget = MakeLooseWidget(ws);
+        widget.JsVariables.Add(new JsVariable
+        {
+            Name = "clips:main", Value = folder, Type = WidgetVariableType.FolderPath
+        });
+
+        var plan = WidgetPorter.BuildPlan(widget);
+        var external = plan.Entries.Single(e => e.Kind == WidgetPorter.SmwEntryKind.External);
+        Assert.Equal("content/_external/clips_main/a.mp4", external.ZipEntry);
+        Assert.Equal("./_external/clips_main", plan.VariableRewrites["clips:main"]);
     }
 
     [Fact]
@@ -568,10 +588,7 @@ public class WidgetPorterWorkspaceTests
         Assert.Empty(plan.VariableRewrites);
     }
 
-    #endregion
-
-    #region BuildPlan - shared /resources
-
+        
     [Fact]
     public void BuildPlan_ResourceFiles_BecomeOptionalExternalEntries()
     {
@@ -677,10 +694,7 @@ public class WidgetPorterWorkspaceTests
         Assert.Contains("../_external/resources/images/bg.png", rewritten);
     }
 
-    #endregion
-
-    #region ExportWidgetAsync
-
+        
     [Fact]
     public async Task ExportWidgetAsync_WritesManifestEntryAndMeta()
     {
@@ -934,10 +948,7 @@ public class WidgetPorterWorkspaceTests
             fs.ReadAllText(Path.Combine(Path.GetDirectoryName(installed.HtmlPath)!, "style.css"))!);
     }
 
-    #endregion
-
-    #region ExtractExistingPreview
-    [Fact]
+            [Fact]
     public void ExtractExistingPreview_LooseWidget_ReturnsNull()
     {
         using var ws = new TempWorkspace("porter");
@@ -985,6 +996,4 @@ public class WidgetPorterWorkspaceTests
             WidgetFiles.Current = previous;
         }
     }
-
-    #endregion
 }

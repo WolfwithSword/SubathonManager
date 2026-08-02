@@ -10,8 +10,7 @@ namespace SubathonManager.Tests.DataUnitTests;
 [SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments")]
 public class WidgetPackInstallerTests
 {
-    #region ReadManifest
-
+    
     [Fact]
     public void ReadManifest_MissingFile_ReturnsNull()
     {
@@ -166,10 +165,7 @@ public class WidgetPackInstallerTests
         Assert.Equal(new[] {"good", "also-good"}, WidgetPackInstaller.ReadManifest(path)!.Tags);
     }
 
-    #endregion
-
-    #region Install
-
+        
     [Fact]
     public void Install_MissingFile_ReturnsNull()
     {
@@ -266,10 +262,7 @@ public class WidgetPackInstallerTests
         Assert.NotNull(WidgetPackPaths.Resolve(installed!.HtmlPath));
     }
 
-    #endregion
-
-    #region MountInPlace
-
+        
     [Fact]
     public void MountInPlace_MissingFile_ReturnsNull()
     {
@@ -318,10 +311,7 @@ public class WidgetPackInstallerTests
         Assert.Equal("1-0-0", location.VersionStr);
     }
 
-    #endregion
-
-    #region DropIntoImports
-
+        
     [Fact]
     public void DropIntoImports_MissingFile_ReturnsNull()
     {
@@ -364,10 +354,7 @@ public class WidgetPackInstallerTests
         Assert.Equal(source, WidgetPackInstaller.DropIntoImports(source));
     }
 
-    #endregion
-
-    #region SweepCache
-
+        
     [Fact]
     public void SweepCache_NoCacheRoot_ReturnsZero()
     {
@@ -414,10 +401,7 @@ public class WidgetPackInstallerTests
         Assert.Equal(1, WidgetPackInstaller.SweepCache([Path.Combine(ws.Root, "loose", "widget.html")]));
     }
 
-    #endregion
-
-    #region FindUpdate / FindNewerVersion
-    private static string InstallVersion(string version)
+            private static string InstallVersion(string version)
     {
         string temp = Path.Combine(Path.GetTempPath(), $"smw-{Guid.NewGuid():N}.smw");
         TestPacks.WriteSmw(temp, TestPacks.WidgetManifestJson(
@@ -534,10 +518,7 @@ public class WidgetPackInstallerTests
         Assert.Equal(string.Empty, update.Entry);
     }
 
-    #endregion
-
-    #region round trip
-
+        
     [Fact]
     public void InstalledPack_ContentsAreReadableThroughTheFileSystemAdapter()
     {
@@ -568,5 +549,4 @@ public class WidgetPackInstallerTests
         Assert.NotNull(zip.GetEntry("content/widget.html"));
     }
 
-    #endregion
 }

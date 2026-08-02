@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using SubathonManager.Core;
 using SubathonManager.Data.Widgets;
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -78,10 +79,5 @@ public static partial class OverlayPackPaths
         return (string.IsNullOrWhiteSpace(joined) ? "overlay" : joined) + OverlayExtension;
     }
 
-    private static string SanitizeSegment(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(value.Trim().Select(c => invalid.Contains(c) ? '_' : c).ToArray());
-    }
+    private static string SanitizeSegment(string? value) => SafeFileName.Sanitize(value);
 }

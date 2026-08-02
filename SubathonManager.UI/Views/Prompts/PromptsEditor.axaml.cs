@@ -1001,7 +1001,7 @@ public partial class PromptsEditor : UserControl
         string exportDir = Path.Combine(Config.DataFolder, "exports");
         Directory.CreateDirectory(exportDir);
 
-        string safeName = string.Concat(set.Name.Split(Path.GetInvalidFileNameChars()));
+        string safeName = SafeFileName.Sanitize(set.Name, replacement: string.Empty, fallback: "prompts");
         string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
 

@@ -281,6 +281,25 @@ public class OverlayPorterTests : IDisposable
     }
 
     [Fact]
+    public void GetZipWidgetRoots_SanitisesSegments_TheSameOnEveryPlatform()
+    {
+        var result = OverlayPorter.GetZipWidgetRoots([@"C:\stream\my:timer"]);
+
+        Assert.Single(result);
+        Assert.DoesNotContain(':', result[0]);
+        Assert.EndsWith("/my_timer", result[0]);
+    }
+
+    [Fact]
+    public void GetZipWidgetRoots_ReservedSegmentName_IsEscaped()
+    {
+        var result = OverlayPorter.GetZipWidgetRoots([@"C:\stream\CON"]);
+
+        Assert.Single(result);
+        Assert.EndsWith("/_CON", result[0]);
+    }
+
+    [Fact]
     public void GetZipWidgetRoots_ResultCountMatchesInputCount()
     {
         var paths = Enumerable.Range(0, 5)
