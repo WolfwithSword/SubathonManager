@@ -26,6 +26,7 @@ public partial class GoalsEditor : UserControl
     private SubathonGoalSet? _activeGoalSet;
     private readonly IDbContextFactory<AppDbContext> _factory;
     private int _suppressCount;
+    private bool _initialized;
 
     public GoalsEditor()
     {
@@ -34,6 +35,17 @@ public partial class GoalsEditor : UserControl
         GoalSetType.ItemsSource = Enum.GetNames<GoalsType>().ToList();
         LoadAllSets();
         SubathonEvents.SubathonDataUpdate += UpdatePointsCount;
+
+        Loaded += (_, _) =>
+        {
+            if (_initialized) return;
+            _initialized = true;
+            EnterKeyCommit.Attach(this, () =>
+            {
+                GoalSetNameBox_LostFocus(GoalSetNameBox, new RoutedEventArgs());
+                SaveGoals_Click(this, new RoutedEventArgs());
+            });
+        };
     }
 
     private void UpdatePointsCount(SubathonData subathon, DateTime time)
@@ -140,7 +152,8 @@ public partial class GoalsEditor : UserControl
 
     private void GoalSetType_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_suppressCount > 0 || _activeGoalSet == null) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || _activeGoalSet == null || !realChange) return;
         UpdateSaveButtonBorder(true);
     }
 
@@ -239,6 +252,7 @@ public partial class GoalsEditor : UserControl
             };
             ToolTip.SetTip(textBox, "Goal Description");
             textBox.TextChanged += Value_OnChanged;
+            DirtySaveGuard.Rebase(textBox);
             TextBoxAssist.SetClear(textBox, true);
 
             var pointsBox = new TextBox
@@ -251,6 +265,7 @@ public partial class GoalsEditor : UserControl
             ToolTip.SetTip(pointsBox, "Points/Money to achieve");
             NumericInputBehaviour.SetMode(pointsBox, NumericInputBehaviour.NumericMode.Integer);
             pointsBox.TextChanged += Value_OnChanged;
+            DirtySaveGuard.Rebase(pointsBox);
 
             var deleteBtn = new Button
             {
@@ -381,7 +396,8 @@ public partial class GoalsEditor : UserControl
 
     private void Value_OnChanged(object? sender, TextChangedEventArgs e)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, true);
     }
 

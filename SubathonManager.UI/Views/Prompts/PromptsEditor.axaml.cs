@@ -28,6 +28,7 @@ public partial class PromptsEditor : UserControl
     private SubathonPromptSet? _activeSet;
     private SubathonPrompt? _selectedPrompt;
     private int _suppressCount;
+    private bool _initialized;
     private SubathonEventType? _selectedFilterEventType;
     private string? _selectedFilterEventMeta;
     private Guid? _activeRunPromptId;
@@ -55,11 +56,19 @@ public partial class PromptsEditor : UserControl
                 LoadPromptRows();
         });
 
-        Loaded += (_, _) => Dispatcher.UIThread.Post(() =>
+        Loaded += (_, _) =>
         {
-            AttachChangeHandlers();
-            UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, false);
-        }, DispatcherPriority.Background);
+            if (!_initialized)
+            {
+                _initialized = true;
+                EnterKeyCommit.Attach(this, () => Save_Click(this, new RoutedEventArgs()));
+            }
+            Dispatcher.UIThread.Post(() =>
+            {
+                AttachChangeHandlers();
+                UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, false);
+            }, DispatcherPriority.Background);
+        };
     }
 
     private void OnGoAffProStoreDiscovered(GoAffProStore store)
@@ -963,17 +972,26 @@ public partial class PromptsEditor : UserControl
 
         PromptTierBox.SelectionChanged -= OnTierChanged;
         PromptTierBox.SelectionChanged += OnTierChanged;
+
+        foreach (var control in new Control[]
+                 {
+                     SetIntervalBox, SetOffsetBox, SetCooldownBox, PromptTextBox, PromptValueBox,
+                     PromptDurationBox, PromptQuantityBox, PromptSubTypeBox, PromptTierBox
+                 })
+            DirtySaveGuard.Rebase(control);
     }
 
     private void OnFieldChanged(object? sender, TextChangedEventArgs e)
     {
+        if (!DirtySaveGuard.Consume(sender)) return;
         if (sender is TextBox { IsFocused: false }) return;
         MarkPendingChanges();
     }
 
     private void OnSubTypeChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         var type = SelectedType() ?? SubathonPromptType.Points;
         var subType = SelectedSubType() ?? SubathonPromptSubType.Default;
 
@@ -985,7 +1003,12 @@ public partial class PromptsEditor : UserControl
         MarkPendingChanges();
     }
 
-    private void OnTierChanged(object? sender, SelectionChangedEventArgs e) => MarkPendingChanges();
+    private void OnTierChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
+        MarkPendingChanges();
+    }
 
     private async void ExportPromptSet_Click(object? sender, RoutedEventArgs e)
     {

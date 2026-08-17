@@ -98,6 +98,12 @@ public partial class WheelTriggerEditor : UserControl
         UpdateSaveButtonState();
     }
 
+    private void MarkDirty(object? sender)
+    {
+        if (!DirtySaveGuard.Consume(sender)) return;
+        MarkDirty();
+    }
+
     private void UpdateSaveButtonState()
     {
         bool showGlow;
@@ -137,20 +143,34 @@ public partial class WheelTriggerEditor : UserControl
 
     private void WireDirtyHandlers()
     {
-        TriggerEnabledCheck.IsCheckedChanged += (_, _) => MarkDirty();
-        TierComboBox.SelectionChanged += (_, _) => MarkDirty();
-        TierTextBox.TextChanged += (_, _) => MarkDirty();
-        GiftCountBox.TextChanged += (_, _) => MarkDirty();
-        TokenCountBox.TextChanged += (_, _) => MarkDirty();
-        OrderByItemsRadio.IsCheckedChanged += (_, _) => MarkDirty();
-        OrderByMoneyRadio.IsCheckedChanged += (_, _) => MarkDirty();
-        OrderByOrderRadio.IsCheckedChanged += (_, _) => MarkDirty();
-        OrderItemCountBox.TextChanged += (_, _) => MarkDirty();
-        OrderMoneyBox.TextChanged += (_, _) => MarkDirty();
-        OrderCurrencyBox.SelectionChanged += (_, _) => MarkDirty();
-        DonationMoneyBox.TextChanged += (_, _) => MarkDirty();
-        DonationCurrencyBox.SelectionChanged += (_, _) => MarkDirty();
-        SpinsToAddBox.TextChanged += (_, _) => MarkDirty();
+        TriggerEnabledCheck.IsCheckedChanged += (s, _) => MarkDirty(s);
+        TierComboBox.SelectionChanged += (s, _) => MarkDirty(s);
+        TierTextBox.TextChanged += (s, _) => MarkDirty(s);
+        GiftCountBox.TextChanged += (s, _) => MarkDirty(s);
+        TokenCountBox.TextChanged += (s, _) => MarkDirty(s);
+        OrderByItemsRadio.IsCheckedChanged += (s, _) => MarkDirty(s);
+        OrderByMoneyRadio.IsCheckedChanged += (s, _) => MarkDirty(s);
+        OrderByOrderRadio.IsCheckedChanged += (s, _) => MarkDirty(s);
+        OrderItemCountBox.TextChanged += (s, _) => MarkDirty(s);
+        OrderMoneyBox.TextChanged += (s, _) => MarkDirty(s);
+        OrderCurrencyBox.SelectionChanged += (s, _) => MarkDirty(s);
+        DonationMoneyBox.TextChanged += (s, _) => MarkDirty(s);
+        DonationCurrencyBox.SelectionChanged += (s, _) => MarkDirty(s);
+        SpinsToAddBox.TextChanged += (s, _) => MarkDirty(s);
+
+        foreach (var control in new Control[]
+                 {
+                     TriggerEnabledCheck, TierComboBox, TierTextBox, GiftCountBox, TokenCountBox,
+                     OrderByItemsRadio, OrderByMoneyRadio, OrderByOrderRadio, OrderItemCountBox,
+                     OrderMoneyBox, OrderCurrencyBox, DonationMoneyBox, DonationCurrencyBox, SpinsToAddBox
+                 })
+            DirtySaveGuard.Rebase(control);
+
+        EnterKeyCommit.Attach(this, () =>
+        {
+            if (!SaveTriggerBtn.IsEnabled) return;
+            SaveTrigger_Click(this, new RoutedEventArgs());
+        });
     }
 
     private void Grid_PointerPressed(object? sender, PointerPressedEventArgs e)

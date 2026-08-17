@@ -1065,13 +1065,16 @@ public partial class EditRouteWindow
                     csscp.ColorChanged += Value_OnChanged;
                     break;
             }
+
+            DirtySaveGuard.Rebase(sender);
         }
         SuppressUnsavedChanges(Attach);
     }
 
     private void Value_OnChanged(object? sender, RoutedEventArgs e)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         if (sender is TextBox { IsFocused: false }) return;
         UpdateSaveButtonBorder(SaveButtonBorder, true);
         if (sender is Control { Tag: JsVariable }) _hasPendingJsChanges = true;
@@ -1304,37 +1307,43 @@ public partial class EditRouteWindow
     private void JsEventSubTypeSelectBox_Loaded(object? sender, RoutedEventArgs e)
     {
         if (sender is not ComboBox { Tag: JsVariable jsVar } cb) return;
-        var values = Enum.GetValues<SubathonEventSubType>()
-            .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
-            .OrderBy(x => x.GetOrderNumber());
-        cb.Items.Add(string.Empty);
-        foreach (var val in values) cb.Items.Add(val.ToString());
-        cb.SelectedItem = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
-        Dispatcher.UIThread.Post(() =>
+        if (cb.ItemCount == 0)
         {
-            cb.SelectionChanged += (_, _) => jsVar.Value = $"{cb.SelectedItem}";
-        }, DispatcherPriority.Loaded);
+            var values = Enum.GetValues<SubathonEventSubType>()
+                .Where(x => ((SubathonEventSubType?)x).IsTrueEvent())
+                .OrderBy(x => x.GetOrderNumber());
+            cb.Items.Add(string.Empty);
+            foreach (var val in values) cb.Items.Add(val.ToString());
+            cb.SelectedItem = string.IsNullOrWhiteSpace(jsVar.Value) ? string.Empty : jsVar.Value;
+            Dispatcher.UIThread.Post(() =>
+            {
+                cb.SelectionChanged += (_, _) => jsVar.Value = $"{cb.SelectedItem}";
+            }, DispatcherPriority.Loaded);
+        }
         AttachChangeHandler(sender, e);
     }
 
     private void JsStringSelectBox_Loaded(object? sender, RoutedEventArgs e)
     {
         if (sender is not ComboBox { Tag: JsVariable jsVar } cb) return;
-        var values = jsVar.Value?.Trim().Split(',') ?? [];
-        foreach (var val in values) cb.Items.Add(val);
-        cb.SelectedItem = values.Length > 0 ? values[0] : string.Empty;
-        Dispatcher.UIThread.Post(() =>
+        if (cb.ItemCount == 0)
         {
-            cb.SelectionChanged += (_, _) =>
+            var values = jsVar.Value?.Trim().Split(',') ?? [];
+            foreach (var val in values) cb.Items.Add(val);
+            cb.SelectedItem = values.Length > 0 ? values[0] : string.Empty;
+            Dispatcher.UIThread.Post(() =>
             {
-                if (!jsVar.Value?.Contains(',') ?? true) return;
-                if (jsVar.Value!.StartsWith($"{cb.SelectedItem},")) return;
-                var newVal = new List<string> { $"{cb.SelectedItem}" };
-                foreach (var v in values)
-                    if (!newVal.Contains(v)) newVal.Add(v);
-                jsVar.Value = string.Join(',', newVal);
-            };
-        }, DispatcherPriority.Loaded);
+                cb.SelectionChanged += (_, _) =>
+                {
+                    if (!jsVar.Value?.Contains(',') ?? true) return;
+                    if (jsVar.Value!.StartsWith($"{cb.SelectedItem},")) return;
+                    var newVal = new List<string> { $"{cb.SelectedItem}" };
+                    foreach (var v in values)
+                        if (!newVal.Contains(v)) newVal.Add(v);
+                    jsVar.Value = string.Join(',', newVal);
+                };
+            }, DispatcherPriority.Loaded);
+        }
         AttachChangeHandler(sender, e);
     }
 

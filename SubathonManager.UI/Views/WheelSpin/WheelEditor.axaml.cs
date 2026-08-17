@@ -57,6 +57,7 @@ public partial class WheelEditor : UserControl
             if (!_initialized)
             {
                 AttachChangeHandlers();
+                EnterKeyCommit.Attach(this, () => Save_Click(this, new RoutedEventArgs()));
                 _initialized = true;
             }
             SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
@@ -573,7 +574,8 @@ public partial class WheelEditor : UserControl
 
     private void ActionType_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         var selected = (ActionTypeBox.SelectedItem as ComboBoxItem)?.Tag as WheelSpinActionType?;
         bool showParams = selected.HasValue && selected.Value.HasAction();
         ActionParameterPanel.IsVisible = showParams;
@@ -633,7 +635,8 @@ public partial class WheelEditor : UserControl
 
     private void Multiplier_Changed(object? sender, RoutedEventArgs e)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         MarkPendingChanges();
     }
 
@@ -651,7 +654,8 @@ public partial class WheelEditor : UserControl
 
     private void ItemInfinite_Changed(object? sender, RoutedEventArgs e)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         ItemQuantityBox.IsEnabled = !(ItemInfiniteCheck.IsChecked ?? false);
         MarkPendingChanges();
     }
@@ -1039,17 +1043,25 @@ public partial class WheelEditor : UserControl
 
     private void AttachChangeHandlers()
     {
-        ItemTextBox.TextChanged += OnFieldChanged;
-        ItemWeightBox.TextChanged += OnFieldChanged;
-        ItemQuantityBox.TextChanged += OnFieldChanged;
-        ActionParameterBox.TextChanged += OnFieldChanged;
-        MultiplierAmountBox.TextChanged += OnFieldChanged;
-        MultiplierDurationBox.TextChanged += OnFieldChanged;
-        RerollCountBox.TextChanged += OnFieldChanged;
+        foreach (var box in new[]
+                 {
+                     ItemTextBox, ItemWeightBox, ItemQuantityBox, ActionParameterBox,
+                     MultiplierAmountBox, MultiplierDurationBox, RerollCountBox
+                 })
+        {
+            box.TextChanged += OnFieldChanged;
+            DirtySaveGuard.Rebase(box);
+        }
+
+        DirtySaveGuard.Rebase(ActionTypeBox);
+        DirtySaveGuard.Rebase(MultiplierTimeCheck);
+        DirtySaveGuard.Rebase(MultiplierPointsCheck);
+        DirtySaveGuard.Rebase(ItemInfiniteCheck);
     }
 
     private void OnFieldChanged(object? sender, TextChangedEventArgs e)
     {
+        if (!DirtySaveGuard.Consume(sender)) return;
         if (sender is TextBox { IsFocused: false }) return;
         MarkPendingChanges();
     }
