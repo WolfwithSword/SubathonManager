@@ -57,6 +57,22 @@ jobs:
       tests_failed: ${{ steps.covstats.outputs.tests_failed }}
       tests_skipped: ${{ steps.covstats.outputs.tests_skipped }}
     steps:
+
+      - name: Trace pkill calls
+        run: |
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/pkill" <<'SHIM'
+          #!/bin/bash
+          {
+            echo "[pkill-trace] args: $*"
+            echo "[pkill-trace] caller pid=$PPID"
+            ps -o pid=,ppid=,comm=,args= -p "$PPID" 2>/dev/null
+          } >&2
+          exec /usr/bin/pkill "$@"
+          SHIM
+          chmod +x "$HOME/bin/pkill"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -82,9 +98,36 @@ jobs:
           --configuration Release \
           --logger "console;verbosity=detailed" \
           --logger "trx;LogFileName=test-results.trx" \
+          --blame \
+          --blame-crash \
+          --blame-hang \
+          --blame-hang-timeout 5m \
           --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
           -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
+
+      - name: Show blame / crash diagnostics
+        if: always()
+        shell: bash
+        run: |
+          echo "--- files produced by --blame ---"
+          find ./coverage -iname "Sequence*.xml" -o -iname "*.dmp" -o -iname "core*" || true
+          for f in $(find ./coverage -iname "Sequence*.xml" 2>/dev/null); do
+            echo "===== $f ====="
+            cat "$f"
+          done
+
+      - name: Upload blame / crash diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-blame-diagnostics
+          path: |
+            coverage/**/Sequence*.xml
+            coverage/**/*.dmp
+            coverage/**/*.trx
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: List raw coverage files
         if: always()

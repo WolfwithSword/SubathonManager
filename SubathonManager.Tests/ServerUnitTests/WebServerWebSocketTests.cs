@@ -15,7 +15,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.ServerUnitTests;
 
-[Collection("NonParallel")]
+[Collection("GlobalState")]
 public class WebServerWebSocketEventBusEnforcedSequentialTests
 {
     
@@ -45,12 +45,12 @@ public class WebServerWebSocketEventBusEnforcedSequentialTests
     }
 }
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class WebServerWebSocketEventBusTests
 {
     
-    private static SubathonEvent? CaptureEvent(Action trigger) =>
-        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    private static Task<SubathonEvent?> CaptureEventAsync(Func<Task> trigger) =>
+        EventUtil.SubathonEventCapture.CaptureAsync(trigger);
 
     [Fact]
     public async Task WebSocket_ReceiveIntegrationSource_AddsSourceAndEvent()
@@ -78,8 +78,8 @@ public class WebServerWebSocketEventBusTests
                 );
             ctx.Socket.EnqueueClose();
 
-            SubathonEvent? ev = CaptureEvent( async void () => 
-                await server.HandleWebSocketRequestAsync(ctx));
+            SubathonEvent? ev = await CaptureEventAsync(
+                () => server.HandleWebSocketRequestAsync(ctx));
 
             var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
@@ -125,10 +125,8 @@ public class WebServerWebSocketEventBusTests
             ctx.Socket.EnqueueClose();
             
 
-            SubathonEvent? ev = CaptureEvent( async void () =>
-            {
-                await server.HandleWebSocketRequestAsync(ctx);
-            });
+            SubathonEvent? ev = await CaptureEventAsync(
+                () => server.HandleWebSocketRequestAsync(ctx));
 
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventSource.External, ev.Source);
@@ -143,7 +141,7 @@ public class WebServerWebSocketEventBusTests
     }
 }
 
-[Collection("ProviderOverrideTests")]
+[Collection("GlobalState")]
 public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 {
     private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;

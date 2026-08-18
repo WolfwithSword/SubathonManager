@@ -26,4 +26,10 @@ public interface IWebSocketClient
         WebSocketCloseStatus closeStatus,
         string statusDescription,
         CancellationToken cancellationToken);
+
+    void Abort();
+    void StartOutbound();
+    bool TryEnqueue(byte[] payload, OutboundCoalesceKey key = OutboundCoalesceKey.None);
+    void CompleteOutbound();
+    Task CompleteOutboundAsync(TimeSpan drainTimeout);
 }

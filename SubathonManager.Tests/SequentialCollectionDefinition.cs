@@ -1,4 +1,4 @@
-namespace SubathonManager.Tests;
+﻿namespace SubathonManager.Tests;
 
 [CollectionDefinition("Sequential", DisableParallelization = true)]
 public class SequentialCollectionDefinition
@@ -11,20 +11,15 @@ public class SequentialParallelCollectionDefinition
 {
 }
 
-[CollectionDefinition("SharedEventBusTests", DisableParallelization = true)] // slowdown but might fix the eventbus issue in websocket consumers
-public class SharedEventBusTestsCollection { }
 
-[CollectionDefinition("NonParallel", DisableParallelization = true)]
-public class NonParallelCollection { }
+[CollectionDefinition("GlobalState", DisableParallelization = true)]
+public class GlobalStateCollection { }
 
 [CollectionDefinition("ServicesTests", DisableParallelization = true)]
 public class ServicesTestsCollection { }
 
 [CollectionDefinition("CurrencyServiceTests", DisableParallelization = true)]
 public class CurrencyServiceTestsCollection { }
-
-[CollectionDefinition("ProviderOverrideTests", DisableParallelization = true)]
-public class ProviderOverrideTestsCollection { }
 
 [CollectionDefinition("WorkingDirectory", DisableParallelization = true)]
 public class WorkingDirectoryCollection { }

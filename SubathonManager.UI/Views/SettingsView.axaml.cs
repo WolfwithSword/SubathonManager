@@ -14,6 +14,7 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views.SettingsViews;
 using SubathonManager.UI.Services;
 
@@ -43,6 +44,7 @@ public partial class SettingsView : SettingsControl
             SettingsEvents.SettingsUnsavedChanges += UpdateSaveButtonBorder;
             RegisterUnsavedChangeHandlers();
             InitCurrencySelects();
+            EnterKeyCommit.Attach(this, () => SaveAllSubathonValuesButton_Click(this, new RoutedEventArgs()));
         };
 
         StreamingSettingsControl.Init(this);

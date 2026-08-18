@@ -26,7 +26,7 @@ public abstract class SettingsControl : UserControl
 
     internal readonly IDbContextFactory<AppDbContext> _factory =
         AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-    private int _suppressCount = 0;
+    private static int _suppressCount = 0;
 
     protected SettingsControl()
     {
@@ -89,25 +89,38 @@ public abstract class SettingsControl : UserControl
 
     private void AttachHandler(Visual element)
     {
+        if (SettingsProperties.GetUnsavedHandlerAttached(element)) return;
+
         switch (element)
         {
             case TextBox tb:
-                tb.TextChanged += (_, _) => OnInputChanged();
+                tb.TextChanged += (s, _) => OnInputChanged(s);
+                break;
+            case AutoCompleteBox acb:
+                acb.TextChanged += (s, _) => OnInputChanged(s);
                 break;
             case ComboBox cb:
-                cb.SelectionChanged += (_, _) => OnInputChanged();
+                cb.SelectionChanged += (s, _) => OnInputChanged(s);
                 break;
             case CheckBox chk:
-                chk.IsCheckedChanged += (_, _) => OnInputChanged();
+                chk.IsCheckedChanged += (s, _) => OnInputChanged(s);
                 break;
             case Slider sld:
-                sld.ValueChanged += (_, _) => OnInputChanged();
+                sld.ValueChanged += (s, _) => OnInputChanged(s);
                 break;
+            default:
+                return;
         }
+
+        SettingsProperties.SetUnsavedHandlerAttached(element, true);
+        DirtySaveGuard.Rebase(element);
     }
 
     private void WireExpander(Expander expander)
     {
+        if (SettingsProperties.GetUnsavedHandlerAttached(expander)) return;
+        SettingsProperties.SetUnsavedHandlerAttached(expander, true);
+
         bool firstExpand = true;
 
         expander.PropertyChanged += (_, e) =>
@@ -131,9 +144,10 @@ public abstract class SettingsControl : UserControl
         }
     }
 
-    private void OnInputChanged()
+    private void OnInputChanged(object? sender)
     {
-        if (_suppressCount > 0) return;
+        bool realChange = DirtySaveGuard.Consume(sender);
+        if (_suppressCount > 0 || !realChange) return;
         SettingsEvents.RaiseSettingsUnsavedChanges(true);
     }
 

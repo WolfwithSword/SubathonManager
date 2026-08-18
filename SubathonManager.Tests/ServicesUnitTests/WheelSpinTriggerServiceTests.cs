@@ -14,7 +14,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
-[Collection("NonParallel")]
+[Collection("GlobalState")]
 public class WheelSpinTriggerServiceTests
 {
     private static CurrencyService MakeCurrencyService()

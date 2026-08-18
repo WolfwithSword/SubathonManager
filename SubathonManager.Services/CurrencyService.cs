@@ -1,7 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
 using SubathonManager.Core.Events;
-using SubathonManager.Core.Enums;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
@@ -162,7 +161,9 @@ public class CurrencyService : IAppService
     {
         fromCurrency = fromCurrency.ToUpperInvariant().Trim();
         var defaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
-        toCurrency ??=  defaultCurrency;
+        toCurrency = string.IsNullOrWhiteSpace(toCurrency)
+            ? defaultCurrency
+            : toCurrency.ToUpperInvariant().Trim();
         if (fromCurrency == toCurrency)
             return amount;
 
@@ -190,9 +191,20 @@ public class CurrencyService : IAppService
             return 0;
         }
 
+        if (!IsValidCurrency(toCurrency))
+        {
+            var message = $"{toCurrency} is not a valid target currency. Cannot convert {amount} {fromCurrency}";
+            _logger?.LogError(message);
+
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", "CurrencyService",
+                message, DateTime.Now);
+            return 0;
+        }
+
         try
         {
-            if (!Rates.TryGetValue(fromCurrency, out var fromRate))
+            double fromRate = 1.0;
+            if (fromCurrency != defaultCurrency && !Rates.TryGetValue(fromCurrency, out fromRate))
                 throw new InvalidOperationException($"Rate for {fromCurrency} not found.");
 
             double baseAmount = amount / fromRate;
@@ -209,7 +221,7 @@ public class CurrencyService : IAppService
         {
             var message = $"Failed to convert {amount} {fromCurrency} to {toCurrency}";
             _logger?.LogError(ex, message);
-            ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.Twitch), 
+            ErrorMessageEvents.RaiseErrorEvent("ERROR", "CurrencyService",
                 message, DateTime.Now);
         }
 

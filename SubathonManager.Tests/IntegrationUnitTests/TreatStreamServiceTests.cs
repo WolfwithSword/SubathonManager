@@ -10,7 +10,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class TreatStreamServiceTests
 {
     private static SubathonEvent? CaptureEvent(Action trigger) =>
