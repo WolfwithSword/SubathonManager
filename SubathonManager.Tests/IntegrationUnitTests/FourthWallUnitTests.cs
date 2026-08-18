@@ -28,7 +28,7 @@ using Amounts = Fourthwall.Client.Generated.Models.Openapi.Model.DonationV1.Amou
 // ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class FourthWallServiceTests
 {
     public FourthWallServiceTests()
@@ -358,7 +358,6 @@ public class FourthWallServiceTests
     public void MapToSubathonEvent_Order_SecondaryValue_ContainsProfitAndCurrency()
     {
         (FourthWallService service, _) = MakeService();
-        // price=12.50×2=25, cost=8×2=16 -> profit=9.00; donation=0 -> totalDirect=9.00
         var fwEvent = MakeOrderEvent(subtotal: 25.00, quantity: 2, unitPrice: 12.50, unitCost: 8.00, currency: "USD");
 
         var ev = service.MapToSubathonEvent(fwEvent);

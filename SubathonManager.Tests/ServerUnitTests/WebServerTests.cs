@@ -12,7 +12,7 @@ using SubathonManager.Data;
 // ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.ServerUnitTests;
 
-[Collection("ProviderOverrideTests")]
+[Collection("GlobalState")]
 public class WebServerTests
 {
     

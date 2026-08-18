@@ -104,6 +104,13 @@ public partial class EditRouteWindow : Window
                 ApplyWebViewBackground(_webViewLightBg);
             });
         
+        UiUtils.EnterKeyCommit.Attach(RouteSettingsPanel, () => SaveRouteButton_Click(this, new RoutedEventArgs()));
+        UiUtils.EnterKeyCommit.Attach(WidgetEditorColumn, () =>
+        {
+            if (_selectedWidget == null) return;
+            SaveWidgetButton_Click(this, new RoutedEventArgs());
+        });
+
         Loaded += EditRouteWindow_Loaded;
         ObsConnected = ServiceManager.OBS.Connected;
         IntegrationEvents.ConnectionUpdated += OnObsConnectionUpdated;

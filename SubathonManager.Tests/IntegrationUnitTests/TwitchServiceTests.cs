@@ -26,7 +26,7 @@ using UserType = TwitchLib.Client.Enums.UserType;
 
 namespace SubathonManager.Tests.IntegrationUnitTests
 {
-    [Collection("SharedEventBusTests")]
+    [Collection("GlobalState")]
     public class TwitchServiceTests
     {
         public TwitchServiceTests()

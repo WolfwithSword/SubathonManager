@@ -13,7 +13,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class JuniperServiceTests
 {
     private const string StoreName = "shop.example.com";

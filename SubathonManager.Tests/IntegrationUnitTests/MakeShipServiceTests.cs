@@ -11,7 +11,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class MakeShipServiceTests
 {
     private const string PetitionUrl = "https://www.makeship.com/petitions/cool-plush";

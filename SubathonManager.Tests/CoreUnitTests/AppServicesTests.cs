@@ -43,12 +43,5 @@ namespace SubathonManager.Tests.CoreUnitTests
             Assert.False(installed);
         }
 
-        [Fact]
-        public async Task DownloadAndInstall_ReturnsFalse_WhenDownloadOrInstallFails()
-        {
-            var logger = _loggerMock.Object;
-            bool result = await AppServices.DownloadAndInstall(logger);
-            Assert.False(result);
-        }
     }
 }

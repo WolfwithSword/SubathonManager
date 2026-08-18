@@ -11,7 +11,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class GoAffProServiceTests
 {
     private static readonly GoAffProStore GamerSupps = new()

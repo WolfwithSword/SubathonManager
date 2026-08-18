@@ -261,7 +261,7 @@
 
         <!-- LEFT - widget list and route settings -->
         <Grid Grid.Column="0" Margin="12" RowDefinitions="Auto,Auto,*">
-            <StackPanel Orientation="Vertical">
+            <StackPanel x:Name="RouteSettingsPanel" Orientation="Vertical">
                 <TextBlock Text="Overlay" FontWeight="SemiBold" Margin="0,12,0,8"/>
                 <TextBlock Text="Name" FontSize="12"/>
                 <TextBox x:Name="RouteNameBox" Margin="0,4,0,8" PlaceholderText="Overlay Name..." VerticalContentAlignment="Center"/>
