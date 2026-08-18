@@ -20,7 +20,7 @@ public partial class WebServer
 {
     private readonly List<IWebSocketClient> _clients = new();
     private readonly object _lock = new();
-    private readonly SemaphoreSlim _sendLock = new(1,1);
+    private static readonly TimeSpan OutboundDrainTimeout = TimeSpan.FromSeconds(2);
 
     private void SetupWebsocketListeners()
     {
@@ -68,6 +68,16 @@ public partial class WebServer
         WheelEvents.WheelSpinResult -= SendWheelSpinResult;
         WheelEvents.WheelSpinStatusChanged -= SendWheelSpinStatusChanged;
         WheelEvents.WheelDataChanged -= SendWheelDataChanged;
+
+        List<IWebSocketClient> clientsCopy;
+        lock (_lock)
+        {
+            clientsCopy = _clients.ToList();
+            _clients.Clear();
+        }
+
+        foreach (var client in clientsCopy)
+            client.CompleteOutbound();
     }
 
     private void OnPromptStart(SubathonPromptRun subathonPromptRun, SubathonPrompt? subathonPrompt)
@@ -98,7 +108,7 @@ public partial class WebServer
             widgetId = widgetId.ToString(),
             x, y, width, height, scaleX, scaleY
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientMessageType.Overlay));
+        BroadcastObject(data, WebsocketClientMessageType.Overlay);
     }
 
     internal void SendPromptData(SubathonPromptRun? run, long progress = 0)
@@ -119,7 +129,7 @@ public partial class WebServer
             prompt_eventtype = $"{run?.LinkedPrompt?.FilterEventType}",
             prompt_eventtype_metafilter =  run?.LinkedPrompt?.FilterMeta
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
     
     internal void SendWidgetVarsUpdate(Guid widgetId, 
@@ -133,13 +143,13 @@ public partial class WebServer
             jsVars  = jsVars.Select(v => new { name = v.Name, value = v.Value, 
                 injectLine = v.GetInjectLine() })
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
 
     internal void SendSubathonValues(string jsonData)
     {
         var newData = $"{{ \"type\": \"value_config\", \"ws_type\": \"{WebsocketClientMessageType.ValueConfig}\", \"data\": {jsonData} }}";
-        Task.Run(() => BroadcastAsync(newData, WebsocketClientTypeHelper.ConfigConsumersList));
+        Broadcast(newData, OutboundCoalesceKey.None, WebsocketClientTypeHelper.ConfigConsumersList);
     }
 
     internal void SendGoalsUpdated(List<SubathonGoal> goals, long currentPoints, GoalsType type)
@@ -151,7 +161,7 @@ public partial class WebServer
             goals = goals.Select(goal => GoalToObject(goal, currentPoints)).ToArray(),
             goals_type = $"{type}"
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, OutboundCoalesceKey.GoalsList, WebsocketClientTypeHelper.ConsumersList);
     }
 
     private object GoalToObject(SubathonGoal goal, long currentPoints)
@@ -173,7 +183,7 @@ public partial class WebServer
             goal_points =  goal.Points,
             points = currentPoints
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
 
     private async Task InitConnection(IWebSocketClient socket)
@@ -343,28 +353,28 @@ public partial class WebServer
     {
         bool showOverride = _config.GetBool("App", "ShowLockedEvents", false);
         if (!showOverride && !subathonEvent.ProcessedToSubathon) return;
-        Task.Run(() => BroadcastAsyncObject(SubathonEventToObject(subathonEvent), WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(SubathonEventToObject(subathonEvent), WebsocketClientTypeHelper.ConsumersList);
     }
 
     internal void SendSubathonTotals(SubathonTotals totals)
     {
-        Task.Run(() => BroadcastAsyncObject(SubathonTotalsToObject(totals), WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(SubathonTotalsToObject(totals), OutboundCoalesceKey.SubathonTotals,
+            WebsocketClientTypeHelper.ConsumersList);
     }
 
     internal void SendSubscriptionTotals(SubscriptionTotals totals)
     {
-        Task.Run(() => BroadcastAsyncObject(SubscriptionTotalsToObject(totals), WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(SubscriptionTotalsToObject(totals), OutboundCoalesceKey.SubscriptionTotals,
+            WebsocketClientTypeHelper.ConsumersList);
     }
 
     internal void SendRefreshRequest(Guid id)
     {
-        Task.Run(() =>
-            BroadcastAsyncObject(new
-            {
-                type = "refresh_request",
-                id = id.ToString()
-            }, WebsocketClientMessageType.Overlay)
-        );
+        BroadcastObject(new
+        {
+            type = "refresh_request",
+            id = id.ToString()
+        }, WebsocketClientMessageType.Overlay);
     }
 
     private object SubathonDataToObject(SubathonData subathon)
@@ -408,7 +418,8 @@ public partial class WebServer
 
     internal void SendSubathonDataUpdate(SubathonData subathon, DateTime time)
     {
-        Task.Run(() => BroadcastAsyncObject(SubathonDataToObject(subathon), WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(SubathonDataToObject(subathon), OutboundCoalesceKey.SubathonTimer,
+            WebsocketClientTypeHelper.ConsumersList);
     }
 
     internal void AddSocketClient(IWebSocketClient socket)
@@ -418,6 +429,7 @@ public partial class WebServer
             _clients.Add(socket);
             _logger?.LogDebug("{ClientsCount} websocket clients connected", _clients.Count);
         }
+        socket.StartOutbound();
     }
     
     public async Task HandleWebSocketRequestAsync(IHttpContext ctx)
@@ -448,6 +460,8 @@ public partial class WebServer
         }
         finally
         {
+            await client.CompleteOutboundAsync(OutboundDrainTimeout);
+
             foreach (var clientIntegrationSource in client.IntegrationSources)
             {
                 WebServerEvents.RaiseWebSocketIntegrationSourceChange(clientIntegrationSource.ToString(), false);
@@ -486,16 +500,7 @@ public partial class WebServer
                     switch (type.GetString())
                     {
                         case "ping":
-                            var pong = Encoding.UTF8.GetBytes("{\"ws_type\":\"pong\"}");
-                            await _sendLock.WaitAsync();
-                            try
-                            {
-                                await socket.SendAsync(pong, WebSocketMessageType.Text, true, CancellationToken.None);
-                            }
-                            finally
-                            {
-                                _sendLock.Release();
-                            }
+                            socket.TryEnqueue(Encoding.UTF8.GetBytes("{\"ws_type\":\"pong\"}"));
                             break;
                         case "hello":
                             _logger?.LogDebug($"[WebSocket] [{socket.ClientId}] Hello from {json.RootElement.GetProperty("origin").GetString()}");
@@ -687,7 +692,7 @@ public partial class WebServer
             spin_delay_seconds = delaySeconds,
             timestamp = DateTime.Now
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
 
     private void SendWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history, int _)
@@ -707,7 +712,7 @@ public partial class WebServer
             },
             timestamp = DateTime.Now
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
 
     private void SendWheelSpinStatusChanged(WheelSpinHistory history, int _)
@@ -721,7 +726,7 @@ public partial class WebServer
             updated_at = history.UpdatedAt,
             wheel_item = itemSnapshot
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
 
     private void SendWheelDataChanged(WheelSet wheel, int spinsOwed)
@@ -737,16 +742,16 @@ public partial class WebServer
             wheel = new { id = wheelId, name = wheelName, spin_count = spinCount, items },
             spins_owed = spinsOwed
         };
-        Task.Run(() => BroadcastAsyncObject(data, WebsocketClientTypeHelper.ConsumersList));
+        BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
     }
 
-    private async Task BroadcastAsyncObject(object data, params WebsocketClientMessageType[] types)
-    {
-        string json = JsonSerializer.Serialize(data);
-        await BroadcastAsync(json, types);
-    }
-    
-    private async Task BroadcastAsync(string json, params WebsocketClientMessageType[] types)
+    private void BroadcastObject(object data, OutboundCoalesceKey key, params WebsocketClientMessageType[] types)
+        => Broadcast(JsonSerializer.Serialize(data), key, types);
+
+    private void BroadcastObject(object data, params WebsocketClientMessageType[] types)
+        => Broadcast(JsonSerializer.Serialize(data), OutboundCoalesceKey.None, types);
+
+    private void Broadcast(string json, OutboundCoalesceKey key, params WebsocketClientMessageType[] types)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(json);
 
@@ -757,51 +762,18 @@ public partial class WebServer
         foreach (var ws in clientsCopy.Where(ws =>
                      ws.State == WebSocketState.Open && ws.ClientTypes.Any(types.Contains)))
         {
-            await _sendLock.WaitAsync();
-            try
-            {
-                await ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
+            ws.TryEnqueue(bytes, key);
         }
     }
 
-    internal async Task SelectSendAsync(IWebSocketClient client, object data)
+    internal Task SelectSendAsync(IWebSocketClient client, object data)
+        => SelectSendStringAsync(client, JsonSerializer.Serialize(data));
+
+    internal Task SelectSendStringAsync(IWebSocketClient client, string data)
     {
-        string json = JsonSerializer.Serialize(data);
-        byte[] bytes = Encoding.UTF8.GetBytes(json);
         if (client.State == WebSocketState.Open)
-        {
-            await _sendLock.WaitAsync();
-            try
-            {
-                await client.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
-        }
-    }
-    
-    internal async Task SelectSendStringAsync(IWebSocketClient client, string data)
-    {
-        byte[] bytes = Encoding.UTF8.GetBytes(data);
-        if (client.State == WebSocketState.Open)
-        {
-            await _sendLock.WaitAsync();
-            try
-            {
-                await client.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
-        }
+            client.TryEnqueue(Encoding.UTF8.GetBytes(data));
+        return Task.CompletedTask;
     }
 
     public string GetWebsocketInjectionScript(string? routeId = "")
