@@ -91,6 +91,16 @@ public partial class WheelTriggerEditor : UserControl
         finally { _suppressCount--; }
     }
 
+    private void SuppressChangesDeferred(Action action)
+    {
+        _suppressCount++;
+        try { action(); }
+        finally
+        {
+            Dispatcher.UIThread.Post(() => _suppressCount--, DispatcherPriority.Background);
+        }
+    }
+
     private void MarkDirty()
     {
         if (_suppressCount > 0) return;
@@ -455,7 +465,7 @@ public partial class WheelTriggerEditor : UserControl
 
     private void PopulateEditor(WheelSpinTrigger trigger)
     {
-        SuppressChanges(() =>
+        SuppressChangesDeferred(() =>
         {
             TriggerEnabledCheck.IsChecked = trigger.IsEnabled;
 
@@ -500,7 +510,7 @@ public partial class WheelTriggerEditor : UserControl
         });
         EventTypeSourceLabel.Text = trigger.EventType.GetSource().ToString();
 
-        SuppressChanges(() =>
+        SuppressChangesDeferred(() =>
         {
             var subType = trigger.EventType.GetSubType();
             bool isTwitchTier = TwitchTierTypes.Contains(trigger.EventType);
@@ -693,7 +703,7 @@ public partial class WheelTriggerEditor : UserControl
         RefreshTriggerRowHighlight(null);
 
         EventTypeSourceLabel.Text = "";
-        SuppressChanges(() =>
+        SuppressChangesDeferred(() =>
         {
             TriggerEnabledCheck.IsChecked = true;
             _selectedEventTag = null;

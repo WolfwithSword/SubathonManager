@@ -14,7 +14,7 @@ using SubathonManager.Tests.Utility;
 // ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class ThroneServiceTests
 {
     public ThroneServiceTests()

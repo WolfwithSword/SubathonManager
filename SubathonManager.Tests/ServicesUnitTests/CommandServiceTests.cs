@@ -11,7 +11,7 @@ using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
-[Collection("ProviderOverrideTests")]
+[Collection("GlobalState")]
 public class CommandServiceTests
 {
     public CommandServiceTests()

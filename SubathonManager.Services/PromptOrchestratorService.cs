@@ -59,29 +59,36 @@ public class PromptOrchestratorService(
     
     private async void OnPromptSetEnabledChanged(bool enabled)
     {
-        if (enabled && _subathonRunning)
+        try
         {
-            await TryStartSchedulerAsync();
-            return;
-        }
-
-        UnregisterAll();
-
-        if (!enabled)
-        {
-            await using var db = await factory.CreateDbContextAsync();
-            var run = await db.SubathonPromptRuns
-                .Include(r => r.LinkedPrompt)
-                .FirstOrDefaultAsync(r => r.Status == SubathonPromptRunStatus.Active);
-
-            if (run != null)
+            if (enabled && _subathonRunning)
             {
-                run.Status = SubathonPromptRunStatus.Cancelled;
-                run.EndedAt = DateTime.Now;
-                db.SubathonPromptRuns.Update(run);
-                await db.SaveChangesAsync();
-                SubathonEvents.RaisePromptRunUpdate(run, run.LinkedPrompt);
+                await TryStartSchedulerAsync();
+                return;
             }
+
+            UnregisterAll();
+
+            if (!enabled)
+            {
+                await using var db = await factory.CreateDbContextAsync();
+                var run = await db.SubathonPromptRuns
+                    .Include(r => r.LinkedPrompt)
+                    .FirstOrDefaultAsync(r => r.Status == SubathonPromptRunStatus.Active);
+
+                if (run != null)
+                {
+                    run.Status = SubathonPromptRunStatus.Cancelled;
+                    run.EndedAt = DateTime.Now;
+                    db.SubathonPromptRuns.Update(run);
+                    await db.SaveChangesAsync();
+                    SubathonEvents.RaisePromptRunUpdate(run, run.LinkedPrompt);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "[PromptOrchestrator] Error handling prompt set enabled change");
         }
     }
     private void OnSubathonDataUpdate(SubathonData data, DateTime _)

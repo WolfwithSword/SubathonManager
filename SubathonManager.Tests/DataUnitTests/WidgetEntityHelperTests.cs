@@ -10,7 +10,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.DataUnitTests;
 
-[Collection("ProviderOverrideTests")]
+[Collection("GlobalState")]
 public class WidgetEntityHelperTests
 {
     private static IConfig MakeMockConfig(Dictionary<(string, string), string>? values = null)

@@ -10,7 +10,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.DataUnitTests;
 
-[Collection("ProviderOverrideTests")]
+[Collection("GlobalState")]
 public class OverlayPorterTests : IDisposable
 {
     private readonly List<string> _tempDirs = new();

@@ -15,7 +15,7 @@ using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
-[Collection("SharedEventBusTests")]
+[Collection("GlobalState")]
 public class DevTunnelsServiceTests
 {
     public DevTunnelsServiceTests()
