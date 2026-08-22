@@ -38,6 +38,10 @@ public class OBSService : IAppService
         new(TimeSpan.FromSeconds(3), maxRetries: 1000, maxBackoff: TimeSpan.FromSeconds(10), infiniteRetries: true);
 
     public bool Connected => _obs.IsConnected;
+    private readonly Lock _scriptCheckLock = new();
+    private Task? _scriptCheckTask;
+    private DateTime _lastScriptCheckedAt = DateTime.MinValue;
+    private static readonly TimeSpan ScriptCheckMinInterval = TimeSpan.FromSeconds(5);
 
     private const string HelperHotkeyName = "subathonmanager_apply_tweaks";
     private const string HelperVersionHotkeyPrefix = "subathonmanager_version_";
@@ -102,6 +106,8 @@ public class OBSService : IAppService
 
     private volatile bool _stopRequested;
 
+    private int _startupRefreshDone;
+
     public void TryConnect()
     {
         var host = _config.Get("OBS", "Host", "localhost")!;
@@ -150,7 +156,45 @@ public class OBSService : IAppService
             Status = true
         });
 
-        _ = Task.Run(CheckHelperScriptAsync);
+        _ = Task.Run(async () =>
+        {
+            await CheckHelperScriptAsync(force: true);
+            await RunStartupBrowserSourceRefreshAsync();
+        });
+    }
+
+    private async Task RunStartupBrowserSourceRefreshAsync()
+    {
+        if (Interlocked.Exchange(ref _startupRefreshDone, 1) != 0) return;
+
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            if (_stopRequested || !_obs.IsConnected)
+            {
+                Interlocked.Exchange(ref _startupRefreshDone, 0);
+                return;
+            }
+
+            var serverPort = _config.Get("Server", "Port", "14040")!;
+            var cards = await GetOverlayBrowserSourcesAsync(serverPort);
+
+            int refreshed = 0;
+            foreach (var sourceName in cards.Select(c => c.SourceName).Distinct(StringComparer.Ordinal))
+            {
+                if (!_obs.IsConnected) break;
+                RefreshBrowserSource(sourceName);
+                refreshed++;
+                await Task.Delay(100);
+            }
+
+            if (refreshed > 0)
+                _logger?.LogInformation("[OBSService] Refreshed {Count} overlay browser source(s) on startup", refreshed);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[OBSService] Startup browser source refresh failed");
+        }
     }
 
     private void OnDisconnected(object? sender, ObsDisconnectionInfo e)
@@ -161,6 +205,7 @@ public class OBSService : IAppService
             HelperScriptVersion = null;
             HelperScriptStatusChanged?.Invoke(false);
         }
+
         BroadcastHelperScriptStatus();
 
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
@@ -252,8 +297,21 @@ public class OBSService : IAppService
             _secureStorage.GetOrDefault(StorageKeys.OBSWebSocketPassword, string.Empty)!
         );
     }
-    
-    private async Task CheckHelperScriptAsync()
+
+    private Task CheckHelperScriptAsync(bool force = false)
+    {
+        lock (_scriptCheckLock)
+        {
+            if (_scriptCheckTask is { IsCompleted: false } inFlight) return inFlight;
+            if (!force && DateTime.UtcNow - _lastScriptCheckedAt < ScriptCheckMinInterval)
+                return Task.CompletedTask;
+
+            _scriptCheckTask = Task.Run(RunHelperScriptCheckAsync);
+            return _scriptCheckTask;
+        }
+    }
+
+    private async Task RunHelperScriptCheckAsync()
     {
         EnsureScriptFileOnDisk();
         await Task.Delay(250);
@@ -261,8 +319,9 @@ public class OBSService : IAppService
 
         bool active = false;
         string? version = null;
-        try
-        {
+        bool obsStillStarting = false;
+
+        try {
             var response = _obs.SendRequest("GetHotkeyList");
             var hotkeys = response?["hotkeys"] as JArray;
             var names = hotkeys?.Select(h => h?.ToString()?.Trim()).ToList();
@@ -272,8 +331,7 @@ public class OBSService : IAppService
                 .FirstOrDefault(n => n != null && n.StartsWith(HelperVersionHotkeyPrefix, StringComparison.Ordinal))?
                 [HelperVersionHotkeyPrefix.Length..];
 
-            if (active)
-            {
+            if (active) {
                 if (version != null && !string.Equals(version, ExpectedHelperScriptVersion, StringComparison.Ordinal))
                     _logger?.LogWarning(
                         "[OBSService] Helper script detected but outdated (v{Loaded} loaded, v{Expected} available). Reload it in OBS Tools -> Scripts",
@@ -285,8 +343,7 @@ public class OBSService : IAppService
                 else
                     _logger?.LogInformation("[OBSService] Helper script detected (v{Version})", version);
             }
-            else
-            {
+            else {
                 _logger?.LogWarning(
                     "[OBSService] Helper script not loaded in OBS ({Count} hotkeys reported). Add it once via OBS Tools -> Scripts: {Path}",
                     hotkeys?.Count ?? -1, ScriptPath);
@@ -294,10 +351,18 @@ public class OBSService : IAppService
                     hotkeys != null ? string.Join(", ", hotkeys.Select(h => h?.ToString())) : "<none>");
             }
         }
-        catch (Exception ex)
-        {
+        catch (ErrorResponseException ex) when (ex.ErrorCode == 201) {
+            obsStillStarting = true;
+            _logger?.LogDebug(ex, "[OBSService] Waiting for OBS to startup successfully before checking again");
+        }
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] Helper script check failed");
         }
+        finally {
+            lock (_scriptCheckLock) _lastScriptCheckedAt = DateTime.UtcNow;
+        }
+
+        if (obsStillStarting) return;
 
         HelperScriptActive = active;
         HelperScriptVersion = active ? version : null;
@@ -320,7 +385,7 @@ public class OBSService : IAppService
     public void RecheckHelperScript()
     {
         if (!_obs.IsConnected) return;
-        _ = Task.Run(CheckHelperScriptAsync);
+        _ = CheckHelperScriptAsync();
     }
 
     private static string? ReadEmbeddedScriptContent()
