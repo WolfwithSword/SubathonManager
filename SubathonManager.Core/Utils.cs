@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
@@ -307,6 +308,8 @@ public static class Utils
         }
     }
     
+    
+    [ExcludeFromCodeCoverage]
     public static class SingleInstanceHelper
     {
         public const int WM_SHOWAPP = 0x0400 + 1;

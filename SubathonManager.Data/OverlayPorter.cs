@@ -684,6 +684,7 @@ public static class OverlayPorter
             new ImportResult { Failed = true, FailReason = reason };
     }
 
+    [ExcludeFromCodeCoverage]
     private record PackReference(string PackId, string Version, string Entry, string ZipPath);
 
     private class ExportPlan

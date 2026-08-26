@@ -66,6 +66,8 @@ public sealed class AspNetContextAdapter(HttpContext ctx) : IHttpContext
     }
 }
 
+
+[ExcludeFromCodeCoverage]
 internal sealed class NoopHostLifetime : IHostLifetime
 {
     public Task WaitForStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
