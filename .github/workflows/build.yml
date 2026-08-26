@@ -150,12 +150,17 @@ jobs:
         if: always()
         shell: bash
         run: ls -la coverage/**/coverage.cobertura.xml || true
-
+        
+      - name: List raw coverage files
+        if: always()
+        shell: bash
+        run: find . -name '*.cobertura.xml' -print || true
+        
       - name: Merge coverage reports
         if: always()
         uses: danielpalme/ReportGenerator-GitHub-Action@5
         with:
-          reports: coverage/**/coverage.cobertura.xml
+          reports: '**/*.cobertura.xml'
           targetdir: coverage-merged
           reporttypes: Cobertura
 
