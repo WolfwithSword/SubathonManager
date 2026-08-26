@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;
+using OBSWebsocketDotNet.Types;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -10,6 +12,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
@@ -28,47 +31,32 @@ public sealed record ObsBrowserSourceCard(
     Guid? RouteId);
 
 [ExcludeFromCodeCoverage]
-public class OBSService : IAppService
-{
-    private readonly ILogger? _logger;
-    private readonly IConfig _config;
-    private readonly ISecureStorage _secureStorage;
-    private readonly OBSWebsocket _obs = new();
-    private readonly Utils.ServiceReconnectState _reconnectState =
-        new(TimeSpan.FromSeconds(3), maxRetries: 1000, maxBackoff: TimeSpan.FromSeconds(10), infiniteRetries: true);
-
-    public bool Connected => _obs.IsConnected;
-    private readonly Lock _scriptCheckLock = new();
-    private Task? _scriptCheckTask;
-    private DateTime _lastScriptCheckedAt = DateTime.MinValue;
-    private static readonly TimeSpan ScriptCheckMinInterval = TimeSpan.FromSeconds(5);
-
+public class OBSService : IAppService {
     private const string HelperHotkeyName = "subathonmanager_apply_tweaks";
     private const string HelperVersionHotkeyPrefix = "subathonmanager_version_";
     private const string ManagedMarkerKey = "subathon_managed";
     private const string ScriptFileName = "subathonmanager.lua";
     private const string ScriptResourceName = "SubathonManager.Integration.obs.subathonmanager.lua";
-
-    public bool HelperScriptActive { get; private set; }
-    
-    public string? HelperScriptVersion { get; private set; }
-
-    public bool HelperScriptOutdated =>
-        HelperScriptActive
-        && ExpectedHelperScriptVersion != null
-        && !string.Equals(HelperScriptVersion, ExpectedHelperScriptVersion, StringComparison.Ordinal);
+    private static readonly TimeSpan ScriptCheckMinInterval = TimeSpan.FromSeconds(5);
 
     private static readonly Lazy<string?> ExpectedScriptVersionLazy = new(ReadEmbeddedScriptVersion);
-    public static string? ExpectedHelperScriptVersion => ExpectedScriptVersionLazy.Value;
+    private readonly IConfig _config;
+    private readonly ILogger? _logger;
+    private readonly OBSWebsocket _obs = new();
 
-    public event Action<bool>? HelperScriptStatusChanged;
-    
-    public event Action? BrowserSourcesChanged;
+    private readonly Utils.ServiceReconnectState _reconnectState =
+        new(TimeSpan.FromSeconds(3), 1000, TimeSpan.FromSeconds(10), true);
 
-    public static string ScriptPath => Path.GetFullPath(Path.Combine("obs", ScriptFileName));
+    private readonly Lock _scriptCheckLock = new();
+    private readonly ISecureStorage _secureStorage;
+    private DateTime _lastScriptCheckedAt = DateTime.MinValue;
+    private Task? _scriptCheckTask;
 
-    public OBSService(ILogger<OBSService>? logger, IConfig config, ISecureStorage secureStorage)
-    {
+    private int _startupRefreshDone;
+
+    private volatile bool _stopRequested;
+
+    public OBSService(ILogger<OBSService>? logger, IConfig config, ISecureStorage secureStorage) {
         _logger = logger;
         _config = config;
         _secureStorage = secureStorage;
@@ -76,112 +64,110 @@ public class OBSService : IAppService
         _obs.Connected += OnConnected;
         _obs.Disconnected += OnDisconnected;
     }
-    
-    public List<string> GetScenes()
-    {
-        return _obs.GetSceneList().Scenes
-            .Select(s => s.Name)
-            .ToList();
-    }
 
-    public string GetCurrentScene()
-    {
-        return _obs.GetCurrentProgramScene();
-    }
+    public bool Connected => _obs.IsConnected;
 
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
+    public bool HelperScriptActive { get; private set; }
+
+    public string? HelperScriptVersion { get; private set; }
+
+    public bool HelperScriptOutdated =>
+        HelperScriptActive
+        && ExpectedHelperScriptVersion != null
+        && !string.Equals(HelperScriptVersion, ExpectedHelperScriptVersion, StringComparison.Ordinal);
+
+    public static string? ExpectedHelperScriptVersion => ExpectedScriptVersionLazy.Value;
+
+    public static string ScriptPath => Path.GetFullPath(Path.Combine("obs", ScriptFileName));
+
+    public Task StartAsync(CancellationToken cancellationToken = default) {
         EnsureScriptFileOnDisk();
         _ = Task.Run(TryConnect, cancellationToken);
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
-    {
+    public Task StopAsync(CancellationToken cancellationToken = default) {
         _stopRequested = true;
         _reconnectState.Cts?.Cancel();
         if (_obs.IsConnected) _obs.Disconnect();
         return Task.CompletedTask;
     }
 
-    private volatile bool _stopRequested;
+    public event Action<bool>? HelperScriptStatusChanged;
 
-    private int _startupRefreshDone;
+    public event Action? BrowserSourcesChanged;
 
-    public void TryConnect()
-    {
-        var host = _config.Get("OBS", "Host", "localhost")!;
-        var port = _config.Get("OBS", "Port", "4455")!;
-        var password = _secureStorage.GetOrDefault(StorageKeys.OBSWebSocketPassword, string.Empty);
+    public List<string> GetScenes() {
+        return _obs.GetSceneList().Scenes
+            .Select(s => s.Name)
+            .ToList();
+    }
+
+    public string GetCurrentScene() {
+        return _obs.GetCurrentProgramScene();
+    }
+
+    public void TryConnect() {
+        string host = _config.Get("OBS", "Host", "localhost")!;
+        string port = _config.Get("OBS", "Port", "4455")!;
+        string? password = _secureStorage.GetOrDefault(StorageKeys.OBSWebSocketPassword, string.Empty);
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port)) return;
 
         _stopRequested = false;
-        try
-        {
+        try {
             var url = $"ws://{host}:{port}";
             _obs.ConnectAsync(url, password);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             if (_reconnectState.Retries < 3)
                 _logger?.LogWarning(ex, "[OBSService] Connection attempt failed");
             else
-            {
                 _logger?.LogDebug(ex, "[OBSService] Connection attempt failed");
-            }
         }
 
         _ = Task.Run(VerifyConnectionOrRetryAsync);
     }
 
-    private async Task VerifyConnectionOrRetryAsync()
-    {
+    private async Task VerifyConnectionOrRetryAsync() {
         await Task.Delay(TimeSpan.FromSeconds(3));
         if (_stopRequested || _obs.IsConnected) return;
         await ReconnectWithBackoffAsync();
     }
 
-    private void OnConnected(object? sender, EventArgs e)
-    {
+    private void OnConnected(object? sender, EventArgs e) {
         _logger?.LogInformation("[OBSService] Connected");
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.OBS,
             Service = "OBS",
             Name = "WebSocket",
             Status = true
         });
 
-        _ = Task.Run(async () =>
-        {
-            await CheckHelperScriptAsync(force: true);
+        _ = Task.Run(async () => {
+            await CheckHelperScriptAsync(true);
             await RunStartupBrowserSourceRefreshAsync();
         });
     }
 
-    private async Task RunStartupBrowserSourceRefreshAsync()
-    {
+    private async Task RunStartupBrowserSourceRefreshAsync() {
         if (Interlocked.Exchange(ref _startupRefreshDone, 1) != 0) return;
 
-        try
-        {
+        try {
             await Task.Delay(TimeSpan.FromSeconds(5));
-            if (_stopRequested || !_obs.IsConnected)
-            {
+            if (_stopRequested || !_obs.IsConnected) {
                 Interlocked.Exchange(ref _startupRefreshDone, 0);
                 return;
             }
 
-            var serverPort = _config.Get("Server", "Port", "14040")!;
-            var cards = await GetOverlayBrowserSourcesAsync(serverPort);
+            string serverPort = _config.Get("Server", "Port", "14040")!;
+            List<ObsBrowserSourceCard> cards = await GetOverlayBrowserSourcesAsync(serverPort);
 
-            int refreshed = 0;
-            foreach (var sourceName in cards.Select(c => c.SourceName).Distinct(StringComparer.Ordinal))
-            {
+            var refreshed = 0;
+            foreach (string sourceName in cards.Select(c => c.SourceName).Distinct(StringComparer.Ordinal)) {
                 if (!_obs.IsConnected) break;
                 RefreshBrowserSource(sourceName);
                 refreshed++;
@@ -189,18 +175,16 @@ public class OBSService : IAppService
             }
 
             if (refreshed > 0)
-                _logger?.LogInformation("[OBSService] Refreshed {Count} overlay browser source(s) on startup", refreshed);
+                _logger?.LogInformation("[OBSService] Refreshed {Count} overlay browser source(s) on startup",
+                    refreshed);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] Startup browser source refresh failed");
         }
     }
 
-    private void OnDisconnected(object? sender, ObsDisconnectionInfo e)
-    {
-        if (HelperScriptActive)
-        {
+    private void OnDisconnected(object? sender, ObsDisconnectionInfo e) {
+        if (HelperScriptActive) {
             HelperScriptActive = false;
             HelperScriptVersion = null;
             HelperScriptStatusChanged?.Invoke(false);
@@ -208,61 +192,54 @@ public class OBSService : IAppService
 
         BroadcastHelperScriptStatus();
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.OBS,
             Service = "OBS",
             Name = "WebSocket",
             Status = false
         });
 
-        if (_reconnectState.Retries < 2)
-        {
+        if (_reconnectState.Retries < 2) {
             _logger?.LogWarning("[OBSService] Disconnected: {Reason}", e.DisconnectReason ?? "Not Running?");
             _ = Task.Run(ReconnectWithBackoffAsync);
         }
     }
-    
+
     [ExcludeFromCodeCoverage]
-    private async Task ReconnectWithBackoffAsync()
-    {
+    private async Task ReconnectWithBackoffAsync() {
         if (!await _reconnectState.Lock.WaitAsync(0)) return;
 
-        try
-        {
+        try {
             _reconnectState.Cts?.Cancel();
             _reconnectState.Cts = new CancellationTokenSource();
-            var token = _reconnectState.Cts.Token;
+            CancellationToken token = _reconnectState.Cts.Token;
 
-            var host = _config.Get("OBS", "Host", "")!;
-            var port = _config.Get("OBS", "Port", "")!;
+            string host = _config.Get("OBS", "Host")!;
+            string port = _config.Get("OBS", "Port")!;
             if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port)) return;
 
-            while (!token.IsCancellationRequested && !_obs.IsConnected)
-            {
-                if (!_reconnectState.InfiniteRetries && _reconnectState.Retries >= _reconnectState.MaxRetries)
-                {
+            while (!token.IsCancellationRequested && !_obs.IsConnected) {
+                if (!_reconnectState.InfiniteRetries && _reconnectState.Retries >= _reconnectState.MaxRetries) {
                     _logger?.LogError("[OBSService] Max reconnect retries reached");
                     return;
                 }
 
                 _reconnectState.Retries++;
-                var delay = _reconnectState.Backoff;
+                TimeSpan delay = _reconnectState.Backoff;
 
-                if (!_reconnectState.InfiniteRetries && (_reconnectState.Retries < 3 || _reconnectState.Retries % 10 == 0))
-                {
+                if (!_reconnectState.InfiniteRetries &&
+                    (_reconnectState.Retries < 3 || _reconnectState.Retries % 10 == 0))
                     _logger?.LogDebug("[OBSService] Reconnect attempt {N} in {Delay}s",
                         _reconnectState.Retries, delay.TotalSeconds);
-                }
 
-                try
-                {
+                try {
                     await Task.Delay(delay, token);
                     if (!_obs.IsConnected) TryConnect();
                 }
-                catch (OperationCanceledException) { return; }
-                catch (Exception ex)
-                {
+                catch (OperationCanceledException) {
+                    return;
+                }
+                catch (Exception ex) {
                     _logger?.LogWarning(ex, "[OBSService] Reconnect error");
                 }
 
@@ -272,15 +249,13 @@ public class OBSService : IAppService
                         _reconnectState.MaxBackoff.TotalMilliseconds));
             }
         }
-        finally
-        {
+        finally {
             _reconnectState.Lock.Release();
         }
     }
 
-    public bool SaveConfig(string host, string port, string password, bool forceSave = false)
-    {
-        bool hasUpdated = false;
+    public bool SaveConfig(string host, string port, string password, bool forceSave = false) {
+        var hasUpdated = false;
         hasUpdated |= _config.Set("OBS", "Host", host);
         hasUpdated |= _config.Set("OBS", "Port", port);
         hasUpdated |= _secureStorage.Set(StorageKeys.OBSWebSocketPassword, password);
@@ -289,8 +264,7 @@ public class OBSService : IAppService
         return hasUpdated;
     }
 
-    public (string host, string port, string password) GetConfig()
-    {
+    public (string host, string port, string password) GetConfig() {
         return (
             _config.Get("OBS", "Host", "localhost")!,
             _config.Get("OBS", "Port", "4455")!,
@@ -298,10 +272,8 @@ public class OBSService : IAppService
         );
     }
 
-    private Task CheckHelperScriptAsync(bool force = false)
-    {
-        lock (_scriptCheckLock)
-        {
+    private Task CheckHelperScriptAsync(bool force = false) {
+        lock (_scriptCheckLock) {
             if (_scriptCheckTask is { IsCompleted: false } inFlight) return inFlight;
             if (!force && DateTime.UtcNow - _lastScriptCheckedAt < ScriptCheckMinInterval)
                 return Task.CompletedTask;
@@ -311,20 +283,19 @@ public class OBSService : IAppService
         }
     }
 
-    private async Task RunHelperScriptCheckAsync()
-    {
+    private async Task RunHelperScriptCheckAsync() {
         EnsureScriptFileOnDisk();
         await Task.Delay(250);
         if (!_obs.IsConnected) return;
 
-        bool active = false;
+        var active = false;
         string? version = null;
-        bool obsStillStarting = false;
+        var obsStillStarting = false;
 
         try {
-            var response = _obs.SendRequest("GetHotkeyList");
+            JObject? response = _obs.SendRequest("GetHotkeyList");
             var hotkeys = response?["hotkeys"] as JArray;
-            var names = hotkeys?.Select(h => h?.ToString()?.Trim()).ToList();
+            List<string?>? names = hotkeys?.Select(h => h?.ToString()?.Trim()).ToList();
             active = names != null &&
                      names.Any(n => string.Equals(n, HelperHotkeyName, StringComparison.Ordinal));
             version = names?
@@ -359,7 +330,9 @@ public class OBSService : IAppService
             _logger?.LogWarning(ex, "[OBSService] Helper script check failed");
         }
         finally {
-            lock (_scriptCheckLock) _lastScriptCheckedAt = DateTime.UtcNow;
+            lock (_scriptCheckLock) {
+                _lastScriptCheckedAt = DateTime.UtcNow;
+            }
         }
 
         if (obsStillStarting) return;
@@ -370,10 +343,8 @@ public class OBSService : IAppService
         BroadcastHelperScriptStatus();
     }
 
-    private void BroadcastHelperScriptStatus()
-    {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+    private void BroadcastHelperScriptStatus() {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.OBS,
             Service = "HelperScript",
             Name = "Helper Script",
@@ -382,93 +353,75 @@ public class OBSService : IAppService
         });
     }
 
-    public void RecheckHelperScript()
-    {
+    public void RecheckHelperScript() {
         if (!_obs.IsConnected) return;
         _ = CheckHelperScriptAsync();
     }
 
-    private static string? ReadEmbeddedScriptContent()
-    {
-        using var stream = typeof(OBSService).Assembly.GetManifestResourceStream(ScriptResourceName);
+    private static string? ReadEmbeddedScriptContent() {
+        using Stream? stream = typeof(OBSService).Assembly.GetManifestResourceStream(ScriptResourceName);
         if (stream == null) return null;
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
     }
 
-    private static string? ReadEmbeddedScriptVersion()
-    {
-        var content = ReadEmbeddedScriptContent();
+    private static string? ReadEmbeddedScriptVersion() {
+        string? content = ReadEmbeddedScriptContent();
         if (content == null) return null;
-        var match = System.Text.RegularExpressions.Regex.Match(
+        Match match = Regex.Match(
             content, "SCRIPT_VERSION\\s*=\\s*\"([^\"]+)\"");
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private void EnsureScriptFileOnDisk()
-    {
-        try
-        {
-            var content = ReadEmbeddedScriptContent();
-            if (content == null)
-            {
+    private void EnsureScriptFileOnDisk() {
+        try {
+            string? content = ReadEmbeddedScriptContent();
+            if (content == null) {
                 _logger?.LogWarning("[OBSService] Embedded helper script resource not found");
                 return;
             }
 
-            var path = ScriptPath;
+            string path = ScriptPath;
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             if (!File.Exists(path) || File.ReadAllText(path) != content)
                 File.WriteAllText(path, content);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] Failed to write helper script to disk");
         }
     }
-    
-    public async Task TryApplyHelperTweaksAsync()
-    {
+
+    public async Task TryApplyHelperTweaksAsync() {
         if (!_obs.IsConnected) return;
-        if (!HelperScriptActive)
-        {
-            await CheckHelperScriptAsync();
-        }
-        if (!HelperScriptActive)
-        {
+        if (!HelperScriptActive) await CheckHelperScriptAsync();
+        if (!HelperScriptActive) {
             _logger?.LogDebug("[OBSService] Skipping helper tweaks - script not loaded in OBS");
             return;
         }
 
-        try
-        {
-            var request = new JObject
-            {
+        try {
+            var request = new JObject {
                 ["hotkeyName"] = HelperHotkeyName
             };
             _obs.SendRequest("TriggerHotkeyByName", request);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] TriggerHotkeyByName for helper script failed");
         }
     }
-    
-    public async Task<List<ObsBrowserSourceCard>> GetOverlayBrowserSourcesAsync(string serverPort)
-    {
+
+    public async Task<List<ObsBrowserSourceCard>> GetOverlayBrowserSourcesAsync(string serverPort) {
         var cards = new List<ObsBrowserSourceCard>();
         if (!_obs.IsConnected) return cards;
 
-        if (HelperScriptActive)
-        {
+        if (HelperScriptActive) {
             await TryApplyHelperTweaksAsync();
             await Task.Delay(300);
         }
 
         bool adoptedAny = CollectBrowserSourceCards(serverPort, cards);
 
-        if (adoptedAny && HelperScriptActive)
-        {
+        if (adoptedAny && HelperScriptActive) {
             await TryApplyHelperTweaksAsync();
             await Task.Delay(300);
             cards.Clear();
@@ -478,51 +431,44 @@ public class OBSService : IAppService
         return cards;
     }
 
-    private bool CollectBrowserSourceCards(string serverPort, List<ObsBrowserSourceCard> cards)
-    {
-        bool adoptedAny = false;
+    private bool CollectBrowserSourceCards(string serverPort, List<ObsBrowserSourceCard> cards) {
+        var adoptedAny = false;
         var settingsCache = new Dictionary<string, JObject?>();
         var seenItems = new HashSet<string>();
 
-        foreach (var sceneName in GetScenes())
-        {
-            adoptedAny |= CollectFromScene(sceneName, sceneName, isGroup: false, serverPort,
+        foreach (string sceneName in GetScenes())
+            adoptedAny |= CollectFromScene(sceneName, sceneName, false, serverPort,
                 cards, settingsCache, seenItems);
-        }
         return adoptedAny;
     }
 
     private bool CollectFromScene(string sceneName, string scenePath, bool isGroup, string serverPort,
         List<ObsBrowserSourceCard> cards, Dictionary<string, JObject?> settingsCache,
-        HashSet<string> seenItems)
-    {
-        bool adoptedAny = false;
+        HashSet<string> seenItems) {
+        var adoptedAny = false;
         JArray? items;
-        try
-        {
-            var response = _obs.SendRequest(isGroup ? "GetGroupSceneItemList" : "GetSceneItemList",
+        try {
+            JObject? response = _obs.SendRequest(isGroup ? "GetGroupSceneItemList" : "GetSceneItemList",
                 new JObject { ["sceneName"] = sceneName });
             items = response?["sceneItems"] as JArray;
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogDebug(ex, "[OBSService] Failed to list scene items for '{Scene}'", sceneName);
             return false;
         }
+
         if (items == null) return false;
 
-        foreach (var item in items)
-        {
-            if (item?["isGroup"]?.Value<bool?>() == true)
-            {
+        foreach (var item in items) {
+            if (item?["isGroup"]?.Value<bool?>() == true) {
                 var groupName = item["sourceName"]?.ToString();
                 if (!string.IsNullOrEmpty(groupName))
-                    adoptedAny |= CollectFromScene(groupName, $"{scenePath} / {groupName}", isGroup: true,
+                    adoptedAny |= CollectFromScene(groupName, $"{scenePath} / {groupName}", true,
                         serverPort, cards, settingsCache, seenItems);
                 continue;
             }
 
-            var inputKind = item?["inputKind"]?.ToString() ?? "";
+            string inputKind = item?["inputKind"]?.ToString() ?? "";
             if (!inputKind.StartsWith("browser_source")) continue;
 
             var sourceName = item?["sourceName"]?.ToString();
@@ -530,46 +476,42 @@ public class OBSService : IAppService
             int itemId = item?["sceneItemId"]?.Value<int>() ?? -1;
             bool visible = item?["sceneItemEnabled"]?.Value<bool>() ?? true;
 
-            if (!settingsCache.TryGetValue(sourceName, out var settings))
-            {
-                try
-                {
-                    var response = _obs.SendRequest("GetInputSettings",
+            if (!settingsCache.TryGetValue(sourceName, out JObject? settings)) {
+                try {
+                    JObject? response = _obs.SendRequest("GetInputSettings",
                         new JObject { ["inputName"] = sourceName });
                     settings = response?["inputSettings"] as JObject;
                 }
-                catch { settings = null; }
+                catch {
+                    settings = null;
+                }
+
                 settingsCache[sourceName] = settings;
             }
+
             if (settings == null) continue;
 
-            var url = settings["url"]?.ToString() ?? "";
+            string url = settings["url"]?.ToString() ?? "";
             bool managed = settings[ManagedMarkerKey]?.Value<bool?>() ?? false;
-            var routeId = TryParseRouteId(url, serverPort, out bool urlMatchesServer);
+            Guid? routeId = TryParseRouteId(url, serverPort, out bool urlMatchesServer);
 
             if (!managed && !urlMatchesServer) continue;
 
             if (!managed && urlMatchesServer)
-            {
-                try
-                {
-                    _obs.SendRequest("SetInputSettings", new Newtonsoft.Json.Linq.JObject
-                    {
+                try {
+                    _obs.SendRequest("SetInputSettings", new JObject {
                         ["inputName"] = sourceName,
                         ["inputSettings"] = new JObject { [ManagedMarkerKey] = true },
                         ["overlay"] = true
                     });
                     adoptedAny = true;
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     _logger?.LogDebug(ex, "[OBSService] Failed to adopt source '{Source}'", sourceName);
                 }
-            }
 
             bool? srgbOff = null;
-            if (settings["subathon_blend_states"] is JObject states)
-            {
+            if (settings["subathon_blend_states"] is JObject states) {
                 var state = states[$"{sceneName}|{itemId}"]?.ToString();
                 if (state == "srgb_off") srgbOff = true;
                 else if (state == "default") srgbOff = false;
@@ -587,105 +529,84 @@ public class OBSService : IAppService
         return adoptedAny;
     }
 
-    private static Guid? TryParseRouteId(string url, string serverPort, out bool urlMatchesServer)
-    {
+    private static Guid? TryParseRouteId(string url, string serverPort, out bool urlMatchesServer) {
         urlMatchesServer = false;
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return null;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)) return null;
         if (uri.Port.ToString() != serverPort) return null;
 
-        var path = uri.AbsolutePath;
+        string path = uri.AbsolutePath;
         const string prefix = "/route/";
         if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return null;
 
         urlMatchesServer = true;
-        var idPart = path[prefix.Length..].TrimEnd('/');
-        return Guid.TryParse(idPart, out var id) ? id : null;
+        string idPart = path[prefix.Length..].TrimEnd('/');
+        return Guid.TryParse(idPart, out Guid id) ? id : null;
     }
 
-    public void SetSceneItemVisible(string sceneName, int sceneItemId, bool visible)
-    {
+    public void SetSceneItemVisible(string sceneName, int sceneItemId, bool visible) {
         if (!_obs.IsConnected) return;
-        try
-        {
-            _obs.SendRequest("SetSceneItemEnabled", new Newtonsoft.Json.Linq.JObject
-            {
+        try {
+            _obs.SendRequest("SetSceneItemEnabled", new JObject {
                 ["sceneName"] = sceneName,
                 ["sceneItemId"] = sceneItemId,
                 ["sceneItemEnabled"] = visible
             });
         }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[OBSService] SetSceneItemEnabled failed for '{Scene}'/{Id}", sceneName, sceneItemId);
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "[OBSService] SetSceneItemEnabled failed for '{Scene}'/{Id}", sceneName,
+                sceneItemId);
         }
     }
 
-    public void RefreshBrowserSource(string sourceName)
-    {
+    public void RefreshBrowserSource(string sourceName) {
         if (!_obs.IsConnected) return;
-        try
-        {
-            _obs.SendRequest("PressInputPropertiesButton", new JObject
-            {
+        try {
+            _obs.SendRequest("PressInputPropertiesButton", new JObject {
                 ["inputName"] = sourceName,
                 ["propertyName"] = "refreshnocache"
             });
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] RefreshBrowserSource failed for '{Source}'", sourceName);
         }
     }
 
-    public void RemoveBrowserSource(string sourceName)
-    {
+    public void RemoveBrowserSource(string sourceName) {
         if (!_obs.IsConnected) return;
-        try
-        {
+        try {
             _obs.SendRequest("RemoveInput", new JObject { ["inputName"] = sourceName });
             BrowserSourcesChanged?.Invoke();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] RemoveInput failed for '{Source}'", sourceName);
         }
     }
 
-    public void SetBrowserSourceSize(string sourceName, int width, int height)
-    {
+    public void SetBrowserSourceSize(string sourceName, int width, int height) {
         if (!_obs.IsConnected) return;
-        try
-        {
-            _obs.SendRequest("SetInputSettings", new JObject
-            {
+        try {
+            _obs.SendRequest("SetInputSettings", new JObject {
                 ["inputName"] = sourceName,
-                ["inputSettings"] = new JObject
-                {
+                ["inputSettings"] = new JObject {
                     ["width"] = width,
                     ["height"] = height
                 },
                 ["overlay"] = true
             });
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] SetBrowserSourceSize failed for '{Source}'", sourceName);
         }
     }
 
-    public async Task RequestBlendMethodAsync(string sourceName, string sceneName, int sceneItemId, bool srgbOff)
-    {
+    public async Task RequestBlendMethodAsync(string sourceName, string sceneName, int sceneItemId, bool srgbOff) {
         if (!_obs.IsConnected) return;
-        try
-        {
-            _obs.SendRequest("SetInputSettings", new JObject
-            {
+        try {
+            _obs.SendRequest("SetInputSettings", new JObject {
                 ["inputName"] = sourceName,
-                ["inputSettings"] = new JObject
-                {
+                ["inputSettings"] = new JObject {
                     [ManagedMarkerKey] = true,
-                    ["subathon_blend_request"] = new JObject
-                    {
+                    ["subathon_blend_request"] = new JObject {
                         ["method"] = srgbOff ? "srgb_off" : "default",
                         ["scene"] = sceneName,
                         ["item"] = sceneItemId
@@ -695,27 +616,24 @@ public class OBSService : IAppService
             });
             await TryApplyHelperTweaksAsync();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "[OBSService] RequestBlendMethod failed for '{Source}'", sourceName);
         }
     }
 
     public async Task AddBrowserSource(
         string sourceName, string url, int width, int height,
-        string sceneName, bool fitToScreen = false)
-    {
+        string sceneName, bool fitToScreen = false) {
         if (!_obs.IsConnected)
             throw new InvalidOperationException("OBS is not connected");
 
-        var existingInputs = _obs.GetInputList();
+        List<InputBasicInfo>? existingInputs = _obs.GetInputList();
         string finalName = sourceName;
-        int count = 1;
+        var count = 1;
         while (existingInputs.Any(i => i.InputName == finalName))
             finalName = $"{sourceName} ({count++})";
 
-        var settings = new JObject
-        {
+        var settings = new JObject {
             ["url"] = url,
             ["width"] = width,
             ["height"] = height,
@@ -731,21 +649,16 @@ public class OBSService : IAppService
         _obs.CreateInput(sceneName, finalName, "browser_source", settings, true);
         await Task.Delay(500);
         if (fitToScreen)
-        {
-            try
-            {
-                var sceneItems = _obs.GetSceneItemList(sceneName);
-                var item = sceneItems.FirstOrDefault(si => si.SourceName == finalName);
-                if (item != null)
-                {
-                    var videoSettings = _obs.GetVideoSettings();
-            
-                    var transformRequest = new JObject
-                    {
+            try {
+                List<SceneItemDetails>? sceneItems = _obs.GetSceneItemList(sceneName);
+                SceneItemDetails? item = sceneItems.FirstOrDefault(si => si.SourceName == finalName);
+                if (item != null) {
+                    ObsVideoSettings? videoSettings = _obs.GetVideoSettings();
+
+                    var transformRequest = new JObject {
                         ["sceneName"] = sceneName,
                         ["sceneItemId"] = item.ItemId,
-                        ["sceneItemTransform"] = new JObject
-                        {
+                        ["sceneItemTransform"] = new JObject {
                             ["boundsType"] = "OBS_BOUNDS_SCALE_INNER",
                             ["boundsWidth"] = (double)videoSettings.BaseWidth,
                             ["boundsHeight"] = (double)videoSettings.BaseHeight,
@@ -757,11 +670,9 @@ public class OBSService : IAppService
                     _obs.SendRequest("SetSceneItemTransform", transformRequest);
                 }
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 _logger?.LogWarning(ex, "[OBS] SetSceneItemTransform failed");
             }
-        }
 
         await TryApplyHelperTweaksAsync();
         BrowserSourcesChanged?.Invoke();
