@@ -2,8 +2,7 @@
 
 namespace SubathonManager.Core.Objects;
 
-public class SubathonTotals
-{
+public class SubathonTotals {
     public double MoneySum { get; init; } = 0;
     public string? Currency { get; init; } = "USD";
 
@@ -23,8 +22,7 @@ public class SubathonTotals
     public SubathonSimulatedTotals Simulated { get; init; } = new();
 }
 
-public class SubathonSimulatedTotals
-{
+public class SubathonSimulatedTotals {
     public int SubLikeTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> SubLikeByEvent { get; init; } = new();
 

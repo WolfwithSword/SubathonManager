@@ -5,10 +5,8 @@ using SubathonManager.Core.Enums;
 namespace SubathonManager.Core.Models;
 
 [ExcludeFromCodeCoverage]
-public class WidgetCatalogEntry
-{
-    [Key]
-    public int Id { get; set; }
+public class WidgetCatalogEntry {
+    [Key] public int Id { get; set; }
 
     public string PackPath { get; set; } = string.Empty;
     public long FileSize { get; set; }

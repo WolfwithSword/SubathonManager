@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+
 namespace SubathonManager.Core.Enums;
 
-public enum WebsocketClientMessageType
-{
+public enum WebsocketClientMessageType {
     None,
     Generic, // an unconfigured websocket client
     Widget, // consumes all, but is specifically for a widget
@@ -15,21 +15,19 @@ public enum WebsocketClientMessageType
 }
 
 [ExcludeFromCodeCoverage]
-public static class WebsocketClientTypeHelper
-{
-    public static readonly WebsocketClientMessageType[] ConsumersList = new[]
-    {
+public static class WebsocketClientTypeHelper {
+    public static readonly WebsocketClientMessageType[] ConsumersList = new[] {
         WebsocketClientMessageType.Widget,
         WebsocketClientMessageType.IntegrationConsumer
     };
-    
-    public static readonly WebsocketClientMessageType[] ConfigConsumersList = new[]
-    {
+
+    public static readonly WebsocketClientMessageType[] ConfigConsumersList = new[] {
         WebsocketClientMessageType.Widget,
         WebsocketClientMessageType.IntegrationConsumer,
         WebsocketClientMessageType.ValueConfig
     };
 
-    public static bool IsConsumer(this WebsocketClientMessageType varMessageType) =>
-        ConsumersList.Contains(varMessageType);
+    public static bool IsConsumer(this WebsocketClientMessageType varMessageType) {
+        return ConsumersList.Contains(varMessageType);
+    }
 }
