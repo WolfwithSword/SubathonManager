@@ -11,7 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.MTP" Version="*" />
+
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="*" />
     <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="*" />
     <PackageReference Include="Microsoft.Testing.Extensions.CrashDump" Version="*" />
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="*" />
