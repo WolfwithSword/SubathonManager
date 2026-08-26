@@ -104,24 +104,7 @@ jobs:
           --hangdump \
           --hangdump-timeout 5m \
           --coverlet \
-          --coverlet-output-format cobertura \
-          --coverlet-exclude-by-file "**/Migrations/**" \
-          --coverlet-exclude-by-file "**/*.g.cs" \
-          --coverlet-exclude-by-file "**/SubathonManager.UI/**"
-          
-      # - name: Run tests
-      #   run: |
-      #     dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
-      #     --configuration Release \
-      #     --logger "console;verbosity=detailed" \
-      #     --logger "trx;LogFileName=test-results.trx" \
-      #     --blame \
-      #     --blame-crash \
-      #     --blame-hang \
-      #     --blame-hang-timeout 5m \
-      #     --collect:"XPlat Code Coverage" \
-      #     --results-directory ./coverage \
-      #     -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
+          --coverlet-output-format cobertura
 
       - name: Show blame / crash diagnostics
         if: always()
@@ -149,11 +132,6 @@ jobs:
       - name: List raw coverage files
         if: always()
         shell: bash
-        run: ls -la coverage/**/coverage.cobertura.xml || true
-        
-      - name: List raw coverage files
-        if: always()
-        shell: bash
         run: find . -name '*.cobertura.xml' -print || true
         
       - name: Merge coverage reports
@@ -163,6 +141,8 @@ jobs:
           reports: '**/*.cobertura.xml'
           targetdir: coverage-merged
           reporttypes: Cobertura
+          assemblyfilters: '-SubathonManager.UI'
+          filefilters: '-**/Migrations/**;-**/*.g.cs'
 
       - name: Code Coverage Summary Report
         if: always()
