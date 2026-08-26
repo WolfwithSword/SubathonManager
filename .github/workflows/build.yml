@@ -96,15 +96,32 @@ jobs:
         run: |
           dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
           --configuration Release \
-          --logger "console;verbosity=detailed" \
-          --logger "trx;LogFileName=test-results.trx" \
-          --blame \
-          --blame-crash \
-          --blame-hang \
-          --blame-hang-timeout 5m \
-          --collect:"XPlat Code Coverage" \
           --results-directory ./coverage \
-          -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
+          -p:TestingPlatformShowTestsFailure=true \
+          --report-trx \
+          --report-trx-filename test-results.trx \
+          --crashdump \
+          --hangdump \
+          --hangdump-timeout 5m \
+          --coverlet \
+          --coverlet-output-format cobertura \
+          --coverlet-exclude-by-file "**/Migrations/**" \
+          --coverlet-exclude-by-file "**/*.g.cs" \
+          --coverlet-exclude-by-file "**/SubathonManager.UI/**"
+          
+      # - name: Run tests
+      #   run: |
+      #     dotnet test SubathonManager.Tests/SubathonManager.Tests.csproj \
+      #     --configuration Release \
+      #     --logger "console;verbosity=detailed" \
+      #     --logger "trx;LogFileName=test-results.trx" \
+      #     --blame \
+      #     --blame-crash \
+      #     --blame-hang \
+      #     --blame-hang-timeout 5m \
+      #     --collect:"XPlat Code Coverage" \
+      #     --results-directory ./coverage \
+      #     -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.ExcludeByFile="**/Migrations/**;**/*.g.cs;**/SubathonManager.UI/**"
 
       - name: Show blame / crash diagnostics
         if: always()
