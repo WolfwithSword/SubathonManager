@@ -1,12 +1,11 @@
 using SubathonManager.Data.Widgets;
 using SubathonManager.Tests.Utility;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.DataUnitTests;
 
-public class WidgetPackPathsPureTests
-{
-    
+public class WidgetPackPathsPureTests {
     [Theory]
     [InlineData(null, "")]
     [InlineData("", "")]
@@ -21,41 +20,48 @@ public class WidgetPackPathsPureTests
     [InlineData("!!!", "")]
     [InlineData("Über", "ber")]
     [InlineData("MiXeD_CaSe", "mixed-case")]
-    public void Slug_Branches(string? input, string expected)
-        => Assert.Equal(expected, WidgetPackPaths.Slug(input));
+    public void Slug_Branches(string? input, string expected) {
+        Assert.Equal(expected, WidgetPackPaths.Slug(input));
+    }
 
-        
+
     [Theory]
     [InlineData(null, WidgetPackPaths.DefaultGroup)]
     [InlineData("", WidgetPackPaths.DefaultGroup)]
     [InlineData("    ", WidgetPackPaths.DefaultGroup)]
     [InlineData("  Alerts  ", "Alerts")]
     [InlineData("Alerts", "Alerts")]
-    public void NormalizeGroup_Branches(string? input, string expected)
-        => Assert.Equal(expected, WidgetPackPaths.NormalizeGroup(input));
+    public void NormalizeGroup_Branches(string? input, string expected) {
+        Assert.Equal(expected, WidgetPackPaths.NormalizeGroup(input));
+    }
 
-        
-    [Fact]
-    public void MakePackId_AllThreeParts()
-        => Assert.Equal("wolf.alerts.my-timer", WidgetPackPaths.MakePackId("Wolf", "Alerts", "My Timer"));
 
     [Fact]
-    public void MakePackId_BlankAuthor_IsOmitted()
-        => Assert.Equal("widgets.timer", WidgetPackPaths.MakePackId("", "", "Timer"));
+    public void MakePackId_AllThreeParts() {
+        Assert.Equal("wolf.alerts.my-timer", WidgetPackPaths.MakePackId("Wolf", "Alerts", "My Timer"));
+    }
 
     [Fact]
-    public void MakePackId_BlankName_FallsBackToWidget()
-        => Assert.Equal("wolf.alerts.widget", WidgetPackPaths.MakePackId("Wolf", "Alerts", "   "));
+    public void MakePackId_BlankAuthor_IsOmitted() {
+        Assert.Equal("widgets.timer", WidgetPackPaths.MakePackId("", "", "Timer"));
+    }
 
     [Fact]
-    public void MakePackId_UnsluggableAuthor_IsOmitted()
-        => Assert.Equal("widgets.timer", WidgetPackPaths.MakePackId("!!!", null!, "Timer"));
+    public void MakePackId_BlankName_FallsBackToWidget() {
+        Assert.Equal("wolf.alerts.widget", WidgetPackPaths.MakePackId("Wolf", "Alerts", "   "));
+    }
 
     [Fact]
-    public void MakePackId_NullGroup_UsesDefaultGroup()
-        => Assert.Equal("wolf.widgets.timer", WidgetPackPaths.MakePackId("Wolf", null!, "Timer"));
+    public void MakePackId_UnsluggableAuthor_IsOmitted() {
+        Assert.Equal("widgets.timer", WidgetPackPaths.MakePackId("!!!", null!, "Timer"));
+    }
 
-        
+    [Fact]
+    public void MakePackId_NullGroup_UsesDefaultGroup() {
+        Assert.Equal("wolf.widgets.timer", WidgetPackPaths.MakePackId("Wolf", null!, "Timer"));
+    }
+
+
     [Theory]
     [InlineData(null, "")]
     [InlineData("", "")]
@@ -66,10 +72,11 @@ public class WidgetPackPathsPureTests
     [InlineData("beta-1", "beta-1")]
     [InlineData("1-beta", "1-beta")]
     [InlineData("1-2-beta-3", "1.2-beta-3")]
-    public void DisplayVersion_Branches(string? input, string expected)
-        => Assert.Equal(expected, WidgetPackPaths.DisplayVersion(input));
+    public void DisplayVersion_Branches(string? input, string expected) {
+        Assert.Equal(expected, WidgetPackPaths.DisplayVersion(input));
+    }
 
-        
+
     [Theory]
     [InlineData("1", true)]
     [InlineData("1.0", true)]
@@ -84,10 +91,11 @@ public class WidgetPackPathsPureTests
     [InlineData("", false)]
     [InlineData("  ", false)]
     [InlineData(null, false)]
-    public void IsVersionName_Branches(string? input, bool expected)
-        => Assert.Equal(expected, WidgetPackPaths.IsVersionName(input));
+    public void IsVersionName_Branches(string? input, bool expected) {
+        Assert.Equal(expected, WidgetPackPaths.IsVersionName(input));
+    }
 
-        
+
     [Theory]
     [InlineData("1.0.0", "1.0.0", 0)]
     [InlineData("1.0.1", "1.0.0", 1)]
@@ -98,68 +106,66 @@ public class WidgetPackPathsPureTests
     [InlineData("1-2-3", "1-1-9", 1)]
     [InlineData("1.2", "1.2.0", -1)]
     [InlineData("1.2.0", "1.2", 1)]
-    public void CompareVersions_Branches(string left, string right, int expectedSign)
-        => Assert.Equal(expectedSign, Math.Sign(WidgetPackPaths.CompareVersions(left, right)));
+    public void CompareVersions_Branches(string left, string right, int expectedSign) {
+        Assert.Equal(expectedSign, Math.Sign(WidgetPackPaths.CompareVersions(left, right)));
+    }
 
     [Fact]
-    public void CompareVersions_SameVersionDifferentSeparators_IsNotEqual()
-    {
+    public void CompareVersions_SameVersionDifferentSeparators_IsNotEqual() {
         Assert.True(WidgetPackPaths.CompareVersions("1-2-3", "1.2.3") < 0);
         Assert.True(WidgetPackPaths.CompareVersions("1.2.3", "1-2-3") > 0);
     }
 
     [Fact]
-    public void CompareVersions_NoDigits_FallsBackToStringCompare()
-    {
+    public void CompareVersions_NoDigits_FallsBackToStringCompare() {
         Assert.Equal(0, WidgetPackPaths.CompareVersions("latest", "latest"));
         Assert.True(WidgetPackPaths.CompareVersions("beta", "alpha") > 0);
     }
 
     [Fact]
-    public void CompareVersions_LongVersionBeatsShort_WhenExtraSegmentNonZero()
-        => Assert.True(WidgetPackPaths.CompareVersions("1.2.1", "1.2") > 0);
+    public void CompareVersions_LongVersionBeatsShort_WhenExtraSegmentNonZero() {
+        Assert.True(WidgetPackPaths.CompareVersions("1.2.1", "1.2") > 0);
+    }
 
     [Fact]
-    public void CompareVersions_UsableAsAComparer()
-    {
-        var sorted = new[] { "1.10.0", "1.2.0", "2.0.0", "1.9.9" }
+    public void CompareVersions_UsableAsAComparer() {
+        List<string> sorted = new[] { "1.10.0", "1.2.0", "2.0.0", "1.9.9" }
             .OrderBy(v => v, Comparer<string>.Create(WidgetPackPaths.CompareVersions))
             .ToList();
 
-        Assert.Equal(new[] {"1.2.0", "1.9.9", "1.10.0", "2.0.0"}, sorted);
+        Assert.Equal(new[] { "1.2.0", "1.9.9", "1.10.0", "2.0.0" }, sorted);
     }
 
-        
+
     [Fact]
-    public void EntryPathIn_ConvertsForwardSlashesToPlatformSeparators()
-    {
+    public void EntryPathIn_ConvertsForwardSlashesToPlatformSeparators() {
         string root = Path.Combine("C:", "mount");
         Assert.Equal(Path.Combine(root, "content", "widget.html"),
             WidgetPackPaths.EntryPathIn(root, "content/widget.html"));
     }
 
     [Fact]
-    public void EntryPathIn_FlatEntry()
-        => Assert.Equal(Path.Combine("root", "widget.html"),
+    public void EntryPathIn_FlatEntry() {
+        Assert.Equal(Path.Combine("root", "widget.html"),
             WidgetPackPaths.EntryPathIn("root", "widget.html"));
+    }
 
-        
-    [Fact]
-    public void PackExtension_IsSmw() => Assert.Equal(".smw", WidgetPackPaths.PackExtension);
 
     [Fact]
-    public void DefaultGroup_IsWidgets() => Assert.Equal("widgets", WidgetPackPaths.DefaultGroup);
+    public void PackExtension_IsSmw() {
+        Assert.Equal(".smw", WidgetPackPaths.PackExtension);
+    }
 
+    [Fact]
+    public void DefaultGroup_IsWidgets() {
+        Assert.Equal("widgets", WidgetPackPaths.DefaultGroup);
+    }
 }
 
-
 [Collection("WorkingDirectory")]
-public class WidgetPackPathsWorkspaceTests
-{
-    
+public class WidgetPackPathsWorkspaceTests {
     [Fact]
-    public void Roots_AreRelativeToCurrentDirectory()
-    {
+    public void Roots_AreRelativeToCurrentDirectory() {
         using var ws = new TempWorkspace("packpaths");
 
         Assert.Equal(Path.Combine(ws.Root, "imports", "widgets"), WidgetPackPaths.ImportsRoot);
@@ -170,8 +176,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void PackFolder_MountRoot_PackFile_And_EntryPath_Compose()
-    {
+    public void PackFolder_MountRoot_PackFile_And_EntryPath_Compose() {
         using var ws = new TempWorkspace("packpaths");
 
         string folder = WidgetPackPaths.PackFolder("wolf.widgets.timer");
@@ -182,24 +187,22 @@ public class WidgetPackPathsWorkspaceTests
             WidgetPackPaths.EntryPath("wolf.widgets.timer", "1-0-0", "content/widget.html"));
     }
 
-        
+
     [Fact]
-    public void VersionsIn_MissingFolder_ReturnsEmpty()
-    {
+    public void VersionsIn_MissingFolder_ReturnsEmpty() {
         using var ws = new TempWorkspace("packpaths");
         Assert.Empty(WidgetPackPaths.VersionsIn(Path.Combine(ws.Root, "nope")));
     }
 
     [Fact]
-    public void VersionsIn_ReturnsPackFileNamesWithoutExtension()
-    {
+    public void VersionsIn_ReturnsPackFileNamesWithoutExtension() {
         using var ws = new TempWorkspace("packpaths");
         string folder = ws.Dir("packs");
         File.WriteAllText(Path.Combine(folder, "1-0-0.smw"), "");
         File.WriteAllText(Path.Combine(folder, "1-1-0.smw"), "");
         File.WriteAllText(Path.Combine(folder, "readme.txt"), "");
 
-        var versions = WidgetPackPaths.VersionsIn(folder);
+        List<string> versions = WidgetPackPaths.VersionsIn(folder);
 
         Assert.Equal(2, versions.Count);
         Assert.Contains("1-0-0", versions);
@@ -207,8 +210,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void VersionsIn_IsCached_UntilInvalidated()
-    {
+    public void VersionsIn_IsCached_UntilInvalidated() {
         using var ws = new TempWorkspace("packpaths");
         string folder = ws.Dir("packs");
         File.WriteAllText(Path.Combine(folder, "1-0-0.smw"), "");
@@ -223,19 +225,17 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void InstalledVersions_ReadsThePackedFolderForThePackId()
-    {
+    public void InstalledVersions_ReadsThePackedFolderForThePackId() {
         using var ws = new TempWorkspace("packpaths");
         string folder = WidgetPackPaths.PackFolder("wolf.widgets.timer");
         Directory.CreateDirectory(folder);
         File.WriteAllText(Path.Combine(folder, "1-0-0.smw"), "");
 
-        Assert.Equal(new[] {"1-0-0"}, WidgetPackPaths.InstalledVersions("wolf.widgets.timer"));
+        Assert.Equal(new[] { "1-0-0" }, WidgetPackPaths.InstalledVersions("wolf.widgets.timer"));
     }
 
     [Fact]
-    public void InvalidateVersionCache_WithPackId_OnlyClearsThatPack()
-    {
+    public void InvalidateVersionCache_WithPackId_OnlyClearsThatPack() {
         using var ws = new TempWorkspace("packpaths");
         string mine = WidgetPackPaths.PackFolder("wolf.widgets.timer");
         string other = WidgetPackPaths.PackFolder("wolf.widgets.alerts");
@@ -256,10 +256,9 @@ public class WidgetPackPathsWorkspaceTests
         Assert.Single(WidgetPackPaths.InstalledVersions("wolf.widgets.alerts"));
     }
 
-        
+
     [Fact]
-    public void IsInPresets_TrueOnlyBelowPresetsRoot()
-    {
+    public void IsInPresets_TrueOnlyBelowPresetsRoot() {
         using var ws = new TempWorkspace("packpaths");
 
         Assert.True(WidgetPackPaths.IsInPresets(Path.Combine(WidgetPackPaths.PresetsRoot, "honse", "a.smw")));
@@ -268,8 +267,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void IsInGlobalStore_TruePastPackedOrPresets()
-    {
+    public void IsInGlobalStore_TruePastPackedOrPresets() {
         using var ws = new TempWorkspace("packpaths");
 
         Assert.True(WidgetPackPaths.IsInGlobalStore(Path.Combine(WidgetPackPaths.PackedRoot, "p", "1-0-0.smw")));
@@ -279,17 +277,15 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void IsInPresets_MalformedPath_ReturnsFalse()
-    {
+    public void IsInPresets_MalformedPath_ReturnsFalse() {
         using var ws = new TempWorkspace("packpaths");
         Assert.False(WidgetPackPaths.IsInPresets("\0bad"));
         Assert.False(WidgetPackPaths.IsInGlobalStore("\0bad"));
     }
 
-        
+
     [Fact]
-    public void UnpackRoot_SlugsEverySegment()
-    {
+    public void UnpackRoot_SlugsEverySegment() {
         using var ws = new TempWorkspace("packpaths");
 
         Assert.Equal(Path.Combine(WidgetPackPaths.UnpackedRoot, "wolf", "alerts", "my-timer", "1.0.0"),
@@ -297,8 +293,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void UnpackRoot_BlankSegments_UseFallbacks()
-    {
+    public void UnpackRoot_BlankSegments_UseFallbacks() {
         using var ws = new TempWorkspace("packpaths");
 
         Assert.Equal(Path.Combine(WidgetPackPaths.UnpackedRoot, "unknown", "widgets", "widget", "1.0.0"),
@@ -306,8 +301,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void UnpackRoot_UnsluggableSegments_UseFallbacks()
-    {
+    public void UnpackRoot_UnsluggableSegments_UseFallbacks() {
         using var ws = new TempWorkspace("packpaths");
 
         Assert.Equal(Path.Combine(WidgetPackPaths.UnpackedRoot, "unknown", "widgets", "widget", "1.0.0"),
@@ -315,8 +309,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void UnpackRoot_VersionKeepsDotsButSanitisesInvalidChars()
-    {
+    public void UnpackRoot_VersionKeepsDotsButSanitisesInvalidChars() {
         using var ws = new TempWorkspace("packpaths");
         string expected = Path.Combine(WidgetPackPaths.UnpackedRoot, "wolf", "alerts", "timer", "1.0_0");
 
@@ -325,16 +318,14 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void UnpackRoot_VersionWithTrailingDot_IsStripped()
-    {
+    public void UnpackRoot_VersionWithTrailingDot_IsStripped() {
         using var ws = new TempWorkspace("packpaths");
         Assert.Equal(Path.Combine(WidgetPackPaths.UnpackedRoot, "wolf", "alerts", "timer", "1.0"),
             WidgetPackPaths.UnpackRoot("Wolf", "Alerts", "Timer", "1.0."));
     }
 
     [Fact]
-    public void UnpackRoot_VersionThatSanitisesAway_FallsBackTo100()
-    {
+    public void UnpackRoot_VersionThatSanitisesAway_FallsBackTo100() {
         using var ws = new TempWorkspace("packpaths");
         Assert.Equal(Path.Combine(WidgetPackPaths.UnpackedRoot, "wolf", "alerts", "timer", "1.0.0"),
             WidgetPackPaths.UnpackRoot("Wolf", "Alerts", "Timer", "..."));
@@ -343,8 +334,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void UnpackRootFor_GlobalStorePack_UsesTheSharedUnpackedTree()
-    {
+    public void UnpackRootFor_GlobalStorePack_UsesTheSharedUnpackedTree() {
         using var ws = new TempWorkspace("packpaths");
         string packFolder = Path.Combine(WidgetPackPaths.PackedRoot, "wolf.widgets.timer");
         var location = new WidgetPackPaths.PackLocation(
@@ -359,8 +349,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void UnpackRootFor_LooseFolderPack_UnpacksBesideThePack()
-    {
+    public void UnpackRootFor_LooseFolderPack_UnpacksBesideThePack() {
         using var ws = new TempWorkspace("packpaths");
         string container = Path.Combine(ws.Root, "downloads");
         string packFolder = Path.Combine(container, "wolf.widgets.timer");
@@ -375,10 +364,9 @@ public class WidgetPackPathsWorkspaceTests
             WidgetPackPaths.UnpackRootFor(location, "Wolf", "Alerts", "Timer"));
     }
 
-        
+
     [Fact]
-    public void CacheDirFor_IsUnderCacheRoot_AndNamedFromTheFile()
-    {
+    public void CacheDirFor_IsUnderCacheRoot_AndNamedFromTheFile() {
         using var ws = new TempWorkspace("packpaths");
         string dir = WidgetPackPaths.CacheDirFor(Path.Combine(ws.Root, "packs", "My Timer.smw"));
 
@@ -388,8 +376,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void CacheDirFor_IsStable_AndCaseInsensitive()
-    {
+    public void CacheDirFor_IsStable_AndCaseInsensitive() {
         using var ws = new TempWorkspace("packpaths");
         string a = WidgetPackPaths.CacheDirFor(Path.Combine(ws.Root, "packs", "timer.smw"));
         string b = WidgetPackPaths.CacheDirFor(Path.Combine(ws.Root, "PACKS", "TIMER.smw"));
@@ -398,8 +385,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void CacheDirFor_DifferentFolders_SameName_GetDifferentDirs()
-    {
+    public void CacheDirFor_DifferentFolders_SameName_GetDifferentDirs() {
         using var ws = new TempWorkspace("packpaths");
         string a = WidgetPackPaths.CacheDirFor(Path.Combine(ws.Root, "one", "timer.smw"));
         string b = WidgetPackPaths.CacheDirFor(Path.Combine(ws.Root, "two", "timer.smw"));
@@ -407,9 +393,8 @@ public class WidgetPackPathsWorkspaceTests
         Assert.NotEqual(a, b);
     }
 
-            private static (string packFile, string mountRoot) MakeMountedPack(TempWorkspace ws,
-        string packId = "wolf.widgets.timer", string version = "1-0-0")
-    {
+    private static (string packFile, string mountRoot) MakeMountedPack(TempWorkspace ws,
+        string packId = "wolf.widgets.timer", string version = "1-0-0") {
         string folder = Path.Combine(WidgetPackPaths.PackedRoot, packId);
         Directory.CreateDirectory(folder);
         string packFile = Path.Combine(folder, version + WidgetPackPaths.PackExtension);
@@ -421,22 +406,19 @@ public class WidgetPackPathsWorkspaceTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void Resolve_BlankPath_ReturnsNull(string? path)
-    {
+    public void Resolve_BlankPath_ReturnsNull(string? path) {
         using var ws = new TempWorkspace("packpaths");
         Assert.Null(WidgetPackPaths.Resolve(path!));
     }
 
     [Fact]
-    public void Resolve_MalformedPath_ReturnsNull()
-    {
+    public void Resolve_MalformedPath_ReturnsNull() {
         using var ws = new TempWorkspace("packpaths");
         Assert.Null(WidgetPackPaths.Resolve("\0nope"));
     }
 
     [Fact]
-    public void Resolve_UnpackedPathWithNoSiblingSmw_ReturnsNull()
-    {
+    public void Resolve_UnpackedPathWithNoSiblingSmw_ReturnsNull() {
         using var ws = new TempWorkspace("packpaths");
         string html = ws.WriteFile("loose/widget/widget.html", "<html></html>");
 
@@ -444,12 +426,11 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void Resolve_EntryDirectlyUnderMount_FindsThePack()
-    {
+    public void Resolve_EntryDirectlyUnderMount_FindsThePack() {
         using var ws = new TempWorkspace("packpaths");
-        var (packFile, mountRoot) = MakeMountedPack(ws);
+        (string packFile, string mountRoot) = MakeMountedPack(ws);
 
-        var location = WidgetPackPaths.Resolve(Path.Combine(mountRoot, "widget.html"));
+        WidgetPackPaths.PackLocation? location = WidgetPackPaths.Resolve(Path.Combine(mountRoot, "widget.html"));
 
         Assert.NotNull(location);
         Assert.Equal(packFile, location!.PackFileStr);
@@ -460,12 +441,12 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void Resolve_NestedEntry_WalksUpToTheMount()
-    {
+    public void Resolve_NestedEntry_WalksUpToTheMount() {
         using var ws = new TempWorkspace("packpaths");
-        var (packFile, mountRoot) = MakeMountedPack(ws);
+        (string packFile, string mountRoot) = MakeMountedPack(ws);
 
-        var location = WidgetPackPaths.Resolve(Path.Combine(mountRoot, "content", "sub", "widget.html"));
+        WidgetPackPaths.PackLocation? location =
+            WidgetPackPaths.Resolve(Path.Combine(mountRoot, "content", "sub", "widget.html"));
 
         Assert.NotNull(location);
         Assert.Equal(packFile, location!.PackFileStr);
@@ -473,8 +454,7 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void Resolve_IsCached_ByDirectory()
-    {
+    public void Resolve_IsCached_ByDirectory() {
         using var ws = new TempWorkspace("packpaths");
         string folder = Path.Combine(WidgetPackPaths.PackedRoot, "wolf.widgets.timer");
         Directory.CreateDirectory(folder);
@@ -490,13 +470,12 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void TryResolve_Packed_ReturnsForwardSlashEntry()
-    {
+    public void TryResolve_Packed_ReturnsForwardSlashEntry() {
         using var ws = new TempWorkspace("packpaths");
-        var (packFile, mountRoot) = MakeMountedPack(ws);
+        (string packFile, string mountRoot) = MakeMountedPack(ws);
 
         bool ok = WidgetPackPaths.TryResolve(Path.Combine(mountRoot, "content", "widget.html"),
-            out var resolvedPack, out var entry, out var packId, out var version);
+            out string resolvedPack, out string entry, out string packId, out string version);
 
         Assert.True(ok);
         Assert.Equal(packFile, resolvedPack);
@@ -506,13 +485,12 @@ public class WidgetPackPathsWorkspaceTests
     }
 
     [Fact]
-    public void TryResolve_Unpacked_ReturnsFalseAndBlankOutParams()
-    {
+    public void TryResolve_Unpacked_ReturnsFalseAndBlankOutParams() {
         using var ws = new TempWorkspace("packpaths");
         string html = ws.WriteFile("loose/widget/widget.html", "<html></html>");
 
-        bool ok = WidgetPackPaths.TryResolve(html, out var packFile, out var entry,
-            out var packId, out var version);
+        bool ok = WidgetPackPaths.TryResolve(html, out string packFile, out string entry,
+            out string packId, out string version);
 
         Assert.False(ok);
         Assert.Equal(string.Empty, packFile);

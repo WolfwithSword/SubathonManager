@@ -14,34 +14,29 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class JuniperServiceTests
-{
+public class JuniperServiceTests {
     private const string StoreName = "shop.example.com";
     private const string ProductIdA = "8123456765432";
     private const string ProductIdB = "9000187654321";
 
-    public JuniperServiceTests()
-    {
+    public JuniperServiceTests() {
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        foreach (var eventName in new[] { "StoreDiscovered", "StoreUpdated", "ProductUpdated" })
-        {
+        foreach (string eventName in new[] { "StoreDiscovered", "StoreUpdated", "ProductUpdated" })
             typeof(JuniperStoreRegistry)
                 .GetField(eventName, BindingFlags.Static | BindingFlags.NonPublic)
                 ?.SetValue(null, null);
-        }
         JuniperStoreRegistry.Initialize([]);
     }
 
-    private static JuniperStore MakeStore(string name = StoreName)
-        => new() { RowId = Guid.NewGuid(), StoreName = name };
+    private static JuniperStore MakeStore(string name = StoreName) {
+        return new JuniperStore { RowId = Guid.NewGuid(), StoreName = name };
+    }
 
     private static JuniperProduct MakeProduct(JuniperStore store, string productId, string name = "Cool Tee",
-        bool valid = true)
-    {
-        var product = new JuniperProduct
-        {
+        bool valid = true) {
+        var product = new JuniperProduct {
             ProductId = BigInteger.Parse(productId),
             StoreId = store.RowId,
             Store = store,
@@ -52,44 +47,43 @@ public class JuniperServiceTests
         return product;
     }
 
-    private static JuniperService MakeService(RoutedHttpHandler handler)
-    {
+    private static JuniperService MakeService(RoutedHttpHandler handler) {
         var logger = new Mock<ILogger<JuniperService>>();
         var mock = new Mock<IHttpClientFactory>();
         mock.Setup(f => f.CreateClient(It.IsAny<string>()))
             .Returns(() => new HttpClient(handler));
-        return new JuniperService(logger.Object, mock.Object, timerService: null);
+        return new JuniperService(logger.Object, mock.Object);
     }
 
-    private static string OrdersSumBody(params (string ProductId, int UnitsSold)[] sums)
-    {
-        var details = string.Join(",", sums.Select(s =>
+    private static string OrdersSumBody(params (string ProductId, int UnitsSold)[] sums) {
+        string details = string.Join(",", sums.Select(s =>
             $$""""
-            "{{s.ProductId}}":{"units_sold":{{s.UnitsSold}},"total_amount":12.34}
-            """".Trim()));
+                  "{{s.ProductId}}":{"units_sold":{{s.UnitsSold}},"total_amount":12.34}
+                  """".Trim()));
         return $$"""{"products_details": { {{details}} } }""";
     }
 
-    private static async Task<List<SubathonEvent>> CaptureEventsAsync(Func<Task> action)
-    {
+    private static async Task<List<SubathonEvent>> CaptureEventsAsync(Func<Task> action) {
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
         var captured = new List<SubathonEvent>();
-        void Handler(SubathonEvent e) => captured.Add(e);
+
+        void Handler(SubathonEvent e) {
+            captured.Add(e);
+        }
+
         SubathonEvents.SubathonEventCreated += Handler;
-        try
-        {
+        try {
             await action();
             return captured;
         }
-        finally
-        {
+        finally {
             SubathonEvents.SubathonEventCreated -= Handler;
         }
     }
-    
+
     [Theory]
     [InlineData("8123456765432", true)]
     [InlineData("123456789012345678901234567890", true)]
@@ -101,8 +95,7 @@ public class JuniperServiceTests
     [InlineData("1.5", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
-    public void TryParseProductId_RequiresPositiveBigInteger(string? value, bool expected)
-    {
+    public void TryParseProductId_RequiresPositiveBigInteger(string? value, bool expected) {
         Assert.Equal(expected, JuniperStoreRegistry.TryParseProductId(value, out _));
     }
 
@@ -111,9 +104,8 @@ public class JuniperServiceTests
     [InlineData("https://SHOP.Example.com/p/8123456765432/some-variant", StoreName, ProductIdA)]
     [InlineData("https://shop.example.com/p/8123456765432?dfgjhfdgh=fdfdjg", StoreName, ProductIdA)]
     [InlineData("http://shop.example.com/store/p/8123456765432#frag", StoreName, ProductIdA)]
-    public void TryParseProductUrl_ExtractsStoreAndId(string url, string expectedStore, string expectedId)
-    {
-        Assert.True(JuniperStoreRegistry.TryParseProductUrl(url, out var storeName, out var productId));
+    public void TryParseProductUrl_ExtractsStoreAndId(string url, string expectedStore, string expectedId) {
+        Assert.True(JuniperStoreRegistry.TryParseProductUrl(url, out string storeName, out BigInteger productId));
         Assert.Equal(expectedStore, storeName);
         Assert.Equal(BigInteger.Parse(expectedId), productId);
     }
@@ -126,35 +118,32 @@ public class JuniperServiceTests
     [InlineData("/p/8123456765432")]
     [InlineData("")]
     [InlineData(null)]
-    public void TryParseProductUrl_RejectsInvalidUrls(string? url)
-    {
+    public void TryParseProductUrl_RejectsInvalidUrls(string? url) {
         Assert.False(JuniperStoreRegistry.TryParseProductUrl(url, out _, out _));
     }
 
     [Fact]
-    public void AllValidProductIds_SkipsInvalidProducts()
-    {
-        var store = MakeStore();
+    public void AllValidProductIds_SkipsInvalidProducts() {
+        JuniperStore store = MakeStore();
         MakeProduct(store, ProductIdA);
-        MakeProduct(store, ProductIdB, name: "Broken Tee", valid: false);
+        MakeProduct(store, ProductIdB, "Broken Tee", false);
         JuniperStoreRegistry.Initialize([store]);
 
-        var ids = JuniperStoreRegistry.AllValidProductIds();
+        List<BigInteger> ids = JuniperStoreRegistry.AllValidProductIds();
 
         Assert.Single(ids);
         Assert.Equal(BigInteger.Parse(ProductIdA), ids[0]);
     }
 
     [Fact]
-    public void GetOrProvisionStore_ReusesExistingByNameCaseInsensitive()
-    {
-        var store = MakeStore();
+    public void GetOrProvisionStore_ReusesExistingByNameCaseInsensitive() {
+        JuniperStore store = MakeStore();
         JuniperStoreRegistry.Initialize([store]);
         var discovered = new List<JuniperStore>();
         JuniperStoreRegistry.StoreDiscovered += discovered.Add;
 
-        var same = JuniperStoreRegistry.GetOrProvisionStore("SHOP.EXAMPLE.COM");
-        var fresh = JuniperStoreRegistry.GetOrProvisionStore("other.store.com");
+        JuniperStore same = JuniperStoreRegistry.GetOrProvisionStore("SHOP.EXAMPLE.COM");
+        JuniperStore fresh = JuniperStoreRegistry.GetOrProvisionStore("other.store.com");
 
         Assert.Same(store, same);
         Assert.Single(discovered);
@@ -164,9 +153,8 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public void RemoveStore_DropsItsProductsFromTheIndex()
-    {
-        var store = MakeStore();
+    public void RemoveStore_DropsItsProductsFromTheIndex() {
+        JuniperStore store = MakeStore();
         MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
@@ -178,12 +166,11 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public void MakeQueryUrls_BatchesTenIdsPerUrlWithFixedEndTime()
-    {
-        var ids = Enumerable.Range(1, 25).Select(i => new BigInteger(1000000000000 + i)).ToList();
+    public void MakeQueryUrls_BatchesTenIdsPerUrlWithFixedEndTime() {
+        List<BigInteger> ids = Enumerable.Range(1, 25).Select(i => new BigInteger(1000000000000 + i)).ToList();
         var start = new DateTime(2026, 7, 15, 10, 30, 0, DateTimeKind.Utc);
 
-        var urls = JuniperService.MakeQueryUrls(ids, start);
+        List<string> urls = JuniperService.MakeQueryUrls(ids, start);
 
         Assert.Equal(3, urls.Count);
         Assert.All(urls, u => Assert.StartsWith(JuniperService.OrdersSumBase, u));
@@ -196,32 +183,29 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public void MakeQueryUrls_NoIds_YieldsNoUrls()
-    {
+    public void MakeQueryUrls_NoIds_YieldsNoUrls() {
         Assert.Empty(JuniperService.MakeQueryUrls([], DateTime.UtcNow));
     }
 
     [Fact]
-    public async Task Poll_UnitsSoldInWindow_RaisesEventPerProduct()
-    {
-        var store = MakeStore();
-        MakeProduct(store, ProductIdA, "Cool Tee");
+    public async Task Poll_UnitsSoldInWindow_RaisesEventPerProduct() {
+        JuniperStore store = MakeStore();
+        MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [JuniperService.OrdersSumBase] = (HttpStatusCode.OK, OrdersSumBody((ProductIdA, 3)))
         };
-        var service = MakeService(handler);
+        JuniperService service = MakeService(handler);
         await service.StartAsync(TestContext.Current.CancellationToken);
 
-        var events = await CaptureEventsAsync(() => service.PollAsync(CancellationToken.None));
+        List<SubathonEvent> events = await CaptureEventsAsync(() => service.PollAsync(CancellationToken.None));
 
-        var request = Assert.Single(handler.Requests);
+        string request = Assert.Single(handler.Requests);
         Assert.Contains($"productIds={ProductIdA}", request);
         Assert.Contains($"endTime={JuniperService.FixedEndTime}", request);
 
-        var ev = Assert.Single(events);
+        SubathonEvent ev = Assert.Single(events);
         Assert.Equal(SubathonEventSource.JuniperCreates, ev.Source);
         Assert.Equal(SubathonEventType.JuniperMerchSale, ev.EventType);
         Assert.Equal(ProductIdA, ev.EventTypeMeta);
@@ -234,60 +218,54 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public async Task Poll_ZeroUnitsSold_RaisesNothing()
-    {
-        var store = MakeStore();
+    public async Task Poll_ZeroUnitsSold_RaisesNothing() {
+        JuniperStore store = MakeStore();
         MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [JuniperService.OrdersSumBase] = (HttpStatusCode.OK, OrdersSumBody((ProductIdA, 0)))
         };
-        var service = MakeService(handler);
+        JuniperService service = MakeService(handler);
         await service.StartAsync(TestContext.Current.CancellationToken);
 
-        var events = await CaptureEventsAsync(() => service.PollAsync(CancellationToken.None));
+        List<SubathonEvent> events = await CaptureEventsAsync(() => service.PollAsync(CancellationToken.None));
 
         Assert.Empty(events);
         Assert.True(service.Connected);
     }
 
     [Fact]
-    public async Task Poll_UnknownProductInResponse_IsIgnored()
-    {
-        var store = MakeStore();
-        MakeProduct(store, ProductIdA, "Cool Tee");
+    public async Task Poll_UnknownProductInResponse_IsIgnored() {
+        JuniperStore store = MakeStore();
+        MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [JuniperService.OrdersSumBase] =
                 (HttpStatusCode.OK, OrdersSumBody((ProductIdB, 5), (ProductIdA, 2)))
         };
-        var service = MakeService(handler);
+        JuniperService service = MakeService(handler);
         await service.StartAsync(TestContext.Current.CancellationToken);
 
-        var events = await CaptureEventsAsync(() => service.PollAsync(CancellationToken.None));
+        List<SubathonEvent> events = await CaptureEventsAsync(() => service.PollAsync(CancellationToken.None));
 
-        var ev = Assert.Single(events);
+        SubathonEvent ev = Assert.Single(events);
         Assert.Equal(ProductIdA, ev.EventTypeMeta);
         Assert.Equal(2, ev.Amount);
     }
 
     [Fact]
-    public async Task Poll_ManyProducts_SplitsIntoBatchedRequests()
-    {
-        var store = MakeStore();
-        for (int i = 0; i < 12; i++)
+    public async Task Poll_ManyProducts_SplitsIntoBatchedRequests() {
+        JuniperStore store = MakeStore();
+        for (var i = 0; i < 12; i++)
             MakeProduct(store, $"{1000000000000 + i}", $"Tee {i}");
         JuniperStoreRegistry.Initialize([store]);
 
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [JuniperService.OrdersSumBase] = (HttpStatusCode.OK, """{"products_details":{}}""")
         };
-        var service = MakeService(handler);
+        JuniperService service = MakeService(handler);
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         await service.PollAsync(CancellationToken.None);
@@ -297,17 +275,15 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public async Task Poll_ErrorResponse_MarksDisconnectedUntilNextSuccess()
-    {
-        var store = MakeStore();
+    public async Task Poll_ErrorResponse_MarksDisconnectedUntilNextSuccess() {
+        JuniperStore store = MakeStore();
         MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [JuniperService.OrdersSumBase] = (HttpStatusCode.InternalServerError, null)
         };
-        var service = MakeService(handler);
+        JuniperService service = MakeService(handler);
         await service.StartAsync(TestContext.Current.CancellationToken);
         Assert.True(service.Connected);
 
@@ -323,19 +299,17 @@ public class JuniperServiceTests
     [InlineData("not json")]
     [InlineData("""{"unexpected":"shape"}""")]
     [InlineData("""{"products_details":[1,2,3]}""")]
-    public void HandleOrdersResponse_BadOrUnexpectedBody_ReturnsFalse(string body)
-    {
-        var service = MakeService(new RoutedHttpHandler());
+    public void HandleOrdersResponse_BadOrUnexpectedBody_ReturnsFalse(string body) {
+        JuniperService service = MakeService(new RoutedHttpHandler());
         Assert.False(service.HandleOrdersResponse(body, DateTime.UtcNow));
     }
 
     [Fact]
-    public void HandleOrdersResponse_MissingUnitsSold_SkipsProductWithoutThrowing()
-    {
-        var store = MakeStore();
+    public void HandleOrdersResponse_MissingUnitsSold_SkipsProductWithoutThrowing() {
+        JuniperStore store = MakeStore();
         MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
-        var service = MakeService(new RoutedHttpHandler());
+        JuniperService service = MakeService(new RoutedHttpHandler());
 
         bool ok = service.HandleOrdersResponse(
             $$"""{"products_details": { "{{ProductIdA}}": {"total_amount":9.99} } }""", DateTime.UtcNow);
@@ -344,14 +318,13 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public void Simulate_KnownProduct_UsesProductNameAndStore()
-    {
-        var store = MakeStore();
-        MakeProduct(store, ProductIdA, "Cool Tee");
+    public void Simulate_KnownProduct_UsesProductNameAndStore() {
+        JuniperStore store = MakeStore();
+        MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
-        var ev = EventUtil.SubathonEventCapture.CaptureRequired(
-            () => JuniperService.Simulate(ProductIdA, 4));
+        SubathonEvent? ev =
+            EventUtil.SubathonEventCapture.CaptureRequired(() => JuniperService.Simulate(ProductIdA, 4));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
@@ -365,10 +338,8 @@ public class JuniperServiceTests
     }
 
     [Fact]
-    public void Simulate_UnknownMeta_FallsBackToTestProductAndClampsCount()
-    {
-        var ev = EventUtil.SubathonEventCapture.CaptureRequired(
-            () => JuniperService.Simulate("DEFAULT", 0));
+    public void Simulate_UnknownMeta_FallsBackToTestProductAndClampsCount() {
+        SubathonEvent? ev = EventUtil.SubathonEventCapture.CaptureRequired(() => JuniperService.Simulate("DEFAULT", 0));
 
         Assert.NotNull(ev);
         Assert.Equal("DEFAULT", ev!.EventTypeMeta);
@@ -377,64 +348,60 @@ public class JuniperServiceTests
         Assert.Equal("Test Product", ev.TertiaryValue);
         Assert.Equal("JuniperCreates Store", ev.User);
     }
-    
+
     [Fact]
-    public async Task Start_NoProducts_BroadcastsUnconfigured()
-    {
+    public async Task Start_NoProducts_BroadcastsUnconfigured() {
         var captured = new List<IntegrationConnection>();
         IntegrationEvents.ConnectionUpdated += captured.Add;
 
-        var service = MakeService(new RoutedHttpHandler());
+        JuniperService service = MakeService(new RoutedHttpHandler());
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.False(service.Connected);
-        var main = Assert.Single(captured,
+        IntegrationConnection main = Assert.Single(captured,
             c => c.Service == nameof(SubathonEventSource.JuniperCreates));
         Assert.False(main.Status);
         Assert.False(main.Configured);
     }
 
     [Fact]
-    public async Task Start_WithProducts_BroadcastsMainAndPerStoreRows()
-    {
-        var store = MakeStore();
+    public async Task Start_WithProducts_BroadcastsMainAndPerStoreRows() {
+        JuniperStore store = MakeStore();
         MakeProduct(store, ProductIdA);
         JuniperStoreRegistry.Initialize([store]);
 
         var captured = new List<IntegrationConnection>();
         IntegrationEvents.ConnectionUpdated += captured.Add;
 
-        var service = MakeService(new RoutedHttpHandler());
+        JuniperService service = MakeService(new RoutedHttpHandler());
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.True(service.Connected);
-        var main = Assert.Single(captured,
+        IntegrationConnection main = Assert.Single(captured,
             c => c.Service == nameof(SubathonEventSource.JuniperCreates));
         Assert.True(main.Status);
         Assert.True(main.Configured);
 
-        var storeRow = Assert.Single(captured, c => c.Service == StoreName);
+        IntegrationConnection storeRow = Assert.Single(captured, c => c.Service == StoreName);
         Assert.True(storeRow.Status);
         Assert.True(storeRow.Configured);
         Assert.Equal("1 tracked", storeRow.Name);
     }
 
-    private sealed class RoutedHttpHandler : HttpMessageHandler
-    {
+    private sealed class RoutedHttpHandler : HttpMessageHandler {
         private readonly Dictionary<string, (HttpStatusCode Status, string? Body)> _routes = new();
         public List<string> Requests { get; } = new();
 
-        public (HttpStatusCode, string?) this[string urlPrefix]
-        {
+        public (HttpStatusCode, string?) this[string urlPrefix] {
             set => _routes[urlPrefix] = value;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-        {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) {
             var url = request.RequestUri!.ToString();
             Requests.Add(url);
 
-            var match = _routes.FirstOrDefault(r => url.StartsWith(r.Key, StringComparison.OrdinalIgnoreCase));
+            KeyValuePair<string, (HttpStatusCode Status, string? Body)> match =
+                _routes.FirstOrDefault(r => url.StartsWith(r.Key, StringComparison.OrdinalIgnoreCase));
             if (match.Key == null)
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
 

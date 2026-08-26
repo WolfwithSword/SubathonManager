@@ -17,18 +17,19 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class KoFiServiceTests
-{
-    public KoFiServiceTests()
-    {
+public class KoFiServiceTests {
+    public KoFiServiceTests() {
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
     }
 
+    private static IReadOnlyDictionary<string, string> DefaultHeaders => new Dictionary<string, string> {
+        { "Content-Type", "application/x-www-form-urlencoded" }
+    };
+
     private static (KoFiService service, DevTunnelsService devTunnels) MakeService(
-        Dictionary<(string, string), string>? configValues = null)
-    {
+        Dictionary<(string, string), string>? configValues = null) {
         var logger = new Mock<ILogger<KoFiService>>();
         var dtLogger = new Mock<ILogger<DevTunnelsService>>();
         var mockClient = new Mock<IDevTunnelsClient>();
@@ -37,12 +38,13 @@ public class KoFiServiceTests
         // call inside StartAsync does not race with test assertions.
         mockClient.Setup(c => c.CreateOrUpdateTunnelAsync(
                 It.IsAny<string>(), It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()))
-            .Returns<string, DevTunnelOptions, CancellationToken>(
-                async (_, _, ct) => { await Task.Delay(Timeout.Infinite, ct); return new DevTunnelStatus(); });
+            .Returns<string, DevTunnelOptions, CancellationToken>(async (_, _, ct) => {
+                await Task.Delay(Timeout.Infinite, ct);
+                return new DevTunnelStatus();
+            });
 
-        IConfig dtConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
-        {
-            { ("Server", "Port"), "14040" },
+        IConfig dtConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
+            { ("Server", "Port"), "14040" }
         });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
 
@@ -50,16 +52,15 @@ public class KoFiServiceTests
         _ = httpFactory.Setup(f => f.CreateClient(nameof(KoFiService))).Returns(new HttpClient());
 
         var token = "";
-        if (configValues != null && configValues.ContainsKey(("KoFi", "VerificationToken")))
-        {
+        if (configValues != null && configValues.ContainsKey(("KoFi", "VerificationToken"))) {
             token = configValues[("KoFi", "VerificationToken")];
             configValues.Remove(("KoFi", "VerificationToken"));
         }
-        var storage = new InMemorySecureStorage(new()
-        {
+
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.KoFiVerificationToken] = token
         });
-        
+
         IConfig config = MockConfig.MakeMockConfig(configValues);
         var koFi = new KoFiService(logger.Object, config, httpFactory.Object, devTunnels, storage);
         return (koFi, devTunnels);
@@ -68,9 +69,8 @@ public class KoFiServiceTests
     private static byte[] BuildKoFiBody(string token, string type, string fromName,
         string amount, string currency, string messageId,
         bool isSubscriptionPayment = false, bool isFirstSubscriptionPayment = false,
-        string? tierName = null)
-    {
-        string json = $@"{{
+        string? tierName = null) {
+        var json = $@"{{
           ""verification_token"":""{token}"",
           ""message_id"":""{messageId}"",
           ""timestamp"":""2024-01-01T12:00:00+00:00"",
@@ -92,32 +92,21 @@ public class KoFiServiceTests
         return Encoding.UTF8.GetBytes("data=" + HttpUtility.UrlEncode(json));
     }
 
-    private static IReadOnlyDictionary<string, string> DefaultHeaders => new Dictionary<string, string>
-    {
-        { "Content-Type", "application/x-www-form-urlencoded" }
-    };
-
     [Fact]
-    public async Task StartAsync_NoToken_BroadcastsDisabled()
-    {
+    public async Task StartAsync_NoToken_BroadcastsDisabled() {
         (KoFiService? service, DevTunnelsService _) = MakeService();
 
         bool? status = null;
-        void Handler(IntegrationConnection conn)
-        {
-            if (conn.Source == SubathonEventSource.KoFiTunnel)
-            {
-                status = conn.Status;
-            }
+
+        void Handler(IntegrationConnection conn) {
+            if (conn.Source == SubathonEventSource.KoFiTunnel) status = conn.Status;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try
-        {
+        try {
             await service.StartAsync(TestContext.Current.CancellationToken);
         }
-        finally
-        {
+        finally {
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 
@@ -126,31 +115,24 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task StartAsync_WithToken_NoTunnel_BroadcastsDisconnected()
-    {
+    public async Task StartAsync_WithToken_NoTunnel_BroadcastsDisconnected() {
         // Token configured but no tunnel running - status must be false until the
         // tunnel is actually up and we have a reachable public URL.
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), "my-token" },
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), "my-token" }
         });
 
         bool? status = null;
-        void Handler(IntegrationConnection conn)
-        {
-            if (conn.Source == SubathonEventSource.KoFiTunnel)
-            {
-                status = conn.Status;
-            }
+
+        void Handler(IntegrationConnection conn) {
+            if (conn.Source == SubathonEventSource.KoFiTunnel) status = conn.Status;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try
-        {
+        try {
             await service.StartAsync(TestContext.Current.CancellationToken);
         }
-        finally
-        {
+        finally {
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 
@@ -159,31 +141,24 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task StopAsync_BroadcastsDisabled()
-    {
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), "my-token" },
+    public async Task StopAsync_BroadcastsDisabled() {
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), "my-token" }
         });
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         bool? status = null;
-        void Handler(IntegrationConnection conn)
-        {
-            if (conn.Source == SubathonEventSource.KoFiTunnel)
-            {
-                status = conn.Status;
-            }
+
+        void Handler(IntegrationConnection conn) {
+            if (conn.Source == SubathonEventSource.KoFiTunnel) status = conn.Status;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try
-        {
+        try {
             await service.StopAsync(TestContext.Current.CancellationToken);
         }
-        finally
-        {
+        finally {
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 
@@ -191,8 +166,7 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_NoConfiguredToken_DoesNotRaiseEvent()
-    {
+    public async Task HandleWebhookAsync_NoConfiguredToken_DoesNotRaiseEvent() {
         (KoFiService? service, DevTunnelsService _) = MakeService();
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -203,7 +177,11 @@ public class KoFiServiceTests
         byte[] body = BuildKoFiBody("any-token", "Donation", "Test User", "5.00", "USD", Guid.NewGuid().ToString());
 
         SubathonEvent? captured = null;
-        void EventHandler(SubathonEvent e) => captured = e;
+
+        void EventHandler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += EventHandler;
         await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
         SubathonEvents.SubathonEventCreated -= EventHandler;
@@ -213,11 +191,9 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_WrongToken_DoesNotRaiseEvent()
-    {
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), "correct-token" },
+    public async Task HandleWebhookAsync_WrongToken_DoesNotRaiseEvent() {
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), "correct-token" }
         });
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -228,7 +204,11 @@ public class KoFiServiceTests
         byte[] body = BuildKoFiBody("wrong-token", "Donation", "Test User", "5.00", "USD", Guid.NewGuid().ToString());
 
         SubathonEvent? captured = null;
-        void EventHandler(SubathonEvent e) => captured = e;
+
+        void EventHandler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += EventHandler;
         await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
         SubathonEvents.SubathonEventCreated -= EventHandler;
@@ -238,12 +218,10 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_ValidDonation_RaisesKoFiDonationEvent()
-    {
+    public async Task HandleWebhookAsync_ValidDonation_RaisesKoFiDonationEvent() {
         const string token = "test-token";
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), token },
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), token }
         });
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -254,7 +232,11 @@ public class KoFiServiceTests
         byte[] body = BuildKoFiBody(token, "Donation", "Wolf", "10.00", "USD", Guid.NewGuid().ToString());
 
         SubathonEvent? captured = null;
-        void EventHandler(SubathonEvent e) => captured = e;
+
+        void EventHandler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += EventHandler;
         await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
         SubathonEvents.SubathonEventCreated -= EventHandler;
@@ -273,12 +255,10 @@ public class KoFiServiceTests
     [InlineData(true, "Gold Tier")]
     [InlineData(false, "Silver")]
     public async Task HandleWebhookAsync_ValidSubscription_RaisesKoFiSubEvent(
-        bool isFirst, string tierName)
-    {
+        bool isFirst, string tierName) {
         const string token = "test-token";
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), token },
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), token }
         });
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -288,12 +268,16 @@ public class KoFiServiceTests
 
         byte[] body = BuildKoFiBody(token, "Subscription", "Supporter", "5.00", "USD",
             Guid.NewGuid().ToString(),
-            isSubscriptionPayment: true,
-            isFirstSubscriptionPayment: isFirst,
-            tierName: tierName);
+            true,
+            isFirst,
+            tierName);
 
         SubathonEvent? captured = null;
-        void EventHandler(SubathonEvent e) => captured = e;
+
+        void EventHandler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += EventHandler;
         await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
         SubathonEvents.SubathonEventCreated -= EventHandler;
@@ -309,12 +293,10 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_ValidShopOrder_RaisesKoFiShopOrderEvent()
-    {
+    public async Task HandleWebhookAsync_ValidShopOrder_RaisesKoFiShopOrderEvent() {
         const string token = "test-token";
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), token },
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), token }
         });
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -325,7 +307,11 @@ public class KoFiServiceTests
         byte[] body = BuildKoFiBody(token, "Shop Order", "Buyer", "25.00", "USD", Guid.NewGuid().ToString());
 
         SubathonEvent? captured = null;
-        void EventHandler(SubathonEvent e) => captured = e;
+
+        void EventHandler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += EventHandler;
         await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
         SubathonEvents.SubathonEventCreated -= EventHandler;
@@ -341,12 +327,10 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_ValidCommission_RaisesKoFiCommissionEvent()
-    {
+    public async Task HandleWebhookAsync_ValidCommission_RaisesKoFiCommissionEvent() {
         const string token = "test-token";
-        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "VerificationToken"), token },
+        (KoFiService? service, DevTunnelsService _) = MakeService(new Dictionary<(string, string), string> {
+            { ("KoFi", "VerificationToken"), token }
         });
         await service.StartAsync(TestContext.Current.CancellationToken);
 
@@ -357,7 +341,11 @@ public class KoFiServiceTests
         byte[] body = BuildKoFiBody(token, "Commission", "Artist", "50.00", "USD", Guid.NewGuid().ToString());
 
         SubathonEvent? captured = null;
-        void EventHandler(SubathonEvent e) => captured = e;
+
+        void EventHandler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += EventHandler;
         await service.HandleWebhookAsync(body, DefaultHeaders, TestContext.Current.CancellationToken);
         SubathonEvents.SubathonEventCreated -= EventHandler;
@@ -373,38 +361,36 @@ public class KoFiServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_ForwardsToConfiguredUrl()
-    {
+    public async Task HandleWebhookAsync_ForwardsToConfiguredUrl() {
         const string token = "test-token";
 
-        await using MockWebServerHost mockServer = new MockWebServerHost().OnPost("/forward", "", statusCode: 200);
+        await using MockWebServerHost mockServer = new MockWebServerHost().OnPost("/forward", "");
 
         var logger = new Mock<ILogger<KoFiService>>();
         var dtLogger = new Mock<ILogger<DevTunnelsService>>();
         var mockClient = new Mock<IDevTunnelsClient>();
         mockClient.Setup(c => c.CreateOrUpdateTunnelAsync(
                 It.IsAny<string>(), It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()))
-            .Returns<string, DevTunnelOptions, CancellationToken>(
-                async (_, _, ct) => { await Task.Delay(Timeout.Infinite, ct); return new DevTunnelStatus(); });
+            .Returns<string, DevTunnelOptions, CancellationToken>(async (_, _, ct) => {
+                await Task.Delay(Timeout.Infinite, ct);
+                return new DevTunnelStatus();
+            });
 
-        IConfig dtConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
-        {
-            { ("Server", "Port"), "14040" },
+        IConfig dtConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
+            { ("Server", "Port"), "14040" }
         });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
 
         var httpFactory = new Mock<IHttpClientFactory>();
         _ = httpFactory.Setup(f => f.CreateClient(nameof(KoFiService))).Returns(new HttpClient());
 
-        IConfig config = MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
-        {
-            { ("KoFi", "ForwardUrls"), mockServer.BaseUrl.TrimEnd('/') + "/forward" },
+        IConfig config = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
+            { ("KoFi", "ForwardUrls"), mockServer.BaseUrl.TrimEnd('/') + "/forward" }
         });
-        
 
-        var storage = new InMemorySecureStorage(new()
-        {
-            [StorageKeys.KoFiVerificationToken] =token,
+
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.KoFiVerificationToken] = token
         });
         var service = new KoFiService(logger.Object, config, httpFactory.Object, devTunnels, storage);
 

@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Text;
 using DevTunnels.Client;
 using DevTunnels.Client.Tunnels;
 using Microsoft.Extensions.Logging;
@@ -15,10 +16,8 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class ThroneServiceTests
-{
-    public ThroneServiceTests()
-    {
+public class ThroneServiceTests {
+    public ThroneServiceTests() {
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
@@ -26,21 +25,21 @@ public class ThroneServiceTests
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
     }
-    
+
     private static (ThroneService service, DevTunnelsService devTunnels) MakeService(
-        Dictionary<(string, string), string>? configValues = null)
-    {
+        Dictionary<(string, string), string>? configValues = null) {
         var logger = new Mock<ILogger<ThroneService>>();
         var dtLogger = new Mock<ILogger<DevTunnelsService>>();
         var mockClient = new Mock<IDevTunnelsClient>();
 
         mockClient.Setup(c => c.CreateOrUpdateTunnelAsync(
                 It.IsAny<string>(), It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()))
-            .Returns<string, DevTunnelOptions, CancellationToken>(
-                async (_, _, ct) => { await Task.Delay(Timeout.Infinite, ct); return new DevTunnelStatus(); });
+            .Returns<string, DevTunnelOptions, CancellationToken>(async (_, _, ct) => {
+                await Task.Delay(Timeout.Infinite, ct);
+                return new DevTunnelStatus();
+            });
 
-        IConfig dtConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
-        {
+        IConfig dtConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
             { ("Server", "Port"), "14040" }
         });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
@@ -53,8 +52,7 @@ public class ThroneServiceTests
 
     private static string BuildGiftPurchasedJson(
         string eventId, string gifterUsername, string itemName,
-        int priceCents, string currency = "USD", bool isSurprise = false)
-    {
+        int priceCents, string currency = "USD", bool isSurprise = false) {
         return $$"""
                  {
                      "event_id": "{{eventId}}",
@@ -76,8 +74,7 @@ public class ThroneServiceTests
 
     private static string BuildContributionPurchasedJson(
         string eventId, string gifterUsername, string itemName,
-        int amountCents, string currency = "USD")
-    {
+        int amountCents, string currency = "USD") {
         return $$"""
                  {
                      "event_id": "{{eventId}}",
@@ -97,8 +94,7 @@ public class ThroneServiceTests
     }
 
     private static string BuildCrowdfundedJson(
-        string eventId, string itemName, int priceCents, string currency = "USD")
-    {
+        string eventId, string itemName, int priceCents, string currency = "USD") {
         return $$"""
                  {
                      "event_id": "{{eventId}}",
@@ -116,10 +112,13 @@ public class ThroneServiceTests
                  """;
     }
 
-    private static SubathonEvent? CaptureEvent(Action action)
-    {
+    private static SubathonEvent? CaptureEvent(Action action) {
         SubathonEvent? captured = null;
-        void Handler(SubathonEvent e) => captured = e;
+
+        void Handler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += Handler;
         action();
         SubathonEvents.SubathonEventCreated -= Handler;
@@ -127,64 +126,71 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public async Task StartAsync_WhenDisabled_BroadcastsDisconnectedStatus()
-    {
+    public async Task StartAsync_WhenDisabled_BroadcastsDisconnectedStatus() {
         (ThroneService service, _) = MakeService();
 
         bool? status = null;
-        void Handler(IntegrationConnection conn)
-        {
+
+        void Handler(IntegrationConnection conn) {
             if (conn.Source == SubathonEventSource.Throne) status = conn.Status;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StartAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.False(status);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
-    public async Task StartAsync_WhenEnabled_DoesNotImmediatelyBroadcastConnected()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task StartAsync_WhenEnabled_DoesNotImmediatelyBroadcastConnected() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "True" }
         });
 
-        bool receivedTrue = false;
-        void Handler(IntegrationConnection conn)
-        {
+        var receivedTrue = false;
+
+        void Handler(IntegrationConnection conn) {
             if (conn is { Source: SubathonEventSource.Throne, Status: true }) receivedTrue = true;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StartAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.False(receivedTrue);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
-    
-    
+
+
     [Fact]
-    public async Task StartAsync_WhenDisabled()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task StartAsync_WhenDisabled() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "False" }
         });
 
-        bool receivedFalse = false;
-        void Handler(IntegrationConnection conn)
-        {
+        var receivedFalse = false;
+
+        void Handler(IntegrationConnection conn) {
             if (conn is { Source: SubathonEventSource.Throne, Status: false }) receivedFalse = true;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StartAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.True(receivedFalse);
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -192,42 +198,42 @@ public class ThroneServiceTests
 
 
     [Fact]
-    public async Task StopAsync_BroadcastsDisconnectedStatus()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task StopAsync_BroadcastsDisconnectedStatus() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "True" }
         });
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         bool? status = null;
-        void Handler(IntegrationConnection conn)
-        {
+
+        void Handler(IntegrationConnection conn) {
             if (conn.Source == SubathonEventSource.Throne) status = conn.Status;
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StopAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StopAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.False(status);
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_WhenDisabled_DoesNotRaiseEvent()
-    {
+    public async Task HandleWebhookAsync_WhenDisabled_DoesNotRaiseEvent() {
         (ThroneService service, _) = MakeService(); // Enabled = false by default
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Cat Plushie", 1000);
-        var body = System.Text.Encoding.UTF8.GetBytes(json);
-        var headers = new Dictionary<string, string>
-        {
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Cat Plushie", 1000);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+        var headers = new Dictionary<string, string> {
             { "X-Signature-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() },
             { "X-Signature-Ed25519", "deadbeef" }
         };
 
-        var ev = CaptureEvent(() =>
+        SubathonEvent? ev = CaptureEvent(() =>
             service.HandleWebhookAsync(body, headers, TestContext.Current.CancellationToken).GetAwaiter().GetResult());
 
         Assert.Null(ev);
@@ -235,21 +241,18 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_MissingTimestampHeader_DoesNotRaiseEvent()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task HandleWebhookAsync_MissingTimestampHeader_DoesNotRaiseEvent() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "True" }
         });
 
-        var body = "{}"u8.ToArray();
-        var headers = new Dictionary<string, string>
-        {
+        byte[] body = "{}"u8.ToArray();
+        var headers = new Dictionary<string, string> {
             { "X-Signature-Ed25519", "deadbeef" }
             // no X-Signature-Timestamp
         };
 
-        var ev = CaptureEvent(() =>
+        SubathonEvent? ev = CaptureEvent(() =>
             service.HandleWebhookAsync(body, headers, TestContext.Current.CancellationToken).GetAwaiter().GetResult());
 
         Assert.Null(ev);
@@ -257,21 +260,18 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_MissingSignatureHeader_DoesNotRaiseEvent()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task HandleWebhookAsync_MissingSignatureHeader_DoesNotRaiseEvent() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "True" }
         });
 
-        var body = "{}"u8.ToArray();
-        var headers = new Dictionary<string, string>
-        {
+        byte[] body = "{}"u8.ToArray();
+        var headers = new Dictionary<string, string> {
             { "X-Signature-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() }
             // no X-Signature-Ed25519
         };
 
-        var ev = CaptureEvent(() =>
+        SubathonEvent? ev = CaptureEvent(() =>
             service.HandleWebhookAsync(body, headers, TestContext.Current.CancellationToken).GetAwaiter().GetResult());
 
         Assert.Null(ev);
@@ -279,22 +279,19 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_StaleTimestamp_DoesNotRaiseEvent()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task HandleWebhookAsync_StaleTimestamp_DoesNotRaiseEvent() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "True" }
         });
 
         var staleTimestamp = DateTimeOffset.UtcNow.AddMinutes(-15).ToUnixTimeSeconds().ToString();
-        var body = "{}"u8.ToArray();
-        var headers = new Dictionary<string, string>
-        {
+        byte[] body = "{}"u8.ToArray();
+        var headers = new Dictionary<string, string> {
             { "X-Signature-Timestamp", staleTimestamp },
             { "X-Signature-Ed25519", "deadbeef" }
         };
 
-        var ev = CaptureEvent(() =>
+        SubathonEvent? ev = CaptureEvent(() =>
             service.HandleWebhookAsync(body, headers, TestContext.Current.CancellationToken).GetAwaiter().GetResult());
 
         Assert.Null(ev);
@@ -302,23 +299,21 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public async Task HandleWebhookAsync_InvalidSignature_DoesNotRaiseEvent()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public async Task HandleWebhookAsync_InvalidSignature_DoesNotRaiseEvent() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", "Enabled"), "True" }
         });
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Hat", 500);
-        var body = System.Text.Encoding.UTF8.GetBytes(json);
-        var headers = new Dictionary<string, string>
-        {
-            { "X-Signature-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() },
-            { "X-Signature-Ed25519", "0000000000000000000000000000000000000000000000000000000000000000" +
-                                     "0000000000000000000000000000000000000000000000000000000000000000" }
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Hat", 500);
+        byte[] body = Encoding.UTF8.GetBytes(json);
+        var headers = new Dictionary<string, string> {
+            { "X-Signature-Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() }, {
+                "X-Signature-Ed25519", "0000000000000000000000000000000000000000000000000000000000000000" +
+                                       "0000000000000000000000000000000000000000000000000000000000000000"
+            }
         };
 
-        var ev = CaptureEvent(() =>
+        SubathonEvent? ev = CaptureEvent(() =>
             service.HandleWebhookAsync(body, headers, TestContext.Current.CancellationToken).GetAwaiter().GetResult());
 
         Assert.Null(ev);
@@ -326,17 +321,15 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_DollarMode_MapsCorrectly()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public void ProcessData_GiftPurchased_DollarMode_MapsCorrectly() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), "Dollar" }
         });
 
         var eventId = Guid.NewGuid().ToString();
-        var json = BuildGiftPurchasedJson(eventId, "Gifter", "Cat Plushie", 1000, "USD");
+        string json = BuildGiftPurchasedJson(eventId, "Gifter", "Cat Plushie", 1000);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneGiftPurchase, ev.EventType);
@@ -350,16 +343,14 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_DollarMode_PriceConvertedFromCents()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public void ProcessData_GiftPurchased_DollarMode_PriceConvertedFromCents() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), "Dollar" }
         });
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Mug", 2550, "GBP");
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Mug", 2550, "GBP");
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal("25.50", ev.Value);
@@ -367,16 +358,14 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_ItemMode_UsesItemNameAsValue()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public void ProcessData_GiftPurchased_ItemMode_UsesItemNameAsValue() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), "Item" }
         });
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Rainbow Hoodie", 4999, "USD");
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Rainbow Hoodie", 4999);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneGiftPurchase, ev.EventType);
@@ -385,19 +374,17 @@ public class ThroneServiceTests
         Assert.Equal("item", ev.Currency);
         Assert.Equal(1, ev.Amount);
     }
-    
-    
+
+
     [Fact]
-    public void ProcessData_GiftPurchased_ItemMode_UsesSurpriseGiftNameAsValue()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public void ProcessData_GiftPurchased_ItemMode_UsesSurpriseGiftNameAsValue() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), "Item" }
         });
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Rainbow Hoodie", 4999, "USD", true);
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Rainbow Hoodie", 4999, "USD", true);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneGiftPurchase, ev.EventType);
@@ -408,10 +395,8 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_ItemMode_NullItemName_FallsBackToOne()
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+    public void ProcessData_GiftPurchased_ItemMode_NullItemName_FallsBackToOne() {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), "Item" }
         });
 
@@ -427,7 +412,7 @@ public class ThroneServiceTests
                      }
                      """;
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal("1", ev.Value);
@@ -436,27 +421,25 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_IsSim_SetsSimulatedSource()
-    {
+    public void ProcessData_GiftPurchased_IsSim_SetsSimulatedSource() {
         (ThroneService service, _) = MakeService();
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "SYSTEM", "Test Gift", 500);
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "SYSTEM", "Test Gift", 500);
 
-        var ev = CaptureEvent(() => service.ProcessData(json, isSim: true));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json, true));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.Simulated, ev.Source);
     }
 
     [Fact]
-    public void ProcessData_ContributionPurchased_MapsCorrectly()
-    {
+    public void ProcessData_ContributionPurchased_MapsCorrectly() {
         (ThroneService service, _) = MakeService();
 
         var eventId = Guid.NewGuid().ToString();
-        var json = BuildContributionPurchasedJson(eventId, "Gifter", "Expensive Lego", 750, "USD");
+        string json = BuildContributionPurchasedJson(eventId, "Gifter", "Expensive Lego", 750);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneGiftContribution, ev.EventType);
@@ -468,13 +451,12 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_ContributionPurchased_DifferentCurrency_UsesCorrectCurrency()
-    {
+    public void ProcessData_ContributionPurchased_DifferentCurrency_UsesCorrectCurrency() {
         (ThroneService service, _) = MakeService();
 
-        var json = BuildContributionPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Campaign", 5000, "EUR");
+        string json = BuildContributionPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Campaign", 5000, "EUR");
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal("50.00", ev.Value);
@@ -482,13 +464,12 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_ContributionPurchased_IsSim_SetsSimulatedSource()
-    {
+    public void ProcessData_ContributionPurchased_IsSim_SetsSimulatedSource() {
         (ThroneService service, _) = MakeService();
 
-        var json = BuildContributionPurchasedJson(Guid.NewGuid().ToString(), "SYSTEM", "Sim Drive", 1000);
+        string json = BuildContributionPurchasedJson(Guid.NewGuid().ToString(), "SYSTEM", "Sim Drive", 1000);
 
-        var ev = CaptureEvent(() => service.ProcessData(json, isSim: true));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json, true));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.Simulated, ev.Source);
@@ -496,26 +477,24 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftCrowdfunded_MapsCorrectly()
-    {
+    public void ProcessData_GiftCrowdfunded_MapsCorrectly() {
         (ThroneService service, _) = MakeService();
 
         var eventId = Guid.NewGuid().ToString();
-        var json = BuildCrowdfundedJson(eventId, "Gold or something", 20000, "USD");
+        string json = BuildCrowdfundedJson(eventId, "Gold or something", 20000);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.ThroneCrowdGiftComplete, ev.EventType);
         Assert.Equal(SubathonEventSource.Throne, ev.Source);
-        Assert.Equal("Gold or something", ev.User); 
+        Assert.Equal("Gold or something", ev.User);
         Assert.Equal("200.00", ev.Value);
         Assert.Equal("USD", ev.Currency);
     }
 
     [Fact]
-    public void ProcessData_GiftCrowdfunded_NullItemName_FallsBackToDefault()
-    {
+    public void ProcessData_GiftCrowdfunded_NullItemName_FallsBackToDefault() {
         (ThroneService service, _) = MakeService();
 
         var json = $$"""
@@ -529,7 +508,7 @@ public class ThroneServiceTests
                      }
                      """;
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal("Crowdfunding Complete!", ev.User); // fake user
@@ -537,21 +516,19 @@ public class ThroneServiceTests
     }
 
     [Fact]
-    public void ProcessData_GiftCrowdfunded_IsSim_SetsSimulatedSource()
-    {
+    public void ProcessData_GiftCrowdfunded_IsSim_SetsSimulatedSource() {
         (ThroneService service, _) = MakeService();
 
-        var json = BuildCrowdfundedJson(Guid.NewGuid().ToString(), "Chair", 10000);
+        string json = BuildCrowdfundedJson(Guid.NewGuid().ToString(), "Chair", 10000);
 
-        var ev = CaptureEvent(() => service.ProcessData(json, isSim: true));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json, true));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.Simulated, ev.Source);
     }
 
     [Fact]
-    public void ProcessData_UnknownEventType_DoesNotRaiseEvent()
-    {
+    public void ProcessData_UnknownEventType_DoesNotRaiseEvent() {
         (ThroneService service, _) = MakeService();
 
         var json = $$"""
@@ -566,50 +543,46 @@ public class ThroneServiceTests
                      }
                      """;
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public void ProcessData_NullPayload_DoesNotThrowOrRaiseEvent()
-    {
+    public void ProcessData_NullPayload_DoesNotThrowOrRaiseEvent() {
         (ThroneService service, _) = MakeService();
 
-        var ev = CaptureEvent(() => service.ProcessData("null"));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData("null"));
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public void ProcessData_EmptyDataObject_DoesNotRaiseEvent()
-    {
+    public void ProcessData_EmptyDataObject_DoesNotRaiseEvent() {
         (ThroneService service, _) = MakeService();
 
         var json = """{ "event_id": "abc", "event_type": "gift_purchased", "data": "" }""";
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_EventIdBecomesSubathonEventId()
-    {
+    public void ProcessData_GiftPurchased_EventIdBecomesSubathonEventId() {
         (ThroneService service, _) = MakeService();
 
         var knownGuid = Guid.NewGuid();
-        var json = BuildGiftPurchasedJson(knownGuid.ToString(), "Gifter", "Jacket", 3000);
+        string json = BuildGiftPurchasedJson(knownGuid.ToString(), "Gifter", "Jacket", 3000);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(knownGuid, ev.Id);
     }
 
     [Fact]
-    public void ProcessData_GiftPurchased_NullGifterUsername_FallsBackToDefaultUser()
-    {
+    public void ProcessData_GiftPurchased_NullGifterUsername_FallsBackToDefaultUser() {
         (ThroneService service, _) = MakeService();
 
         var json = $$"""
@@ -624,49 +597,52 @@ public class ThroneServiceTests
                      }
                      """;
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal("Crowdfunding Complete!", ev.User);
     }
 
     [Fact]
-    public void WebhookPath_IsCorrectValue()
-    {
+    public void WebhookPath_IsCorrectValue() {
         (ThroneService service, _) = MakeService();
         Assert.Equal("/api/webhooks/throne", service.WebhookPath);
     }
 
     [Fact]
-    public async Task StopAsync_AfterStart_BroadcastsCorrectSource()
-    {
+    public async Task StopAsync_AfterStart_BroadcastsCorrectSource() {
         (ThroneService service, _) = MakeService();
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         SubathonEventSource? capturedSource = null;
-        void Handler(IntegrationConnection conn) => capturedSource = conn.Source;
+
+        void Handler(IntegrationConnection conn) {
+            capturedSource = conn.Source;
+        }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StopAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StopAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.Equal(SubathonEventSource.Throne, capturedSource);
     }
 
     [Theory]
     [InlineData("Dollar", "25.00", "USD")]
-    [InlineData("Item",   "Fancy Mug", "item")]
+    [InlineData("Item", "Fancy Mug", "item")]
     public void ProcessData_GiftPurchased_RespectsModeConfig(
-        string mode, string expectedValue, string expectedCurrency)
-    {
-        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string>
-        {
+        string mode, string expectedValue, string expectedCurrency) {
+        (ThroneService service, _) = MakeService(new Dictionary<(string, string), string> {
             { ("Throne", $"{SubathonEventType.ThroneGiftPurchase}.Mode"), mode }
         });
 
-        var json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Fancy Mug", 2500, "USD");
+        string json = BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Fancy Mug", 2500);
 
-        var ev = CaptureEvent(() => service.ProcessData(json));
+        SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
 
         Assert.NotNull(ev);
         Assert.Equal(expectedValue, ev.Value);

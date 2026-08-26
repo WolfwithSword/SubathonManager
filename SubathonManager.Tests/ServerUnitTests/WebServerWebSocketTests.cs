@@ -1,42 +1,39 @@
-﻿using System.Text;
-using SubathonManager.Core.Models;
-using SubathonManager.Core.Enums;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
+using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
-using SubathonManager.Server;
-using SubathonManager.Data;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
+using SubathonManager.Data;
+using SubathonManager.Server;
 using SubathonManager.Server.Interfaces;
 using SubathonManager.Tests.Utility;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServerUnitTests;
 
 [Collection("GlobalState")]
-public class WebServerWebSocketEventBusEnforcedSequentialTests
-{
-    
+public class WebServerWebSocketEventBusEnforcedSequentialTests {
     [Fact]
-    public async Task WebSocket_SendRefreshRequest_NoConsumers()
-    {
+    public async Task WebSocket_SendRefreshRequest_NoConsumers() {
         /*
          * Fails 1 in like 10 runs due to parallel stuff
          */
-        var server = WebServerWebSocketTests.CreateServer();
+        WebServer server = WebServerWebSocketTests.CreateServer();
         WebServerWebSocketTests.SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
-        
+
         await server.HandleWebSocketRequestAsync(ctx);
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client);
-        Guid guid = Guid.Empty;
+        var guid = Guid.Empty;
         server.SendRefreshRequest(guid);
         await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.Empty(ctx.Socket.SentMessages);
@@ -46,66 +43,58 @@ public class WebServerWebSocketEventBusEnforcedSequentialTests
 }
 
 [Collection("GlobalState")]
-public class WebServerWebSocketEventBusTests
-{
-    
-    private static Task<SubathonEvent?> CaptureEventAsync(Func<Task> trigger) =>
-        EventUtil.SubathonEventCapture.CaptureAsync(trigger);
+public class WebServerWebSocketEventBusTests {
+    private static Task<SubathonEvent?> CaptureEventAsync(Func<Task> trigger) {
+        return EventUtil.SubathonEventCapture.CaptureAsync(trigger);
+    }
 
     [Fact]
-    public async Task WebSocket_ReceiveIntegrationSource_AddsSourceAndEvent()
-    {
+    public async Task WebSocket_ReceiveIntegrationSource_AddsSourceAndEvent() {
         WebServerWebSocketTests.SetupServices();
-        var server = WebServerWebSocketTests.CreateServer();
+        WebServer server = WebServerWebSocketTests.CreateServer();
 
         var sourceTcs = new TaskCompletionSource<string>();
-        Action<string, bool> handler = (src, connected) =>
-        {
+        Action<string, bool> handler = (src, connected) => {
             if (connected)
                 sourceTcs.TrySetResult(src);
         };
 
         WebServerEvents.WebSocketIntegrationSourceChange += handler;
 
-        try
-        {
-            var ctx = new MockHttpContext
-            {
+        try {
+            var ctx = new MockHttpContext {
                 IsWebSocket = true
             };
             ctx.Socket.EnqueueReceive(
-                    "{\"ws_type\":\"IntegrationSource\",\"source\":\"KoFi\", \"type\": \"KoFiSub\", \"tier\":\"DEFAULT\", \"amount\": 1, \"user\":\"test\"}"
-                );
+                "{\"ws_type\":\"IntegrationSource\",\"source\":\"KoFi\", \"type\": \"KoFiSub\", \"tier\":\"DEFAULT\", \"amount\": 1, \"user\":\"test\"}"
+            );
             ctx.Socket.EnqueueClose();
 
-            SubathonEvent? ev = await CaptureEventAsync(
-                () => server.HandleWebSocketRequestAsync(ctx));
+            SubathonEvent? ev = await CaptureEventAsync(() => server.HandleWebSocketRequestAsync(ctx));
 
-            var result = await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            string result =
+                await sourceTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             Assert.Equal(nameof(SubathonEventSource.KoFi), result);
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventSource.KoFi, ev.Source);
             Assert.Equal(SubathonEventType.KoFiSub, ev.EventType);
         }
-        finally
-        {
+        finally {
             WebServerEvents.WebSocketIntegrationSourceChange -= handler;
             AppServices.Provider = null!;
             await server.StopAsync(TestContext.Current.CancellationToken);
         }
     }
-    
+
     [Fact]
-    public async Task WebSocket_ReceiveCommand()
-    {
+    public async Task WebSocket_ReceiveCommand() {
         WebServerWebSocketTests.SetupServices();
-        var server = WebServerWebSocketTests.CreateServer();
+        WebServer server = WebServerWebSocketTests.CreateServer();
 
         var sourceTcs = new TaskCompletionSource<string>();
 
-        Action<string, bool> handler = (src, connected) =>
-        {
+        Action<string, bool> handler = (src, connected) => {
             if (connected)
                 sourceTcs.TrySetResult(src);
         };
@@ -113,27 +102,23 @@ public class WebServerWebSocketEventBusTests
 
         WebServerEvents.WebSocketIntegrationSourceChange += handler;
 
-        try
-        {
-            var ctx = new MockHttpContext
-            {
+        try {
+            var ctx = new MockHttpContext {
                 IsWebSocket = true
             };
 
             ctx.Socket.EnqueueReceive(
-                    "{\"ws_type\":\"Command\", \"type\": \"Command\", \"message\":\"\", \"command\": \"pause\", \"user\":\"test\"}");
+                "{\"ws_type\":\"Command\", \"type\": \"Command\", \"message\":\"\", \"command\": \"pause\", \"user\":\"test\"}");
             ctx.Socket.EnqueueClose();
-            
 
-            SubathonEvent? ev = await CaptureEventAsync(
-                () => server.HandleWebSocketRequestAsync(ctx));
+
+            SubathonEvent? ev = await CaptureEventAsync(() => server.HandleWebSocketRequestAsync(ctx));
 
             Assert.NotNull(ev);
             Assert.Equal(SubathonEventSource.External, ev.Source);
             Assert.Equal(SubathonEventType.Command, ev.EventType);
         }
-        finally
-        {
+        finally {
             WebServerEvents.WebSocketIntegrationSourceChange -= handler;
             AppServices.Provider = null!;
             await server.StopAsync(TestContext.Current.CancellationToken);
@@ -142,31 +127,27 @@ public class WebServerWebSocketEventBusTests
 }
 
 [Collection("GlobalState")]
-public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
-{
+public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper) {
     private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
 
     private static async Task WaitForMessageMatchingAsync(
         MockWebSocket socket,
         Func<string, bool> predicate,
-        TimeSpan timeout)
-    {
+        TimeSpan timeout) {
         using var cts = new CancellationTokenSource(timeout);
-        while (!cts.IsCancellationRequested)
-        {
+        while (!cts.IsCancellationRequested) {
             if (socket.SentMessages.Any(m => predicate(Encoding.UTF8.GetString(m))))
                 return;
             await Task.Delay(10, cts.Token);
         }
+
         throw new TimeoutException("No matching websocket message received within timeout.");
     }
-    
-    private static async Task WaitForMessageAsync(MockWebSocket socket, TimeSpan timeout)
-    {
+
+    private static async Task WaitForMessageAsync(MockWebSocket socket, TimeSpan timeout) {
         using var cts = new CancellationTokenSource(timeout);
 
-        while (!cts.IsCancellationRequested)
-        {
+        while (!cts.IsCancellationRequested) {
             if (socket.SentMessages.Count > 0)
                 return;
 
@@ -176,55 +157,48 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
         throw new TimeoutException("No websocket message received within timeout.");
     }
 
-    private static IConfig MakeMockConfig(Dictionary<(string, string), string>? values = null)
-    {
+    private static IConfig MakeMockConfig(Dictionary<(string, string), string>? values = null) {
         if (values == null) values = new Dictionary<(string, string), string>();
         if (!values.ContainsKey(("Server", "Port"))) values[("Server", "Port")] = "14045";
-        var config = MockConfig.MakeMockConfig(values);
+        IConfig config = MockConfig.MakeMockConfig(values);
         return config;
     }
-    
-    internal static void SetupServices()
-    { 
+
+    internal static void SetupServices() {
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName)); 
-        var mockConfig = MakeMockConfig(new()
-        {
+        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
+        IConfig mockConfig = MakeMockConfig(new Dictionary<(string, string), string> {
             { ("Server", "Port"), "14045" }
         });
         services.AddSingleton(mockConfig);
         AppServices.Provider = services.BuildServiceProvider();
     }
-    
-    internal static WebServer CreateServer()
-    {
+
+    internal static WebServer CreateServer() {
         SetupServices();
         var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
         var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        var mockConfig = MakeMockConfig(new()
-        {
+        IConfig mockConfig = MakeMockConfig(new Dictionary<(string, string), string> {
             { ("Server", "Port"), "14045" }
         });
         var webserver = new WebServer(logger, mockConfig, factory);
         webserver.Initialize();
         return webserver;
     }
-    
-    private async Task HandleWebSocketAsync(IHttpContext ctx)
-    {
-        var accept = ctx.AcceptWebSocketAsync();
 
-        if (accept is null)
-        {
+    private async Task HandleWebSocketAsync(IHttpContext ctx) {
+        Task<WebSocket>? accept = ctx.AcceptWebSocketAsync();
+
+        if (accept is null) {
             await ctx.WriteResponse(400, "Not a WebSocket request");
             return;
         }
 
-        using var socket = await accept;
+        using WebSocket socket = await accept;
 
-        var message = Encoding.UTF8.GetBytes("hello");
+        byte[] message = Encoding.UTF8.GetBytes("hello");
         await socket.SendAsync(
             message,
             WebSocketMessageType.Text,
@@ -233,20 +207,17 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
     }
 
     [Fact]
-    public void Generate_Injection_Script()
-    {   
+    public void Generate_Injection_Script() {
         SetupServices();
-        var server = CreateServer();
-        var script = server.GetWebsocketInjectionScript();
+        WebServer server = CreateServer();
+        string script = server.GetWebsocketInjectionScript();
         Assert.Contains("ws://localhost:14045/ws", script);
         AppServices.Provider = null!;
     }
-    
+
     [Fact]
-    public async Task Non_WebSocket_Request_Is_Rejected_As_WebSocket()
-    {
-        var ctx = new MockHttpContext
-        {
+    public async Task Non_WebSocket_Request_Is_Rejected_As_WebSocket() {
+        var ctx = new MockHttpContext {
             IsWebSocket = false
         };
 
@@ -255,12 +226,10 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
         Assert.Equal(400, ctx.StatusCode);
         Assert.Equal("Not a WebSocket request", ctx.ResponseBody);
     }
-    
+
     [Fact]
-    public async Task WebSocket_Request_Is_Accepted()
-    {
-        var ctx = new MockHttpContext
-        {
+    public async Task WebSocket_Request_Is_Accepted() {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
@@ -268,142 +237,128 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 
         Assert.Single(ctx.Socket.SentMessages);
 
-        var text = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
+        string text = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal("hello", text);
     }
-    
+
     [Fact]
-    public async Task WebSocket_Sends_Hello_Message()
-    {
-        var ctx = new MockHttpContext
-        {
+    public async Task WebSocket_Sends_Hello_Message() {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
         await HandleWebSocketAsync(ctx);
 
-        var sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
+        string sent = Encoding.UTF8.GetString(ctx.Socket.SentMessages[0]);
         Assert.Equal("hello", sent);
     }
-    
+
     [Fact]
-    public async Task WebSocket_Does_Not_Write_Response()
-    {
-        var ctx = new MockHttpContext
-        {
+    public async Task WebSocket_Does_Not_Write_Response() {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
         await HandleWebSocketAsync(ctx);
         Assert.Equal(0, ctx.StatusCode); // default val
     }
-    
+
     [Fact]
-    public async Task WebSocket_Does_Not_Call_Accept_When_Not_WS()
-    {
-        var ctx = new MockHttpContext
-        {
+    public async Task WebSocket_Does_Not_Call_Accept_When_Not_WS() {
+        var ctx = new MockHttpContext {
             IsWebSocket = false
         };
         await HandleWebSocketAsync(ctx);
         Assert.Equal(1, ctx.AcceptCalls);
     }
-    
+
     [Fact]
-    public async Task WebSocket_Is_Disposed()
-    {
-        var ctx = new MockHttpContext
-        {
+    public async Task WebSocket_Is_Disposed() {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
         await HandleWebSocketAsync(ctx);
         Assert.True(ctx.Socket.Disposed);
     }
-    
+
     [Fact]
-    public async Task WebSocket_SendGoalsUpdated_List()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SendGoalsUpdated_List() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
-        SubathonGoal goal = new SubathonGoal
-        {
-            Text="Test Goal",
+        var goal = new SubathonGoal {
+            Text = "Test Goal",
             Points = 5
         };
 
-        List<SubathonGoal> goals = new List<SubathonGoal>();
+        var goals = new List<SubathonGoal>();
         goals.Add(goal);
-        
+
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
-        server.SendGoalsUpdated(goals,10, GoalsType.Points);
-        
+        server.SendGoalsUpdated(goals, 10, GoalsType.Points);
+
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("goals_list"), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("goals_list"));
-        Assert.Equal("{\"type\":\"goals_list\",\"points\":10,\"goals\":[{\"text\":\"Test Goal\",\"points\":5,\"completed\":true}],\"goals_type\":\"Points\"}", sent);
+        Assert.Equal(
+            "{\"type\":\"goals_list\",\"points\":10,\"goals\":[{\"text\":\"Test Goal\",\"points\":5,\"completed\":true}],\"goals_type\":\"Points\"}",
+            sent);
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
-    }    
-    
+    }
+
     [Fact]
-    public async Task WebSocket_SendSubathonValues()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SendSubathonValues() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
-        
+
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.ValueConfig);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
         server.SendSubathonValues("[{}]");
-        
+
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("value_config"), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("value_config"));
         Assert.Equal("{ \"type\": \"value_config\", \"ws_type\": \"ValueConfig\", \"data\": [{}] }", sent);
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }
-    
+
     [Fact]
-    public async Task WebSocket_SendGoalComplete()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SendGoalComplete() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
-        SubathonGoal goal = new SubathonGoal
-        {
-            Text="Test Goal",
+        var goal = new SubathonGoal {
+            Text = "Test Goal",
             Points = 5
         };
 
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
-        server.SendGoalCompleted(goal,10);
-        
+        server.SendGoalCompleted(goal, 10);
+
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("goal_completed"), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("goal_completed"));
         Assert.Equal("{\"type\":\"goal_completed\",\"goal_text\":\"Test Goal\",\"goal_points\":5,\"points\":10}", sent);
@@ -413,17 +368,14 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 
 
     [Fact]
-    public async Task WebSocket_SendSubathonEvent()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SendSubathonEvent() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+        var subathonEvent = new SubathonEvent {
             EventType = SubathonEventType.TwitchGiftSub,
             Amount = 5,
             User = "Test User",
@@ -436,31 +388,31 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
         };
 
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
-        
+
         server.SendSubathonEventProcessed(subathonEvent, true);
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
-        var messagesAfterUnprocessed = ctx.Socket.SentMessages
+        List<string> messagesAfterUnprocessed = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .ToList();
         Assert.DoesNotContain(messagesAfterUnprocessed,
             m => m.Contains("\"type\":\"event\"") && m.Contains("TwitchGiftSub"));
 
         ctx.Socket.SentMessages.Clear();
-        
+
         subathonEvent.ProcessedToSubathon = true;
         server.SendSubathonEventProcessed(subathonEvent, true);
-        
+
         await WaitForMessageMatchingAsync(
             ctx.Socket,
             m => m.Contains("\"type\":\"event\"") && m.Contains("TwitchGiftSub"),
             TimeSpan.FromSeconds(5));
 
         Assert.NotEmpty(ctx.Socket.SentMessages);
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("\"type\":\"event\"") && m.Contains("TwitchGiftSub"));
 
@@ -473,57 +425,51 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
     }
 
     [Fact]
-    public async Task WebSocket_SendRefreshRequest()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SendRefreshRequest() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
-        
+
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Overlay); // only one that gets refresh
         server.AddSocketClient(client); // ACTUAL adding to clients list
-        Guid guid = Guid.Empty;
+        var guid = Guid.Empty;
         server.SendRefreshRequest(guid);
-        
+
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("refresh_request"), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("refresh_request"));
         Assert.Equal($"{{\"type\":\"refresh_request\",\"id\":\"{guid}\"}}", sent);
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }
-    
+
     [Fact]
-    public async Task WebSocket_SendSubathonData()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SendSubathonData() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
-        
+
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
 
-        MultiplierData mult = new MultiplierData()
-        {
+        var mult = new MultiplierData {
             Multiplier = 2.0,
             ApplyToPoints = false,
             ApplyToSeconds = true
         };
-        
-        SubathonData subathon = new SubathonData()
-        {
-            MillisecondsCumulative = (long) TimeSpan.FromDays(5).TotalMilliseconds,
-            MillisecondsElapsed = (long) TimeSpan.FromDays(3).TotalMilliseconds,
+
+        var subathon = new SubathonData {
+            MillisecondsCumulative = (long)TimeSpan.FromDays(5).TotalMilliseconds,
+            MillisecondsElapsed = (long)TimeSpan.FromDays(3).TotalMilliseconds,
             Points = 5678,
             IsPaused = false,
             IsActive = true,
@@ -533,57 +479,54 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
             MoneySum = 6769.55,
             ReversedTime = false
         };
-        
+
         server.SendSubathonDataUpdate(subathon, DateTime.Now);
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("subathon_timer"), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("subathon_timer"));
-        Assert.Equal("{\"type\":\"subathon_timer\",\"total_seconds\":172800,\"days\":2,\"hours\":0,\"minutes\":0,\"seconds\":0,\"total_points\":5678,\"rounded_money\":6769,\"fractional_money\":6769.55,\"currency\":\"CAD\",\"is_paused\":false,\"is_locked\":false,\"is_reversed\":false,\"multiplier_points\":1,\"multiplier_time\":2,\"multiplier_start_time\":null,\"multiplier_seconds_total\":0,\"multiplier_seconds_remaining\":0,\"total_seconds_elapsed\":259200,\"total_seconds_added\":432000}", sent);
+        Assert.Equal(
+            "{\"type\":\"subathon_timer\",\"total_seconds\":172800,\"days\":2,\"hours\":0,\"minutes\":0,\"seconds\":0,\"total_points\":5678,\"rounded_money\":6769,\"fractional_money\":6769.55,\"currency\":\"CAD\",\"is_paused\":false,\"is_locked\":false,\"is_reversed\":false,\"multiplier_points\":1,\"multiplier_time\":2,\"multiplier_start_time\":null,\"multiplier_seconds_total\":0,\"multiplier_seconds_remaining\":0,\"total_seconds_elapsed\":259200,\"total_seconds_added\":432000}",
+            sent);
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }
-    
-        
+
+
     [Fact]
-    public async Task WebSocket_SelectSend()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_SelectSend() {
+        WebServer server = CreateServer();
         SetupServices();
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
-        
+
         await server.HandleWebSocketRequestAsync(ctx); // does nothing as it exists, but gets coverage
-        WebSocketClient client = new WebSocketClient(ctx.Socket);
+        var client = new WebSocketClient(ctx.Socket);
         client.ClientTypes.Add(WebsocketClientMessageType.Widget);
         server.AddSocketClient(client); // ACTUAL adding to clients list
 
-        object data = new
-        {
+        object data = new {
             type = "test",
-            points = 5,
+            points = 5
         };
 
         await server.SelectSendAsync(client, data);
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("\"type\":\"test\""), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("\"type\":\"test\""));
         Assert.Equal("{\"type\":\"test\",\"points\":5}", sent);
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }
-    
+
     [Fact]
-    public async Task WebSocket_ReceivePing_ReturnsPong()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_ReceivePing_ReturnsPong() {
+        WebServer server = CreateServer();
         SetupServices();
 
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
@@ -592,7 +535,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 
         await server.HandleWebSocketRequestAsync(ctx);
         await WaitForMessageMatchingAsync(ctx.Socket, m => m.Contains("pong"), TimeSpan.FromSeconds(5));
-        var sent = ctx.Socket.SentMessages
+        string sent = ctx.Socket.SentMessages
             .Select(m => Encoding.UTF8.GetString(m))
             .First(m => m.Contains("pong"));
         Assert.Equal("{\"ws_type\":\"pong\"}", sent);
@@ -600,15 +543,13 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }
-    
+
     [Fact]
-    public async Task WebSocket_ReceiveHello_DoesNotSendMessage()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_ReceiveHello_DoesNotSendMessage() {
+        WebServer server = CreateServer();
         SetupServices();
 
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
@@ -624,23 +565,20 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
     }
 
     [Fact]
-    public async Task WebSocket_ReceiveIntegrationSource_AddsSource_AndRaisesEvent()
-    {
-        var server = CreateServer();
+    public async Task WebSocket_ReceiveIntegrationSource_AddsSource_AndRaisesEvent() {
+        WebServer server = CreateServer();
         SetupServices();
 
         var tcs = new TaskCompletionSource<string>();
 
-        
-        Action<string, bool> handler = (src, connected) =>
-        {
+
+        Action<string, bool> handler = (src, connected) => {
             if (connected)
                 tcs.TrySetResult(src);
         };
         WebServerEvents.WebSocketIntegrationSourceChange += handler;
 
-        var ctx = new MockHttpContext
-        {
+        var ctx = new MockHttpContext {
             IsWebSocket = true
         };
 
@@ -651,31 +589,28 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 
         await server.HandleWebSocketRequestAsync(ctx);
 
-        var result = await tcs.Task;
+        string result = await tcs.Task;
         Assert.Equal(nameof(SubathonEventSource.KoFi), result);
         WebServerEvents.WebSocketIntegrationSourceChange -= handler;
         AppServices.Provider = null!;
         await server.StopAsync(TestContext.Current.CancellationToken);
     }
-    
-    
-    [Fact]
-    public async Task WebSocket_ReceiveAndInitConsumer()
-    {
-        SetupServices();
-        var server = CreateServer();
 
-        try
-        {
+
+    [Fact]
+    public async Task WebSocket_ReceiveAndInitConsumer() {
+        SetupServices();
+        WebServer server = CreateServer();
+
+        try {
             var factory = AppServices.Provider.GetService<IDbContextFactory<AppDbContext>>();
-            await using var db = await factory!.CreateDbContextAsync(TestContext.Current.CancellationToken);
+            await using AppDbContext db = await factory!.CreateDbContextAsync(TestContext.Current.CancellationToken);
 
             var subathon = new SubathonData { IsActive = true };
             db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
             db.SubathonDatas.Add(subathon);
 
-            db.SubathonEvents.Add(new SubathonEvent
-            {
+            db.SubathonEvents.Add(new SubathonEvent {
                 SubathonId = subathon.Id,
                 EventType = SubathonEventType.KoFiDonation,
                 Currency = "USD",
@@ -686,8 +621,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             db.ChangeTracker.Clear();
 
-            var ctx = new MockHttpContext
-            {
+            var ctx = new MockHttpContext {
                 IsWebSocket = true
             };
 
@@ -700,30 +634,26 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 
             Assert.NotEmpty(ctx.Socket.SentMessages);
         }
-        finally
-        {
+        finally {
             AppServices.Provider = null!;
             server.Stop();
         }
     }
-    
-    [Fact]
-    public async Task WebSocket_ReceiveAndInitConfigConsumer()
-    {
-        SetupServices();
-        var server = CreateServer();
 
-        try
-        {
+    [Fact]
+    public async Task WebSocket_ReceiveAndInitConfigConsumer() {
+        SetupServices();
+        WebServer server = CreateServer();
+
+        try {
             var factory = AppServices.Provider.GetService<IDbContextFactory<AppDbContext>>();
-            await using var db = await factory!.CreateDbContextAsync(TestContext.Current.CancellationToken);
+            await using AppDbContext db = await factory!.CreateDbContextAsync(TestContext.Current.CancellationToken);
 
             var subathon = new SubathonData { IsActive = true };
             db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
             db.SubathonDatas.Add(subathon);
 
-            db.SubathonEvents.Add(new SubathonEvent
-            {
+            db.SubathonEvents.Add(new SubathonEvent {
                 SubathonId = subathon.Id,
                 EventType = SubathonEventType.KoFiDonation,
                 Currency = "USD",
@@ -731,8 +661,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
                 ProcessedToSubathon = true
             });
 
-            db.SubathonValues.Add(new SubathonValue
-            {
+            db.SubathonValues.Add(new SubathonValue {
                 EventType = SubathonEventType.TwitchSub,
                 Meta = "1000"
             });
@@ -740,8 +669,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             db.ChangeTracker.Clear();
 
-            var ctx = new MockHttpContext
-            {
+            var ctx = new MockHttpContext {
                 IsWebSocket = true
             };
 
@@ -754,23 +682,19 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
 
             Assert.NotEmpty(ctx.Socket.SentMessages);
         }
-        finally
-        {
+        finally {
             AppServices.Provider = null!;
             server.Stop();
         }
     }
 
     [Fact]
-    public async Task WebSocket_CommandListRequest_ReturnsCatalog()
-    {
+    public async Task WebSocket_CommandListRequest_ReturnsCatalog() {
         SetupServices();
-        var server = CreateServer();
+        WebServer server = CreateServer();
 
-        try
-        {
-            var ctx = new MockHttpContext
-            {
+        try {
+            var ctx = new MockHttpContext {
                 IsWebSocket = true
             };
 
@@ -792,23 +716,19 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
             Assert.DoesNotContain($"\"{nameof(SubathonCommandType.Unknown)}\"", msg);
             Assert.DoesNotContain($"\"{nameof(SubathonCommandType.None)}\"", msg);
         }
-        finally
-        {
+        finally {
             AppServices.Provider = null!;
             server.Stop();
         }
     }
 
     [Fact]
-    public async Task WebSocket_Command_SendsAckWithContext()
-    {
+    public async Task WebSocket_Command_SendsAckWithContext() {
         SetupServices();
-        var server = CreateServer();
+        WebServer server = CreateServer();
 
-        try
-        {
-            var ctx = new MockHttpContext
-            {
+        try {
+            var ctx = new MockHttpContext {
                 IsWebSocket = true
             };
 
@@ -828,11 +748,9 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper)
             Assert.Contains("key-context-1", msg);
             Assert.Contains("\"pause\"", msg);
         }
-        finally
-        {
+        finally {
             AppServices.Provider = null!;
             server.Stop();
         }
     }
-
 }
