@@ -1,7 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-  <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -12,23 +11,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="coverlet.MTP" Version="*" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="*" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CrashDump" Version="*" />
+    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" Version="*" />
+
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.11" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
     <PackageReference Include="xunit.v3" Version="4.0.0" />
   </ItemGroup>
-
   <ItemGroup>
     <Using Include="SubathonManager.Core" />
     <Using Include="Xunit" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
     <ProjectReference Include="..\SubathonManager.Data\SubathonManager.Data.csproj" />
@@ -36,5 +32,4 @@
     <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
     <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
   </ItemGroup>
-
 </Project>
