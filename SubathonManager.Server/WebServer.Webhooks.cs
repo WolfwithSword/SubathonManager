@@ -5,20 +5,16 @@ using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Server;
 
-public partial class WebServer
-{
-    private void SetupWebhookRoutes()
-    {
-        foreach (var integration in AppServices.Provider.GetServices<IWebhookIntegration>())
+public partial class WebServer {
+    private void SetupWebhookRoutes() {
+        foreach (IWebhookIntegration integration in AppServices.Provider.GetServices<IWebhookIntegration>())
             RegisterWebhookRoute(integration);
     }
 
-    private void RegisterWebhookRoute(IWebhookIntegration integration)
-    {
-        var captured = integration;
-        _routes.Add((new RouteKey("POST", captured.WebhookPath), async ctx =>
-        {
-            var headers = ctx.Headers;
+    private void RegisterWebhookRoute(IWebhookIntegration integration) {
+        IWebhookIntegration captured = integration;
+        _routes.Add((new RouteKey("POST", captured.WebhookPath), async ctx => {
+            IReadOnlyDictionary<string, string> headers = ctx.Headers;
             using var ms = new MemoryStream();
             await ctx.Body.CopyToAsync(ms);
             byte[] rawBody = ms.ToArray();

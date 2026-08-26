@@ -1,66 +1,62 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Core.Models;
-using SubathonManager.Core.Events;
 using SubathonManager.Core.Enums;
-using SubathonManager.Integration;
+using SubathonManager.Core.Events;
+using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.Integration;
 using SubathonManager.Server.Interfaces;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Server;
 
-public partial class WebServer
-{
-    private void SetupApiRoutes()
-    {
-        _routes.Add((new RouteKey("POST", "/api/data/control"),HandleDataControlRequestAsync ));
-        _routes.Add((new RouteKey("PUT", "/api/data/control"),HandleDataControlRequestAsync ));
-        
-        _routes.Add((new RouteKey("GET", "/api/data/status"),HandleStatusRequestAsync));
-        
-        _routes.Add((new RouteKey("GET", "/api/data/amounts"),HandleAmountsRequestAsync ));
-        
-        _routes.Add((new RouteKey("GET", "/api/data/values"),HandleValuesRequestAsync ));
+public partial class WebServer {
+    private void SetupApiRoutes() {
+        _routes.Add((new RouteKey("POST", "/api/data/control"), HandleDataControlRequestAsync));
+        _routes.Add((new RouteKey("PUT", "/api/data/control"), HandleDataControlRequestAsync));
 
-        _routes.Add((new RouteKey("GET", "/api/data/commands"),HandleCommandsRequestAsync ));
-        
-        _routes.Add((new RouteKey("PUT", "/api/data/values"),HandleValuesPatchRequestAsync));
-        _routes.Add((new RouteKey("POST", "/api/data/values"),HandleValuesPatchRequestAsync ));
-        _routes.Add((new RouteKey("PATCH", "/api/data/values"),HandleValuesPatchRequestAsync ));
-        
-        _routes.Add((new RouteKey("GET", "/api/select"),HandleSelectAsync));
-        
-        _routes.Add((new RouteKey("POST", "/api/update-position/"),HandleWidgetUpdateAsync ));
-        _routes.Add((new RouteKey("POST", "/api/update-size/"),HandleWidgetUpdateAsync));
-        _routes.Add((new RouteKey("POST", "/api/update-dimensions/"),HandleWidgetUpdateAsync));
-        _routes.Add((new RouteKey("POST", "/api/widget-action/"),HandleWidgetActionAsync));
+        _routes.Add((new RouteKey("GET", "/api/data/status"), HandleStatusRequestAsync));
+
+        _routes.Add((new RouteKey("GET", "/api/data/amounts"), HandleAmountsRequestAsync));
+
+        _routes.Add((new RouteKey("GET", "/api/data/values"), HandleValuesRequestAsync));
+
+        _routes.Add((new RouteKey("GET", "/api/data/commands"), HandleCommandsRequestAsync));
+
+        _routes.Add((new RouteKey("PUT", "/api/data/values"), HandleValuesPatchRequestAsync));
+        _routes.Add((new RouteKey("POST", "/api/data/values"), HandleValuesPatchRequestAsync));
+        _routes.Add((new RouteKey("PATCH", "/api/data/values"), HandleValuesPatchRequestAsync));
+
+        _routes.Add((new RouteKey("GET", "/api/select"), HandleSelectAsync));
+
+        _routes.Add((new RouteKey("POST", "/api/update-position/"), HandleWidgetUpdateAsync));
+        _routes.Add((new RouteKey("POST", "/api/update-size/"), HandleWidgetUpdateAsync));
+        _routes.Add((new RouteKey("POST", "/api/update-dimensions/"), HandleWidgetUpdateAsync));
+        _routes.Add((new RouteKey("POST", "/api/widget-action/"), HandleWidgetActionAsync));
     }
 
-    internal async Task HandleWidgetActionAsync(IHttpContext ctx)
-    {
-        var parts = ctx.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 3 || !Guid.TryParse(parts[2], out var widgetId))
-        {
+    internal async Task HandleWidgetActionAsync(IHttpContext ctx) {
+        string[] parts = ctx.Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3 || !Guid.TryParse(parts[2], out Guid widgetId)) {
             await ctx.WriteResponse(400, "Invalid Widget ID");
             return;
         }
 
         string body;
-        using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding)) {
             body = await reader.ReadToEndAsync();
+        }
 
-        try
-        {
+        try {
             var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body);
-            string name = data != null && data.TryGetValue("action", out var el) && el.ValueKind == JsonValueKind.String
+            string name = data != null && data.TryGetValue("action", out JsonElement el) &&
+                          el.ValueKind == JsonValueKind.String
                 ? el.GetString() ?? string.Empty
                 : string.Empty;
 
-            if (!Enum.TryParse<WidgetContextAction>(name, ignoreCase: true, out var action))
-            {
+            if (!Enum.TryParse<WidgetContextAction>(name, true, out WidgetContextAction action)) {
                 await ctx.WriteResponse(400, "Unknown action");
                 return;
             }
@@ -68,52 +64,46 @@ public partial class WebServer
             WidgetEvents.RaiseWidgetAction(widgetId, action);
             await ctx.WriteResponse(200, "OK");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to handle widget context action");
             await ctx.WriteResponse(400, "Invalid action data");
         }
     }
-    
-    internal async Task HandleSelectAsync(IHttpContext ctx)
-    {
-        var path = ctx.Path;
-        
+
+    internal async Task HandleSelectAsync(IHttpContext ctx) {
+        string path = ctx.Path;
+
         // Fast Close
         await ctx.WriteResponse(200, "OK");
-        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 3)
-        {
+        string[] parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3) {
             string widgetId = parts[2];
-            if (Guid.TryParse(widgetId, out var widgetGuid))
-            {
-                WidgetEvents.RaiseSelectEditorWidget(widgetGuid);
-            }
+            if (Guid.TryParse(widgetId, out Guid widgetGuid)) WidgetEvents.RaiseSelectEditorWidget(widgetGuid);
         }
     }
-    
-    internal async Task HandleWidgetUpdateAsync(IHttpContext ctx)
-    {;
-        var path = ctx.Path;
 
-        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 3)
-        {
+    internal async Task HandleWidgetUpdateAsync(IHttpContext ctx) {
+        ;
+        string path = ctx.Path;
+
+        string[] parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3) {
             string widgetId = parts[2];
 
             string body;
-            using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
+            using (var reader = new StreamReader(ctx.Body, ctx.Encoding)) {
                 body = await reader.ReadToEndAsync();
+            }
+
             var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(body);
 
-            if (data == null)
-            {
+            if (data == null) {
                 await ctx.WriteResponse(400, "Invalid update data");
                 return;
             }
 
             var widgetHelper = new WidgetEntityHelper(_factory, null);
-            bool success = false;
+            var success = false;
             if (path.StartsWith("/api/update-size/", StringComparison.OrdinalIgnoreCase))
                 success = await widgetHelper.UpdateWidgetScale(widgetId, data);
             else if (path.StartsWith("/api/update-position/", StringComparison.OrdinalIgnoreCase))
@@ -121,100 +111,88 @@ public partial class WebServer
             else if (path.StartsWith("/api/update-dimensions/", StringComparison.OrdinalIgnoreCase))
                 success = await widgetHelper.UpdateWidgetDimensions(widgetId, data);
 
-            if (success)
-            {
+            if (success) {
                 await ctx.WriteResponse(200, "OK");
                 return;
             }
-            
+
             await ctx.WriteResponse(404, "Widget Not Found");
             return;
         }
+
         await ctx.WriteResponse(400, "Invalid Widget ID");
     }
 
-    private async Task HandleDataControlRequestAsync(IHttpContext ctx)
-    {
+    private async Task HandleDataControlRequestAsync(IHttpContext ctx) {
         string body;
-        using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding)) {
             body = await reader.ReadToEndAsync();
+        }
 
         var data = new Dictionary<string, JsonElement>();
-        try
-        {
+        try {
             data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>($"{body}");
         }
-        catch (JsonException ex)
-        {
+        catch (JsonException ex) {
             _logger?.LogError(ex, "Invalid control data");
             await ctx.WriteResponse(400, "Invalid control data");
             return;
         }
 
-        if (data == null || data.Count == 0)
-        {
+        if (data == null || data.Count == 0) {
             await ctx.WriteResponse(400, "Invalid control data");
             return;
         }
 
-        SubathonEventType type = SubathonEventType.Unknown;
+        var type = SubathonEventType.Unknown;
         if (!data.ContainsKey("type") || !data.TryGetValue("type", out JsonElement elem)
-            || !Enum.TryParse(elem.GetString()!, ignoreCase: true, out type))
-        {
-            
+                                      || !Enum.TryParse(elem.GetString()!, true, out type)) {
             await ctx.WriteResponse(400, "Invalid control data");
             return;
         }
 
-        bool success = false;
-        if (type == SubathonEventType.Command)
-        {
+        var success = false;
+        if (type == SubathonEventType.Command) {
             success = ExternalEventService.ProcessExternalCommand(data);
         }
-        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternal())
-        {
+        else if (((SubathonEventType?)type).IsCurrencyDonation() && ((SubathonEventType?)type).IsExternal()) {
             success = ExternalEventService.ProcessExternalDonation(data);
         }
-        else if (((SubathonEventType?)type).IsSubscription() && ((SubathonEventType?)type).IsExternal())
-        {
+        else if (((SubathonEventType?)type).IsSubscription() && ((SubathonEventType?)type).IsExternal()) {
             success = ExternalEventService.ProcessExternalSub(data);
         }
-        else
-        {
+        else {
             await ctx.WriteResponse(400, "Invalid control data");
             return;
         }
 
-        if (success)
-        {
+        if (success) {
             await ctx.WriteResponse(200, "OK");
             return;
         }
+
         await ctx.WriteResponse(400, "Invalid API Request");
     }
 
 
-    internal async Task HandleStatusRequestAsync(IHttpContext ctx)
-    {
-        await using var db = await _factory.CreateDbContextAsync();
+    internal async Task HandleStatusRequestAsync(IHttpContext ctx) {
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.IsActive);
         TimeSpan? multiplierRemaining = TimeSpan.Zero;
-        if (subathon == null)
-        {
+        if (subathon == null) {
             await ctx.WriteResponse(400, "Invalid status request");
             return;
         }
+
         if (subathon.Multiplier.Duration != null && subathon.Multiplier.Duration > TimeSpan.Zero
-                                                 && subathon.Multiplier.Started != null)
-        {
+                                                 && subathon.Multiplier.Started != null) {
             DateTime? multEndTime = subathon.Multiplier.Started + subathon.Multiplier.Duration;
             multiplierRemaining = multEndTime! - DateTime.Now;
         }
 
-        object response = new
-        {
+        object response = new {
             millis_cumulated = subathon.MillisecondsCumulative,
             millis_elapsed = subathon.MillisecondsElapsed,
             millis_remaining = subathon.MillisecondsRemaining(),
@@ -227,91 +205,86 @@ public partial class WebServer
             is_paused = subathon.IsPaused,
             is_locked = subathon.IsLocked,
             is_reversed = subathon.IsSubathonReversed(),
-            multiplier = new
-            {
+            multiplier = new {
                 running = subathon.Multiplier.IsRunning(),
                 apply_points = subathon.Multiplier.ApplyToPoints,
                 apply_time = subathon.Multiplier.ApplyToSeconds,
                 is_from_hypetrain = subathon.Multiplier.FromHypeTrain,
                 started_at = subathon.Multiplier.Started,
                 duration_seconds = Math.Round(subathon.Multiplier.Duration?.TotalSeconds ?? 0),
-                duration_remaining_seconds = Math.Round(multiplierRemaining.Value.TotalSeconds),
+                duration_remaining_seconds = Math.Round(multiplierRemaining.Value.TotalSeconds)
             }
         };
 
-        string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
+        string json = JsonSerializer.Serialize(response, new JsonSerializerOptions {
             WriteIndented = true
         });
         await ctx.WriteResponse(200, json);
     }
 
-    internal async Task HandleAmountsRequestAsync(IHttpContext ctx)
-    {
-        await using var db = await _factory.CreateDbContextAsync();
+    internal async Task HandleAmountsRequestAsync(IHttpContext ctx) {
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.IsActive);
-        if (subathon == null)
-        {
+        if (subathon == null) {
             await ctx.WriteResponse(400, "Invalid status request");
             return;
         }
-        var events = await db.SubathonEvents
+
+        List<SubathonEvent> events = await db.SubathonEvents
             .Where(e => e.SubathonId == subathon.Id && e.ProcessedToSubathon)
             .Where(e => e.EventType != SubathonEventType.Command &&
                         e.EventType != SubathonEventType.Unknown)
             .ToListAsync();
-            
-        var simulated = events.Where(e => e.User != null && (e.User.StartsWith("SYSTEM") || e.User.StartsWith("SIMULATED"))).ToList();
-        var real = events.Where(e => e.User != null && !e.User.StartsWith("SYSTEM") && !e.User.StartsWith("SIMULATED")).ToList();
-            
-        object response = new
-        {
+
+        List<SubathonEvent> simulated = events
+            .Where(e => e.User != null && (e.User.StartsWith("SYSTEM") || e.User.StartsWith("SIMULATED"))).ToList();
+        List<SubathonEvent> real = events
+            .Where(e => e.User != null && !e.User.StartsWith("SYSTEM") && !e.User.StartsWith("SIMULATED")).ToList();
+
+        object response = new {
             simulated = BuildDataSummary(simulated),
             real = BuildDataSummary(real)
         };
 
-        string json = JsonSerializer.Serialize(response, new JsonSerializerOptions
-        {
+        string json = JsonSerializer.Serialize(response, new JsonSerializerOptions {
             WriteIndented = true
         });
         await ctx.WriteResponse(200, json);
     }
-    
-    internal static object[] BuildCommandCatalog() =>
-        Enum.GetValues<SubathonCommandType>()
+
+    internal static object[] BuildCommandCatalog() {
+        return Enum.GetValues<SubathonCommandType>()
             .Where(c => c is not (SubathonCommandType.None or SubathonCommandType.Unknown))
-            .Select(object (c) => new
-            {
+            .Select(object (c) => new {
                 command = c.ToString(),
                 description = c.GetDescription(),
                 requires_parameter = c.IsParametersRequired(),
                 is_control = c.IsControlTypeCommand()
             }).ToArray();
-
-    internal async Task HandleCommandsRequestAsync(IHttpContext ctx)
-    {
-        string json = JsonSerializer.Serialize(new { commands = BuildCommandCatalog() });
-        await ctx.WriteResponse(200, json, addCors: true, contentType: "application/json");
     }
 
-    private async Task HandleValuesRequestAsync(IHttpContext ctx)
-    {
-        var json = await _valueHelper.GetAllAsJsonAsync();
+    internal async Task HandleCommandsRequestAsync(IHttpContext ctx) {
+        string json = JsonSerializer.Serialize(new { commands = BuildCommandCatalog() });
+        await ctx.WriteResponse(200, json, true, "application/json");
+    }
+
+    private async Task HandleValuesRequestAsync(IHttpContext ctx) {
+        string json = await _valueHelper.GetAllAsJsonAsync();
         await ctx.WriteResponse(200, json);
     }
 
-    internal async Task HandleValuesPatchRequestAsync(IHttpContext ctx)
-    {
+    internal async Task HandleValuesPatchRequestAsync(IHttpContext ctx) {
         string body;
-        using (var reader = new StreamReader(ctx.Body, ctx.Encoding))
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding)) {
             body = await reader.ReadToEndAsync();
+        }
+
         int patched = await _valueHelper.PatchFromJsonAsync(body);
         int code;
         string msg;
-        switch (patched)
-        {
+        switch (patched) {
             case -1:
                 code = 400;
                 msg = "Error patching values";
@@ -325,17 +298,15 @@ public partial class WebServer
                 msg = $"Patched {patched} Values";
                 break;
         }
+
         await ctx.WriteResponse(code, msg);
     }
 
-    private object BuildDataSummary(List<SubathonEvent> events)
-    {
+    private object BuildDataSummary(List<SubathonEvent> events) {
         var result = new Dictionary<string, object>();
-        
-        static string NormalizeTier(string meta)
-        {
-            return meta switch
-            {
+
+        static string NormalizeTier(string meta) {
+            return meta switch {
                 "1000" => "T1",
                 "2000" => "T2",
                 "3000" => "T3",
@@ -343,24 +314,21 @@ public partial class WebServer
             };
         }
 
-        var groups = events.GroupBy(e => e.EventType);
+        IEnumerable<IGrouping<SubathonEventType?, SubathonEvent>> groups = events.GroupBy(e => e.EventType);
 
-        foreach (var g in groups)
-        {
-            string? key = g.Key!.ToString();
+        foreach (IGrouping<SubathonEventType?, SubathonEvent> g in groups) {
+            var key = g.Key!.ToString();
             if (key == null) continue;
 
-            if (g.Key.IsCurrencyDonation())
-            {
+            if (g.Key.IsCurrencyDonation()) {
                 result[key] = g
-                    .Where(e => !string.IsNullOrWhiteSpace(e.Currency))  
+                    .Where(e => !string.IsNullOrWhiteSpace(e.Currency))
                     .GroupBy(e => e.Currency ?? "")
                     .ToDictionary(
                         t => t.Key,
-                        t =>
-                        {
+                        t => {
                             double sum = t.Sum(e =>
-                                double.TryParse(e.Value, out var amount)
+                                double.TryParse(e.Value, out double amount)
                                     ? amount
                                     : 0
                             );
@@ -368,61 +336,54 @@ public partial class WebServer
                         }
                     );
             }
-            else if (g.Key.IsSubscription())
-            {
+            else if (g.Key.IsSubscription()) {
                 result[key] = g.GroupBy(e => NormalizeTier(e.Value))
                     .ToDictionary(
                         t => t.Key,
                         t => t.Sum(x => x.Amount)
                     );
             }
-            else if (g.Key.IsToken())
-            {
-                result[key] = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0);
+            else if (g.Key.IsToken()) {
+                result[key] = g.Sum(e => int.TryParse(e.Value, out int v) ? v : 0);
             }
-            else if (g.Key.IsOrder())
-            {
-                var breakdown = g
-                    .Where(e => !string.IsNullOrWhiteSpace(e.Currency))  
+            else if (g.Key.IsOrder()) {
+                Dictionary<string, double> breakdown = g
+                    .Where(e => !string.IsNullOrWhiteSpace(e.Currency))
                     .GroupBy(e => e.Currency ?? "")
                     .ToDictionary(
                         t => t.Key,
-                        t =>
-                        {
+                        t => {
                             double sum = t.Sum(e =>
-                                double.TryParse(string.Equals(e.Value, "new", StringComparison.OrdinalIgnoreCase) 
-                                    ? "1" : e.Value, out var amount)
+                                double.TryParse(string.Equals(e.Value, "new", StringComparison.OrdinalIgnoreCase)
+                                    ? "1"
+                                    : e.Value, out double amount)
                                     ? amount
                                     : 0
                             );
                             return Math.Round(sum, 2);
                         }
                     );
-                result[key] = new Dictionary<string, object>
-                {
+                result[key] = new Dictionary<string, object> {
                     ["count"] = g.Count(),
                     ["breakdown"] = breakdown
                 };
             }
-            else
-            {
-                switch (g.Key)
-                {
+            else {
+                switch (g.Key) {
                     case SubathonEventType.TwitchFollow:
                         result[key] = g.Count();
                         break;
 
                     case SubathonEventType.TwitchRaid:
-                        result[key] = new
-                        {
+                        result[key] = new {
                             count = g.Count(),
-                            total_viewers = g.Sum(e => int.TryParse(e.Value, out var v) ? v : 0)
+                            total_viewers = g.Sum(e => int.TryParse(e.Value, out int v) ? v : 0)
                         };
                         break;
                 }
             }
         }
+
         return result;
     }
-    
 }
