@@ -10,11 +10,11 @@
             <Grid RowDefinitions="Auto,*">
                 <Border Grid.Row="0" BorderThickness="0,0,0,4"
                         BorderBrush="{DynamicResource ControlElevationBorderBrush}">
-                    <WrapPanel x:Name="SourceList" Orientation="Horizontal"/>
+                    <WrapPanel x:Name="SourceList" Orientation="Horizontal" />
                 </Border>
                 <Grid Grid.Row="1">
                     <StackPanel x:Name="SourceContents" Orientation="Vertical" MinHeight="100"
-                                Margin="12,10,8,6"/>
+                                Margin="12,10,8,6" />
                 </Grid>
             </Grid>
         </StackPanel>

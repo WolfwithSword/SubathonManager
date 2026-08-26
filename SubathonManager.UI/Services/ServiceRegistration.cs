@@ -1,10 +1,9 @@
-﻿using System.IO;
-using System.Net.Http;
-using DevTunnels.Client;
+﻿using DevTunnels.Client;
 using DevTunnels.Client.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using SubathonManager.Core;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Security;
@@ -16,22 +15,19 @@ using SubathonManager.Services;
 
 namespace SubathonManager.UI.Services;
 
-public static class ServiceRegistration
-{
-    public static void SetupInfrastructure(this IServiceCollection services)
-    {
+public static class ServiceRegistration {
+    public static void SetupInfrastructure(this IServiceCollection services) {
         services.AddLogging(ConfigureLogging);
         services.AddSingleton<IConfig, Config>();
         services.AddPooledDbContextFactory<AppDbContext>(ConfigureDatabase);
         services.AddSingleton<ServiceManager>();
     }
 
-    public static void SetupCoreServices(this IServiceCollection services)
-    {
+    public static void SetupCoreServices(this IServiceCollection services) {
         services.AddSingleton<TimerService>();
         services.AddSingleton<ITimerService>(sp => sp.GetRequiredService<TimerService>());
         services.AddHttpClient(nameof(CurrencyService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
-        services.AddSingleton<CurrencyService>(BuildCurrencyService);
+        services.AddSingleton(BuildCurrencyService);
         services.AddSingleton<EventService>();
         services.AddSingleton<WebServer>();
         services.AddSingleton<PromptOrchestratorService>();
@@ -43,18 +39,17 @@ public static class ServiceRegistration
         else
             services.AddSingleton<ISecureStorage, AesFileSecureStorage>();
     }
-    
-    public static void AddIntegrations(this IServiceCollection services)
-    {
+
+    public static void AddIntegrations(this IServiceCollection services) {
         // Platforms ///
         services.AddSingleton<TwitchService>();
         services.AddSingleton<YouTubeService>();
         services.AddSingleton<PicartoService>();
-        
+
         // Auxiliary //
         services.AddSingleton<StreamElementsService>();
         services.AddSingleton<StreamLabsService>();
-        
+
         // Order Sales //
         services.AddSingleton<GoAffProService>();
         services.AddHttpClient(nameof(MakeShipService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
@@ -63,17 +58,12 @@ public static class ServiceRegistration
         services.AddSingleton<JuniperService>();
 
         // Webhooks (shared tunnel infrastructure) //
-        var wingetPath = Path.Combine(
+        string wingetPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Microsoft", "WinGet", "Links", "devtunnel.exe");
         if (File.Exists(wingetPath))
-        {
-            services.Configure<DevTunnelsClientOptions>(opts =>
-            {
-                opts.CliPathOverride = wingetPath;
-            });
-        }
-        
+            services.Configure<DevTunnelsClientOptions>(opts => { opts.CliPathOverride = wingetPath; });
+
         services.AddDevTunnelsClient();
         services.AddSingleton<DevTunnelsService>();
 
@@ -97,17 +87,16 @@ public static class ServiceRegistration
         services.AddSingleton<TreatStreamService>();
 
         // Other //
-        services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);;
+        services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        ;
         services.AddSingleton<DiscordWebhookService>();
         services.AddSingleton<OBSService>();
     }
 
-    private static void ConfigureLogging(ILoggingBuilder builder)
-    {
+    private static void ConfigureLogging(ILoggingBuilder builder) {
         builder.ClearProviders();
         builder.AddProvider(new RotatingFileLoggerProvider("data/logs"));
-        builder.AddSimpleConsole(options =>
-        {
+        builder.AddSimpleConsole(options => {
             options.TimestampFormat = "yyyy-MM-dd HH:mm:ss.fff ";
             options.SingleLine = true;
             options.IncludeScopes = false;
@@ -118,21 +107,21 @@ public static class ServiceRegistration
         builder.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
         builder.AddFilter("YTLiveChat", LogLevel.Warning);
         builder.AddFilter("YTLiveChat.Services.YTLiveChat", LogLevel.Error);
-        builder.AddFilter<Microsoft.Extensions.Logging.Console.ConsoleLoggerProvider>(
+        builder.AddFilter<ConsoleLoggerProvider>(
             "YTLiveChat",
             LogLevel.Critical);
-        builder.SetMinimumLevel(ServiceManager.AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information); 
+        builder.SetMinimumLevel(ServiceManager.AppVersion.Contains("dev") ? LogLevel.Debug : LogLevel.Information);
     }
-    
-    private static void ConfigureDatabase(IServiceProvider sp, DbContextOptionsBuilder options) 
-    {
-        var dbPath = Config.DatabasePath;
+
+    private static void ConfigureDatabase(IServiceProvider sp, DbContextOptionsBuilder options) {
+        string dbPath = Config.DatabasePath;
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
         options.UseSqlite($"Data Source={dbPath}");
     }
-    
-    private static CurrencyService BuildCurrencyService(IServiceProvider sp) =>
-        new(sp.GetRequiredService<ILogger<CurrencyService>>(),
+
+    private static CurrencyService BuildCurrencyService(IServiceProvider sp) {
+        return new CurrencyService(sp.GetRequiredService<ILogger<CurrencyService>>(),
             sp.GetRequiredService<IConfig>(),
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(CurrencyService)));
+    }
 }

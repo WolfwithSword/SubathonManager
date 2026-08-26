@@ -4,8 +4,11 @@ using SubathonManager.UI.Views.SettingsViews.External;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class ExternalSettings : SettingsGroupControl
-{
+public partial class ExternalSettings : SettingsGroupControl {
+    public ExternalSettings() {
+        InitializeComponent();
+    }
+
     protected override IEnumerable<SubathonEventSource> _eventSources =>
         Enum.GetValues<SubathonEventSource>()
             .Where(s => s.GetGroup() == SubathonSourceGroup.ExternalService && s != SubathonEventSource.KoFiTunnel)
@@ -14,22 +17,15 @@ public partial class ExternalSettings : SettingsGroupControl
     protected override StackPanel? GetSourceContents => SourceContents;
     protected override Panel? GetSourceList => SourceList;
 
-    public ExternalSettings()
-    {
-        InitializeComponent();
-    }
+    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource) {
+        if (_settingsControls.TryGetValue(eventSource, out SettingsControl? control)) return control;
 
-    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
-    {
-        if (_settingsControls.TryGetValue(eventSource, out var control)) return control;
-
-        switch (eventSource)
-        {
+        switch (eventSource) {
             case SubathonEventSource.KoFi:
                 _settingsControls[eventSource] = new KoFiCombinedSettings();
                 break;
             case SubathonEventSource.KoFiTunnel:
-                return _settingsControls.TryGetValue(SubathonEventSource.KoFi, out var kofi) ? kofi : null;
+                return _settingsControls.TryGetValue(SubathonEventSource.KoFi, out SettingsControl? kofi) ? kofi : null;
             case SubathonEventSource.GoAffPro:
                 _settingsControls[eventSource] = new GoAffProSettings();
                 break;
@@ -53,14 +49,14 @@ public partial class ExternalSettings : SettingsGroupControl
                 break;
             default: return null;
         }
+
         _settingsControls[eventSource].Init(Host);
         return _settingsControls[eventSource];
     }
 
-    public void RefreshTierCombo(SubathonEventSource source)
-    {
+    public void RefreshTierCombo(SubathonEventSource source) {
         if (source is not (SubathonEventSource.KoFi or SubathonEventSource.External)) return;
-        _settingsControls.TryGetValue(source, out var control);
+        _settingsControls.TryGetValue(source, out SettingsControl? control);
         if (source == SubathonEventSource.KoFi)
             (control as KoFiCombinedSettings)?.RefreshTierCombo();
         if (source == SubathonEventSource.External)

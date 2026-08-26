@@ -17,67 +17,68 @@
         <Style Selector="Border.browsercard">
             <Setter Property="Transitions">
                 <Transitions>
-                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15"/>
+                    <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15" />
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Border.browsercard:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
         </Style>
         <Style Selector="Border.browsercard.selected">
-            <Setter Property="BorderBrush" Value="#4DA6FF"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="BoxShadow" Value="0 0 14 2 #703B9EFF"/>
+            <Setter Property="BorderBrush" Value="#4DA6FF" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BoxShadow" Value="0 0 14 2 #703B9EFF" />
         </Style>
         <Style Selector="Border.browsercard.selected:pointerover">
-            <Setter Property="BorderBrush" Value="#7ABEFF"/>
-            <Setter Property="BoxShadow" Value="0 0 18 3 #8A3B9EFF"/>
+            <Setter Property="BorderBrush" Value="#7ABEFF" />
+            <Setter Property="BoxShadow" Value="0 0 18 3 #8A3B9EFF" />
         </Style>
 
         <Style Selector="ToggleButton.groupheader">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="2,1"/>
-            <Setter Property="MinHeight" Value="0"/>
-            <Setter Property="HorizontalAlignment" Value="Left"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="2,1" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="ToggleButton.groupheader /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Transitions" Value="{x:Null}"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Transitions" Value="{x:Null}" />
         </Style>
         <Style Selector="ToggleButton.groupheader:checked /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="ToggleButton.groupheader:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="ToggleButton.groupheader:checked:pressed /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="ToggleButton.groupheader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#18808080"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#18808080" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
-        <Style Selector="ToggleButton.groupheader:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#18808080"/>
-            <Setter Property="BorderThickness" Value="0"/>
+        <Style
+            Selector="ToggleButton.groupheader:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#18808080" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
 
         <Style Selector="ToggleButton.groupheader ctl|SymIcon.chevron">
-            <Setter Property="RenderTransform" Value="rotate(-90deg)"/>
+            <Setter Property="RenderTransform" Value="rotate(-90deg)" />
             <Setter Property="Transitions">
                 <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="ToggleButton.groupheader:checked ctl|SymIcon.chevron">
-            <Setter Property="RenderTransform" Value="rotate(0deg)"/>
+            <Setter Property="RenderTransform" Value="rotate(0deg)" />
         </Style>
     </Window.Styles>
 
@@ -89,34 +90,34 @@
                      VerticalContentAlignment="Center"
                      TextChanged="SearchBox_TextChanged">
                 <TextBox.InnerLeftContent>
-                    <ctl:SymIcon Glyph="Search16" Margin="8,0,4,0" Opacity="0.6"/>
+                    <ctl:SymIcon Glyph="Search16" Margin="8,0,4,0" Opacity="0.6" />
                 </TextBox.InnerLeftContent>
             </TextBox>
 
             <CheckBox Grid.Column="1" x:Name="AllVersionsCheck" Content="All versions" Margin="12,0,0,0"
                       VerticalAlignment="Center"
                       ToolTip.Tip="Show every installed version instead of only the newest of each widget"
-                      IsCheckedChanged="AllVersionsCheck_Changed"/>
-            
+                      IsCheckedChanged="AllVersionsCheck_Changed" />
+
             <Button Grid.Column="2" Margin="12,0,0,0" VerticalAlignment="Center"
                     ToolTip.Tip="Find more widgets online"
                     Click="OpenCommunityWidgets_Click">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                    <ctl:SymIcon Glyph="Open16"/>
-                    <TextBlock Text="Find More" VerticalAlignment="Center"/>
+                    <ctl:SymIcon Glyph="Open16" />
+                    <TextBlock Text="Find More" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
 
 
             <Button Grid.Column="3" Padding="4" Width="32" Height="32" Margin="8,0,0,0"
                     ToolTip.Tip="Rescan the presets and imports folders" Click="Refresh_Click">
-                <ctl:SymIcon Glyph="ArrowSync16"/>
+                <ctl:SymIcon Glyph="ArrowSync16" />
             </Button>
         </Grid>
 
         <TextBlock Grid.Row="1" x:Name="EmptyText" Margin="4,20,0,0"
                    Foreground="{DynamicResource UiBrushTextTertiary}"
-                   IsVisible="False"/>
+                   IsVisible="False" />
 
         <!-- ReSharper disable all Xaml.InvalidType -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
@@ -128,9 +129,9 @@
                                   Margin="0,0,0,6" HorizontalAlignment="Stretch">
                             <Expander.Header>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding CountLabel}" FontSize="11" VerticalAlignment="Center"
-                                               Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                               Foreground="{DynamicResource UiBrushTextTertiary}" />
                                 </StackPanel>
                             </Expander.Header>
 
@@ -145,13 +146,14 @@
                                                 <StackPanel Orientation="Horizontal" Spacing="5">
                                                     <ctl:SymIcon Classes="chevron" Glyph="ChevronDown12"
                                                                  VerticalAlignment="Center"
-                                                                 Foreground="{DynamicResource UiBrushTextTertiary}"/>
-                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                                                 Foreground="{DynamicResource UiBrushTextTertiary}" />
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                                               FontSize="12"
                                                                VerticalAlignment="Center"
-                                                               Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                               Foreground="{DynamicResource UiBrushTextTertiary}" />
                                                     <TextBlock Text="{Binding CountLabel}" FontSize="11" Opacity="0.7"
                                                                VerticalAlignment="Center"
-                                                               Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                               Foreground="{DynamicResource UiBrushTextTertiary}" />
                                                 </StackPanel>
                                             </ToggleButton>
 
@@ -159,12 +161,13 @@
                                                           IsVisible="{Binding #GroupToggle.IsChecked}">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
-                                                        <WrapPanel Orientation="Horizontal"/>
+                                                        <WrapPanel Orientation="Horizontal" />
                                                     </ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="views:CatalogItem">
-                                                        <Border Classes="browsercard" Classes.selected="{Binding IsSelected}"
+                                                        <Border Classes="browsercard"
+                                                                Classes.selected="{Binding IsSelected}"
                                                                 Width="168" Margin="10" Padding="8"
                                                                 CornerRadius="6" BorderThickness="1"
                                                                 BorderBrush="Transparent"
@@ -174,91 +177,112 @@
                                                                 DoubleTapped="Card_DoubleTapped">
                                                             <Border.ContextFlyout>
                                                                 <MenuFlyout>
-                                                                    <MenuItem Header="Add to Overlay" Tag="{Binding}" Click="AddEntry_Click"
+                                                                    <MenuItem Header="Add to Overlay" Tag="{Binding}"
+                                                                              Click="AddEntry_Click"
                                                                               IsEnabled="{Binding CanAdd}"
                                                                               ToolTip.Tip="{Binding AddHint}">
                                                                         <MenuItem.Icon>
-                                                                            <ctl:SymIcon Glyph="Add16"/>
+                                                                            <ctl:SymIcon Glyph="Add16" />
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
-                                                                    <Separator/>
-                                                                    <MenuItem Header="Refresh" Tag="{Binding}" Click="RefreshEntry_Click"
+                                                                    <Separator />
+                                                                    <MenuItem Header="Refresh" Tag="{Binding}"
+                                                                              Click="RefreshEntry_Click"
                                                                               ToolTip.Tip="Refresh widget package from disk">
                                                                         <MenuItem.Icon>
-                                                                            <ctl:SymIcon Glyph="ArrowSync16"/>
+                                                                            <ctl:SymIcon Glyph="ArrowSync16" />
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
-                                                                    <Separator/>
-                                                                    <MenuItem Header="View Docs" Tag="{Binding}" Click="ViewEntryDocs_Click"
+                                                                    <Separator />
+                                                                    <MenuItem Header="View Docs" Tag="{Binding}"
+                                                                              Click="ViewEntryDocs_Click"
                                                                               IsVisible="{Binding HasDocs}"
                                                                               ToolTip.Tip="{Binding DocsUrl}">
                                                                         <MenuItem.Icon>
-                                                                            <ctl:SymIcon Glyph="BookOpen16"/>
+                                                                            <ctl:SymIcon Glyph="BookOpen16" />
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
-                                                                    <MenuItem Header="Open Containing Folder" Tag="{Binding}" Click="OpenEntryFolder_Click">
+                                                                    <MenuItem Header="Open Containing Folder"
+                                                                              Tag="{Binding}"
+                                                                              Click="OpenEntryFolder_Click">
                                                                         <MenuItem.Icon>
-                                                                            <ctl:SymIcon Glyph="FolderOpen16"/>
+                                                                            <ctl:SymIcon Glyph="FolderOpen16" />
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
-                                                                    <MenuItem Header="Delete" Tag="{Binding}" Click="DeleteEntry_Click"
+                                                                    <MenuItem Header="Delete" Tag="{Binding}"
+                                                                              Click="DeleteEntry_Click"
                                                                               IsEnabled="{Binding CanDelete}"
                                                                               ToolTip.Tip="{Binding DeleteHint}">
                                                                         <MenuItem.Icon>
-                                                                            <ctl:SymIcon Glyph="Delete16"/>
+                                                                            <ctl:SymIcon Glyph="Delete16" />
                                                                         </MenuItem.Icon>
                                                                     </MenuItem>
                                                                 </MenuFlyout>
                                                             </Border.ContextFlyout>
 
                                                             <StackPanel Spacing="6">
-                                                                <Border Width="150" Height="150" CornerRadius="4" ClipToBounds="True"
+                                                                <Border Width="150" Height="150" CornerRadius="4"
+                                                                        ClipToBounds="True"
                                                                         Background="{DynamicResource UiBrushSurface}">
                                                                     <Panel>
                                                                         <ctl:SymIcon Glyph="Image32" Opacity="0.25"
-                                                                                     IsVisible="{Binding !HasPreview}"
-                                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                                IsVisible="{Binding !HasPreview}"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center" />
 
-                                                                        <Border IsVisible="{Binding HasPreview}" Background="Transparent">
+                                                                        <Border IsVisible="{Binding HasPreview}"
+                                                                                Background="Transparent">
                                                                             <ToolTip.Tip>
                                                                                 <StackPanel MaxWidth="420" Spacing="8">
-                                                                                    <Image Source="{Binding Preview}" MaxWidth="420" MaxHeight="420"
-                                                                                           Stretch="Uniform"
-                                                                                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                                                    <Image Source="{Binding Preview}"
+                                                                                        MaxWidth="420" MaxHeight="420"
+                                                                                        Stretch="Uniform"
+                                                                                        RenderOptions.BitmapInterpolationMode="HighQuality" />
 
-                                                                                    <ItemsControl ItemsSource="{Binding TagList}" IsVisible="{Binding HasTags}">
+                                                                                    <ItemsControl
+                                                                                        ItemsSource="{Binding TagList}"
+                                                                                        IsVisible="{Binding HasTags}">
                                                                                         <ItemsControl.ItemsPanel>
                                                                                             <ItemsPanelTemplate>
-                                                                                                <WrapPanel Orientation="Horizontal"/>
+                                                                                                <WrapPanel
+                                                                                                    Orientation="Horizontal" />
                                                                                             </ItemsPanelTemplate>
                                                                                         </ItemsControl.ItemsPanel>
                                                                                         <ItemsControl.ItemTemplate>
-                                                                                            <DataTemplate x:DataType="sys:String">
-                                                                                                <Border Margin="0,0,4,4" Padding="7,2" CornerRadius="10"
-                                                                                                        Background="{DynamicResource UiBrushControlBackground}">
-                                                                                                    <TextBlock Text="{Binding}" FontSize="11"/>
+                                                                                            <DataTemplate
+                                                                                                x:DataType="sys:String">
+                                                                                                <Border
+                                                                                                    Margin="0,0,4,4"
+                                                                                                    Padding="7,2"
+                                                                                                    CornerRadius="10"
+                                                                                                    Background="{DynamicResource UiBrushControlBackground}">
+                                                                                                    <TextBlock
+                                                                                                        Text="{Binding}"
+                                                                                                        FontSize="11" />
                                                                                                 </Border>
                                                                                             </DataTemplate>
                                                                                         </ItemsControl.ItemTemplate>
                                                                                     </ItemsControl>
                                                                                 </StackPanel>
                                                                             </ToolTip.Tip>
-                                                                            <Image Source="{Binding Preview}" Stretch="Uniform" Margin="4"
-                                                                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                                            <Image Source="{Binding Preview}"
+                                                                                    Stretch="Uniform" Margin="4"
+                                                                                    RenderOptions.BitmapInterpolationMode="HighQuality" />
                                                                         </Border>
                                                                     </Panel>
                                                                 </Border>
 
-                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                           FontSize="13"
                                                                            TextWrapping="Wrap" MaxLines="2"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           ToolTip.Tip="{Binding TooltipText}"/>
+                                                                           ToolTip.Tip="{Binding TooltipText}" />
                                                                 <TextBlock Text="{Binding AuthorLabel}" FontSize="11"
                                                                            TextTrimming="CharacterEllipsis"
-                                                                           Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                                                                           Foreground="{DynamicResource UiBrushTextTertiary}" />
                                                                 <TextBlock Text="{Binding VersionLabel}" FontSize="11"
-                                                                           Foreground="{DynamicResource UiBrushTextTertiary}"/>
-                                                                
+                                                                           Foreground="{DynamicResource UiBrushTextTertiary}" />
+
                                                             </StackPanel>
                                                         </Border>
                                                     </DataTemplate>
@@ -277,12 +301,12 @@
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto" Margin="0,12,0,0">
             <TextBlock Grid.Column="0" x:Name="StatusText" VerticalAlignment="Center" FontSize="12"
                        TextTrimming="CharacterEllipsis"
-                       Foreground="{DynamicResource UiBrushTextTertiary}"/>
+                       Foreground="{DynamicResource UiBrushTextTertiary}" />
             <Button Grid.Column="1" x:Name="AddSelectedButton" Classes="accent" Content="Add Widget(s)"
                     MinWidth="130" Margin="0,0,8,0" IsEnabled="False" IsVisible="False"
                     ToolTip.Tip="Add selected widgets"
-                    Click="AddSelected_Click"/>
-            <Button Grid.Column="2" x:Name="CloseButton" Content="Close" Width="90" Click="Close_Click"/>
+                    Click="AddSelected_Click" />
+            <Button Grid.Column="2" x:Name="CloseButton" Content="Close" Width="90" Click="Close_Click" />
         </Grid>
     </Grid>
 </Window>

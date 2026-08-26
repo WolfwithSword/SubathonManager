@@ -6,22 +6,19 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Data;
 
 namespace SubathonManager.UI;
 
-public partial class MainWindow
-{
-    private void TogglePowerMultiplier_Click(object? sender, RoutedEventArgs e)
-    {
-        using var db = _factory.CreateDbContext();
-        var subathon = db.SubathonDatas.Include(s => s.Multiplier).FirstOrDefault(s => s.IsActive);
+public partial class MainWindow {
+    private void TogglePowerMultiplier_Click(object? sender, RoutedEventArgs e) {
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.Include(s => s.Multiplier).FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
 
         bool isMultiplierActive = subathon.Multiplier.Multiplier > 1 || subathon.Multiplier.Multiplier < 1;
-        if (isMultiplierActive)
-        {
-            SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent
-            {
+        if (isMultiplierActive) {
+            SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
                 Source = SubathonEventSource.Command,
                 SubathonId = subathon.Id,
                 User = "SYSTEM",
@@ -34,10 +31,8 @@ public partial class MainWindow
 
         bool applyTime = ApplyTimeCb.IsChecked ?? false;
         bool applyPts = ApplyPtsCb.IsChecked ?? false;
-        if (!applyTime && !applyPts)
-        {
-            SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent
-            {
+        if (!applyTime && !applyPts) {
+            SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
                 Source = SubathonEventSource.Command,
                 SubathonId = subathon.Id,
                 User = "SYSTEM",
@@ -50,12 +45,11 @@ public partial class MainWindow
         }
 
         TimeSpan duration = Utils.ParseDurationString(MultiplierDurationInput.Text ?? "");
-        if (!double.TryParse(MultiplierAmtInput.Text, out var parsedAmt) || parsedAmt <= 0) return;
+        if (!double.TryParse(MultiplierAmtInput.Text, out double parsedAmt) || parsedAmt <= 0) return;
 
         string durationStr = duration == TimeSpan.Zero ? "x" : ((int)duration.TotalSeconds).ToString();
-        string dataStr = $"{parsedAmt}|{durationStr}s|{applyPts}|{applyTime}";
-        SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent
-        {
+        var dataStr = $"{parsedAmt}|{durationStr}s|{applyPts}|{applyTime}";
+        SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
             Source = SubathonEventSource.Command,
             SubathonId = subathon.Id,
             User = "SYSTEM",
@@ -66,24 +60,23 @@ public partial class MainWindow
         });
     }
 
-    private void UpdateMultiplierUi(SubathonData subathon, DateTime time)
-    {
+    private void UpdateMultiplierUi(SubathonData subathon, DateTime time) {
         bool isMultiplierSet = subathon.Multiplier.Multiplier < 1 || subathon.Multiplier.Multiplier > 1;
 
         TimeSpan? newDuration = subathon.Multiplier.Duration == null || subathon.Multiplier.Started == null
             ? null
-            : (subathon.Multiplier.Started + subathon.Multiplier.Duration) - DateTime.Now;
+            : subathon.Multiplier.Started + subathon.Multiplier.Duration - DateTime.Now;
         if (newDuration != null)
             newDuration = TimeSpan.FromSeconds(Math.Floor(newDuration.Value.TotalSeconds));
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            var glyph = isMultiplierSet ? "Prohibited16" : "Play16";
+        Dispatcher.UIThread.Post(() => {
+            string glyph = isMultiplierSet ? "Prohibited16" : "Play16";
             if (MultiplierIcon.Glyph != glyph) MultiplierIcon.Glyph = glyph;
 
             ToolTip.SetTip(ToggleMultiplierBtn, isMultiplierSet ? "Stop Multiplier" : "Start Multiplier");
 
-            string valsText = $"Time x{(subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1)}\tPoints x{(subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1)}";
+            var valsText =
+                $"Time x{(subathon.Multiplier.ApplyToSeconds ? subathon.Multiplier.Multiplier : 1)}\tPoints x{(subathon.Multiplier.ApplyToPoints ? subathon.Multiplier.Multiplier : 1)}";
             if (MultiplierVals.Text != valsText) MultiplierVals.Text = valsText;
 
             string remainingText = !isMultiplierSet || newDuration == null ? "" : $"Remaining: {newDuration}";

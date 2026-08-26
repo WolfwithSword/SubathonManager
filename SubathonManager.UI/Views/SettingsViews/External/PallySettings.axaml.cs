@@ -18,28 +18,21 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
 
-public partial class PallySettings : SettingsControl
-{
+public partial class PallySettings : SettingsControl {
     private const string ConfigSection = "PallyGG";
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<PallySettings>>();
 
-    public PallySettings()
-    {
+    public PallySettings() {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
+        Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
             UpdateStatus(Utils.GetConnection(SubathonEventSource.PallyGG, "Socket"));
         };
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-        };
+        Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
     }
 
-    public override void Init(SettingsView host)
-    {
+    public override void Init(SettingsView host) {
         Host = host;
         var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
         var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -48,100 +41,91 @@ public partial class PallySettings : SettingsControl
         UpdateStatus(Utils.GetConnection(SubathonEventSource.PallyGG, "Socket"));
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection)
-    {
+    internal override void UpdateStatus(IntegrationConnection? connection) {
         if (connection is not { Source: SubathonEventSource.PallyGG, Service: "Socket" }) return;
         Host.UpdateConnectionStatus(connection.Status, PallyStatusText, null);
-        Dispatcher.UIThread.Post(() =>
-        {
+        Dispatcher.UIThread.Post(() => {
             DisconnBtn.IsVisible = connection.Status;
             ConnectBtn.IsVisible = !connection.Status;
         });
     }
 
-    private async void ConnectPally_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
+    private async void ConnectPally_Click(object? sender, RoutedEventArgs e) {
+        try {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             ServiceManager.Pally.SaveConfig((PallyApiKeyBox.Text ?? "").Trim(), (PallyRoomBox.Text ?? "").Trim());
             config.SetBool(ConfigSection, "Enabled", true);
             config.Save();
 
-            if (ServiceManager.Pally.IsKeyEmpty())
-            {
+            if (ServiceManager.Pally.IsKeyEmpty()) {
                 OpenDashboard();
                 return;
             }
+
             await ServiceManager.Pally.RestartAsync();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to connect PallyGG Service");
         }
     }
 
-    private async void DisconnectPally_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
+    private async void DisconnectPally_Click(object? sender, RoutedEventArgs e) {
+        try {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             if (config.SetBool(ConfigSection, "Enabled", false)) config.Save();
             await ServiceManager.Pally.StopAsync();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to disconnect PallyGG Service");
         }
     }
 
-    private void GetApiKey_Click(object? sender, RoutedEventArgs e) => OpenDashboard();
+    private void GetApiKey_Click(object? sender, RoutedEventArgs e) {
+        OpenDashboard();
+    }
 
-    private static void OpenDashboard()
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
+    private static void OpenDashboard() {
+        try {
+            Process.Start(new ProcessStartInfo {
                 FileName = "https://pally.gg/dashboard/settings/api-keys",
                 UseShellExecute = true
             });
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 
-    private void TestPallyGGDonation_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestPallyGGDonation_Click(object? sender, RoutedEventArgs e) {
         PallyService.SimulateTip(string.IsNullOrWhiteSpace(SimulatePallyGGDonationAmountBox.Text)
-            ? "10.00" : SimulatePallyGGDonationAmountBox.Text);
+            ? "10.00"
+            : SimulatePallyGGDonationAmountBox.Text);
     }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var tipValue = db.SubathonValues.FirstOrDefault(sv =>
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? tipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.PallyGGDonation && sv.Meta == "");
-        if (tipValue != null && double.TryParse(TipBox.Text, out var seconds) && !seconds.Equals(tipValue.Seconds))
-        {
+        if (tipValue != null && double.TryParse(TipBox.Text, out double seconds) && !seconds.Equals(tipValue.Seconds)) {
             tipValue.Seconds = seconds;
             hasUpdated = true;
         }
-        if (tipValue != null && double.TryParse(TipBox2.Text, out var points) && !points.Equals(tipValue.Points))
-        {
+
+        if (tipValue != null && double.TryParse(TipBox2.Text, out double points) && !points.Equals(tipValue.Points)) {
             tipValue.Points = points;
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
 
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
-        return val.EventType switch
-        {
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
+        return val.EventType switch {
             SubathonEventType.PallyGGDonation => (v, p, TipBox, TipBox2),
             _ => (v, p, null, null)
         };

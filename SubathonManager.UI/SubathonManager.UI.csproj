@@ -22,7 +22,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\**" />
+        <AvaloniaResource Include="Assets\**"/>
         <None Include="..\assets\icon.png" Link="Assets\icon.png">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
@@ -40,26 +40,26 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj" />
-        <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj" />
-        <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj" />
-        <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj" />
+        <ProjectReference Include="..\SubathonManager.Core\SubathonManager.Core.csproj"/>
+        <ProjectReference Include="..\SubathonManager.Server\SubathonManager.Server.csproj"/>
+        <ProjectReference Include="..\SubathonManager.Services\SubathonManager.Services.csproj"/>
+        <ProjectReference Include="..\SubathonManager.Integration\SubathonManager.Integration.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+        <PackageReference Include="Avalonia" Version="12.1.1"/>
+        <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0"/>
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.1"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1"/>
 
-        <PackageReference Include="FluentAvaloniaUI" Version="3.1.0" />
+        <PackageReference Include="FluentAvaloniaUI" Version="3.1.0"/>
 
-        <PackageReference Include="FluentIcons.Avalonia" Version="2.1.337" />
+        <PackageReference Include="FluentIcons.Avalonia" Version="2.1.337"/>
 
-        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6" />
-        <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.6"/>
+        <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0"/>
     </ItemGroup>
 
 </Project>

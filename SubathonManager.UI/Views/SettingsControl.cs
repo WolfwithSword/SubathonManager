@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -16,68 +17,63 @@ using SubathonManager.Data;
 using SubathonManager.UI.Controls;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Validation;
+
 // ReSharper disable InconsistentNaming
 
 namespace SubathonManager.UI.Views;
 
-public abstract class SettingsControl : UserControl
-{
-    protected SettingsView Host = null!;
+public abstract class SettingsControl : UserControl {
+    private static int _suppressCount;
 
     internal readonly IDbContextFactory<AppDbContext> _factory =
         AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-    private static int _suppressCount = 0;
 
-    protected SettingsControl()
-    {
-        AttachedToVisualTree += (_, _) =>
-        {
+    internal List<DynamicSubRow> _dynamicSubRows = new();
+    protected SettingsView Host = null!;
+
+    protected SettingsControl() {
+        AttachedToVisualTree += (_, _) => {
             _suppressCount++;
-            Dispatcher.UIThread.Post(() =>
-            {
+            Dispatcher.UIThread.Post(() => {
                 if (_suppressCount > 0) _suppressCount--;
             }, DispatcherPriority.Background);
         };
     }
 
-    internal List<DynamicSubRow> _dynamicSubRows = new();
     protected virtual SubathonEventType? _membershipEventType => null;
     protected virtual StackPanel? _MembershipsPanel => null;
 
     protected virtual bool allowMembershipDelete => true;
 
-    public virtual void Init(SettingsView host)
-    {
+    public virtual void Init(SettingsView host) {
         Host = host;
     }
 
-    protected void SuppressUnsavedChanges(Action action)
-    {
+    protected void SuppressUnsavedChanges(Action action) {
         _suppressCount++;
-        try { action(); }
-        finally { _suppressCount--; }
+        try {
+            action();
+        }
+        finally {
+            _suppressCount--;
+        }
     }
 
-    protected void RegisterUnsavedChangeHandlers()
-    {
+    protected void RegisterUnsavedChangeHandlers() {
         Dispatcher.UIThread.Post(() => WireInputs(this), DispatcherPriority.Loaded);
     }
 
-    protected void WireControl(Visual control)
-    {
+    protected void WireControl(Visual control) {
         AttachHandler(control);
         WireInputs(control);
     }
 
-    private void WireInputs(Visual parent)
-    {
-        foreach (var child in parent.GetVisualChildren())
-        {
+    private void WireInputs(Visual parent) {
+        foreach (Visual child in parent.GetVisualChildren()) {
             if (SettingsProperties.GetExcludeFromUnsaved(child))
                 continue;
 
-            if (child is Expander expander)
-            {
+            if (child is Expander expander) {
                 WireExpander(expander);
                 continue;
             }
@@ -87,12 +83,10 @@ public abstract class SettingsControl : UserControl
         }
     }
 
-    private void AttachHandler(Visual element)
-    {
+    private void AttachHandler(Visual element) {
         if (SettingsProperties.GetUnsavedHandlerAttached(element)) return;
 
-        switch (element)
-        {
+        switch (element) {
             case TextBox tb:
                 tb.TextChanged += (s, _) => OnInputChanged(s);
                 break;
@@ -116,36 +110,30 @@ public abstract class SettingsControl : UserControl
         DirtySaveGuard.Rebase(element);
     }
 
-    private void WireExpander(Expander expander)
-    {
+    private void WireExpander(Expander expander) {
         if (SettingsProperties.GetUnsavedHandlerAttached(expander)) return;
         SettingsProperties.SetUnsavedHandlerAttached(expander, true);
 
-        bool firstExpand = true;
+        var firstExpand = true;
 
-        expander.PropertyChanged += (_, e) =>
-        {
+        expander.PropertyChanged += (_, e) => {
             if (e.Property != Expander.IsExpandedProperty) return;
             if (e.NewValue is not true) return;
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (firstExpand)
-                {
+            Dispatcher.UIThread.Post(() => {
+                if (firstExpand) {
                     firstExpand = false;
                     SuppressUnsavedChanges(() => WireInputs(expander));
                 }
             }, DispatcherPriority.Loaded);
         };
 
-        if (expander.IsExpanded)
-        {
+        if (expander.IsExpanded) {
             firstExpand = false;
             WireInputs(expander);
         }
     }
 
-    private void OnInputChanged(object? sender)
-    {
+    private void OnInputChanged(object? sender) {
         bool realChange = DirtySaveGuard.Consume(sender);
         if (_suppressCount > 0 || !realChange) return;
         SettingsEvents.RaiseSettingsUnsavedChanges(true);
@@ -153,23 +141,23 @@ public abstract class SettingsControl : UserControl
 
     internal abstract void UpdateStatus(IntegrationConnection? connection);
 
-    protected internal virtual void LoadValues(AppDbContext db)
-    {
+    protected internal virtual void LoadValues(AppDbContext db) {
     }
 
     public abstract bool UpdateValueSettings(AppDbContext db);
 
-    protected internal virtual bool UpdateConfigValueSettings() => false;
+    protected internal virtual bool UpdateConfigValueSettings() {
+        return false;
+    }
 
     public abstract void UpdateCurrencyBoxes(List<string> currencies, string selected);
 
-    public abstract (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(SubathonValue val);
+    public abstract (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(
+        SubathonValue val);
 
-    internal static void EnsureUniqueName(List<DynamicSubRow> rows)
-    {
+    internal static void EnsureUniqueName(List<DynamicSubRow> rows) {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var row in rows)
-        {
+        foreach (DynamicSubRow row in rows) {
             string current = (row.NameBox.Text ?? "").Trim();
             while (!seen.Add(current.ToLower()))
                 current = "New " + current;
@@ -177,27 +165,25 @@ public abstract class SettingsControl : UserControl
         }
     }
 
-    internal virtual void AddMembership_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
+    internal virtual void AddMembership_Click(object? sender, RoutedEventArgs e) {
         if (_membershipEventType == null) return;
         var name = $"New {_dynamicSubRows.Count}";
-        var allNames = _dynamicSubRows.Select(x => (x.NameBox.Text ?? "").Trim()).ToArray();
+        string[] allNames = _dynamicSubRows.Select(x => (x.NameBox.Text ?? "").Trim()).ToArray();
         while (allNames.Contains(name)) name = $"New {name}";
         allNames = _dynamicSubRows.Select(x => x.SubValue.Meta.Trim()).ToArray();
         while (allNames.Contains(name)) name = $"New {name}";
-        AddMembershipRow(new SubathonValue { EventType = _membershipEventType.Value, Meta = name, Seconds = 0, Points = 0 });
+        AddMembershipRow(new SubathonValue
+            { EventType = _membershipEventType.Value, Meta = name, Seconds = 0, Points = 0 });
     }
 
-    internal DynamicSubRow? AddMembershipRow(SubathonValue subathonValue)
-    {
+    internal DynamicSubRow? AddMembershipRow(SubathonValue subathonValue) {
         if (_MembershipsPanel == null) return null;
         var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
 
         var panelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-        var nameBox = new TextBox
-        {
+        var nameBox = new TextBox {
             Width = 154, Height = 32, Text = subathonValue.Meta ?? "",
             IsReadOnly = !allowMembershipDelete,
             PlaceholderText = "Tier Name",
@@ -206,14 +192,12 @@ public abstract class SettingsControl : UserControl
         };
         ToolTip.SetTip(nameBox, "Subscription Tier Name");
         TextBoxAssist.SetClear(nameBox, true);
-        var secondsBox = new TextBox
-        {
+        var secondsBox = new TextBox {
             Width = 100, Height = 32, Text = $"{subathonValue.Seconds}", PlaceholderText = "Seconds",
             VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(12, 0, 0, 0)
         };
-        var pointsBox = new TextBox
-        {
+        var pointsBox = new TextBox {
             Width = 100, Height = 32, Text = $"{subathonValue.Points}", PlaceholderText = "Points",
             VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(128, 0, 0, 0)
@@ -222,8 +206,7 @@ public abstract class SettingsControl : UserControl
         NumericInputBehaviour.SetMode(secondsBox, NumericInputBehaviour.NumericMode.SignedDecimal);
         NumericInputBehaviour.SetMode(pointsBox, NumericInputBehaviour.NumericMode.SignedDecimal);
 
-        var deleteBtn = new Button
-        {
+        var deleteBtn = new Button {
             Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
             Foreground = Brushes.Red,
             Cursor = new Cursor(StandardCursorType.Hand),
@@ -246,8 +229,7 @@ public abstract class SettingsControl : UserControl
         row.Children.Add(panelRow);
         _MembershipsPanel.Children.Add(row);
 
-        var subRow = new DynamicSubRow
-        {
+        var subRow = new DynamicSubRow {
             SubValue = subathonValue,
             NameBox = nameBox,
             TimeBox = secondsBox,
@@ -261,20 +243,22 @@ public abstract class SettingsControl : UserControl
         return subRow;
     }
 
-    internal void DeleteRow(SubathonValue subathonValue, DynamicSubRow subRow)
-    {
+    internal void DeleteRow(SubathonValue subathonValue, DynamicSubRow subRow) {
         if (_MembershipsPanel == null) return;
-        using var db = _factory.CreateDbContext();
-        var dbRow = db.SubathonValues.FirstOrDefault(x =>
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonValue? dbRow = db.SubathonValues.FirstOrDefault(x =>
             x.Meta == subathonValue.Meta && x.EventType == subathonValue.EventType);
-        if (dbRow != null) { db.SubathonValues.Remove(dbRow); db.SaveChanges(); }
+        if (dbRow != null) {
+            db.SubathonValues.Remove(dbRow);
+            db.SaveChanges();
+        }
+
         _dynamicSubRows.Remove(subRow);
         _MembershipsPanel.Children.Remove(subRow.RowGrid);
     }
 }
 
-public class DynamicSubRow
-{
+public class DynamicSubRow {
     public required SubathonValue SubValue { get; set; }
     public required TextBox NameBox { get; set; }
     public required TextBox TimeBox { get; set; }

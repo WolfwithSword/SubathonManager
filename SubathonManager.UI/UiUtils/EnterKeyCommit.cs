@@ -6,12 +6,9 @@ using Avalonia.VisualTree;
 
 namespace SubathonManager.UI.UiUtils;
 
-public static class EnterKeyCommit
-{
-    public static void Attach(InputElement root, Action commit)
-    {
-        root.AddHandler(InputElement.KeyDownEvent, (_, e) =>
-        {
+public static class EnterKeyCommit {
+    public static void Attach(InputElement root, Action commit) {
+        root.AddHandler(InputElement.KeyDownEvent, (_, e) => {
             if (e.Key != Key.Enter) return;
             if (!ShouldCommit(e.Source)) return;
 
@@ -20,10 +17,8 @@ public static class EnterKeyCommit
         }, RoutingStrategies.Bubble);
     }
 
-    private static bool ShouldCommit(object? source)
-    {
-        switch (source)
-        {
+    private static bool ShouldCommit(object? source) {
+        switch (source) {
             case TextBox { AcceptsReturn: true }:
             case ComboBox { IsDropDownOpen: true }:
             case AutoCompleteBox { IsDropDownOpen: true }:
@@ -37,12 +32,9 @@ public static class EnterKeyCommit
         }
     }
 
-    private static bool HasExcludedAncestor(Visual? v)
-    {
-        while (v != null)
-        {
-            switch (v)
-            {
+    private static bool HasExcludedAncestor(Visual? v) {
+        while (v != null) {
+            switch (v) {
                 case TextBox { AcceptsReturn: true }:
                 case ComboBox { IsDropDownOpen: true }:
                 case AutoCompleteBox { IsDropDownOpen: true }:
@@ -50,8 +42,10 @@ public static class EnterKeyCommit
                 case MenuItem:
                     return true;
             }
+
             v = v.GetVisualParent();
         }
+
         return false;
     }
 }

@@ -14,43 +14,43 @@
 
         <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,0,0,10">
             <StackPanel Grid.Column="0">
-                <TextBlock FontWeight="SemiBold" Text="Widget Name" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Widget Name" Margin="4,0,0,4" />
                 <TextBox Width="220" x:Name="WidgetNameBox" PlaceholderText="Widget name..."
-                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed"/>
+                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed" />
             </StackPanel>
 
             <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                <TextBlock FontWeight="SemiBold" Text="Group" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Group" Margin="4,0,0,4" />
                 <TextBox Width="150" x:Name="GroupBox" PlaceholderText="widgets"
                          ToolTip.Tip="Collection this widget belongs to. Defaults to &quot;widgets&quot;."
-                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed"/>
+                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed" />
             </StackPanel>
 
             <StackPanel Grid.Column="3" Margin="12,0,0,0">
-                <TextBlock FontWeight="SemiBold" Text="Version" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Version" Margin="4,0,0,4" />
                 <TextBox Width="100" x:Name="VersionBox" ToolTip.Tip="Widget Version" PlaceholderText="1.0.0"
-                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed"/>
+                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed" />
             </StackPanel>
         </Grid>
 
         <DockPanel Grid.Row="1" LastChildFill="False" Margin="0,0,0,12">
             <StackPanel DockPanel.Dock="Left">
-                <TextBlock FontWeight="SemiBold" Text="Author" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Author" Margin="4,0,0,4" />
                 <TextBox Width="220" x:Name="AuthorBox" PlaceholderText="Author name..."
-                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed"/>
+                         VerticalContentAlignment="Center" TextChanged="MetaField_Changed" />
             </StackPanel>
             <StackPanel x:Name="AppOverrideSection" DockPanel.Dock="Right" IsVisible="False" Margin="16,0,0,0">
-                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4"/>
+                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4" />
                 <TextBox Width="120" x:Name="AppVersionBox" ToolTip.Tip="Override App Version" PlaceholderText="v1.0.0"
-                         VerticalContentAlignment="Center"/>
+                         VerticalContentAlignment="Center" />
             </StackPanel>
         </DockPanel>
 
         <DockPanel Grid.Row="2" LastChildFill="True" Margin="0,0,0,12">
             <StackPanel>
-                <TextBlock FontWeight="SemiBold" Text="Tags" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Tags" Margin="4,0,0,4" />
                 <TextBox x:Name="TagsBox" PlaceholderText="alerts, timer, goals..." VerticalContentAlignment="Center"
-                         ToolTip.Tip="Comma separated labels describing the widget"/>
+                         ToolTip.Tip="Comma separated labels describing the widget" />
             </StackPanel>
         </DockPanel>
 
@@ -62,34 +62,36 @@
                         BorderThickness="1" BorderBrush="{DynamicResource UiBrushBorder}"
                         Background="{DynamicResource UiBrushControlBackground}">
                     <Image x:Name="PreviewThumb" Stretch="Uniform" Margin="2"
-                           RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                           RenderOptions.BitmapInterpolationMode="HighQuality" />
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock FontWeight="SemiBold" Text="Preview Image" Margin="4,0,0,4"/>
+                    <TextBlock FontWeight="SemiBold" Text="Preview Image" Margin="4,0,0,4" />
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button x:Name="PreviewPickButton" Content="Choose..." Click="PreviewPick_Click" MinWidth="90"/>
+                        <Button x:Name="PreviewPickButton" Content="Choose..." Click="PreviewPick_Click" MinWidth="90" />
                         <Button x:Name="PreviewClearButton" Content="Clear" Click="PreviewClear_Click" MinWidth="70"
-                                IsVisible="False"/>
+                                IsVisible="False" />
                         <TextBlock x:Name="PreviewNameText" VerticalAlignment="Center" FontSize="11"
                                    TextTrimming="CharacterEllipsis" MaxWidth="200"
-                                   Foreground="{DynamicResource UiBrushTextTertiary}" Text="No preview"/>
+                                   Foreground="{DynamicResource UiBrushTextTertiary}" Text="No preview" />
                     </StackPanel>
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <StackPanel Grid.Row="4" Orientation="Vertical">
-            <DockPanel Margin="0,0,0,6" LastChildFill="False" ToolTip.Tip = "The widget html and some linked resources are preselected - please add any missing">
-                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Files to be included" VerticalAlignment="Center"/>
+            <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                       ToolTip.Tip="The widget html and some linked resources are preselected - please add any missing">
+                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Files to be included"
+                           VerticalAlignment="Center" />
                 <CheckBox x:Name="SelectAllBox" DockPanel.Dock="Right" Content="Select all" IsChecked="{x:Null}"
-                          VerticalAlignment="Center" IsThreeState="True" IsCheckedChanged="SelectAllBox_Changed"/>
+                          VerticalAlignment="Center" IsThreeState="True" IsCheckedChanged="SelectAllBox_Changed" />
             </DockPanel>
         </StackPanel>
 
         <Border Grid.Row="5" BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="2"
                 CornerRadius="4" Margin="0,0,0,10">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="4">
-                <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0" Padding="2"/>
+                <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0" Padding="2" />
             </ScrollViewer>
         </Border>
 
@@ -97,8 +99,8 @@
                 BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="1"
                 CornerRadius="4" Padding="10,8" Margin="0,0,0,10">
             <StackPanel Orientation="Vertical">
-                <TextBlock Text="Exports to" FontSize="9" Foreground="{DynamicResource UiBrushTextTertiary}"/>
-                <TextBlock x:Name="OutputPathText" FontSize="10" TextWrapping="Wrap" MaxWidth="480" Margin="0,2,0,0"/>
+                <TextBlock Text="Exports to" FontSize="9" Foreground="{DynamicResource UiBrushTextTertiary}" />
+                <TextBlock x:Name="OutputPathText" FontSize="10" TextWrapping="Wrap" MaxWidth="480" Margin="0,2,0,0" />
             </StackPanel>
         </Border>
 
@@ -108,16 +110,16 @@
                 BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,14">
             <StackPanel Orientation="Horizontal">
                 <ctl:SymIcon Glyph="Warning24" Foreground="{DynamicResource SystemFillColorCautionBrush}"
-                             Margin="0,0,8,0" VerticalAlignment="Top"/>
+                             Margin="0,0,8,0" VerticalAlignment="Top" />
                 <TextBlock TextWrapping="Wrap" MaxWidth="440" FontSize="12"
-                           Text="The widget's current settings are baked as defaults. Files referenced by hardcoded paths inside the html, js, or css may not be bundled automatically"/>
+                           Text="The widget's current settings are baked as defaults. Files referenced by hardcoded paths inside the html, js, or css may not be bundled automatically" />
             </StackPanel>
         </Border>
 
         <DockPanel Grid.Row="8" LastChildFill="False">
             <Button DockPanel.Dock="Right" x:Name="ConfirmButton" Content="Export" Classes="accent"
-                    Width="110" Margin="8,0,0,0" Click="ConfirmButton_Click"/>
-            <Button DockPanel.Dock="Right" x:Name="CancelButton" Content="Cancel" Width="90" Click="CancelButton_Click"/>
+                    Width="110" Margin="8,0,0,0" Click="ConfirmButton_Click" />
+            <Button DockPanel.Dock="Right" x:Name="CancelButton" Content="Cancel" Width="90" Click="CancelButton_Click" />
         </DockPanel>
     </Grid>
 </Window>

@@ -28,8 +28,23 @@ using Order = Fourthwall.Client.Generated.Models.Openapi.Model.OrderV1.Source.Or
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
 
-public partial class FourthWallSettings : DevTunnelSettingsControl
-{
+public partial class FourthWallSettings : DevTunnelSettingsControl {
+    private readonly string configSection = "FourthWall";
+
+    public FourthWallSettings() {
+        InitializeComponent();
+        Loaded += (_, _) => {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            IntegrationEvents.FourthWallMembershipsSynced += SyncMemberships;
+            RegisterUnsavedChangeHandlers();
+            RefreshFromStoredState();
+        };
+        Unloaded += (_, _) => {
+            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
+            IntegrationEvents.FourthWallMembershipsSynced -= SyncMemberships;
+        };
+    }
+
     protected override StackPanel? _MembershipsPanel => MembershipsPanel;
 
     protected override TextBox _WebhookUrlBox => WebhookUrlBox;
@@ -45,129 +60,102 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
     protected override Button? _ConnectBtn => ConnectBtn;
     protected override bool allowMembershipDelete => false;
 
-    private readonly string configSection = "FourthWall";
-
-    public FourthWallSettings()
-    {
-        InitializeComponent();
-        Loaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated += UpdateStatus;
-            IntegrationEvents.FourthWallMembershipsSynced += SyncMemberships;
-            RegisterUnsavedChangeHandlers();
-            RefreshFromStoredState();
-        };
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-            IntegrationEvents.FourthWallMembershipsSynced -= SyncMemberships;
-        };
-    }
-
-    public override void Init(SettingsView host)
-    {
+    public override void Init(SettingsView host) {
         Host = host;
         RegisterUnsavedChangeHandlers();
     }
 
-    internal override void UpdateStatus(IntegrationConnection? conn)
-    {
+    internal override void UpdateStatus(IntegrationConnection? conn) {
         if (conn == null) return;
         base.UpdateStatus(conn);
         if (conn.Source != SubathonEventSource.FourthWall) return;
         Dispatcher.UIThread.Post(() => DisconnBtn.IsVisible = conn.Status);
     }
 
-    protected internal override void LoadValues(AppDbContext db)
-    {
-        SuppressUnsavedChanges(() =>
-        {
+    protected internal override void LoadValues(AppDbContext db) {
+        SuppressUnsavedChanges(() => {
             LoadValuesForMemberships(db);
             LoadConfigValues();
         });
     }
 
-    private void LoadConfigValues()
-    {
+    private void LoadConfigValues() {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         ModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
         ModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection,
             $"{SubathonEventType.FourthWallOrder}", OrderTypeModes.Dollar)}";
-        OrderCommissionBox.IsChecked = config.GetBool(configSection, $"{nameof(SubathonEventType.FourthWallOrder).Split("Order")[0]}.CommissionAsDonation", false);
+        OrderCommissionBox.IsChecked = config.GetBool(configSection,
+            $"{nameof(SubathonEventType.FourthWallOrder).Split("Order")[0]}.CommissionAsDonation");
         gModeBox.ItemsSource = Enum.GetNames<OrderTypeModes>().ToList();
         gModeBox.SelectedItem = $"{config.GetOrderTypeMode(configSection,
             $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar)}";
-        GiftCommissionBox.IsChecked = config.GetBool(configSection, $"{nameof(SubathonEventType.FourthWallGiftOrder).Split("Order")[0]}.CommissionAsDonation", false);
+        GiftCommissionBox.IsChecked = config.GetBool(configSection,
+            $"{nameof(SubathonEventType.FourthWallGiftOrder).Split("Order")[0]}.CommissionAsDonation");
     }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.FourthWallDonation && sv.Meta == "");
-        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out var exSeconds) &&
-            !exSeconds.Equals(externalDonoValue.Seconds))
-        {
+        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out double exSeconds) &&
+            !exSeconds.Equals(externalDonoValue.Seconds)) {
             externalDonoValue.Seconds = exSeconds;
             hasUpdated = true;
         }
-        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out var exPoints) &&
-            !exPoints.Equals(externalDonoValue.Points))
-        {
+
+        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out double exPoints) &&
+            !exPoints.Equals(externalDonoValue.Points)) {
             externalDonoValue.Points = exPoints;
             hasUpdated = true;
         }
 
-        var defaultSubValue = db.SubathonValues.FirstOrDefault(sv =>
+        SubathonValue? defaultSubValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.FourthWallMembership && sv.Meta == "DEFAULT");
-        if (defaultSubValue != null && double.TryParse(FwSubDTextBox.Text, out var defaultSeconds) &&
-            !defaultSeconds.Equals(defaultSubValue.Seconds))
-        {
+        if (defaultSubValue != null && double.TryParse(FwSubDTextBox.Text, out double defaultSeconds) &&
+            !defaultSeconds.Equals(defaultSubValue.Seconds)) {
             defaultSubValue.Seconds = defaultSeconds;
             hasUpdated = true;
         }
-        if (defaultSubValue != null && double.TryParse(FwSubDTextBox2.Text, out var defaultPoints) &&
-            !defaultPoints.Equals(defaultSubValue.Points))
-        {
+
+        if (defaultSubValue != null && double.TryParse(FwSubDTextBox2.Text, out double defaultPoints) &&
+            !defaultPoints.Equals(defaultSubValue.Points)) {
             defaultSubValue.Points = defaultPoints;
             hasUpdated = true;
         }
 
-        var removeRows = _dynamicSubRows.Where(row => string.IsNullOrWhiteSpace(row.NameBox.Text)).ToList();
+        List<DynamicSubRow> removeRows =
+            _dynamicSubRows.Where(row => string.IsNullOrWhiteSpace(row.NameBox.Text)).ToList();
         if (removeRows.Any()) hasUpdated = true;
-        foreach (var row in removeRows)
+        foreach (DynamicSubRow row in removeRows)
             DeleteRow(row.SubValue, row);
 
         EnsureUniqueName(_dynamicSubRows);
 
-        foreach (var subRow in _dynamicSubRows)
-        {
+        foreach (DynamicSubRow subRow in _dynamicSubRows) {
             string meta = (subRow.NameBox.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(meta))
-            {
+            if (string.IsNullOrWhiteSpace(meta)) {
                 DeleteRow(subRow.SubValue, subRow);
                 hasUpdated = true;
                 continue;
             }
+
             if (meta == "DEFAULT") continue;
 
             if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
             if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
 
 #pragma warning disable CA1862
-            var existing = db.SubathonValues.FirstOrDefault(sv =>
+            SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.FourthWallMembership && sv.Meta.ToLower() == meta.ToLower());
 #pragma warning restore CA1862
-            if (existing != null)
-            {
+            if (existing != null) {
                 existing.Seconds = seconds;
                 existing.Points = points;
                 subRow.SubValue = existing;
                 if (!seconds.Equals(existing.Seconds) || !points.Equals(existing.Points))
                     hasUpdated = true;
             }
-            else
-            {
+            else {
                 subRow.SubValue.Meta = meta;
                 subRow.SubValue.Seconds = seconds;
                 subRow.SubValue.Points = points;
@@ -177,59 +165,63 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
         }
 
         List<string> names = ["DEFAULT"];
-        foreach (var row in _dynamicSubRows)
+        foreach (DynamicSubRow row in _dynamicSubRows)
             names.Add((row.NameBox.Text ?? "").Trim());
 
-        var dbRows = db.SubathonValues.Where(x =>
+        List<SubathonValue> dbRows = db.SubathonValues.Where(x =>
             !names.Contains(x.Meta) && x.EventType == SubathonEventType.FourthWallMembership).ToList();
-        if (dbRows.Count > 0)
-        {
+        if (dbRows.Count > 0) {
             db.SubathonValues.RemoveRange(dbRows);
             hasUpdated = true;
         }
 
-        var orderVal = db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallOrder && x.Meta == "");
-        if (orderVal != null && double.TryParse(ShopOrderBox.Text, out var osec) && !orderVal.Seconds.Equals(osec))
-        {
+        SubathonValue? orderVal =
+            db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallOrder && x.Meta == "");
+        if (orderVal != null && double.TryParse(ShopOrderBox.Text, out double osec) && !orderVal.Seconds.Equals(osec)) {
             orderVal.Seconds = osec;
             hasUpdated = true;
         }
-        if (orderVal != null && double.TryParse(ShopOrderBox2.Text, out var opts) && !orderVal.Points.Equals(opts))
-        {
+
+        if (orderVal != null && double.TryParse(ShopOrderBox2.Text, out double opts) && !orderVal.Points.Equals(opts)) {
             orderVal.Points = opts;
             hasUpdated = true;
         }
 
-        var value = db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallGiftOrder && x.Meta == "");
-        if (value != null && double.TryParse(gShopOrderBox.Text, out var gosec) && !value.Seconds.Equals(gosec))
-        {
+        SubathonValue? value =
+            db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallGiftOrder && x.Meta == "");
+        if (value != null && double.TryParse(gShopOrderBox.Text, out double gosec) && !value.Seconds.Equals(gosec)) {
             value.Seconds = gosec;
             hasUpdated = true;
         }
-        if (value != null && double.TryParse(gShopOrderBox2.Text, out var gpts) && !value.Points.Equals(gpts))
-        {
+
+        if (value != null && double.TryParse(gShopOrderBox2.Text, out double gpts) && !value.Points.Equals(gpts)) {
             value.Points = gpts;
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    protected internal override bool UpdateConfigValueSettings()
-    {
+    protected internal override bool UpdateConfigValueSettings() {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool hasUpdated = false;
+        var hasUpdated = false;
 
-        if (!Enum.TryParse<OrderTypeModes>($"{gModeBox.SelectedItem}", out var gMode)) gMode = OrderTypeModes.Dollar;
-        if (!Enum.TryParse<OrderTypeModes>($"{ModeBox.SelectedItem}", out var mode)) mode = OrderTypeModes.Dollar;
+        if (!Enum.TryParse<OrderTypeModes>($"{gModeBox.SelectedItem}", out OrderTypeModes gMode))
+            gMode = OrderTypeModes.Dollar;
+        if (!Enum.TryParse<OrderTypeModes>($"{ModeBox.SelectedItem}", out OrderTypeModes mode))
+            mode = OrderTypeModes.Dollar;
         hasUpdated |= config.SetOrderTypeMode(configSection, $"{SubathonEventType.FourthWallGiftOrder}", gMode);
-        hasUpdated |= config.SetBool(configSection, $"{nameof(SubathonEventType.FourthWallGiftOrder).Split("Order")[0]}.CommissionAsDonation", GiftCommissionBox.IsChecked ?? false);
+        hasUpdated |= config.SetBool(configSection,
+            $"{nameof(SubathonEventType.FourthWallGiftOrder).Split("Order")[0]}.CommissionAsDonation",
+            GiftCommissionBox.IsChecked ?? false);
         hasUpdated |= config.SetOrderTypeMode(configSection, $"{SubathonEventType.FourthWallOrder}", mode);
-        hasUpdated |= config.SetBool(configSection, $"{nameof(SubathonEventType.FourthWallOrder).Split("Order")[0]}.CommissionAsDonation", OrderCommissionBox.IsChecked ?? false);
+        hasUpdated |= config.SetBool(configSection,
+            $"{nameof(SubathonEventType.FourthWallOrder).Split("Order")[0]}.CommissionAsDonation",
+            OrderCommissionBox.IsChecked ?? false);
         return hasUpdated;
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
-    {
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
         CurrencyBox.ItemsSource = currencies;
         CurrencyBox.SelectedItem = selected;
         gOrderCurrencyBox.ItemsSource = currencies;
@@ -238,14 +230,13 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
         OrderCurrencyBox.SelectedItem = selected;
     }
 
-    public override (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
+    public override (string seconds, string points, TextBox? timeBox, TextBox? pointsBox) GetValueBoxes(
+        SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
         TextBox? box = null;
         TextBox? box2 = null;
-        switch (val.EventType)
-        {
+        switch (val.EventType) {
             case SubathonEventType.FourthWallDonation:
                 box = DonoBox;
                 box2 = DonoBox2;
@@ -259,27 +250,23 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
                 box2 = gShopOrderBox2;
                 break;
         }
+
         return (v, p, box, box2);
     }
 
-    private void TestFwSub_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestFwSub_Click(object? sender, RoutedEventArgs e) {
         string durationText = (SimMembershipDuration.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
         var duration = MembershipTierVariantV1_interval.MONTHLY;
         if (string.Equals(durationText, "ANNUAL", StringComparison.OrdinalIgnoreCase))
-        {
             duration = MembershipTierVariantV1_interval.ANNUAL;
-        }
 
         string tierId = (SimFwTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
 
-        var subEvent = new MembershipSupporterV1
-        {
+        var subEvent = new MembershipSupporterV1 {
             CreatedAt = DateTimeOffset.Now,
             Id = Guid.NewGuid().ToString(),
             Nickname = "SYSTEM",
-            Subscription = new MembershipSupporterV1.MembershipSupporterV1_subscription
-            {
+            Subscription = new MembershipSupporterV1.MembershipSupporterV1_subscription {
                 Active = new Active { Variant = new MembershipTierVariantV1() }
             }
         };
@@ -291,12 +278,11 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
         var service = AppServices.Provider.GetService<FourthWallService>();
         if (service == null) return;
 
-        var result = service.MembershipNames.FirstOrDefault(x =>
+        KeyValuePair<string, string> result = service.MembershipNames.FirstOrDefault(x =>
             string.Equals(x.Value, subEvent.Subscription.Active.Variant.TierId));
         if (result.Key != null) subEvent.Subscription.Active.Variant.TierId = result.Key;
 
-        FourthwallWebhookEvent dono = new FourthwallSubscriptionPurchasedWebhookEvent
-        {
+        FourthwallWebhookEvent dono = new FourthwallSubscriptionPurchasedWebhookEvent {
             Data = subEvent,
             Id = Guid.NewGuid().ToString(),
             WebhookId = "",
@@ -306,29 +292,26 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
             CreatedAt = DateTimeOffset.Now,
             TestMode = false
         };
-        var ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
+        SubathonEvent? ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
         if (ev != null)
             SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
-    private void TestFwShopGiftOrder_Click(object? sender, RoutedEventArgs e)
-    {
-        var oEvent = new GiftPurchaseV1
-        {
+    private void TestFwShopGiftOrder_Click(object? sender, RoutedEventArgs e) {
+        var oEvent = new GiftPurchaseV1 {
             Gifts = new List<GiftPurchaseV1.GiftPurchaseV1_gifts>(),
             Offer = new OfferGiftPurchaseV1()
         };
 
-        if (!int.TryParse(gOrderQuantitySimBox.Text, out var quantity)) return;
+        if (!int.TryParse(gOrderQuantitySimBox.Text, out int quantity)) return;
         if (quantity < 1) return;
         oEvent.Quantity = quantity;
 
-        if (!double.TryParse(gOrderTotalSimBox.Text, out var subtotal)) return;
-        oEvent.Amounts = new Fourthwall.Client.Generated.Models.Openapi.Model.GiftPurchaseV1.Amounts
-        {
-            Subtotal = new Money { Value = subtotal, Currency = (gOrderCurrencyBox.Text) },
-            Profit = new Money { Value = subtotal * 0.67, Currency = (gOrderCurrencyBox.Text) },
-            Tax = new Money { Currency = (gOrderCurrencyBox.Text), Value = subtotal * 0.10 }
+        if (!double.TryParse(gOrderTotalSimBox.Text, out double subtotal)) return;
+        oEvent.Amounts = new Fourthwall.Client.Generated.Models.Openapi.Model.GiftPurchaseV1.Amounts {
+            Subtotal = new Money { Value = subtotal, Currency = gOrderCurrencyBox.Text },
+            Profit = new Money { Value = subtotal * 0.67, Currency = gOrderCurrencyBox.Text },
+            Tax = new Money { Currency = gOrderCurrencyBox.Text, Value = subtotal * 0.10 }
         };
 
         oEvent.CreatedAt = DateTimeOffset.Now;
@@ -336,8 +319,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
         oEvent.Message = "SIMULATED";
         oEvent.Username = "SYSTEM";
 
-        FourthwallWebhookEvent dono = new FourthwallGiftPurchaseWebhookEvent
-        {
+        FourthwallWebhookEvent dono = new FourthwallGiftPurchaseWebhookEvent {
             Data = oEvent,
             Id = Guid.NewGuid().ToString(),
             WebhookId = "",
@@ -347,33 +329,31 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
             CreatedAt = DateTimeOffset.Now,
             TestMode = false
         };
-        var ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
+        SubathonEvent? ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
         if (ev != null)
             SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
-    private void TestFwShopOrder_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestFwShopOrder_Click(object? sender, RoutedEventArgs e) {
         var oEvent = new OrderV1 { Offers = new List<OfferOrderV1>() };
         var item = new OfferOrderV1 { Variant = new OfferVariantWithQuantityV1() };
-        if (!int.TryParse(OrderQuantitySimBox.Text, out var quantity)) return;
+        if (!int.TryParse(OrderQuantitySimBox.Text, out int quantity)) return;
         if (quantity < 1) return;
         item.Variant.Quantity = quantity;
-        if (!double.TryParse(OrderTotalSimBox.Text, out var subtotal)) return;
-        item.Variant.Price = new Money { Currency = (OrderCurrencyBox.Text), Value = subtotal };
-        item.Variant.UnitPrice = new Money { Currency = (OrderCurrencyBox.Text), Value = subtotal / quantity };
-        item.Variant.Cost = new Money { Currency = (OrderCurrencyBox.Text), Value = subtotal * 0.67 };
-        item.Variant.UnitCost = new Money { Currency = (OrderCurrencyBox.Text), Value = (subtotal * 0.67) / quantity };
+        if (!double.TryParse(OrderTotalSimBox.Text, out double subtotal)) return;
+        item.Variant.Price = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal };
+        item.Variant.UnitPrice = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal / quantity };
+        item.Variant.Cost = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal * 0.67 };
+        item.Variant.UnitCost = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal * 0.67 / quantity };
 
         oEvent.Offers.Add(item);
 
         oEvent.Status = OrderV1_status.CONFIRMED;
-        oEvent.Amounts = new OrderAmounts
-        {
+        oEvent.Amounts = new OrderAmounts {
             Subtotal = item.Variant.Price,
-            Total = new Money { Currency = (OrderCurrencyBox.Text), Value = (subtotal * 1.10) + 10 },
-            Shipping = new Money { Value = 10, Currency = (OrderCurrencyBox.Text) },
-            Tax = new Money { Currency = (OrderCurrencyBox.Text), Value = subtotal * 0.10 }
+            Total = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal * 1.10 + 10 },
+            Shipping = new Money { Value = 10, Currency = OrderCurrencyBox.Text },
+            Tax = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal * 0.10 }
         };
 
         oEvent.Source = new OrderV1.OrderV1_source { Order = new Order { Type = "ORDER" } };
@@ -383,8 +363,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
         oEvent.Message = "SIMULATED";
         oEvent.Username = "SYSTEM";
 
-        FourthwallWebhookEvent dono = new FourthwallOrderPlacedWebhookEvent
-        {
+        FourthwallWebhookEvent dono = new FourthwallOrderPlacedWebhookEvent {
             Data = oEvent,
             Id = Guid.NewGuid().ToString(),
             WebhookId = "",
@@ -394,26 +373,24 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
             CreatedAt = DateTimeOffset.Now,
             TestMode = false
         };
-        var ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
+        SubathonEvent? ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
         if (ev != null)
             SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
-    private void TestFwTip_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestFwTip_Click(object? sender, RoutedEventArgs e) {
         var donoEvent = new DonationV1 { Amounts = new Amounts { Total = new Money() } };
 
-        if (double.TryParse(SimulateFwTipAmountBox.Text, out var tipAmt))
+        if (double.TryParse(SimulateFwTipAmountBox.Text, out double tipAmt))
             donoEvent.Amounts.Total.Value = tipAmt;
         else return;
-        donoEvent.Amounts.Total.Currency = (CurrencyBox.Text);
+        donoEvent.Amounts.Total.Currency = CurrencyBox.Text;
         donoEvent.CreatedAt = DateTimeOffset.Now;
         donoEvent.Id = Guid.NewGuid().ToString();
         donoEvent.Message = "SIMULATED";
         donoEvent.Username = "SYSTEM";
 
-        FourthwallWebhookEvent dono = new FourthwallDonationWebhookEvent
-        {
+        FourthwallWebhookEvent dono = new FourthwallDonationWebhookEvent {
             Data = donoEvent,
             Id = Guid.NewGuid().ToString(),
             WebhookId = "",
@@ -423,72 +400,65 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
             CreatedAt = DateTimeOffset.Now,
             TestMode = false
         };
-        var ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
+        SubathonEvent? ev = AppServices.Provider.GetService<FourthWallService>()?.MapToSubathonEvent(dono);
         if (ev != null)
             SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
-    private async void ConnectFw_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void ConnectFw_Click(object? sender, RoutedEventArgs e) {
         await ServiceManager.FourthWall.Initialize();
     }
 
-    private async void DisconnectFw_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void DisconnectFw_Click(object? sender, RoutedEventArgs e) {
         await ServiceManager.FourthWall.StopAsync();
         ServiceManager.FourthWall.RevokeTokenFile();
     }
 
-    private void SyncMemberships(Dictionary<string, string> memberships)
-    {
-        var names = memberships.Values.ToList();
-        var db = _factory.CreateDbContext();
-        var existing = db.SubathonValues.Where(v => names.Contains(v.Meta)).Select(v => v.Meta).ToList();
+    private void SyncMemberships(Dictionary<string, string> memberships) {
+        List<string> names = memberships.Values.ToList();
+        AppDbContext db = _factory.CreateDbContext();
+        List<string> existing = db.SubathonValues.Where(v => names.Contains(v.Meta)).Select(v => v.Meta).ToList();
         var newValues = new List<SubathonValue>();
-        foreach (var tier in names.Where(x => !existing.Contains(x)))
-        {
-            var val = new SubathonValue { Meta = tier, Seconds = 0, Points = 0, EventType = SubathonEventType.FourthWallMembership };
+        foreach (string tier in names.Where(x => !existing.Contains(x))) {
+            var val = new SubathonValue
+                { Meta = tier, Seconds = 0, Points = 0, EventType = SubathonEventType.FourthWallMembership };
             newValues.Add(val);
         }
 
-        if (newValues.Any())
-        {
+        if (newValues.Any()) {
             db.SubathonValues.AddRange(newValues);
             db.SaveChanges();
             Dispatcher.UIThread.Post(() => SuppressUnsavedChanges(() => LoadValuesForMemberships(null)));
         }
     }
 
-    internal override void AddMembership_Click(object? sender, RoutedEventArgs e) { }
+    internal override void AddMembership_Click(object? sender, RoutedEventArgs e) {
+    }
 
-    private void LoadValuesForMemberships(AppDbContext? db)
-    {
+    private void LoadValuesForMemberships(AppDbContext? db) {
         db ??= _factory.CreateDbContext();
-        var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.FourthWallMembership)
+        List<SubathonValue> values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.FourthWallMembership)
             .OrderBy(meta => meta)
             .AsNoTracking().ToList();
 
-        for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--)
-        {
-            var child = MembershipsPanel.Children[i];
+        for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--) {
+            Control child = MembershipsPanel.Children[i];
             if (child.Name != "DefaultMember" && child.Name != "AddBtn")
                 MembershipsPanel.Children.RemoveAt(i);
         }
+
         _dynamicSubRows.Clear();
-        foreach (var value in values)
-        {
+        foreach (SubathonValue value in values) {
             TextBox? box1 = null;
             TextBox? box2 = null;
             var v = $"{value.Seconds}";
             var p = $"{value.Points}";
 
-            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.FourthWallMembership })
-            {
+            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.FourthWallMembership }) {
                 box1 = FwSubDTextBox;
                 box2 = FwSubDTextBox2;
             }
-            else if (value.EventType == SubathonEventType.FourthWallMembership)
-            {
+            else if (value.EventType == SubathonEventType.FourthWallMembership) {
                 AddMembershipRow(value);
             }
 
@@ -499,12 +469,11 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
         RefreshTierCombo();
     }
 
-    private void RefreshTierCombo()
-    {
+    private void RefreshTierCombo() {
         string selectedTier = (SimFwTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-        using var db = _factory.CreateDbContext();
+        using AppDbContext db = _factory.CreateDbContext();
 
-        var metas = db.SubathonValues
+        List<string> metas = db.SubathonValues
             .Where(v => v.EventType == SubathonEventType.FourthWallMembership)
             .Select(v => v.Meta)
             .Where(meta => meta != "DEFAULT" && !string.IsNullOrWhiteSpace(meta))
@@ -515,11 +484,10 @@ public partial class FourthWallSettings : DevTunnelSettingsControl
 
         SimFwTierSelection.Items.Clear();
         SimFwTierSelection.Items.Add(new ComboBoxItem { Content = "DEFAULT" });
-        foreach (var meta in metas)
+        foreach (string meta in metas)
             SimFwTierSelection.Items.Add(new ComboBoxItem { Content = meta });
 
-        foreach (var comboItem in SimFwTierSelection.Items)
-        {
+        foreach (object? comboItem in SimFwTierSelection.Items) {
             if (comboItem is not ComboBoxItem cbi ||
                 !string.Equals(cbi.Content?.ToString(), selectedTier, StringComparison.OrdinalIgnoreCase)) continue;
             SimFwTierSelection.SelectedItem = cbi;

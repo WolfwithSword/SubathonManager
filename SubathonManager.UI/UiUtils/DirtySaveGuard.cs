@@ -7,19 +7,11 @@ using SubathonManager.UI.Views;
 
 namespace SubathonManager.UI.UiUtils;
 
-public static class DirtySaveGuard
-{
-    private sealed class Baseline
-    {
-        public object? Value;
-    }
-
+public static class DirtySaveGuard {
     private static readonly ConditionalWeakTable<AvaloniaObject, Baseline> Baselines = new();
 
-    public static bool TryGetValue(object? control, out object? value)
-    {
-        switch (control)
-        {
+    public static bool TryGetValue(object? control, out object? value) {
+        switch (control) {
             case TextBox tb:
                 value = tb.Text ?? "";
                 return true;
@@ -47,34 +39,34 @@ public static class DirtySaveGuard
         }
     }
 
-    public static void Rebase(object? control)
-    {
-        if (control is not AvaloniaObject obj || !TryGetValue(control, out var value)) return;
-        if (Baselines.TryGetValue(obj, out var baseline)) baseline.Value = value;
+    public static void Rebase(object? control) {
+        if (control is not AvaloniaObject obj || !TryGetValue(control, out object? value)) return;
+        if (Baselines.TryGetValue(obj, out Baseline? baseline)) baseline.Value = value;
         else Baselines.Add(obj, new Baseline { Value = value });
     }
 
-    public static void RebaseAll(Visual? root)
-    {
+    public static void RebaseAll(Visual? root) {
         if (root == null) return;
         Rebase(root);
-        foreach (var child in root.GetVisualChildren())
+        foreach (Visual child in root.GetVisualChildren())
             RebaseAll(child);
     }
 
-    public static bool Consume(object? control)
-    {
-        if (control is not AvaloniaObject obj || !TryGetValue(control, out var current)) return true;
+    public static bool Consume(object? control) {
+        if (control is not AvaloniaObject obj || !TryGetValue(control, out object? current)) return true;
 
-        if (!Baselines.TryGetValue(obj, out var baseline))
-        {
+        if (!Baselines.TryGetValue(obj, out Baseline? baseline)) {
             Baselines.Add(obj, new Baseline { Value = current });
             return true;
         }
 
         if (Equals(baseline.Value, current)) return false;
-        
+
         baseline.Value = current;
         return true;
+    }
+
+    private sealed class Baseline {
+        public object? Value;
     }
 }
