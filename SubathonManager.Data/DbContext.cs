@@ -1,666 +1,624 @@
-using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using System.Numerics;
 using System.Text;
-using SubathonManager.Core.Models;
-using SubathonManager.Core.Enums;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
-namespace SubathonManager.Data
-{
-    public class AppDbContext : DbContext
-    {
-        public DbSet<Route> Routes => Set<Route>();
-        public DbSet<Widget> Widgets => Set<Widget>();
+namespace SubathonManager.Data;
 
-        public DbSet<CssVariable> CssVariables => Set<CssVariable>();
-        public DbSet<JsVariable> JsVariables => Set<JsVariable>();
+public class AppDbContext : DbContext {
+    public AppDbContext(DbContextOptions<AppDbContext> options)
+        : base(options) {
+    }
 
-        public DbSet<SubathonEvent> SubathonEvents { get; set; }
-        public DbSet<SubathonValue> SubathonValues { get; set; }
-        
-        public DbSet<SubathonData> SubathonDatas { get; set; }
-        public DbSet<MultiplierData> MultiplierDatas { get; set; }
-        
-        public DbSet<SubathonGoal> SubathonGoals { get; set; }
-        public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
-        
-        public DbSet<SubathonPromptSet> SubathonPromptSets { get; set; }
-        public DbSet<SubathonPrompt> SubathonPrompts { get; set; }
-        public DbSet<SubathonPromptRun> SubathonPromptRuns { get; set; }
-        
-        public DbSet<WheelSet> WheelSets { get; set; }
-        public DbSet<WheelItem> WheelItems { get; set; }
-        public DbSet<WheelSpinAction> WheelSpinActions { get; set; }
-        public DbSet<WheelSpinHistory> WheelSpinHistories { get; set; }
-        public DbSet<WheelSpinTrigger> WheelSpinTriggers { get; set; }
-        public DbSet<WheelSpinTriggerHistory> WheelSpinTriggerHistories { get; set; }
+    public DbSet<Route> Routes => Set<Route>();
+    public DbSet<Widget> Widgets => Set<Widget>();
 
-        public DbSet<GoAffProStore> GoAffProStores { get; set; }
-        public DbSet<MakeShipTracking> MakeShipTrackings { get; set; }
-        public DbSet<JuniperStore> JuniperStores { get; set; }
-        public DbSet<JuniperProduct> JuniperProducts { get; set; }
+    public DbSet<CssVariable> CssVariables => Set<CssVariable>();
+    public DbSet<JsVariable> JsVariables => Set<JsVariable>();
 
-        public DbSet<StateValue> StateValues { get; set; }
+    public DbSet<SubathonEvent> SubathonEvents { get; set; }
+    public DbSet<SubathonValue> SubathonValues { get; set; }
 
-        public DbSet<WidgetCatalogEntry> WidgetCatalogEntries => Set<WidgetCatalogEntry>();
+    public DbSet<SubathonData> SubathonDatas { get; set; }
+    public DbSet<MultiplierData> MultiplierDatas { get; set; }
 
-        public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options)
+    public DbSet<SubathonGoal> SubathonGoals { get; set; }
+    public DbSet<SubathonGoalSet> SubathonGoalSets { get; set; }
+
+    public DbSet<SubathonPromptSet> SubathonPromptSets { get; set; }
+    public DbSet<SubathonPrompt> SubathonPrompts { get; set; }
+    public DbSet<SubathonPromptRun> SubathonPromptRuns { get; set; }
+
+    public DbSet<WheelSet> WheelSets { get; set; }
+    public DbSet<WheelItem> WheelItems { get; set; }
+    public DbSet<WheelSpinAction> WheelSpinActions { get; set; }
+    public DbSet<WheelSpinHistory> WheelSpinHistories { get; set; }
+    public DbSet<WheelSpinTrigger> WheelSpinTriggers { get; set; }
+    public DbSet<WheelSpinTriggerHistory> WheelSpinTriggerHistories { get; set; }
+
+    public DbSet<GoAffProStore> GoAffProStores { get; set; }
+    public DbSet<MakeShipTracking> MakeShipTrackings { get; set; }
+    public DbSet<JuniperStore> JuniperStores { get; set; }
+    public DbSet<JuniperProduct> JuniperProducts { get; set; }
+
+    public DbSet<StateValue> StateValues { get; set; }
+
+    public DbSet<WidgetCatalogEntry> WidgetCatalogEntries => Set<WidgetCatalogEntry>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
+        if (!optionsBuilder.IsConfigured) // allows migrations to be added still in dev
         {
+            string dbPath = Config.DatabasePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+            optionsBuilder.UseSqlite($"Data Source={dbPath}");
         }
-        
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            if (!optionsBuilder.IsConfigured) // allows migrations to be added still in dev
-            {
-                var dbPath = Config.DatabasePath;
-                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-                optionsBuilder.UseSqlite($"Data Source={dbPath}");
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder) {
+        modelBuilder.Entity<Route>()
+            .HasMany(r => r.Widgets)
+            .WithOne(w => w.Route)
+            .HasForeignKey(w => w.RouteId)
+            .OnDelete(DeleteBehavior.Cascade); // deleting route deletes its widgets
+
+        modelBuilder.Entity<Widget>()
+            .HasMany(w => w.CssVariables)
+            .WithOne(cv => cv.Widget)
+            .HasForeignKey(cv => cv.WidgetId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Widget>()
+            .HasMany(w => w.JsVariables)
+            .WithOne(cv => cv.Widget)
+            .HasForeignKey(cv => cv.WidgetId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SubathonEvent>()
+            .HasKey(e => new { e.Id, e.Source });
+
+        modelBuilder.Entity<SubathonEvent>()
+            .HasOne(e => e.LinkedSubathon)
+            .WithMany()
+            .HasForeignKey(e => e.SubathonId)
+            .IsRequired(false);
+
+        modelBuilder.Entity<SubathonValue>()
+            .HasKey(sv => new { sv.EventType, sv.Meta });
+
+        modelBuilder.Entity<SubathonGoalSet>()
+            .HasMany(s => s.Goals)
+            .WithOne(g => g.LinkedGoalSet)
+            .HasForeignKey(g => g.GoalSetId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SubathonData>().HasOne(s => s.Multiplier)
+            .WithOne(m => m.LinkedSubathon).HasForeignKey<MultiplierData>(m => m.SubathonId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SubathonPromptSet>()
+            .HasMany(s => s.Prompts)
+            .WithOne(p => p.LinkedSet)
+            .HasForeignKey(p => p.SetId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SubathonPromptRun>()
+            .HasOne(r => r.LinkedPrompt)
+            .WithMany()
+            .HasForeignKey(r => r.PromptId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SubathonPromptRun>()
+            .HasOne(r => r.LinkedSet)
+            .WithMany()
+            .HasForeignKey(r => r.SetId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<SubathonPromptSet>()
+            .Property(s => s.Interval)
+            .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+
+        modelBuilder.Entity<SubathonPromptSet>()
+            .Property(s => s.RandomOffset)
+            .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+
+        modelBuilder.Entity<SubathonPromptSet>()
+            .Property(s => s.Cooldown)
+            .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+
+        modelBuilder.Entity<SubathonPrompt>()
+            .Property(p => p.CompletionDuration)
+            .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
+
+        modelBuilder.Entity<WheelSet>()
+            .HasMany(w => w.WheelItems)
+            .WithOne(i => i.LinkedWheel)
+            .HasForeignKey(i => i.WheelId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WheelItem>()
+            .HasOne(i => i.Action)
+            .WithOne(a => a.LinkedItem)
+            .HasForeignKey<WheelSpinAction>(a => a.WheelItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WheelSpinHistory>()
+            .HasOne(h => h.LinkedItem)
+            .WithMany()
+            .HasForeignKey(h => h.WheelItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WheelSpinHistory>()
+            .HasOne(h => h.LinkedWheel)
+            .WithMany()
+            .HasForeignKey(h => h.WheelId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<WheelSpinTrigger>()
+            .HasMany(t => t.History)
+            .WithOne(h => h.Trigger)
+            .HasForeignKey(h => h.TriggerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GoAffProStore>()
+            .HasKey(e => new { e.RowId });
+        modelBuilder.Entity<GoAffProStore>()
+            .HasIndex(s => new { s.SiteId })
+            .IsUnique();
+
+        modelBuilder.Entity<WidgetCatalogEntry>()
+            .HasIndex(e => e.PackPath)
+            .IsUnique();
+
+        modelBuilder.Entity<JuniperProduct>()
+            .Property(p => p.ProductId)
+            .HasConversion(v => v.ToString(), v => BigInteger.Parse(v))
+            .ValueGeneratedNever();
+        modelBuilder.Entity<JuniperProduct>()
+            .HasOne(p => p.Store)
+            .WithMany(s => s.Products)
+            .HasForeignKey(p => p.StoreId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+
+    public override int SaveChanges() {
+        UpdateTimestamps();
+        return base.SaveChanges();
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
+        UpdateTimestamps();
+        return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void UpdateTimestamps() {
+        DateTime now = DateTime.UtcNow;
+
+        foreach (EntityEntry<Route> entry in ChangeTracker.Entries<Route>())
+            if (entry.State == EntityState.Added) {
+                entry.Entity.CreatedTimestamp = now;
+                entry.Entity.UpdatedTimestamp = now;
             }
-        }
-        
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<Route>()
-                .HasMany(r => r.Widgets)
-                .WithOne(w => w.Route)
-                .HasForeignKey(w => w.RouteId)
-                .OnDelete(DeleteBehavior.Cascade); // deleting route deletes its widgets
-
-            modelBuilder.Entity<Widget>()
-                .HasMany(w => w.CssVariables)
-                .WithOne(cv => cv.Widget)
-                .HasForeignKey(cv => cv.WidgetId)
-                .OnDelete(DeleteBehavior.Cascade);
-            
-            modelBuilder.Entity<Widget>()
-                .HasMany(w => w.JsVariables)
-                .WithOne(cv => cv.Widget)
-                .HasForeignKey(cv => cv.WidgetId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<SubathonEvent>()
-                .HasKey(e => new { e.Id, e.Source });
-            
-            modelBuilder.Entity<SubathonEvent>()
-                .HasOne(e => e.LinkedSubathon)
-                .WithMany() 
-                .HasForeignKey(e => e.SubathonId)
-                .IsRequired(false); 
-
-            modelBuilder.Entity<SubathonValue>()
-                .HasKey(sv => new { sv.EventType, sv.Meta });
-            
-            modelBuilder.Entity<SubathonGoalSet>()
-                .HasMany(s => s.Goals)
-                .WithOne(g => g.LinkedGoalSet)
-                .HasForeignKey(g => g.GoalSetId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<SubathonData>().HasOne(s => s.Multiplier)
-                .WithOne(m => m.LinkedSubathon).HasForeignKey<MultiplierData>(m => m.SubathonId)
-                .OnDelete(DeleteBehavior.Cascade);
-            
-            modelBuilder.Entity<SubathonPromptSet>()
-                .HasMany(s => s.Prompts)
-                .WithOne(p => p.LinkedSet)
-                .HasForeignKey(p => p.SetId)
-                .OnDelete(DeleteBehavior.Cascade);
- 
-            modelBuilder.Entity<SubathonPromptRun>()
-                .HasOne(r => r.LinkedPrompt)
-                .WithMany()
-                .HasForeignKey(r => r.PromptId)
-                .OnDelete(DeleteBehavior.Cascade);
- 
-            modelBuilder.Entity<SubathonPromptRun>()
-                .HasOne(r => r.LinkedSet)
-                .WithMany()
-                .HasForeignKey(r => r.SetId)
-                .OnDelete(DeleteBehavior.NoAction);
-            
-            modelBuilder.Entity<SubathonPromptSet>()
-                .Property(s => s.Interval)
-                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
- 
-            modelBuilder.Entity<SubathonPromptSet>()
-                .Property(s => s.RandomOffset)
-                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
- 
-            modelBuilder.Entity<SubathonPromptSet>()
-                .Property(s => s.Cooldown)
-                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
- 
-            modelBuilder.Entity<SubathonPrompt>()
-                .Property(p => p.CompletionDuration)
-                .HasConversion(ts => ts.Ticks, ticks => TimeSpan.FromTicks(ticks));
-            
-            modelBuilder.Entity<WheelSet>()
-                .HasMany(w => w.WheelItems)
-                .WithOne(i => i.LinkedWheel)
-                .HasForeignKey(i => i.WheelId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<WheelItem>()
-                .HasOne(i => i.Action)
-                .WithOne(a => a.LinkedItem)
-                .HasForeignKey<WheelSpinAction>(a => a.WheelItemId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<WheelSpinHistory>()
-                .HasOne(h => h.LinkedItem)
-                .WithMany()
-                .HasForeignKey(h => h.WheelItemId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<WheelSpinHistory>()
-                .HasOne(h => h.LinkedWheel)
-                .WithMany()
-                .HasForeignKey(h => h.WheelId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<WheelSpinTrigger>()
-                .HasMany(t => t.History)
-                .WithOne(h => h.Trigger)
-                .HasForeignKey(h => h.TriggerId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<GoAffProStore>()
-                .HasKey(e => new { e.RowId });
-            modelBuilder.Entity<GoAffProStore>()
-                .HasIndex(s => new { s.SiteId })
-                .IsUnique();
-
-            modelBuilder.Entity<WidgetCatalogEntry>()
-                .HasIndex(e => e.PackPath)
-                .IsUnique();
-
-            modelBuilder.Entity<JuniperProduct>()
-                .Property(p => p.ProductId)
-                .HasConversion(v => v.ToString(), v => System.Numerics.BigInteger.Parse(v))
-                .ValueGeneratedNever();
-            modelBuilder.Entity<JuniperProduct>()
-                .HasOne(p => p.Store)
-                .WithMany(s => s.Products)
-                .HasForeignKey(p => p.StoreId)
-                .OnDelete(DeleteBehavior.Cascade);
-        }
-
-        public override int SaveChanges()
-        {
-            UpdateTimestamps();
-            return base.SaveChanges();
-        }
-
-        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            UpdateTimestamps();
-            return await base.SaveChangesAsync(cancellationToken);
-        }
-
-        private void UpdateTimestamps()
-        {
-            var now = DateTime.UtcNow;
-
-            foreach (var entry in ChangeTracker.Entries<Route>())
-            {
-                if (entry.State == EntityState.Added)
-                {
-                    entry.Entity.CreatedTimestamp = now;
-                    entry.Entity.UpdatedTimestamp = now;
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    entry.Entity.UpdatedTimestamp = now;
-                }
+            else if (entry.State == EntityState.Modified) {
+                entry.Entity.UpdatedTimestamp = now;
             }
 
-            // If a widget or cssvariable/jsvariable changes, update its parent route’s timestamp
-            foreach (var entry in ChangeTracker.Entries<Widget>())
-            {
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
-                    entry.State == EntityState.Deleted)
-                {
-                    var route = Routes.FirstOrDefault(r => r.Id == entry.Entity.RouteId);
+        // If a widget or cssvariable/jsvariable changes, update its parent route’s timestamp
+        foreach (EntityEntry<Widget> entry in ChangeTracker.Entries<Widget>())
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
+                entry.State == EntityState.Deleted) {
+                Route? route = Routes.FirstOrDefault(r => r.Id == entry.Entity.RouteId);
+                if (route != null)
+                    route.UpdatedTimestamp = now;
+            }
+
+        foreach (EntityEntry<CssVariable> entry in ChangeTracker.Entries<CssVariable>())
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
+                entry.State == EntityState.Deleted) {
+                Widget? widget = Widgets.FirstOrDefault(w => w.Id == entry.Entity.WidgetId);
+                if (widget != null) {
+                    Route? route = Routes.FirstOrDefault(r => r.Id == widget.RouteId);
                     if (route != null)
                         route.UpdatedTimestamp = now;
                 }
             }
 
-            foreach (var entry in ChangeTracker.Entries<CssVariable>())
-            {
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
-                    entry.State == EntityState.Deleted)
-                {
-                    var widget = Widgets.FirstOrDefault(w => w.Id == entry.Entity.WidgetId);
-                    if (widget != null)
-                    {
-                        var route = Routes.FirstOrDefault(r => r.Id == widget.RouteId);
-                        if (route != null)
-                            route.UpdatedTimestamp = now;
-                    }
+        foreach (EntityEntry<JsVariable> entry in ChangeTracker.Entries<JsVariable>())
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
+                entry.State == EntityState.Deleted) {
+                Widget? widget = Widgets.FirstOrDefault(w => w.Id == entry.Entity.WidgetId);
+                if (widget != null) {
+                    Route? route = Routes.FirstOrDefault(r => r.Id == widget.RouteId);
+                    if (route != null)
+                        route.UpdatedTimestamp = now;
                 }
             }
-            
-            foreach (var entry in ChangeTracker.Entries<JsVariable>())
-            {
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified ||
-                    entry.State == EntityState.Deleted)
-                {
-                    var widget = Widgets.FirstOrDefault(w => w.Id == entry.Entity.WidgetId);
-                    if (widget != null)
-                    {
-                        var route = Routes.FirstOrDefault(r => r.Id == widget.RouteId);
-                        if (route != null)
-                            route.UpdatedTimestamp = now;
-                    }
-                }
-            }
+    }
+
+    public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db) {
+        SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+        if (subathon == null) return new List<SubathonEvent>();
+
+        List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e =>
+                e.SubathonId == subathon.Id && e.ProcessedToSubathon &&
+                !string.IsNullOrWhiteSpace(e.Currency)
+                && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
+            .ToListAsync();
+
+        bool includeBits = Utils.DonationSettings.TryGetValue("BitsLikeAsDonation", out bool bitslike) && bitslike;
+        var orderTypesToInclude = new List<SubathonEventType>();
+        foreach (SubathonEventType orderEvent in Enum.GetValues<SubathonEventType>().Where(et =>
+                     ((SubathonEventType?)et).IsOrder() && !et.IsDisabled()
+                                                        && et.GetSource() != SubathonEventSource.GoAffPro)) {
+            bool asDonation =
+                Utils.DonationSettings.TryGetValue($"{orderEvent.ToString()?.Split("Order")[0]}", out bool donation) &&
+                donation;
+            if (asDonation)
+                orderTypesToInclude.Add(orderEvent);
         }
 
-        public static async Task<List<SubathonEvent>> GetSubathonCurrencyEvents(AppDbContext db)
-        {
-            SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-            if (subathon == null) return new List<SubathonEvent>();
+        // GoAffPro is per store: commission-as-donation keyed by store InternalName, matched on event meta (SiteId)
+        HashSet<string> goAffProMetasToInclude = GoAffProStoreRegistry.All()
+            .Where(s => Utils.DonationSettings.TryGetValue(s.InternalName, out bool donation) && donation)
+            .Select(s => s.SiteId.ToString())
+            .ToHashSet();
 
-            List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking().Where(e =>
-                    e.SubathonId == subathon.Id && e.ProcessedToSubathon &&
-                    !string.IsNullOrWhiteSpace(e.Currency)
-                    && e.EventType != SubathonEventType.Command && !string.IsNullOrWhiteSpace(e.Value))
-                .ToListAsync();
+        events = events.Where(e => e.EventType != null &&
+                                   (e.EventType.IsCurrencyDonation() ||
+                                    (e.EventType == SubathonEventType.GoAffProOrder &&
+                                     !string.IsNullOrEmpty(e.EventTypeMeta) &&
+                                     goAffProMetasToInclude.Contains(e.EventTypeMeta)) ||
+                                    (e.EventType.IsOrder() && e.EventType != SubathonEventType.GoAffProOrder &&
+                                     orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
+                                    (includeBits && e.EventType.IsToken()))).ToList();
+        return events;
+    }
 
-            bool includeBits = Utils.DonationSettings.TryGetValue("BitsLikeAsDonation",  out bool bitslike) && bitslike ;
-            List<SubathonEventType> orderTypesToInclude = new List<SubathonEventType>();
-            foreach (var orderEvent in Enum.GetValues<SubathonEventType>().Where(et =>
-                         ((SubathonEventType?)et).IsOrder() && !et.IsDisabled()
-                         && et.GetSource() != SubathonEventSource.GoAffPro))
-            {
-                bool asDonation = Utils.DonationSettings.TryGetValue($"{orderEvent.ToString()?.Split("Order")[0]}", out  bool donation) && donation;
-                if (asDonation)
-                    orderTypesToInclude.Add(orderEvent);
+    public static async Task ActiveEventsToCsv(AppDbContext db) {
+        SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+        if (subathon == null) return;
+        List<SubathonEvent> events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id)
+            .ToListAsync();
+
+        string exportDir = Path.Combine(Config.DataFolder, "exports");
+        Directory.CreateDirectory(exportDir);
+        var filepath = $"{exportDir}/subathon-{subathon.Id}.csv";
+
+        var sb = new StringBuilder();
+        sb.AppendLine(
+            "Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp,Secondary Value,Event Meta Type, Event Meta Common Type");
+        foreach (SubathonEvent e in events) {
+            string val = e.Value;
+            string? commonMeta = string.IsNullOrWhiteSpace(e.EventTypeMeta) ? "" : e.EventTypeMeta;
+            if (e.EventType is SubathonEventType.TwitchGiftSub or SubathonEventType.TwitchSub) {
+                val = e.Value switch {
+                    "1000" => "T1",
+                    "2000" => "T2",
+                    "3000" => "T3",
+                    _ => val
+                };
+                commonMeta = val;
             }
 
-            // GoAffPro is per store: commission-as-donation keyed by store InternalName, matched on event meta (SiteId)
-            HashSet<string> goAffProMetasToInclude = GoAffProStoreRegistry.All()
-                .Where(s => Utils.DonationSettings.TryGetValue(s.InternalName, out bool donation) && donation)
-                .Select(s => s.SiteId.ToString())
-                .ToHashSet();
+            if (e.EventType == SubathonEventType.GoAffProOrder
+                && GoAffProOrderHelper.TryGetStore(e.EventTypeMeta, out GoAffProStore? store))
+                commonMeta = store.InternalName;
 
-            events = events.Where(e => e.EventType != null &&
-                                       (e.EventType.IsCurrencyDonation() ||
-                                        (e.EventType == SubathonEventType.GoAffProOrder &&
-                                         !string.IsNullOrEmpty(e.EventTypeMeta) && goAffProMetasToInclude.Contains(e.EventTypeMeta)) ||
-                                        (e.EventType.IsOrder() && e.EventType != SubathonEventType.GoAffProOrder &&
-                                         orderTypesToInclude.Contains((SubathonEventType)e.EventType)) ||
-                                        (includeBits && e.EventType.IsToken()))).ToList();
-            return events;
+            sb.AppendLine(string.Join(",",
+                e.Id,
+                Utils.EscapeCsv(e.Source.ToString()),
+                Utils.EscapeCsv(e.EventType.ToString()),
+                Utils.EscapeCsv(e.Command.ToString()),
+                Utils.EscapeCsv(e.User),
+                e.SecondsValue,
+                e.PointsValue,
+                Utils.EscapeCsv(val),
+                Utils.EscapeCsv(e.Currency),
+                e.Amount,
+                e.MultiplierSeconds,
+                e.MultiplierPoints,
+                e.ProcessedToSubathon,
+                e.GetFinalSecondsValueRaw(),
+                e.GetFinalPointsValue(),
+                e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                Utils.EscapeCsv(e.SecondaryValue),
+                Utils.EscapeCsv(e.EventTypeMeta),
+                Utils.EscapeCsv(commonMeta)
+            ));
         }
 
-        public static async Task ActiveEventsToCsv(AppDbContext db)
-        {
-            SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-            if (subathon == null) return;
-            List<SubathonEvent> events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id)
-                    .ToListAsync();
+        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
 
-            string exportDir = Path.Combine(Config.DataFolder, "exports");
-            Directory.CreateDirectory(exportDir);
-            string filepath = $"{exportDir}/subathon-{subathon.Id}.csv";
-            
-            var sb = new StringBuilder();
-            sb.AppendLine("Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp,Secondary Value,Event Meta Type, Event Meta Common Type");
-            foreach (var e in events)
-            {
-                var val = e.Value;
-                var commonMeta = string.IsNullOrWhiteSpace(e.EventTypeMeta) ? "" : e.EventTypeMeta;
-                if (e.EventType is SubathonEventType.TwitchGiftSub or SubathonEventType.TwitchSub)
-                {
-                    val = e.Value switch
-                    {
-                        "1000" => "T1",
-                        "2000" => "T2",
-                        "3000" => "T3",
-                        _ => val
-                    };
-                    commonMeta = val;
-                }
-
-                if (e.EventType == SubathonEventType.GoAffProOrder
-                    && GoAffProOrderHelper.TryGetStore(e.EventTypeMeta, out var store))
-                {
-                    commonMeta = store.InternalName;
-                }
-
-                sb.AppendLine(string.Join(",",
-                    e.Id,
-                    Utils.EscapeCsv(e.Source.ToString()),
-                    Utils.EscapeCsv(e.EventType.ToString()),
-                    Utils.EscapeCsv(e.Command.ToString()),
-                    Utils.EscapeCsv(e.User),
-                    e.SecondsValue,
-                    e.PointsValue,
-                    Utils.EscapeCsv(val),
-                    Utils.EscapeCsv(e.Currency),
-                    e.Amount,
-                    e.MultiplierSeconds,
-                    e.MultiplierPoints,
-                    e.ProcessedToSubathon,
-                    e.GetFinalSecondsValueRaw(),
-                    e.GetFinalPointsValue(),
-                    e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Utils.EscapeCsv(e.SecondaryValue),
-                    Utils.EscapeCsv(e.EventTypeMeta),
-                    Utils.EscapeCsv(commonMeta)
-                ));
-            }
-            await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-            
-            try
-            {
-                bool isTest =
-                    AppDomain.CurrentDomain.GetAssemblies()
-                        .Any(a => a.FullName!.StartsWith("xunit", StringComparison.OrdinalIgnoreCase));
-                if (!isTest)
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = exportDir,
-                        UseShellExecute = true,
-                        Verb = "open"
-                    });
-                }
-            }
-            catch {/**/}
-        }
-
-        public static async Task PauseAllTimers(AppDbContext db)
-        {
-            await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsPaused = 1");
-        }
-
-        public static async Task ResetPowerHour(AppDbContext db)
-        {
-            await db.Database.ExecuteSqlRawAsync("UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds=false, ApplyToPoints=false, FromHypeTrain=false ");
-        }
-        
-        public static async Task DisableAllTimers(AppDbContext db)
-        {
-            await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsActive = 0");
-            await PauseAllTimers(db);
-        }
-
-        public static async Task UpdateSubathonCurrency(AppDbContext db, string currency)
-        {
-            await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET Currency = {0} WHERE IsActive = 1", currency);
-        }
-        
-        public async Task UpdateSubathonMoney(double money, Guid subathonId)
-        {
-            await Database.ExecuteSqlRawAsync(
-                "UPDATE SubathonDatas SET MoneySum = {0} WHERE IsActive = 1 and Id = {1}", money, subathonId);
-            var subathon = await SubathonDatas.Include(s=> s.Multiplier)
-                .AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-            if (subathon == null) return;
-            Entry(subathon).State = EntityState.Detached;
-            Entry(subathon.Multiplier).State = EntityState.Detached;
-            Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
-
-            var goalSet = await SubathonGoalSets.AsNoTracking()
-                .Include(x => x.Goals).Where(x => x.IsActive)
-                .FirstOrDefaultAsync();
-            if (goalSet != null && goalSet.Goals.Any() && goalSet.Type == GoalsType.Money)
-            {
-                Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, 
-                    subathon.GetRoundedMoneySum(), GoalsType.Money);
-            }
-        }
-        
-        public static void SeedDefaultValues(AppDbContext db)
-        {
-            db.Database.ExecuteSqlRaw(
-                "UPDATE SubathonValues SET Meta = 'DEFAULT' WHERE Meta = '' AND EventType IN ({0}, {1})",
-                (int)SubathonEventType.MakeShipPledge, (int)SubathonEventType.MakeShipSale);
-
-            var defaults = new List<SubathonValue>
-            {
-                new () { EventType = SubathonEventType.TwitchSub, Meta = "1000", Seconds = 60, Points = 1 },
-                new () { EventType = SubathonEventType.TwitchSub, Meta = "2000", Seconds = 120, Points = 2 },
-                new () { EventType = SubathonEventType.TwitchSub, Meta = "3000", Seconds = 300, Points = 5 },
-                new () { EventType = SubathonEventType.TwitchGiftSub, Meta = "1000", Seconds = 60, Points = 1 },
-                new () { EventType = SubathonEventType.TwitchGiftSub, Meta = "2000", Seconds = 120, Points = 2 },
-                new () { EventType = SubathonEventType.TwitchGiftSub, Meta = "3000", Seconds = 300, Points = 5 },
-                new () { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
-                new () { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
-                new () { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
-                new () { EventType = SubathonEventType.StreamElementsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.StreamLabsDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.YouTubeSuperChat, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.YouTubeMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new () { EventType = SubathonEventType.YouTubeGiftMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new () { EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.ExternalDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.KoFiDonation, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new () { EventType = SubathonEventType.KoFiShopOrder, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.KoFiCommissionOrder, Seconds = 12}, // per 1 unit/dollar of default currency
-                new () { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
-                new () { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
-                new () { EventType = SubathonEventType.PicartoSub, Meta = "T1", Seconds = 60, Points = 1 },
-                new () { EventType = SubathonEventType.PicartoSub, Meta = "T2", Seconds = 120, Points = 2 },
-                new () { EventType = SubathonEventType.PicartoSub, Meta = "T3", Seconds = 180, Points = 3 },
-                new () { EventType = SubathonEventType.PicartoGiftSub, Meta = "T1", Seconds = 60, Points = 1 }, // you can only gift T1
-                // PicartoMonth subs, treat as amount? = months * quantity = amount
-                new () { EventType = SubathonEventType.PicartoTip, Seconds = 0.12 },
-                new () { EventType = SubathonEventType.PicartoFollow, Seconds = 0 },
-                // assuming defaults for order types are by Dollar, we set at 12s
-                new () { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new () { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
-                new () { EventType = SubathonEventType.FourthWallDonation, Seconds = 12},
-                new () { EventType = SubathonEventType.FourthWallMembership, Meta = "DEFAULT", Seconds = 60, Points = 1},
-                new () { EventType = SubathonEventType.FourthWallGiftOrder, Seconds = 12},
-                new () { EventType = SubathonEventType.FourthWallOrder, Seconds = 12},
-                new () { EventType = SubathonEventType.ThroneGiftContribution, Seconds = 12},
-                new () { EventType = SubathonEventType.ThroneGiftPurchase, Seconds = 12},
-                // GoAffPro store order values are seeded per store (Meta = SiteId) in SeedKnownGoAffProStores
-                new () { EventType = SubathonEventType.TipeeeStreamDonation, Seconds = 12 },
-                new () { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
-                new () { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
-                new () { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
-                new () { EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60 }, // always items mode, per pledge; overridable per tracked item (Meta = tracking name)
-                new () { EventType = SubathonEventType.MakeShipSale, Meta = "DEFAULT", Seconds = 300 }, // always items mode, per order; overridable per tracked item (Meta = tracking name)
-                new () { EventType = SubathonEventType.JuniperMerchSale, Meta = "DEFAULT", Seconds = 300 }, // always items mode. meta = product id number, which links back to a store
-            };
-
-            foreach (var def in defaults)
-            {
-                // only add if not exists
-                if (!db.SubathonValues.Any(sv => sv.EventType == def.EventType && sv.Meta == def.Meta))
-                {
-                    db.SubathonValues.Add(def);
-                }
-            }
-
-            if (!db.SubathonDatas.Any(s => s.IsActive))
-            {
-                SubathonData subathon = new SubathonData();
-                TimeSpan initialMs = TimeSpan.FromHours(8);
-                subathon.MillisecondsCumulative += (int)initialMs.TotalMilliseconds;
-                subathon.IsPaused = true;
-                db.SubathonDatas.Add(subathon);
-            }
-            
-            if (!db.SubathonGoalSets.Any(s => s.IsActive))
-            {
-                SubathonGoalSet goalSet = new SubathonGoalSet();
-                db.SubathonGoalSets.Add(goalSet);
-            }
-            
-            if (!db.SubathonPromptSets.Any(s => s.IsActive))
-            {
-                db.SubathonPromptSets.Add(new SubathonPromptSet { IsActive = true });
-            }
-
-            if (!db.WheelSets.Any(w => w.IsActive))
-            {
-                db.WheelSets.Add(new WheelSet { IsActive = true });
-            }
-
-            if (!db.StateValues.Any(sv => sv.Name == StateKeys.WheelSpinsOwed))
-            {
-                db.StateValues.Add(new StateValue
-                {
-                    Name = StateKeys.WheelSpinsOwed,
-                    Value = "0",
-                    TypeName = "Int32"
+        try {
+            bool isTest =
+                AppDomain.CurrentDomain.GetAssemblies()
+                    .Any(a => a.FullName!.StartsWith("xunit", StringComparison.OrdinalIgnoreCase));
+            if (!isTest)
+                Process.Start(new ProcessStartInfo {
+                    FileName = exportDir,
+                    UseShellExecute = true,
+                    Verb = "open"
                 });
-            }
+        }
+        catch {
+            /**/
+        }
+    }
 
-            MigrateLegacyData(db);
-            SeedKnownGoAffProStores(db);
-            db.SaveChanges();
+    public static async Task PauseAllTimers(AppDbContext db) {
+        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsPaused = 1");
+    }
+
+    public static async Task ResetPowerHour(AppDbContext db) {
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE MultiplierDatas SET Multiplier = 1, Duration = null, ApplyToSeconds=false, ApplyToPoints=false, FromHypeTrain=false ");
+    }
+
+    public static async Task DisableAllTimers(AppDbContext db) {
+        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET IsActive = 0");
+        await PauseAllTimers(db);
+    }
+
+    public static async Task UpdateSubathonCurrency(AppDbContext db, string currency) {
+        await db.Database.ExecuteSqlRawAsync("UPDATE SubathonDatas SET Currency = {0} WHERE IsActive = 1", currency);
+    }
+
+    public async Task UpdateSubathonMoney(double money, Guid subathonId) {
+        await Database.ExecuteSqlRawAsync(
+            "UPDATE SubathonDatas SET MoneySum = {0} WHERE IsActive = 1 and Id = {1}", money, subathonId);
+        SubathonData? subathon = await SubathonDatas.Include(s => s.Multiplier)
+            .AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+        if (subathon == null) return;
+        Entry(subathon).State = EntityState.Detached;
+        Entry(subathon.Multiplier).State = EntityState.Detached;
+        Core.Events.SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+
+        SubathonGoalSet? goalSet = await SubathonGoalSets.AsNoTracking()
+            .Include(x => x.Goals).Where(x => x.IsActive)
+            .FirstOrDefaultAsync();
+        if (goalSet != null && goalSet.Goals.Any() && goalSet.Type == GoalsType.Money)
+            Core.Events.SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals,
+                subathon.GetRoundedMoneySum(), GoalsType.Money);
+    }
+
+    public static void SeedDefaultValues(AppDbContext db) {
+        db.Database.ExecuteSqlRaw(
+            "UPDATE SubathonValues SET Meta = 'DEFAULT' WHERE Meta = '' AND EventType IN ({0}, {1})",
+            (int)SubathonEventType.MakeShipPledge, (int)SubathonEventType.MakeShipSale);
+
+        var defaults = new List<SubathonValue> {
+            new() { EventType = SubathonEventType.TwitchSub, Meta = "1000", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.TwitchSub, Meta = "2000", Seconds = 120, Points = 2 },
+            new() { EventType = SubathonEventType.TwitchSub, Meta = "3000", Seconds = 300, Points = 5 },
+            new() { EventType = SubathonEventType.TwitchGiftSub, Meta = "1000", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.TwitchGiftSub, Meta = "2000", Seconds = 120, Points = 2 },
+            new() { EventType = SubathonEventType.TwitchGiftSub, Meta = "3000", Seconds = 300, Points = 5 },
+            new() { EventType = SubathonEventType.TwitchCheer, Seconds = 0.12 },
+            new() { EventType = SubathonEventType.TwitchFollow, Seconds = 0 },
+            new() { EventType = SubathonEventType.TwitchRaid, Seconds = 0 },
+            new() {
+                EventType = SubathonEventType.StreamElementsDonation, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() {
+                EventType = SubathonEventType.StreamLabsDonation, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() {
+                EventType = SubathonEventType.YouTubeSuperChat, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() { EventType = SubathonEventType.YouTubeMembership, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.YouTubeGiftMembership, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() {
+                EventType = SubathonEventType.TwitchCharityDonation, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() {
+                EventType = SubathonEventType.ExternalDonation, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() { EventType = SubathonEventType.KoFiDonation, Seconds = 12 }, // per 1 unit/dollar of default currency
+            new() { EventType = SubathonEventType.KoFiSub, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() {
+                EventType = SubathonEventType.KoFiShopOrder, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() {
+                EventType = SubathonEventType.KoFiCommissionOrder, Seconds = 12
+            }, // per 1 unit/dollar of default currency
+            new() { EventType = SubathonEventType.BlerpBeets, Seconds = 0.12 },
+            new() { EventType = SubathonEventType.BlerpBits, Seconds = 0.12 },
+            new() { EventType = SubathonEventType.PicartoSub, Meta = "T1", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.PicartoSub, Meta = "T2", Seconds = 120, Points = 2 },
+            new() { EventType = SubathonEventType.PicartoSub, Meta = "T3", Seconds = 180, Points = 3 },
+            new() {
+                EventType = SubathonEventType.PicartoGiftSub, Meta = "T1", Seconds = 60, Points = 1
+            }, // you can only gift T1
+            // PicartoMonth subs, treat as amount? = months * quantity = amount
+            new() { EventType = SubathonEventType.PicartoTip, Seconds = 0.12 },
+            new() { EventType = SubathonEventType.PicartoFollow, Seconds = 0 },
+            // assuming defaults for order types are by Dollar, we set at 12s
+            new() { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
+            new() { EventType = SubathonEventType.FourthWallDonation, Seconds = 12 },
+            new() { EventType = SubathonEventType.FourthWallMembership, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.FourthWallGiftOrder, Seconds = 12 },
+            new() { EventType = SubathonEventType.FourthWallOrder, Seconds = 12 },
+            new() { EventType = SubathonEventType.ThroneGiftContribution, Seconds = 12 },
+            new() { EventType = SubathonEventType.ThroneGiftPurchase, Seconds = 12 },
+            // GoAffPro store order values are seeded per store (Meta = SiteId) in SeedKnownGoAffProStores
+            new() { EventType = SubathonEventType.TipeeeStreamDonation, Seconds = 12 },
+            new() { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
+            new() { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
+            new() { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
+            new() {
+                EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60
+            }, // always items mode, per pledge; overridable per tracked item (Meta = tracking name)
+            new() {
+                EventType = SubathonEventType.MakeShipSale, Meta = "DEFAULT", Seconds = 300
+            }, // always items mode, per order; overridable per tracked item (Meta = tracking name)
+            new() {
+                EventType = SubathonEventType.JuniperMerchSale, Meta = "DEFAULT", Seconds = 300
+            } // always items mode. meta = product id number, which links back to a store
+        };
+
+        foreach (SubathonValue def in defaults)
+            // only add if not exists
+            if (!db.SubathonValues.Any(sv => sv.EventType == def.EventType && sv.Meta == def.Meta))
+                db.SubathonValues.Add(def);
+
+        if (!db.SubathonDatas.Any(s => s.IsActive)) {
+            var subathon = new SubathonData();
+            TimeSpan initialMs = TimeSpan.FromHours(8);
+            subathon.MillisecondsCumulative += (int)initialMs.TotalMilliseconds;
+            subathon.IsPaused = true;
+            db.SubathonDatas.Add(subathon);
         }
 
-        private static void SeedKnownGoAffProStores(AppDbContext db)
-        {
-            var defaults = new List<GoAffProStore>
-            {
-                new () { SiteId = 165328, StoreName = "GamerSupps", EventName = "GamerSupps Order"},
-                new () { SiteId = 132230, StoreName = "UwUMarket", EventName = "UwUMarket Order"},
-                new () { SiteId = 7142837, StoreName = "Orchid Eight", EventName = "Orchid Eight Order"},
-                new () { SiteId = 7160049, StoreName = "KatDragonz", EventName = "KatDragonz Order"},
-                new () { SiteId = 7138531, StoreName = "Cheeky Soap", EventName = "Cheeky Soap Order"},
-                new () { SiteId = 105752, StoreName = "Advanced GG", EventName = "Advanced GG Order"},
-                new () { SiteId = 7014645, StoreName = "Rogue Energy", EventName = "Rogue Energy Order"},
-                new () { SiteId = 7118656, StoreName = "Saucy Biz", EventName = "Saucy Biz Order"},
-                new () { SiteId = 48808, StoreName = "GFuel", EventName = "GFuel Order"},
-                new () { SiteId = 7132796, StoreName = "Natura Pine", EventName = "Natura Pine Order"},
-                new () { SiteId = 18870, StoreName = "Madrinas", EventName = "Madrinas Order"},
-                new () { SiteId = 7000863, StoreName = "Otaku", EventName = "Otaku Order"},
-                new () { SiteId = 7111695, StoreName = "V1 Tech", EventName = "V1 Tech Order"},
-                new () { SiteId = 7120088, StoreName = "Plush Foundry", EventName = "PlushFoundry Order"},
-                new () { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order"}
-            };
-            
-            foreach (var def in defaults)
-            {
-                var existing = db.GoAffProStores.FirstOrDefault(store => store.SiteId == def.SiteId);
-                if (existing == null)
-                {
-                    db.GoAffProStores.Add(def);
-                }
-                else if (existing.StoreName != def.StoreName || existing.EventName != def.EventName)
-                {
-                    existing.StoreName = def.StoreName;
-                    existing.EventName = def.EventName;
-                }
-            }
+        if (!db.SubathonGoalSets.Any(s => s.IsActive)) {
+            var goalSet = new SubathonGoalSet();
+            db.SubathonGoalSets.Add(goalSet);
+        }
 
-            var siteIds = defaults.Select(d => d.SiteId)
-                .Concat(db.GoAffProStores.AsNoTracking().Select(s => s.SiteId).ToList())
-                .Distinct();
-            foreach (var siteId in siteIds)
-            {
-                var meta = siteId.ToString();
-                if (!db.SubathonValues.Any(sv => sv.EventType == SubathonEventType.GoAffProOrder
-                                                 && sv.Meta == meta))
-                {
-                    db.SubathonValues.Add( new ()
-                    {
-                        EventType =  SubathonEventType.GoAffProOrder, Seconds = 12, Meta = meta
-                    });
-                }
+        if (!db.SubathonPromptSets.Any(s => s.IsActive))
+            db.SubathonPromptSets.Add(new SubathonPromptSet { IsActive = true });
+
+        if (!db.WheelSets.Any(w => w.IsActive)) db.WheelSets.Add(new WheelSet { IsActive = true });
+
+        if (!db.StateValues.Any(sv => sv.Name == StateKeys.WheelSpinsOwed))
+            db.StateValues.Add(new StateValue {
+                Name = StateKeys.WheelSpinsOwed,
+                Value = "0",
+                TypeName = "Int32"
+            });
+
+        MigrateLegacyData(db);
+        SeedKnownGoAffProStores(db);
+        db.SaveChanges();
+    }
+
+    private static void SeedKnownGoAffProStores(AppDbContext db) {
+        var defaults = new List<GoAffProStore> {
+            new() { SiteId = 165328, StoreName = "GamerSupps", EventName = "GamerSupps Order" },
+            new() { SiteId = 132230, StoreName = "UwUMarket", EventName = "UwUMarket Order" },
+            new() { SiteId = 7142837, StoreName = "Orchid Eight", EventName = "Orchid Eight Order" },
+            new() { SiteId = 7160049, StoreName = "KatDragonz", EventName = "KatDragonz Order" },
+            new() { SiteId = 7138531, StoreName = "Cheeky Soap", EventName = "Cheeky Soap Order" },
+            new() { SiteId = 105752, StoreName = "Advanced GG", EventName = "Advanced GG Order" },
+            new() { SiteId = 7014645, StoreName = "Rogue Energy", EventName = "Rogue Energy Order" },
+            new() { SiteId = 7118656, StoreName = "Saucy Biz", EventName = "Saucy Biz Order" },
+            new() { SiteId = 48808, StoreName = "GFuel", EventName = "GFuel Order" },
+            new() { SiteId = 7132796, StoreName = "Natura Pine", EventName = "Natura Pine Order" },
+            new() { SiteId = 18870, StoreName = "Madrinas", EventName = "Madrinas Order" },
+            new() { SiteId = 7000863, StoreName = "Otaku", EventName = "Otaku Order" },
+            new() { SiteId = 7111695, StoreName = "V1 Tech", EventName = "V1 Tech Order" },
+            new() { SiteId = 7120088, StoreName = "Plush Foundry", EventName = "PlushFoundry Order" },
+            new() { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order" }
+        };
+
+        foreach (GoAffProStore def in defaults) {
+            GoAffProStore? existing = db.GoAffProStores.FirstOrDefault(store => store.SiteId == def.SiteId);
+            if (existing == null) {
+                db.GoAffProStores.Add(def);
+            }
+            else if (existing.StoreName != def.StoreName || existing.EventName != def.EventName) {
+                existing.StoreName = def.StoreName;
+                existing.EventName = def.EventName;
             }
         }
 
-        private static void MigrateLegacyGoAffProData(AppDbContext db)
-        {
-            // Convert rows stored under retired per-store GoAffPro enum values to the single
-            // GoAffProOrder type, SiteId in the meta column
-            int newGoAffProOrderInt = (int)SubathonEventType.GoAffProOrder;
-
-            foreach (var legacyType in Enum.GetValues<SubathonEventType>()
-                         .Where(t => t.GetLegacyGoAffProSiteId() > 0))
-            {
-                int oldTypeInt = (int)legacyType;
-                string meta = legacyType.GetLegacyGoAffProSiteId().ToString();
-                
-                db.Database.ExecuteSqlRaw(
-                    "UPDATE OR IGNORE SubathonValues SET EventType = {0}, Meta = {1} WHERE EventType = {2}",
-                    newGoAffProOrderInt, meta, oldTypeInt);
-                db.Database.ExecuteSqlRaw(
-                    "DELETE FROM SubathonValues WHERE EventType = {0}",
-                    oldTypeInt);
-
-                db.Database.ExecuteSqlRaw(
-                    "UPDATE SubathonEvents SET EventType = {0}, EventTypeMeta = {1} WHERE EventType = {2}",
-                    newGoAffProOrderInt, meta, oldTypeInt);
-
-                db.Database.ExecuteSqlRaw(
-                    "UPDATE WheelSpinTriggers SET EventType = {0}, TierValue = {1} WHERE EventType = {2}",
-                    newGoAffProOrderInt, meta, oldTypeInt);
-                db.Database.ExecuteSqlRaw(
-                    "UPDATE WheelSpinTriggerHistories SET SubathonEventType = {0} WHERE SubathonEventType = {1}",
-                    newGoAffProOrderInt, oldTypeInt);
-
-                db.Database.ExecuteSqlRaw(
-                    "UPDATE SubathonPrompts SET FilterEventType = {0}, FilterMeta = {1} WHERE FilterEventType = {2}",
-                    newGoAffProOrderInt, meta, oldTypeInt);
-            }
+        IEnumerable<int> siteIds = defaults.Select(d => d.SiteId)
+            .Concat(db.GoAffProStores.AsNoTracking().Select(s => s.SiteId).ToList())
+            .Distinct();
+        foreach (int siteId in siteIds) {
+            var meta = siteId.ToString();
+            if (!db.SubathonValues.Any(sv => sv.EventType == SubathonEventType.GoAffProOrder
+                                             && sv.Meta == meta))
+                db.SubathonValues.Add(new SubathonValue {
+                    EventType = SubathonEventType.GoAffProOrder, Seconds = 12, Meta = meta
+                });
         }
+    }
 
-        private static void MigrateLegacyData(AppDbContext db)
-        {
-            
-            if (db.SubathonGoalSets.Any(s => s.Type == null))
-            {
-                db.SubathonGoalSets.Where(s => s.Type == null)
-                    .ExecuteUpdate(s =>
-                        s.SetProperty(x => x.Type, GoalsType.Points));
-            }
-            
-            if (db.SubathonDatas.Any(s => s.ReversedTime == null))
-            {
-                db.SubathonDatas.Where(s => s.ReversedTime == null)
-                    .ExecuteUpdate(s =>
-                        s.SetProperty(x => x.ReversedTime, false));
-            }
-            
-            MigrateLegacyGoAffProData(db);
+    private static void MigrateLegacyGoAffProData(AppDbContext db) {
+        // Convert rows stored under retired per-store GoAffPro enum values to the single
+        // GoAffProOrder type, SiteId in the meta column
+        var newGoAffProOrderInt = (int)SubathonEventType.GoAffProOrder;
 
-            // var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
-            // var widgetsMissingFontTypes = db.Widgets
-            //     .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))
-            //     .Include(w => w.JsVariables)
-            //     .ToList();
-            // if (widgetsMissingFontTypes.Count > 0)
-            // {
-            //     var newVars = new List<JsVariable>();
-            //     foreach (var widget in widgetsMissingFontTypes)
-            //     {
-            //         var existingTypes = widget.JsVariables
-            //             .Select(v => v.Type)
-            //             .ToHashSet();
-            //
-            //         foreach (var fontVar in fontTypes.Where(ft => !existingTypes.Contains(ft)))
-            //         {
-            //             newVars.Add(new JsVariable
-            //             {
-            //                 WidgetId = widget.Id,
-            //                 Widget = widget,
-            //                 Type = fontVar,
-            //                 Name = $"{fontVar}s",
-            //                 Description = $"Custom font names to include from {fontVar}s, comma separated",
-            //                 Value = string.Empty
-            //             });
-            //         }
-            //     }
-            //     if (newVars.Count > 0)
-            //     {
-            //         db.JsVariables.AddRange(newVars);
-            //         db.SaveChanges();
-            //     }
-            // }
+        foreach (SubathonEventType legacyType in Enum.GetValues<SubathonEventType>()
+                     .Where(t => t.GetLegacyGoAffProSiteId() > 0)) {
+            var oldTypeInt = (int)legacyType;
+            var meta = legacyType.GetLegacyGoAffProSiteId().ToString();
+
+            db.Database.ExecuteSqlRaw(
+                "UPDATE OR IGNORE SubathonValues SET EventType = {0}, Meta = {1} WHERE EventType = {2}",
+                newGoAffProOrderInt, meta, oldTypeInt);
+            db.Database.ExecuteSqlRaw(
+                "DELETE FROM SubathonValues WHERE EventType = {0}",
+                oldTypeInt);
+
+            db.Database.ExecuteSqlRaw(
+                "UPDATE SubathonEvents SET EventType = {0}, EventTypeMeta = {1} WHERE EventType = {2}",
+                newGoAffProOrderInt, meta, oldTypeInt);
+
+            db.Database.ExecuteSqlRaw(
+                "UPDATE WheelSpinTriggers SET EventType = {0}, TierValue = {1} WHERE EventType = {2}",
+                newGoAffProOrderInt, meta, oldTypeInt);
+            db.Database.ExecuteSqlRaw(
+                "UPDATE WheelSpinTriggerHistories SET SubathonEventType = {0} WHERE SubathonEventType = {1}",
+                newGoAffProOrderInt, oldTypeInt);
+
+            db.Database.ExecuteSqlRaw(
+                "UPDATE SubathonPrompts SET FilterEventType = {0}, FilterMeta = {1} WHERE FilterEventType = {2}",
+                newGoAffProOrderInt, meta, oldTypeInt);
         }
+    }
+
+    private static void MigrateLegacyData(AppDbContext db) {
+        if (db.SubathonGoalSets.Any(s => s.Type == null))
+            db.SubathonGoalSets.Where(s => s.Type == null)
+                .ExecuteUpdate(s =>
+                    s.SetProperty(x => x.Type, GoalsType.Points));
+
+        if (db.SubathonDatas.Any(s => s.ReversedTime == null))
+            db.SubathonDatas.Where(s => s.ReversedTime == null)
+                .ExecuteUpdate(s =>
+                    s.SetProperty(x => x.ReversedTime, false));
+
+        MigrateLegacyGoAffProData(db);
+
+        // var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
+        // var widgetsMissingFontTypes = db.Widgets
+        //     .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))
+        //     .Include(w => w.JsVariables)
+        //     .ToList();
+        // if (widgetsMissingFontTypes.Count > 0)
+        // {
+        //     var newVars = new List<JsVariable>();
+        //     foreach (var widget in widgetsMissingFontTypes)
+        //     {
+        //         var existingTypes = widget.JsVariables
+        //             .Select(v => v.Type)
+        //             .ToHashSet();
+        //
+        //         foreach (var fontVar in fontTypes.Where(ft => !existingTypes.Contains(ft)))
+        //         {
+        //             newVars.Add(new JsVariable
+        //             {
+        //                 WidgetId = widget.Id,
+        //                 Widget = widget,
+        //                 Type = fontVar,
+        //                 Name = $"{fontVar}s",
+        //                 Description = $"Custom font names to include from {fontVar}s, comma separated",
+        //                 Value = string.Empty
+        //             });
+        //         }
+        //     }
+        //     if (newVars.Count > 0)
+        //     {
+        //         db.JsVariables.AddRange(newVars);
+        //         db.SaveChanges();
+        //     }
+        // }
     }
 }
