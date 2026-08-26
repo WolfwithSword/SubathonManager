@@ -17,6 +17,7 @@ updates:
     ignore:
       - dependency-name: Microsoft.Extensions.Logging
       - dependency-name: Microsoft.Extensions.Logging.Console
+      - dependency-name: SocketIOClient
       - dependency-name: TwitchLib.Api
       - dependency-name: TwitchLib.Client
       - dependency-name: TwitchLib.Communication
