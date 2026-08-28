@@ -492,6 +492,56 @@ public class WebServerTests {
     }
 
     [Fact]
+    public async Task HandleWidgetRequestAsync_Puts_Client_Script_Before_A_Fragment_Widgets_Script() {
+        WebServer server = CreateServer();
+        SetupServices();
+        var route = new Route { Name = "TestRoute" };
+
+        string tempHtml = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".html");
+        await File.WriteAllTextAsync(tempHtml,
+            "<div id=\"w\"></div>\n<script>\nwindow.__probe = window.Subathon;\n</script>",
+            TestContext.Current.CancellationToken);
+
+        var widget = new Widget("Widget1", tempHtml) {
+            Route = route,
+            RouteId = route.Id,
+            JsVariables = new List<JsVariable> {
+                new() { Name = "testVar", Value = "42", Type = WidgetVariableType.Int, WidgetId = Guid.NewGuid() }
+            }
+        };
+        route.Widgets.Add(widget);
+
+        await using AppDbContext db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        db.Routes.Add(route);
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var ctx = new MockHttpContext {
+            Method = "GET",
+            Path = $"/widget/{widget.Id}"
+        };
+
+        await server.HandleWidgetRequest(ctx);
+
+        Assert.Equal(200, ctx.StatusCode);
+        string body = ctx.GetResponseText();
+
+        int clientAt = body.IndexOf("data-subathon-client", StringComparison.Ordinal);
+        int varsAt = body.IndexOf("const testVar = 42", StringComparison.Ordinal);
+        int widgetAt = body.IndexOf("window.__probe", StringComparison.Ordinal);
+
+        Assert.True(clientAt >= 0, "client script was not injected");
+        Assert.True(varsAt >= 0, "widget variables were not injected");
+        Assert.True(widgetAt >= 0, "widget markup was not served");
+
+        Assert.True(clientAt < widgetAt, "client script must come before the widget's own script");
+        Assert.True(varsAt < widgetAt, "widget variables must come before the widget's own script");
+
+        File.Delete(tempHtml);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
     public async Task HandleWidgetRequest_Returns_404_For_Invalid_Widget() {
         WebServer server = CreateServer();
         SetupServices();

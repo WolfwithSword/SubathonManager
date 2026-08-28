@@ -57,17 +57,19 @@ public partial class WebServer {
                         if (Path.GetExtension(filePath).Equals(".html", StringComparison.OrdinalIgnoreCase)) {
                             string html = WidgetFiles.Current.ReadAllText(filePath) ?? string.Empty;
 
+                            string clientScript = GetWebsocketInjectionScript();
+
                             var cssOverrides = new StringBuilder();
-                            cssOverrides.AppendLine(GetWebsocketInjectionScript());
                             cssOverrides.AppendLine("<style type=\"text/css\">\n:root, html {");
                             foreach (CssVariable v in widget.CssVariables)
                                 cssOverrides.AppendLine($"  --{v.Name}: {v.Value} !important;");
                             cssOverrides.AppendLine("}\n</style>");
+
                             if (html.Contains("</head>", StringComparison.OrdinalIgnoreCase))
-                                html = html.Replace("</head>", cssOverrides + "\n</head>",
+                                html = html.Replace("</head>", clientScript + "\n" + cssOverrides + "\n</head>",
                                     StringComparison.OrdinalIgnoreCase);
                             else
-                                html += cssOverrides;
+                                html = clientScript + "\n" + html + cssOverrides;
 
                             var jsOverrides = new StringBuilder();
                             jsOverrides.AppendLine("\n<script>\n");

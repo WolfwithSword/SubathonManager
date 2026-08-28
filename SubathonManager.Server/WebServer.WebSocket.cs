@@ -718,7 +718,7 @@ public partial class WebServer {
     }
 
     private const string ClientScriptTemplate = """
-        <script>
+        <script data-subathon-client>
         (function () {
             if (window.Subathon && window.Subathon.__installed) return;
 
@@ -772,17 +772,30 @@ public partial class WebServer {
                 for (var i = 0; i < snapshot.length; i++) safe(snapshot[i], data);
             }
 
+            var legacyServed = {};
+
+            function callLegacy(data) {
+                var name = LEGACY[data.type];
+                if (!name || typeof window[name] !== 'function') return false;
+                safe(window[name], data);
+                legacyServed[data.type] = true;
+                return true;
+            }
+
             function dispatch(data) {
                 if (!data || typeof data.type !== 'string') return;
                 if (STATE_TYPES[data.type]) state[data.type] = data;
 
                 builtin(data);
-
-                var legacy = LEGACY[data.type];
-                if (legacy && typeof window[legacy] === 'function') safe(window[legacy], data);
+                callLegacy(data);
 
                 emit(data.type, data);
                 emit('*', data);
+            }
+
+            function replayStateToLegacy() {
+                for (var type in state)
+                    if (!legacyServed[type]) callLegacy(state[type]);
             }
 
             function builtin(data) {
@@ -1013,6 +1026,11 @@ public partial class WebServer {
             window.Subathon = api;
 
             window.addEventListener('message', onMessage);
+
+            if (document.readyState === 'loading')
+                document.addEventListener('DOMContentLoaded', replayStateToLegacy);
+            else
+                replayStateToLegacy();
 
             document.addEventListener('visibilitychange', function () {
                 if (document.hidden) return;

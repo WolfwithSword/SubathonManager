@@ -265,6 +265,25 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper) {
     }
 
     [Fact]
+    public void Injection_Script_Replays_Cached_State_To_Late_Legacy_Handlers() {
+        SetupServices();
+        WebServer server = CreateServer();
+        string script = server.GetWebsocketInjectionScript();
+
+        Assert.Contains("DOMContentLoaded", script);
+        Assert.Contains("replayStateToLegacy", script);
+        Assert.Contains("legacyServed", script);
+
+        foreach (string stateType in new[] {
+                     "subathon_timer", "subathon_totals", "subscription_totals",
+                     "goals_list", "value_config", "prompt_update", "wheel_data"
+                 })
+            Assert.Contains(stateType + ":", script);
+
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
     public async Task Non_WebSocket_Request_Is_Rejected_As_WebSocket() {
         var ctx = new MockHttpContext {
             IsWebSocket = false
