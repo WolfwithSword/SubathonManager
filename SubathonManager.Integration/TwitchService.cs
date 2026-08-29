@@ -230,7 +230,7 @@ public class TwitchService(
     [ExcludeFromCodeCoverage]
     private async Task InitializeChatAsync() {
         _chatReconnect.Reset();
-        var credentials = new ConnectionCredentials(UserName!, $"oauth:{AccessToken}");
+        var credentials = new ConnectionCredentials(UserName!, $"oauth:{AccessToken}", disableUsernameCheck: true);
         _chat = new TwitchClient();
 
         _chat.OnMessageReceived += HandleMessageCmdReceived;
