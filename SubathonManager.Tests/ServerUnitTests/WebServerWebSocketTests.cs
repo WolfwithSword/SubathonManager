@@ -216,6 +216,74 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper) {
     }
 
     [Fact]
+    public void Injection_Script_Widget_Mode_Is_Not_An_Overlay_Host() {
+        SetupServices();
+        WebServer server = CreateServer();
+        string script = server.GetWebsocketInjectionScript();
+
+        Assert.Contains("var IS_OVERLAY = false;", script);
+        Assert.Contains("var ROUTE_ID = '';", script);
+        Assert.DoesNotContain("__IS_OVERLAY__", script);
+        Assert.DoesNotContain("__ROUTE_ID__", script);
+        Assert.DoesNotContain("__WS_URL__", script);
+        Assert.DoesNotContain("__EMPTY_GUID__", script);
+
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public void Injection_Script_Overlay_Mode_Carries_Route_Id() {
+        SetupServices();
+        WebServer server = CreateServer();
+        var routeId = Guid.NewGuid();
+        string script = server.GetWebsocketInjectionScript(routeId.ToString());
+
+        Assert.Contains("var IS_OVERLAY = true;", script);
+        Assert.Contains($"var ROUTE_ID = '{routeId}';", script);
+        Assert.Contains($"var EMPTY_GUID = '{Guid.Empty}';", script);
+        Assert.Contains("ws_type: 'Overlay'", script);
+        Assert.Contains("ws_type: 'Widget'", script);
+
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public void Injection_Script_Still_Dispatches_Every_Legacy_Global() {
+        SetupServices();
+        WebServer server = CreateServer();
+        string script = server.GetWebsocketInjectionScript();
+        foreach (string handler in new[] {
+                     "handleSubathonUpdate", "handleSubathonEvent", "handlePromptUpdate",
+                     "handleGoalsUpdate", "handleGoalCompleted", "handleValueConfig",
+                     "handleTotalsUpdate", "handleSubscriptionTotalsUpdate", "handleWheelSpinResult",
+                     "handleWheelData", "handleWheelSpinStart", "handleWheelSpinStatus",
+                     "handleVarsUpdate", "handleSubathonDisconnect"
+                 })
+            Assert.Contains(handler, script);
+
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public void Injection_Script_Replays_Cached_State_To_Late_Legacy_Handlers() {
+        SetupServices();
+        WebServer server = CreateServer();
+        string script = server.GetWebsocketInjectionScript();
+
+        Assert.Contains("DOMContentLoaded", script);
+        Assert.Contains("replayStateToLegacy", script);
+        Assert.Contains("legacyServed", script);
+
+        foreach (string stateType in new[] {
+                     "subathon_timer", "subathon_totals", "subscription_totals",
+                     "goals_list", "value_config", "prompt_update", "wheel_data"
+                 })
+            Assert.Contains(stateType + ":", script);
+
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
     public async Task Non_WebSocket_Request_Is_Rejected_As_WebSocket() {
         var ctx = new MockHttpContext {
             IsWebSocket = false
