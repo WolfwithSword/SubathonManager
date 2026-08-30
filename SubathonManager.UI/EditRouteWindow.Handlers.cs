@@ -21,6 +21,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Data.Widgets;
 using SubathonManager.UI.Controls;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Validation;
 using SubathonManager.UI.Views;
@@ -29,6 +30,8 @@ using SubathonManager.UI.Views;
 namespace SubathonManager.UI;
 
 public partial class EditRouteWindow {
+    private MenuFlyout? _statusFlyout;
+    
     #region GeneralHandlers
 
     private void WidgetDirtyBorder_Loaded(object? sender, RoutedEventArgs e) {
@@ -143,6 +146,38 @@ public partial class EditRouteWindow {
         }
         catch (Exception ex) {
             _logger?.LogError(ex, "Failed to copy overlay URL");
+        }
+    }
+    
+    private void ShowObsCanvasSelection_Click(object? sender, RoutedEventArgs e) {
+        var flyout = new MenuFlyout { Placement = PlacementMode.Bottom };
+        
+        FillObsCanvases(flyout.Items);///////
+        flyout.Closed += (_, _) => {
+            if (ReferenceEquals(_statusFlyout, flyout)) _statusFlyout = null;
+        };
+        _statusFlyout = flyout;
+        flyout.ShowAt(OBSCanvasSyncBtn);
+    }
+
+    private void FillObsCanvases(ItemCollection items) {
+        items.Clear();
+        var canvases = ServiceManager.OBS.GetCanvases();
+        if (canvases.Count == 0) return;
+        
+        foreach (var canvasData in canvases) {
+            var width = canvasData.Value["Width"];
+            var height = canvasData.Value["Height"];
+            var name = $"{canvasData.Key} (WxH {width}x{height})";
+            var groupItem = new MenuItem {
+                Header = name
+            };
+            groupItem.Click += async (_, _) => {
+                RouteHeightBox.Text = $"{height}";
+                RouteWidthBox.Text = $"{width}";
+                await SaveCurrentRoute();
+            };
+            items.Add(groupItem);
         }
     }
 
@@ -900,6 +935,11 @@ public partial class EditRouteWindow {
     }
 
     private async void SaveRouteButton_Click(object? sender, RoutedEventArgs e) {
+        if (_route == null) return;
+        await SaveCurrentRoute();
+    }
+
+    private async Task SaveCurrentRoute() {
         if (_route == null) return;
         try {
             await SaveAllPendingWidgetChangesAsync();

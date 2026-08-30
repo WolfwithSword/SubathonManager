@@ -356,18 +356,29 @@
                 <TextBlock Text="Name" FontSize="12" />
                 <TextBox x:Name="RouteNameBox" Margin="0,4,0,8" PlaceholderText="Overlay Name..."
                          VerticalContentAlignment="Center" />
-                <StackPanel Orientation="Horizontal">
-                    <StackPanel Margin="0,2,2,2">
-                        <TextBlock Text="Width" FontSize="12" />
-                        <TextBox x:Name="RouteWidthBox" Width="120" v:NumericInputBehaviour.Mode="Integer"
-                                 PlaceholderText="1920" VerticalContentAlignment="Center" />
+                
+                <Grid>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <StackPanel Margin="0,2,2,2">
+                            <TextBlock Text="Width" FontSize="12" />
+                            <TextBox x:Name="RouteWidthBox" Width="100" v:NumericInputBehaviour.Mode="Integer"
+                                     PlaceholderText="1920" VerticalContentAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Margin="2,2,0,2">
+                            <TextBlock Text="Height" FontSize="12" />
+                            <TextBox x:Name="RouteHeightBox" Width="100" v:NumericInputBehaviour.Mode="Integer"
+                                     PlaceholderText="1080" VerticalContentAlignment="Center" />
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Margin="2,2,0,2">
-                        <TextBlock Text="Height" FontSize="12" />
-                        <TextBox x:Name="RouteHeightBox" Width="120" v:NumericInputBehaviour.Mode="Integer"
-                                 PlaceholderText="1080" VerticalContentAlignment="Center" />
-                    </StackPanel>
-                </StackPanel>
+                    
+                    <Button x:Name="OBSCanvasSyncBtn" HorizontalAlignment="Right" Margin="0 18 2 0"
+                            ToolTip.Tip="Sync Overlay Dimensions to an OBS Canvas" 
+                            Click="ShowObsCanvasSelection_Click"
+                            IsVisible="{Binding ObsConnected, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Width="128" Height="32" VerticalAlignment="Center" Cursor="Hand">
+                        Sync to Canvas
+                    </Button>
+                </Grid>
 
                 <Grid Margin="0,10,0,0">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">

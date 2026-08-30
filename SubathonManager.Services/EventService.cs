@@ -186,6 +186,7 @@ public class EventService : IDisposable, IAppService {
             ///////////////////////////////////////////////////////////////
             ev.PointsValue = (int)Math.Floor(subathonValue!.Points);
             if (double.TryParse(ev.Value, out double parsedValue)
+                && ev.Currency != "viewers"
                 && ev.Currency != "sub" && ev.Currency != "member" && ev.Currency != "order" // allow items from orders
                 && !_currencyService.IsValidCurrency(ev.Currency)
                 && !string.IsNullOrEmpty(ev.Value.Trim())) {
@@ -213,6 +214,11 @@ public class EventService : IDisposable, IAppService {
             }
             else {
                 ev.SecondsValue = subathonValue.Seconds;
+            }
+
+            if (ev.EventType.IsRaid()) {
+                // All raid types are always points per raid never viewer
+                ev.PointsValue = (int)Math.Floor(subathonValue!.Points);
             }
 
             if (ev.EventType.IsCurrencyDonation() && (string.IsNullOrEmpty(ev.Currency) ||
