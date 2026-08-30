@@ -115,19 +115,23 @@ public class OBSService : IAppService {
         if (v.AvailableRequests.Contains("GetCanvasList")) {
             try {
                 var response = _obs.SendRequest("GetCanvasList");
+                var count = 1;
                 if (response != null && response.TryGetValue("canvases", out JToken? _canvases)) {
                     foreach (var canvas in _canvases) {
-                        string canvasName = (string)canvas["canvasName"];
+                        
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+                        string canvasName = (string)canvas["canvasName"] ?? $"Canvas {count}";
+
                         var videoSettings = canvas["canvasVideoSettings"];
                         var flags = canvas["canvasFlags"];
-                        if ((bool)flags["MAIN"]) {
+                        if ((bool)(flags?["MAIN"] ?? false)) {
                             canvases.Remove("Default");
                         }
                         canvases.Add(canvasName, new () {
-                            {"Width", (int)videoSettings["baseWidth"]},
-                            {"Height", (int)videoSettings["baseHeight"]}
+                            {"Width", (int)(videoSettings?["baseWidth"] ?? 1920)},
+                            {"Height", (int)(videoSettings?["baseHeight"] ?? 1080)}
                         });
-
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
                     }
                 }
             }
