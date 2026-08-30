@@ -12,6 +12,8 @@
 
     <ItemGroup>
 
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+
         <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="*"/>
         <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="*"/>
         <PackageReference Include="Microsoft.Testing.Extensions.CrashDump" Version="*"/>

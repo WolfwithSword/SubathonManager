@@ -222,7 +222,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper) {
         string script = server.GetWebsocketInjectionScript();
 
         Assert.Contains("var IS_OVERLAY = false;", script);
-        Assert.Contains("var ROUTE_ID   = '';", script);
+        Assert.Contains("var ROUTE_ID = '';", script);
         Assert.DoesNotContain("__IS_OVERLAY__", script);
         Assert.DoesNotContain("__ROUTE_ID__", script);
         Assert.DoesNotContain("__WS_URL__", script);
@@ -239,7 +239,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper) {
         string script = server.GetWebsocketInjectionScript(routeId.ToString());
 
         Assert.Contains("var IS_OVERLAY = true;", script);
-        Assert.Contains($"var ROUTE_ID   = '{routeId}';", script);
+        Assert.Contains($"var ROUTE_ID = '{routeId}';", script);
         Assert.Contains($"var EMPTY_GUID = '{Guid.Empty}';", script);
         Assert.Contains("ws_type: 'Overlay'", script);
         Assert.Contains("ws_type: 'Widget'", script);
