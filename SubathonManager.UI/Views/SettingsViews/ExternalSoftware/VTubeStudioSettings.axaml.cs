@@ -39,6 +39,11 @@ public partial class VTubeStudioSettings : SettingsControl {
             IntegrationEvents.ConnectionUpdated -= UpdateStatus;
             ServiceManager.VTubeStudio.ModelDataChanged -= OnModelDataChanged;
         };
+        
+        if (FeatureFlags.VTubeStudioMarkAsExperimental) {
+            ExperimentalFlag.IsVisible = true;
+            ExperimentalFlag.Foreground = Brushes.Orange;
+        }
     }
 
     public override void Init(SettingsView host) {
