@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace SubathonManager.Core.Enums;
 
@@ -16,7 +16,10 @@ public enum WheelSpinActionType {
     SetMultiplier = SubathonCommandType.SetMultiplier,
 
     [WheelSpinActionMeta(IsDoneImmediately = true, Label = "Add Rerolls")]
-    Reroll = 1000
+    Reroll = 1000,
+
+    [WheelSpinActionMeta(Label = "VTube Studio")]
+    VTubeStudio = 1001
 }
 
 [ExcludeFromCodeCoverage]
@@ -35,6 +38,10 @@ public static class WheelSpinActionTypeHelper {
 
     public static bool IsDoneImmediately(this WheelSpinActionType type) {
         return EnumMetaCache.Get<WheelSpinActionMetaAttribute>(type)?.IsDoneImmediately ?? false;
+    }
+
+    public static bool HasPlayAction(this WheelSpinActionType type) {
+        return type.IsCommand() || type == WheelSpinActionType.VTubeStudio;
     }
 
     public static SubathonCommandType ToCommandType(this WheelSpinActionType type) {

@@ -100,7 +100,11 @@ public enum SubathonEventSource {
 
     [EventSourceMeta(Description = "Juniper Creates", SourceGroup = SubathonSourceGroup.ExternalService,
         SourceOrder = 66, Order = 55, Visible = true)]
-    JuniperCreates // like goaffpro, do lookup on product id to find store name as source
+    JuniperCreates, // like goaffpro, do lookup on product id to find store name as source
+
+    [EventSourceMeta(Description = "VTube Studio", SourceGroup = SubathonSourceGroup.ExternalSoftware,
+        SourceOrder = 905, Order = 904, Visible = false)]
+    VTubeStudio
 }
 
 [ExcludeFromCodeCoverage]

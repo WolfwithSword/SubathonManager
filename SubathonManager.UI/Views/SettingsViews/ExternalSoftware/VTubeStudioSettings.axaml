@@ -1,0 +1,110 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                      xmlns:views="using:SubathonManager.UI.Views"
+                      xmlns:ctl="using:SubathonManager.UI.Controls"
+                      xmlns:v="using:SubathonManager.UI.Validation"
+                      xmlns:ui2="using:SubathonManager.UI.UiUtils"
+                      mc:Ignorable="d"
+                      x:Class="SubathonManager.UI.Views.SettingsViews.ExternalSoftware.VTubeStudioSettings">
+    <StackPanel Orientation="Vertical" Margin="0,0,0,6">
+        <StackPanel Orientation="Horizontal" Margin="0 4 0 6">
+            <Button x:Name="VtsConnectBtn" Content="Connect" Width="100" Height="30"
+                    Margin="0 0 4 0" Click="VtsConnect_Click"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button x:Name="VtsDisconnectBtn" Content="Disconnect" Width="100" Height="30"
+                    Margin="0 0 8 0" Click="VtsDisconnect_Click" IsVisible="False"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <TextBlock Text="Status:" VerticalAlignment="Center" Margin="0 0 4 0" FontSize="12" />
+            <TextBlock x:Name="VtsStatusText" VerticalAlignment="Center" FontSize="12" Text="Disconnected" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Host:" Width="120" VerticalAlignment="Center" />
+            <TextBox x:Name="VtsHostBox" Width="140" PlaceholderText="localhost" Margin="0 0 32 0"
+                     ui2:TextBoxAssist.Clear="True"
+                     views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <TextBlock Text="Port:" Width="32" VerticalAlignment="Center" />
+            <TextBox x:Name="VtsPortBox" Width="80" PlaceholderText="8001" Margin="12 0 8 0"
+                     views:SettingsProperties.ExcludeFromUnsaved="True"
+                     v:NumericInputBehaviour.Mode="Integer" />
+            <TextBlock Text="(VTS: Settings -> Plugin API, 'Start API')" VerticalAlignment="Center"
+                       FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Authorization:" Width="120" VerticalAlignment="Center"/>
+            <TextBlock x:Name="VtsAuthText" Text="Not authorized" VerticalAlignment="Center" FontSize="12"
+                       Margin="0 0 12 0" />
+            <Button x:Name="VtsReauthBtn" Content="Forget Token" Height="30" Click="VtsReauth_Click"
+                    FontSize="12" views:SettingsProperties.ExcludeFromUnsaved="True" />
+        </StackPanel>
+
+        <Separator Margin="0,8,0,8" />
+
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Model:" Width="120" VerticalAlignment="Center" />
+            <TextBlock x:Name="VtsModelText" Text="No model loaded" VerticalAlignment="Center" FontSize="12"
+                       Margin="0 0 12 0" />
+            <Button x:Name="VtsRefreshBtn" Height="30" Padding="8 2" Click="VtsRefresh_Click"
+                    ToolTip.Tip="Force reload of hotkeys, expressions and parameters from the current model"
+                    views:SettingsProperties.ExcludeFromUnsaved="True">
+                <ctl:SymIcon Glyph="ArrowClockwise16" />
+            </Button>
+        </StackPanel>
+
+        <!-- hotkeys -->
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Hotkeys:" Width="120" VerticalAlignment="Center"/>
+            <ComboBox x:Name="VtsHotkeyBox" Width="300" Height="32" Margin="0 0 8 0"
+                      PlaceholderText="select..."
+                      views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Copy Id" Height="30" Margin="0 0 6 0" Click="CopyHotkeyId_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Trigger" Height="30" Click="TriggerHotkey_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+        </StackPanel>
+
+        <!-- expressions -->
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Expressions:" Width="120" VerticalAlignment="Center"
+                       ToolTip.Tip="Expressions on the current model. These are usually on/off toggles" />
+            <ComboBox x:Name="VtsExpressionBox" Width="300" Height="32" Margin="0 0 8 0"
+                      PlaceholderText="select..."
+                      views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Copy File" Height="30" Margin="0 0 6 0" Click="CopyExpressionFile_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="On" Width="52" Height="30" Margin="0 0 4 0" Click="ExpressionOn_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Off" Width="52" Height="30" Margin="0 0 4 0" Click="ExpressionOff_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Toggle" Height="30" Click="ExpressionToggle_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+        </StackPanel>
+
+        <!-- parameters -->
+        <StackPanel Orientation="Horizontal" Margin="0 0 0 6">
+            <TextBlock Text="Parameters:" Width="120" VerticalAlignment="Center"
+                       ToolTip.Tip="Input parameters (tracking + custom). A value set here is held until released" />
+            <ComboBox x:Name="VtsParameterBox" Width="300" Height="32" Margin="0 0 8 0"
+                      PlaceholderText="select..."
+                      SelectionChanged="VtsParameter_SelectionChanged"
+                      views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Copy Name" Height="30" Margin="0 0 6 0" Click="CopyParameterName_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <TextBox x:Name="VtsParameterValueBox" Width="80" Height="32" Margin="0 0 6 0"
+                     PlaceholderText="0" v:NumericInputBehaviour.Mode="SignedDecimal"
+                     views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Set" Width="52" Height="30" Margin="0 0 4 0" Click="SetParameter_Click" FontSize="12"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+            <Button Content="Release" Height="30" Click="ReleaseParameter_Click" FontSize="12"
+                    ToolTip.Tip="Stop holding the value from other controls"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+        </StackPanel>
+
+        <TextBlock x:Name="VtsHintText" FontSize="11" Margin="120 2 0 0" TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Text="Connect to load the current model's hotkeys, expressions and parameters" />
+    </StackPanel>
+</views:SettingsControl>

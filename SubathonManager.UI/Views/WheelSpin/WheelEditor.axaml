@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -264,6 +264,85 @@
                                                     <TextBox x:Name="RerollCountBox" Height="36" Width="160"
                                                              PlaceholderText="e.g. 1 (min 1)"
                                                              val:NumericInputBehaviour.Mode="Integer" />
+                                                </StackPanel>
+
+                                                <StackPanel x:Name="VtsParamPanel" IsVisible="False">
+                                                    <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,10,*">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Target:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <ComboBox x:Name="VtsKindBox" Height="36" Width="130"
+                                                                      SelectionChanged="VtsKind_SelectionChanged" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <TextBlock Text="Name / File / Id:" FontSize="12"
+                                                                           Margin="2,0,0,3" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           x:Name="VtsConnectionHint" FontSize="10"
+                                                                           Margin="0,0,2,3"
+                                                                           VerticalAlignment="Bottom"
+                                                                           Foreground="Gray" />
+                                                            </Grid>
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <AutoCompleteBox x:Name="VtsTargetBox" Height="36"
+                                                                                 Margin="0,0,4,0"
+                                                                                 FilterMode="ContainsOrdinal"
+                                                                                 MinimumPrefixLength="0"
+                                                                                 PlaceholderText="e.g. cat_ears.exp3.json" />
+                                                                <Button Grid.Column="1" x:Name="VtsRefreshTargetsBtn"
+                                                                        Height="36" Padding="8,2"
+                                                                        Click="VtsRefreshTargets_Click"
+                                                                        ToolTip.Tip="Reload the list from VTube Studio">
+                                                                    <ctl:SymIcon Glyph="ArrowClockwise16" />
+                                                                </Button>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,10,Auto">
+                                                        <StackPanel Grid.Column="0" x:Name="VtsToggleActionPanel" 
+                                                                    Margin="0 0 2 0">
+                                                            <TextBlock Text="When Rolled:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <ComboBox x:Name="VtsToggleActionBox" Height="36"
+                                                                      Width="130" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="0" x:Name="VtsValuePanel"
+                                                                    Margin="0 0 2 0" IsVisible="False">
+                                                            <TextBlock Text="Set Value To:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <TextBox x:Name="VtsValueBox" Height="36" Width="130"
+                                                                     PlaceholderText="e.g. 1"
+                                                                     val:NumericInputBehaviour.Mode="SignedDecimal" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Duration:" FontSize="12"
+                                                                       Margin="0,0,0,3" />
+                                                            <TextBox x:Name="VtsDurationBox" Height="36" Width="230"
+                                                                     PlaceholderText="e.g. 30s (blank = no revert)" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,10,Auto">
+                                                        <StackPanel>
+                                                            <TextBlock Text="After Timer:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <ComboBox x:Name="VtsAfterBox" Height="36" Width="180"
+                                                                      SelectionChanged="VtsAfter_SelectionChanged" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" x:Name="VtsAfterValuePanel"
+                                                                    IsVisible="False">
+                                                            <TextBlock Text="Then Value:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <TextBox x:Name="VtsAfterValueBox" Height="36" Width="130"
+                                                                     PlaceholderText="e.g. 0"
+                                                                     val:NumericInputBehaviour.Mode="SignedDecimal" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <TextBlock x:Name="VtsHintText" FontSize="11" Foreground="Gray"
+                                                               TextWrapping="Wrap" Margin="2,2,0,0" />
                                                 </StackPanel>
                                             </StackPanel>
                                         </StackPanel>

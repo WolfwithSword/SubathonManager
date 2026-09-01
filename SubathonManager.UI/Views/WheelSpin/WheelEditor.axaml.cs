@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using Avalonia;
 using Avalonia.Controls;
@@ -17,9 +17,14 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data;
+using SubathonManager.Integration;
 using SubathonManager.UI.Controls;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
+
+// ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.UI.Views.WheelSpin;
 
@@ -27,10 +32,14 @@ public partial class WheelEditor : UserControl {
     private const int HistoryPageSize = 10;
 
     private static readonly SolidColorBrush SelectedRowBrush = new(Color.FromArgb(30, 100, 149, 237));
+
     private readonly IConfig _config;
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly ILogger<WheelEditor> _logger;
     private WheelSet? _activeWheel;
+    private readonly Dictionary<string, string> _vtsHotkeyIdsByDisplay =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private WheelSpinHistoryStatus? _historyFilter;
     private bool _historyLoading;
     private int _historyOffset;
@@ -48,6 +57,7 @@ public partial class WheelEditor : UserControl {
         _logger = AppServices.Provider.GetRequiredService<ILogger<WheelEditor>>();
         InitializeComponent();
         PopulateActionTypeComboBox();
+        PopulateVtsComboBoxes();
         LoadActiveWheel();
         LoadGlobalState();
 
@@ -62,14 +72,21 @@ public partial class WheelEditor : UserControl {
             SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
             WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
             WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
+            ServiceManager.VTubeStudio.ModelDataChanged += OnVtsModelDataChanged;
+            IntegrationEvents.ConnectionUpdated += OnVtsConnectionUpdated;
             RefreshSpinsOwed();
         };
         Unloaded += (_, _) => {
             SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
             WheelEvents.OnSpinsOwedUpdateFromEvent -= AdjustSpinsBoxByEvent;
             WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
+            ServiceManager.VTubeStudio.ModelDataChanged -= OnVtsModelDataChanged;
+            IntegrationEvents.ConnectionUpdated -= OnVtsConnectionUpdated;
         };
     }
+
+    private VtsTargetKind SelectedVtsKind =>
+        (VtsKindBox.SelectedItem as ComboBoxItem)?.Tag as VtsTargetKind? ?? VtsTargetKind.Expression;
 
     private void LoadGlobalState() {
         int delay = int.TryParse(_config.Get("WheelSpin", "SpinDelaySeconds", "4"), out int d) ? Math.Max(0, d) : 4;
@@ -503,6 +520,9 @@ public partial class WheelEditor : UserControl {
                     case WheelSpinActionType.Reroll:
                         ParseRerollParameter(item.Action!.Parameter);
                         break;
+                    case WheelSpinActionType.VTubeStudio:
+                        ParseVtsParameter(item.Action!.Parameter);
+                        break;
                     default:
                         ActionParameterBox.Text = item.Action!.Parameter;
                         break;
@@ -515,6 +535,7 @@ public partial class WheelEditor : UserControl {
                 MultiplierTimeCheck.IsChecked = false;
                 MultiplierPointsCheck.IsChecked = false;
                 RerollCountBox.Text = "";
+                ResetVtsBoxes();
             }
         });
 
@@ -548,10 +569,16 @@ public partial class WheelEditor : UserControl {
         bool isTime = type is WheelSpinActionType.AddTime or WheelSpinActionType.SubtractTime;
         bool isMult = type == WheelSpinActionType.SetMultiplier;
         bool isReroll = type == WheelSpinActionType.Reroll;
+        bool isVts = type == WheelSpinActionType.VTubeStudio;
         TimeParamPanel.IsVisible = isTime;
         MultiplierParamPanel.IsVisible = isMult;
         RerollParamPanel.IsVisible = isReroll;
+        VtsParamPanel.IsVisible = isVts;
         if (isTime) UpdateActionHint(type);
+        if (isVts) {
+            RefreshVtsKindDependentBoxes();
+            LoadVtsTargetSuggestions();
+        }
     }
 
     private void UpdateActionHint(WheelSpinActionType type) {
@@ -681,6 +708,7 @@ public partial class WheelEditor : UserControl {
                     string param = desiredActionType!.Value switch {
                         WheelSpinActionType.SetMultiplier => BuildMultiplierParameter(),
                         WheelSpinActionType.Reroll => BuildRerollParameter(),
+                        WheelSpinActionType.VTubeStudio => BuildVtsParameter(),
                         _ => (ActionParameterBox.Text ?? "").Trim()
                     };
 
@@ -861,6 +889,10 @@ public partial class WheelEditor : UserControl {
             histEntry.LinkedWheel = _activeWheel;
             await Dispatcher.UIThread.InvokeAsync(() => PrependHistoryRow(histEntry));
             WheelEvents.RaiseWheelSpinResult(_activeWheel, item, histEntry, _spinsOwed);
+
+            if (item.Action is { ActionType: WheelSpinActionType.VTubeStudio } vtsAction)
+                await TryRunVtsActionAsync(histEntry, vtsAction);
+
             if (item.Action?.ActionType.IsDoneImmediately() ?? false)
                 switch (item.Action.ActionType) {
                     case WheelSpinActionType.AddTime:
@@ -948,13 +980,23 @@ public partial class WheelEditor : UserControl {
     private void AttachChangeHandlers() {
         foreach (TextBox? box in new[] {
                      ItemTextBox, ItemWeightBox, ItemQuantityBox, ActionParameterBox,
-                     MultiplierAmountBox, MultiplierDurationBox, RerollCountBox
+                     MultiplierAmountBox, MultiplierDurationBox, RerollCountBox,
+                     VtsValueBox, VtsDurationBox, VtsAfterValueBox
                  }) {
             box.TextChanged += OnFieldChanged;
             DirtySaveGuard.Rebase(box);
         }
 
+        VtsTargetBox.TextChanged += (s, _) => {
+            if (!DirtySaveGuard.Consume(s)) return;
+            MarkPendingChanges();
+        };
+        DirtySaveGuard.Rebase(VtsTargetBox);
+
         DirtySaveGuard.Rebase(ActionTypeBox);
+        DirtySaveGuard.Rebase(VtsKindBox);
+        DirtySaveGuard.Rebase(VtsToggleActionBox);
+        DirtySaveGuard.Rebase(VtsAfterBox);
         DirtySaveGuard.Rebase(MultiplierTimeCheck);
         DirtySaveGuard.Rebase(MultiplierPointsCheck);
         DirtySaveGuard.Rebase(ItemInfiniteCheck);
@@ -987,6 +1029,17 @@ public partial class WheelEditor : UserControl {
         if (selected == WheelSpinActionType.Reroll) {
             if (!int.TryParse((RerollCountBox.Text ?? "").Trim(), out int count) || count < 1) {
                 error = "Reroll count must be at least 1";
+                return false;
+            }
+
+            error = "";
+            return true;
+        }
+
+        if (selected == WheelSpinActionType.VTubeStudio) {
+            VTSWheelAction action = ReadVtsBoxes();
+            if (!action.IsValid(out string vtsError)) {
+                error = vtsError;
                 return false;
             }
 
@@ -1049,6 +1102,15 @@ public partial class WheelEditor : UserControl {
 
             error = "";
             return true;
+        }
+
+        if (type == WheelSpinActionType.VTubeStudio) {
+            if (!VTSWheelAction.TryParse(param, out VTSWheelAction? vtsAction)) {
+                error = "VTube Studio action parameters are incomplete";
+                return false;
+            }
+
+            return vtsAction.IsValid(out error);
         }
 
         if (type == WheelSpinActionType.SetMultiplier) {
@@ -1192,11 +1254,9 @@ public partial class WheelEditor : UserControl {
 
         WheelSpinActionType? actionType = h.LinkedItem?.Action?.ActionType;
         bool hasPlayBtn = h.Status == WheelSpinHistoryStatus.Pending
-                          && actionType.HasValue && actionType.Value.IsCommand();
+                          && actionType.HasValue && actionType.Value.HasPlayAction();
 
-        string actionStr = h.LinkedItem?.Action == null
-            ? "Manual"
-            : $"{h.LinkedItem.Action.ActionType}: {h.LinkedItem.Action.Parameter}";
+        string actionStr = DescribeHistoryAction(h.LinkedItem?.Action);
 
         var actionCell = new Grid {
             Margin = new Thickness(4, 0, 2, 0),
@@ -1217,6 +1277,7 @@ public partial class WheelEditor : UserControl {
 
         if (hasPlayBtn) {
             bool isMultiplier = actionType == WheelSpinActionType.SetMultiplier;
+            bool isVts = actionType == WheelSpinActionType.VTubeStudio;
             var playBtn = new Button {
                 Content = new SymIcon { Glyph = "Play16" },
                 Width = 20, Height = 20,
@@ -1225,7 +1286,11 @@ public partial class WheelEditor : UserControl {
                 IsEnabled = !isMultiplier || !_multiplierActive,
                 Tag = isMultiplier ? "MultiplierPlayBtn" : null
             };
-            ToolTip.SetTip(playBtn, isMultiplier ? "Apply multiplier (disabled while one is active)" : "Apply command");
+            ToolTip.SetTip(playBtn, isMultiplier
+                ? "Apply multiplier (disabled while one is active)"
+                : isVts
+                    ? "Run the VTube Studio action (needs VTube Studio connected)"
+                    : "Apply command");
             playBtn.Click += async (_, _) => await ExecuteHistoryAction(h, playBtn);
             Grid.SetColumn(playBtn, 1);
             actionCell.Children.Add(playBtn);
@@ -1292,6 +1357,11 @@ public partial class WheelEditor : UserControl {
             if (hoverBtns != null)
                 foreach (Button btn in hoverBtns.Children.OfType<Button>())
                     btn.IsEnabled = btn.Tag is WheelSpinHistoryStatus s && s != history.Status;
+
+            Grid? actionCell = row.Children.OfType<Grid>().FirstOrDefault(c => Grid.GetColumn(c) == 2);
+            if (actionCell == null) return;
+            foreach (Button playBtn in actionCell.Children.OfType<Button>())
+                playBtn.IsVisible = history.Status == WheelSpinHistoryStatus.Pending;
         });
     }
 
@@ -1361,6 +1431,15 @@ public partial class WheelEditor : UserControl {
                 _multiplierActive = true;
                 await Dispatcher.UIThread.InvokeAsync(() => RefreshMultiplierButtons(true));
                 break;
+            }
+            case WheelSpinActionType.VTubeStudio: {
+                bool ran = await TryRunVtsActionAsync(h, action);
+                if (!ran)
+                    await Dispatcher.UIThread.InvokeAsync(() => {
+                        playBtn.IsVisible = true;
+                        playBtn.IsEnabled = true;
+                    });
+                return;
             }
         }
 
@@ -1633,5 +1712,372 @@ public partial class WheelEditor : UserControl {
             }
         };
         await dialog.ShowAsync();
+    }
+
+    // VTS stuff, maybe move out?
+    private void PopulateVtsComboBoxes() {
+        VtsKindBox.Items.Clear();
+        VtsKindBox.Items.Add(new ComboBoxItem { Content = "Expression", Tag = VtsTargetKind.Expression });
+        VtsKindBox.Items.Add(new ComboBoxItem { Content = "Parameter", Tag = VtsTargetKind.Parameter });
+        VtsKindBox.Items.Add(new ComboBoxItem { Content = "Hotkey", Tag = VtsTargetKind.Hotkey });
+        VtsKindBox.SelectedIndex = 0;
+
+        VtsToggleActionBox.Items.Clear();
+        foreach (VtsToggleAction a in new[] { VtsToggleAction.On, VtsToggleAction.Off, VtsToggleAction.Toggle })
+            VtsToggleActionBox.Items.Add(new ComboBoxItem { Content = a.ToString(), Tag = a });
+        VtsToggleActionBox.SelectedIndex = 0;
+
+        RefreshVtsKindDependentBoxes();
+    }
+
+    private void VtsKind_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
+        bool realChange = DirtySaveGuard.Consume(sender);
+        RefreshVtsKindDependentBoxes();
+        LoadVtsTargetSuggestions();
+        if (_suppressCount > 0 || !realChange) return;
+        MarkPendingChanges();
+    }
+
+    private void VtsAfter_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
+        bool realChange = DirtySaveGuard.Consume(sender);
+        RefreshVtsAfterValueVisibility();
+        UpdateVtsHint();
+        if (_suppressCount > 0 || !realChange) return;
+        MarkPendingChanges();
+    }
+
+    private void RefreshVtsKindDependentBoxes() {
+        VtsTargetKind kind = SelectedVtsKind;
+
+        SuppressChanges(() => {
+            VtsToggleActionPanel.IsVisible = kind == VtsTargetKind.Expression;
+            VtsValuePanel.IsVisible = kind == VtsTargetKind.Parameter;
+
+            object? previous = (VtsAfterBox.SelectedItem as ComboBoxItem)?.Tag;
+            VtsAfterBox.Items.Clear();
+
+            switch (kind) {
+                case VtsTargetKind.Expression:
+                    foreach (VtsToggleAction a in Enum.GetValues<VtsToggleAction>())
+                        VtsAfterBox.Items.Add(new ComboBoxItem { Content = LabelFor(a), Tag = a });
+                    break;
+                case VtsTargetKind.Parameter:
+                    foreach (VtsParameterAfterAction a in Enum.GetValues<VtsParameterAfterAction>())
+                        VtsAfterBox.Items.Add(new ComboBoxItem { Content = LabelFor(a), Tag = a });
+                    break;
+                case VtsTargetKind.Hotkey:
+                    foreach (VtsHotkeyAfterAction a in Enum.GetValues<VtsHotkeyAfterAction>())
+                        VtsAfterBox.Items.Add(new ComboBoxItem { Content = LabelFor(a), Tag = a });
+                    break;
+            }
+
+            ComboBoxItem? restored = VtsAfterBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => Equals(i.Tag, previous));
+            VtsAfterBox.SelectedItem = restored ?? VtsAfterBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
+
+            VtsTargetBox.PlaceholderText = kind switch {
+                VtsTargetKind.Expression => "e.g. cat_ears.exp3.json",
+                VtsTargetKind.Parameter => "e.g. EyeOpenRight or custom parameter",
+                _ => "hotkey name or id"
+            };
+        });
+
+        RefreshVtsAfterValueVisibility();
+        UpdateVtsHint();
+    }
+
+    private void RefreshVtsAfterValueVisibility() {
+        VtsAfterValuePanel.IsVisible = SelectedVtsKind == VtsTargetKind.Parameter
+                                       && (VtsAfterBox.SelectedItem as ComboBoxItem)?.Tag
+                                       as VtsParameterAfterAction? == VtsParameterAfterAction.SetNewValue;
+    }
+
+    private static string LabelFor(VtsToggleAction action) {
+        return action switch {
+            VtsToggleAction.DoNothing => "Do Nothing",
+            _ => action.ToString()
+        };
+    }
+
+    private static string LabelFor(VtsParameterAfterAction action) {
+        return action switch {
+            VtsParameterAfterAction.DoNothing => "Do Nothing / Release",
+            VtsParameterAfterAction.ResetToOriginal => "Reset to Original",
+            VtsParameterAfterAction.SetNewValue => "Change to New Value",
+            _ => action.ToString()
+        };
+    }
+
+    private static string LabelFor(VtsHotkeyAfterAction action) {
+        return action switch {
+            VtsHotkeyAfterAction.DoNothing => "Do Nothing",
+            VtsHotkeyAfterAction.TriggerAgain => "Trigger Again",
+            _ => action.ToString()
+        };
+    }
+
+    private void LoadVtsTargetSuggestions() {
+        VTSService vts = ServiceManager.VTubeStudio;
+        VtsTargetKind kind = SelectedVtsKind;
+
+        if (!vts.Connected) {
+            VtsTargetBox.ItemsSource = null;
+            VtsConnectionHint.Text = "VTube Studio not connected - type the value by hand";
+            return;
+        }
+
+        List<string> suggestions = kind switch {
+            VtsTargetKind.Expression => vts.CachedExpressions.Select(e => e.File).ToList(),
+            VtsTargetKind.Parameter => vts.CachedParameters.Select(pa => pa.Name).ToList(),
+            VtsTargetKind.Hotkey => BuildHotkeySuggestions(vts.CachedHotkeys),
+            _ => []
+        };
+
+        VtsTargetBox.ItemsSource = suggestions;
+        VtsConnectionHint.Text = suggestions.Count > 0
+            ? $"{suggestions.Count} available on \"{vts.CurrentModelName ?? "current model"}\""
+            : "Nothing found on current model";
+    }
+
+    private List<string> BuildHotkeySuggestions(IReadOnlyList<VtsHotkey> hotkeys) {
+        _vtsHotkeyIdsByDisplay.Clear();
+
+        HashSet<string> duplicates = hotkeys
+            .GroupBy(h => h.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var display = new List<string>(hotkeys.Count);
+        foreach (VtsHotkey hotkey in hotkeys) {
+            string name = string.IsNullOrWhiteSpace(hotkey.Name) ? hotkey.Id : hotkey.Name;
+            string label = duplicates.Contains(name) && hotkey.Id.Length >= 6
+                ? $"{name} ({hotkey.Id[^6..]})"
+                : name;
+            _vtsHotkeyIdsByDisplay[label] = hotkey.Id;
+            display.Add(label);
+        }
+
+        return display;
+    }
+
+    private string DisplayForHotkeyId(string hotkeyId) {
+        foreach (KeyValuePair<string, string> pair in _vtsHotkeyIdsByDisplay)
+            if (string.Equals(pair.Value, hotkeyId, StringComparison.OrdinalIgnoreCase))
+                return pair.Key;
+
+        return ResolveHotkeyName(hotkeyId) ?? hotkeyId;
+    }
+
+    private static string? ResolveHotkeyName(string? hotkeyId) {
+        if (string.IsNullOrWhiteSpace(hotkeyId)) return null;
+        return ServiceManager.VTubeStudio.CachedHotkeys
+            .FirstOrDefault(h => string.Equals(h.Id, hotkeyId, StringComparison.OrdinalIgnoreCase))?.Name;
+    }
+
+    private string ResolveHotkeyTargetFromBox() {
+        string text = (VtsTargetBox.Text ?? "").Trim();
+        if (text.Length == 0) return "";
+        if (_vtsHotkeyIdsByDisplay.TryGetValue(text, out string? mapped)) return mapped;
+
+        VtsHotkey? byName = ServiceManager.VTubeStudio.CachedHotkeys
+            .FirstOrDefault(h => string.Equals(h.Name, text, StringComparison.OrdinalIgnoreCase));
+        return byName?.Id ?? text;
+    }
+
+    private void OnVtsModelDataChanged() {
+        Dispatcher.UIThread.Post(() => {
+            if (!VtsParamPanel.IsVisible) return;
+            SuppressChanges(LoadVtsTargetSuggestions);
+            UpdateVtsHint();
+        });
+    }
+
+    private void OnVtsConnectionUpdated(IntegrationConnection connection) {
+        if (connection.Source != SubathonEventSource.VTubeStudio) return;
+        OnVtsModelDataChanged();
+    }
+
+    private async void VtsRefreshTargets_Click(object? sender, RoutedEventArgs e) {
+        VTSService vts = ServiceManager.VTubeStudio;
+        if (!vts.Connected) {
+            LoadVtsTargetSuggestions();
+            VtsHintText.Text = "Connect VTubeStudio under Settings -> External Software";
+            return;
+        }
+
+        await vts.RefreshAsync();
+        await Dispatcher.UIThread.InvokeAsync(() => {
+            LoadVtsTargetSuggestions();
+            UpdateVtsHint();
+        });
+    }
+
+    private void UpdateVtsHint() {
+        VTSWheelAction action = ReadVtsBoxes();
+
+        if (!action.IsValid(out string error)) {
+            VtsHintText.Text = error;
+            return;
+        }
+
+        string summary = action.Describe();
+        if (action.Kind == VtsTargetKind.Hotkey && ResolveHotkeyName(action.Target) is { } hotkeyName)
+            summary = $"\"{hotkeyName}\" {summary[action.Target.Length..].TrimStart()}";
+
+        VtsHintText.Text = action.HasRevert
+            ? summary
+            : $"{summary} (no duration set)";
+    }
+
+    private VTSWheelAction ReadVtsBoxes() {
+        VtsTargetKind kind = SelectedVtsKind;
+        var action = new VTSWheelAction {
+            Kind = kind,
+            Target = kind == VtsTargetKind.Hotkey
+                ? ResolveHotkeyTargetFromBox()
+                : (VtsTargetBox.Text ?? "").Trim(),
+            Duration = Utils.ParseDurationString((VtsDurationBox.Text ?? "").Trim())
+        };
+
+        switch (kind) {
+            case VtsTargetKind.Expression:
+                action.ToggleAction = (VtsToggleActionBox.SelectedItem as ComboBoxItem)?.Tag as VtsToggleAction?
+                                      ?? VtsToggleAction.On;
+                action.AfterToggle = (VtsAfterBox.SelectedItem as ComboBoxItem)?.Tag as VtsToggleAction?
+                                     ?? VtsToggleAction.DoNothing;
+                break;
+            case VtsTargetKind.Parameter:
+                action.Value = ParseDoubleOrZero(VtsValueBox.Text);
+                action.AfterParameter = (VtsAfterBox.SelectedItem as ComboBoxItem)?.Tag as VtsParameterAfterAction?
+                                        ?? VtsParameterAfterAction.DoNothing;
+                action.AfterValue = ParseDoubleOrZero(VtsAfterValueBox.Text);
+                break;
+            case VtsTargetKind.Hotkey:
+                action.AfterHotkey = (VtsAfterBox.SelectedItem as ComboBoxItem)?.Tag as VtsHotkeyAfterAction?
+                                     ?? VtsHotkeyAfterAction.DoNothing;
+                break;
+        }
+
+        return action;
+    }
+
+    private static double ParseDoubleOrZero(string? text) {
+        return double.TryParse((text ?? "").Trim(),
+            NumberStyles.Float, CultureInfo.InvariantCulture, out double v)
+            ? v
+            : 0d;
+    }
+
+    private string BuildVtsParameter() {
+        return ReadVtsBoxes().ToParameterString();
+    }
+
+    private void ParseVtsParameter(string parameter) {
+        if (!VTSWheelAction.TryParse(parameter, out VTSWheelAction? action)) {
+            ResetVtsBoxes();
+            return;
+        }
+
+        SuppressChanges(() => {
+            ComboBoxItem? kindItem = VtsKindBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => (VtsTargetKind?)i.Tag == action.Kind);
+            VtsKindBox.SelectedItem = kindItem ?? VtsKindBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
+        });
+
+        RefreshVtsKindDependentBoxes();
+        LoadVtsTargetSuggestions();
+
+        SuppressChanges(() => {
+            VtsTargetBox.Text = action.Kind == VtsTargetKind.Hotkey
+                ? DisplayForHotkeyId(action.Target)
+                : action.Target;
+            VtsDurationBox.Text = action.Duration > TimeSpan.Zero
+                ? $"{(int)action.Duration.TotalSeconds}s"
+                : "";
+            VtsValueBox.Text = action.Kind == VtsTargetKind.Parameter
+                ? action.Value.ToString(CultureInfo.InvariantCulture)
+                : "";
+            VtsAfterValueBox.Text = action.Kind == VtsTargetKind.Parameter
+                ? action.AfterValue.ToString(CultureInfo.InvariantCulture)
+                : "";
+
+            ComboBoxItem? toggleItem = VtsToggleActionBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => (VtsToggleAction?)i.Tag == action.ToggleAction);
+            if (toggleItem != null) VtsToggleActionBox.SelectedItem = toggleItem;
+
+            object afterTag = action.Kind switch {
+                VtsTargetKind.Expression => action.AfterToggle,
+                VtsTargetKind.Parameter => action.AfterParameter,
+                _ => action.AfterHotkey
+            };
+            ComboBoxItem? afterItem = VtsAfterBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => Equals(i.Tag, afterTag));
+            if (afterItem != null) VtsAfterBox.SelectedItem = afterItem;
+        });
+
+        RefreshVtsAfterValueVisibility();
+        UpdateVtsHint();
+    }
+
+    private void ResetVtsBoxes() {
+        SuppressChanges(() => {
+            VtsKindBox.SelectedIndex = 0;
+            VtsTargetBox.Text = "";
+            VtsValueBox.Text = "";
+            VtsDurationBox.Text = "";
+            VtsAfterValueBox.Text = "";
+            if (VtsToggleActionBox.Items.Count > 0) VtsToggleActionBox.SelectedIndex = 0;
+        });
+
+        RefreshVtsKindDependentBoxes();
+    }
+
+    private async Task<bool> TryRunVtsActionAsync(WheelSpinHistory history, WheelSpinAction action) {
+        if (!VTSWheelAction.TryParse(action.Parameter, out VTSWheelAction? parsed)) {
+            _logger?.LogWarning("[WheelSpin] VTubeStudio action parameter could not be parsed: \"{Parameter}\"",
+                action.Parameter);
+            return false;
+        }
+
+        VTSService vts = ServiceManager.VTubeStudio;
+        if (!vts.Connected) {
+            _logger?.LogWarning(
+                "[WheelSpin] VTubeStudio is not connected; leaving \"{Item}\" pending", history.LinkedItem?.Text ?? "item");
+            return false;
+        }
+
+        bool ok;
+        try {
+            ok = await vts.ExecuteWheelActionAsync(parsed);
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "[WheelSpin] VTubeStudio action failed");
+            return false;
+        }
+
+        if (!ok) {
+            _logger?.LogWarning("[WheelSpin] VTubeStudio rejected the action; leaving the spin pending");
+            return false;
+        }
+
+        _logger?.LogDebug("[WheelSpin] VTubeStudio action applied: {Summary}", parsed.Describe());
+        if (history.Status != WheelSpinHistoryStatus.Done)
+            await SetHistoryStatus(history, WheelSpinHistoryStatus.Done);
+        return true;
+    }
+
+    private static string DescribeHistoryAction(WheelSpinAction? action) {
+        if (action == null) return "Manual";
+        if (action.ActionType == WheelSpinActionType.VTubeStudio
+            && VTSWheelAction.TryParse(action.Parameter, out VTSWheelAction? parsed)) {
+            string described = parsed.Describe();
+            if (parsed.Kind == VtsTargetKind.Hotkey && ResolveHotkeyName(parsed.Target) is { } hotkeyName)
+                described = $"\"{hotkeyName}\" {described[parsed.Target.Length..].TrimStart()}";
+
+            return $"VTubeStudio: {described}";
+        }
+
+        return $"{action.ActionType}: {action.Parameter}";
     }
 }

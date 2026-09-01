@@ -38,6 +38,9 @@ public partial class ExternalSoftwareSettings : SettingsGroupControl {
             case SubathonEventSource.StreamerBot:
                 _settingsControls[eventSource] = new StreamerBotSettings();
                 break;
+            case SubathonEventSource.VTubeStudio:
+                _settingsControls[eventSource] = new VTubeStudioSettings();
+                break;
             default: return null;
         }
 

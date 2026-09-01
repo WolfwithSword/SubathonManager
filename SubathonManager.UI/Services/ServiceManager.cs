@@ -67,6 +67,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     public static TipeeeStreamService TipeeeStream => Provider.GetRequiredService<TipeeeStreamService>();
     public static TreatStreamService TreatStream => Provider.GetRequiredService<TreatStreamService>();
     public static OBSService OBS => Provider.GetRequiredService<OBSService>();
+    public static VTSService VTubeStudio => Provider.GetRequiredService<VTSService>();
 
     public static WebServer Server => Provider.GetRequiredService<WebServer>();
 
@@ -75,6 +76,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
 
     public async Task StartIntegrationsAsync() {
         await StartAsync<OBSService>();
+        await StartAsync<VTSService>();
         await StartAsync<TwitchService>();
         await StartAsync<YouTubeService>();
         await StartAsync<PicartoService>();
@@ -96,6 +98,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
 
     public async Task StopIntegrationsAsync() {
         await StopAsync<OBSService>();
+        await StopAsync<VTSService>();
         await StopAsync<TwitchService>();
         await StopAsync<YouTubeService>();
         await StopAsync<PicartoService>();

@@ -52,10 +52,9 @@ public static class Utils {
     }
 
     public static TimeSpan ParseDurationString(string input) {
-        if (string.IsNullOrWhiteSpace(input)) {
-            Console.WriteLine($"Error - Invalid TimeString to Parse: {input}");
+        if (string.IsNullOrWhiteSpace(input))
+            // Console.WriteLine($"Error - Invalid TimeString to Parse: {input}");
             return TimeSpan.Zero;
-        }
 
         input = input.Trim();
         if (input.Contains(':'))

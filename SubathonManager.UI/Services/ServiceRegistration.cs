@@ -91,6 +91,7 @@ public static class ServiceRegistration {
         ;
         services.AddSingleton<DiscordWebhookService>();
         services.AddSingleton<OBSService>();
+        services.AddSingleton<VTSService>();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder) {
