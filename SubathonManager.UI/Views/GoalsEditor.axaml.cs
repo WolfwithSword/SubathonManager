@@ -8,6 +8,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,9 @@ namespace SubathonManager.UI.Views;
 
 public partial class GoalsEditor : UserControl {
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly HashSet<SubathonGoal> _unsavedGoals = new();
     private SubathonGoalSet? _activeGoalSet;
+    private bool _appendRowAfterSave;
     private bool _initialized;
     private int _suppressCount;
 
@@ -38,8 +41,9 @@ public partial class GoalsEditor : UserControl {
         Loaded += (_, _) => {
             if (_initialized) return;
             _initialized = true;
-            EnterKeyCommit.Attach(this, () => {
+            EnterKeyCommit.Attach(this, source => {
                 GoalSetNameBox_LostFocus(GoalSetNameBox, new RoutedEventArgs());
+                _appendRowAfterSave = IsInLastGoalRow(source);
                 SaveGoals_Click(this, new RoutedEventArgs());
             });
         };
@@ -207,60 +211,24 @@ public partial class GoalsEditor : UserControl {
 
     private async void LoadGoals() {
         GoalsStack.Children.Clear();
+        _unsavedGoals.Clear();
         if (_activeGoalSet == null) return;
         _suppressCount++;
 
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         await db.Entry(_activeGoalSet).ReloadAsync();
 
-        List<SubathonGoal> goals = _activeGoalSet.Goals.OrderBy(g => g.Points).ToList();
+        List<SubathonGoal> goals = await db.SubathonGoals
+            .Where(g => g.GoalSetId == _activeGoalSet.Id)
+            .OrderBy(g => g.Points)
+            .ToListAsync();
+        _activeGoalSet.Goals = goals;
 
-        foreach (SubathonGoal goal in goals) {
-            var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 8) };
+        foreach (SubathonGoal goal in goals) AddGoalRow(goal, false);
 
-            var textBox = new TextBox {
-                Text = goal.Text,
-                Width = 522,
-                Margin = new Thickness(0, 0, 8, 0),
-                PlaceholderText = "Goal Description...",
-                VerticalContentAlignment = VerticalAlignment.Center
-            };
-            ToolTip.SetTip(textBox, "Goal Description");
-            textBox.TextChanged += Value_OnChanged;
-            DirtySaveGuard.Rebase(textBox);
-            TextBoxAssist.SetClear(textBox, true);
-
-            var pointsBox = new TextBox {
-                Text = goal.Points.ToString(),
-                Width = 80,
-                Margin = new Thickness(0, 0, 8, 0),
-                VerticalContentAlignment = VerticalAlignment.Center
-            };
-            ToolTip.SetTip(pointsBox, "Points/Money to achieve");
-            NumericInputBehaviour.SetMode(pointsBox, NumericInputBehaviour.NumericMode.Integer);
-            pointsBox.TextChanged += Value_OnChanged;
-            DirtySaveGuard.Rebase(pointsBox);
-
-            var deleteBtn = new Button {
-                Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
-                Width = 32, Height = 32,
-                Padding = new Thickness(0),
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Foreground = Brushes.Red,
-                Cursor = new Cursor(StandardCursorType.Hand),
-                Margin = new Thickness(4, 0, 0, 0)
-            };
-            ToolTip.SetTip(deleteBtn, "Remove");
-            deleteBtn.Click += (_, _) => DeleteGoal_Click(goal);
-
-            panel.Children.Add(textBox);
-            panel.Children.Add(pointsBox);
-            panel.Children.Add(deleteBtn);
-            panel.Tag = goal;
-
-            GoalsStack.Children.Add(panel);
+        if (_appendRowAfterSave) {
+            _appendRowAfterSave = false;
+            AppendBlankGoalRow();
         }
 
         GoalsEditorScroller.Height = 600;
@@ -271,7 +239,89 @@ public partial class GoalsEditor : UserControl {
         }, DispatcherPriority.Background);
     }
 
+    private StackPanel AddGoalRow(SubathonGoal goal, bool isUnsaved) {
+        var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 8) };
+
+        var textBox = new TextBox {
+            Text = goal.Text,
+            Width = 522,
+            Margin = new Thickness(0, 0, 8, 0),
+            PlaceholderText = "Goal Description...",
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+        ToolTip.SetTip(textBox, "Goal Description");
+        textBox.TextChanged += Value_OnChanged;
+        DirtySaveGuard.Rebase(textBox);
+        TextBoxAssist.SetClear(textBox, true);
+
+        var pointsBox = new TextBox {
+            Text = isUnsaved ? "" : goal.Points.ToString(),
+            Width = 80,
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+        ToolTip.SetTip(pointsBox, "Points/Money to achieve");
+        NumericInputBehaviour.SetMode(pointsBox, NumericInputBehaviour.NumericMode.Integer);
+        pointsBox.TextChanged += Value_OnChanged;
+        DirtySaveGuard.Rebase(pointsBox);
+
+        var deleteBtn = new Button {
+            Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
+            Width = 32, Height = 32,
+            Padding = new Thickness(0),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Foreground = Brushes.Red,
+            Cursor = new Cursor(StandardCursorType.Hand),
+            Margin = new Thickness(4, 0, 0, 0)
+        };
+        ToolTip.SetTip(deleteBtn, "Remove");
+        deleteBtn.Click += (_, _) => DeleteGoal_Click(goal);
+
+        panel.Children.Add(textBox);
+        panel.Children.Add(pointsBox);
+        panel.Children.Add(deleteBtn);
+        panel.Tag = goal;
+
+        if (isUnsaved) _unsavedGoals.Add(goal);
+        GoalsStack.Children.Add(panel);
+        return panel;
+    }
+
+    private void AppendBlankGoalRow() {
+        if (_activeGoalSet == null) return;
+
+        var goal = new SubathonGoal { Text = "", Points = 0, GoalSetId = _activeGoalSet.Id };
+        StackPanel panel = AddGoalRow(goal, true);
+
+        Dispatcher.UIThread.Post(() => {
+            panel.BringIntoView();
+            (panel.Children[0] as TextBox)?.Focus();
+        }, DispatcherPriority.Background);
+    }
+
+    private bool IsInLastGoalRow(object? source) {
+        StackPanel? last = GoalsStack.Children.OfType<StackPanel>().LastOrDefault();
+        if (last == null) return false;
+
+        var visual = source as Visual;
+        while (visual != null) {
+            if (ReferenceEquals(visual, last)) return true;
+            visual = visual.GetVisualParent();
+        }
+
+        return false;
+    }
+
     private async void DeleteGoal_Click(SubathonGoal goal) {
+        if (_unsavedGoals.Remove(goal)) {
+            StackPanel? row = GoalsStack.Children.OfType<StackPanel>()
+                .FirstOrDefault(p => ReferenceEquals(p.Tag, goal));
+            if (row != null) GoalsStack.Children.Remove(row);
+            return;
+        }
+
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         db.SubathonGoals.Remove(goal);
         await db.SaveChangesAsync();
@@ -306,7 +356,10 @@ public partial class GoalsEditor : UserControl {
     }
 
     private async Task SaveGoalsAsync(object? sender, RoutedEventArgs? e) {
-        if (_activeGoalSet == null) return;
+        if (_activeGoalSet == null) {
+            _appendRowAfterSave = false;
+            return;
+        }
 
         _activeGoalSet.Name = (GoalSetNameBox.Text ?? "").Trim();
         _activeGoalSet.Type = Enum.TryParse($"{GoalSetType.SelectedItem}", out GoalsType type)
@@ -320,9 +373,18 @@ public partial class GoalsEditor : UserControl {
             if (panel.Tag is not SubathonGoal goal) continue;
             var textBox = panel.Children[0] as TextBox;
             var pointsBox = panel.Children[1] as TextBox;
-            goal.Text = textBox?.Text ?? "";
-            if (long.TryParse(pointsBox?.Text, out long pts)) goal.Points = pts;
-            db.Update(goal);
+
+            bool hasPoints = long.TryParse(pointsBox?.Text, out long pts);
+            if (string.IsNullOrWhiteSpace(textBox?.Text) || !hasPoints) {
+                if (!_unsavedGoals.Contains(goal)) db.SubathonGoals.Remove(goal);
+                continue;
+            }
+
+            goal.Text = textBox.Text ?? "";
+            goal.Points = pts;
+
+            if (_unsavedGoals.Contains(goal)) db.SubathonGoals.Add(goal);
+            else db.Update(goal);
         }
 
         await db.SaveChangesAsync();
@@ -412,7 +474,7 @@ public partial class GoalsEditor : UserControl {
         IReadOnlyList<IStorageFile> picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
             Title = "Import Goal Set",
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("CSV Files") { Patterns = new[] { "*.csv" } } }
+            FileTypeFilter = [new FilePickerFileType("CSV Files") { Patterns = ["*.csv"] }]
         });
         if (picked.Count == 0) return;
         IStorageFile file = picked[0];

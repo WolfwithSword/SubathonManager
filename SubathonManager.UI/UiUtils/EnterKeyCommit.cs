@@ -8,12 +8,16 @@ namespace SubathonManager.UI.UiUtils;
 
 public static class EnterKeyCommit {
     public static void Attach(InputElement root, Action commit) {
+        Attach(root, _ => commit());
+    }
+
+    public static void Attach(InputElement root, Action<object?> commit) {
         root.AddHandler(InputElement.KeyDownEvent, (_, e) => {
             if (e.Key != Key.Enter) return;
             if (!ShouldCommit(e.Source)) return;
 
             e.Handled = true;
-            commit();
+            commit(e.Source);
         }, RoutingStrategies.Bubble);
     }
 
