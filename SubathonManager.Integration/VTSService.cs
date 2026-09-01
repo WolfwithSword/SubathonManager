@@ -45,6 +45,7 @@ public class VTSService(
     private const string PluginName = "Subathon Manager";
     private const string PluginDeveloper = "WolfwithSword";
     private const string ServiceName = "VTubeStudio";
+    private const string ModelPollTimerKey = "vts-model-poll";
 
     private readonly ConcurrentDictionary<string, ParameterValue> _heldParameters = new(StringComparer.Ordinal);
     private readonly ILogger? _logger = logger;
@@ -70,6 +71,9 @@ public class VTSService(
     public bool Enabled => config.GetBool(ConfigSection, "Enabled");
     private string Host => (config.Get(ConfigSection, "Host", "localhost") ?? "localhost").Trim();
     private string Port => (config.Get(ConfigSection, "Port", "8001") ?? "8001").Trim();
+
+    private int ModelPollSeconds =>
+        int.TryParse(config.Get(ConfigSection, "ModelPollSeconds", "5"), out int sec) && sec >= 1 ? sec : 5;
 
     private int InjectIntervalMs =>
         int.TryParse(config.Get(ConfigSection, "InjectIntervalMs", "100"), out int ms) && ms >= 20 ? ms : 100;
@@ -143,6 +147,8 @@ public class VTSService(
 
             client = new VTubeStudioClient(options);
             client.Disconnected += OnDisconnected;
+            if (_logger != null && _logger.IsEnabled(LogLevel.Debug))
+                client.EventReceived += OnRawEventReceived;
 
             await client.ConnectAsync(ct);
 
@@ -169,6 +175,7 @@ public class VTSService(
             await SubscribeToModelEventsAsync(CancellationToken.None);
             StartHoldLoop();
             await RefreshAsync(CancellationToken.None);
+            StartModelPolling(); // library has bug preventing subscription data from coming in, atm we only need model changes
         }
         catch (OperationCanceledException) {
             await DiscardAsync(client);
@@ -196,9 +203,15 @@ public class VTSService(
         }
     }
 
+    private void OnRawEventReceived(object? sender, VTubeStudioEventArgs e) {
+        _logger?.LogDebug("[VTSService] Event received from VTube Studio: {EventName}", e.EventName);
+    }
+
     private async Task DiscardAsync(VTubeStudioClient? client) {
         if (client == null) return;
         client.Disconnected -= OnDisconnected;
+        if (_logger != null && _logger.IsEnabled(LogLevel.Debug))
+            client.EventReceived -= OnRawEventReceived;
         await SafeDisposeAsync(client);
     }
 
@@ -242,6 +255,7 @@ public class VTSService(
         if (!Connected) return;
         Connected = false;
         StopHoldLoop();
+        StopModelPolling();
         BroadcastStatus(false);
 
         if (_stopRequested) return;
@@ -298,6 +312,7 @@ public class VTSService(
 
     private async Task TeardownClientAsync() {
         StopHoldLoop();
+        StopModelPolling();
 
         foreach (IDisposable sub in _subscriptions)
             try {
@@ -320,6 +335,8 @@ public class VTSService(
 
         if (client == null) return;
         client.Disconnected -= OnDisconnected;
+        if (_logger != null && _logger.IsEnabled(LogLevel.Debug))
+            client.EventReceived -= OnRawEventReceived;
         await SafeDisposeAsync(client);
     }
 
@@ -339,8 +356,14 @@ public class VTSService(
         try {
             _subscriptions.Add(client.Events.On<ModelLoadedEventPayload>(OnModelLoaded));
             _subscriptions.Add(client.Events.On<ModelConfigChangedEventPayload>(OnModelConfigChanged));
+
             await client.SubscribeAsync<ModelLoadedEventPayload>(ct: ct);
-            await client.SubscribeAsync<ModelConfigChangedEventPayload>(ct: ct);
+
+            EventSubscriptionResponse confirmed =
+                await client.SubscribeAsync<ModelConfigChangedEventPayload>(ct: ct);
+
+            _logger?.LogInformation("[VTSService] Subscribed to model events. VTubeStudio confirms {Count}: {Events}",
+                confirmed.SubscribedEventCount, string.Join(", ", confirmed.SubscribedEvents));
         }
         catch (Exception ex) when (IsExpectedConnectFailure(ex)) {
             _logger?.LogDebug("[VTSService] Could not subscribe to model events: {Reason}", ParseException(ex));
@@ -351,13 +374,17 @@ public class VTSService(
     }
 
     private void OnModelLoaded(ModelLoadedEventPayload payload) {
-        CurrentModelId = payload.ModelLoaded ? payload.ModelId : null;
-        CurrentModelName = payload.ModelLoaded ? payload.ModelName : null;
-        _heldParameters.Clear();
-        _ = Task.Run(() => RefreshAsync());
+        _logger?.LogInformation("[VTSService] Model loaded event: {Model} (loaded: {Loaded})",
+            payload.ModelName ?? "none", payload.ModelLoaded);
+
+        _ = Task.Run(() => ApplyModelChangeAsync(
+            payload.ModelLoaded ? payload.ModelId : null,
+            payload.ModelLoaded ? payload.ModelName : null,
+            CancellationToken.None));
     }
 
     private void OnModelConfigChanged(ModelConfigChangedEventPayload payload) {
+        _logger?.LogInformation("[VTSService] Model config changed event: {Model}", payload.ModelName ?? "none");
         _ = Task.Run(() => RefreshAsync());
     }
 
@@ -383,6 +410,10 @@ public class VTSService(
             CachedHotkeys = await GetHotkeysAsync(ct);
             CachedExpressions = await GetExpressionsAsync(ct);
             CachedParameters = await GetParametersAsync(ct);
+
+            _logger?.LogDebug(
+                "[VTSService] Refreshed {Model}: {Hotkeys} hotkeys, {Expressions} expressions, {Parameters} parameters",
+                CurrentModelName ?? "no model", CachedHotkeys.Count, CachedExpressions.Count, CachedParameters.Count);
 
             ModelDataChanged?.Invoke();
             return true;
@@ -652,6 +683,47 @@ public class VTSService(
                 _logger?.LogDebug("[VTSService] Parameter hold injection failed: {Reason}", ParseException(ex));
             }
         }
+    }
+
+    private void StartModelPolling() {
+        if (timerService == null) {
+            _logger?.LogWarning("[VTSService] No timer service; model changes will not be detected");
+            return;
+        }
+
+        timerService.Register(ModelPollTimerKey, TimeSpan.FromSeconds(ModelPollSeconds), PollCurrentModelAsync);
+    }
+
+    private void StopModelPolling() {
+        timerService?.Unregister(ModelPollTimerKey);
+    }
+
+    private async Task PollCurrentModelAsync(CancellationToken ct) {
+        VTubeStudioClient? client = _client;
+        if (client == null || !Connected) return;
+
+        try {
+            CurrentModelResponse model = await client.GetCurrentModelAsync(ct);
+            await ApplyModelChangeAsync(
+                model.ModelLoaded ? model.ModelId : null,
+                model.ModelLoaded ? model.ModelName : null,
+                ct);
+        }
+        catch (Exception ex) {
+            _logger?.LogDebug("[VTSService] Model poll failed: {Reason}", ParseException(ex));
+        }
+    }
+
+    private async Task ApplyModelChangeAsync(string? modelId, string? modelName, CancellationToken ct) {
+        if (string.Equals(modelId, CurrentModelId, StringComparison.Ordinal)) return;
+
+        _logger?.LogInformation("[VTSService] Model changed: {Previous} -> {Current}",
+            CurrentModelName ?? "none", modelName ?? "none");
+
+        CurrentModelId = modelId;
+        CurrentModelName = modelName;
+        _heldParameters.Clear();
+        await RefreshAsync(ct);
     }
 
     public async Task<bool> ExecuteWheelActionAsync(VTSWheelAction action, CancellationToken ct = default) {
