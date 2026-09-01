@@ -516,7 +516,7 @@
         <Grid Grid.Column="1" Margin="12,24,12,24">
             <Grid Margin="12,-18,0,0" ColumnDefinitions="*,Auto" VerticalAlignment="Top" ZIndex="1">
                 <TextBlock Grid.Column="0"
-                           Text="Shift: Resize Ratio                Ctrl: Adjust or Crop Height/Width                Alt: Grid Snapping"
+                           Text="Shift: Resize Ratio        Ctrl: Adjust or Crop Height/Width        Alt: Grid Snapping"
                            FontSize="12" xml:space="preserve" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
                     <Button x:Name="WebViewWarningButton" Classes="iconbtn" Padding="2" Width="24" Height="24"

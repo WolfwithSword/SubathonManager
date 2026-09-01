@@ -342,6 +342,11 @@ public partial class WebServer {
                     outline-color: rgba(100, 180, 255, 0.9);
                     animation: pulse 1.5s infinite;
                 }}
+                .widget-chrome.selected {{
+                    outline-color: rgba(100, 180, 255, 0.95);
+                    box-shadow: 0 0 14px rgba(100,180,255,0.55);
+                }}
+
                 .chrome-hidden {{
                     opacity: 0.4 !important;
                     outline-color: rgba(60, 10, 10, 0.4);
@@ -836,6 +841,102 @@ public partial class WebServer {
                     });
                 });
             });
+            </script>
+            ");
+
+            // arrow-key nudge
+            sb.AppendLine(@"
+            <script>
+            (function () {
+                const NUDGE_STEP = 1;
+                const SAVE_DELAY = 250;
+
+                let selected = null;
+                let pointerDown = false;
+                let saveTimer = null;
+                let pendingWrapper = null;
+
+                function select(chrome) {
+                    if (selected === chrome) return;
+                    flushSave();
+                    if (selected) selected.classList.remove('selected');
+                    selected = chrome;
+                    if (selected) selected.classList.add('selected');
+                }
+
+                document.addEventListener('mousedown', e => {
+                    pointerDown = true;
+                    if (e.button !== 0) return;
+                    select(e.target.closest('.widget-chrome'));
+                }, true);
+
+                document.addEventListener('mouseup', () => { pointerDown = false; });
+
+                function flushSave() {
+                    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+                    const wrapper = pendingWrapper;
+                    pendingWrapper = null;
+                    if (!wrapper) return;
+
+                    fetch(`/api/update-position/${wrapper.dataset.id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            x: wrapper.offsetLeft,
+                            y: wrapper.offsetTop,
+                            z: parseInt(wrapper.style.zIndex) || 0
+                        })
+                    });
+                }
+
+                function queueSave(wrapper) {
+                    if (pendingWrapper && pendingWrapper !== wrapper) flushSave();
+                    pendingWrapper = wrapper;
+                    if (saveTimer) clearTimeout(saveTimer);
+                    saveTimer = setTimeout(flushSave, SAVE_DELAY);
+                }
+
+                window.addEventListener('beforeunload', flushSave);
+
+                const DIRS = {
+                    ArrowLeft:  [-1,  0],
+                    ArrowRight: [ 1,  0],
+                    ArrowUp:    [ 0, -1],
+                    ArrowDown:  [ 0,  1]
+                };
+
+                document.addEventListener('keydown', e => {
+                    const dir = DIRS[e.key];
+                    if (!dir) return;
+                    if (!selected || pointerDown) return;
+                    if (e.ctrlKey || e.shiftKey || e.metaKey) return;
+
+                    const wrapper = document.querySelector(
+                        '.widget-wrapper[data-id=""' + selected.dataset.id + '""]');
+                    if (!wrapper) return;
+
+                    e.preventDefault();
+
+                    let x = wrapper.offsetLeft;
+                    let y = wrapper.offsetTop;
+
+                    if (snapEnabled) {
+                        // nudge snaps
+                        x = snapTo(x, SNAP_SIZE) + dir[0] * SNAP_SIZE;
+                        y = snapTo(y, SNAP_SIZE) + dir[1] * SNAP_SIZE;
+                    } else {
+                        x += dir[0] * NUDGE_STEP;
+                        y += dir[1] * NUDGE_STEP;
+                    }
+
+                    setWidgetPosition(wrapper, x, y);
+                    queueSave(wrapper);
+                });
+
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Escape') select(null);
+                });
+            })();
             </script>
             ");
 
