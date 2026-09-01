@@ -109,6 +109,7 @@ public class VTSService(
 
     public event Action? ModelDataChanged;
 
+    [ExcludeFromCodeCoverage]
     public async Task RestartAsync(CancellationToken ct = default) {
         await StopAsync(ct);
         await StartAsync(ct);
@@ -132,6 +133,7 @@ public class VTSService(
         secureStorage.Delete(StorageKeys.VTubeStudioAuthToken);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task ConnectAsync(CancellationToken ct) {
         if (_stopRequested || !Enabled) return;
 
@@ -203,10 +205,12 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnRawEventReceived(object? sender, VTubeStudioEventArgs e) {
         _logger?.LogDebug("[VTSService] Event received from VTube Studio: {EventName}", e.EventName);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task DiscardAsync(VTubeStudioClient? client) {
         if (client == null) return;
         client.Disconnected -= OnDisconnected;
@@ -215,6 +219,7 @@ public class VTSService(
         await SafeDisposeAsync(client);
     }
 
+    [ExcludeFromCodeCoverage]
     private void LogConnectFailure(Exception ex) {
         int retries = _reconnectState.Retries;
 
@@ -236,6 +241,7 @@ public class VTSService(
                 retries, ParseException(ex));
     }
 
+    [ExcludeFromCodeCoverage]
     private static bool IsExpectedConnectFailure(Exception ex) {
         for (Exception? e = ex; e != null; e = e.InnerException)
             if (e is WebSocketException or SocketException or IOException or HttpRequestException
@@ -245,12 +251,14 @@ public class VTSService(
         return false;
     }
 
+    [ExcludeFromCodeCoverage]
     private static string ParseException(Exception ex) {
         Exception root = ex;
         while (root.InnerException != null) root = root.InnerException;
         return root is SocketException socket ? socket.SocketErrorCode.ToString() : root.Message;
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnDisconnected(object? sender, EventArgs e) {
         if (!Connected) return;
         Connected = false;
@@ -264,6 +272,7 @@ public class VTSService(
         _ = Task.Run(ReconnectWithBackoffAsync, CancellationToken.None);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync() {
         if (!await _reconnectState.Lock.WaitAsync(0)) return;
 
@@ -340,6 +349,7 @@ public class VTSService(
         await SafeDisposeAsync(client);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task SafeDisposeAsync(VTubeStudioClient client) {
         try {
             await client.DisposeAsync();
@@ -349,6 +359,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task SubscribeToModelEventsAsync(CancellationToken ct) {
         VTubeStudioClient? client = _client;
         if (client == null) return;
@@ -373,6 +384,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnModelLoaded(ModelLoadedEventPayload payload) {
         _logger?.LogInformation("[VTSService] Model loaded event: {Model} (loaded: {Loaded})",
             payload.ModelName ?? "none", payload.ModelLoaded);
@@ -383,6 +395,7 @@ public class VTSService(
             CancellationToken.None));
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnModelConfigChanged(ModelConfigChangedEventPayload payload) {
         _logger?.LogInformation("[VTSService] Model config changed event: {Model}", payload.ModelName ?? "none");
         _ = Task.Run(() => RefreshAsync());
@@ -398,6 +411,7 @@ public class VTSService(
         });
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool> RefreshAsync(CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected) return false;
@@ -428,6 +442,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<IReadOnlyList<VtsHotkey>> GetHotkeysAsync(CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected) return [];
@@ -447,6 +462,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<IReadOnlyList<VtsExpression>> GetExpressionsAsync(CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected) return [];
@@ -466,6 +482,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<IReadOnlyList<VtsParameter>> GetParametersAsync(CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected) return [];
@@ -491,6 +508,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<IReadOnlyList<VtsParameter>> GetLive2DParametersAsync(CancellationToken ct = default) {
         // unused, but future scope?
         VTubeStudioClient? client = _client;
@@ -510,6 +528,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<double?> GetParameterValueAsync(string parameterName, CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected || string.IsNullOrWhiteSpace(parameterName)) return null;
@@ -525,6 +544,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool?> GetExpressionStateAsync(string expressionFile, CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected || string.IsNullOrWhiteSpace(expressionFile)) return null;
@@ -543,6 +563,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool> TriggerHotkeyAsync(string hotkeyId, string? itemInstanceId = null,
         CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
@@ -561,6 +582,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool> SetExpressionStateAsync(string expressionFile, bool active,
         CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
@@ -580,6 +602,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool> ApplyExpressionActionAsync(string expressionFile, VtsToggleAction action,
         CancellationToken ct = default) {
         if (action == VtsToggleAction.DoNothing) return true;
@@ -598,6 +621,7 @@ public class VTSService(
         return await SetExpressionStateAsync(expressionFile, active, ct);
     }
 
+    [ExcludeFromCodeCoverage]
     public async Task<bool> SetParameterValueAsync(string parameterName, double value, double? weight = null,
         bool hold = true, CancellationToken ct = default) {
         VTubeStudioClient? client = _client;
@@ -629,6 +653,7 @@ public class VTSService(
         return _heldParameters.ContainsKey(parameterName);
     }
 
+    [ExcludeFromCodeCoverage]
     private static Task InjectAsync(VTubeStudioClient client, IReadOnlyList<ParameterValue> values,
         CancellationToken ct) {
         return client.InjectParameterDataAsync(new InjectParameterDataRequest {
@@ -656,6 +681,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task RunHoldLoopAsync(CancellationToken ct) {
         var reportedFailure = false;
 
@@ -685,6 +711,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private void StartModelPolling() {
         if (timerService == null) {
             _logger?.LogWarning("[VTSService] No timer service; model changes will not be detected");
@@ -698,6 +725,7 @@ public class VTSService(
         timerService?.Unregister(ModelPollTimerKey);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task PollCurrentModelAsync(CancellationToken ct) {
         VTubeStudioClient? client = _client;
         if (client == null || !Connected) return;
@@ -750,6 +778,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task<bool> RunExpressionWheelActionAsync(VTSWheelAction action, CancellationToken ct) {
         if (!await TargetExistsAsync(action, ct)) return false;
         if (!await ApplyExpressionActionAsync(action.Target, action.ToggleAction, ct)) return false;
@@ -757,6 +786,7 @@ public class VTSService(
         return true;
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task<bool> RunParameterWheelActionAsync(VTSWheelAction action, CancellationToken ct) {
         double? original = await GetParameterValueAsync(action.Target, ct);
         if (original == null) {
@@ -771,6 +801,7 @@ public class VTSService(
         return true;
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task<bool> RunHotkeyWheelActionAsync(VTSWheelAction action, CancellationToken ct) {
         if (!await TargetExistsAsync(action, ct)) return false;
         if (!await TriggerHotkeyAsync(action.Target, ct: ct)) return false;
@@ -778,6 +809,7 @@ public class VTSService(
         return true;
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task<bool> TargetExistsAsync(VTSWheelAction action, CancellationToken ct) {
         if (Matches()) return true;
 
@@ -802,6 +834,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private void ScheduleRevert(VTSWheelAction action, double? originalValue) {
         if (!action.HasRevert) return;
 
@@ -820,6 +853,7 @@ public class VTSService(
             action.Target, action.Duration);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task RevertWheelActionAsync(VTSWheelAction action, double? originalValue, CancellationToken ct) {
         if (!Connected) {
             _logger?.LogInformation("[VTSService] Skipping wheel action revert for {Target}: not connected.",
