@@ -1,4 +1,5 @@
-﻿using IniParser.Model;
+﻿using System.Buffers.Binary;
+using IniParser.Model;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubathonManager.Core.Enums;
@@ -283,6 +284,20 @@ public class VTSServiceTests {
         Assert.False(await service.SetParameterValueAsync("FaceAngleX", 1, ct: TestContext.Current.CancellationToken));
         Assert.False(service.IsParameterHeld("FaceAngleX"));
         Assert.Empty(service.HeldParameters);
+    }
+
+    [Fact]
+    public void PluginIcon_IsABare128SquarePngInBase64() {
+        string? icon = VTSService.PluginIconBase64;
+
+        Assert.False(string.IsNullOrWhiteSpace(icon));
+        Assert.DoesNotContain("data:", icon);
+
+        byte[] png = Convert.FromBase64String(icon!);
+        Assert.Equal(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }, png.Take(8));
+
+        Assert.Equal(128u, BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(16, 4)));
+        Assert.Equal(128u, BinaryPrimitives.ReadUInt32BigEndian(png.AsSpan(20, 4)));
     }
     
     private sealed class FakeConfig : IConfig {

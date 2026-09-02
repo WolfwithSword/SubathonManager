@@ -46,6 +46,9 @@ public class VTSService(
     private const string PluginDeveloper = "WolfwithSword";
     private const string ServiceName = "VTubeStudio";
     private const string ModelPollTimerKey = "vts-model-poll";
+    private const string PluginIconResource = "SubathonManager.Integration.assets.icon_128.png";
+
+    private static readonly Lazy<string?> LazyPluginIcon = new(LoadPluginIcon, LazyThreadSafetyMode.PublicationOnly);
 
     private readonly ConcurrentDictionary<string, ParameterValue> _heldParameters = new(StringComparer.Ordinal);
     private readonly ILogger? _logger = logger;
@@ -79,6 +82,22 @@ public class VTSService(
         int.TryParse(config.Get(ConfigSection, "InjectIntervalMs", "100"), out int ms) && ms >= 20 ? ms : 100;
 
     public IReadOnlyCollection<string> HeldParameters => _heldParameters.Keys.ToList();
+
+    internal static string? PluginIconBase64 => LazyPluginIcon.Value;
+
+    private static string? LoadPluginIcon() {
+        try {
+            using Stream? stream = typeof(VTSService).Assembly.GetManifestResourceStream(PluginIconResource);
+            if (stream == null) return null;
+
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            return buffer.Length > 0 ? Convert.ToBase64String(buffer.ToArray()) : null;
+        }
+        catch {
+            return null;
+        }
+    }
 
     public Task StartAsync(CancellationToken ct = default) {
         _stopRequested = false;
@@ -144,7 +163,8 @@ public class VTSService(
             var options = new VTubeStudioClientOptions {
                 Endpoint = new Uri($"ws://{Host}:{Port}"),
                 PluginName = PluginName,
-                PluginDeveloper = PluginDeveloper
+                PluginDeveloper = PluginDeveloper,
+                PluginIcon = PluginIconBase64,
             };
 
             client = new VTubeStudioClient(options);

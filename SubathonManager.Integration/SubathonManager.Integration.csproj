@@ -37,6 +37,7 @@
 
     <ItemGroup>
       <EmbeddedResource Include="..\external\obs\subathonmanager.lua" LogicalName="SubathonManager.Integration.obs.subathonmanager.lua" />
+      <EmbeddedResource Include="..\SubathonManager.UI\Assets\icon_128.png" LogicalName="SubathonManager.Integration.assets.icon_128.png" />
     </ItemGroup>
 
 </Project>
