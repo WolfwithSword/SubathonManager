@@ -1,7 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
-using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
@@ -11,38 +10,30 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class ExternalEventServiceTests
-{
-    private static SubathonEvent? CaptureEvent(Action trigger) =>
-        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
-    
+public class ExternalEventServiceTests {
+    private static SubathonEvent? CaptureEvent(Action trigger) {
+        return EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    }
+
     [Fact]
-    public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandMissing()
-    {
+    public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandMissing() {
         var data = new Dictionary<string, JsonElement>();
 
         bool result = ExternalEventService.ProcessExternalCommand(data);
 
         Assert.False(result);
     }
-    private static IDisposable WithMockConfig(Dictionary<(string, string), string>? values = null)
-    {
-        var prev = AppServices.Provider;
+
+    private static IDisposable WithMockConfig(Dictionary<(string, string), string>? values = null) {
+        IServiceProvider prev = AppServices.Provider;
         var services = new ServiceCollection();
-        services.AddSingleton<IConfig>(MockConfig.MakeMockConfig(values));
+        services.AddSingleton(MockConfig.MakeMockConfig(values));
         AppServices.Provider = services.BuildServiceProvider();
         return new ActionDisposable(() => AppServices.Provider = prev);
     }
 
-    private sealed class ActionDisposable(Action onDispose) : IDisposable
-    {
-        public void Dispose() => onDispose();
-    }
-    
     [Fact]
-    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommand()
-    {
-
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommand() {
         SubathonEvent? ev = null;
 
         var json = """
@@ -55,8 +46,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        
-        bool result = false;
+
+        var result = false;
         ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
@@ -67,10 +58,9 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonCommandType.Pause, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
     }
-    
+
     [Fact]
-    public void ProcessExternalCommand_ShouldUseStreamDeckSource_WhenProvided()
-    {
+    public void ProcessExternalCommand_ShouldUseStreamDeckSource_WhenProvided() {
         var json = """
                    {
                                "command": "Pause",
@@ -82,7 +72,7 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
@@ -94,8 +84,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalCommand_ShouldUseStreamerBotSource_WhenProvided()
-    {
+    public void ProcessExternalCommand_ShouldUseStreamerBotSource_WhenProvided() {
         var json = """
                    {
                                "command": "AddPoints",
@@ -107,7 +96,7 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
@@ -119,8 +108,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalCommand_ShouldIgnoreUnknownSource()
-    {
+    public void ProcessExternalCommand_ShouldIgnoreUnknownSource() {
         var json = """
                    {
                                "command": "Pause",
@@ -132,7 +120,7 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
@@ -141,9 +129,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam()
-    {
-        
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam() {
         SubathonEvent? ev = null;
 
         var json = """
@@ -156,8 +142,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        ev = CaptureEvent( () =>  result = ExternalEventService.ProcessExternalCommand(data));
+        var result = false;
+        ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -169,9 +155,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam2()
-    {
-        
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam2() {
         var json = """
                    {
                                "command": "SubtractTime",
@@ -182,9 +166,9 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-            
-        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalCommand(data));
+        var result = false;
+
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -194,10 +178,9 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonCommandType.SubtractTime, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
     }
-        
+
     [Fact]
-    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam3()
-    {
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenValidCommandWithParam3() {
         var json = """
                    {
                                "command": "SetMultiplier",
@@ -208,7 +191,7 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
@@ -219,13 +202,9 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonCommandType.SetMultiplier, ev.Command);
         Assert.Equal(SubathonEventType.Command, ev.EventType);
     }
-    
-    [Fact]
-    public void ProcessExternalCommand_ShouldNotRaiseEvent_InvalidCommand()
-    {
-        
-        
 
+    [Fact]
+    public void ProcessExternalCommand_ShouldNotRaiseEvent_InvalidCommand() {
         var json = """
                    {
                                "command": "START",
@@ -236,20 +215,16 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = true;
-        SubathonEvent? ev = CaptureEvent( () =>  result = ExternalEventService.ProcessExternalCommand(data));
+        var result = true;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.False(result);
         Assert.Null(ev);
     }
-    
-         
-    [Fact]
-    public void ProcessExternalCommand_ShouldRaiseEvent_WhenInvalidCommandWithParam2()
-    {
-        
-        
 
+
+    [Fact]
+    public void ProcessExternalCommand_ShouldRaiseEvent_WhenInvalidCommandWithParam2() {
         var json = """
                    {
                                "command": "SetMultiplier",
@@ -260,8 +235,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalCommand(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -273,8 +248,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalSub_ShouldRaiseEvent_WithDefaults()
-    {
+    public void ProcessExternalSub_ShouldRaiseEvent_WithDefaults() {
         var json = """
                    {
                                "type": "ExternalSub",
@@ -289,8 +263,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalSub(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -303,11 +277,10 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventType.ExternalSub, ev.EventType);
         Assert.Equal(Guid.Parse("b3e1f7e2-1234-4a5b-9e8f-123456789abc"), ev.Id);
     }
-    
-    
+
+
     [Fact]
-    public void ProcessExternalSub_ShouldRaiseEvent_ReliesOnValueMeta()
-    {
+    public void ProcessExternalSub_ShouldRaiseEvent_ReliesOnValueMeta() {
         var json = """
                    {
                                "type": "ExternalSub",
@@ -320,8 +293,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalSub(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -334,11 +307,10 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventType.ExternalSub, ev.EventType);
         Assert.Equal(Guid.Parse("b3e1f7e2-1234-4a5b-9e8f-123456789abc"), ev.Id);
     }
-    
-    
+
+
     [Fact]
-    public void ProcessKoFiSub_ShouldRaiseEvent_WithDefaults()
-    {
+    public void ProcessKoFiSub_ShouldRaiseEvent_WithDefaults() {
         var json = """
                    {
                                "type": "KoFiSub",
@@ -351,8 +323,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -365,8 +337,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalDonation_ShouldRaiseEvent_WithValidData()
-    {
+    public void ProcessExternalDonation_ShouldRaiseEvent_WithValidData() {
         var json = """
                    {
                                "type": "ExternalDonation",
@@ -379,8 +350,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () =>  result = ExternalEventService.ProcessExternalDonation(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalDonation(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -391,10 +362,9 @@ public class ExternalEventServiceTests
         Assert.Equal(SubathonEventType.ExternalDonation, ev.EventType);
         Assert.Equal(Guid.Parse("c1e2d3f4-5678-4abc-9def-987654321abc"), ev.Id);
     }
-    
+
     [Fact]
-    public void ProcessKoFiDonation_ShouldRaiseEvent_WithValidData()
-    {
+    public void ProcessKoFiDonation_ShouldRaiseEvent_WithValidData() {
         var json = """
                    {
                                "type": "KoFiDonation",
@@ -407,8 +377,8 @@ public class ExternalEventServiceTests
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalDonation(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalDonation(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
@@ -421,8 +391,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalDonation_ShouldReturnFalse_WhenAmountInvalid()
-    {
+    public void ProcessExternalDonation_ShouldReturnFalse_WhenAmountInvalid() {
         var json = """
                    {
                                "type": "ExternalDonation",
@@ -438,10 +407,9 @@ public class ExternalEventServiceTests
 
         Assert.False(result);
     }
-    
+
     [Fact]
-    public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandIsNotString()
-    {
+    public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandIsNotString() {
         var json = """{ "command": 123, "user": "Tester", "message": "" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
@@ -449,10 +417,9 @@ public class ExternalEventServiceTests
 
         Assert.False(result);
     }
-    
+
     [Fact]
-    public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandIsValidStringButNotEnum()
-    {
+    public void ProcessExternalCommand_ShouldReturnFalse_WhenCommandIsValidStringButNotEnum() {
         var json = """{ "command": "NotARealCommand", "user": "Tester", "message": "" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
@@ -460,36 +427,32 @@ public class ExternalEventServiceTests
 
         Assert.False(result);
     }
-    
+
     [Fact]
-    public void ProcessExternalCommand_EmptyUser_DefaultsToExternal()
-    {
-        
+    public void ProcessExternalCommand_EmptyUser_DefaultsToExternal() {
         var json = """{ "command": "Pause", "user": "   ", "message": "" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalCommand(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalCommand(data));
 
         Assert.NotNull(ev);
         Assert.Equal("EXTERNAL", ev!.User);
     }
-    
+
     [Fact]
-    public void ProcessExternalCommand_MissingMessage_DefaultsToEmpty()
-    {
+    public void ProcessExternalCommand_MissingMessage_DefaultsToEmpty() {
         var json = """{ "command": "Pause", "user": "Tester" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalCommand(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalCommand(data));
 
         Assert.True(result);
         Assert.NotNull(ev);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_ShouldReturnTrue_WhenSecondsOrPointsMissing()
-    {
+    public void ProcessExternalSub_ShouldReturnTrue_WhenSecondsOrPointsMissing() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -498,16 +461,15 @@ public class ExternalEventServiceTests
                            "amount": 2
                        }
                    """;
-        
+
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
         bool result = ExternalEventService.ProcessExternalSub(data);
 
         Assert.True(result);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_ShouldReturnTrue_WhenPointsMissingButSecondsPresent()
-    {
+    public void ProcessExternalSub_ShouldReturnTrue_WhenPointsMissingButSecondsPresent() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -523,11 +485,9 @@ public class ExternalEventServiceTests
 
         Assert.True(result);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_EmptyUser_DefaultsToExternal()
-    {
-        
+    public void ProcessExternalSub_EmptyUser_DefaultsToExternal() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -540,16 +500,15 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () => result = ExternalEventService.ProcessExternalSub(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.Equal("EXTERNAL", ev!.User);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_MissingValue_DefaultsToExternal()
-    {
+    public void ProcessExternalSub_MissingValue_DefaultsToExternal() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -561,16 +520,15 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.Equal("DEFAULT", ev!.Value);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_MissingAmount_DefaultsToOne()
-    {
+    public void ProcessExternalSub_MissingAmount_DefaultsToOne() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -582,16 +540,15 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        bool result = false;
-        SubathonEvent? ev = CaptureEvent( () =>  result =ExternalEventService.ProcessExternalSub(data));
+        var result = false;
+        SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalSub(data));
 
         Assert.True(result);
         Assert.Equal(1, ev!.Amount);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_SystemUser_SetsSimulatedSource()
-    {
+    public void ProcessExternalSub_SystemUser_SetsSimulatedSource() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -604,14 +561,13 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalSub(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalSub(data));
 
         Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
     }
-    
+
     [Fact]
-    public void ProcessExternalSub_MissingId_KeepsGeneratedGuid()
-    {
+    public void ProcessExternalSub_MissingId_KeepsGeneratedGuid() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -624,14 +580,13 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalSub(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalSub(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     }
-   
+
     [Fact]
-    public void ProcessExternalSub_InvalidId_KeepsGeneratedGuid()
-    {
+    public void ProcessExternalSub_InvalidId_KeepsGeneratedGuid() {
         var json = """
                    {
                            "type": "ExternalSub",
@@ -645,32 +600,29 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalSub(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalSub(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
-    } 
-   
+    }
+
     [Fact]
-    public void ProcessExternalDonation_ShouldReturnFalse_WhenTypeMissing()
-    {
+    public void ProcessExternalDonation_ShouldReturnFalse_WhenTypeMissing() {
         var json = """{ "currency": "USD", "user": "Donor", "amount": "10.00" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalDonation(data));
-    } 
-    
+    }
+
     [Fact]
-    public void ProcessExternalDonation_ShouldReturnFalse_WhenCurrencyMissing()
-    {
+    public void ProcessExternalDonation_ShouldReturnFalse_WhenCurrencyMissing() {
         var json = """{ "type": "ExternalDonation", "user": "Donor", "amount": "10.00" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalDonation(data));
     }
-    
+
     [Fact]
-    public void ProcessExternalDonation_EmptyUser_DefaultsToExternal()
-    {
+    public void ProcessExternalDonation_EmptyUser_DefaultsToExternal() {
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -681,14 +633,13 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.Equal("EXTERNAL", ev!.User);
     }
-    
+
     [Fact]
-    public void ProcessExternalDonation_ShouldReturnFalse_WhenAmountNotString()
-    {
+    public void ProcessExternalDonation_ShouldReturnFalse_WhenAmountNotString() {
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -704,8 +655,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalDonation_SystemUser_SetsSimulatedSource()
-    {
+    public void ProcessExternalDonation_SystemUser_SetsSimulatedSource() {
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -716,14 +666,13 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
     }
-    
+
     [Fact]
-    public void ProcessExternalDonation_MissingId_KeepsGeneratedGuid()
-    {
+    public void ProcessExternalDonation_MissingId_KeepsGeneratedGuid() {
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -734,14 +683,13 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     }
-    
+
     [Fact]
-    public void ProcessExternalDonation_InvalidId_KeepsGeneratedGuid()
-    {
+    public void ProcessExternalDonation_InvalidId_KeepsGeneratedGuid() {
         var json = """
                    {
                            "type": "ExternalDonation",
@@ -753,14 +701,13 @@ public class ExternalEventServiceTests
                    """;
 
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
-        SubathonEvent? ev = CaptureEvent( () => ExternalEventService.ProcessExternalDonation(data));
+        SubathonEvent? ev = CaptureEvent(() => ExternalEventService.ProcessExternalDonation(data));
 
         Assert.NotEqual(Guid.Empty, ev!.Id);
     }
-    
+
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenTypeMissing()
-    {
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenTypeMissing() {
         var json = """{ "currency": "USD", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
@@ -768,17 +715,16 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenTypeIsNotOrder()
-    {
-        var json = """{ "type": "ExternalDonation", "currency": "USD", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenTypeIsNotOrder() {
+        var json =
+            """{ "type": "ExternalDonation", "currency": "USD", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalOrder(data));
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenCurrencyMissing()
-    {
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenCurrencyMissing() {
         var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "amount": "25.00", "quantity": 1 }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
@@ -786,36 +732,36 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenAmountNotString()
-    {
-        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": 25.00, "quantity": 1 }""";
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenAmountNotString() {
+        var json =
+            """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": 25.00, "quantity": 1 }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalOrder(data));
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenAmountInvalid()
-    {
-        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "notanumber", "quantity": 1 }""";
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenAmountInvalid() {
+        var json =
+            """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "notanumber", "quantity": 1 }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalOrder(data));
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenQuantityIsWrongKind()
-    {
-        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "25.00", "quantity": true }""";
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenQuantityIsWrongKind() {
+        var json =
+            """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "25.00", "quantity": true }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalOrder(data));
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldReturnFalse_WhenQuantityStringIsInvalid()
-    {
-        var json = """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "25.00", "quantity": "abc" }""";
+    public void ProcessExternalOrder_ShouldReturnFalse_WhenQuantityStringIsInvalid() {
+        var json =
+            """{ "type": "KoFiShopOrder", "user": "Buyer", "currency": "USD", "amount": "25.00", "quantity": "abc" }""";
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
         Assert.False(ExternalEventService.ProcessExternalOrder(data));
@@ -823,12 +769,10 @@ public class ExternalEventServiceTests
 
     [Theory]
     [InlineData("Dollar", "25", "USD")]
-    [InlineData("Item",   "2",     "items")]
-    [InlineData("Order",  "New",   "order")]
-    public void ProcessExternalOrder_RespectsModeConfig(string mode, string expectedValue, string expectedCurrency)
-    {
-        using var _ = WithMockConfig(new Dictionary<(string, string), string>
-        {
+    [InlineData("Item", "2", "items")]
+    [InlineData("Order", "New", "order")]
+    public void ProcessExternalOrder_RespectsModeConfig(string mode, string expectedValue, string expectedCurrency) {
+        using IDisposable _ = WithMockConfig(new Dictionary<(string, string), string> {
             { ("KoFi", $"{SubathonEventType.KoFiShopOrder}.Mode"), mode }
         });
 
@@ -843,7 +787,7 @@ public class ExternalEventServiceTests
                    """;
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
 
         Assert.True(result);
@@ -857,9 +801,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldRaiseEvent_WithValidData_NoQuantity()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_ShouldRaiseEvent_WithValidData_NoQuantity() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -872,7 +815,7 @@ public class ExternalEventServiceTests
                    """;
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
 
         Assert.True(result);
@@ -885,9 +828,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldRaiseEvent_WithQuantityAsNumber()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_ShouldRaiseEvent_WithQuantityAsNumber() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -900,7 +842,7 @@ public class ExternalEventServiceTests
                    """;
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
 
         Assert.True(result);
@@ -909,9 +851,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_ShouldRaiseEvent_WithQuantityAsString()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_ShouldRaiseEvent_WithQuantityAsString() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -924,7 +865,7 @@ public class ExternalEventServiceTests
                    """;
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
 
         Assert.True(result);
@@ -933,9 +874,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_EmptyUser_DefaultsToExternal()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_EmptyUser_DefaultsToExternal() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -953,9 +893,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_SystemUser_SetsSimulatedSource()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_SystemUser_SetsSimulatedSource() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -973,9 +912,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_CurrencyIsUppercased()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_CurrencyIsUppercased() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -993,9 +931,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_SecondaryValue_ContainsRawAmountAndCurrency()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_SecondaryValue_ContainsRawAmountAndCurrency() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -1014,9 +951,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_MissingId_KeepsGeneratedGuid()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_MissingId_KeepsGeneratedGuid() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -1034,9 +970,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_InvalidId_KeepsGeneratedGuid()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_InvalidId_KeepsGeneratedGuid() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -1055,9 +990,8 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_ValidId_UsesProvidedGuid()
-    {
-        using var _ = WithMockConfig();
+    public void ProcessExternalOrder_ValidId_UsesProvidedGuid() {
+        using IDisposable _ = WithMockConfig();
 
         var json = """
                    {
@@ -1076,8 +1010,7 @@ public class ExternalEventServiceTests
     }
 
     [Fact]
-    public void ProcessExternalOrder_KoFiCommissionOrder_SkipsModeConfig_UsesCurrencyDirectly()
-    {
+    public void ProcessExternalOrder_KoFiCommissionOrder_SkipsModeConfig_UsesCurrencyDirectly() {
         var json = """
                    {
                        "type": "KoFiCommissionOrder",
@@ -1089,7 +1022,7 @@ public class ExternalEventServiceTests
                    """;
         var data = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
 
-        bool result = false;
+        var result = false;
         SubathonEvent? ev = CaptureEvent(() => result = ExternalEventService.ProcessExternalOrder(data));
 
         Assert.True(result);
@@ -1098,5 +1031,11 @@ public class ExternalEventServiceTests
         Assert.Equal("GBP", ev.Currency);
         Assert.Equal(SubathonEventType.KoFiCommissionOrder, ev.EventType);
         Assert.Equal(SubathonEventSource.KoFi, ev.Source);
+    }
+
+    private sealed class ActionDisposable(Action onDispose) : IDisposable {
+        public void Dispose() {
+            onDispose();
+        }
     }
 }

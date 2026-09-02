@@ -14,97 +14,81 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
-public partial class TreatStreamSettings : SettingsControl
-{
+public partial class TreatStreamSettings : SettingsControl {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<TreatStreamSettings>>();
 
-    public TreatStreamSettings()
-    {
+    public TreatStreamSettings() {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
+        Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
             UpdateStatus(Utils.GetConnection(SubathonEventSource.TreatStream, "Socket"));
         };
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-        };
+        Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
     }
 
-    public override void Init(SettingsView host)
-    {
+    public override void Init(SettingsView host) {
         Host = host;
         UpdateStatus(Utils.GetConnection(SubathonEventSource.TreatStream, "Socket"));
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection)
-    {
+    internal override void UpdateStatus(IntegrationConnection? connection) {
         if (connection is not { Source: SubathonEventSource.TreatStream, Service: "Socket" }) return;
         Host.UpdateConnectionStatus(connection.Status, TreatStatusText, null);
-        Dispatcher.UIThread.Post(() =>
-        {
+        Dispatcher.UIThread.Post(() => {
             DisconnectTreatBtn.IsVisible = connection.Status;
             ConnectTreatBtn.Content = connection.Status ? "Reconnect" : "Connect";
         });
     }
 
-    private async void ConnectTreatStream_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
+    private async void ConnectTreatStream_Click(object? sender, RoutedEventArgs e) {
+        try {
             await ServiceManager.TreatStream.ConnectAsync();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to connect TreatStream Service");
         }
     }
 
-    private async void DisconnectTreatStream_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
+    private async void DisconnectTreatStream_Click(object? sender, RoutedEventArgs e) {
+        try {
             await ServiceManager.TreatStream.StopAsync();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to disconnect TreatStream Service");
         }
     }
 
-    private void TestTreat_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestTreat_Click(object? sender, RoutedEventArgs e) {
         TreatStreamService.SimulateTreat(SimulateTreatTitleBox.Text ?? "");
     }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var treatValue = db.SubathonValues.FirstOrDefault(sv =>
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? treatValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.TreatStreamOrder && sv.Meta == "");
-        if (treatValue != null && double.TryParse(TreatBox.Text, out var seconds) && !seconds.Equals(treatValue.Seconds))
-        {
+        if (treatValue != null && double.TryParse(TreatBox.Text, out double seconds) &&
+            !seconds.Equals(treatValue.Seconds)) {
             treatValue.Seconds = seconds;
             hasUpdated = true;
         }
-        if (treatValue != null && double.TryParse(TreatBox2.Text, out var points) && !points.Equals(treatValue.Points))
-        {
+
+        if (treatValue != null && double.TryParse(TreatBox2.Text, out double points) &&
+            !points.Equals(treatValue.Points)) {
             treatValue.Points = points;
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
 
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
-        return val.EventType switch
-        {
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
+        return val.EventType switch {
             SubathonEventType.TreatStreamOrder => (v, p, TreatBox, TreatBox2),
             _ => (v, p, null, null)
         };

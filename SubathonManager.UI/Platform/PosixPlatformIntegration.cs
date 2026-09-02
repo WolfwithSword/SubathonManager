@@ -3,8 +3,7 @@ using System.Text;
 
 namespace SubathonManager.UI.Platform;
 
-public sealed class PosixPlatformIntegration : PlatformIntegrationBase
-{
+public sealed class PosixPlatformIntegration : PlatformIntegrationBase {
     private const string SchemeMime = "x-scheme-handler/subathonmanager";
     private const string OverlayMime = "application/x-subathonmanager-overlay";
     private const string WidgetMime = "application/x-subathonmanager-widget";
@@ -15,21 +14,20 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
 
     private static readonly int[] IconSizes = [48, 64, 128, 256];
 
-    public override void RegisterFileAssociations()
-    {
+    public override void RegisterFileAssociations() {
         if (!OperatingSystem.IsLinux())
             return;
 
-        try
-        {
+        try {
             RegisterLinux();
         }
-        catch {/**/}
+        catch {
+            /**/
+        }
     }
 
-    private static void RegisterLinux()
-    {
-        var exePath = Environment.ProcessPath;
+    private static void RegisterLinux() {
+        string? exePath = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(exePath))
             return;
 
@@ -48,12 +46,10 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
         bool iconInstalled = InstallHicolorIcons(Path.GetDirectoryName(exePath)!, dataHome);
 
         string iconLine;
-        if (iconInstalled)
-        {
+        if (iconInstalled) {
             iconLine = $"Icon={IconName}\n";
         }
-        else
-        {
+        else {
             string iconFile = Path.Combine(Path.GetDirectoryName(exePath)!, "Assets", "icon.png");
             iconLine = File.Exists(iconFile) ? $"Icon={iconFile}\n" : string.Empty;
         }
@@ -107,14 +103,12 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
         Run("xdg-mime", "default", DesktopFileName, CollectionMime);
     }
 
-    private static bool InstallHicolorIcons(string appDir, string dataHome)
-    {
+    private static bool InstallHicolorIcons(string appDir, string dataHome) {
         string hicolor = Path.Combine(dataHome, "icons", "hicolor");
-        bool anyPresent = false;
-        bool anyChanged = false;
+        var anyPresent = false;
+        var anyChanged = false;
 
-        foreach (int size in IconSizes)
-        {
+        foreach (int size in IconSizes) {
             string source = Path.Combine(appDir, "Assets", $"icon_{size}.png");
             if (!File.Exists(source))
                 continue;
@@ -122,17 +116,18 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
             string targetDir = Path.Combine(hicolor, $"{size}x{size}", "apps");
             string target = Path.Combine(targetDir, $"{IconName}.png");
 
-            try
-            {
+            try {
                 Directory.CreateDirectory(targetDir);
-                if (!FilesEqual(source, target))
-                {
+                if (!FilesEqual(source, target)) {
                     File.Copy(source, target, true);
                     anyChanged = true;
                 }
+
                 anyPresent = true;
             }
-            catch { /**/ }
+            catch {
+                /**/
+            }
         }
 
         if (anyChanged)
@@ -141,47 +136,42 @@ public sealed class PosixPlatformIntegration : PlatformIntegrationBase
         return anyPresent;
     }
 
-    private static bool FilesEqual(string a, string b)
-    {
-        try
-        {
+    private static bool FilesEqual(string a, string b) {
+        try {
             var infoA = new FileInfo(a);
             var infoB = new FileInfo(b);
             if (!infoB.Exists || infoA.Length != infoB.Length)
                 return false;
             return File.ReadAllBytes(a).AsSpan().SequenceEqual(File.ReadAllBytes(b));
         }
-        catch
-        {
+        catch {
             return false;
         }
     }
 
-    private static bool WriteIfChanged(string path, string content)
-    {
+    private static bool WriteIfChanged(string path, string content) {
         if (File.Exists(path) && File.ReadAllText(path) == content)
             return false;
         File.WriteAllText(path, content, new UTF8Encoding(false));
         return true;
     }
 
-    private static void Run(string fileName, params string[] args)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo(fileName)
-            {
+    private static void Run(string fileName, params string[] args) {
+        try {
+            var psi = new ProcessStartInfo(fileName) {
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
-            foreach (var a in args)
+            foreach (string a in args)
                 psi.ArgumentList.Add(a);
 
-            using var proc = Process.Start(psi);
+            using Process? proc = Process.Start(psi);
             proc?.WaitForExit(4000);
         }
-        catch { /**/ } // nothing took effect, oh well
+        catch {
+            /**/
+        } // nothing took effect, oh well
     }
 }

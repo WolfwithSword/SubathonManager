@@ -8,18 +8,18 @@
     <Grid RowDefinitions="Auto,*">
         <Grid Grid.Row="0" Margin="2,10,2,6" ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="OBS Overlay Sources" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                <TextBlock Text="OBS Overlay Sources" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" />
                 <TextBlock x:Name="PanelStatusText" FontSize="11" Margin="10,2,0,0" VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </StackPanel>
             <Button Grid.Column="1" Classes="iconbtn" Width="32" Height="32" Padding="2"
                     ToolTip.Tip="Refresh browser sources from OBS" Click="Refresh_Click">
-                <ctl:SymIcon Glyph="ArrowClockwise24" FontSize="16"/>
+                <ctl:SymIcon Glyph="ArrowClockwise24" FontSize="16" />
             </Button>
         </Grid>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,2,2">
-            <StackPanel x:Name="CardsStack" Orientation="Vertical"/>
+            <StackPanel x:Name="CardsStack" Orientation="Vertical" />
         </ScrollViewer>
     </Grid>
 </UserControl>

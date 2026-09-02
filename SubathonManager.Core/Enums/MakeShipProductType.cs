@@ -1,7 +1,6 @@
 namespace SubathonManager.Core.Enums;
 
-public enum MakeShipProductType
-{
+public enum MakeShipProductType {
     Unknown,
     Petition,
     Campaign,

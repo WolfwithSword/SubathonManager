@@ -12,8 +12,7 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class MakeShipServiceTests
-{
+public class MakeShipServiceTests {
     private const string PetitionUrl = "https://www.makeship.com/petitions/cool-plush";
     private const string CampaignUrl = "https://www.makeship.com/products/cool-jumbo-plush";
     private const string PetitionProductId = "1234567890123";
@@ -25,8 +24,7 @@ public class MakeShipServiceTests
     private const string CampaignHtml =
         $$"""<html><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"handle":"cool-jumbo-plush","product":{"id":"gid://shopify/Product/{{CampaignProductId}}"} } } }</script></html>""";
 
-    public MakeShipServiceTests()
-    {
+    public MakeShipServiceTests() {
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
@@ -36,49 +34,52 @@ public class MakeShipServiceTests
         MakeShipTrackingRegistry.Initialize([]);
     }
 
-    private static MakeShipService MakeService(RoutedHttpHandler handler)
-    {
+    private static MakeShipService MakeService(RoutedHttpHandler handler) {
         var logger = new Mock<ILogger<MakeShipService>>();
         var mock = new Mock<IHttpClientFactory>();
         mock.Setup(f => f.CreateClient(It.IsAny<string>()))
             .Returns(() => new HttpClient(handler));
-        return new MakeShipService(logger.Object, mock.Object, timerService: null);
+        return new MakeShipService(logger.Object, mock.Object, null);
     }
 
-    private static RoutedHttpHandler PetitionHandler(int sales, int pledges, string name = "Cool Plush!") => new()
-    {
-        [PetitionUrl] = (HttpStatusCode.OK, PetitionHtml),
-        [$"https://api.preproduct.io/api/preproducts/{PetitionProductId}.json"] =
-            (HttpStatusCode.OK, $$"""{"preproduct":{"name":"{{name}}","sales_actual":{{sales}} } }"""),
-        [$"https://storefront.makeship.com/orders/petitions/{PetitionProductId}/pledges/count"] =
-            (HttpStatusCode.OK, $"{pledges}")
-    };
+    private static RoutedHttpHandler PetitionHandler(int sales, int pledges, string name = "Cool Plush!") {
+        return new RoutedHttpHandler {
+            [PetitionUrl] = (HttpStatusCode.OK, PetitionHtml),
+            [$"https://api.preproduct.io/api/preproducts/{PetitionProductId}.json"] =
+                (HttpStatusCode.OK, $$"""{"preproduct":{"name":"{{name}}","sales_actual":{{sales}} } }"""),
+            [$"https://storefront.makeship.com/orders/petitions/{PetitionProductId}/pledges/count"] =
+                (HttpStatusCode.OK, $"{pledges}")
+        };
+    }
 
-    private static RoutedHttpHandler CampaignHandler(int salesQuantity, int pledges) => new()
-    {
-        [CampaignUrl] = (HttpStatusCode.OK, CampaignHtml),
-        [$"https://storefront.makeship.com/products/{CampaignProductId}/sales-quantity"] =
-            (HttpStatusCode.OK, $$"""{"quantity":{{salesQuantity}}}"""),
-        [$"https://storefront.makeship.com/orders/petitions/{CampaignProductId}/pledges/count"] =
-            (HttpStatusCode.OK, $"{pledges}")
-    };
+    private static RoutedHttpHandler CampaignHandler(int salesQuantity, int pledges) {
+        return new RoutedHttpHandler {
+            [CampaignUrl] = (HttpStatusCode.OK, CampaignHtml),
+            [$"https://storefront.makeship.com/products/{CampaignProductId}/sales-quantity"] =
+                (HttpStatusCode.OK, $$"""{"quantity":{{salesQuantity}}}"""),
+            [$"https://storefront.makeship.com/orders/petitions/{CampaignProductId}/pledges/count"] =
+                (HttpStatusCode.OK, $"{pledges}")
+        };
+    }
 
-    private static async Task<List<SubathonEvent>> CaptureEventsFromPoll(MakeShipService service, MakeShipTracking tracking)
-    {
+    private static async Task<List<SubathonEvent>> CaptureEventsFromPoll(MakeShipService service,
+        MakeShipTracking tracking) {
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
         var captured = new List<SubathonEvent>();
-        void Handler(SubathonEvent e) => captured.Add(e);
+
+        void Handler(SubathonEvent e) {
+            captured.Add(e);
+        }
+
         SubathonEvents.SubathonEventCreated += Handler;
-        try
-        {
+        try {
             await service.PollTrackingAsync(tracking, CancellationToken.None);
             return captured;
         }
-        finally
-        {
+        finally {
             SubathonEvents.SubathonEventCreated -= Handler;
         }
     }
@@ -91,8 +92,7 @@ public class MakeShipServiceTests
     [InlineData("https://www.makeship.com/petitions/", MakeShipProductType.Invalid)]
     [InlineData("", MakeShipProductType.Invalid)]
     [InlineData(null, MakeShipProductType.Invalid)]
-    public void ClassifyUrl_ReturnsExpectedType(string? url, MakeShipProductType expected)
-    {
+    public void ClassifyUrl_ReturnsExpectedType(string? url, MakeShipProductType expected) {
         Assert.Equal(expected, MakeShipTrackingRegistry.ClassifyUrl(url));
     }
 
@@ -101,26 +101,23 @@ public class MakeShipServiceTests
     [InlineData(PetitionUrl + "/", "cool-plush")]
     [InlineData(PetitionUrl + "?utm_source=x", "cool-plush")]
     [InlineData("", "")]
-    public void GetSlug_ExtractsLastSegment(string url, string expected)
-    {
+    public void GetSlug_ExtractsLastSegment(string url, string expected) {
         Assert.Equal(expected, MakeShipTrackingRegistry.GetSlug(url));
     }
 
     [Fact]
-    public void GetDisplayNameFromSlug_TitleCasesSlug()
-    {
+    public void GetDisplayNameFromSlug_TitleCasesSlug() {
         Assert.Equal("Cool Jumbo Plush", MakeShipTrackingRegistry.GetDisplayNameFromSlug(CampaignUrl));
         Assert.Equal("Cool Plush", MakeShipTrackingRegistry.GetDisplayNameFromSlug(PetitionUrl));
     }
 
     [Fact]
-    public async Task Petition_FirstSync_ResolvesAndBaselinesWithoutEvents()
-    {
+    public async Task Petition_FirstSync_ResolvesAndBaselinesWithoutEvents() {
         var tracking = new MakeShipTracking { Url = PetitionUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(PetitionHandler(sales: 190, pledges: 190));
+        MakeShipService service = MakeService(PetitionHandler(190, 190));
 
-        var events = await CaptureEventsFromPoll(service, tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
         Assert.Equal(MakeShipProductType.Petition, tracking.ProductType);
@@ -131,18 +128,17 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task Petition_ObservedPledgeIncrease_RaisesSingleEventWithDelta()
-    {
+    public async Task Petition_ObservedPledgeIncrease_RaisesSingleEventWithDelta() {
         var tracking = new MakeShipTracking { Url = PetitionUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(PetitionHandler(sales: 190, pledges: 190));
+        MakeShipService service = MakeService(PetitionHandler(190, 190));
 
         await service.PollTrackingAsync(tracking, CancellationToken.None);
 
-        var events = await CaptureEventsFromPoll(
-            MakeServiceReusingSync(service, PetitionHandler(sales: 191, pledges: 197)), tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(
+            MakeServiceReusingSync(service, PetitionHandler(191, 197)), tracking);
 
-        var ev = Assert.Single(events);
+        SubathonEvent ev = Assert.Single(events);
         Assert.Equal(SubathonEventType.MakeShipPledge, ev.EventType);
         Assert.Equal(SubathonEventSource.MakeShip, ev.Source);
         Assert.Equal("7", ev.Value);
@@ -154,23 +150,20 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task Petition_NoChange_RaisesNothing()
-    {
+    public async Task Petition_NoChange_RaisesNothing() {
         var tracking = new MakeShipTracking { Url = PetitionUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(PetitionHandler(sales: 190, pledges: 190));
+        MakeShipService service = MakeService(PetitionHandler(190, 190));
 
         await service.PollTrackingAsync(tracking, CancellationToken.None);
-        var events = await CaptureEventsFromPoll(service, tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
     }
 
     [Fact]
-    public async Task Petition_AlreadyResolvedFromDb_FirstSyncIsStillBaseline()
-    {
-        var tracking = new MakeShipTracking
-        {
+    public async Task Petition_AlreadyResolvedFromDb_FirstSyncIsStillBaseline() {
+        var tracking = new MakeShipTracking {
             Url = PetitionUrl,
             Name = "Cool Plush!",
             ShopifyProductId = PetitionProductId,
@@ -179,48 +172,46 @@ public class MakeShipServiceTests
             Orders = 150
         };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(PetitionHandler(sales: 190, pledges: 197));
+        MakeShipService service = MakeService(PetitionHandler(190, 197));
 
-        var events = await CaptureEventsFromPoll(service, tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
         Assert.Equal(197, tracking.Orders);
 
-        var second = await CaptureEventsFromPoll(
-            MakeServiceReusingSync(service, PetitionHandler(sales: 190, pledges: 199)), tracking);
-        var ev = Assert.Single(second);
+        List<SubathonEvent> second = await CaptureEventsFromPoll(
+            MakeServiceReusingSync(service, PetitionHandler(190, 199)), tracking);
+        SubathonEvent ev = Assert.Single(second);
         Assert.Equal(2, ev.Amount);
     }
 
     [Fact]
-    public async Task Campaign_FirstSync_ResolvesAndBaselines()
-    {
+    public async Task Campaign_FirstSync_ResolvesAndBaselines() {
         var tracking = new MakeShipTracking { Url = CampaignUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(CampaignHandler(salesQuantity: 800, pledges: 42));
+        MakeShipService service = MakeService(CampaignHandler(800, 42));
 
-        var events = await CaptureEventsFromPoll(service, tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
         Assert.Equal(MakeShipProductType.Campaign, tracking.ProductType);
         Assert.Equal(CampaignProductId, tracking.ShopifyProductId);
-        Assert.Equal("Cool Jumbo Plush", tracking.Name); 
+        Assert.Equal("Cool Jumbo Plush", tracking.Name);
         Assert.Equal(800, tracking.Sales);
         Assert.Equal(42, tracking.Orders);
     }
 
     [Fact]
-    public async Task Campaign_SalesIncrease_RaisesOrderEventWithDelta()
-    {
+    public async Task Campaign_SalesIncrease_RaisesOrderEventWithDelta() {
         var tracking = new MakeShipTracking { Url = CampaignUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(CampaignHandler(salesQuantity: 800, pledges: 42));
+        MakeShipService service = MakeService(CampaignHandler(800, 42));
         await service.PollTrackingAsync(tracking, CancellationToken.None);
 
-        var events = await CaptureEventsFromPoll(
-            MakeServiceReusingSync(service, CampaignHandler(salesQuantity: 805, pledges: 42)), tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(
+            MakeServiceReusingSync(service, CampaignHandler(805, 42)), tracking);
 
-        var ev = Assert.Single(events);
+        SubathonEvent ev = Assert.Single(events);
         Assert.Equal(SubathonEventType.MakeShipSale, ev.EventType);
         Assert.Equal("5", ev.Value);
         Assert.Equal(5, ev.Amount);
@@ -229,34 +220,31 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task Campaign_PledgeCountChangeAlone_RaisesNothing()
-    {
+    public async Task Campaign_PledgeCountChangeAlone_RaisesNothing() {
         var tracking = new MakeShipTracking { Url = CampaignUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var service = MakeService(CampaignHandler(salesQuantity: 800, pledges: 42));
+        MakeShipService service = MakeService(CampaignHandler(800, 42));
         await service.PollTrackingAsync(tracking, CancellationToken.None);
 
-        var events = await CaptureEventsFromPoll(
-            MakeServiceReusingSync(service, CampaignHandler(salesQuantity: 800, pledges: 99)), tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(
+            MakeServiceReusingSync(service, CampaignHandler(800, 99)), tracking);
 
         Assert.Empty(events);
         Assert.Equal(99, tracking.Orders);
     }
 
     [Fact]
-    public async Task Campaign_NoSalesQuantity_StaysResolvedButPollFailing()
-    {
+    public async Task Campaign_NoSalesQuantity_StaysResolvedButPollFailing() {
         var tracking = new MakeShipTracking { Url = CampaignUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [CampaignUrl] = (HttpStatusCode.OK, CampaignHtml),
             [$"https://storefront.makeship.com/products/{CampaignProductId}/sales-quantity"] =
                 (HttpStatusCode.NotFound, null)
         };
-        var service = MakeService(handler);
+        MakeShipService service = MakeService(handler);
 
-        var events = await CaptureEventsFromPoll(service, tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
         Assert.Equal(MakeShipProductType.Campaign, tracking.ProductType);
@@ -265,14 +253,13 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task InvalidUrl_MarkedInvalidWithoutAnyHttpRequests()
-    {
+    public async Task InvalidUrl_MarkedInvalidWithoutAnyHttpRequests() {
         var tracking = new MakeShipTracking { Url = "https://www.makeship.com/about" };
         MakeShipTrackingRegistry.Upsert(tracking);
         var handler = new RoutedHttpHandler();
-        var service = MakeService(handler);
+        MakeShipService service = MakeService(handler);
 
-        var events = await CaptureEventsFromPoll(service, tracking);
+        List<SubathonEvent> events = await CaptureEventsFromPoll(service, tracking);
 
         Assert.Empty(events);
         Assert.Equal(MakeShipProductType.Invalid, tracking.ProductType);
@@ -280,15 +267,13 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public async Task PetitionPage_WithoutPledgeDiv_MarkedInvalidAfterConsecutiveFailures()
-    {
+    public async Task PetitionPage_WithoutPledgeDiv_MarkedInvalidAfterConsecutiveFailures() {
         var tracking = new MakeShipTracking { Url = PetitionUrl };
         MakeShipTrackingRegistry.Upsert(tracking);
-        var handler = new RoutedHttpHandler
-        {
+        var handler = new RoutedHttpHandler {
             [PetitionUrl] = (HttpStatusCode.OK, "<html><body>nope</body></html>")
         };
-        var service = MakeService(handler);
+        MakeShipService service = MakeService(handler);
 
         await service.PollTrackingAsync(tracking, CancellationToken.None);
         Assert.Equal(MakeShipProductType.Unknown, tracking.ProductType);
@@ -300,10 +285,9 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public void Simulate_Pledge_RaisesSimulatedEventWithQuantity()
-    {
-        var ev = EventUtil.SubathonEventCapture.CaptureRequired(
-            () => MakeShipService.Simulate("Test 123", isPetition: true, count: 7));
+    public void Simulate_Pledge_RaisesSimulatedEventWithQuantity() {
+        SubathonEvent? ev =
+            EventUtil.SubathonEventCapture.CaptureRequired(() => MakeShipService.Simulate("Test 123", true, 7));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.Simulated, ev!.Source);
@@ -316,10 +300,9 @@ public class MakeShipServiceTests
     }
 
     [Fact]
-    public void Simulate_Campaign_DefaultsNameAndClampsCount()
-    {
-        var ev = EventUtil.SubathonEventCapture.CaptureRequired(
-            () => MakeShipService.Simulate("  ", isPetition: false, count: 0));
+    public void Simulate_Campaign_DefaultsNameAndClampsCount() {
+        SubathonEvent? ev =
+            EventUtil.SubathonEventCapture.CaptureRequired(() => MakeShipService.Simulate("  ", false, 0));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.MakeShipSale, ev!.EventType);
@@ -329,9 +312,8 @@ public class MakeShipServiceTests
         Assert.Equal("Test Plush", ev.EventTypeMeta);
     }
 
-    private static MakeShipService MakeServiceReusingSync(MakeShipService service, RoutedHttpHandler handler)
-    {
-        var factoryField = typeof(MakeShipService)
+    private static MakeShipService MakeServiceReusingSync(MakeShipService service, RoutedHttpHandler handler) {
+        FieldInfo factoryField = typeof(MakeShipService)
             .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
             .First(f => f.FieldType == typeof(IHttpClientFactory));
         var mock = new Mock<IHttpClientFactory>();
@@ -341,22 +323,20 @@ public class MakeShipServiceTests
         return service;
     }
 
-    private sealed class RoutedHttpHandler : HttpMessageHandler
-    {
+    private sealed class RoutedHttpHandler : HttpMessageHandler {
         private readonly Dictionary<string, (HttpStatusCode Status, string? Body)> _routes = new();
         public List<string> Requests { get; } = new();
 
-        public (HttpStatusCode, string?) this[string urlPrefix]
-        {
+        public (HttpStatusCode, string?) this[string urlPrefix] {
             set => _routes[urlPrefix] = value;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-        {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) {
             var url = request.RequestUri!.ToString();
             Requests.Add(url);
 
-            var match = _routes.FirstOrDefault(r => url.StartsWith(r.Key, StringComparison.OrdinalIgnoreCase));
+            KeyValuePair<string, (HttpStatusCode Status, string? Body)> match =
+                _routes.FirstOrDefault(r => url.StartsWith(r.Key, StringComparison.OrdinalIgnoreCase));
             if (match.Key == null)
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
 

@@ -1,8 +1,6 @@
-using System.Diagnostics;
-using System.IO;
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -22,22 +20,18 @@ using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.Prompts;
 
-public partial class PromptsEditor : UserControl
-{
+public partial class PromptsEditor : UserControl {
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private Guid? _activeRunPromptId;
     private SubathonPromptSet? _activeSet;
+    private Dictionary<SubathonEventSource, List<EventTypeEntry>> _eventsBySource = new();
+    private bool _initialized;
+    private string? _selectedFilterEventMeta;
+    private SubathonEventType? _selectedFilterEventType;
     private SubathonPrompt? _selectedPrompt;
     private int _suppressCount;
-    private bool _initialized;
-    private SubathonEventType? _selectedFilterEventType;
-    private string? _selectedFilterEventMeta;
-    private Guid? _activeRunPromptId;
 
-    private record EventTypeEntry(SubathonEventType EventType, string Label, string? Meta = null, string? Category = null);
-    private Dictionary<SubathonEventSource, List<EventTypeEntry>> _eventsBySource = new();
-
-    public PromptsEditor()
-    {
+    public PromptsEditor() {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
 
@@ -48,34 +42,32 @@ public partial class PromptsEditor : UserControl
         GoAffProStoreRegistry.StoreDiscovered -= OnGoAffProStoreDiscovered;
         GoAffProStoreRegistry.StoreDiscovered += OnGoAffProStoreDiscovered;
 
-        SubathonEvents.PromptRunStarted += (run, _) => Dispatcher.UIThread.Post(() => OnRunStateChanged(run.PromptId, true));
-        SubathonEvents.PromptRunUpdate += (run, _) => Dispatcher.UIThread.Post(() =>
-        {
+        SubathonEvents.PromptRunStarted +=
+            (run, _) => Dispatcher.UIThread.Post(() => OnRunStateChanged(run.PromptId, true));
+        SubathonEvents.PromptRunUpdate += (run, _) => Dispatcher.UIThread.Post(() => {
             OnRunStateChanged(run.PromptId, false);
             if (run.Status == SubathonPromptRunStatus.Completed)
                 LoadPromptRows();
         });
 
-        Loaded += (_, _) =>
-        {
-            if (!_initialized)
-            {
+        Loaded += (_, _) => {
+            if (!_initialized) {
                 _initialized = true;
                 EnterKeyCommit.Attach(this, () => Save_Click(this, new RoutedEventArgs()));
             }
-            Dispatcher.UIThread.Post(() =>
-            {
+
+            Dispatcher.UIThread.Post(() => {
                 AttachChangeHandlers();
                 UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, false);
             }, DispatcherPriority.Background);
         };
     }
 
-    private void OnGoAffProStoreDiscovered(GoAffProStore store)
-        => Dispatcher.UIThread.Post(BuildEventsBySource);
+    private void OnGoAffProStoreDiscovered(GoAffProStore store) {
+        Dispatcher.UIThread.Post(BuildEventsBySource);
+    }
 
-    private void BuildEventsBySource()
-    {
+    private void BuildEventsBySource() {
         _eventsBySource = Enum.GetValues<SubathonEventType>()
             .Where(e => e.IsSelectableForPromptEvent())
             .GroupBy(e => e.GetSource())
@@ -83,64 +75,54 @@ public partial class PromptsEditor : UserControl
             .ToDictionary(
                 g => g.Key,
                 g => g.OrderBy(e => e.GetOrderNumber())
-                      .SelectMany(BuildEventEntries)
-                      .ToList());
+                    .SelectMany(BuildEventEntries)
+                    .ToList());
     }
 
-    private static IEnumerable<EventTypeEntry> BuildEventEntries(SubathonEventType e)
-    {
+    private static IEnumerable<EventTypeEntry> BuildEventEntries(SubathonEventType e) {
         if (e == SubathonEventType.GoAffProOrder)
-        {
             return GoAffProStoreRegistry.All().Where(s => s.Enabled)
                 .Select(s => new EventTypeEntry(e, s.EventName, s.SiteId.ToString()));
-        }
         if (e == SubathonEventType.JuniperMerchSale)
-        {
             return JuniperStoreRegistry.AllStores().Where(s => s.Enabled)
                 .SelectMany(s => new[] { new EventTypeEntry(e, "Any Sale", s.RowId.ToString(), s.StoreName) }
                     .Concat(s.Products
                         .OrderBy(p => p.ProductName, StringComparer.OrdinalIgnoreCase)
                         .Select(p => new EventTypeEntry(e, p.ProductName, p.ProductId.ToString(), s.StoreName))));
-        }
-        if (e is SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale)
-        {
+        if (e is SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale) {
             bool isPledge = e == SubathonEventType.MakeShipPledge;
             string category = isPledge ? "Pledges" : "Campaign Sales";
-            var wantedType = isPledge ? MakeShipProductType.Petition : MakeShipProductType.Campaign;
+            MakeShipProductType wantedType = isPledge ? MakeShipProductType.Petition : MakeShipProductType.Campaign;
             return new[] { new EventTypeEntry(e, isPledge ? "Any Pledge" : "Any Sale", null, category) }
                 .Concat(MakeShipTrackingRegistry.All()
                     .Where(t => MakeShipTrackingRegistry.ClassifyUrl(t.Url) == wantedType)
                     .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                     .Select(t => new EventTypeEntry(e, t.Name, t.Name, category)));
         }
+
         return [new EventTypeEntry(e, e.GetLabel())];
     }
 
-    private void EventTypePickerBtn_Click(object? sender, RoutedEventArgs e)
-    {
+    private void EventTypePickerBtn_Click(object? sender, RoutedEventArgs e) {
         BuildEventsBySource();
         var entries = new List<EventTypeMenuEntry>();
 
-        foreach (var (source, events) in _eventsBySource)
-        {
-            foreach (var entry in events)
-            {
-                var captured = entry;
-                entries.Add(new EventTypeMenuEntry(
-                    source,
-                    entry.Label,
-                    _selectedFilterEventType == entry.EventType && entry.Meta == _selectedFilterEventMeta,
-                    () => OnEventTypeSelected(captured),
-                    Category: entry.Category));
-            }
+        foreach ((SubathonEventSource source, List<EventTypeEntry> events) in _eventsBySource)
+        foreach (EventTypeEntry entry in events) {
+            EventTypeEntry captured = entry;
+            entries.Add(new EventTypeMenuEntry(
+                source,
+                entry.Label,
+                _selectedFilterEventType == entry.EventType && entry.Meta == _selectedFilterEventMeta,
+                () => OnEventTypeSelected(captured),
+                entry.Category));
         }
 
-        EventTypeMenu.Show(EventTypePickerBtn, entries, groupBySourceType: true);
+        EventTypeMenu.Show(EventTypePickerBtn, entries);
     }
 
-    private void OnEventTypeSelected(EventTypeEntry entry)
-    {
-        var eventType = entry.EventType;
+    private void OnEventTypeSelected(EventTypeEntry entry) {
+        SubathonEventType eventType = entry.EventType;
         _selectedFilterEventType = eventType;
         _selectedFilterEventMeta = entry.Meta;
         EventTypePickerLabel.Text = entry.Category is { Length: > 0 }
@@ -150,7 +132,8 @@ public partial class PromptsEditor : UserControl
         if (_suppressCount > 0) return;
 
         RefreshSubTypeComboBox(SubathonPromptType.Event, eventType);
-        RefreshConditionalPanels(SubathonPromptType.Event, eventType, SelectedSubType() ?? SubathonPromptSubType.Default);
+        RefreshConditionalPanels(SubathonPromptType.Event, eventType,
+            SelectedSubType() ?? SubathonPromptSubType.Default);
 
         if (TierFilterPanel.IsVisible)
             RefreshTierComboBox(eventType);
@@ -158,77 +141,71 @@ public partial class PromptsEditor : UserControl
         MarkPendingChanges();
     }
 
-    private void PopulateTypeComboBox()
-    {
+    private void PopulateTypeComboBox() {
         PromptTypeBox.Items.Clear();
-        foreach (var t in Enum.GetValues<SubathonPromptType>())
+        foreach (SubathonPromptType t in Enum.GetValues<SubathonPromptType>())
             PromptTypeBox.Items.Add(new ComboBoxItem { Content = t.DisplayName(), Tag = t });
     }
 
-    private void RefreshSubTypeComboBox(SubathonPromptType type, SubathonEventType? filterEvent = null)
-    {
-        SuppressChanges(() =>
-        {
-            var current = SelectedSubType();
+    private void RefreshSubTypeComboBox(SubathonPromptType type, SubathonEventType? filterEvent = null) {
+        SuppressChanges(() => {
+            SubathonPromptSubType? current = SelectedSubType();
             PromptSubTypeBox.Items.Clear();
 
-            foreach (var st in type.GetValidSubTypes(filterEvent))
+            foreach (SubathonPromptSubType st in type.GetValidSubTypes(filterEvent))
                 PromptSubTypeBox.Items.Add(new ComboBoxItem { Content = st.DisplayName(type), Tag = st });
 
-            var match = PromptSubTypeBox.Items.OfType<ComboBoxItem>()
+            ComboBoxItem? match = PromptSubTypeBox.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => i.Tag is SubathonPromptSubType s && s == current);
             PromptSubTypeBox.SelectedItem = match ?? PromptSubTypeBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
         });
     }
 
-    private void RefreshTierComboBox(SubathonEventType? eventType)
-    {
+    private void RefreshTierComboBox(SubathonEventType? eventType) {
         PromptTierBox.Items.Clear();
         if (eventType == null) return;
 
-        using var db = _factory.CreateDbContext();
-        var metas = db.SubathonValues
+        using AppDbContext db = _factory.CreateDbContext();
+        List<string> metas = db.SubathonValues
             .Where(sv => sv.EventType == eventType && sv.Meta != "")
             .Select(sv => sv.Meta)
             .Distinct()
             .OrderBy(m => m)
             .ToList();
 
-        foreach (var meta in metas)
-            PromptTierBox.Items.Add(new ComboBoxItem { Content = eventType.Value.TierMetaDisplayName(meta), Tag = meta });
+        foreach (string meta in metas)
+            PromptTierBox.Items.Add(
+                new ComboBoxItem { Content = eventType.Value.TierMetaDisplayName(meta), Tag = meta });
 
         if (PromptTierBox.Items.Count > 0)
             PromptTierBox.SelectedIndex = 0;
     }
 
-    private void LoadActiveSet()
-    {
-        using var db = _factory.CreateDbContext();
+    private void LoadActiveSet() {
+        using AppDbContext db = _factory.CreateDbContext();
 
-        var allSets = db.SubathonPromptSets.OrderBy(s => s.Name).ToList();
-        if (allSets.Count == 0)
-        {
+        List<SubathonPromptSet> allSets = db.SubathonPromptSets.OrderBy(s => s.Name).ToList();
+        if (allSets.Count == 0) {
             StatusText.Text = "No prompt sets found.";
             return;
         }
 
-        SuppressChanges(() =>
-        {
+        SuppressChanges(() => {
             SetSelectorBox.Items.Clear();
-            foreach (var s in allSets)
+            foreach (SubathonPromptSet s in allSets)
                 SetSelectorBox.Items.Add(new ComboBoxItem { Content = s.Name, Tag = s.Id });
         });
 
-        var activeRun = db.SubathonPromptRuns.FirstOrDefault(r => r.Status == SubathonPromptRunStatus.Active);
+        SubathonPromptRun? activeRun =
+            db.SubathonPromptRuns.FirstOrDefault(r => r.Status == SubathonPromptRunStatus.Active);
         _activeRunPromptId = activeRun?.PromptId;
 
         if (_activeRunPromptId.HasValue)
             Dispatcher.UIThread.Post(() => OnRunStateChanged(_activeRunPromptId.Value, true));
 
-        var activeSet = allSets.FirstOrDefault(s => s.IsActive) ?? allSets.First();
-        SuppressChanges(() =>
-        {
-            var item = SetSelectorBox.Items.OfType<ComboBoxItem>()
+        SubathonPromptSet activeSet = allSets.FirstOrDefault(s => s.IsActive) ?? allSets.First();
+        SuppressChanges(() => {
+            ComboBoxItem? item = SetSelectorBox.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => (Guid)i.Tag! == activeSet.Id);
             SetSelectorBox.SelectedItem = item;
         });
@@ -236,15 +213,13 @@ public partial class PromptsEditor : UserControl
         LoadSetById(activeSet.Id);
     }
 
-    private void LoadSetById(Guid setId)
-    {
-        using var db = _factory.CreateDbContext();
+    private void LoadSetById(Guid setId) {
+        using AppDbContext db = _factory.CreateDbContext();
         _activeSet = db.SubathonPromptSets
             .Include(s => s.Prompts)
             .FirstOrDefault(s => s.Id == setId);
 
-        if (_activeSet == null)
-        {
+        if (_activeSet == null) {
             StatusText.Text = "Set not found.";
             return;
         }
@@ -253,8 +228,7 @@ public partial class PromptsEditor : UserControl
         _selectedPrompt = null;
         PromptDetailBorder.IsVisible = false;
 
-        SuppressChanges(() =>
-        {
+        SuppressChanges(() => {
             SetNameTextBox.Text = _activeSet.Name;
             SetEnabledCheck.IsChecked = _activeSet.Enabled;
             SetIntervalBox.Text = ((int)_activeSet.Interval.TotalMinutes).ToString();
@@ -262,78 +236,72 @@ public partial class PromptsEditor : UserControl
             SetCooldownBox.Text = ((int)_activeSet.Cooldown.TotalMinutes).ToString();
         });
 
-        using var db2 = _factory.CreateDbContext();
+        using AppDbContext db2 = _factory.CreateDbContext();
         int totalSets = db2.SubathonPromptSets.Count();
         DeleteSetBtn.IsEnabled = totalSets > 1;
 
         Dispatcher.UIThread.Post(LoadPromptRows);
     }
 
-    private void SetSelectorBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
+    private void SetSelectorBox_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
         if (_suppressCount > 0) return;
         if (SetSelectorBox.SelectedItem is not ComboBoxItem item) return;
         if (item.Tag is not Guid setId) return;
         LoadSetById(setId);
     }
 
-    private async void SetNameTextBox_LostFocus(object? sender, RoutedEventArgs e)
-    {
+    private async void SetNameTextBox_LostFocus(object? sender, RoutedEventArgs e) {
         if (_activeSet == null) return;
-        var newName = (SetNameTextBox.Text ?? "").Trim();
+        string newName = (SetNameTextBox.Text ?? "").Trim();
         if (string.IsNullOrWhiteSpace(newName) || newName == _activeSet.Name) return;
 
         _activeSet.Name = newName;
 
-        await using var db = await _factory.CreateDbContextAsync();
-        var tracked = await db.SubathonPromptSets.FindAsync(_activeSet.Id);
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonPromptSet? tracked = await db.SubathonPromptSets.FindAsync(_activeSet.Id);
         if (tracked == null) return;
         tracked.Name = newName;
         await db.SaveChangesAsync();
 
-        SuppressChanges(() =>
-        {
-            var item = SetSelectorBox.Items.OfType<ComboBoxItem>()
+        SuppressChanges(() => {
+            ComboBoxItem? item = SetSelectorBox.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => (Guid)i.Tag! == _activeSet.Id);
             item?.Content = newName;
         });
     }
 
-    private async void SetEnabled_Changed(object? sender, RoutedEventArgs e)
-    {
+    private async void SetEnabled_Changed(object? sender, RoutedEventArgs e) {
         if (_suppressCount > 0) return;
         if (_activeSet == null) return;
 
         bool enabling = SetEnabledCheck.IsChecked ?? false;
 
-        await using var db = await _factory.CreateDbContextAsync();
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
 
-        if (enabling)
-        {
-            var others = await db.SubathonPromptSets.Where(s => s.Id != _activeSet.Id).ToListAsync();
-            foreach (var s in others)
-            {
+        if (enabling) {
+            List<SubathonPromptSet> others =
+                await db.SubathonPromptSets.Where(s => s.Id != _activeSet.Id).ToListAsync();
+            foreach (SubathonPromptSet s in others) {
                 s.Enabled = false;
                 s.IsActive = false;
             }
 
-            var tracked = await db.SubathonPromptSets.FindAsync(_activeSet.Id);
-            if (tracked != null)
-            {
+            SubathonPromptSet? tracked = await db.SubathonPromptSets.FindAsync(_activeSet.Id);
+            if (tracked != null) {
                 tracked.Enabled = true;
                 tracked.IsActive = true;
             }
+
             _activeSet.Enabled = true;
             _activeSet.IsActive = true;
         }
-        else
-        {
-            var tracked = await db.SubathonPromptSets.FindAsync(_activeSet.Id);
-            if (tracked != null)
-            {
+        else {
+            SubathonPromptSet? tracked = await db.SubathonPromptSets.FindAsync(_activeSet.Id);
+            if (tracked != null) {
                 tracked.Enabled = false;
                 tracked.IsActive = true;
             }
+
             _activeSet.Enabled = false;
         }
 
@@ -342,19 +310,18 @@ public partial class PromptsEditor : UserControl
         SubathonEvents.RaisePromptSetEnabledChanged(enabling);
     }
 
-    private void Grid_PointerPressed(object? sender, PointerPressedEventArgs e)
-        => (sender as Control)?.Focus();
+    private void Grid_PointerPressed(object? sender, PointerPressedEventArgs e) {
+        (sender as Control)?.Focus();
+    }
 
-    private async void NewSet_Click(object? sender, RoutedEventArgs e)
-    {
-        await using var db = await _factory.CreateDbContextAsync();
+    private async void NewSet_Click(object? sender, RoutedEventArgs e) {
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         var newSet = new SubathonPromptSet { Name = "New Set", IsActive = false, Enabled = false };
         db.SubathonPromptSets.Add(newSet);
         await db.SaveChangesAsync();
 
         var newItem = new ComboBoxItem { Content = newSet.Name, Tag = newSet.Id };
-        SuppressChanges(() =>
-        {
+        SuppressChanges(() => {
             SetSelectorBox.Items.Add(newItem);
             SetSelectorBox.SelectedItem = newItem;
         });
@@ -364,45 +331,39 @@ public partial class PromptsEditor : UserControl
         SetNameTextBox.Focus();
     }
 
-    private async void DeleteSet_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void DeleteSet_Click(object? sender, RoutedEventArgs e) {
         if (_activeSet == null) return;
 
-        await using var db = await _factory.CreateDbContextAsync();
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         int total = await db.SubathonPromptSets.CountAsync();
         if (total <= 1) return;
 
         bool wasEnabled = _activeSet.Enabled;
         bool wasActive = _activeSet.IsActive;
-        var deletingId = _activeSet.Id;
+        Guid deletingId = _activeSet.Id;
 
-        if (_activeRunPromptId.HasValue)
-        {
-            var run = await db.SubathonPromptRuns
+        if (_activeRunPromptId.HasValue) {
+            SubathonPromptRun? run = await db.SubathonPromptRuns
                 .FirstOrDefaultAsync(r => r.SetId == deletingId && r.Status == SubathonPromptRunStatus.Active);
-            if (run != null)
-            {
+            if (run != null) {
                 SubathonEvents.RaisePromptRunCancelRequested();
                 run.Status = SubathonPromptRunStatus.Cancelled;
                 run.EndedAt = DateTime.Now;
             }
         }
 
-        var tracked = await db.SubathonPromptSets.FindAsync(deletingId);
+        SubathonPromptSet? tracked = await db.SubathonPromptSets.FindAsync(deletingId);
         if (tracked != null)
             db.SubathonPromptSets.Remove(tracked);
 
-        if (wasActive || wasEnabled)
-        {
-            var next = await db.SubathonPromptSets
+        if (wasActive || wasEnabled) {
+            SubathonPromptSet? next = await db.SubathonPromptSets
                 .Where(s => s.Id != deletingId)
                 .OrderBy(s => s.Name)
                 .FirstOrDefaultAsync();
-            if (next != null)
-            {
+            if (next != null) {
                 next.IsActive = true;
-                if (wasEnabled)
-                {
+                if (wasEnabled) {
                     next.Enabled = false;
                     SubathonEvents.RaisePromptSetEnabledChanged(false);
                 }
@@ -411,15 +372,14 @@ public partial class PromptsEditor : UserControl
 
         await db.SaveChangesAsync();
 
-        SuppressChanges(() =>
-        {
-            var item = SetSelectorBox.Items.OfType<ComboBoxItem>()
+        SuppressChanges(() => {
+            ComboBoxItem? item = SetSelectorBox.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => (Guid)i.Tag! == deletingId);
             if (item != null) SetSelectorBox.Items.Remove(item);
         });
 
-        var remaining = db.SubathonPromptSets.OrderBy(s => s.Name).First();
-        var selectItem = SetSelectorBox.Items.OfType<ComboBoxItem>()
+        SubathonPromptSet remaining = db.SubathonPromptSets.OrderBy(s => s.Name).First();
+        ComboBoxItem? selectItem = SetSelectorBox.Items.OfType<ComboBoxItem>()
             .FirstOrDefault(i => (Guid)i.Tag! == remaining.Id);
         SuppressChanges(() => SetSelectorBox.SelectedItem = selectItem);
 
@@ -427,43 +387,38 @@ public partial class PromptsEditor : UserControl
         DeleteSetBtn.IsEnabled = SetSelectorBox.Items.Count > 1;
     }
 
-    private async void LoadPromptRows()
-    {
+    private async void LoadPromptRows() {
         PromptsStack.Children.Clear();
         if (_activeSet == null) return;
 
-        await using var db = await _factory.CreateDbContextAsync();
-        var prompts = await db.SubathonPrompts
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        List<SubathonPrompt> prompts = await db.SubathonPrompts
             .Where(p => p.SetId == _activeSet.Id)
             .OrderBy(p => p.Index)
             .ToListAsync();
 
         _activeSet.Prompts = prompts;
 
-        foreach (var prompt in prompts)
+        foreach (SubathonPrompt prompt in prompts)
             PromptsStack.Children.Add(BuildPromptRow(prompt));
 
         RefreshRowHighlights();
     }
 
-    private Grid BuildPromptRow(SubathonPrompt prompt)
-    {
-        var row = new Grid
-        {
-            Margin = new global::Avalonia.Thickness(4, 0, 4, 4),
+    private Grid BuildPromptRow(SubathonPrompt prompt) {
+        var row = new Grid {
+            Margin = new Thickness(4, 0, 4, 4),
             Tag = prompt,
             MinHeight = 30,
             Background = Brushes.Transparent,
             Cursor = new Cursor(StandardCursorType.Hand),
             ColumnDefinitions = new ColumnDefinitions("34,*,80,55,46,80,30,36")
         };
-        row.Tapped += (_, e) =>
-        {
+        row.Tapped += (_, e) => {
             if (!UiHelpers.IsInteractiveSource(e.Source, row)) SelectPrompt(prompt, row);
         };
 
-        var enabledCheck = new CheckBox
-        {
+        var enabledCheck = new CheckBox {
             IsChecked = prompt.Enabled,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center
@@ -472,20 +427,18 @@ public partial class PromptsEditor : UserControl
         enabledCheck.IsCheckedChanged += (_, _) => OnRowEnabledToggled(prompt, enabledCheck.IsChecked ?? false);
         Grid.SetColumn(enabledCheck, 0);
 
-        var textLabel = new TextBlock
-        {
+        var textLabel = new TextBlock {
             Text = prompt.Text,
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Margin = new global::Avalonia.Thickness(4, 0, 4, 0),
+            Margin = new Thickness(4, 0, 4, 0),
             Cursor = new Cursor(StandardCursorType.Hand)
         };
         ToolTip.SetTip(textLabel, prompt.Text);
         Grid.SetColumn(textLabel, 1);
 
         string typeBadgeText = prompt is { Type: SubathonPromptType.Event, FilterEventType: not null }
-            ? prompt.FilterEventType switch
-            {
+            ? prompt.FilterEventType switch {
                 SubathonEventType.GoAffProOrder =>
                     $"Evt:{GoAffProOrderHelper.GetOrderEventDisplayLabel(prompt.FilterEventType, prompt.FilterMeta)}",
                 SubathonEventType.JuniperMerchSale =>
@@ -496,8 +449,7 @@ public partial class PromptsEditor : UserControl
                 _ => $"Evt:{prompt.FilterEventType.Value.GetLabel()}"
             }
             : prompt.Type.DisplayName();
-        var typeBadge = new TextBlock
-        {
+        var typeBadge = new TextBlock {
             Text = typeBadgeText,
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center,
@@ -510,8 +462,7 @@ public partial class PromptsEditor : UserControl
             : $"{prompt.Type.DisplayName()} / {prompt.SubType.DisplayName(prompt.Type)}");
         Grid.SetColumn(typeBadge, 2);
 
-        var valueLabel = new TextBlock
-        {
+        var valueLabel = new TextBlock {
             Text = prompt.Value.ToString("N0"),
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
@@ -519,8 +470,7 @@ public partial class PromptsEditor : UserControl
         };
         Grid.SetColumn(valueLabel, 3);
 
-        var durLabel = new TextBlock
-        {
+        var durLabel = new TextBlock {
             Text = $"{(int)prompt.CompletionDuration.TotalMinutes}m",
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
@@ -529,76 +479,67 @@ public partial class PromptsEditor : UserControl
         Grid.SetColumn(durLabel, 4);
 
         Control qtyElement;
-        if (prompt.IsInfinite)
-        {
-            qtyElement = new TextBlock
-            {
+        if (prompt.IsInfinite) {
+            qtyElement = new TextBlock {
                 Text = "∞",
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new global::Avalonia.Thickness(0, 0, 12, 0)
+                Margin = new Thickness(0, 0, 12, 0)
             };
         }
-        else
-        {
-            var qtyLabel = new TextBlock
-            {
+        else {
+            var qtyLabel = new TextBlock {
                 Text = prompt.Quantity.ToString(),
                 FontSize = 12,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 MinWidth = 24,
                 TextAlignment = TextAlignment.Center,
-                Margin = new global::Avalonia.Thickness(2, 0, 2, 0)
+                Margin = new Thickness(2, 0, 2, 0)
             };
-            var minusBtn = new Button
-            {
+            var minusBtn = new Button {
                 Content = new SymIcon { Glyph = "Subtract12" },
-                Width = 20, Height = 20, Padding = new global::Avalonia.Thickness(1),
+                Width = 20, Height = 20, Padding = new Thickness(1),
                 IsEnabled = prompt.Quantity > 0
             };
             ToolTip.SetTip(minusBtn, "Decrease quantity");
-            var plusBtn = new Button
-            {
+            var plusBtn = new Button {
                 Content = new SymIcon { Glyph = "Add12" },
-                Width = 20, Height = 20, Padding = new global::Avalonia.Thickness(1)
+                Width = 20, Height = 20, Padding = new Thickness(1)
             };
             ToolTip.SetTip(plusBtn, "Increase quantity");
-            minusBtn.Click += async (_, _) =>
-            {
+            minusBtn.Click += async (_, _) => {
                 if (prompt.Quantity <= 0) return;
                 prompt.Quantity = Math.Max(0, prompt.Quantity - 1);
                 qtyLabel.Text = prompt.Quantity.ToString();
                 minusBtn.IsEnabled = prompt.Quantity > 0;
                 await PersistQuantityAsync(prompt);
             };
-            plusBtn.Click += async (_, _) =>
-            {
+            plusBtn.Click += async (_, _) => {
                 prompt.Quantity++;
                 qtyLabel.Text = prompt.Quantity.ToString();
                 minusBtn.IsEnabled = true;
                 await PersistQuantityAsync(prompt);
             };
-            var qtyPanel = new StackPanel
-            {
-                Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+            var qtyPanel = new StackPanel {
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new global::Avalonia.Thickness(0, 0, 12, 0)
+                Margin = new Thickness(0, 0, 12, 0)
             };
             qtyPanel.Children.Add(minusBtn);
             qtyPanel.Children.Add(qtyLabel);
             qtyPanel.Children.Add(plusBtn);
             qtyElement = qtyPanel;
         }
+
         Grid.SetColumn(qtyElement, 5);
 
-        var runNowBtn = new Button
-        {
+        var runNowBtn = new Button {
             Content = new SymIcon { Glyph = "Play16", HorizontalAlignment = HorizontalAlignment.Center },
             Width = 26, Height = 26,
-            Padding = new global::Avalonia.Thickness(0),
+            Padding = new Thickness(0),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             Cursor = new Cursor(StandardCursorType.Hand)
@@ -607,11 +548,10 @@ public partial class PromptsEditor : UserControl
         runNowBtn.Click += (_, _) => SubathonEvents.RaisePromptRunNowRequested(prompt.Id);
         Grid.SetColumn(runNowBtn, 6);
 
-        var deleteBtn = new Button
-        {
+        var deleteBtn = new Button {
             Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
             Width = 30, Height = 30,
-            Padding = new global::Avalonia.Thickness(0),
+            Padding = new Thickness(0),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             Foreground = Brushes.Red,
@@ -633,40 +573,36 @@ public partial class PromptsEditor : UserControl
         return row;
     }
 
-    private async Task PersistQuantityAsync(SubathonPrompt prompt)
-    {
-        if (_selectedPrompt?.Id == prompt.Id)
-        {
+    private async Task PersistQuantityAsync(SubathonPrompt prompt) {
+        if (_selectedPrompt?.Id == prompt.Id) {
             _selectedPrompt.Quantity = prompt.Quantity;
             SuppressChanges(() => PromptQuantityBox.Text = prompt.Quantity.ToString());
         }
-        await using var db = await _factory.CreateDbContextAsync();
-        var tracked = await db.SubathonPrompts.FindAsync(prompt.Id);
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonPrompt? tracked = await db.SubathonPrompts.FindAsync(prompt.Id);
         if (tracked == null) return;
         tracked.Quantity = prompt.Quantity;
         await db.SaveChangesAsync();
     }
 
-    private async void OnRowEnabledToggled(SubathonPrompt prompt, bool enabled)
-    {
+    private async void OnRowEnabledToggled(SubathonPrompt prompt, bool enabled) {
         prompt.Enabled = enabled;
         if (_selectedPrompt?.Id == prompt.Id)
             _selectedPrompt.Enabled = enabled;
 
-        await using var db = await _factory.CreateDbContextAsync();
-        var tracked = await db.SubathonPrompts.FindAsync(prompt.Id);
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonPrompt? tracked = await db.SubathonPrompts.FindAsync(prompt.Id);
         if (tracked == null) return;
         tracked.Enabled = enabled;
         await db.SaveChangesAsync();
     }
 
-    private void SelectPrompt(SubathonPrompt prompt, Grid? clickedRow = null)
-    {
+    private void SelectPrompt(SubathonPrompt prompt, Grid? clickedRow = null) {
         _selectedPrompt = prompt;
         PromptDetailBorder.IsVisible = true;
 
-        SuppressChanges(() =>
-        {
+        SuppressChanges(() => {
             PromptTextBox.Text = prompt.Text;
             PromptValueBox.Text = prompt.Value.ToString();
             PromptDurationBox.Text = ((int)prompt.CompletionDuration.TotalMinutes).ToString();
@@ -674,7 +610,7 @@ public partial class PromptsEditor : UserControl
             PromptInfiniteCheck.IsChecked = prompt.IsInfinite;
             PromptQuantityBox.IsEnabled = !prompt.IsInfinite;
 
-            var typeItem = PromptTypeBox.Items.OfType<ComboBoxItem>()
+            ComboBoxItem? typeItem = PromptTypeBox.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => i.Tag is SubathonPromptType t && t == prompt.Type);
             PromptTypeBox.SelectedItem = typeItem;
 
@@ -683,12 +619,11 @@ public partial class PromptsEditor : UserControl
 
             _selectedFilterEventType = isEvent ? prompt.FilterEventType : null;
             _selectedFilterEventMeta = isEvent && prompt.FilterEventType
-                    is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
-                    or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
+                is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
+                or SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale
                 ? prompt.FilterMeta
                 : null;
-            EventTypePickerLabel.Text = _selectedFilterEventType switch
-            {
+            EventTypePickerLabel.Text = _selectedFilterEventType switch {
                 null => "- select -",
                 SubathonEventType.GoAffProOrder =>
                     $"{_selectedFilterEventType.Value.GetSource()} - {GoAffProOrderHelper.GetOrderEventDisplayLabel(_selectedFilterEventType, _selectedFilterEventMeta)}",
@@ -701,17 +636,15 @@ public partial class PromptsEditor : UserControl
             };
 
             RefreshSubTypeComboBox(prompt.Type, prompt.FilterEventType);
-            var subTypeItem = PromptSubTypeBox.Items.OfType<ComboBoxItem>()
+            ComboBoxItem? subTypeItem = PromptSubTypeBox.Items.OfType<ComboBoxItem>()
                 .FirstOrDefault(i => i.Tag is SubathonPromptSubType st && st == prompt.SubType);
             if (subTypeItem != null) PromptSubTypeBox.SelectedItem = subTypeItem;
 
             RefreshConditionalPanels(prompt.Type, prompt.FilterEventType, prompt.SubType);
-            if (TierFilterPanel.IsVisible)
-            {
+            if (TierFilterPanel.IsVisible) {
                 RefreshTierComboBox(prompt.FilterEventType);
-                if (!string.IsNullOrEmpty(prompt.FilterMeta))
-                {
-                    var tierItem = PromptTierBox.Items.OfType<ComboBoxItem>()
+                if (!string.IsNullOrEmpty(prompt.FilterMeta)) {
+                    ComboBoxItem? tierItem = PromptTierBox.Items.OfType<ComboBoxItem>()
                         .FirstOrDefault(i => i.Tag as string == prompt.FilterMeta);
                     if (tierItem != null) PromptTierBox.SelectedItem = tierItem;
                 }
@@ -724,19 +657,17 @@ public partial class PromptsEditor : UserControl
         ApplyEditorLock(_activeRunPromptId.HasValue && _activeRunPromptId.Value == prompt.Id);
     }
 
-    private void RefreshConditionalPanels(SubathonPromptType type, SubathonEventType? filterEvent, SubathonPromptSubType subType)
-    {
+    private void RefreshConditionalPanels(SubathonPromptType type, SubathonEventType? filterEvent,
+        SubathonPromptSubType subType) {
         bool showTier = type == SubathonPromptType.Event
-            && filterEvent.HasValue
-            && filterEvent.IsSubscription()
-            && subType == SubathonPromptSubType.ByTier;
+                        && filterEvent.HasValue
+                        && filterEvent.IsSubscription()
+                        && subType == SubathonPromptSubType.ByTier;
         TierFilterPanel.IsVisible = showTier;
     }
 
-    private void RefreshRowHighlights(Grid? clickedRow = null)
-    {
-        foreach (var child in PromptsStack.Children.OfType<Grid>())
-        {
+    private void RefreshRowHighlights(Grid? clickedRow = null) {
+        foreach (Grid child in PromptsStack.Children.OfType<Grid>()) {
             if (child.Tag is not SubathonPrompt p) continue;
 
             bool isActiveRun = _activeRunPromptId.HasValue && p.Id == _activeRunPromptId.Value;
@@ -750,19 +681,16 @@ public partial class PromptsEditor : UserControl
         }
     }
 
-    private void PromptType_SelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
+    private void PromptType_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
         if (_suppressCount > 0) return;
         if (SelectedType() is not { } type) return;
 
         bool isEvent = type == SubathonPromptType.Event;
         EventTypePanel.IsVisible = isEvent;
 
-        if (!isEvent)
-        {
+        if (!isEvent) {
             TierFilterPanel.IsVisible = false;
-            SuppressChanges(() =>
-            {
+            SuppressChanges(() => {
                 _selectedFilterEventType = null;
                 _selectedFilterEventMeta = null;
                 EventTypePickerLabel.Text = "- select -";
@@ -774,35 +702,35 @@ public partial class PromptsEditor : UserControl
         MarkPendingChanges();
     }
 
-    private void PromptInfinite_Changed(object? sender, RoutedEventArgs e)
-    {
+    private void PromptInfinite_Changed(object? sender, RoutedEventArgs e) {
         if (_suppressCount > 0) return;
         PromptQuantityBox.IsEnabled = !(PromptInfiniteCheck.IsChecked ?? false);
         MarkPendingChanges();
     }
 
-    private SubathonPromptType? SelectedType()
-        => (PromptTypeBox.SelectedItem as ComboBoxItem)?.Tag as SubathonPromptType?;
+    private SubathonPromptType? SelectedType() {
+        return (PromptTypeBox.SelectedItem as ComboBoxItem)?.Tag as SubathonPromptType?;
+    }
 
-    private SubathonPromptSubType? SelectedSubType()
-        => (PromptSubTypeBox.SelectedItem as ComboBoxItem)?.Tag as SubathonPromptSubType?;
+    private SubathonPromptSubType? SelectedSubType() {
+        return (PromptSubTypeBox.SelectedItem as ComboBoxItem)?.Tag as SubathonPromptSubType?;
+    }
 
-    private void UpdateValueLabel(SubathonPromptType type, SubathonPromptSubType subType)
-        => ValueLabel.Text = type.ValueLabel(subType) + ":";
+    private void UpdateValueLabel(SubathonPromptType type, SubathonPromptSubType subType) {
+        ValueLabel.Text = type.ValueLabel(subType) + ":";
+    }
 
-    private async void AddPrompt_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void AddPrompt_Click(object? sender, RoutedEventArgs e) {
         if (_activeSet == null) return;
         await SaveAsync(null, null);
 
-        await using var db = await _factory.CreateDbContextAsync();
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         int nextOrder = (await db.SubathonPrompts
             .Where(p => p.SetId == _activeSet.Id)
             .Select(p => (int?)p.Index)
             .MaxAsync() ?? 0) + 1;
 
-        var newPrompt = new SubathonPrompt
-        {
+        var newPrompt = new SubathonPrompt {
             SetId = _activeSet.Id,
             Text = "New Prompt",
             Enabled = false,
@@ -812,23 +740,20 @@ public partial class PromptsEditor : UserControl
         await db.SaveChangesAsync();
         await db.Entry(_activeSet).ReloadAsync();
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
+        await Dispatcher.UIThread.InvokeAsync(() => {
             LoadPromptRows();
             SelectPrompt(newPrompt);
         });
     }
 
-    private async void DeletePrompt_Click(SubathonPrompt prompt)
-    {
-        if (_selectedPrompt?.Id == prompt.Id)
-        {
+    private async void DeletePrompt_Click(SubathonPrompt prompt) {
+        if (_selectedPrompt?.Id == prompt.Id) {
             _selectedPrompt = null;
             PromptDetailBorder.IsVisible = false;
         }
 
-        await using var db = await _factory.CreateDbContextAsync();
-        var tracked = await db.SubathonPrompts.FindAsync(prompt.Id);
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonPrompt? tracked = await db.SubathonPrompts.FindAsync(prompt.Id);
         if (tracked != null)
             db.SubathonPrompts.Remove(tracked);
 
@@ -836,11 +761,11 @@ public partial class PromptsEditor : UserControl
         await Dispatcher.UIThread.InvokeAsync(LoadPromptRows);
     }
 
-    private async void Save_Click(object? sender, RoutedEventArgs? e)
-        => await SaveAsync(sender, e);
+    private async void Save_Click(object? sender, RoutedEventArgs? e) {
+        await SaveAsync(sender, e);
+    }
 
-    private async Task SaveAsync(object? sender, RoutedEventArgs? e)
-    {
+    private async Task SaveAsync(object? sender, RoutedEventArgs? e) {
         if (_activeSet == null) return;
 
         _activeSet.Name = (SetNameTextBox.Text ?? "").Trim();
@@ -858,14 +783,12 @@ public partial class PromptsEditor : UserControl
         if (_selectedPrompt != null)
             WriteDetailToPrompt(_selectedPrompt);
 
-        await using var db = await _factory.CreateDbContextAsync();
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         db.Update(_activeSet);
 
-        if (_selectedPrompt != null)
-        {
-            var tracked = await db.SubathonPrompts.FindAsync(_selectedPrompt.Id);
-            if (tracked != null)
-            {
+        if (_selectedPrompt != null) {
+            SubathonPrompt? tracked = await db.SubathonPrompts.FindAsync(_selectedPrompt.Id);
+            if (tracked != null) {
                 CopyPromptToTracked(_selectedPrompt, tracked);
                 db.Update(tracked);
             }
@@ -883,8 +806,7 @@ public partial class PromptsEditor : UserControl
         await Dispatcher.UIThread.InvokeAsync(() => SaveBtn.Content = "Save Changes");
     }
 
-    private void WriteDetailToPrompt(SubathonPrompt prompt)
-    {
+    private void WriteDetailToPrompt(SubathonPrompt prompt) {
         prompt.Text = (PromptTextBox.Text ?? "").Trim();
         prompt.IsInfinite = PromptInfiniteCheck.IsChecked ?? false;
 
@@ -898,8 +820,7 @@ public partial class PromptsEditor : UserControl
         prompt.Type = SelectedType() ?? prompt.Type;
         prompt.SubType = SelectedSubType() ?? SubathonPromptSubType.Default;
 
-        if (prompt.Type == SubathonPromptType.Event)
-        {
+        if (prompt.Type == SubathonPromptType.Event) {
             prompt.FilterEventType = _selectedFilterEventType;
             prompt.FilterSubType = prompt.FilterEventType?.GetSubType();
             if (prompt.FilterEventType is SubathonEventType.GoAffProOrder or SubathonEventType.JuniperMerchSale
@@ -910,16 +831,14 @@ public partial class PromptsEditor : UserControl
                     ? (PromptTierBox.SelectedItem as ComboBoxItem)?.Tag as string
                     : null;
         }
-        else
-        {
+        else {
             prompt.FilterEventType = null;
             prompt.FilterSubType = null;
             prompt.FilterMeta = null;
         }
     }
 
-    private static void CopyPromptToTracked(SubathonPrompt source, SubathonPrompt tracked)
-    {
+    private static void CopyPromptToTracked(SubathonPrompt source, SubathonPrompt tracked) {
         tracked.Text = source.Text;
         tracked.Value = source.Value;
         tracked.CompletionDuration = source.CompletionDuration;
@@ -933,24 +852,26 @@ public partial class PromptsEditor : UserControl
         tracked.FilterSubType = source.FilterSubType;
     }
 
-    private void MarkPendingChanges()
-    {
+    private void MarkPendingChanges() {
         if (_suppressCount > 0) return;
         UpdateSaveButtonBorder(true);
     }
 
-    private void UpdateSaveButtonBorder(bool hasPendingChanges)
-        => Dispatcher.UIThread.Post(() => UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, hasPendingChanges));
-
-    private void SuppressChanges(Action action)
-    {
-        _suppressCount++;
-        try { action(); }
-        finally { _suppressCount--; }
+    private void UpdateSaveButtonBorder(bool hasPendingChanges) {
+        Dispatcher.UIThread.Post(() => UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, hasPendingChanges));
     }
 
-    private void AttachChangeHandlers()
-    {
+    private void SuppressChanges(Action action) {
+        _suppressCount++;
+        try {
+            action();
+        }
+        finally {
+            _suppressCount--;
+        }
+    }
+
+    private void AttachChangeHandlers() {
         SetIntervalBox.TextChanged -= OnFieldChanged;
         SetIntervalBox.TextChanged += OnFieldChanged;
         SetOffsetBox.TextChanged -= OnFieldChanged;
@@ -973,27 +894,24 @@ public partial class PromptsEditor : UserControl
         PromptTierBox.SelectionChanged -= OnTierChanged;
         PromptTierBox.SelectionChanged += OnTierChanged;
 
-        foreach (var control in new Control[]
-                 {
+        foreach (Control control in new Control[] {
                      SetIntervalBox, SetOffsetBox, SetCooldownBox, PromptTextBox, PromptValueBox,
                      PromptDurationBox, PromptQuantityBox, PromptSubTypeBox, PromptTierBox
                  })
             DirtySaveGuard.Rebase(control);
     }
 
-    private void OnFieldChanged(object? sender, TextChangedEventArgs e)
-    {
+    private void OnFieldChanged(object? sender, TextChangedEventArgs e) {
         if (!DirtySaveGuard.Consume(sender)) return;
         if (sender is TextBox { IsFocused: false }) return;
         MarkPendingChanges();
     }
 
-    private void OnSubTypeChanged(object? sender, SelectionChangedEventArgs e)
-    {
+    private void OnSubTypeChanged(object? sender, SelectionChangedEventArgs e) {
         bool realChange = DirtySaveGuard.Consume(sender);
         if (_suppressCount > 0 || !realChange) return;
-        var type = SelectedType() ?? SubathonPromptType.Points;
-        var subType = SelectedSubType() ?? SubathonPromptSubType.Default;
+        SubathonPromptType type = SelectedType() ?? SubathonPromptType.Points;
+        SubathonPromptSubType subType = SelectedSubType() ?? SubathonPromptSubType.Default;
 
         RefreshConditionalPanels(type, _selectedFilterEventType, subType);
         if (TierFilterPanel.IsVisible)
@@ -1003,19 +921,17 @@ public partial class PromptsEditor : UserControl
         MarkPendingChanges();
     }
 
-    private void OnTierChanged(object? sender, SelectionChangedEventArgs e)
-    {
+    private void OnTierChanged(object? sender, SelectionChangedEventArgs e) {
         bool realChange = DirtySaveGuard.Consume(sender);
         if (_suppressCount > 0 || !realChange) return;
         MarkPendingChanges();
     }
 
-    private async void ExportPromptSet_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void ExportPromptSet_Click(object? sender, RoutedEventArgs e) {
         if (_activeSet == null) return;
 
-        await using var db = await _factory.CreateDbContextAsync();
-        var set = await db.SubathonPromptSets
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonPromptSet? set = await db.SubathonPromptSets
             .Include(s => s.Prompts)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == _activeSet.Id);
@@ -1024,15 +940,15 @@ public partial class PromptsEditor : UserControl
         string exportDir = Path.Combine(Config.DataFolder, "exports");
         Directory.CreateDirectory(exportDir);
 
-        string safeName = SafeFileName.Sanitize(set.Name, replacement: string.Empty, fallback: "prompts");
-        string timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        string safeName = SafeFileName.Sanitize(set.Name, string.Empty, "prompts");
+        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
 
         var sb = new StringBuilder();
-        sb.AppendLine($"#Interval={(int)set.Interval.TotalMinutes},Offset={(int)set.RandomOffset.TotalMinutes},Cooldown={(int)set.Cooldown.TotalMinutes}");
+        sb.AppendLine(
+            $"#Interval={(int)set.Interval.TotalMinutes},Offset={(int)set.RandomOffset.TotalMinutes},Cooldown={(int)set.Cooldown.TotalMinutes}");
         sb.AppendLine("Text,Value,Duration,Quantity,Infinite,Enabled,Type,SubType,EventType,FilterMeta");
-        foreach (var p in set.Prompts.OrderBy(p => p.Index))
-        {
+        foreach (SubathonPrompt p in set.Prompts.OrderBy(p => p.Index))
             sb.AppendLine(string.Join(",",
                 Utils.EscapeCsv(p.Text),
                 p.Value,
@@ -1044,24 +960,22 @@ public partial class PromptsEditor : UserControl
                 p.SubType,
                 p.FilterEventType?.ToString() ?? "",
                 Utils.EscapeCsv(p.FilterMeta ?? "")));
-        }
 
         await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
 
-        try
-        {
+        try {
             UiHelpers.OpenFolder(exportDir);
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 
-    private async void ImportPromptSet_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void ImportPromptSet_Click(object? sender, RoutedEventArgs e) {
         var top = TopLevel.GetTopLevel(this);
         if (top == null) return;
 
-        var picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
+        IReadOnlyList<IStorageFile> picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
             Title = "Import Prompt Set",
             AllowMultiple = false,
             FileTypeFilter = new[] { new FilePickerFileType("CSV Files") { Patterns = ["*.csv"] } }
@@ -1070,79 +984,83 @@ public partial class PromptsEditor : UserControl
         string filePath = picked[0].Path.LocalPath;
 
         string[] lines;
-        try { lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8); }
-        catch { await ShowInvalidPromptCsvPopup(); return; }
+        try {
+            lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8);
+        }
+        catch {
+            await ShowInvalidPromptCsvPopup();
+            return;
+        }
 
-        if (lines.Length < 1) { await ShowInvalidPromptCsvPopup(); return; }
+        if (lines.Length < 1) {
+            await ShowInvalidPromptCsvPopup();
+            return;
+        }
 
-        int headerIndex = 0;
+        var headerIndex = 0;
         int intervalMin = 20, offsetMin = 0, cooldownMin = 20;
 
-        if (lines[0].StartsWith('#'))
-        {
-            foreach (var kv in lines[0][1..].Split(','))
-            {
-                var parts = kv.Split('=');
+        if (lines[0].StartsWith('#')) {
+            foreach (string kv in lines[0][1..].Split(',')) {
+                string[] parts = kv.Split('=');
                 if (parts.Length != 2) continue;
-                if (int.TryParse(parts[1].Trim(), out int v))
-                {
+                if (int.TryParse(parts[1].Trim(), out int v)) {
                     if (parts[0].Trim().Equals("Interval", StringComparison.OrdinalIgnoreCase)) intervalMin = v;
                     else if (parts[0].Trim().Equals("Offset", StringComparison.OrdinalIgnoreCase)) offsetMin = v;
                     else if (parts[0].Trim().Equals("Cooldown", StringComparison.OrdinalIgnoreCase)) cooldownMin = v;
                 }
             }
+
             headerIndex = 1;
         }
 
-        if (headerIndex >= lines.Length || ParseCsvLine(lines[headerIndex]).Length < 8)
-        {
-            await ShowInvalidPromptCsvPopup(); return;
+        if (headerIndex >= lines.Length || ParseCsvLine(lines[headerIndex]).Length < 8) {
+            await ShowInvalidPromptCsvPopup();
+            return;
         }
 
         var prompts = new List<SubathonPrompt>();
-        for (int i = headerIndex + 1; i < lines.Length; i++)
-        {
+        for (int i = headerIndex + 1; i < lines.Length; i++) {
             if (string.IsNullOrWhiteSpace(lines[i])) continue;
-            var cols = ParseCsvLine(lines[i]);
+            string[] cols = ParseCsvLine(lines[i]);
             if (cols.Length < 8
                 || !long.TryParse(cols[1].Trim(), out long value)
                 || !int.TryParse(cols[2].Trim(), out int durMin)
                 || !int.TryParse(cols[3].Trim(), out int qty)
                 || !bool.TryParse(cols[4].Trim(), out bool infinite)
                 || !bool.TryParse(cols[5].Trim(), out bool enabled)
-                || !Enum.TryParse<SubathonPromptType>(cols[6].Trim(), out var type)
-                || !Enum.TryParse<SubathonPromptSubType>(cols[7].Trim(), out var subType))
-            {
-                await ShowInvalidPromptCsvPopup(); return;
+                || !Enum.TryParse<SubathonPromptType>(cols[6].Trim(), out SubathonPromptType type)
+                || !Enum.TryParse<SubathonPromptSubType>(cols[7].Trim(), out SubathonPromptSubType subType)) {
+                await ShowInvalidPromptCsvPopup();
+                return;
             }
 
             SubathonEventType? filterEvent = null;
             string? goAffProMeta = null;
-            var eventStr = cols.Length > 8 ? cols[8].Trim() : "";
-            if (!string.IsNullOrEmpty(eventStr))
-            {
-                if (Enum.TryParse<SubathonEventType>(eventStr, out var fet))
-                {
-                    if (fet.GetLegacyGoAffProSiteId() > 0)
-                    {
+            string eventStr = cols.Length > 8 ? cols[8].Trim() : "";
+            if (!string.IsNullOrEmpty(eventStr)) {
+                if (Enum.TryParse<SubathonEventType>(eventStr, out SubathonEventType fet)) {
+                    if (fet.GetLegacyGoAffProSiteId() > 0) {
                         goAffProMeta = fet.GetLegacyGoAffProSiteId().ToString();
                         fet = SubathonEventType.GoAffProOrder;
                     }
+
                     filterEvent = fet;
                 }
-                else if (GoAffProOrderHelper.TryGetStoreByOrderKey(eventStr, out var keyStore))
-                {
+                else if (GoAffProOrderHelper.TryGetStoreByOrderKey(eventStr, out GoAffProStore? keyStore)) {
                     filterEvent = SubathonEventType.GoAffProOrder;
                     goAffProMeta = keyStore.SiteId.ToString();
                 }
-                else { await ShowInvalidPromptCsvPopup(); return; }
+                else {
+                    await ShowInvalidPromptCsvPopup();
+                    return;
+                }
             }
 
             string? filterMeta = cols.Length > 9 && !string.IsNullOrWhiteSpace(cols[9]) ? cols[9].Trim() : null;
             if (goAffProMeta != null) filterMeta = goAffProMeta;
 
-            prompts.Add(new SubathonPrompt
-            {
+            prompts.Add(new SubathonPrompt {
                 Text = cols[0],
                 Value = value,
                 CompletionDuration = TimeSpan.FromMinutes(Math.Max(1, durMin)),
@@ -1160,12 +1078,11 @@ public partial class PromptsEditor : UserControl
 
         string setName = Path.GetFileNameWithoutExtension(filePath);
 
-        await using var db = await _factory.CreateDbContextAsync();
-        foreach (var s in db.SubathonPromptSets)
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        foreach (SubathonPromptSet s in db.SubathonPromptSets)
             s.IsActive = false;
 
-        var newSet = new SubathonPromptSet
-        {
+        var newSet = new SubathonPromptSet {
             Name = setName,
             IsActive = true,
             Enabled = false,
@@ -1177,31 +1094,28 @@ public partial class PromptsEditor : UserControl
         db.SubathonPromptSets.Add(newSet);
         await db.SaveChangesAsync();
 
-        foreach (var p in prompts)
-        {
+        foreach (SubathonPrompt p in prompts) {
             p.SetId = newSet.Id;
             db.SubathonPrompts.Add(p);
         }
+
         await db.SaveChangesAsync();
 
         LoadActiveSet();
     }
 
-    private static string[] ParseCsvLine(string line)
-    {
+    private static string[] ParseCsvLine(string line) {
         var result = new List<string>();
         var field = new StringBuilder();
-        bool inQuotes = false;
+        var inQuotes = false;
 
-        for (int i = 0; i < line.Length; i++)
-        {
+        for (var i = 0; i < line.Length; i++) {
             char c = line[i];
             if (inQuotes)
-            {
-                switch (c)
-                {
+                switch (c) {
                     case '"' when i + 1 < line.Length && line[i + 1] == '"':
-                        field.Append('"'); i++;
+                        field.Append('"');
+                        i++;
                         break;
                     case '"':
                         inQuotes = false;
@@ -1210,66 +1124,58 @@ public partial class PromptsEditor : UserControl
                         field.Append(c);
                         break;
                 }
-            }
             else
-            {
-                switch (c)
-                {
+                switch (c) {
                     case '"':
                         inQuotes = true;
                         break;
                     case ',':
-                        result.Add(field.ToString()); field.Clear();
+                        result.Add(field.ToString());
+                        field.Clear();
                         break;
                     default:
                         field.Append(c);
                         break;
                 }
-            }
         }
+
         result.Add(field.ToString());
         return result.ToArray();
     }
 
-    private static async Task ShowInvalidPromptCsvPopup()
-    {
-        var dialog = new FAContentDialog
-        {
+    private static async Task ShowInvalidPromptCsvPopup() {
+        var dialog = new FAContentDialog {
             Title = "Invalid CSV",
             CloseButtonText = "OK",
-            Content = new TextBlock
-            {
+            Content = new TextBlock {
                 Text = "The selected file is not a valid prompt set CSV and could not be imported.",
                 TextWrapping = TextWrapping.Wrap,
                 Width = 300,
-                Margin = new global::Avalonia.Thickness(4)
+                Margin = new Thickness(4)
             }
         };
         await dialog.ShowAsync();
     }
 
-    private async void RunOrCancel_Click(object? sender, RoutedEventArgs e)
-    {
-        if (_activeRunPromptId.HasValue)
-        {
+    private async void RunOrCancel_Click(object? sender, RoutedEventArgs e) {
+        if (_activeRunPromptId.HasValue) {
             SubathonEvents.RaisePromptRunCancelRequested();
             return;
         }
 
-        await using var db = await _factory.CreateDbContextAsync();
-        var set = await db.SubathonPromptSets
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonPromptSet? set = await db.SubathonPromptSets
             .Include(s => s.Prompts)
             .FirstOrDefaultAsync(s => s.IsActive);
 
         if (set == null) return;
-        var pickable = set.PickablePrompts().ToList();
+        List<SubathonPrompt> pickable = set.PickablePrompts().ToList();
         if (pickable.Count == 0) return;
 
         SubathonEvents.RaisePromptRunNowRequested(pickable[Random.Shared.Next(pickable.Count)].Id);
     }
 
-    private void OnRunStateChanged(Guid promptId, bool isRunning)
-    {
+    private void OnRunStateChanged(Guid promptId, bool isRunning) {
         _activeRunPromptId = isRunning ? promptId : null;
         RefreshRowHighlights();
 
@@ -1278,16 +1184,21 @@ public partial class PromptsEditor : UserControl
         if (isRunning)
             RunOrCancelBtn.Foreground = Brushes.OrangeRed;
         else
-            RunOrCancelBtn.ClearValue(TemplatedControl.ForegroundProperty);
+            RunOrCancelBtn.ClearValue(ForegroundProperty);
 
         if (_selectedPrompt?.Id == promptId)
             ApplyEditorLock(isRunning);
     }
 
-    private void ApplyEditorLock(bool locked)
-    {
+    private void ApplyEditorLock(bool locked) {
         PromptDetailBorder.IsEnabled = !locked;
         RunningLockText.IsVisible = locked;
         SaveBtn.IsEnabled = !locked;
     }
+
+    private record EventTypeEntry(
+        SubathonEventType EventType,
+        string Label,
+        string? Meta = null,
+        string? Category = null);
 }

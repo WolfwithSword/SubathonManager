@@ -30,6 +30,8 @@ presets/**
 !.idea/inspectionProfiles/
 !.idea/runConfigurations/
 
+*cobertura.xml
+
 resources/HONSE/*
 
 ## Ignore Visual Studio temporary files, build results, and
@@ -227,6 +229,7 @@ obj
 
 TestResults/
 coverage-report/
+coverage-local/
 
 # Stream Deck plugin packaging stuff
 *.streamDeckPlugin

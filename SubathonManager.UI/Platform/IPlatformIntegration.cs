@@ -1,7 +1,6 @@
 namespace SubathonManager.UI.Platform;
 
-public interface IPlatformIntegration
-{
+public interface IPlatformIntegration {
     void RegisterFileAssociations();
     bool TryAcquireSingleInstance(string[] args);
     event Action<ActivationRequest>? ActivationReceived;
@@ -10,8 +9,7 @@ public interface IPlatformIntegration
 
 public readonly record struct ActivationRequest(ActivationKind Kind, string Payload);
 
-public enum ActivationKind
-{
+public enum ActivationKind {
     Unknown,
     SmoFile,
     SmwFile,

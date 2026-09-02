@@ -5,8 +5,7 @@ using SubathonManager.Core.Models;
 
 namespace SubathonManager.UI.UiUtils;
 
-public class JsVariableTemplateSelector : IDataTemplate
-{
+public class JsVariableTemplateSelector : IDataTemplate {
     public IDataTemplate? DefaultTemplate { get; set; } // same as String
 
     public IDataTemplate? EventTypeListTemplate { get; set; }
@@ -21,12 +20,15 @@ public class JsVariableTemplateSelector : IDataTemplate
     public IDataTemplate? FloatTemplate { get; set; }
     public IDataTemplate? FilteredEventTypeListTemplate { get; set; }
 
-    public bool Match(object? data) => data is JsVariable;
+    public bool Match(object? data) {
+        return data is JsVariable;
+    }
 
-    public Control? Build(object? param) => Pick(param)?.Build(param);
+    public Control? Build(object? param) {
+        return Pick(param)?.Build(param);
+    }
 
-    private IDataTemplate? Pick(object? item)
-    {
+    private IDataTemplate? Pick(object? item) {
         if (item is not JsVariable jsVar) return DefaultTemplate;
 
         if (((WidgetVariableType?)jsVar.Type).IsFileVariable()) return FileVarTemplate;
@@ -35,8 +37,7 @@ public class JsVariableTemplateSelector : IDataTemplate
             jsVar.Type != WidgetVariableType.EventTypeList)
             return FilteredEventTypeListTemplate;
 
-        return jsVar.Type switch
-        {
+        return jsVar.Type switch {
             WidgetVariableType.String => DefaultTemplate,
             WidgetVariableType.Int => IntTemplate,
             WidgetVariableType.Percent => PercentTemplate,

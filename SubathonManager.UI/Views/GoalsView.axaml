@@ -15,12 +15,14 @@
                                 Background="{DynamicResource UiBrushControlBackground}"
                                 BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="1">
                             <StackPanel>
-                                <TextBlock Text="{Binding Text}" FontWeight="SemiBold" TextWrapping="Wrap" FontSize="16"
+                                <TextBlock Text="{Binding Text}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           FontSize="16"
                                            TextTrimming="CharacterEllipsis" Opacity="{Binding OpacityValue}"
-                                           Foreground="{Binding TextColor}"/>
+                                           Foreground="{Binding TextColor}" />
                                 <TextBlock Text="{Binding PointsText}" FontSize="14" Margin="0,4,0,0"
-                                           TextDecorations="{Binding PointsDecoration}" Opacity="{Binding OpacityValue}"
-                                           Foreground="{Binding PointsColor}"/>
+                                           TextDecorations="{Binding PointsDecoration}"
+                                           Opacity="{Binding OpacityValue}"
+                                           Foreground="{Binding PointsColor}" />
                             </StackPanel>
                         </Border>
                     </DataTemplate>

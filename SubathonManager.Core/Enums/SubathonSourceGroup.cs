@@ -1,25 +1,27 @@
-﻿using System.ComponentModel;
+﻿namespace SubathonManager.Core.Enums;
 
-namespace SubathonManager.Core.Enums;
-
-public enum SubathonSourceGroup
-{
-    [EnumMeta(Description="Unknown", Label="Unknown")]
+public enum SubathonSourceGroup {
+    [EnumMeta(Description = "Unknown", Label = "Unknown")]
     Unknown,
-    [EnumMeta(Description="Stream Services", Label="Stream Services")]
+
+    [EnumMeta(Description = "Stream Services", Label = "Stream Services")]
     Stream,
-    [EnumMeta(Description="Stream Extensions", Label="Stream Extensions")]
+
+    [EnumMeta(Description = "Stream Extensions", Label = "Stream Extensions")]
     StreamExtension,
+
     // [Description("Chat Extension")]
     // ChatExtension,
-    [EnumMeta(Description="Misc", Label="Misc")]
+    [EnumMeta(Description = "Misc", Label = "Misc")]
     Misc,
-    [EnumMeta(Description="External Services", Label="External Services")]
+
+    [EnumMeta(Description = "External Services", Label = "External Services")]
     ExternalService,
-    [EnumMeta(Label="")]
-    UseSource,
-    [EnumMeta(Description="Wheel Spin", Label="Wheel Spin")]
+    [EnumMeta(Label = "")] UseSource,
+
+    [EnumMeta(Description = "Wheel Spin", Label = "Wheel Spin")]
     WheelSpin,
-    [EnumMeta(Description="External Software", Label="External Software")]
-    ExternalSoftware,
+
+    [EnumMeta(Description = "External Software", Label = "External Software")]
+    ExternalSoftware
 }

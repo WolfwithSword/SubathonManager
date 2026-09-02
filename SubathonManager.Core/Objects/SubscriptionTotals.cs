@@ -2,8 +2,7 @@ using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core.Objects;
 
-public class SubscriptionTotals
-{
+public class SubscriptionTotals {
     public int SubTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> SubTotalByEvent { get; init; } = new();
 
@@ -12,8 +11,7 @@ public class SubscriptionTotals
     public SubscriptionSimulatedTotals Simulated { get; init; } = new();
 }
 
-public class SubscriptionSimulatedTotals
-{
+public class SubscriptionSimulatedTotals {
     public int SubTotal { get; init; } = 0;
     public Dictionary<SubathonEventType, int> SubTotalByEvent { get; init; } = new();
     public Dictionary<SubathonEventType, Dictionary<string, int>> SubTotalByEventTier { get; init; } = new();

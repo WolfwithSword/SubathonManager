@@ -1,7 +1,6 @@
 ﻿namespace SubathonManager.Core.Enums;
 
-public enum ProtocolMessageType
-{
+public enum ProtocolMessageType {
     Unknown,
     OAuth,
     SmoFile

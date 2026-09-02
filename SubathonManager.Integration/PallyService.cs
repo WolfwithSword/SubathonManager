@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,39 +16,35 @@ using SubathonManager.Core.Security.Interfaces;
 
 namespace SubathonManager.Integration;
 
-public class PallyService : IAppService, IDisposable
-{
+public class PallyService : IAppService, IDisposable {
     private const string ConfigSection = "PallyGG";
     private static readonly TimeSpan PingInterval = TimeSpan.FromSeconds(60);
-
-    internal string BaseUrl = "wss://events.pally.gg";
+    private readonly IConfig _config;
 
     private readonly ILogger? _logger;
-    private readonly IConfig _config;
     private readonly ISecureStorage _secureStorage;
-
-    private ClientWebSocket? _socket;
     private CancellationTokenSource? _cts;
     private Task? _runTask;
 
-    public bool Connected { get; private set; }
+    private ClientWebSocket? _socket;
 
-    private string? ApiKey => _secureStorage.GetOrDefault(StorageKeys.PallyApiKey, string.Empty);
-    private string Room => (_config.Get(ConfigSection, "Room", string.Empty) ?? string.Empty).Trim();
-    private bool Enabled => _config.GetBool(ConfigSection, "Enabled", false);
+    internal string BaseUrl = "wss://events.pally.gg";
 
-    public PallyService(ILogger<PallyService>? logger, IConfig config, ISecureStorage secureStorage)
-    {
+    public PallyService(ILogger<PallyService>? logger, IConfig config, ISecureStorage secureStorage) {
         _logger = logger;
         _config = config;
         _secureStorage = secureStorage;
     }
 
-    public Task StartAsync(CancellationToken ct = default)
-    {
+    public bool Connected { get; private set; }
+
+    private string? ApiKey => _secureStorage.GetOrDefault(StorageKeys.PallyApiKey, string.Empty);
+    private string Room => (_config.Get(ConfigSection, "Room", string.Empty) ?? string.Empty).Trim();
+    private bool Enabled => _config.GetBool(ConfigSection, "Enabled");
+
+    public Task StartAsync(CancellationToken ct = default) {
         BroadcastStatus(false);
-        if (!Enabled || string.IsNullOrWhiteSpace(ApiKey))
-        {
+        if (!Enabled || string.IsNullOrWhiteSpace(ApiKey)) {
             _logger?.LogInformation("[PallyGG] Not configured or disabled. Integration inactive.");
             return Task.CompletedTask;
         }
@@ -57,17 +54,16 @@ public class PallyService : IAppService, IDisposable
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task StopAsync(CancellationToken ct = default) {
+        try {
             if (_cts != null) await _cts.CancelAsync();
             if (_socket is { State: WebSocketState.Open })
                 await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Stopping", CancellationToken.None);
         }
-        catch { /**/ }
-        finally
-        {
+        catch {
+            /**/
+        }
+        finally {
             _socket?.Dispose();
             _socket = null;
             Connected = false;
@@ -76,24 +72,30 @@ public class PallyService : IAppService, IDisposable
     }
 
     [ExcludeFromCodeCoverage]
-    public async Task RestartAsync()
-    {
+    public void Dispose() {
+        _cts?.Cancel();
+        _socket?.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    [ExcludeFromCodeCoverage]
+    public async Task RestartAsync() {
         await StopAsync();
         await StartAsync();
     }
 
-    public bool IsKeyEmpty() => string.IsNullOrWhiteSpace(ApiKey);
+    public bool IsKeyEmpty() {
+        return string.IsNullOrWhiteSpace(ApiKey);
+    }
 
     [ExcludeFromCodeCoverage]
-    public bool SaveConfig(string apiKey, string room)
-    {
+    public bool SaveConfig(string apiKey, string room) {
         bool updated = _secureStorage.Set(StorageKeys.PallyApiKey, apiKey.Trim());
         updated |= _config.Set(ConfigSection, "Room", room.Trim());
         return updated;
     }
 
-    internal Uri BuildUri()
-    {
+    internal Uri BuildUri() {
         string room = Room;
         string channel = string.IsNullOrWhiteSpace(room)
             ? "channel=firehose"
@@ -102,13 +104,10 @@ public class PallyService : IAppService, IDisposable
     }
 
     [ExcludeFromCodeCoverage]
-    private async Task RunAsync(CancellationToken token)
-    {
+    private async Task RunAsync(CancellationToken token) {
         var reconnect = new Utils.ServiceReconnectState(TimeSpan.FromSeconds(2), 100, TimeSpan.FromMinutes(5));
-        while (!token.IsCancellationRequested)
-        {
-            try
-            {
+        while (!token.IsCancellationRequested) {
+            try {
                 _socket?.Dispose();
                 _socket = new ClientWebSocket();
                 await _socket.ConnectAsync(BuildUri(), token);
@@ -121,17 +120,14 @@ public class PallyService : IAppService, IDisposable
 
                 await ListenAsync(_socket, token);
             }
-            catch (OperationCanceledException)
-            {
+            catch (OperationCanceledException) {
                 break;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 _logger?.LogWarning("[PallyGG] Connection error: {Message}", ex.Message);
             }
 
-            if (Connected)
-            {
+            if (Connected) {
                 Connected = false;
                 BroadcastStatus(false);
             }
@@ -139,8 +135,7 @@ public class PallyService : IAppService, IDisposable
             if (token.IsCancellationRequested) break;
 
             reconnect.Retries++;
-            if (reconnect.Retries >= reconnect.MaxRetries)
-            {
+            if (reconnect.Retries >= reconnect.MaxRetries) {
                 _logger?.LogError("[PallyGG] Max reconnect attempts reached. Please reconnect manually.");
                 ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.PallyGG),
                     "PallyGG.gg reconnect failed after maximum retries.", DateTime.Now);
@@ -148,8 +143,13 @@ public class PallyService : IAppService, IDisposable
             }
 
             _logger?.LogDebug("[PallyGG] Reconnecting in {Delay}s", reconnect.Backoff.TotalSeconds);
-            try { await Task.Delay(reconnect.Backoff, token); }
-            catch (OperationCanceledException) { break; }
+            try {
+                await Task.Delay(reconnect.Backoff, token);
+            }
+            catch (OperationCanceledException) {
+                break;
+            }
+
             reconnect.Backoff = TimeSpan.FromMilliseconds(Math.Min(
                 reconnect.Backoff.TotalMilliseconds * 2, reconnect.MaxBackoff.TotalMilliseconds));
         }
@@ -159,134 +159,116 @@ public class PallyService : IAppService, IDisposable
     }
 
     [ExcludeFromCodeCoverage]
-    private async Task ListenAsync(ClientWebSocket socket, CancellationToken token)
-    {
+    private async Task ListenAsync(ClientWebSocket socket, CancellationToken token) {
         using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var pingTask = Task.Run(async () =>
-        {
+        Task pingTask = Task.Run(async () => {
             // keepalive 
-            while (!pingCts.Token.IsCancellationRequested && socket.State == WebSocketState.Open)
-            {
+            while (!pingCts.Token.IsCancellationRequested && socket.State == WebSocketState.Open) {
                 await Task.Delay(PingInterval, pingCts.Token);
                 if (socket.State != WebSocketState.Open) break;
-                var ping = Encoding.UTF8.GetBytes("ping");
+                byte[] ping = Encoding.UTF8.GetBytes("ping");
                 await socket.SendAsync(ping, WebSocketMessageType.Text, true, pingCts.Token);
             }
         }, pingCts.Token);
 
         var buffer = new byte[16 * 1024];
         var messageBuilder = new StringBuilder();
-        try
-        {
-            while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
-            {
-                var result = await socket.ReceiveAsync(buffer, token);
-                if (result.MessageType == WebSocketMessageType.Close)
-                {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Server closed", CancellationToken.None);
+        try {
+            while (socket.State == WebSocketState.Open && !token.IsCancellationRequested) {
+                WebSocketReceiveResult result = await socket.ReceiveAsync(buffer, token);
+                if (result.MessageType == WebSocketMessageType.Close) {
+                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Server closed",
+                        CancellationToken.None);
                     break;
                 }
 
                 messageBuilder.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
                 if (!result.EndOfMessage) continue;
 
-                string message = messageBuilder.ToString();
+                var message = messageBuilder.ToString();
                 messageBuilder.Clear();
                 ProcessMessage(message);
             }
         }
-        finally
-        {
+        finally {
             await pingCts.CancelAsync();
-            try { await pingTask; } catch { /**/ }
+            try {
+                await pingTask;
+            }
+            catch {
+                /**/
+            }
         }
     }
 
-    public bool ProcessMessage(string message, bool simulated = false)
-    {
+    public bool ProcessMessage(string message, bool simulated = false) {
         if (string.IsNullOrWhiteSpace(message) || message == "pong") return false;
-        try
-        {
-            using var json = JsonDocument.Parse(message);
-            var root = json.RootElement;
-            if (!root.TryGetProperty("type", out var typeElem)
+        try {
+            using JsonDocument json = JsonDocument.Parse(message);
+            JsonElement root = json.RootElement;
+            if (!root.TryGetProperty("type", out JsonElement typeElem)
                 || typeElem.GetString() != "campaigntip.notify") return false;
-            if (!root.TryGetProperty("payload", out var payload)
-                || !payload.TryGetProperty("campaignTip", out var tip)) return false;
+            if (!root.TryGetProperty("payload", out JsonElement payload)
+                || !payload.TryGetProperty("campaignTip", out JsonElement tip)) return false;
 
-            if (!tip.TryGetProperty("grossAmountInCents", out var grossElem)
+            if (!tip.TryGetProperty("grossAmountInCents", out JsonElement grossElem)
                 || grossElem.ValueKind != JsonValueKind.Number) return false;
             double amount = grossElem.GetInt64() / 100.0;
             if (amount <= 0) return false;
 
-            string user = tip.TryGetProperty("displayName", out var nameElem)
+            string user = tip.TryGetProperty("displayName", out JsonElement nameElem)
                           && !string.IsNullOrWhiteSpace(nameElem.GetString())
                 ? nameElem.GetString()!
                 : "Anonymous";
 
-            var subathonEvent = new SubathonEvent
-            {
+            var subathonEvent = new SubathonEvent {
                 User = simulated ? "SYSTEM" : user,
                 Currency = "USD", // USD only
-                Value = amount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+                Value = amount.ToString("0.00", CultureInfo.InvariantCulture),
                 Source = simulated ? SubathonEventSource.Simulated : SubathonEventSource.PallyGG,
                 EventType = SubathonEventType.PallyGGDonation
             };
 
-            if (payload.TryGetProperty("page", out var page)
-                && page.TryGetProperty("slug", out var slugElem))
+            if (payload.TryGetProperty("page", out JsonElement page)
+                && page.TryGetProperty("slug", out JsonElement slugElem))
                 subathonEvent.EventTypeMeta = slugElem.GetString();
 
-            if (!simulated && tip.TryGetProperty("id", out var idElem)
+            if (!simulated && tip.TryGetProperty("id", out JsonElement idElem)
                            && !string.IsNullOrWhiteSpace(idElem.GetString()))
                 subathonEvent.Id = GuidFromString($"pallygg|{idElem.GetString()}");
 
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return true;
         }
-        catch (JsonException)
-        {
+        catch (JsonException) {
             _logger?.LogDebug("[PallyGG] Ignored non-json message");
             return false;
         }
     }
 
-    internal static Guid GuidFromString(string input)
-    {
-        var hash = MD5.HashData(Encoding.UTF8.GetBytes(input));
+    internal static Guid GuidFromString(string input) {
+        byte[] hash = MD5.HashData(Encoding.UTF8.GetBytes(input));
         return new Guid(hash);
     }
 
-    public static void SimulateTip(string value = "10.00")
-    {
-        if (!double.TryParse(value, out var val) || val <= 0) return;
-        SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent
-        {
+    public static void SimulateTip(string value = "10.00") {
+        if (!double.TryParse(value, out double val) || val <= 0) return;
+        SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
             User = "SYSTEM",
             Currency = "USD",
-            Value = val.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+            Value = val.ToString("0.00", CultureInfo.InvariantCulture),
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.PallyGGDonation
         });
     }
 
-    private void BroadcastStatus(bool status)
-    {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+    private void BroadcastStatus(bool status) {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.PallyGG,
             Service = "Socket",
             Name = Room,
             Status = status,
             Configured = Enabled && !string.IsNullOrWhiteSpace(ApiKey)
         });
-    }
-
-    [ExcludeFromCodeCoverage]
-    public void Dispose()
-    {
-        _cts?.Cancel();
-        _socket?.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

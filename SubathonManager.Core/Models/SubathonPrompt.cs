@@ -6,10 +6,9 @@ using SubathonManager.Core.Enums;
 namespace SubathonManager.Core.Models;
 
 [ExcludeFromCodeCoverage]
-public class SubathonPrompt
-{
-    [Key, Column(Order = 0)] public Guid Id { get; set; } = Guid.NewGuid();
-    
+public class SubathonPrompt {
+    [Key] [Column(Order = 0)] public Guid Id { get; set; } = Guid.NewGuid();
+
     public string Text { get; set; } = "New Prompt";
     public long Value { get; set; } = 10;
     public TimeSpan CompletionDuration { get; set; } = TimeSpan.FromMinutes(5);
@@ -23,47 +22,49 @@ public class SubathonPrompt
     public SubathonEventType? FilterEventType { get; set; } = null;
     public string? FilterMeta { get; set; } = null;
     public SubathonEventSubType? FilterSubType { get; set; } = null;
-    
-    [ForeignKey("SubathonPromptSet")]
-    public Guid? SetId { get; set; }
-    public SubathonPromptSet? LinkedSet  { get; set; }
-    
+
+    [ForeignKey("SubathonPromptSet")] public Guid? SetId { get; set; }
+
+    public SubathonPromptSet? LinkedSet { get; set; }
+
     public int Index { get; set; } = 0;
-    
-    public bool HasStock() => IsInfinite || Quantity > 0;
-    public bool IsPickable() => Enabled && HasStock();
+
+    public bool HasStock() {
+        return IsInfinite || Quantity > 0;
+    }
+
+    public bool IsPickable() {
+        return Enabled && HasStock();
+    }
 }
 
 [ExcludeFromCodeCoverage]
-public class SubathonPromptRun
-{
+public class SubathonPromptRun {
     [Key] public Guid Id { get; set; } = Guid.NewGuid();
-    
-    [ForeignKey(nameof(SubathonPrompt))]
-    public Guid PromptId { get; set; }
+
+    [ForeignKey(nameof(SubathonPrompt))] public Guid PromptId { get; set; }
+
     public SubathonPrompt? LinkedPrompt { get; set; }
-    
+
     [ForeignKey(nameof(SubathonPromptSet))]
     public Guid SetId { get; set; }
+
     public SubathonPromptSet? LinkedSet { get; set; }
-    
+
     public DateTime StartedAt { get; set; } = DateTime.Now;
     public DateTime ExpiresAt { get; set; }
     public DateTime? EndedAt { get; set; }
-    
+
     public SubathonPromptRunStatus Status { get; set; } = SubathonPromptRunStatus.Active;
     public long SnapshotTargetValue { get; set; }
     public long BaselineCount { get; set; } = 0;
- 
+
     public bool IsActive => Status == SubathonPromptRunStatus.Active;
     public bool IsExpired => DateTime.Now >= ExpiresAt && Status == SubathonPromptRunStatus.Active;
-    
-    public TimeSpan TimeRemaining()
-    {
+
+    public TimeSpan TimeRemaining() {
         if (Status != SubathonPromptRunStatus.Active) return TimeSpan.Zero;
-        var remaining = ExpiresAt - DateTime.Now;
+        TimeSpan remaining = ExpiresAt - DateTime.Now;
         return remaining < TimeSpan.Zero ? TimeSpan.Zero : remaining;
     }
-    
-    
 }

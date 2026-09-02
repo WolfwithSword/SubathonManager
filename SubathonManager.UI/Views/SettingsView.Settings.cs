@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
@@ -8,61 +9,53 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
-using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views;
 
-public partial class SettingsView
-{
-    private void InitCurrencySelects()
-    {
-        var currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
+public partial class SettingsView {
+    private void InitCurrencySelects() {
+        List<string> currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
         DefaultCurrencyBox.ItemsSource = currencies;
 
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         DefaultCurrencyBox.SelectedItem = config.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
 
-        ExtensionSettingsControl.UpdateCurrencyBoxes(currencies, (DefaultCurrencyBox.SelectedItem as string) ?? "USD");
-        ExternalServiceSettingsControl.UpdateCurrencyBoxes(currencies, (DefaultCurrencyBox.SelectedItem as string) ?? "USD");
-        StreamingSettingsControl.UpdateCurrencyBoxes(currencies, (DefaultCurrencyBox.SelectedItem as string) ?? "USD");
+        ExtensionSettingsControl.UpdateCurrencyBoxes(currencies, DefaultCurrencyBox.SelectedItem as string ?? "USD");
+        ExternalServiceSettingsControl.UpdateCurrencyBoxes(currencies,
+            DefaultCurrencyBox.SelectedItem as string ?? "USD");
+        StreamingSettingsControl.UpdateCurrencyBoxes(currencies, DefaultCurrencyBox.SelectedItem as string ?? "USD");
     }
 
-    private void OpenDataFolder_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
+    private void OpenDataFolder_Click(object? sender, RoutedEventArgs e) {
         UiHelpers.OpenFolder(Config.DataFolder);
     }
 
-    private void EventsSummary_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
+    private void EventsSummary_Click(object? sender, RoutedEventArgs e) {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        Process.Start(new ProcessStartInfo
-        {
+        Process.Start(new ProcessStartInfo {
             FileName = $"http://localhost:{config.Get("Server", "Port", "14040")}/api/data/amounts",
             UseShellExecute = true
         });
     }
 
-    private async void ExportEvents_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        await using var db = await _factory.CreateDbContextAsync();
+    private async void ExportEvents_Click(object? sender, RoutedEventArgs e) {
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
         await AppDbContext.ActiveEventsToCsv(db);
     }
 
-    private void UpdateServerStatus(bool status)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
+    private void UpdateServerStatus(bool status) {
+        Dispatcher.UIThread.Post(() => {
             if (ServerStatusText == null) return;
             if (status && ServerStatusText.Text != "Running") ServerStatusText.Text = "Running";
             else if (!status && ServerStatusText.Text != "Not Running") ServerStatusText.Text = "Not Running";
         });
     }
 
-    private bool SaveTopAppSettings()
-    {
-        bool hasUpdated = false;
-        string selectedCurrency = (DefaultCurrencyBox.SelectedItem as string) ?? "";
+    private bool SaveTopAppSettings() {
+        var hasUpdated = false;
+        string selectedCurrency = DefaultCurrencyBox.SelectedItem as string ?? "";
 
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         hasUpdated |= config.Set("Currency", "BitsLikeAsDonation", $"{BitsAsCurrencyBox.IsChecked}");
@@ -74,17 +67,15 @@ public partial class SettingsView
             SettingsEvents.RaiseEventVisibilityChanged();
 
         if (selectedCurrency.Length >= 3)
-        {
-            if (config.Get("Currency", "Primary", string.Empty) != selectedCurrency)
-            {
+            if (config.Get("Currency", "Primary", string.Empty) != selectedCurrency) {
                 hasUpdated |= config.Set("Currency", "Primary", selectedCurrency);
                 ServiceManager.Events.ReInitCurrencyService();
             }
-        }
-        if (int.TryParse(ServerPortTextBox.Text, out var port))
+
+        if (int.TryParse(ServerPortTextBox.Text, out int port))
             hasUpdated |= config.Set("Server", "Port", port.ToString());
 
-        string selectedTheme = (ThemeBox.SelectedItem is ComboBoxItem item) ? item.Content?.ToString() ?? "" : "";
+        string selectedTheme = ThemeBox.SelectedItem is ComboBoxItem item ? item.Content?.ToString() ?? "" : "";
         if (!string.IsNullOrEmpty(selectedTheme))
             hasUpdated |= config.Set("App", "Theme", selectedTheme);
 
@@ -92,12 +83,9 @@ public partial class SettingsView
         return hasUpdated;
     }
 
-    public void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            if (textBlock != null)
-            {
+    public void UpdateConnectionStatus(bool status, TextBlock? textBlock, Button? button) {
+        Dispatcher.UIThread.Post(() => {
+            if (textBlock != null) {
                 if (status && textBlock.Text != "Connected") textBlock.Text = "Connected";
                 else if (!status && textBlock.Text != "Disconnected") textBlock.Text = "Disconnected";
             }
@@ -108,29 +96,26 @@ public partial class SettingsView
         });
     }
 
-    public bool SaveSubTier(AppDbContext db, SubathonEventType type, string meta, TextBox tb, TextBox tb2)
-    {
-        bool hasUpdated = false;
-        var val = db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == meta);
-        if (val != null && double.TryParse(tb.Text, out var seconds) && !seconds.Equals(val.Seconds))
-        {
+    public bool SaveSubTier(AppDbContext db, SubathonEventType type, string meta, TextBox tb, TextBox tb2) {
+        var hasUpdated = false;
+        SubathonValue? val = db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == meta);
+        if (val != null && double.TryParse(tb.Text, out double seconds) && !seconds.Equals(val.Seconds)) {
             val.Seconds = seconds;
             hasUpdated = true;
         }
-        if (val != null && int.TryParse(tb2.Text, out var points) && !points.Equals((int)val.Points))
-        {
+
+        if (val != null && int.TryParse(tb2.Text, out int points) && !points.Equals((int)val.Points)) {
             val.Points = points;
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    private void UpdateSubathonValues()
-    {
-        using var db = _factory.CreateDbContext();
+    private void UpdateSubathonValues() {
+        using AppDbContext db = _factory.CreateDbContext();
 
-        var updaters = new Func<AppDbContext, bool>[]
-        {
+        var updaters = new[] {
             StreamingSettingsControl.UpdateValueSettings,
             ExtensionSettingsControl.UpdateValueSettings,
             ExternalServiceSettingsControl.UpdateValueSettings
@@ -141,19 +126,17 @@ public partial class SettingsView
         db.SaveChanges();
 
         if (!hasUpdated) return;
-        SubathonValueConfigHelper helper = new SubathonValueConfigHelper(null, null);
-        var newData = helper.GetAllAsJson();
+        var helper = new SubathonValueConfigHelper(null, null);
+        string newData = helper.GetAllAsJson();
         SubathonEvents.RaiseSubathonValueConfigRequested(newData);
     }
 
-    private void UpdateSaveButtonBorder(bool hasPendingChanges)
-    {
+    private void UpdateSaveButtonBorder(bool hasPendingChanges) {
         Dispatcher.UIThread.Post(() => UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, hasPendingChanges));
     }
 
-    private void SaveAllSubathonValuesButton_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        bool hasUpdated = false;
+    private void SaveAllSubathonValuesButton_Click(object? sender, RoutedEventArgs e) {
+        var hasUpdated = false;
         hasUpdated |= SaveTopAppSettings();
         UpdateSubathonValues();
         hasUpdated |= StreamingSettingsControl.UpdateConfigValueSettings();
@@ -164,16 +147,13 @@ public partial class SettingsView
         hasUpdated |= CommandsSettingsControl.UpdateConfigValueSettings();
         hasUpdated |= WebhookLogSettingsControl.UpdateConfigValueSettings();
 
-        if (hasUpdated)
-        {
+        if (hasUpdated) {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             config.Save();
         }
 
-        Task.Run(async () =>
-        {
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
+        Task.Run(async () => {
+            await Dispatcher.UIThread.InvokeAsync(() => {
                 SaveAllSubathonValuesButton.Content = "Saved!";
                 UpdateSaveButtonBorder(false);
             });
@@ -182,29 +162,25 @@ public partial class SettingsView
         });
     }
 
-    public void UpdateTimePointsBoxes(TextBox? boxTime, TextBox? boxPoints, string time, string points)
-    {
+    public void UpdateTimePointsBoxes(TextBox? boxTime, TextBox? boxPoints, string time, string points) {
         if (boxTime != null && boxTime.Text != time) boxTime.Text = time;
         if (boxPoints != null && boxPoints.Text != points) boxPoints.Text = points;
     }
 
-    private void RefreshSubathonValues()
-    {
+    private void RefreshSubathonValues() {
         Dispatcher.UIThread.Post(() => LoadValues(false));
     }
 
-    private void LoadValues(bool doConfigLoad = true)
-    {
-        using var db = _factory.CreateDbContext();
-        var values = db.SubathonValues.ToList();
-        foreach (var val in values)
-        {
+    private void LoadValues(bool doConfigLoad = true) {
+        using AppDbContext db = _factory.CreateDbContext();
+        List<SubathonValue> values = db.SubathonValues.ToList();
+        foreach (SubathonValue val in values) {
             var v = $"{val.Seconds}";
             var p = $"{val.Points}";
 
             TextBox? box = null;
             TextBox? box2 = null;
-            var group = val.EventType.GetSource().GetGroup();
+            SubathonSourceGroup group = val.EventType.GetSource().GetGroup();
             if (group == SubathonSourceGroup.Stream)
                 (v, p, box, box2) = StreamingSettingsControl.GetValueBoxes(val);
             else if (group == SubathonSourceGroup.StreamExtension)
@@ -216,22 +192,20 @@ public partial class SettingsView
                 UpdateTimePointsBoxes(box, box2, v, p);
         }
 
-        if (doConfigLoad)
-        {
+        if (doConfigLoad) {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
-            BitsAsCurrencyBox.IsChecked = config.GetBool("Currency", "BitsLikeAsDonation", false);
+            BitsAsCurrencyBox.IsChecked = config.GetBool("Currency", "BitsLikeAsDonation");
             AddOtherWhenLockedBox.IsChecked = config.GetBool("App", "OtherValuesWhenLocked", true);
-            ShowEventsWhenLockedBox.IsChecked = config.GetBool("App", "ShowLockedEvents", false);
+            ShowEventsWhenLockedBox.IsChecked = config.GetBool("App", "ShowLockedEvents");
 
-            var theme = config.Get("App", "Theme", "System")!;
-            foreach (var obj in ThemeBox.Items)
-            {
-                if (obj is ComboBoxItem item && theme.Equals(item.Content?.ToString(), StringComparison.OrdinalIgnoreCase))
-                {
+            string theme = config.Get("App", "Theme", "System")!;
+            foreach (object? obj in ThemeBox.Items)
+                if (obj is ComboBoxItem item &&
+                    theme.Equals(item.Content?.ToString(), StringComparison.OrdinalIgnoreCase)) {
                     ThemeBox.SelectedItem = item;
                     break;
                 }
-            }
+
             ExtensionSettingsControl.LoadConfigValues();
         }
 
@@ -240,7 +214,14 @@ public partial class SettingsView
         ExternalServiceSettingsControl.LoadValues(db);
     }
 
-    public override bool UpdateValueSettings(AppDbContext db) => false;
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) => ("", "", null, null);
+    public override bool UpdateValueSettings(AppDbContext db) {
+        return false;
+    }
+
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        return ("", "", null, null);
+    }
 }

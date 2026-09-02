@@ -12,40 +12,31 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
-using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.ExternalSoftware;
 
-public partial class DevTunnelsSettings : SettingsControl
-{
+public partial class DevTunnelsSettings : SettingsControl {
     private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<DevTunnelsSettings>>();
 
-    public DevTunnelsSettings()
-    {
+    public DevTunnelsSettings() {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
+        Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             UpdateStatus(Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli"));
             UpdateStatus(Utils.GetConnection(SubathonEventSource.DevTunnels, "Login"));
             UpdateStatus(Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel"));
         };
 
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-        };
+        Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection)
-    {
+    internal override void UpdateStatus(IntegrationConnection? connection) {
         if (connection is not { Source: SubathonEventSource.DevTunnels }) return;
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            switch (connection.Service)
-            {
+        Dispatcher.UIThread.Post(() => {
+            switch (connection.Service) {
                 case "Cli":
                     ApplyCliState(connection.Status, connection.Name);
                     break;
@@ -59,25 +50,31 @@ public partial class DevTunnelsSettings : SettingsControl
         });
     }
 
-    protected internal override void LoadValues(AppDbContext db) { }
-    public override bool UpdateValueSettings(AppDbContext db) => false;
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) => ("", "", null, null);
+    protected internal override void LoadValues(AppDbContext db) {
+    }
 
-    private void ApplyCliState(bool installed, string? version)
-    {
+    public override bool UpdateValueSettings(AppDbContext db) {
+        return false;
+    }
+
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        return ("", "", null, null);
+    }
+
+    private void ApplyCliState(bool installed, string? version) {
         CliStatusText.Text = installed
-            ? (string.IsNullOrWhiteSpace(version) ? "Installed" : $"Installed (v{version})")
+            ? string.IsNullOrWhiteSpace(version) ? "Installed" : $"Installed (v{version})"
             : "Not installed";
-        if (installed)
-        {
+        if (installed) {
             CliStatusText.Foreground = Brushes.ForestGreen;
             InstallCliBtn.Content = "Installed";
             InstallCliBtn.IsEnabled = false;
             InstallCliBtn.IsVisible = false;
         }
-        else
-        {
+        else {
             CliStatusText.SetDynamicResource(TextBlock.ForegroundProperty, "TextFillColorPrimaryBrush");
             InstallCliBtn.IsEnabled = true;
             InstallCliBtn.IsVisible = true;
@@ -91,8 +88,7 @@ public partial class DevTunnelsSettings : SettingsControl
         StartTunnelBtn.IsEnabled = installed && loggedIn && !tunnelRunning;
     }
 
-    private void ApplyLoginState(bool loggedIn, string? username)
-    {
+    private void ApplyLoginState(bool loggedIn, string? username) {
         LoginStatusText.Text = loggedIn ? "Logged in:" : "Not logged in";
 
         UsernamePanel.IsVisible = loggedIn && !string.IsNullOrWhiteSpace(username);
@@ -105,27 +101,24 @@ public partial class DevTunnelsSettings : SettingsControl
         ToggleUsernameIcon.Glyph = "Eye20";
 
         LoginMicrosoftBtn.IsVisible = !loggedIn;
-        LoginGithubBtn.IsVisible    = !loggedIn;
-        LogoutBtn.IsVisible         = loggedIn;
+        LoginGithubBtn.IsVisible = !loggedIn;
+        LogoutBtn.IsVisible = loggedIn;
 
-        bool cliInstalled  = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
+        bool cliInstalled = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
         bool tunnelRunning = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel").Status;
         StartTunnelBtn.IsEnabled = loggedIn && cliInstalled && !tunnelRunning;
         DeleteTunnelsBtn.IsVisible = loggedIn && !tunnelRunning;
     }
 
-    private void ToggleUsername_Click(object? sender, RoutedEventArgs e)
-    {
+    private void ToggleUsername_Click(object? sender, RoutedEventArgs e) {
         bool currentlyRevealed = UsernameRevealed.IsVisible;
-        UsernameHidden.IsVisible   = currentlyRevealed;
+        UsernameHidden.IsVisible = currentlyRevealed;
         UsernameRevealed.IsVisible = !currentlyRevealed;
-        ToggleUsernameIcon.Glyph   = currentlyRevealed ? "Eye20" : "EyeOff20";
+        ToggleUsernameIcon.Glyph = currentlyRevealed ? "Eye20" : "EyeOff20";
     }
 
-    private void ApplyTunnelState(bool running, string? url)
-    {
-        if (url == "(starting...)")
-        {
+    private void ApplyTunnelState(bool running, string? url) {
+        if (url == "(starting...)") {
             TunnelStatusText.Text = "Starting...";
             StartTunnelBtn.IsEnabled = false;
             StopTunnelBtn.IsVisible = false;
@@ -135,8 +128,7 @@ public partial class DevTunnelsSettings : SettingsControl
             return;
         }
 
-        if (url == "(stopping...)")
-        {
+        if (url == "(stopping...)") {
             TunnelStatusText.Text = "Stopping...";
             StopTunnelBtn.IsEnabled = false;
             StopTunnelBtn.IsVisible = true;
@@ -162,111 +154,94 @@ public partial class DevTunnelsSettings : SettingsControl
             TunnelUrlBox.Text = url;
     }
 
-    private async void CheckCli_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void CheckCli_Click(object? sender, RoutedEventArgs e) {
         CheckCliBtn.IsEnabled = false;
-        try
-        {
+        try {
             CliStatusText.SetDynamicResource(TextBlock.ForegroundProperty, "TextFillColorPrimaryBrush");
             CliStatusText.Text = "Checking...";
             await ServiceManager.DevTunnels.RefreshCliStatusAsync();
         }
-        finally
-        {
+        finally {
             CheckCliBtn.IsEnabled = true;
         }
     }
 
-    private async void GetCli_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
+    private async void GetCli_Click(object? sender, RoutedEventArgs e) {
+        try {
             InstallCliBtn.IsEnabled = false;
             InstallCliBtn.Content = "Installing...";
             bool result = await ServiceManager.DevTunnels.TryInstallAsync();
-            if (result)
-            {
+            if (result) {
                 InstallCliBtn.Content = "Installed";
                 await ServiceManager.DevTunnels.RefreshCliStatusAsync();
                 await Task.Delay(2500);
                 return;
             }
+
             InstallCliBtn.IsEnabled = true;
             InstallCliBtn.Content = "Install";
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows#install",
+            Process.Start(new ProcessStartInfo {
+                FileName =
+                    "https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=windows#install",
                 UseShellExecute = true
             });
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 
-    private async void LoginMicrosoft_Click(object? sender, RoutedEventArgs e)
-        => await RunLoginAsync(LoginProvider.Microsoft);
+    private async void LoginMicrosoft_Click(object? sender, RoutedEventArgs e) {
+        await RunLoginAsync(LoginProvider.Microsoft);
+    }
 
-    private async void LoginGitHub_Click(object? sender, RoutedEventArgs e)
-        => await RunLoginAsync(LoginProvider.GitHub);
+    private async void LoginGitHub_Click(object? sender, RoutedEventArgs e) {
+        await RunLoginAsync(LoginProvider.GitHub);
+    }
 
-    private async Task RunLoginAsync(LoginProvider provider)
-    {
+    private async Task RunLoginAsync(LoginProvider provider) {
         LoginMicrosoftBtn.IsEnabled = false;
         LoginGithubBtn.IsEnabled = false;
         LoginStatusText.Text = "Opening browser...";
-        try
-        {
+        try {
             await ServiceManager.DevTunnels.LoginAsync(provider);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             LoginStatusText.Text = "Login failed";
             _logger?.LogError(ex, "DevTunnels {Provider} login failed", provider);
         }
-        finally
-        {
+        finally {
             LoginMicrosoftBtn.IsEnabled = true;
             LoginGithubBtn.IsEnabled = true;
         }
     }
 
-    private async void Logout_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void Logout_Click(object? sender, RoutedEventArgs e) {
         LogoutBtn.IsEnabled = false;
-        try
-        {
+        try {
             await ServiceManager.DevTunnels.LogoutAsync();
         }
-        finally
-        {
+        finally {
             LogoutBtn.IsEnabled = true;
         }
     }
 
-    private async void StartTunnel_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void StartTunnel_Click(object? sender, RoutedEventArgs e) {
         StartTunnelBtn.IsEnabled = false;
-        try
-        {
-            await ServiceManager.DevTunnels.StartTunnelAsync();
-        }
-        finally { /**/ }
+        await ServiceManager.DevTunnels.StartTunnelAsync();
     }
 
-    private async void StopTunnel_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void StopTunnel_Click(object? sender, RoutedEventArgs e) {
         await ServiceManager.DevTunnels.StopTunnelAsync();
     }
 
-    private async void DeleteTunnels_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void DeleteTunnels_Click(object? sender, RoutedEventArgs e) {
         DeleteTunnelsBtn.IsEnabled = false;
         StartTunnelBtn.IsEnabled = false;
-        try
-        {
+        try {
             await ServiceManager.DevTunnels.DeleteOldTunnelsAsync();
         }
-        finally
-        {
+        finally {
             DeleteTunnelsBtn.IsEnabled = true;
             bool cliInstalled = Utils.GetConnection(SubathonEventSource.DevTunnels, "Cli").Status;
             bool loggedIn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Login").Status;
@@ -274,21 +249,19 @@ public partial class DevTunnelsSettings : SettingsControl
         }
     }
 
-    private void RevealUrl_Click(object? sender, RoutedEventArgs e)
-    {
+    private void RevealUrl_Click(object? sender, RoutedEventArgs e) {
         bool reveal = RevealUrlBtn.IsChecked == true;
         TunnelUrlBox.RevealPassword = reveal;
         RevealUrlIcon.Glyph = reveal ? "EyeOff20" : "Eye20";
     }
 
-    private async void CopyTunnelUrl_Click(object? sender, RoutedEventArgs e)
-    {
-        var url = TunnelUrlBox.Text;
+    private async void CopyTunnelUrl_Click(object? sender, RoutedEventArgs e) {
+        string? url = TunnelUrlBox.Text;
         if (string.IsNullOrWhiteSpace(url)) return;
-        var result = await UiHelpers.TrySetClipboardTextAsync(url);
+        bool result = await UiHelpers.TrySetClipboardTextAsync(url);
         if (!result) return;
         if (sender is not Button btn) return;
-        var original = btn.Content;
+        object? original = btn.Content;
         btn.Content = "Copied!";
         await Task.Delay(1500);
         btn.Content = original;

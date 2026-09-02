@@ -1,9 +1,5 @@
-﻿using YTLiveChat.Contracts;
-using YTLiveChat.Contracts.Models;
-using YTLiveChat.Contracts.Services;
-using YTLiveChat.Services; 
+﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -11,81 +7,86 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Services;
+using YTLiveChat.Contracts;
+using YTLiveChat.Contracts.Models;
+using YTLiveChat.Contracts.Services;
+using YTLiveChat.Services;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Integration;
 
-public class YouTubeService : IDisposable, IAppService
-{
-    private int _pollTime = 1500;
+public class YouTubeService : IDisposable, IAppService {
+    private readonly IConfig _config;
     private readonly HttpClient _httpClient;
+
+    private readonly ILogger? _logger;
+
+    private readonly Utils.ServiceReconnectState _reconnectState =
+        new(TimeSpan.FromSeconds(5), 100, TimeSpan.FromMinutes(2));
+
     private readonly IYTLiveChat _ytLiveChat;
-    private bool _disposed = false;
+
+    private int _canonicalLinkErrorCount;
+    private bool _disposed;
+    private readonly int _pollTime = 1500;
     private string? _ytHandle;
     public bool Running;
 
-    private readonly Utils.ServiceReconnectState _reconnectState = 
-        new(TimeSpan.FromSeconds(5), maxRetries: 100, maxBackoff: TimeSpan.FromMinutes(2));
-    
-    private readonly ILogger? _logger;
-    private readonly IConfig _config;
-    
-    private int _canonicalLinkErrorCount = 0;
-    
-    public YouTubeService(ILogger<YouTubeService>? logger, IConfig config, ILogger<YTHttpClient>? httpClientLogger, ILogger<YTLiveChat.Services.YTLiveChat>? chatLogger)
-    {
+    public YouTubeService(ILogger<YouTubeService>? logger, IConfig config, ILogger<YTHttpClient>? httpClientLogger,
+        ILogger<YTLiveChat.Services.YTLiveChat>? chatLogger) {
 #pragma warning disable CS0618
-        
+
         _logger = logger;
         _config = config;
-        var options = new YTLiveChatOptions
-        {
+        var options = new YTLiveChatOptions {
             RequestFrequency = _pollTime,
             EnableContinuousLivestreamMonitor = true, // having upcoming streams will report as true
             LiveCheckFrequency = 10 * 1000
         };
-        
-        _httpClient ??= new HttpClient()
-        {
+
+        _httpClient ??= new HttpClient {
             BaseAddress = new Uri(options.YoutubeBaseUrl)
         };
-        
+
         var ytHttpClient = new YTHttpClient(_httpClient, httpClientLogger);
         _ytLiveChat = new YTLiveChat.Services.YTLiveChat(options, ytHttpClient, chatLogger);
-        
+
         _ytLiveChat.InitialPageLoaded += OnInitialPageLoaded;
         _ytLiveChat.ChatReceived += OnChatReceived;
         _ytLiveChat.ChatStopped += OnChatStopped;
         _ytLiveChat.ErrorOccurred += OnErrorOccurred;
         //_ytLiveChat.LivestreamStarted += OnStreamStart;
         _ytLiveChat.BannerAdded += OnBanner;
-        _ytLiveChat.LivestreamEnded += OnStreamEnd; 
-        
+        _ytLiveChat.LivestreamEnded += OnStreamEnd;
+
 #pragma warning restore CS0618
     }
 
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
+    public Task StartAsync(CancellationToken cancellationToken = default) {
         Start(null);
         return Task.CompletedTask;
     }
-    
-    public Task StopAsync(CancellationToken cancellationToken = default)
-    {
+
+    public Task StopAsync(CancellationToken cancellationToken = default) {
         Running = false;
         Dispose();
         return Task.CompletedTask;
     }
-    
-    public bool Start(string? handle)
-    {
+
+    [ExcludeFromCodeCoverage]
+    public void Dispose() {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    public bool Start(string? handle) {
         Running = false;
         _reconnectState.Reset();
 
         _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
         bool configured = !string.IsNullOrWhiteSpace(_ytHandle) && _ytHandle.Trim() != "@";
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.YouTube,
             Service = "Chat",
             Name = "None",
@@ -93,50 +94,44 @@ public class YouTubeService : IDisposable, IAppService
             Configured = configured
         });
 
-        if (!configured)
-        {
+        if (!configured) {
             _logger?.LogInformation("YouTube Service not connected to any channel. Not running.");
             return Running;
         }
 
-        if (!_ytHandle.StartsWith("@")) _ytHandle =  "@" + _ytHandle;
+        if (!_ytHandle.StartsWith("@")) _ytHandle = "@" + _ytHandle;
         _logger?.LogInformation("Youtube Service Starting for " + _ytHandle);
-        
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.YouTube,
             Service = "Chat",
             Name = _ytHandle!,
             Status = Running
         });
-        _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
+        _ytLiveChat.Start(_ytHandle, overwrite: true);
         return true;
     }
-    
+
     // private void OnStreamStart(object? sender, LivestreamStartedEventArgs e)
     // {
     //     Console.WriteLine("----------------------YT Live Stream Started");
     // }
-    
+
     [ExcludeFromCodeCoverage]
-    private async void OnStreamEnd(object? sender, LivestreamEndedEventArgs e)
-    {
+    private async void OnStreamEnd(object? sender, LivestreamEndedEventArgs e) {
         _logger?.LogDebug("YT Stream has ended");
         await Task.Delay(2000);
-        if (await _reconnectState.IsReconnecting() && _reconnectState.Retries < _reconnectState.MaxRetries)
-        {
+        if (await _reconnectState.IsReconnecting() && _reconnectState.Retries < _reconnectState.MaxRetries) {
             _logger?.LogInformation("YT Cancelling reconnects. Stream verified as ended. Attempting last try.");
             _reconnectState.Retries = _reconnectState.MaxRetries - 1;
         }
     }
 
-    private void OnInitialPageLoaded(object? sender, InitialPageLoadedEventArgs e)
-    {
+    private void OnInitialPageLoaded(object? sender, InitialPageLoadedEventArgs e) {
         Running = true;
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.YouTube,
             Service = "Chat",
             Name = _ytHandle!,
@@ -144,12 +139,11 @@ public class YouTubeService : IDisposable, IAppService
         });
         _logger?.LogInformation($"Successfully loaded YouTube Live ID: {e.LiveId}");
     }
-    private void OnChatStopped(object? sender, ChatStoppedEventArgs e)
-    {
+
+    private void OnChatStopped(object? sender, ChatStoppedEventArgs e) {
         Running = false;
         _logger?.LogWarning("YT Chat stopped");
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.YouTube,
             Service = "Chat",
             Name = _ytHandle!,
@@ -157,16 +151,15 @@ public class YouTubeService : IDisposable, IAppService
         });
         TryReconnectLoop();
     }
-    
-    private void OnBanner(object? sender, BannerAddedEventArgs e)
-    {
-        if (e.Banner.BannerType != BannerType.CrossChannelRedirect || e.Banner is not CrossChannelRedirectBannerItem banner) return;
+
+    private void OnBanner(object? sender, BannerAddedEventArgs e) {
+        if (e.Banner.BannerType != BannerType.CrossChannelRedirect ||
+            e.Banner is not CrossChannelRedirectBannerItem banner) return;
         if (banner.RedirectType != CrossChannelRedirectType.Raid) return;
 
-        var channel = banner.RedirectChannelHandle.Replace("@", "");
+        string channel = banner.RedirectChannelHandle.Replace("@", "");
 
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+        var subathonEvent = new SubathonEvent {
             Source = SubathonEventSource.YouTube,
             EventType = SubathonEventType.YouTubeRedirect,
             Value = "",
@@ -176,52 +169,43 @@ public class YouTubeService : IDisposable, IAppService
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
-    private void OnErrorOccurred(object? sender, ErrorOccurredEventArgs e)
-    {
-        var ex = e.GetException();
+    private void OnErrorOccurred(object? sender, ErrorOccurredEventArgs e) {
+        Exception? ex = e.GetException();
         Running = false;
-        
-        if (ex?.Message.Contains("canonical link not found", StringComparison.OrdinalIgnoreCase) == true)
-        {
+
+        if (ex?.Message.Contains("canonical link not found", StringComparison.OrdinalIgnoreCase) == true) {
             if (_canonicalLinkErrorCount == 0)
-            {
                 _logger?.LogWarning(
                     "YouTube stream is offline? (canonical link not found)."
                 );
-            }
 
             _canonicalLinkErrorCount++;
         }
-        else
-        {
+        else {
             var msg = "YT Error Occured";
-            if (ex != null && ex.Message.Contains("Initial Continuation token not found"))
-            {
+            if (ex != null && ex.Message.Contains("Initial Continuation token not found")) {
                 msg += " - Initial Continuation token not found";
                 _logger?.LogWarning(msg);
             }
-            else 
+            else {
                 _logger?.LogWarning(ex, "YT Error Occurred");
+            }
         }
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.YouTube,
             Service = "Chat",
             Name = _ytHandle!,
             Status = Running
         });
     }
-    
-    private void OnChatReceived(object? sender, ChatReceivedEventArgs e)
-    {
+
+    private void OnChatReceived(object? sender, ChatReceivedEventArgs e) {
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle == "@")
             return;
-        
-        if (!Running)
-        {
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-            {
+
+        if (!Running) {
+            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
                 Source = SubathonEventSource.YouTube,
                 Service = "Chat",
                 Name = _ytHandle!,
@@ -233,38 +217,33 @@ public class YouTubeService : IDisposable, IAppService
 
         Running = true;
         _canonicalLinkErrorCount = 0;
-        
+
         ChatItem item = e.ChatItem;
 
         if (item.Timestamp.DateTime.ToLocalTime() <
             DateTime.Now - TimeSpan.FromMinutes(3))
-        {
             // only if it's not older than 3 min,
             // to avoid reparsing old events that had new id's
             return;
-        }
 
         string user = item.Author.Name.Replace("@", "");
-        if (item.Superchat != null)
-        {
+        if (item.Superchat != null) {
             if (item.IsTicker)
                 return;
             string currency = item.Superchat.Currency.ToUpper().Trim();
             string raw = item.Superchat.AmountString.Trim();
-            
+
             if (currency == "USD" && !raw.StartsWith('$')) // Parsed incorrectly
                 currency = Utils.TryParseCurrency(raw);
 
-            if (currency is "" or "???")
-            {
-                string message = $"Unknown currency detected: From: {user},  {item.Superchat.AmountString}";
-                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventType.YouTubeSuperChat), 
+            if (currency is "" or "???") {
+                var message = $"Unknown currency detected: From: {user},  {item.Superchat.AmountString}";
+                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventType.YouTubeSuperChat),
                     message, item.Timestamp.DateTime.ToLocalTime());
                 _logger?.LogWarning(message);
             }
-            
-            SubathonEvent subathonEvent = new()
-            {
+
+            SubathonEvent subathonEvent = new() {
                 User = user,
                 Currency = $"{currency}".Trim().ToUpper(),
                 Value = $"{item.Superchat.AmountValue}",
@@ -277,29 +256,27 @@ public class YouTubeService : IDisposable, IAppService
             return;
         }
 
-        if (item.MembershipDetails != null)
-        {
+        if (item.MembershipDetails != null) {
             if (item.IsTicker)
                 return;
-            SubathonEvent subathonEvent = new()
-            {
+            SubathonEvent subathonEvent = new() {
                 Source = SubathonEventSource.YouTube
             };
             subathonEvent.Id = Guid.TryParse(item.Id, out Guid gid) ? gid : Utils.CreateGuidFromUniqueString(item.Id);
             subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
-            
-            var details = item.MembershipDetails;
+
+            MembershipDetails? details = item.MembershipDetails;
             string tier = details.HeaderSubtext ?? details.LevelName;
             if (string.IsNullOrWhiteSpace(tier))
                 tier = details.LevelName;
             subathonEvent.Value = tier;
             subathonEvent.Currency = "member";
-            
-            if (tier.Contains("new", StringComparison.CurrentCultureIgnoreCase) && details.EventType == MembershipEventType.Unknown)
+
+            if (tier.Contains("new", StringComparison.CurrentCultureIgnoreCase) &&
+                details.EventType == MembershipEventType.Unknown)
                 details.EventType = MembershipEventType.New;
-            
-            switch (details.EventType)
-            {
+
+            switch (details.EventType) {
                 case MembershipEventType.Milestone: // essentially a resub
                     subathonEvent.EventType = SubathonEventType.YouTubeMembership;
                     tier = details.LevelName;
@@ -324,20 +301,21 @@ public class YouTubeService : IDisposable, IAppService
                     subathonEvent.EventType = SubathonEventType.YouTubeMembership;
                     break;
             }
+
             subathonEvent.User = user;
-            
+
             if (tier.Equals("Member", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(tier))
                 tier = "DEFAULT";
             if (tier.StartsWith("Upgraded membership to")) // upgrade type
             {
                 // levelname might be correct here, but incredibly hard to test
                 tier = tier.Replace("Upgraded membership to", "");
-                tier =  tier[..^1]; // remove end ! 
-                
+                tier = tier[..^1]; // remove end ! 
             }
+
             subathonEvent.Value = tier.Trim();
             subathonEvent.EventTypeMeta = tier.Trim();
-            
+
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
             return;
         }
@@ -349,42 +327,36 @@ public class YouTubeService : IDisposable, IAppService
                 item.Timestamp.DateTime.ToLocalTime(), Utils.CreateGuidFromUniqueString(item.Id));
         else if (user.Equals("blerp", StringComparison.OrdinalIgnoreCase)
                  && _config.GetBool("Extensions", "Blerp.Enabled", true))
-        {
             BlerpChatService.ParseMessage(messagePreview, SubathonEventSource.YouTube);
-        }
     }
-    
-    private void TryReconnectLoop()
-    {
+
+    private void TryReconnectLoop() {
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
             return;
-        
+
         _ = Task.Run(ReconnectWithBackoffAsync);
     }
-    
+
     [ExcludeFromCodeCoverage]
-    private async Task ReconnectWithBackoffAsync()
-    {
+    private async Task ReconnectWithBackoffAsync() {
         if (await _reconnectState.IsReconnecting())
             return; // already reconnecting
-        
+
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
             return;
-        
-        try
-        {
+
+        try {
             _reconnectState.Cts?.Cancel();
             _reconnectState.Cts = new CancellationTokenSource();
-            var token = _reconnectState.Cts.Token;
+            CancellationToken token = _reconnectState.Cts.Token;
 
-            while (!token.IsCancellationRequested && !Running && _ytHandle?.Trim() != "@" && !string.IsNullOrWhiteSpace(_ytHandle))
-            {
-                if (_reconnectState.Retries >= _reconnectState.MaxRetries)
-                {
+            while (!token.IsCancellationRequested && !Running && _ytHandle?.Trim() != "@" &&
+                   !string.IsNullOrWhiteSpace(_ytHandle)) {
+                if (_reconnectState.Retries >= _reconnectState.MaxRetries) {
                     _logger?.LogError(
                         "[YT] Max reconnect retries ({Retries}) reached. Giving up.",
                         _reconnectState.MaxRetries);
-                    
+
                     ErrorMessageEvents.RaiseErrorEvent(
                         "ERROR",
                         nameof(SubathonEventSource.YouTube),
@@ -395,7 +367,7 @@ public class YouTubeService : IDisposable, IAppService
 
                 _reconnectState.Retries++;
 
-                var delay = _reconnectState.Backoff;
+                TimeSpan delay = _reconnectState.Backoff;
 
                 _logger?.LogWarning(
                     "[YT] Reconnect attempt {Attempt}/{Max} in {Delay}s",
@@ -403,21 +375,16 @@ public class YouTubeService : IDisposable, IAppService
                     _reconnectState.MaxRetries,
                     delay.TotalSeconds);
 
-                try
-                {
+                try {
                     await Task.Delay(delay, token);
 
                     if (!Running && !string.IsNullOrWhiteSpace(_ytHandle))
-                    {
-                        _ytLiveChat.Start(handle: _ytHandle, overwrite: true);
-                    }
+                        _ytLiveChat.Start(_ytHandle, overwrite: true);
                 }
-                catch (OperationCanceledException)
-                {
+                catch (OperationCanceledException) {
                     return;
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     _logger?.LogWarning(ex, "[YT] Reconnect attempt failed");
                 }
 
@@ -428,25 +395,15 @@ public class YouTubeService : IDisposable, IAppService
                         _reconnectState.MaxBackoff.TotalMilliseconds));
             }
         }
-        finally
-        {
+        finally {
             _reconnectState.Lock.Release();
         }
     }
-    
+
     [ExcludeFromCodeCoverage]
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-    
-    [ExcludeFromCodeCoverage]
-    protected virtual void Dispose(bool disposing)
-    {
+    protected virtual void Dispose(bool disposing) {
         if (_disposed) return;
-        if (disposing)
-        {
+        if (disposing) {
             _reconnectState.Dispose();
             _ytLiveChat.Stop();
             _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
@@ -457,16 +414,15 @@ public class YouTubeService : IDisposable, IAppService
             _ytLiveChat.Dispose();
             _httpClient.Dispose();
         }
+
         _disposed = true;
     }
-    
-    public static void SimulateSuperChat(string value = "10.00", string currency = "USD")
-    {
-        if (!double.TryParse(value, out var val))
+
+    public static void SimulateSuperChat(string value = "10.00", string currency = "USD") {
+        if (!double.TryParse(value, out double val))
             return;
 
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+        var subathonEvent = new SubathonEvent {
             User = "SYSTEM",
             Currency = currency,
             Value = value,
@@ -475,11 +431,9 @@ public class YouTubeService : IDisposable, IAppService
         };
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
-    
-    public static void SimulateMembership(string tier = "DEFAULT")
-    {
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+
+    public static void SimulateMembership(string tier = "DEFAULT") {
+        var subathonEvent = new SubathonEvent {
             Source = SubathonEventSource.Simulated,
             Currency = "member",
             EventType = SubathonEventType.YouTubeMembership,
@@ -489,11 +443,9 @@ public class YouTubeService : IDisposable, IAppService
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
-    public static void SimulateGiftMemberships(int amount)
-    {
-        string tier = "DEFAULT";
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+    public static void SimulateGiftMemberships(int amount) {
+        var tier = "DEFAULT";
+        var subathonEvent = new SubathonEvent {
             Source = SubathonEventSource.Simulated,
             Currency = "member",
             EventType = SubathonEventType.YouTubeGiftMembership,
@@ -503,12 +455,10 @@ public class YouTubeService : IDisposable, IAppService
             Amount = amount
         };
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-    } 
-    
-    public static void SimulateRaid()
-    {
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+    }
+
+    public static void SimulateRaid() {
+        var subathonEvent = new SubathonEvent {
             Source = SubathonEventSource.Simulated,
             Currency = "",
             EventType = SubathonEventType.YouTubeRedirect,
@@ -517,5 +467,5 @@ public class YouTubeService : IDisposable, IAppService
             Amount = 1
         };
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-    } 
+    }
 }

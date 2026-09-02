@@ -2,9 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using DevTunnels.Client;
 using DevTunnels.Client.Authentication;
 using DevTunnels.Client.Hosting;
+using DevTunnels.Client.Installer;
 using DevTunnels.Client.Ports;
 using DevTunnels.Client.Tunnels;
-using DevTunnels.Client.Installer;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
@@ -16,19 +16,18 @@ namespace SubathonManager.Integration;
 public class DevTunnelsService(
     ILogger<DevTunnelsService>? logger,
     IConfig config,
-    IDevTunnelsClient client) : IDisposable, IAppService
-{
+    IDevTunnelsClient client) : IDisposable, IAppService {
     private readonly string _configSection = "DevTunnels";
-    private bool _disposed = false;
-
-    private IDevTunnelHostSession? _session;
-    private CancellationTokenSource? _cts;
-    private DateTime? _lastTokenErrorAt;
 
     // Serialises concurrent StartTunnelAsync calls so at most one session-start attempt
     // runs at a time. Without this, two webhook integrations firing StartTunnelAsync
     // concurrently could both pass the _session != null guard and launch two CLI processes.
     private readonly SemaphoreSlim _startLock = new(1, 1);
+    private CancellationTokenSource? _cts;
+    private bool _disposed;
+    private DateTime? _lastTokenErrorAt;
+
+    private IDevTunnelHostSession? _session;
 
     // Publicly readable so the UI can show the live URL without subscribing to events.
     public string? PublicBaseUrl { get; private set; }
@@ -36,16 +35,14 @@ public class DevTunnelsService(
     public bool IsLoggedIn { get; private set; }
     public bool IsTunnelRunning { get; private set; }
 
-    public async Task StartAsync(CancellationToken ct = default)
-    {
+    public async Task StartAsync(CancellationToken ct = default) {
         // 1. Probe CLI
-        var probe = await client.ProbeCliAsync(ct);
+        DevTunnelCliProbeResult probe = await client.ProbeCliAsync(ct);
         IsCliInstalled = probe.IsInstalled;
 
         BroadcastCliStatus(probe);
 
-        if (!probe.IsInstalled)
-        {
+        if (!probe.IsInstalled) {
             logger?.LogInformation("[DevTunnels] CLI not installed, skipping auto-start");
             BroadcastLoginStatus(null);
             BroadcastTunnelStatus(false, null);
@@ -53,14 +50,14 @@ public class DevTunnelsService(
         }
 
         // 2. Check login
-        var login = await client.GetLoginStatusAsync(ct);
+        DevTunnelLoginStatus login = await client.GetLoginStatusAsync(ct);
         IsLoggedIn = login.IsLoggedIn;
 
         BroadcastLoginStatus(login);
 
-        if (!login.IsLoggedIn)
-        {
-            logger?.LogInformation("[DevTunnels] Not logged in; tunnel will start on demand when a webhook integration is enabled");
+        if (!login.IsLoggedIn) {
+            logger?.LogInformation(
+                "[DevTunnels] Not logged in; tunnel will start on demand when a webhook integration is enabled");
             BroadcastTunnelStatus(false, null);
             return;
         }
@@ -72,35 +69,7 @@ public class DevTunnelsService(
         BroadcastTunnelStatus(false, null);
     }
 
-    [ExcludeFromCodeCoverage]
-    public async Task<bool> TryInstallAsync(CancellationToken ct = default)
-    {
-        var probe = await client.ProbeCliAsync(ct);
-        if (probe.IsInstalled)
-        {
-            logger?.LogInformation("[DevTunnels] Install requested but already installed...");
-            return true;
-        }
-        var installer = new DevTunnelCliInstaller();
-        logger?.LogInformation("[DevTunnels] Installing detected installer...");
-        string? detected = await installer.DetectInstallerAsync(ct);
-        logger?.LogInformation("[DevTunnels] Installer: {Detected}", detected ?? "none");
-        
-        var result = await installer.InstallAsync(ct);
-        if (result.Success)
-        {
-            logger?.LogInformation("[DevTunnels] Installed successfully via {Method}. Path: {Path}", result.InstallerUsed, result.InstalledPath);
-        }
-        else
-        {
-            logger?.LogError("[DevTunnels] Install failed: {Reason}", result.FailureReason);
-        }
-
-        return result.Success;
-    }
-
-    public async Task StopAsync(CancellationToken ct = default)
-    {
+    public async Task StopAsync(CancellationToken ct = default) {
         await StopTunnelAsync();
 
         IsCliInstalled = false;
@@ -111,26 +80,52 @@ public class DevTunnelsService(
         BroadcastTunnelStatus(false, null);
     }
 
+    [ExcludeFromCodeCoverage]
+    public void Dispose() {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    [ExcludeFromCodeCoverage]
+    public async Task<bool> TryInstallAsync(CancellationToken ct = default) {
+        DevTunnelCliProbeResult probe = await client.ProbeCliAsync(ct);
+        if (probe.IsInstalled) {
+            logger?.LogInformation("[DevTunnels] Install requested but already installed...");
+            return true;
+        }
+
+        var installer = new DevTunnelCliInstaller();
+        logger?.LogInformation("[DevTunnels] Installing detected installer...");
+        string? detected = await installer.DetectInstallerAsync(ct);
+        logger?.LogInformation("[DevTunnels] Installer: {Detected}", detected ?? "none");
+
+        DevTunnelCliInstallResult result = await installer.InstallAsync(ct);
+        if (result.Success)
+            logger?.LogInformation("[DevTunnels] Installed successfully via {Method}. Path: {Path}",
+                result.InstallerUsed, result.InstalledPath);
+        else
+            logger?.LogError("[DevTunnels] Install failed: {Reason}", result.FailureReason);
+
+        return result.Success;
+    }
+
     // Interactive actions called from the UI
 
-    public async Task<DevTunnelCliProbeResult> RefreshCliStatusAsync(CancellationToken ct = default)
-    {
-        var probe = await client.ProbeCliAsync(ct);
+    public async Task<DevTunnelCliProbeResult> RefreshCliStatusAsync(CancellationToken ct = default) {
+        DevTunnelCliProbeResult probe = await client.ProbeCliAsync(ct);
         IsCliInstalled = probe.IsInstalled;
         BroadcastCliStatus(probe);
         return probe;
     }
 
-    public async Task<DevTunnelLoginStatus> LoginAsync(LoginProvider provider, CancellationToken ct = default)
-    {
-        var status = await client.LoginAsync(provider, ct);
+    public async Task<DevTunnelLoginStatus> LoginAsync(LoginProvider provider, CancellationToken ct = default) {
+        DevTunnelLoginStatus status = await client.LoginAsync(provider, ct);
         IsLoggedIn = status.IsLoggedIn;
         BroadcastLoginStatus(status);
         return status;
     }
 
-    public async Task<DevTunnelLoginStatus> LogoutAsync(CancellationToken ct = default)
-    {
+    public async Task<DevTunnelLoginStatus> LogoutAsync(CancellationToken ct = default) {
         await StopTunnelAsync();
         await client.LogoutAsync(ct);
         IsLoggedIn = false;
@@ -139,36 +134,32 @@ public class DevTunnelsService(
         return new DevTunnelLoginStatus { Status = "Logged out" };
     }
 
-    public async Task StartTunnelAsync(CancellationToken ct = default)
-    {
+    public async Task StartTunnelAsync(CancellationToken ct = default) {
         // Fast path: no lock needed if a session is already running.
         if (_session != null) return;
 
         await _startLock.WaitAsync(ct);
-        try
-        {
+        try {
             // Re-check under the lock in case another caller just finished starting.
             if (_session != null) return;
 
-            BroadcastTunnelStatus(false, null, starting: true);
+            BroadcastTunnelStatus(false, null, true);
 
-            var serverPort = int.TryParse(config.Get("Server", "Port", "14040"), out var p) ? p : 14040;
-            var tunnelId = config.Get(_configSection, "TunnelId", string.Empty);
+            int serverPort = int.TryParse(config.Get("Server", "Port", "14040"), out int p) ? p : 14040;
+            string? tunnelId = config.Get(_configSection, "TunnelId", string.Empty);
 
             // The Azure DevTunnels CLI internally assigns a random tunnel ID that may not match
             // the short-name format required by StartHostSessionAsync validation. We always use
             // the label (name) we chose as the persistent ID; the CLI accepts it as a host arg.
             // Also clear any cluster-qualified IDs persisted by older code (e.g. "name.abc.usw2").
-            if (!string.IsNullOrWhiteSpace(tunnelId) && !DevTunnelValidation.IsValidTunnelId(tunnelId))
-            {
+            if (!string.IsNullOrWhiteSpace(tunnelId) && !DevTunnelValidation.IsValidTunnelId(tunnelId)) {
                 logger?.LogInformation("[DevTunnels] Stored tunnel ID is not in short-name format; resetting");
                 tunnelId = string.Empty;
                 if (config.Set(_configSection, "TunnelId", string.Empty))
                     config.Save();
             }
-            
-            if (!string.IsNullOrWhiteSpace(tunnelId) && tunnelId.StartsWith("subathon-"))
-            {
+
+            if (!string.IsNullOrWhiteSpace(tunnelId) && tunnelId.StartsWith("subathon-")) {
                 logger?.LogWarning("[DevTunnels] Legacy tunnel ID found. Resetting");
                 tunnelId = string.Empty;
                 if (config.Set(_configSection, "TunnelId", string.Empty))
@@ -176,28 +167,25 @@ public class DevTunnelsService(
                 IntegrationEvents.RaiseDevTunnelLegacyNotification();
             }
 
-            if (string.IsNullOrWhiteSpace(tunnelId))
-            {
-                try
-                {
+            if (string.IsNullOrWhiteSpace(tunnelId)) {
+                try {
                     var prefix = $"sm{serverPort}-";
-                    var list = await client.ListTunnelsAsync(ct);
-                    var found = list.Tunnels.FirstOrDefault(t => t.TunnelId.StartsWith(prefix, StringComparison.Ordinal));
-                    if (found != null)
-                    {
+                    DevTunnelList list = await client.ListTunnelsAsync(ct);
+                    DevTunnelStatus? found =
+                        list.Tunnels.FirstOrDefault(t => t.TunnelId.StartsWith(prefix, StringComparison.Ordinal));
+                    if (found != null) {
                         tunnelId = found.TunnelId.Split('.')[0];
-                        logger?.LogInformation("[DevTunnels] Recovered existing tunnel '{Id}' from account list", tunnelId);
+                        logger?.LogInformation("[DevTunnels] Recovered existing tunnel '{Id}' from account list",
+                            tunnelId);
                         if (config.Set(_configSection, "TunnelId", tunnelId))
                             config.Save();
                     }
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) {
                     logger?.LogWarning(ex, "[DevTunnels] Failed to list tunnels; will generate a new ID");
                 }
 
-                if (string.IsNullOrWhiteSpace(tunnelId))
-                {
+                if (string.IsNullOrWhiteSpace(tunnelId)) {
                     tunnelId = $"sm{serverPort}-{Guid.NewGuid():N}";
                     if (config.Set(_configSection, "TunnelId", tunnelId))
                         config.Save();
@@ -208,14 +196,13 @@ public class DevTunnelsService(
             // The port must be pre-registered on the tunnel; passing PortNumber to StartHostSessionAsync
             // is for ephemeral tunnels only and causes a service-side error on named persistent tunnels.
             logger?.LogInformation("[DevTunnels] Ensuring tunnel '{Id}' and port {Port} exist", tunnelId, serverPort);
-            
-            try
-            {
+
+            try {
                 await client.GetTunnelAsync(tunnelId, ct);
             }
-            catch (Exception ex)
-            {
-                logger?.LogWarning(ex, "[DevTunnels] Failed to find a pre-existing tunnel. Trying to create or update.");
+            catch (Exception ex) {
+                logger?.LogWarning(ex,
+                    "[DevTunnels] Failed to find a pre-existing tunnel. Trying to create or update.");
                 await client.CreateOrUpdateTunnelAsync(
                     tunnelId,
                     new DevTunnelOptions { AllowAnonymous = true, Description = "SubathonManager webhook tunnel" },
@@ -234,18 +221,16 @@ public class DevTunnelsService(
                 new DevTunnelHostStartOptions { TunnelId = tunnelId, ReadyTimeout = TimeSpan.FromSeconds(30) },
                 _cts.Token);
 
-            try
-            {
+            try {
                 await _session.WaitForReadyAsync(_cts.Token);
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("access token") || (ex.Message.StartsWith("Request ID:")))
-            {
+            catch (InvalidOperationException ex) when (ex.Message.Contains("access token") ||
+                                                       ex.Message.StartsWith("Request ID:")) {
                 logger?.LogWarning(ex,
                     "[DevTunnels] Host token missing for tunnel '{Id}'; re-login to the devtunnel CLI may be required",
                     tunnelId);
 
-                if (_lastTokenErrorAt == null || DateTime.Now - _lastTokenErrorAt > TimeSpan.FromMinutes(10))
-                {
+                if (_lastTokenErrorAt == null || DateTime.Now - _lastTokenErrorAt > TimeSpan.FromMinutes(10)) {
                     _lastTokenErrorAt = DateTime.Now;
                     ErrorMessageEvents.RaiseErrorEvent(
                         "WARN",
@@ -253,11 +238,12 @@ public class DevTunnelsService(
                         "DevTunnel failed to start: missing host access token. Please re-login to the devtunnel.",
                         DateTime.Now.ToLocalTime());
                 }
+
                 //
                 // await LogoutAsync(ct);
                 return;
             }
-            
+
             PublicBaseUrl = _session.PublicUrl?.ToString()?.TrimEnd('/');
             IsTunnelRunning = true;
 
@@ -267,49 +253,40 @@ public class DevTunnelsService(
             // Monitor for unexpected exit in the background
             _ = MonitorSessionAsync(_cts.Token);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             logger?.LogWarning(ex, "[DevTunnels] Failed to start tunnel");
             await StopTunnelAsync();
             BroadcastTunnelStatus(false, null);
         }
-        finally
-        {
+        finally {
             _startLock.Release();
         }
     }
 
-    public async Task DeleteOldTunnelsAsync(CancellationToken ct = default)
-    {
-        var serverPort = int.TryParse(config.Get("Server", "Port", "14040"), out var p) ? p : 14040;
+    public async Task DeleteOldTunnelsAsync(CancellationToken ct = default) {
+        int serverPort = int.TryParse(config.Get("Server", "Port", "14040"), out int p) ? p : 14040;
         var prefix = $"sm{serverPort}-";
 
-        var list = await client.ListTunnelsAsync(ct);
-        foreach (var tunnel in list.Tunnels)
-        {
-            var id = tunnel.TunnelId.Split('.')[0];
+        DevTunnelList list = await client.ListTunnelsAsync(ct);
+        foreach (DevTunnelStatus tunnel in list.Tunnels) {
+            string id = tunnel.TunnelId.Split('.')[0];
             if (!id.StartsWith(prefix, StringComparison.Ordinal)) continue;
-            try
-            {
+            try {
                 await client.DeleteTunnelAsync(id, ct);
                 logger?.LogInformation("[DevTunnels] Deleted old tunnel '{Id}'", id);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 logger?.LogWarning(ex, "[DevTunnels] Failed to delete tunnel '{Id}'", id);
             }
         }
 
-        var storedId = config.Get(_configSection, "TunnelId", string.Empty);
+        string? storedId = config.Get(_configSection, "TunnelId", string.Empty);
         if (!string.IsNullOrWhiteSpace(storedId) && storedId.StartsWith(prefix, StringComparison.Ordinal))
-        {
             if (config.Set(_configSection, "TunnelId", string.Empty))
                 config.Save();
-        }
     }
 
-    public async Task StopTunnelAsync()
-    {
+    public async Task StopTunnelAsync() {
         if (_session == null) return;
 
         BroadcastTunnelStatus(false, null, stopping: true);
@@ -317,11 +294,13 @@ public class DevTunnelsService(
         PublicBaseUrl = null;
         IsTunnelRunning = false;
 
-        try { await _session.StopAsync(); }
-        catch (Exception ex)
-        {
+        try {
+            await _session.StopAsync();
+        }
+        catch (Exception ex) {
             logger?.LogWarning(ex, "[DevTunnels] Failed to stop tunnel");
         }
+
         await _session.DisposeAsync();
         _session = null;
 
@@ -334,27 +313,24 @@ public class DevTunnelsService(
 
     // Helpers
 
-    private async Task MonitorSessionAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task MonitorSessionAsync(CancellationToken ct) {
+        try {
             if (_session == null) return;
             await _session.WaitForExitAsync(ct);
 
-            if (!ct.IsCancellationRequested && IsTunnelRunning)
-            {
+            if (!ct.IsCancellationRequested && IsTunnelRunning) {
                 logger?.LogWarning("[DevTunnels] Host session exited unexpectedly: {Reason}", _session.FailureReason);
                 await StopTunnelAsync();
                 BroadcastTunnelStatus(false, null);
             }
         }
-        catch (OperationCanceledException) { /**/ }
+        catch (OperationCanceledException) {
+            /**/
+        }
     }
 
-    private void BroadcastCliStatus(DevTunnelCliProbeResult? probe)
-    {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+    private void BroadcastCliStatus(DevTunnelCliProbeResult? probe) {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.DevTunnels,
             Service = "Cli",
             Name = probe?.IsInstalled == true ? probe.Version?.ToString() ?? "" : "",
@@ -363,10 +339,8 @@ public class DevTunnelsService(
         });
     }
 
-    private void BroadcastLoginStatus(DevTunnelLoginStatus? login)
-    {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+    private void BroadcastLoginStatus(DevTunnelLoginStatus? login) {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.DevTunnels,
             Service = "Login",
             Name = login?.Username ?? "",
@@ -376,29 +350,19 @@ public class DevTunnelsService(
         });
     }
 
-    private void BroadcastTunnelStatus(bool running, string? url, bool starting = false, bool stopping = false)
-    {
+    private void BroadcastTunnelStatus(bool running, string? url, bool starting = false, bool stopping = false) {
         IsTunnelRunning = running;
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection
-        {
+        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.DevTunnels,
             Service = "Tunnel",
-            Name = starting ? "(starting...)" : stopping ? "(stopping...)" : (url ?? ""),
+            Name = starting ? "(starting...)" : stopping ? "(stopping...)" : url ?? "",
             Status = running,
             Configured = running
         });
     }
 
     [ExcludeFromCodeCoverage]
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    [ExcludeFromCodeCoverage]
-    protected virtual void Dispose(bool disposing)
-    {
+    protected virtual void Dispose(bool disposing) {
         if (_disposed) return;
         _cts?.Cancel();
         _cts?.Dispose();

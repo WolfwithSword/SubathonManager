@@ -5,22 +5,18 @@ using SubathonManager.Core.Objects;
 namespace SubathonManager.Core.Events;
 
 [ExcludeFromCodeCoverage]
-public static class WebServerEvents
-{
+public static class WebServerEvents {
     public static event Action<bool>? WebServerStatusChanged;
     public static event Action<string, bool>? WebSocketIntegrationSourceChange;
-    
-    public static void RaiseWebServerStatusChange(bool status)
-    {
+
+    public static void RaiseWebServerStatusChange(bool status) {
         WebServerStatusChanged?.Invoke(status);
     }
 
-    public static void RaiseWebSocketIntegrationSourceChange(string integrationSource, bool status)
-    {
+    public static void RaiseWebSocketIntegrationSourceChange(string integrationSource, bool status) {
         WebSocketIntegrationSourceChange?.Invoke(integrationSource, status);
         if (!Enum.TryParse(integrationSource, out SubathonEventSource subathonEventSource)) return;
-        IntegrationConnection conn = new IntegrationConnection
-        {
+        var conn = new IntegrationConnection {
             Name = "External",
             Status = status,
             Source = subathonEventSource,

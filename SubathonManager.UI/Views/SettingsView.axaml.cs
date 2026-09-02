@@ -14,27 +14,25 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Objects;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views.SettingsViews;
-using SubathonManager.UI.Services;
+using SubathonManager.UI.Views.SettingsViews.External;
 
 namespace SubathonManager.UI.Views;
 
-public partial class SettingsView : SettingsControl
-{
-    private DateTime? _lastUpdatedTimerAt;
-    private bool _initialised;
+public partial class SettingsView : SettingsControl {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<SettingsView>>();
+    private bool _initialised;
+    private DateTime? _lastUpdatedTimerAt;
 
-    public SettingsView()
-    {
+    public SettingsView() {
         InitializeComponent();
 
         var config = AppServices.Provider.GetRequiredService<IConfig>();
 
         SubathonEvents.SubathonDataUpdate += UpdateTimerValue;
-        Loaded += (_, _) =>
-        {
+        Loaded += (_, _) => {
             WebServerEvents.WebServerStatusChanged += UpdateServerStatus;
             UpdateServerStatus(ServiceManager.Server?.Running ?? false);
             SubathonEvents.SubathonValueConfigUpdatedRemote += RefreshSubathonValues;
@@ -61,8 +59,7 @@ public partial class SettingsView : SettingsControl
         LoadValues();
         InitCurrencySelects();
 
-        Unloaded += (_, _) =>
-        {
+        Unloaded += (_, _) => {
             WebServerEvents.WebServerStatusChanged -= UpdateServerStatus;
             SubathonEvents.SubathonValueConfigUpdatedRemote -= RefreshSubathonValues;
         };
@@ -70,12 +67,9 @@ public partial class SettingsView : SettingsControl
         Task.Run(CheckForUpdateOnBoot);
     }
 
-    private void HotLinkToSource(SubathonEventSource source, string? detail)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            SettingsGroupControl? group = source.GetGroup() switch
-            {
+    private void HotLinkToSource(SubathonEventSource source, string? detail) {
+        Dispatcher.UIThread.Post(() => {
+            SettingsGroupControl? group = source.GetGroup() switch {
                 SubathonSourceGroup.Stream => StreamingSettingsControl,
                 SubathonSourceGroup.StreamExtension => ExtensionSettingsControl,
                 SubathonSourceGroup.ExternalService => ExternalServiceSettingsControl,
@@ -85,50 +79,41 @@ public partial class SettingsView : SettingsControl
             if (group == null) return;
             group.TryHotLinkToSource(source);
             if (!string.IsNullOrWhiteSpace(detail)
-                && group.GetControlForSource(source) is SettingsViews.External.GoAffProSettings goAffPro)
+                && group.GetControlForSource(source) is GoAffProSettings goAffPro)
                 goAffPro.TrySelectStore(detail);
         });
     }
 
-    private async void CheckForUpdateOnBoot()
-    {
-        try
-        {
+    private async void CheckForUpdateOnBoot() {
+        try {
             await Task.Delay(TimeSpan.FromSeconds(15));
             _logger?.LogDebug("Checking for updates on boot...");
             (bool hasUpdate, string? newVersion, string? _) = await AppServices.CheckForUpdate(_logger);
             if (hasUpdate && !string.IsNullOrEmpty(newVersion))
                 await Dispatcher.UIThread.InvokeAsync(() => UpdateBtn.Content = "Update Available!");
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogWarning(ex, "Error checking for updates on boot");
         }
     }
 
-    private void GoToHelp_Click(object? sender, RoutedEventArgs e)
-    {
-        Process.Start(new ProcessStartInfo
-        {
+    private void GoToHelp_Click(object? sender, RoutedEventArgs e) {
+        Process.Start(new ProcessStartInfo {
             FileName = "https://docs.subathonmanager.app",
             UseShellExecute = true
         });
     }
 
-    private async void Updater_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void Updater_Click(object? sender, RoutedEventArgs e) {
         (bool hasUpdate, string? newVersion, string? url) = await AppServices.CheckForUpdate(_logger);
-        if (hasUpdate && !string.IsNullOrEmpty(newVersion))
-        {
+        if (hasUpdate && !string.IsNullOrEmpty(newVersion)) {
             var panel = new StackPanel { Orientation = Orientation.Vertical };
             panel.Children.Add(new TextBlock { Text = "Update available!", TextWrapping = TextWrapping.Wrap });
             panel.Children.Add(new TextBlock { Text = "v" + newVersion, TextWrapping = TextWrapping.Wrap });
 
-            if (!string.IsNullOrEmpty(url))
-            {
-                var navUrl = url.Replace("/" + newVersion, "/v" + newVersion);
-                var link = new Button
-                {
+            if (!string.IsNullOrEmpty(url)) {
+                string navUrl = url.Replace("/" + newVersion, "/v" + newVersion);
+                var link = new Button {
                     Content = "Latest Version",
                     Background = Brushes.Transparent,
                     BorderThickness = new Thickness(0),
@@ -140,68 +125,67 @@ public partial class SettingsView : SettingsControl
                 panel.Children.Add(link);
             }
 
-            panel.Children.Add(new TextBlock { Text = "Download and install now?", Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap });
-            panel.Children.Add(new TextBlock { Text = "You will need to start the app manually once finished.", TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(new TextBlock {
+                Text = "Download and install now?", Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap
+            });
+            panel.Children.Add(new TextBlock
+                { Text = "You will need to start the app manually once finished.", TextWrapping = TextWrapping.Wrap });
 
-            var dialog = new FAContentDialog
-            {
+            var dialog = new FAContentDialog {
                 Title = "Updater",
                 PrimaryButtonText = "Update",
                 CloseButtonText = "Cancel",
                 Content = panel
             };
-            var result = await dialog.ShowAsync();
+            FAContentDialogResult result = await dialog.ShowAsync();
             if (result != FAContentDialogResult.Primary) return;
 
             await AppServices.DownloadAndInstall(_logger);
         }
-        else
-        {
+        else {
             await Dispatcher.UIThread.InvokeAsync(() => UpdateBtn.Content = "No Updates Found");
             await Task.Delay(5000);
             await Dispatcher.UIThread.InvokeAsync(() => UpdateBtn.Content = "Check for Updates");
         }
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection) { }
+    internal override void UpdateStatus(IntegrationConnection? connection) {
+    }
 
-    private async void ShowTelemetryPromptAsync(object? sender, RoutedEventArgs routedEventArgs)
-    {
-        try
-        {
+    private async void ShowTelemetryPromptAsync(object? sender, RoutedEventArgs routedEventArgs) {
+        try {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
 
             var panel = new StackPanel { Orientation = Orientation.Vertical, Width = 340 };
-            panel.Children.Add(new TextBlock
-            {
+            panel.Children.Add(new TextBlock {
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(4, 4, 4, 12),
                 Text = "Would you like to send anonymous usage data to help guide development?\n\n" +
                        "Only information on which integrations are active is collected - no usernames, keys, or personal information of any kind."
             });
 
-            var checkBox = new CheckBox
-            {
+            var checkBox = new CheckBox {
                 Content = "Enable anonymous data collection",
-                IsChecked = config.GetBool("Telemetry", "Enabled", false),
+                IsChecked = config.GetBool("Telemetry", "Enabled"),
                 Margin = new Thickness(4, 0, 4, 4)
             };
             panel.Children.Add(checkBox);
 
-            var dialog = new FAContentDialog
-            {
+            var dialog = new FAContentDialog {
                 Title = "Help Improve Subathon Manager",
                 PrimaryButtonText = "Confirm",
                 CloseButtonText = "Cancel",
                 Content = panel
             };
 
-            var result = await dialog.ShowAsync();
+            FAContentDialogResult result = await dialog.ShowAsync();
             if (result != FAContentDialogResult.Primary) return;
             bool enabled = checkBox.IsChecked ?? false;
             if (config.SetBool("Telemetry", "Enabled", enabled))
                 config.Save();
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 }

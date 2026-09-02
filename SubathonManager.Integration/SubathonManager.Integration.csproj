@@ -24,6 +24,7 @@
       <PackageReference Include="TwitchLib.Client" Version="4.0.1" />
       <PackageReference Include="TwitchLib.Communication" Version="2.0.1" />
       <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.8.0" />
+      <PackageReference Include="VTubeStudio.Client" Version="0.1.0" />
       <PackageReference Include="WolfwithSword.PicartoEventsLib" Version="0.1.1" />
       <!-- Streamlabs is locked to 3.X socketio client. -->
       <PackageReference Include="SocketIOClient" Version="3.1.2" />
@@ -35,8 +36,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Include="..\external\obs\subathonmanager.lua"
-                        LogicalName="SubathonManager.Integration.obs.subathonmanager.lua" />
+      <EmbeddedResource Include="..\external\obs\subathonmanager.lua" LogicalName="SubathonManager.Integration.obs.subathonmanager.lua" />
+      <EmbeddedResource Include="..\SubathonManager.UI\Assets\icon_128.png" LogicalName="SubathonManager.Integration.assets.icon_128.png" />
     </ItemGroup>
 
 </Project>

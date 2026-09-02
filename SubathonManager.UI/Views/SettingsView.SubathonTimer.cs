@@ -5,21 +5,18 @@ using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
+using SubathonManager.Data;
 using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views;
 
-public partial class SettingsView
-{
-    private void UpdateTimerValue(SubathonData subathon, DateTime time)
-    {
+public partial class SettingsView {
+    private void UpdateTimerValue(SubathonData subathon, DateTime time) {
         if (_lastUpdatedTimerAt == null || time > _lastUpdatedTimerAt)
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
+            Dispatcher.UIThread.Post(() => {
                 _lastUpdatedTimerAt = time;
 
-                string timerVal = subathon.TimeRemainingRounded().ToString();
+                var timerVal = subathon.TimeRemainingRounded().ToString();
                 if (TimerValueSettings.Text != timerVal) TimerValueSettings.Text = timerVal;
 
                 if (subathon.IsPaused && PauseText2.Text != "Resume Timer") PauseText2.Text = "Resume Timer";
@@ -34,37 +31,31 @@ public partial class SettingsView
                 if (subathon.IsLocked && LockIcon2.Glyph != "LockOpen16") LockIcon2.Glyph = "LockOpen16";
                 else if (!subathon.IsLocked && LockIcon2.Glyph != "LockClosed16") LockIcon2.Glyph = "LockClosed16";
 
-                string pts = $"{subathon.Points} Pts";
+                var pts = $"{subathon.Points} Pts";
                 if (PointsValueSettings.Text != pts) PointsValueSettings.Text = pts;
 
                 double moneySum = subathon.GetRoundedMoneySumWithCents();
                 string money = $"{subathon.Currency} {moneySum:N2}".Trim();
                 if (MoneyValueSettings.Text != money) MoneyValueSettings.Text = money;
             });
-        }
     }
 
-    private async void RemoveSimEvents_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await using var db = await _factory.CreateDbContextAsync();
+    private async void RemoveSimEvents_Click(object? sender, RoutedEventArgs e) {
+        try {
+            await using AppDbContext db = await _factory.CreateDbContextAsync();
             await ServiceManager.Events.UndoSimulatedEvents(db, [], true);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Error undoing simulated events");
         }
     }
 
-    private void TogglePauseSubathon_Click(object? sender, RoutedEventArgs e)
-    {
-        using var db = _factory.CreateDbContext();
+    private void TogglePauseSubathon_Click(object? sender, RoutedEventArgs e) {
+        using AppDbContext db = _factory.CreateDbContext();
         SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
         SubathonCommandType cmd = subathon.IsPaused ? SubathonCommandType.Resume : SubathonCommandType.Pause;
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+        var subathonEvent = new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = $"{cmd}",
@@ -78,14 +69,12 @@ public partial class SettingsView
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
-    private void ToggleLockSubathon_Click(object? sender, RoutedEventArgs e)
-    {
-        using var db = _factory.CreateDbContext();
+    private void ToggleLockSubathon_Click(object? sender, RoutedEventArgs e) {
+        using AppDbContext db = _factory.CreateDbContext();
         SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
         SubathonCommandType cmd = subathon.IsLocked ? SubathonCommandType.Unlock : SubathonCommandType.Lock;
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+        var subathonEvent = new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = $"{cmd}",

@@ -5,8 +5,7 @@ using System.Runtime.Versioning;
 
 namespace SubathonManager.UI.UiUtils;
 
-public static partial class FileManagerFocus
-{
+public static class FileManagerFocus {
     #region WINDOWS
 
     private const int SwRestore = 9;
@@ -21,19 +20,21 @@ public static partial class FileManagerFocus
     private static extern bool IsIconic(IntPtr hWnd);
 
     [SupportedOSPlatform("windows")]
-    public static bool TryFocusExplorer(string? folder, string? selectFile = null)
-    {
+    public static bool TryFocusExplorer(string? folder, string? selectFile = null) {
         if (string.IsNullOrWhiteSpace(folder)) return false;
 
         string target;
-        try { target = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar); }
-        catch { return false; }
+        try {
+            target = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar);
+        }
+        catch {
+            return false;
+        }
 
         object? shell = null;
         object? windows = null;
 
-        try
-        {
+        try {
             var shellType = Type.GetTypeFromProgID("Shell.Application");
             if (shellType == null) return false;
 
@@ -45,16 +46,14 @@ public static partial class FileManagerFocus
 
             if (Invoke(windows, "Count") is not int count) return false;
 
-            for (int i = 0; i < count; i++)
-            {
+            for (var i = 0; i < count; i++) {
                 object? window = null;
-                try
-                {
+                try {
                     window = Invoke(windows, "Item", i);
                     if (window == null) continue;
 
                     object? document = GetProperty(window, "Document");
-                    string? path = GetProperty(GetProperty(GetProperty(document, "Folder"), "Self"), "Path") as string;
+                    var path = GetProperty(GetProperty(GetProperty(document, "Folder"), "Self"), "Path") as string;
                     if (string.IsNullOrWhiteSpace(path)) continue;
 
                     if (!string.Equals(path.TrimEnd(Path.DirectorySeparatorChar), target,
@@ -72,19 +71,18 @@ public static partial class FileManagerFocus
                     TrySelectItem(document, selectFile);
                     return true;
                 }
-                catch {/**/}
-                finally
-                {
+                catch {
+                    /**/
+                }
+                finally {
                     Release(window);
                 }
             }
         }
-        catch
-        {
+        catch {
             return false;
         }
-        finally
-        {
+        finally {
             Release(windows);
             Release(shell);
         }
@@ -92,12 +90,10 @@ public static partial class FileManagerFocus
         return false;
     }
 
-    private static void TrySelectItem(object? document, string? selectFile)
-    {
+    private static void TrySelectItem(object? document, string? selectFile) {
         if (document == null || string.IsNullOrWhiteSpace(selectFile)) return;
 
-        try
-        {
+        try {
             object? folder = GetProperty(document, "Folder");
             if (folder == null) return;
 
@@ -107,46 +103,50 @@ public static partial class FileManagerFocus
             //                                         SVSI_SELECT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_FOCUSED
             Invoke(document, "SelectItem", item, 0x0001 | 0x0004 | 0x0008 | 0x0010);
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 
-    private static object? Invoke(object target, string name, params object?[] args)
-        => target.GetType().InvokeMember(name, BindingFlags.InvokeMethod | BindingFlags.GetProperty,
+    private static object? Invoke(object target, string name, params object?[] args) {
+        return target.GetType().InvokeMember(name, BindingFlags.InvokeMethod | BindingFlags.GetProperty,
             null, target, args);
+    }
 
-    private static object? GetProperty(object? target, string name)
-        => target?.GetType().InvokeMember(name, BindingFlags.GetProperty, null, target, null);
+    private static object? GetProperty(object? target, string name) {
+        return target?.GetType().InvokeMember(name, BindingFlags.GetProperty, null, target, null);
+    }
 
-    private static void Release(object? comObject)
-    {
-        try
-        {
+    private static void Release(object? comObject) {
+        try {
             if (comObject != null && Marshal.IsComObject(comObject))
 #pragma warning disable CA1416
                 Marshal.ReleaseComObject(comObject);
 #pragma warning restore CA1416
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 
     #endregion
 
     #region LINUX
 
-    public static bool TryShowItemsOverDBus(string? path)
-    {
+    public static bool TryShowItemsOverDBus(string? path) {
         if (string.IsNullOrWhiteSpace(path)) return false;
 
         string uri;
-        try { uri = new Uri(Path.GetFullPath(path)).AbsoluteUri; }
-        catch { return false; }
+        try {
+            uri = new Uri(Path.GetFullPath(path)).AbsoluteUri;
+        }
+        catch {
+            return false;
+        }
 
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo("gdbus")
-            {
-                ArgumentList =
-                {
+        try {
+            using Process? process = Process.Start(new ProcessStartInfo("gdbus") {
+                ArgumentList = {
                     "call", "--session",
                     "--dest", "org.freedesktop.FileManager1",
                     "--object-path", "/org/freedesktop/FileManager1",
@@ -162,22 +162,27 @@ public static partial class FileManagerFocus
 
             if (process == null) return false;
 
-            if (!process.WaitForExit(3000))
-            {
-                try { process.Kill(entireProcessTree: true); } catch { /**/ }
+            if (!process.WaitForExit(3000)) {
+                try {
+                    process.Kill(true);
+                }
+                catch {
+                    /**/
+                }
+
                 return false;
             }
 
             return process.ExitCode == 0;
         }
-        catch
-        {
+        catch {
             return false;
         }
     }
 
-    private static string EscapeGVariant(string value)
-        => value.Replace("\\", "\\\\").Replace("'", "\\'");
+    private static string EscapeGVariant(string value) {
+        return value.Replace("\\", "\\\\").Replace("'", "\\'");
+    }
 
     #endregion
 }
