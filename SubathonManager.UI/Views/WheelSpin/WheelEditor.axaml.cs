@@ -57,7 +57,7 @@ public partial class WheelEditor : UserControl {
         _logger = AppServices.Provider.GetRequiredService<ILogger<WheelEditor>>();
         InitializeComponent();
         PopulateActionTypeComboBox();
-        PopulateVtsComboBoxes();
+        if (FeatureFlags.VTubeStudioEnabled) PopulateVtsComboBoxes();
         LoadActiveWheel();
         LoadGlobalState();
 
@@ -72,16 +72,20 @@ public partial class WheelEditor : UserControl {
             SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
             WheelEvents.OnSpinsOwedUpdateFromEvent += AdjustSpinsBoxByEvent;
             WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
-            ServiceManager.VTubeStudio.ModelDataChanged += OnVtsModelDataChanged;
-            IntegrationEvents.ConnectionUpdated += OnVtsConnectionUpdated;
+            if (FeatureFlags.VTubeStudioEnabled) {
+                ServiceManager.VTubeStudio.ModelDataChanged += OnVtsModelDataChanged;
+                IntegrationEvents.ConnectionUpdated += OnVtsConnectionUpdated;
+            }
             RefreshSpinsOwed();
         };
         Unloaded += (_, _) => {
             SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
             WheelEvents.OnSpinsOwedUpdateFromEvent -= AdjustSpinsBoxByEvent;
             WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
-            ServiceManager.VTubeStudio.ModelDataChanged -= OnVtsModelDataChanged;
-            IntegrationEvents.ConnectionUpdated -= OnVtsConnectionUpdated;
+            if (FeatureFlags.VTubeStudioEnabled) {
+                ServiceManager.VTubeStudio.ModelDataChanged -= OnVtsModelDataChanged;
+                IntegrationEvents.ConnectionUpdated -= OnVtsConnectionUpdated;
+            }
         };
     }
 
@@ -105,7 +109,7 @@ public partial class WheelEditor : UserControl {
 
     private void PopulateActionTypeComboBox() {
         ActionTypeBox.Items.Clear();
-        foreach (WheelSpinActionType t in Enum.GetValues<WheelSpinActionType>())
+        foreach (WheelSpinActionType t in Enum.GetValues<WheelSpinActionType>().Where(t => t.IsAvailable()))
             ActionTypeBox.Items.Add(new ComboBoxItem { Content = t.GetLabel(), Tag = (WheelSpinActionType?)t });
         ActionTypeBox.SelectedIndex = 0;
     }
@@ -509,7 +513,8 @@ public partial class WheelEditor : UserControl {
                 .FirstOrDefault(i => (WheelSpinActionType?)i.Tag == actionType);
             ActionTypeBox.SelectedItem = actionItem ?? ActionTypeBox.Items.OfType<ComboBoxItem>().FirstOrDefault();
 
-            bool showParams = actionType.HasValue && actionType.Value.HasAction();
+            bool showParams = actionType.HasValue && actionType.Value.HasAction()
+                                                 && actionType.Value.IsAvailable();
             ActionParameterPanel.IsVisible = showParams;
             if (showParams) {
                 ShowActionPanelsFor(actionType!.Value);
@@ -569,7 +574,7 @@ public partial class WheelEditor : UserControl {
         bool isTime = type is WheelSpinActionType.AddTime or WheelSpinActionType.SubtractTime;
         bool isMult = type == WheelSpinActionType.SetMultiplier;
         bool isReroll = type == WheelSpinActionType.Reroll;
-        bool isVts = type == WheelSpinActionType.VTubeStudio;
+        bool isVts = type == WheelSpinActionType.VTubeStudio && FeatureFlags.VTubeStudioEnabled;
         TimeParamPanel.IsVisible = isTime;
         MultiplierParamPanel.IsVisible = isMult;
         RerollParamPanel.IsVisible = isReroll;
@@ -704,6 +709,9 @@ public partial class WheelEditor : UserControl {
                 var desiredActionType = (ActionTypeBox.SelectedItem as ComboBoxItem)?.Tag as WheelSpinActionType?;
                 bool isCommandAction = desiredActionType.HasValue && desiredActionType.Value.HasAction();
 
+                bool storedTypeIsHidden = trackedItem.Action != null && !trackedItem.Action.ActionType.IsAvailable();
+                if (storedTypeIsHidden) isCommandAction = false;
+
                 if (isCommandAction) {
                     string param = desiredActionType!.Value switch {
                         WheelSpinActionType.SetMultiplier => BuildMultiplierParameter(),
@@ -724,7 +732,7 @@ public partial class WheelEditor : UserControl {
                         trackedItem.Action.Parameter = param;
                     }
                 }
-                else if (trackedItem.Action != null) {
+                else if (trackedItem.Action != null && !storedTypeIsHidden) {
                     db.WheelSpinActions.Remove(trackedItem.Action);
                 }
 
@@ -890,7 +898,8 @@ public partial class WheelEditor : UserControl {
             await Dispatcher.UIThread.InvokeAsync(() => PrependHistoryRow(histEntry));
             WheelEvents.RaiseWheelSpinResult(_activeWheel, item, histEntry, _spinsOwed);
 
-            if (item.Action is { ActionType: WheelSpinActionType.VTubeStudio } vtsAction)
+            if (item.Action is { ActionType: WheelSpinActionType.VTubeStudio } vtsAction
+                && WheelSpinActionType.VTubeStudio.IsAvailable())
                 await TryRunVtsActionAsync(histEntry, vtsAction);
 
             if (item.Action?.ActionType.IsDoneImmediately() ?? false)

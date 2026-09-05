@@ -40,8 +40,14 @@ public static class WheelSpinActionTypeHelper {
         return EnumMetaCache.Get<WheelSpinActionMetaAttribute>(type)?.IsDoneImmediately ?? false;
     }
 
+    public static bool IsAvailable(this WheelSpinActionType type) {
+        if (type == WheelSpinActionType.VTubeStudio && !FeatureFlags.VTubeStudioEnabled)
+            return false;
+        return true;
+    }
+
     public static bool HasPlayAction(this WheelSpinActionType type) {
-        return type.IsCommand() || type == WheelSpinActionType.VTubeStudio;
+        return type.IsAvailable() && (type.IsCommand() || type == WheelSpinActionType.VTubeStudio);
     }
 
     public static SubathonCommandType ToCommandType(this WheelSpinActionType type) {

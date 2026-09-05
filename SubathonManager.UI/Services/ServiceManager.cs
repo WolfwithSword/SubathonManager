@@ -76,7 +76,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
 
     public async Task StartIntegrationsAsync() {
         await StartAsync<OBSService>();
-        await StartAsync<VTSService>();
+        if (FeatureFlags.VTubeStudioEnabled) await StartAsync<VTSService>();
         await StartAsync<TwitchService>();
         await StartAsync<YouTubeService>();
         await StartAsync<PicartoService>();
@@ -98,7 +98,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
 
     public async Task StopIntegrationsAsync() {
         await StopAsync<OBSService>();
-        await StopAsync<VTSService>();
+        if (FeatureFlags.VTubeStudioEnabled) await StopAsync<VTSService>();
         await StopAsync<TwitchService>();
         await StopAsync<YouTubeService>();
         await StopAsync<PicartoService>();

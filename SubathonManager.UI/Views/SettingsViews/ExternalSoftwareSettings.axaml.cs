@@ -1,4 +1,5 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.UI.Views.SettingsViews.ExternalSoftware;
@@ -12,7 +13,9 @@ public partial class ExternalSoftwareSettings : SettingsGroupControl {
     }
 
     protected override IEnumerable<SubathonEventSource> _eventSources =>
-        Enum.GetValues<SubathonEventSource>().Where(s => s.GetGroup() == SubathonSourceGroup.ExternalSoftware)
+        Enum.GetValues<SubathonEventSource>()
+            .Where(s => s.GetGroup() == SubathonSourceGroup.ExternalSoftware)
+            .Where(s => s != SubathonEventSource.VTubeStudio || FeatureFlags.VTubeStudioEnabled)
             .OrderBy(g => g.GetGroupLabelOrder());
 
     protected override StackPanel? GetSourceContents => SourceContents;
@@ -39,6 +42,7 @@ public partial class ExternalSoftwareSettings : SettingsGroupControl {
                 _settingsControls[eventSource] = new StreamerBotSettings();
                 break;
             case SubathonEventSource.VTubeStudio:
+                if (!FeatureFlags.VTubeStudioEnabled) return null;
                 _settingsControls[eventSource] = new VTubeStudioSettings();
                 break;
             default: return null;
