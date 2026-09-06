@@ -51,6 +51,11 @@ public class EnumMetaAttribute : Attribute {
     public bool Enabled { get; init; } = true;
 }
 
+[AttributeUsage(AttributeTargets.Field)]
+public class ProcessSearchMetaAttribute : Attribute {
+    public required string[] QueryNames { get; init; }
+}
+
 public class EventSourceMetaAttribute : EnumMetaAttribute {
     public override string? Label => SourceGroup is SubathonSourceGroup.UseSource or SubathonSourceGroup.Unknown
         ? ToString()
@@ -135,5 +140,25 @@ public static class EnumMetaCache {
             return null;
 
         return attr as T;
+    }
+}
+
+public static class ProcessSearchExtensions {
+    private static readonly Dictionary<ProcessSearch, string[]> _cache = BuildCache();
+
+    private static Dictionary<ProcessSearch, string[]> BuildCache() {
+        var map = new Dictionary<ProcessSearch, string[]>();
+
+        foreach (ProcessSearch value in Enum.GetValues<ProcessSearch>()) {
+            FieldInfo? field = typeof(ProcessSearch).GetField(value.ToString());
+            var attr = field?.GetCustomAttribute<ProcessSearchMetaAttribute>();
+            map[value] = attr?.QueryNames ?? [];
+        }
+
+        return map;
+    }
+
+    public static string[] GetQueryNames(this ProcessSearch value) {
+        return _cache.TryGetValue(value, out string[]? names) ? names : [];
     }
 }

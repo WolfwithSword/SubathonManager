@@ -127,16 +127,6 @@ public class VTSService(
         Flag(ParamTimerLocked, "the timer is locked")
     ];
 
-    private static ParameterCreationRequest Flag(string name, string what) {
-        return new ParameterCreationRequest {
-            ParameterName = name,
-            Explanation = $"Subathon Manager: 1 if {what}, otherwise 0",
-            Min = 0,
-            Max = 1,
-            DefaultValue = 0
-        };
-    }
-
     public bool Connected { get; private set; }
 
     public string? CurrentModelId { get; private set; }
@@ -189,6 +179,16 @@ public class VTSService(
         StopPublishLoop();
         _reconnectState.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private static ParameterCreationRequest Flag(string name, string what) {
+        return new ParameterCreationRequest {
+            ParameterName = name,
+            Explanation = $"Subathon Manager: 1 if {what}, otherwise 0",
+            Min = 0,
+            Max = 1,
+            DefaultValue = 0
+        };
     }
 
     private static string? LoadPluginIcon() {
@@ -442,7 +442,8 @@ public class VTSService(
 
                 try {
                     await Task.Delay(delay, token);
-                    if (!Connected && !_stopRequested) await ConnectAsync(token);
+                    if (DiscoverProcess.IsProcessRunning(ProcessSearch.VTubeStudio) && !Connected && !_stopRequested)
+                        await ConnectAsync(token);
                 }
                 catch (OperationCanceledException) {
                     return;
