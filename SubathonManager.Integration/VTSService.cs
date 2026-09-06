@@ -55,6 +55,12 @@ public class VTSService(
     private const string ParamCurrentMoney = "SMCurrentMoney";
     private const string ParamCurrentGoalValue = "SMCurrentGoalValue";
     private const string ParamUntilNextGoal = "SMUntilNextGoal";
+    private const string ParamGoalProgress = "SMGoalProgress";
+    private const string ParamMultiplierActive = "SMMultiplierActive";
+    private const string ParamWheelSpinActive = "SMWheelSpinActive";
+    private const string ParamPromptActive = "SMPromptActive";
+    private const string ParamTimerPaused = "SMTimerPaused";
+    private const string ParamTimerLocked = "SMTimerLocked";
 
     private const string PluginIconResource = "SubathonManager.Integration.assets.icon_128.png";
     private const double ParamMaxValue = 1000000;
@@ -75,6 +81,7 @@ public class VTSService(
     private VTubeStudioClient? _client;
     private CancellationTokenSource? _holdCts;
     private CancellationTokenSource? _publishCts;
+    private int _spinGeneration;
     private volatile bool _stopRequested;
 
     private List<ParameterCreationRequest> CustomParameterRequests => [
@@ -105,8 +112,30 @@ public class VTSService(
             Min = 0,
             Max = ParamMaxValue,
             DefaultValue = 0
-        }
+        },
+        new() {
+            ParameterName = ParamGoalProgress,
+            Explanation = "Subathon Manager: percent of the way to the next goal (0-100)",
+            Min = 0,
+            Max = 100,
+            DefaultValue = 0
+        },
+        Flag(ParamMultiplierActive, "a multiplier is active"),
+        Flag(ParamWheelSpinActive, "a wheel spin is in progress"),
+        Flag(ParamPromptActive, "a prompt is running"),
+        Flag(ParamTimerPaused, "the timer is paused"),
+        Flag(ParamTimerLocked, "the timer is locked")
     ];
+
+    private static ParameterCreationRequest Flag(string name, string what) {
+        return new ParameterCreationRequest {
+            ParameterName = name,
+            Explanation = $"Subathon Manager: 1 if {what}, otherwise 0",
+            Min = 0,
+            Max = 1,
+            DefaultValue = 0
+        };
+    }
 
     public bool Connected { get; private set; }
 
@@ -290,10 +319,7 @@ public class VTSService(
                     continue;
                 }
 
-                _customParameters.TryAdd(res.ParameterName, new ParameterValue {
-                    Id = res.ParameterName,
-                    Value = 0
-                });
+                SeedCustomParameter(res.ParameterName);
                 _logger?.LogDebug("[VTSService] Custom parameter ready: {Parameter}", res.ParameterName);
             }
             catch (Exception ex) {
@@ -308,12 +334,20 @@ public class VTSService(
         SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
         SubathonEvents.SubathonGoalListUpdated += OnGoalListUpdated;
         SubathonEvents.SubathonGoalCompleted += OnGoalCompleted;
+        SubathonEvents.PromptRunStarted += OnPromptRunChanged;
+        SubathonEvents.PromptRunUpdate += OnPromptRunChanged;
+        WheelEvents.WheelSpinStarted += OnWheelSpinStarted;
+        WheelEvents.WheelSpinResult += OnWheelSpinResult;
     }
 
     private void UnhookParameters() {
         SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
         SubathonEvents.SubathonGoalListUpdated -= OnGoalListUpdated;
         SubathonEvents.SubathonGoalCompleted -= OnGoalCompleted;
+        SubathonEvents.PromptRunStarted -= OnPromptRunChanged;
+        SubathonEvents.PromptRunUpdate -= OnPromptRunChanged;
+        WheelEvents.WheelSpinStarted -= OnWheelSpinStarted;
+        WheelEvents.WheelSpinResult -= OnWheelSpinResult;
     }
 
     [ExcludeFromCodeCoverage]
@@ -1048,18 +1082,21 @@ public class VTSService(
             await using AppDbContext db = await dbFactory.CreateDbContextAsync(ct);
 
             SubathonData? subathon = await db.SubathonDatas
+                .Include(x => x.Multiplier)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.IsActive, ct);
             if (subathon == null) return;
 
-            _customParameters[ParamCurrentPoints] = new ParameterValue {
-                Id = ParamCurrentPoints,
-                Value = Math.Max(0, subathon.Points)
-            };
-            _customParameters[ParamCurrentMoney] = new ParameterValue {
-                Id = ParamCurrentMoney,
-                Value = Math.Max(0, subathon.GetRoundedMoneySumWithCents())
-            };
+            SetCustomParameter(ParamCurrentPoints, Math.Max(0, subathon.Points));
+            SetCustomParameter(ParamCurrentMoney, Math.Max(0, subathon.GetRoundedMoneySumWithCents()));
+            SetCustomFlag(ParamMultiplierActive, subathon.Multiplier?.IsRunning() ?? false);
+            SetCustomFlag(ParamTimerPaused, subathon.IsPaused);
+            SetCustomFlag(ParamTimerLocked, subathon.IsLocked);
+
+            bool promptRunning = await db.SubathonPromptRuns
+                .AsNoTracking()
+                .AnyAsync(r => r.Status == SubathonPromptRunStatus.Active, ct);
+            SetCustomFlag(ParamPromptActive, promptRunning);
 
             SubathonGoalSet? goalSet = await db.SubathonGoalSets
                 .AsNoTracking()
@@ -1111,28 +1148,69 @@ public class VTSService(
         List<SubathonGoal> ordered = (goals ?? []).OrderBy(g => g.Points).ToList();
 
         if (ordered.Count == 0) {
-            _customParameters[ParamCurrentGoalValue] = new ParameterValue {
-                Id = ParamCurrentGoalValue,
-                Value = 0
-            };
-
-            _customParameters[ParamUntilNextGoal] = new ParameterValue {
-                Id = ParamUntilNextGoal,
-                Value = 0
-            };
+            SetCustomParameter(ParamCurrentGoalValue, 0);
+            SetCustomParameter(ParamUntilNextGoal, 0);
+            SetCustomParameter(ParamGoalProgress, 0);
+            return;
         }
-        else {
-            SubathonGoal? next = ordered.FirstOrDefault(g => g.Points > currentValue);
-            if (next == null) return;
-            _customParameters[ParamCurrentGoalValue] = new ParameterValue {
-                Id = ParamCurrentGoalValue,
-                Value = Math.Max(0, next.Points)
-            };
 
-            _customParameters[ParamUntilNextGoal] = new ParameterValue {
-                Id = ParamUntilNextGoal,
-                Value = Math.Max(0, next.Points - currentValue)
-            };
+        SubathonGoal? next = ordered.FirstOrDefault(g => g.Points > currentValue);
+        if (next == null) {
+            SetCustomParameter(ParamGoalProgress, 100);
+            return;
         }
+
+        SetCustomParameter(ParamCurrentGoalValue, Math.Max(0, next.Points));
+        SetCustomParameter(ParamUntilNextGoal, Math.Max(0, next.Points - currentValue));
+
+        long previous = ordered.Where(g => g.Points <= currentValue)
+            .Select(g => g.Points)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        long span = next.Points - previous;
+        double progress = span <= 0 ? 100 : (currentValue - previous) / (double)span * 100;
+        SetCustomParameter(ParamGoalProgress, Math.Clamp(progress, 0, 100));
+    }
+
+    private void SetCustomFlag(string parameterName, bool active) {
+        SetCustomParameter(parameterName, active ? 1 : 0);
+    }
+
+    private void OnPromptRunChanged(SubathonPromptRun run, SubathonPrompt? prompt) {
+        SetCustomFlag(ParamPromptActive, run.IsActive);
+        _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
+    }
+
+    private void OnWheelSpinStarted(WheelSet wheel, int delaySeconds) {
+        int generation = Interlocked.Increment(ref _spinGeneration);
+        SetCustomFlag(ParamWheelSpinActive, true);
+        _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
+
+        _ = Task.Run(async () => {
+            await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, delaySeconds) + 5));
+            if (Volatile.Read(ref _spinGeneration) != generation) return;
+            ClearWheelSpinFlag();
+        });
+    }
+
+    private void OnWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history, int spinsOwed) {
+        Interlocked.Increment(ref _spinGeneration);
+        ClearWheelSpinFlag();
+    }
+
+    private void ClearWheelSpinFlag() {
+        SetCustomFlag(ParamWheelSpinActive, false);
+        _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
+    }
+
+    private void SetCustomParameter(string parameterName, double value) {
+        if (!_customParameters.ContainsKey(parameterName)) return;
+
+        _customParameters[parameterName] = new ParameterValue { Id = parameterName, Value = value };
+    }
+
+    private void SeedCustomParameter(string parameterName) {
+        _customParameters.TryAdd(parameterName, new ParameterValue { Id = parameterName, Value = 0 });
     }
 }
