@@ -2,17 +2,15 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Sockets;
 using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
-using SubathonManager.Core.Models;
 using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using VTubeStudio.Client;
@@ -51,23 +49,22 @@ public class VTSService(
     private const string PluginName = "Subathon Manager";
     private const string PluginDeveloper = "WolfwithSword";
     private const string ServiceName = "VTubeStudio";
-    private const string ModelPollTimerKey = "vts-model-poll";
-    private const string PublishTimerKey = "vts-publish-parameters";
 
     /////////////////
     private const string ParamCurrentPoints = "SMCurrentPoints";
     private const string ParamCurrentMoney = "SMCurrentMoney";
     private const string ParamCurrentGoalValue = "SMCurrentGoalValue";
     private const string ParamUntilNextGoal = "SMUntilNextGoal";
-    /////////////////
 
     private const string PluginIconResource = "SubathonManager.Integration.assets.icon_128.png";
+    private const double ParamMaxValue = 1000000;
 
     private static readonly Lazy<string?> LazyPluginIcon = new(LoadPluginIcon, LazyThreadSafetyMode.PublicationOnly);
 
-    private readonly ConcurrentDictionary<string, ParameterValue> _heldParameters = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ParameterValue> _customParameters = new(StringComparer.Ordinal);
 
-    private readonly ConcurrentDictionary<string, ParameterValue> _publishedParameters = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, ParameterValue> _heldParameters = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, double> _lastPublished = new(StringComparer.Ordinal);
     private readonly ILogger? _logger = logger;
 
     private readonly Utils.ServiceReconnectState _reconnectState =
@@ -76,10 +73,40 @@ public class VTSService(
     private readonly List<IDisposable> _subscriptions = [];
 
     private VTubeStudioClient? _client;
-    private bool _customParametersReady;
-    private volatile bool _publishHooksAttached;
     private CancellationTokenSource? _holdCts;
+    private CancellationTokenSource? _publishCts;
     private volatile bool _stopRequested;
+
+    private List<ParameterCreationRequest> CustomParameterRequests => [
+        new() {
+            ParameterName = ParamCurrentPoints,
+            Explanation = "Subathon Manager: current points",
+            Min = 0,
+            Max = ParamMaxValue,
+            DefaultValue = 0
+        },
+        new() {
+            ParameterName = ParamCurrentMoney,
+            Explanation = "Subathon Manager: current money total",
+            Min = 0,
+            Max = ParamMaxValue,
+            DefaultValue = 0
+        },
+        new() {
+            ParameterName = ParamCurrentGoalValue,
+            Explanation = "Subathon Manager: value of the goal in progress",
+            Min = 0,
+            Max = ParamMaxValue,
+            DefaultValue = 0
+        },
+        new() {
+            ParameterName = ParamUntilNextGoal,
+            Explanation = "Subathon Manager: amount still needed for the next goal",
+            Min = 0,
+            Max = ParamMaxValue,
+            DefaultValue = 0
+        }
+    ];
 
     public bool Connected { get; private set; }
 
@@ -94,10 +121,10 @@ public class VTSService(
     private string Host => (config.Get(ConfigSection, "Host", "localhost") ?? "localhost").Trim();
     private string Port => (config.Get(ConfigSection, "Port", "8001") ?? "8001").Trim();
 
-    public bool PublishParameters => config.GetBool(ConfigSection, "PublishParameters", true);
-
-    private int ModelPollSeconds =>
-        int.TryParse(config.Get(ConfigSection, "ModelPollSeconds", "5"), out int sec) && sec >= 1 ? sec : 5;
+    private int PublishIntervalMs =>
+        int.TryParse(config.Get(ConfigSection, "PublishIntervalMs", "500"), out int ms) && ms is >= 100 and <= 900
+            ? ms
+            : 500;
 
     private int InjectIntervalMs =>
         int.TryParse(config.Get(ConfigSection, "InjectIntervalMs", "100"), out int ms) && ms >= 20 ? ms : 100;
@@ -105,20 +132,6 @@ public class VTSService(
     public IReadOnlyCollection<string> HeldParameters => _heldParameters.Keys.ToList();
 
     internal static string? PluginIconBase64 => LazyPluginIcon.Value;
-
-    private static string? LoadPluginIcon() {
-        try {
-            using Stream? stream = typeof(VTSService).Assembly.GetManifestResourceStream(PluginIconResource);
-            if (stream == null) return null;
-
-            using var buffer = new MemoryStream();
-            stream.CopyTo(buffer);
-            return buffer.Length > 0 ? Convert.ToBase64String(buffer.ToArray()) : null;
-        }
-        catch {
-            return null;
-        }
-    }
 
     public Task StartAsync(CancellationToken ct = default) {
         _stopRequested = false;
@@ -142,10 +155,25 @@ public class VTSService(
 
     public void Dispose() {
         _stopRequested = true;
-        DetachPublishHooks();
+        UnhookParameters();
         StopHoldLoop();
+        StopPublishLoop();
         _reconnectState.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    private static string? LoadPluginIcon() {
+        try {
+            using Stream? stream = typeof(VTSService).Assembly.GetManifestResourceStream(PluginIconResource);
+            if (stream == null) return null;
+
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            return buffer.Length > 0 ? Convert.ToBase64String(buffer.ToArray()) : null;
+        }
+        catch {
+            return null;
+        }
     }
 
     public event Action? ModelDataChanged;
@@ -186,14 +214,13 @@ public class VTSService(
                 Endpoint = new Uri($"ws://{Host}:{Port}"),
                 PluginName = PluginName,
                 PluginDeveloper = PluginDeveloper,
-                PluginIcon = PluginIconBase64,
+                PluginIcon = PluginIconBase64
             };
 
             client = new VTubeStudioClient(options);
             client.Disconnected += OnDisconnected;
             if (_logger != null && _logger.IsEnabled(LogLevel.Debug))
                 client.EventReceived += OnRawEventReceived;
-
             await client.ConnectAsync(ct);
 
             string? existingToken = secureStorage.GetOrDefault(StorageKeys.VTubeStudioAuthToken, string.Empty);
@@ -218,9 +245,12 @@ public class VTSService(
 
             await SubscribeToModelEventsAsync(CancellationToken.None);
             StartHoldLoop();
+            StartPublishLoop();
             await RefreshAsync(CancellationToken.None);
-            StartModelPolling(); // library has bug preventing subscription data from coming in, atm we only need model changes
-            await StartPublishingAsync(CancellationToken.None);
+
+            await SetupParameters(CancellationToken.None);
+            HookParameters();
+            await RefreshPublishedValuesAsync(CancellationToken.None);
         }
         catch (OperationCanceledException) {
             await DiscardAsync(client);
@@ -228,8 +258,8 @@ public class VTSService(
         catch (VTubeStudioApiException ex) {
             await DiscardAsync(client);
 
-            if (ex.ErrorId is VTubeStudioErrorId.TokenRequestDeniedByUser
-                or VTubeStudioErrorId.AuthenticationTokenInvalid) {
+            if (ex.ErrorId is VTubeStudioErrorId.TokenRequestDenied
+                or VTubeStudioErrorId.AuthenticationTokenMissing) {
                 ClearAuthToken();
                 _logger?.LogWarning("[VTSService] Authentication rejected ({ErrorId}). Stored token cleared",
                     ex.ErrorId);
@@ -248,6 +278,44 @@ public class VTSService(
         }
     }
 
+    private async Task SetupParameters(CancellationToken ct = default) {
+        if (_client == null) return;
+
+        foreach (ParameterCreationRequest customParameter in CustomParameterRequests)
+            try {
+                ParameterCreationResponse res = await _client.CreateParameterAsync(customParameter, ct);
+                if (string.IsNullOrWhiteSpace(res.ParameterName)) {
+                    _logger?.LogWarning("[VTSService] VTube Studio refused to create {Parameter}",
+                        customParameter.ParameterName);
+                    continue;
+                }
+
+                _customParameters.TryAdd(res.ParameterName, new ParameterValue {
+                    Id = res.ParameterName,
+                    Value = 0
+                });
+                _logger?.LogDebug("[VTSService] Custom parameter ready: {Parameter}", res.ParameterName);
+            }
+            catch (Exception ex) {
+                _logger?.LogWarning("[VTSService] Could not create custom parameter {Parameter}: {Reason}",
+                    customParameter.ParameterName, ParseException(ex));
+            }
+
+        _logger?.LogInformation("[VTSService] {Count} custom parameter(s) available", _customParameters.Count);
+    }
+
+    private void HookParameters() {
+        SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
+        SubathonEvents.SubathonGoalListUpdated += OnGoalListUpdated;
+        SubathonEvents.SubathonGoalCompleted += OnGoalCompleted;
+    }
+
+    private void UnhookParameters() {
+        SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
+        SubathonEvents.SubathonGoalListUpdated -= OnGoalListUpdated;
+        SubathonEvents.SubathonGoalCompleted -= OnGoalCompleted;
+    }
+
     [ExcludeFromCodeCoverage]
     private void OnRawEventReceived(object? sender, VTubeStudioEventArgs e) {
         _logger?.LogDebug("[VTSService] Event received from VTube Studio: {EventName}", e.EventName);
@@ -256,6 +324,7 @@ public class VTSService(
     [ExcludeFromCodeCoverage]
     private async Task DiscardAsync(VTubeStudioClient? client) {
         if (client == null) return;
+        UnhookParameters();
         client.Disconnected -= OnDisconnected;
         if (_logger != null && _logger.IsEnabled(LogLevel.Debug))
             client.EventReceived -= OnRawEventReceived;
@@ -306,8 +375,7 @@ public class VTSService(
         if (!Connected) return;
         Connected = false;
         StopHoldLoop();
-        StopModelPolling();
-        StopPublishing();
+        StopPublishLoop();
         BroadcastStatus(false);
 
         if (_stopRequested) return;
@@ -365,8 +433,7 @@ public class VTSService(
 
     private async Task TeardownClientAsync() {
         StopHoldLoop();
-        StopModelPolling();
-        StopPublishing();
+        StopPublishLoop();
 
         foreach (IDisposable sub in _subscriptions)
             try {
@@ -388,6 +455,7 @@ public class VTSService(
         CachedParameters = [];
 
         if (client == null) return;
+        UnhookParameters();
         client.Disconnected -= OnDisconnected;
         if (_logger != null && _logger.IsEnabled(LogLevel.Debug))
             client.EventReceived -= OnRawEventReceived;
@@ -498,7 +566,8 @@ public class VTSService(
             if (!response.ModelLoaded) return [];
 
             return response.AvailableHotkeys
-                .Select(h => new VtsHotkey(h.HotkeyId, h.Name, h.Type, h.File ?? string.Empty, h.Description ?? string.Empty))
+                .Select(h =>
+                    new VtsHotkey(h.HotkeyId, h.Name, h.Type, h.File ?? string.Empty, h.Description ?? string.Empty))
                 .ToList();
         }
         catch (Exception ex) {
@@ -699,13 +768,63 @@ public class VTSService(
     }
 
     [ExcludeFromCodeCoverage]
-    private static Task InjectAsync(VTubeStudioClient client, IReadOnlyList<ParameterValue> values,
-        CancellationToken ct) {
+    private static Task InjectAsync(VTubeStudioClient? client, ICollection<ParameterValue> values,
+        CancellationToken ct = default) {
+        if (client is not { IsConnected: true }) return Task.CompletedTask;
+
+        IReadOnlyList<ParameterValue> list = values.ToList();
         return client.InjectParameterDataAsync(new InjectParameterDataRequest {
             Mode = "set",
             FaceFound = false,
-            ParameterValues = values
+            ParameterValues = list
         }, ct);
+    }
+
+    private void StartPublishLoop() {
+        StopPublishLoop();
+        var cts = new CancellationTokenSource();
+        _publishCts = cts;
+        _ = Task.Run(() => RunPublishLoopAsync(cts.Token), cts.Token);
+    }
+
+    private void StopPublishLoop() {
+        CancellationTokenSource? cts = Interlocked.Exchange(ref _publishCts, null);
+
+        try {
+            cts?.Cancel();
+        }
+        catch {
+            /**/
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task RunPublishLoopAsync(CancellationToken ct) {
+        var reportedFailure = false;
+
+        while (!ct.IsCancellationRequested) {
+            try {
+                await Task.Delay(PublishIntervalMs, ct);
+            }
+            catch (OperationCanceledException) {
+                return;
+            }
+
+            if (!Connected || _client == null || _customParameters.IsEmpty) continue;
+
+            try {
+                await InjectCustomParametersAsync(ct);
+                reportedFailure = false;
+            }
+            catch (OperationCanceledException) {
+                return;
+            }
+            catch (Exception ex) {
+                if (reportedFailure) continue;
+                reportedFailure = true;
+                _logger?.LogDebug("[VTSService] Custom parameter keepalive failed: {Reason}", ParseException(ex));
+            }
+        }
     }
 
     private void StartHoldLoop() {
@@ -739,13 +858,10 @@ public class VTSService(
             }
 
             VTubeStudioClient? client = _client;
-            if (client == null || !Connected) continue;
-
-            List<ParameterValue> payload = [.. _heldParameters.Values, .. _publishedParameters.Values];
-            if (payload.Count == 0) continue;
+            if (client == null || !Connected || _heldParameters.IsEmpty) continue;
 
             try {
-                await InjectAsync(client, payload, ct);
+                await InjectAsync(client, _heldParameters.Values.ToList(), ct);
                 reportedFailure = false;
             }
             catch (OperationCanceledException) {
@@ -759,37 +875,6 @@ public class VTSService(
         }
     }
 
-    [ExcludeFromCodeCoverage]
-    private void StartModelPolling() {
-        if (timerService == null) {
-            _logger?.LogWarning("[VTSService] No timer service; model changes will not be detected");
-            return;
-        }
-
-        timerService.Register(ModelPollTimerKey, TimeSpan.FromSeconds(ModelPollSeconds), PollCurrentModelAsync);
-    }
-
-    private void StopModelPolling() {
-        timerService?.Unregister(ModelPollTimerKey);
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task PollCurrentModelAsync(CancellationToken ct) {
-        VTubeStudioClient? client = _client;
-        if (client == null || !Connected) return;
-
-        try {
-            CurrentModelResponse model = await client.GetCurrentModelAsync(ct);
-            await ApplyModelChangeAsync(
-                model.ModelLoaded ? model.ModelId : null,
-                model.ModelLoaded ? model.ModelName : null,
-                ct);
-        }
-        catch (Exception ex) {
-            _logger?.LogDebug("[VTSService] Model poll failed: {Reason}", ParseException(ex));
-        }
-    }
-
     private async Task ApplyModelChangeAsync(string? modelId, string? modelName, CancellationToken ct) {
         if (string.Equals(modelId, CurrentModelId, StringComparison.Ordinal)) return;
 
@@ -800,7 +885,6 @@ public class VTSService(
         CurrentModelName = modelName;
         _heldParameters.Clear();
         await RefreshAsync(ct);
-        await RefreshPublishedValuesAsync(ct);
     }
 
     public async Task<bool> ExecuteWheelActionAsync(VTSWheelAction action, CancellationToken ct = default) {
@@ -940,53 +1024,13 @@ public class VTSService(
         }
     }
 
-    private async Task StartPublishingAsync(CancellationToken ct) {
-        if (!PublishParameters) {
-            _logger?.LogInformation("[VTSService] Custom parameter publishing is disabled");
-            return;
-        }
-
-        _customParametersReady = await EnsureCustomParametersAsync(ct);
-        if (!_customParametersReady) {
-            _logger?.LogWarning(
-                "[VTSService] Could not create the SM* custom parameters; subathon values will not be published");
-            return;
-        }
-
-        AttachPublishHooks();
-        await RefreshPublishedValuesAsync(ct);
-    }
-
-    private void StopPublishing() {
-        DetachPublishHooks();
-        _publishedParameters.Clear();
-        _customParametersReady = false;
-    }
-
-    private void AttachPublishHooks() {
-        if (_publishHooksAttached) return;
-        _publishHooksAttached = true;
-
-        SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
-        SubathonEvents.SubathonGoalListUpdated += OnGoalListUpdated;
-        SubathonEvents.SubathonGoalCompleted += OnGoalCompleted;
-    }
-
-    private void DetachPublishHooks() {
-        if (!_publishHooksAttached) return;
-        _publishHooksAttached = false;
-
-        SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
-        SubathonEvents.SubathonGoalListUpdated -= OnGoalListUpdated;
-        SubathonEvents.SubathonGoalCompleted -= OnGoalCompleted;
-    }
-
     private void OnSubathonDataUpdate(SubathonData data, DateTime timestamp) {
         _ = Task.Run(() => RefreshPublishedValuesAsync(CancellationToken.None));
     }
 
     private void OnGoalListUpdated(List<SubathonGoal> goals, long currentValue, GoalsType type) {
-        ApplyGoalValues(goals, currentValue);
+        UpdateGoalValues(goals, currentValue);
+        _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
     }
 
     private void OnGoalCompleted(SubathonGoal goal, long currentValue) {
@@ -994,8 +1038,7 @@ public class VTSService(
     }
 
     private async Task RefreshPublishedValuesAsync(CancellationToken ct) {
-        if (!Connected || !_customParametersReady) return;
-
+        if (!Connected) return;
         if (dbFactory == null) {
             _logger?.LogDebug("[VTSService] No database factory; cannot read subathon values to publish");
             return;
@@ -1009,8 +1052,14 @@ public class VTSService(
                 .FirstOrDefaultAsync(x => x.IsActive, ct);
             if (subathon == null) return;
 
-            Publish(ParamCurrentPoints, subathon.Points);
-            Publish(ParamCurrentMoney, subathon.GetRoundedMoneySumWithCents());
+            _customParameters[ParamCurrentPoints] = new ParameterValue {
+                Id = ParamCurrentPoints,
+                Value = Math.Max(0, subathon.Points)
+            };
+            _customParameters[ParamCurrentMoney] = new ParameterValue {
+                Id = ParamCurrentMoney,
+                Value = Math.Max(0, subathon.GetRoundedMoneySumWithCents())
+            };
 
             SubathonGoalSet? goalSet = await db.SubathonGoalSets
                 .AsNoTracking()
@@ -1018,164 +1067,72 @@ public class VTSService(
                 .FirstOrDefaultAsync(g => g.IsActive, ct);
 
             long currentValue = goalSet?.Type == GoalsType.Money ? subathon.GetRoundedMoneySum() : subathon.Points;
-            ApplyGoalValues(goalSet?.Goals, currentValue);
+            UpdateGoalValues(goalSet?.Goals, currentValue);
         }
         catch (Exception ex) {
             _logger?.LogDebug("[VTSService] Could not refresh published values: {Reason}", ParseException(ex));
         }
+
+        await PublishCustomParametersAsync(ct);
     }
 
-    private void ApplyGoalValues(IEnumerable<SubathonGoal>? goals, long currentValue) {
+    private async Task PublishCustomParametersAsync(CancellationToken ct) {
+        if (!Connected || _client == null || _customParameters.IsEmpty) return;
+        if (!HasCustomParameterChanged(_customParameters.Values.ToList())) return;
+
+        try {
+            await InjectCustomParametersAsync(ct);
+        }
+        catch (Exception ex) {
+            _logger?.LogDebug("[VTSService] Could not publish custom parameters: {Reason}", ParseException(ex));
+        }
+    }
+
+    private async Task InjectCustomParametersAsync(CancellationToken ct) {
+        List<ParameterValue> snapshot = _customParameters.Values.ToList();
+        if (snapshot.Count == 0) return;
+
+        await InjectAsync(_client, snapshot, ct);
+        foreach (ParameterValue value in snapshot) _lastPublished[value.Id] = value.Value;
+    }
+
+    private bool HasCustomParameterChanged(List<ParameterValue> snapshot) {
+        foreach (ParameterValue value in snapshot) {
+            if (!_lastPublished.TryGetValue(value.Id, out double previous)) return true;
+            if (Math.Abs(previous - value.Value) > 0.0001) return true;
+        }
+
+        return false;
+    }
+
+    private void UpdateGoalValues(IEnumerable<SubathonGoal>? goals, long currentValue) {
+        if (!Connected || _client is not { IsConnected: true }) return;
+
         List<SubathonGoal> ordered = (goals ?? []).OrderBy(g => g.Points).ToList();
 
         if (ordered.Count == 0) {
-            Publish(ParamCurrentGoalValue, 0);
-            Publish(ParamUntilNextGoal, 0);
-            return;
+            _customParameters[ParamCurrentGoalValue] = new ParameterValue {
+                Id = ParamCurrentGoalValue,
+                Value = 0
+            };
+
+            _customParameters[ParamUntilNextGoal] = new ParameterValue {
+                Id = ParamUntilNextGoal,
+                Value = 0
+            };
         }
+        else {
+            SubathonGoal? next = ordered.FirstOrDefault(g => g.Points > currentValue);
+            if (next == null) return;
+            _customParameters[ParamCurrentGoalValue] = new ParameterValue {
+                Id = ParamCurrentGoalValue,
+                Value = Math.Max(0, next.Points)
+            };
 
-        SubathonGoal? next = ordered.FirstOrDefault(g => g.Points > currentValue);
-        if (next == null) return;
-
-        Publish(ParamCurrentGoalValue, next.Points);
-        Publish(ParamUntilNextGoal, Math.Max(0, next.Points - currentValue));
-    }
-
-    private void Publish(string parameterName, double value) {
-        _publishedParameters[parameterName] = new ParameterValue { Id = parameterName, Value = value };
-    }
-
-    public IReadOnlyDictionary<string, double> PublishedParameters =>
-        _publishedParameters.ToDictionary(kv => kv.Key, kv => kv.Value.Value, StringComparer.Ordinal);
-
-    private async Task<bool> EnsureCustomParametersAsync(CancellationToken ct) {
-        string? token = secureStorage.GetOrDefault(StorageKeys.VTubeStudioAuthToken, string.Empty);
-        if (string.IsNullOrWhiteSpace(token)) {
-            _logger?.LogWarning("[VTSService] No auth token; cannot create custom parameters");
-            return false;
+            _customParameters[ParamUntilNextGoal] = new ParameterValue {
+                Id = ParamUntilNextGoal,
+                Value = Math.Max(0, next.Points - currentValue)
+            };
         }
-
-        using var socket = new ClientWebSocket();
-        try {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(15));
-
-            await socket.ConnectAsync(new Uri($"ws://{Host}:{Port}"), timeout.Token);
-
-            if (!await AuthenticateRawAsync(socket, token, timeout.Token)) {
-                _logger?.LogWarning("[VTSService] Custom parameter session was not authenticated");
-                return false;
-            }
-
-            foreach ((string name, string explanation, double min, double max) in CustomParameterDefinitions())
-                await CreateCustomParameterAsync(socket, name, explanation, min, max, timeout.Token);
-
-            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
-            return await VerifyCustomParametersAsync(ct);
-        }
-        catch (Exception ex) {
-            _logger?.LogWarning("[VTSService] Custom parameter creation failed: {Reason}", ParseException(ex));
-            return false;
-        }
-    }
-
-    private async Task<bool> VerifyCustomParametersAsync(CancellationToken ct) {
-        VTubeStudioClient? client = _client;
-        if (client == null || !Connected) return false;
-
-        try {
-            InputParameterListResponse response = await client.GetInputParametersAsync(ct);
-            HashSet<string> existing = response.CustomParameters
-                .Select(x => x.Name)
-                .ToHashSet(StringComparer.Ordinal);
-
-            List<string> missing = CustomParameterDefinitions()
-                .Select(d => d.Name)
-                .Where(name => !existing.Contains(name))
-                .ToList();
-
-            if (missing.Count == 0) {
-                _logger?.LogInformation("[VTSService] All four SM* custom parameters are available");
-                return true;
-            }
-
-            _logger?.LogWarning("[VTSService] Missing custom parameters after creation: {Missing}",
-                string.Join(", ", missing));
-            return false;
-        }
-        catch (Exception ex) {
-            _logger?.LogWarning("[VTSService] Could not verify custom parameters: {Reason}", ParseException(ex));
-            return false;
-        }
-    }
-
-    private static IEnumerable<(string Name, string Explanation, double Min, double Max)>
-        CustomParameterDefinitions() {
-        yield return (ParamCurrentPoints, "Subathon Manager: current points", 0, 1000000);
-        yield return (ParamCurrentMoney, "Subathon Manager: current money total", 0, 1000000);
-        yield return (ParamCurrentGoalValue, "Subathon Manager: value of the goal in progress", 0, 1000000);
-        yield return (ParamUntilNextGoal, "Subathon Manager: amount still needed for the next goal", 0, 1000000);
-    }
-
-    private async Task<bool> AuthenticateRawAsync(ClientWebSocket socket, string token, CancellationToken ct) {
-        JsonElement? response = await SendRawAsync(socket, "AuthenticationRequest", new Dictionary<string, object?> {
-            ["pluginName"] = PluginName,
-            ["pluginDeveloper"] = PluginDeveloper,
-            ["authenticationToken"] = token
-        }, ct);
-
-        return response is { } data
-               && data.TryGetProperty("authenticated", out JsonElement authenticated)
-               && authenticated.ValueKind == JsonValueKind.True;
-    }
-
-    private async Task CreateCustomParameterAsync(ClientWebSocket socket, string name, string explanation,
-        double min, double max, CancellationToken ct) {
-        JsonElement? response = await SendRawAsync(socket, "ParameterCreationRequest",
-            new Dictionary<string, object?> {
-                ["parameterName"] = name,
-                ["explanation"] = explanation,
-                ["min"] = min,
-                ["max"] = max,
-                ["defaultValue"] = 0
-            }, ct);
-
-        if (response is not { } data) return;
-
-        if (data.TryGetProperty("parameterName", out JsonElement created)) {
-            _logger?.LogDebug("[VTSService] Created custom parameter {Parameter}", created.GetString());
-            return;
-        }
-
-        string? message = data.TryGetProperty("message", out JsonElement m) ? m.GetString() : null;
-        _logger?.LogDebug("[VTSService] ParameterCreationRequest for {Parameter} returned: {Message}",
-            name, message ?? "no data");
-    }
-
-    private static async Task<JsonElement?> SendRawAsync(ClientWebSocket socket, string messageType,
-        Dictionary<string, object?> data, CancellationToken ct) {
-        var envelope = new Dictionary<string, object?> {
-            ["apiName"] = "VTubeStudioPublicAPI",
-            ["apiVersion"] = "1.0",
-            ["requestID"] = Guid.NewGuid().ToString("N"),
-            ["messageType"] = messageType,
-            ["data"] = data
-        };
-
-        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(envelope);
-        await socket.SendAsync(payload, WebSocketMessageType.Text, true, ct);
-
-        using var buffer = new MemoryStream();
-        var chunk = new byte[8192];
-        WebSocketReceiveResult result;
-        do {
-            result = await socket.ReceiveAsync(new ArraySegment<byte>(chunk), ct);
-            buffer.Write(chunk, 0, result.Count);
-        } while (!result.EndOfMessage);
-
-        using JsonDocument document = JsonDocument.Parse(Encoding.UTF8.GetString(buffer.ToArray()));
-        return document.RootElement.TryGetProperty("data", out JsonElement dataElement)
-            ? dataElement.Clone()
-            : null;
     }
 }
