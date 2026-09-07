@@ -281,7 +281,7 @@ public class OBSService : IAppService {
 
                 try {
                     await Task.Delay(delay, token);
-                    if (!_obs.IsConnected && DiscoverProcess.IsProcessRunning(ProcessSearch.OBS))
+                    if (!_obs.IsConnected)
                         TryConnect();
                 }
                 catch (OperationCanceledException) {

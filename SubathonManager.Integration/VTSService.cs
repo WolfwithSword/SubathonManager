@@ -442,7 +442,7 @@ public class VTSService(
 
                 try {
                     await Task.Delay(delay, token);
-                    if (DiscoverProcess.IsProcessRunning(ProcessSearch.VTubeStudio) && !Connected && !_stopRequested)
+                    if (!Connected && !_stopRequested)
                         await ConnectAsync(token);
                 }
                 catch (OperationCanceledException) {
