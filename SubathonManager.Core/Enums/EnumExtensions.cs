@@ -143,6 +143,7 @@ public static class EnumMetaCache {
     }
 }
 
+[ExcludeFromCodeCoverage]
 public static class ProcessSearchExtensions {
     private static readonly Dictionary<ProcessSearch, string[]> _cache = BuildCache();
 

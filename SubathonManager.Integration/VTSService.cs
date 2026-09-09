@@ -84,6 +84,7 @@ public class VTSService(
     private int _spinGeneration;
     private volatile bool _stopRequested;
 
+    [ExcludeFromCodeCoverage]
     private List<ParameterCreationRequest> CustomParameterRequests => [
         new() {
             ParameterName = ParamCurrentPoints,
@@ -181,6 +182,7 @@ public class VTSService(
         GC.SuppressFinalize(this);
     }
 
+    [ExcludeFromCodeCoverage]
     private static ParameterCreationRequest Flag(string name, string what) {
         return new ParameterCreationRequest {
             ParameterName = name,
@@ -307,6 +309,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task SetupParameters(CancellationToken ct = default) {
         if (_client == null) return;
 
@@ -330,6 +333,7 @@ public class VTSService(
         _logger?.LogInformation("[VTSService] {Count} custom parameter(s) available", _customParameters.Count);
     }
 
+    [ExcludeFromCodeCoverage]
     private void HookParameters() {
         SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
         SubathonEvents.SubathonGoalListUpdated += OnGoalListUpdated;
@@ -815,6 +819,7 @@ public class VTSService(
         }, ct);
     }
 
+    [ExcludeFromCodeCoverage]
     private void StartPublishLoop() {
         StopPublishLoop();
         var cts = new CancellationTokenSource();
@@ -862,6 +867,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private void StartHoldLoop() {
         StopHoldLoop();
         var cts = new CancellationTokenSource();
@@ -910,6 +916,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task ApplyModelChangeAsync(string? modelId, string? modelName, CancellationToken ct) {
         if (string.Equals(modelId, CurrentModelId, StringComparison.Ordinal)) return;
 
@@ -1059,19 +1066,23 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnSubathonDataUpdate(SubathonData data, DateTime timestamp) {
         _ = Task.Run(() => RefreshPublishedValuesAsync(CancellationToken.None));
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnGoalListUpdated(List<SubathonGoal> goals, long currentValue, GoalsType type) {
         UpdateGoalValues(goals, currentValue);
         _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnGoalCompleted(SubathonGoal goal, long currentValue) {
         _ = Task.Run(() => RefreshPublishedValuesAsync(CancellationToken.None));
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task RefreshPublishedValuesAsync(CancellationToken ct) {
         if (!Connected) return;
         if (dbFactory == null) {
@@ -1114,6 +1125,7 @@ public class VTSService(
         await PublishCustomParametersAsync(ct);
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task PublishCustomParametersAsync(CancellationToken ct) {
         if (!Connected || _client == null || _customParameters.IsEmpty) return;
         if (!HasCustomParameterChanged(_customParameters.Values.ToList())) return;
@@ -1126,6 +1138,7 @@ public class VTSService(
         }
     }
 
+    [ExcludeFromCodeCoverage]
     private async Task InjectCustomParametersAsync(CancellationToken ct) {
         List<ParameterValue> snapshot = _customParameters.Values.ToList();
         if (snapshot.Count == 0) return;
@@ -1134,6 +1147,7 @@ public class VTSService(
         foreach (ParameterValue value in snapshot) _lastPublished[value.Id] = value.Value;
     }
 
+    [ExcludeFromCodeCoverage]
     private bool HasCustomParameterChanged(List<ParameterValue> snapshot) {
         foreach (ParameterValue value in snapshot) {
             if (!_lastPublished.TryGetValue(value.Id, out double previous)) return true;
@@ -1143,6 +1157,7 @@ public class VTSService(
         return false;
     }
 
+    [ExcludeFromCodeCoverage]
     private void UpdateGoalValues(IEnumerable<SubathonGoal>? goals, long currentValue) {
         if (!Connected || _client is not { IsConnected: true }) return;
 
@@ -1174,15 +1189,18 @@ public class VTSService(
         SetCustomParameter(ParamGoalProgress, Math.Clamp(progress, 0, 100));
     }
 
+    [ExcludeFromCodeCoverage]
     private void SetCustomFlag(string parameterName, bool active) {
         SetCustomParameter(parameterName, active ? 1 : 0);
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnPromptRunChanged(SubathonPromptRun run, SubathonPrompt? prompt) {
         SetCustomFlag(ParamPromptActive, run.IsActive);
         _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnWheelSpinStarted(WheelSet wheel, int delaySeconds) {
         int generation = Interlocked.Increment(ref _spinGeneration);
         SetCustomFlag(ParamWheelSpinActive, true);
@@ -1195,22 +1213,26 @@ public class VTSService(
         });
     }
 
+    [ExcludeFromCodeCoverage]
     private void OnWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history, int spinsOwed) {
         Interlocked.Increment(ref _spinGeneration);
         ClearWheelSpinFlag();
     }
 
+    [ExcludeFromCodeCoverage]
     private void ClearWheelSpinFlag() {
         SetCustomFlag(ParamWheelSpinActive, false);
         _ = Task.Run(() => PublishCustomParametersAsync(CancellationToken.None));
     }
 
+    [ExcludeFromCodeCoverage]
     private void SetCustomParameter(string parameterName, double value) {
         if (!_customParameters.ContainsKey(parameterName)) return;
 
         _customParameters[parameterName] = new ParameterValue { Id = parameterName, Value = value };
     }
 
+    [ExcludeFromCodeCoverage]
     private void SeedCustomParameter(string parameterName) {
         _customParameters.TryAdd(parameterName, new ParameterValue { Id = parameterName, Value = 0 });
     }

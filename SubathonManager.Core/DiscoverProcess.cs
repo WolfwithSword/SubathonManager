@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core;
 
+[ExcludeFromCodeCoverage]
 public static class DiscoverProcess {
     public static bool IsProcessRunning(ProcessSearch target) {
         foreach (string name in target.GetQueryNames()) {

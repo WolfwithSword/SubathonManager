@@ -50,6 +50,11 @@ public static class Utils {
             (_, _) => connection
         );
     }
+    
+    public static bool IsTruthy(string? value) {
+        return !string.IsNullOrWhiteSpace(value) &&
+               value.Trim().ToLowerInvariant() is "1" or "true" or "yes" or "y";
+    }
 
     public static TimeSpan ParseDurationString(string input) {
         if (string.IsNullOrWhiteSpace(input))

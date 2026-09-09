@@ -25,6 +25,8 @@ public partial class WebServer {
 
         _routes.Add((new RouteKey("GET", "/api/data/commands"), HandleCommandsRequestAsync));
 
+        _routes.Add((new RouteKey("GET", "/api/data/leaderboard"), HandleLeaderboardRequestAsync));
+
         _routes.Add((new RouteKey("PUT", "/api/data/values"), HandleValuesPatchRequestAsync));
         _routes.Add((new RouteKey("POST", "/api/data/values"), HandleValuesPatchRequestAsync));
         _routes.Add((new RouteKey("PATCH", "/api/data/values"), HandleValuesPatchRequestAsync));
