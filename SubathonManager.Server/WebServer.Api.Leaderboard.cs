@@ -104,16 +104,19 @@ public partial class WebServer {
             return;
         }
 
+        bool isMoney = IsMoneyMethod(method, category);
+        bool needsTokens = !isMoney && method is LeaderboardMethod.ByValue;
+
         List<SubathonEventType?> queryTypes = types.Select(t => (SubathonEventType?)t).ToList();
-        List<SubathonEvent> events = await db.SubathonEvents.AsNoTracking()
+        IAsyncEnumerable<SubathonEvent> events = db.SubathonEvents.AsNoTracking()
             .Where(e => e.SubathonId == subathon.Id && queryTypes.Contains(e.EventType))
             .Where(e => includeUnprocessed || e.ProcessedToSubathon)
-            .ToListAsync();
+            .AsAsyncEnumerable();
 
-        Dictionary<string, LeaderboardEntry> entries = BuildLeaderboardEntries(events, metas, blacklist);
+        Dictionary<string, LeaderboardEntry> entries =
+            await BuildLeaderboardEntriesAsync(events, metas, blacklist, isMoney, needsTokens);
 
         var unconverted = new List<string>();
-        bool isMoney = IsMoneyMethod(method, category);
         Dictionary<string, double> rates = isMoney
             ? await BuildRateMapAsync(entries.Values.SelectMany(e => e.Money.Keys), targetCurrency, unconverted)
             : new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -160,11 +163,13 @@ public partial class WebServer {
         await ctx.WriteResponse(200, json, true, "application/json");
     }
 
-    private Dictionary<string, LeaderboardEntry> BuildLeaderboardEntries(List<SubathonEvent> events,
-        HashSet<string> metas, HashSet<string> blacklist) {
+    private async Task<Dictionary<string, LeaderboardEntry>> BuildLeaderboardEntriesAsync(
+        IAsyncEnumerable<SubathonEvent> events, HashSet<string> metas, HashSet<string> blacklist,
+        bool needsMoney, bool needsTokens) {
         Dictionary<string, LeaderboardEntry> entries = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<(SubathonEventType?, string?), bool> commissionFlags = new();
 
-        foreach (SubathonEvent ev in events) {
+        await foreach (SubathonEvent ev in events) {
             string user = NormalizeUser(ev.User);
             if (user.Length == 0) continue;
             if (IsBlacklistedUser(user, blacklist)) continue;
@@ -175,15 +180,16 @@ public partial class WebServer {
                 entries[user] = entry;
             }
 
-            int multiplier = ev.EventType.IsOrder() ? 1 : Math.Max(ev.Amount, 0);
             entry.Events++;
             entry.Items += Math.Max(ev.Amount, 0);
             entry.Points += ev.GetFinalPointsValue();
 
-            if (double.TryParse(ev.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double tokenValue))
-                entry.Tokens += tokenValue * multiplier;
+            if (needsTokens &&
+                double.TryParse(ev.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double tokenValue))
+                entry.Tokens += tokenValue * (ev.EventType.IsOrder() ? 1 : Math.Max(ev.Amount, 0));
 
-            (double amount, string currency)? money = ExtractMoney(ev);
+            if (!needsMoney) continue;
+            (double amount, string currency)? money = ExtractMoney(ev, commissionFlags);
             if (money == null) continue;
             entry.Money.TryGetValue(money.Value.currency, out double existing);
             entry.Money[money.Value.currency] = existing + money.Value.amount;
@@ -299,8 +305,18 @@ public partial class WebServer {
         };
     }
 
-    private (double amount, string currency)? ExtractMoney(SubathonEvent ev) {
-        if (Utils.IsCommissionAsDonation(_config, ev) &&
+    private bool IsCommissionAsDonation(SubathonEvent ev, Dictionary<(SubathonEventType?, string?), bool> cache) {
+        (SubathonEventType? EventType, string? EventTypeMeta) key = (ev.EventType, ev.EventTypeMeta);
+        if (cache.TryGetValue(key, out bool cached)) return cached;
+
+        bool value = Utils.IsCommissionAsDonation(_config, ev);
+        cache[key] = value;
+        return value;
+    }
+
+    private (double amount, string currency)? ExtractMoney(SubathonEvent ev,
+        Dictionary<(SubathonEventType?, string?), bool> commissionFlags) {
+        if (IsCommissionAsDonation(ev, commissionFlags) &&
             TrySplitSecondaryValue(ev, out double commission, out string commissionCurrency))
             return (commission, commissionCurrency);
 
