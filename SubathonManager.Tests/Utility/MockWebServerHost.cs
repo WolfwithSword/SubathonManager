@@ -8,6 +8,10 @@ namespace SubathonManager.Tests.Utility;
 
 public class MockWebServerHost : IAsyncDisposable {
     private readonly WebApplication _app;
+
+    private readonly Dictionary<(string method, string path), Func<HttpRequest, (int statusCode, string body)>>
+        _dynamicRoutes = new();
+
     private readonly Dictionary<(string method, string path), (int statusCode, string body)> _routes = new();
 
     public MockWebServerHost(int port = 0) {
@@ -34,7 +38,14 @@ public class MockWebServerHost : IAsyncDisposable {
                     path = path.Substring(0, path.IndexOf('?'));
                 (string Method, string path) key = (context.Request.Method, path);
 
-                if (_routes.TryGetValue(key, out (int statusCode, string body) response)) {
+                if (_dynamicRoutes.TryGetValue(key,
+                        out Func<HttpRequest, (int statusCode, string body)>? handler)) {
+                    (int statusCode, string body) dynamicResponse = handler(context.Request);
+                    context.Response.StatusCode = dynamicResponse.statusCode;
+                    context.Response.ContentType = "application/json";
+                    await context.Response.WriteAsync(dynamicResponse.body);
+                }
+                else if (_routes.TryGetValue(key, out (int statusCode, string body) response)) {
                     context.Response.StatusCode = response.statusCode;
                     context.Response.ContentType = "application/json";
                     await context.Response.WriteAsync(response.body);
@@ -66,6 +77,11 @@ public class MockWebServerHost : IAsyncDisposable {
 
     public MockWebServerHost OnPost(string path, string responseBody, int statusCode = 200) {
         return AddRoute("POST", path, responseBody, statusCode);
+    }
+
+    public MockWebServerHost OnGetDynamic(string path, Func<HttpRequest, (int statusCode, string body)> handler) {
+        _dynamicRoutes[("GET", path)] = handler;
+        return this;
     }
 
     private MockWebServerHost AddRoute(string method, string path, string body, int statusCode) {

@@ -35,6 +35,14 @@ public class GoAffProService(
     internal Uri Endpoint = new("https://api.goaffpro.com/v1/", UriKind.Absolute);
     internal int MaxRetries = 20;
 
+    // for alt backfill checking
+    internal bool BackfillMode = FeatureFlags.GoAffProBackfillPollingEnabled;
+    internal TimeSpan BackfillLookback = TimeSpan.FromHours(2);
+    internal TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+    internal int PageSize = 100;
+    internal int MaxPagesPerPoll = 50;
+    internal TimeSpan PruneInterval = TimeSpan.FromMinutes(15);
+
     private string? Email => secureStorage.GetOrDefault(StorageKeys.GoAffProEmail, string.Empty);
     private string? Password => secureStorage.GetOrDefault(StorageKeys.GoAffProPassword, string.Empty);
 
@@ -114,6 +122,13 @@ public class GoAffProService(
         _client.OrderObserverStartTime = DateTimeOffset.UtcNow - TimeSpan.FromDays(daysOffset);
         logger?.LogInformation("[GoAffPro] Started GoAffPro service with {Count} connected sites", _siteIds.Count);
 
+        if (BackfillMode) {
+            GoAffProClient client = _client;
+            CancellationToken token = _detectorCts.Token;
+            _ = Task.Run(() => PollWithBackfillAsync(client, TimeSpan.FromDays(daysOffset), token), token);
+            return;
+        }
+
         _ = Task.Run(async () => {
             logger?.LogInformation("[GoAffPro] GoAffPro is now polling for orders...");
             await foreach (UserOrderFeedItem order in _client.NewOrdersAsync(
@@ -123,6 +138,126 @@ public class GoAffProService(
                 HandleOrder(order);
             logger?.LogInformation("[GoAffPro] GoAffPro polling finished");
         }, _detectorCts.Token);
+    }
+
+    private async Task PollWithBackfillAsync(GoAffProClient client, TimeSpan initialLookback, CancellationToken ct) {
+        logger?.LogInformation("[GoAffPro] GoAffPro is now polling for orders (backfill mode, {Hours:0.##}h window)...",
+            BackfillLookback.TotalHours);
+
+        Dictionary<string, DateTimeOffset> seen = new();
+        string? sinceId = null;
+        DateTimeOffset sinceIdSetAt = default;
+        DateTimeOffset lastPrune = DateTimeOffset.UtcNow;
+        var first = true;
+
+        while (!ct.IsCancellationRequested) {
+            try {
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                DateTimeOffset? createdAtMin = null;
+                string? pollSinceId = null;
+
+                if (first) {
+                    TimeSpan lookback = initialLookback > BackfillLookback ? initialLookback : BackfillLookback;
+                    createdAtMin = now - lookback;
+                }
+                else if (sinceId != null && now - sinceIdSetAt < BackfillLookback) {
+                    pollSinceId = sinceId;
+                }
+                else {
+                    sinceId = null;
+                    createdAtMin = now - BackfillLookback;
+                }
+
+                List<UserOrderFeedItem> orders = await FetchOrdersAsync(client, createdAtMin, pollSinceId, ct);
+                first = false;
+
+                if (now - lastPrune >= PruneInterval) {
+                    PruneSeen(seen, now);
+                    lastPrune = now;
+                }
+
+                string? maxId = null;
+                foreach (UserOrderFeedItem order in orders.OrderBy(o => o.CreatedAt ?? DateTimeOffset.MinValue)) {
+                    string? id = GetOrderId(order);
+                    if (id == null) continue;
+                    if (IsHigherId(id, maxId)) maxId = id;
+                    if (!seen.TryAdd($"{id}|{order.Status}", now)) continue;
+                    HandleOrder(order);
+                }
+
+                if (maxId != null) {
+                    if (sinceId == null) sinceIdSetAt = now;
+                    if (IsHigherId(maxId, sinceId)) sinceId = maxId;
+                }
+            }
+            catch (OperationCanceledException) {
+                break;
+            }
+            catch (Exception e) {
+                logger?.LogWarning(e, "[GoAffPro] Failed to poll for orders");
+            }
+
+            try {
+                await Task.Delay(PollInterval, ct);
+            }
+            catch (OperationCanceledException) {
+                break;
+            }
+        }
+
+        logger?.LogInformation("[GoAffPro] GoAffPro polling finished");
+    }
+
+    private async Task<List<UserOrderFeedItem>> FetchOrdersAsync(GoAffProClient client, DateTimeOffset? createdAtMin,
+        string? sinceId, CancellationToken ct) {
+        List<UserOrderFeedItem> all = new();
+        var offset = 0;
+
+        for (var page = 0; page < MaxPagesPerPoll; page++) {
+            ct.ThrowIfCancellationRequested();
+            int pageOffset = offset;
+            UserOrderFeedResponse? response = await client.Api.User.Feed.Orders.GetAsync(reqConfig => {
+                reqConfig.QueryParameters.Limit = PageSize;
+                reqConfig.QueryParameters.Offset = pageOffset;
+                if (createdAtMin.HasValue) reqConfig.QueryParameters.CreatedAtMin = createdAtMin.Value;
+                if (!string.IsNullOrWhiteSpace(sinceId)) reqConfig.QueryParameters.SinceId = sinceId;
+            }, ct);
+
+            List<UserOrderFeedItem>? orders = response?.Orders;
+            if (orders == null || orders.Count == 0) break;
+            all.AddRange(orders);
+            if (orders.Count < PageSize) break;
+            offset += orders.Count;
+        }
+
+        return all;
+    }
+
+    private void PruneSeen(Dictionary<string, DateTimeOffset> seen, DateTimeOffset now) {
+        TimeSpan maxAge = BackfillLookback + (PollInterval * 2);
+        List<string>? stale = null;
+        foreach (KeyValuePair<string, DateTimeOffset> entry in seen) {
+            if (now - entry.Value <= maxAge) continue;
+            stale ??= new List<string>();
+            stale.Add(entry.Key);
+        }
+
+        if (stale == null) return;
+        foreach (string key in stale) seen.Remove(key);
+    }
+
+    private static string? GetOrderId(UserOrderFeedItem order) {
+        if (order.Id == null) return null;
+        if (!string.IsNullOrWhiteSpace(order.Id.String)) return order.Id.String;
+        return order.Id.Integer?.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static bool IsHigherId(string candidate, string? current) {
+        if (string.IsNullOrWhiteSpace(current)) return true;
+        if (long.TryParse(candidate, NumberStyles.Integer, CultureInfo.InvariantCulture, out long a) &&
+            long.TryParse(current, NumberStyles.Integer, CultureInfo.InvariantCulture, out long b))
+            return a > b;
+        return string.CompareOrdinal(candidate, current) > 0;
     }
 
     public Task StopAsync(CancellationToken ct = default) {
