@@ -36,6 +36,7 @@
 
     <Application.Styles>
         <sty:FluentAvaloniaTheme PreferSystemTheme="False" PreferUserAccentColor="True" />
+        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
         <StyleInclude Source="avares://SubathonManager/Themes/TabStyles.axaml" />
         <StyleInclude Source="avares://SubathonManager/Themes/ControlTweaks.axaml" />
     </Application.Styles>

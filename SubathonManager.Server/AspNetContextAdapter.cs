@@ -3,13 +3,13 @@ using System.Net.WebSockets;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Primitives;
 using SubathonManager.Server.Interfaces;
 
 namespace SubathonManager.Server;
 
 [ExcludeFromCodeCoverage]
-public sealed class AspNetContextAdapter(HttpContext ctx) : IHttpContext
-{
+public sealed class AspNetContextAdapter(HttpContext ctx) : IHttpContext {
     public string Method => ctx.Request.Method;
     public string Path => ctx.Request.Path.Value ?? "/";
     public string QueryString => ctx.Request.QueryString.Value?.TrimStart('?') ?? string.Empty;
@@ -17,24 +17,22 @@ public sealed class AspNetContextAdapter(HttpContext ctx) : IHttpContext
     public Encoding Encoding => Encoding.UTF8;
     public bool IsWebSocket => ctx.WebSockets.IsWebSocketRequest;
 
-    public IReadOnlyDictionary<string, string> Headers
-    {
-        get
-        {
+    public IReadOnlyDictionary<string, string> Headers {
+        get {
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (key, value) in ctx.Request.Headers)
+            foreach ((string key, StringValues value) in ctx.Request.Headers)
                 dict[key] = value.ToString();
             return dict;
         }
     }
 
-    public Task<WebSocket>? AcceptWebSocketAsync(string? subProtocol = null)
-        => ctx.WebSockets.IsWebSocketRequest
+    public Task<WebSocket>? AcceptWebSocketAsync(string? subProtocol = null) {
+        return ctx.WebSockets.IsWebSocketRequest
             ? ctx.WebSockets.AcceptWebSocketAsync(subProtocol)
             : null;
+    }
 
-    public async Task WriteResponse(int code, string body, bool addCors = false, string? contentType = null)
-    {
+    public async Task WriteResponse(int code, string body, bool addCors = false, string? contentType = null) {
         ctx.Response.StatusCode = code;
         if (contentType != null)
             ctx.Response.ContentType = contentType;
@@ -43,31 +41,33 @@ public sealed class AspNetContextAdapter(HttpContext ctx) : IHttpContext
         await ctx.Response.WriteAsync(body, Encoding.UTF8);
     }
 
-    public async Task ServeFile(string fullPath, string contentType)
-    {
+    public async Task ServeFile(string fullPath, string contentType) {
         ctx.Response.ContentType = contentType;
         AddCorsHeaders(ctx.Response);
         await ctx.Response.SendFileAsync(fullPath);
     }
 
-    public async Task ServeBytes(byte[] data, string contentType)
-    {
+    public async Task ServeBytes(byte[] data, string contentType) {
         ctx.Response.ContentType = contentType;
         ctx.Response.ContentLength = data.Length;
         AddCorsHeaders(ctx.Response);
         await ctx.Response.Body.WriteAsync(data);
     }
 
-    private static void AddCorsHeaders(HttpResponse response)
-    {
+    private static void AddCorsHeaders(HttpResponse response) {
         response.Headers["Access-Control-Allow-Origin"] = "*";
         response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
         response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
     }
 }
 
-internal sealed class NoopHostLifetime : IHostLifetime
-{
-    public Task WaitForStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+[ExcludeFromCodeCoverage]
+internal sealed class NoopHostLifetime : IHostLifetime {
+    public Task WaitForStartAsync(CancellationToken cancellationToken) {
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) {
+        return Task.CompletedTask;
+    }
 }

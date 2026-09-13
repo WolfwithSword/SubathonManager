@@ -4,17 +4,15 @@ using System.Diagnostics.CodeAnalysis;
 namespace SubathonManager.Core.Models;
 
 [ExcludeFromCodeCoverage]
-public class StateValue
-{
+public class StateValue {
     [Key] public string Name { get; set; } = "";
     public string Value { get; set; } = "";
     public string TypeName { get; set; } = "String";
 }
 
-public static class StateKeys
-{
+public static class StateKeys {
     public const string WheelSpinsOwed = "WheelSpinsOwed";
-    
+
     public const string WidgetBrowserCollapsed = "WidgetBrowserCollapsed";
     public const string WidgetBrowserSkipDeleteConfirm = "WidgetBrowserSkipDeleteConfirm";
     public const string WidgetBrowserAllVersions = "WidgetBrowserAllVersions";

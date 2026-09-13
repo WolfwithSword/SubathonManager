@@ -11,64 +11,63 @@ using SubathonManager.Integration;
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
-public partial class ChatExtensionSettings : SettingsControl
-{
-    public ChatExtensionSettings()
-    {
+public partial class ChatExtensionSettings : SettingsControl {
+    public ChatExtensionSettings() {
         InitializeComponent();
         Loaded += (_, _) => RegisterUnsavedChangeHandlers();
     }
 
-    public override void Init(SettingsView host)
-    {
+    public override void Init(SettingsView host) {
         Host = host;
         LoadConfigValues();
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection)
-        => throw new NotImplementedException();
+    internal override void UpdateStatus(IntegrationConnection? connection) {
+        throw new NotImplementedException();
+    }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var blerpBitsValue = db.SubathonValues.FirstOrDefault(sv =>
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? blerpBitsValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.BlerpBits && sv.Meta == "");
-        if (blerpBitsValue != null && double.TryParse(BitsTextBox.Text, out var bitsSeconds) && !bitsSeconds.Equals(blerpBitsValue.Seconds / 100.0))
-        {
+        if (blerpBitsValue != null && double.TryParse(BitsTextBox.Text, out double bitsSeconds) &&
+            !bitsSeconds.Equals(blerpBitsValue.Seconds / 100.0)) {
             blerpBitsValue.Seconds = bitsSeconds / 100.0;
             hasUpdated = true;
         }
-        if (blerpBitsValue != null && double.TryParse(Bits2TextBox.Text, out var bitsPoints) && !bitsPoints.Equals(blerpBitsValue.Points))
-        {
+
+        if (blerpBitsValue != null && double.TryParse(Bits2TextBox.Text, out double bitsPoints) &&
+            !bitsPoints.Equals(blerpBitsValue.Points)) {
             blerpBitsValue.Points = bitsPoints;
             hasUpdated = true;
         }
 
-        var blerpBeetsValue = db.SubathonValues.FirstOrDefault(sv =>
+        SubathonValue? blerpBeetsValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.BlerpBits && sv.Meta == "");
-        if (blerpBeetsValue != null && double.TryParse(BitsTextBox.Text, out var beetsSeconds) && !beetsSeconds.Equals(blerpBeetsValue.Seconds / 100.0))
-        {
+        if (blerpBeetsValue != null && double.TryParse(BitsTextBox.Text, out double beetsSeconds) &&
+            !beetsSeconds.Equals(blerpBeetsValue.Seconds / 100.0)) {
             blerpBeetsValue.Seconds = beetsSeconds / 100.0;
             hasUpdated = true;
         }
-        if (blerpBeetsValue != null && double.TryParse(Bits2TextBox.Text, out var beetsPoints) && !beetsPoints.Equals(blerpBeetsValue.Points))
-        {
+
+        if (blerpBeetsValue != null && double.TryParse(Bits2TextBox.Text, out double beetsPoints) &&
+            !beetsPoints.Equals(blerpBeetsValue.Points)) {
             blerpBeetsValue.Points = beetsPoints;
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
 
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
         TextBox? box = null;
         TextBox? box2 = null;
-        switch (val.EventType)
-        {
+        switch (val.EventType) {
             case SubathonEventType.BlerpBits:
                 v = $"{Math.Round(val.Seconds * 100)}";
                 box = BitsTextBox;
@@ -80,35 +79,33 @@ public partial class ChatExtensionSettings : SettingsControl
                 box2 = Beets2TextBox;
                 break;
         }
+
         return (v, p, box, box2);
     }
 
-    public bool SaveConfigValues()
-    {
-        bool hasUpdated = false;
+    public bool SaveConfigValues() {
+        var hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        if (double.TryParse(BitsModifierTextBox.Text, out var blerpBitsMod))
+        if (double.TryParse(BitsModifierTextBox.Text, out double blerpBitsMod))
             hasUpdated |= config.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
-        if (double.TryParse(BeetsModifierTextBox.Text, out var blerpBeetsMod))
+        if (double.TryParse(BeetsModifierTextBox.Text, out double blerpBeetsMod))
             hasUpdated |= config.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
         hasUpdated |= config.SetBool("Extensions", "Blerp.Enabled", EnabledBox.IsChecked ?? true);
         return hasUpdated;
     }
 
-    public void LoadConfigValues()
-    {
+    public void LoadConfigValues() {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        double.TryParse(config.Get("Extensions", "BlerpBits.Modifier", "1"), out var blerpBitsMod);
+        double.TryParse(config.Get("Extensions", "BlerpBits.Modifier", "1"), out double blerpBitsMod);
         BitsModifierTextBox.Text = $"{blerpBitsMod}";
-        double.TryParse(config.Get("Extensions", "BlerpBeets.Modifier", "1"), out var blerpBeetsMod);
+        double.TryParse(config.Get("Extensions", "BlerpBeets.Modifier", "1"), out double blerpBeetsMod);
         BeetsModifierTextBox.Text = $"{blerpBeetsMod}";
         EnabledBox.IsChecked = config.GetBool("Extensions", "Blerp.Enabled", true);
     }
 
-    private void TestBlerp_Click(object? sender, RoutedEventArgs e)
-    {
-        if (!long.TryParse(SimulateBlerpAmt.Text, out var amount)) return;
-        var currency = (BlerpCurrencyBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "bits";
+    private void TestBlerp_Click(object? sender, RoutedEventArgs e) {
+        if (!long.TryParse(SimulateBlerpAmt.Text, out long amount)) return;
+        string currency = (BlerpCurrencyBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "bits";
         BlerpChatService.SimulateBlerpMessage(amount, currency);
     }
 }

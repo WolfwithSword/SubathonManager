@@ -9,48 +9,52 @@
     <StackPanel>
 
         <!-- Step 1: CLI -->
-        <TextBlock Text="Step 1: Install DevTunnels CLI" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock Text="Step 1: Install DevTunnels CLI" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
 
         <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
-            <TextBlock Text="CLI Status:" Width="120" VerticalAlignment="Center"/>
-            <TextBlock x:Name="CliStatusText" Width="120" Text="Unknown" VerticalAlignment="Center" FontSize="12" Margin="4,0,12,0"/>
+            <TextBlock Text="CLI Status:" Width="120" VerticalAlignment="Center" />
+            <TextBlock x:Name="CliStatusText" Width="120" Text="Unknown" VerticalAlignment="Center" FontSize="12"
+                       Margin="4,0,12,0" />
             <Button x:Name="CheckCliBtn"
                     Content="Check"
                     Click="CheckCli_Click"
                     Width="80" Height="30" Padding="4,2"
-                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
             <Button x:Name="InstallCliBtn"
                     Content="Install"
                     Click="GetCli_Click"
                     Width="120" Height="30" Padding="4,2"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Margin="6,0,0,0"
-                    ToolTip.Tip="Opens the Azure DevTunnels download page"/>
+                    ToolTip.Tip="Opens the Azure DevTunnels download page" />
         </StackPanel>
 
         <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,8"
                    TextWrapping="Wrap"
-                   Text="Install the Azure DevTunnels CLI from Microsoft. Once installed, click Check to confirm."/>
+                   Text="Install the Azure DevTunnels CLI from Microsoft. Once installed, click Check to confirm." />
 
-        <Separator Margin="0,4,0,8"/>
+        <Separator Margin="0,4,0,8" />
 
         <!-- Step 2: Login -->
-        <TextBlock Text="Step 2: Login" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock Text="Step 2: Login" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
 
         <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
-            <TextBlock Text="Login Status:" Width="120" VerticalAlignment="Center"/>
-            <TextBlock x:Name="LoginStatusText" Text="Not logged in" VerticalAlignment="Center" FontSize="12" Margin="4,0,4,0"/>
+            <TextBlock Text="Login Status:" Width="120" VerticalAlignment="Center" />
+            <TextBlock x:Name="LoginStatusText" Text="Not logged in" VerticalAlignment="Center" FontSize="12"
+                       Margin="4,0,4,0" />
 
             <StackPanel x:Name="UsernamePanel" Orientation="Horizontal" IsVisible="False">
                 <Grid Width="220">
-                    <TextBlock x:Name="UsernameHidden" Text="****************************************************" VerticalAlignment="Center" FontSize="12" Margin="2 0 4 0"/>
-                    <TextBlock x:Name="UsernameRevealed" Text="" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" IsVisible="False" Margin="4 0 4 0"/>
+                    <TextBlock x:Name="UsernameHidden" Text="****************************************************"
+                               VerticalAlignment="Center" FontSize="12" Margin="2 0 4 0" />
+                    <TextBlock x:Name="UsernameRevealed" Text="" VerticalAlignment="Center"
+                               HorizontalAlignment="Center" FontSize="12" IsVisible="False" Margin="4 0 4 0" />
                 </Grid>
                 <Button x:Name="ToggleUsernameBtn"
                         Click="ToggleUsername_Click"
                         Width="28" Height="24" Padding="2,0"
                         Foreground="{DynamicResource TextFillColorPrimaryBrush}">
-                    <ctl:SymIcon x:Name="ToggleUsernameIcon" Glyph="Eye20"/>
+                    <ctl:SymIcon x:Name="ToggleUsernameIcon" Glyph="Eye20" />
                 </Button>
             </StackPanel>
         </StackPanel>
@@ -60,46 +64,47 @@
                     Content="Login with Microsoft"
                     Click="LoginMicrosoft_Click"
                     Width="170" Height="30" Padding="4,2"
-                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
             <Button x:Name="LoginGithubBtn"
                     Content="Login with GitHub"
                     Click="LoginGitHub_Click"
                     Width="150" Height="30" Padding="4,2"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                    Margin="6,0,0,0"/>
+                    Margin="6,0,0,0" />
             <Button x:Name="LogoutBtn"
                     Content="Logout"
                     Click="Logout_Click"
                     Width="80" Height="30" Padding="4,2"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Margin="0,0,0,0"
-                    IsVisible="False"/>
+                    IsVisible="False" />
         </StackPanel>
 
         <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,8"
                    TextWrapping="Wrap"
-                   Text="Login opens a browser tab. Complete the sign-in there, then return here. The status will update automatically."/>
+                   Text="Login opens a browser tab. Complete the sign-in there, then return here. The status will update automatically." />
 
-        <Separator Margin="0,4,0,8"/>
+        <Separator Margin="0,4,0,8" />
 
         <!-- Step 3: Tunnel -->
-        <TextBlock Text="Step 3: Tunnel" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4"/>
+        <TextBlock Text="Step 3: Tunnel" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,4" />
 
         <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
-            <TextBlock Text="Tunnel:" Width="120" VerticalAlignment="Center"/>
-            <TextBlock x:Name="TunnelStatusText" Text="Stopped" VerticalAlignment="Center" FontSize="12" Margin="4,0,12,0"/>
+            <TextBlock Text="Tunnel:" Width="120" VerticalAlignment="Center" />
+            <TextBlock x:Name="TunnelStatusText" Text="Stopped" VerticalAlignment="Center" FontSize="12"
+                       Margin="4,0,12,0" />
             <Button x:Name="StartTunnelBtn"
                     Content="Start"
                     Click="StartTunnel_Click"
                     Width="70" Height="30" Padding="4,2"
-                    Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                    Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
             <Button x:Name="StopTunnelBtn"
                     Content="Stop"
                     Click="StopTunnel_Click"
                     Width="70" Height="30" Padding="4,2"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Margin="6,0,0,0"
-                    IsVisible="False"/>
+                    IsVisible="False" />
             <Button x:Name="DeleteTunnelsBtn"
                     Content="Delete Old Tunnels"
                     Click="DeleteTunnels_Click"
@@ -107,11 +112,11 @@
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
                     Margin="6,0,0,0"
                     IsVisible="False"
-                    ToolTip.Tip="Delete all saved tunnels for this port from your account"/>
+                    ToolTip.Tip="Delete all saved tunnels for this port from your account" />
         </StackPanel>
 
         <StackPanel x:Name="TunnelUrlPanel" Orientation="Horizontal" Margin="0,6,0,2" IsVisible="False">
-            <TextBlock Text="Webhook base URL:" Width="120" VerticalAlignment="Center"/>
+            <TextBlock Text="Webhook base URL:" Width="120" VerticalAlignment="Center" />
             <TextBox x:Name="TunnelUrlBox" Width="400" Height="30" IsReadOnly="True"
                      PasswordChar="●"
                      views:SettingsProperties.ExcludeFromUnsaved="True"
@@ -122,7 +127,7 @@
                                   Background="Transparent" BorderThickness="0"
                                   ToolTip.Tip="Show / hide URL"
                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}">
-                        <ctl:SymIcon x:Name="RevealUrlIcon" Glyph="Eye20"/>
+                        <ctl:SymIcon x:Name="RevealUrlIcon" Glyph="Eye20" />
                     </ToggleButton>
                 </TextBox.InnerRightContent>
             </TextBox>
@@ -130,12 +135,12 @@
                     Click="CopyTunnelUrl_Click"
                     Width="60" Height="30" Padding="4,2"
                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
-                    Margin="6,0,0,0"/>
+                    Margin="6,0,0,0" />
         </StackPanel>
 
         <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,0"
                    TextWrapping="Wrap"
-                   Text="The tunnel starts automatically on launch when you are already logged in. Use the base URL above to build your webhook URL (e.g. append /api/webhooks/kofi for Ko-Fi)."/>
+                   Text="The tunnel starts automatically on launch when you are already logged in. Use the base URL above to build your webhook URL (e.g. append /api/webhooks/kofi for Ko-Fi)." />
 
     </StackPanel>
 </views:SettingsControl>

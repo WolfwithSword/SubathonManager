@@ -1,193 +1,168 @@
-﻿using IniParser;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using IniParser;
 using IniParser.Model;
-using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 
-namespace SubathonManager.Core
-{
-    [ExcludeFromCodeCoverage]
-    public class Config : IConfig
-    {        
-        private static readonly string ConfigPath = Path.GetFullPath(Path.Combine(string.Empty
-            , "data/config.ini"));
-        
-        public static readonly string DataFolder = Path.GetFullPath(Path.Combine(string.Empty
-            , "data"));
-        
-        public static readonly string DatabasePath = Path.Combine(Path.GetFullPath(Path.Combine(string.Empty,
-                "data")), "subathonmanager.db");
+namespace SubathonManager.Core;
 
-        public static readonly string AppFolder = Path.GetFullPath(".");
+[ExcludeFromCodeCoverage]
+public class Config : IConfig {
+    private static readonly string ConfigPath = Path.GetFullPath(Path.Combine(string.Empty
+        , "data/config.ini"));
 
-        private static readonly FileIniDataParser Parser = new();
-        private static IniData Data { get; set; } = new();
+    public static readonly string DataFolder = Path.GetFullPath(Path.Combine(string.Empty
+        , "data"));
 
-        public static string TwitchClientId { get; } = "jsykjc9k0yqkbqg4ttsfgnwwqmoxfh";
-        
-        public bool PendingChanges { get; private set; }
+    public static readonly string DatabasePath = Path.Combine(Path.GetFullPath(Path.Combine(string.Empty,
+        "data")), "subathonmanager.db");
 
-        public virtual IniParser.Model.KeyDataCollection GetSection(string section)
-        {
-            return Data[section];
-        }
-        
-        public bool MigrateConfig()
-        {
-            bool migrated = false;
-            if (GetSection("Twitch").Any(k => k.KeyName.StartsWith("Commands.")))
-            {
-                foreach (var keyData in GetSection("Twitch").Where(k => k.KeyName.StartsWith("Commands.")))
-                {
-                    Set("Chat", keyData.KeyName, keyData.Value);
-                    GetSection("Twitch").RemoveKey(keyData.KeyName);
-                    migrated = true;
-                }
-            }
+    public static readonly string AppFolder = Path.GetFullPath(".");
 
-            if (GetSection("Twitch").ContainsKey("BitsAsDonation"))
-            {
-                Set("Currency", "BitsLikeAsDonation", Get("Twitch", "BitsAsDonation", "False"));
-                GetSection("Twitch").RemoveKey("BitsAsDonation");
+    private static readonly FileIniDataParser Parser = new();
+    private static IniData Data { get; set; } = new();
+
+    public static string TwitchClientId { get; } = "jsykjc9k0yqkbqg4ttsfgnwwqmoxfh";
+
+    public bool PendingChanges { get; private set; }
+
+    public virtual KeyDataCollection GetSection(string section) {
+        return Data[section];
+    }
+
+    public bool MigrateConfig() {
+        var migrated = false;
+        if (GetSection("Twitch").Any(k => k.KeyName.StartsWith("Commands.")))
+            foreach (KeyData? keyData in GetSection("Twitch").Where(k => k.KeyName.StartsWith("Commands."))) {
+                Set("Chat", keyData.KeyName, keyData.Value);
+                GetSection("Twitch").RemoveKey(keyData.KeyName);
                 migrated = true;
             }
 
-            if (migrated) Save();
-            return migrated;
+        if (GetSection("Twitch").ContainsKey("BitsAsDonation")) {
+            Set("Currency", "BitsLikeAsDonation", Get("Twitch", "BitsAsDonation", "False"));
+            GetSection("Twitch").RemoveKey("BitsAsDonation");
+            migrated = true;
         }
-        
-        public virtual void LoadOrCreateDefault()
-        {
-            string folder = Path.GetFullPath(Path.Combine(string.Empty, 
-                "data"));
-            Directory.CreateDirectory(folder);
-            
-            Console.WriteLine($"[Config] Checking config at {ConfigPath}");
-            var dir = Path.GetDirectoryName(ConfigPath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
 
-            if (!File.Exists(ConfigPath))
-            {
-                Console.WriteLine("[Config] Creating new config.ini...");
+        if (migrated) Save();
+        return migrated;
+    }
+
+    public virtual void LoadOrCreateDefault() {
+        string folder = Path.GetFullPath(Path.Combine(string.Empty,
+            "data"));
+        Directory.CreateDirectory(folder);
+
+        Console.WriteLine($"[Config] Checking config at {ConfigPath}");
+        string? dir = Path.GetDirectoryName(ConfigPath);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
+
+        if (!File.Exists(ConfigPath)) {
+            Console.WriteLine("[Config] Creating new config.ini...");
+            CreateDefault();
+            Save();
+        }
+        else {
+            try {
+                Data = Parser.ReadFile(ConfigPath);
+            }
+            catch (Exception ex) {
+                Console.WriteLine($"[Config] Failed to read config.ini: {ex.Message}");
+                Console.WriteLine("[Config] Recreating config with defaults.");
                 CreateDefault();
                 Save();
             }
-            else
-            {
-                try
-                {
-                    Data = Parser.ReadFile(ConfigPath);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Config] Failed to read config.ini: {ex.Message}");
-                    Console.WriteLine("[Config] Recreating config with defaults.");
-                    CreateDefault();
-                    Save();
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(Get("Currency", "Primary")))
-            {
-                Set("Currency", "Primary", "USD");
-                Save();
-            }
         }
 
-        private void CreateDefault()
-        {
-            Data = new IniData();
-            Data["Server"]["Port"] = "14040";
-
-            Data["Discord"]["Events.WebhookUrl"] = "";
-            Data["Discord"]["WebhookUrl"] = "";
-            
-            foreach (Core.Enums.SubathonEventType type in Enum.GetValues(typeof(Core.Enums.SubathonEventType)))
-            {
-                if (type.GetLegacyGoAffProSiteId() > 0) continue; // retired per-store values
-                Data["Discord"][$"Events.Log.{type}"] = $"{false}";
-            }
-            Data["Discord"]["Events.Log.Simulated"] = $"{false}";
-            Data["Currency"]["Primary"] = "USD";
-        }
-
-        public virtual void Save()
-        {
-            Parser.WriteFile(ConfigPath, Data);
-            PendingChanges = false;
-            SettingsEvents.RaiseSettingsUnsavedChanges(PendingChanges);
-        }
-
-        public virtual string GetDatabasePath()
-        {
-            return DatabasePath;
-        }
-
-        public virtual string? Get(string section, string key, string? defaultValue = "")
-        {
-            return Data[section][key] ?? defaultValue;
-        }
-
-        public virtual bool GetBool(string section, string key, bool defaultValue = false)
-        {
-            bool val = Boolean.TryParse(Get(section, key, defaultValue.ToString()), out bool b) ? b : defaultValue;
-            return val;
-        }
-
-        public string? GetFromEncoded(string section, string key, string? defaultValue = "")
-        {
-            string val = Get(section, key, defaultValue) ?? string.Empty;
-            var fromBase64String = Convert.FromBase64String(val);
-            return System.Text.Encoding.UTF8.GetString(fromBase64String);
-        }
-
-        public virtual bool Set(string section, string key, string? value)
-        {
-            if (Data[section][key] != value)
-            {
-                Data[section][key] = value ?? string.Empty;
-                PendingChanges = true;
-                SettingsEvents.RaiseSettingsUnsavedChanges(PendingChanges);
-                return true;
-            }
-            return false;
-        }
-
-        public virtual bool SetBool(string section, string key, bool? value)
-        {
-            value ??= false;
-            return Set(section, key, ((bool)value).ToString());
-        }
-
-        public bool SetEncoded(string section, string key, string value)
-        {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(value);
-            return Set(section, key, Convert.ToBase64String(bytes));
-        }
-
-        public OrderTypeModes GetOrderTypeMode(string section, string orderEnumName, OrderTypeModes modeDefault)
-        {
-            var stringVal = Get(section, $"{orderEnumName}.Mode", "Dollar");
-            var sourceMode = Enum.TryParse(stringVal, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
-            return sourceMode;
-        }
-
-        public bool SetOrderTypeMode(string section, string orderEnumName, OrderTypeModes mode)
-        {
-            return Set(section, $"{orderEnumName}.Mode", $"{mode}");
-        }
-
-        public string GetInstallId()
-        {
-            var id = Get("Telemetry", "InstallId", "");
-            if (!string.IsNullOrWhiteSpace(id)) return id;
-            
-            id = Guid.NewGuid().ToString();
-            Set("Telemetry", "InstallId", id);
+        if (string.IsNullOrWhiteSpace(Get("Currency", "Primary"))) {
+            Set("Currency", "Primary", "USD");
             Save();
-            return id;
         }
+    }
+
+    public virtual void Save() {
+        Parser.WriteFile(ConfigPath, Data);
+        PendingChanges = false;
+        SettingsEvents.RaiseSettingsUnsavedChanges(PendingChanges);
+    }
+
+    public virtual string GetDatabasePath() {
+        return DatabasePath;
+    }
+
+    public virtual string? Get(string section, string key, string? defaultValue = "") {
+        return Data[section][key] ?? defaultValue;
+    }
+
+    public virtual bool GetBool(string section, string key, bool defaultValue = false) {
+        bool val = bool.TryParse(Get(section, key, defaultValue.ToString()), out bool b) ? b : defaultValue;
+        return val;
+    }
+
+    public string? GetFromEncoded(string section, string key, string? defaultValue = "") {
+        string val = Get(section, key, defaultValue) ?? string.Empty;
+        byte[] fromBase64String = Convert.FromBase64String(val);
+        return Encoding.UTF8.GetString(fromBase64String);
+    }
+
+    public virtual bool Set(string section, string key, string? value) {
+        if (Data[section][key] != value) {
+            Data[section][key] = value ?? string.Empty;
+            PendingChanges = true;
+            SettingsEvents.RaiseSettingsUnsavedChanges(PendingChanges);
+            return true;
+        }
+
+        return false;
+    }
+
+    public virtual bool SetBool(string section, string key, bool? value) {
+        value ??= false;
+        return Set(section, key, ((bool)value).ToString());
+    }
+
+    public bool SetEncoded(string section, string key, string value) {
+        byte[] bytes = Encoding.UTF8.GetBytes(value);
+        return Set(section, key, Convert.ToBase64String(bytes));
+    }
+
+    public OrderTypeModes GetOrderTypeMode(string section, string orderEnumName, OrderTypeModes modeDefault) {
+        string? stringVal = Get(section, $"{orderEnumName}.Mode", "Dollar");
+        OrderTypeModes sourceMode = Enum.TryParse(stringVal, out OrderTypeModes m) ? m : OrderTypeModes.Dollar;
+        return sourceMode;
+    }
+
+    public bool SetOrderTypeMode(string section, string orderEnumName, OrderTypeModes mode) {
+        return Set(section, $"{orderEnumName}.Mode", $"{mode}");
+    }
+
+    public string GetInstallId() {
+        string? id = Get("Telemetry", "InstallId");
+        if (!string.IsNullOrWhiteSpace(id)) return id;
+
+        id = Guid.NewGuid().ToString();
+        Set("Telemetry", "InstallId", id);
+        Save();
+        return id;
+    }
+
+    private void CreateDefault() {
+        Data = new IniData();
+        Data["Server"]["Port"] = "14040";
+
+        Data["Discord"]["Events.WebhookUrl"] = "";
+        Data["Discord"]["WebhookUrl"] = "";
+
+        foreach (SubathonEventType type in Enum.GetValues(typeof(SubathonEventType))) {
+            if (type.GetLegacyGoAffProSiteId() > 0) continue; // retired per-store values
+            Data["Discord"][$"Events.Log.{type}"] = $"{false}";
+        }
+
+        Data["Discord"]["Events.Log.Simulated"] = $"{false}";
+        Data["Currency"]["Primary"] = "USD";
     }
 }

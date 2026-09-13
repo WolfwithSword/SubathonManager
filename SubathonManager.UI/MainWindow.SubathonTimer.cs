@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -12,66 +13,63 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
-using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI;
 
-public partial class MainWindow
-{
+public partial class MainWindow {
     // ReSharper disable once InconsistentNaming
     internal readonly IDbContextFactory<AppDbContext> _factory =
         AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
+    private static readonly SolidColorBrush PausedBorderBrush = new(Color.FromRgb(0xF5, 0xA6, 0x23));
+    private static readonly SolidColorBrush LockedBorderBrush = new(Color.FromRgb(0xE0, 0x52, 0x52));
+
     private DateTime? _lastUpdatedTimerAt;
 
-    private void InitHome()
-    {
+    private void InitHome() {
         SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
         Closed += (_, _) => SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
 
-        var currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
+        List<string> currencies = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
         AdjustCurrencyBox.ItemsSource = currencies;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         AdjustCurrencyBox.Text = config.Get("Currency", "Primary", "USD")?.Trim().ToUpperInvariant() ?? "USD";
-        AdjustCurrencyBox.GotFocus += (_, _) =>
-        {
-            if ((AdjustCurrencyBox.ItemsSource as IEnumerable<string>)?.Count() is null or <= 1)
-            {
-                var current = AdjustCurrencyBox.Text;
+        AdjustCurrencyBox.GotFocus += (_, _) => {
+            if ((AdjustCurrencyBox.ItemsSource as IEnumerable<string>)?.Count() is null or <= 1) {
+                string? current = AdjustCurrencyBox.Text;
                 AdjustCurrencyBox.ItemsSource = ServiceManager.Events.ValidEventCurrencies().OrderBy(x => x).ToList();
                 AdjustCurrencyBox.Text = current;
             }
+
             AdjustCurrencyBox.IsDropDownOpen = true;
         };
     }
 
-    private void OnSubathonDataUpdate(SubathonData subathon, DateTime time)
-    {
+    private void OnSubathonDataUpdate(SubathonData subathon, DateTime time) {
         UpdateTimerValue(subathon, time);
         UpdateMultiplierUi(subathon, time);
     }
 
-    private void UpdateTimerValue(SubathonData subathon, DateTime time)
-    {
+    private void UpdateTimerValue(SubathonData subathon, DateTime time) {
         if (_lastUpdatedTimerAt != null && time <= _lastUpdatedTimerAt) return;
 
-        Dispatcher.UIThread.Post(() =>
-        {
+        Dispatcher.UIThread.Post(() => {
             double moneySum = subathon.GetRoundedMoneySumWithCents();
             TimerValue.Text = subathon.TimeRemainingRounded().ToString();
             _lastUpdatedTimerAt = time;
 
-            var pauseGlyph = subathon.IsPaused ? "Play16" : "Pause16";
+            string pauseGlyph = subathon.IsPaused ? "Play16" : "Pause16";
             if (PauseIcon.Glyph != pauseGlyph) PauseIcon.Glyph = pauseGlyph;
 
-            var lockGlyph = subathon.IsLocked ? "LockOpen16" : "LockClosed16";
+            string lockGlyph = subathon.IsLocked ? "LockOpen16" : "LockClosed16";
             if (LockIcon.Glyph != lockGlyph) LockIcon.Glyph = lockGlyph;
 
             if (PointsValue.Text != $"{subathon.Points:N0} Pts")
                 PointsValue.Text = $"{subathon.Points:N0} Pts";
 
-            var moneyText = $"{subathon.Currency} {moneySum:N2}".Trim();
+            string moneyText = $"{subathon.Currency} {moneySum:N2}".Trim();
             if (MoneyValue.Text != moneyText) MoneyValue.Text = moneyText;
 
             if (LockStatus.IsVisible != subathon.IsLocked) LockStatus.IsVisible = subathon.IsLocked;
@@ -79,50 +77,64 @@ public partial class MainWindow
             ToolTip.SetTip(TogglePauseTimerBtn, subathon.IsPaused ? "Resume" : "Pause");
             ToolTip.SetTip(ToggleLockTimerBtn, subathon.IsLocked ? "Unlock" : "Lock");
 
-            var capGlyph = subathon.CapDateTime.HasValue && subathon.CapDateTime > DateTime.Now
-                ? "Flag20" : "FlagOff20";
+            PauseButtonBorder.BorderBrush = subathon.IsPaused ? PausedBorderBrush : Brushes.Transparent;
+            LockButtonBorder.BorderBrush = subathon.IsLocked ? LockedBorderBrush : Brushes.Transparent;
+
+            string capGlyph = subathon.CapDateTime.HasValue && subathon.CapDateTime > DateTime.Now
+                ? "Flag20"
+                : "FlagOff20";
             if (CapIcon.Glyph != capGlyph) CapIcon.Glyph = capGlyph;
 
             if (subathon.IsCapInEffect())
                 CapIcon.Foreground = Brushes.Orange;
             else
-                CapIcon.SetDynamicResource(FluentIcons.Avalonia.SymbolIcon.ForegroundProperty, "TextFillColorPrimaryBrush");
+                CapIcon.SetDynamicResource(ForegroundProperty, "TextFillColorPrimaryBrush");
         });
     }
 
-    private async void StartNewSubathon_Click(object? sender, RoutedEventArgs e)
-    {
-        var panel = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
-        panel.Children.Add(new TextBlock
-        {
+    private async void StartNewSubathon_Click(object? sender, RoutedEventArgs e) {
+        var panel = new StackPanel
+            { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
+        panel.Children.Add(new TextBlock {
             TextWrapping = TextWrapping.Wrap,
             Width = 320,
-            Margin = new global::Avalonia.Thickness(4, 4, 4, 12),
+            Margin = new Thickness(4, 4, 4, 12),
             Text = "Confirm deleting the current subathon (time, points, events) and starting a new one?"
         });
 
-        var initialTimeBox = new TextBox { Text = "8h", Width = 140, Margin = new global::Avalonia.Thickness(2, 4, 0, 0) };
+        var nameBox = new TextBox {
+            Text = "New Subathon", Width = 200, MaxLength = 120, Margin = new Thickness(2, 4, 0, 0)
+        };
+        var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
+        nameRow.Children.Add(new TextBlock {
+            Text = "Name:",
+            VerticalAlignment = VerticalAlignment.Center,
+            Width = 80,
+            Margin = new Thickness(16, 4, 8, 0)
+        });
+        nameRow.Children.Add(nameBox);
+        panel.Children.Add(nameRow);
+
+        var initialTimeBox = new TextBox { Text = "8h", Width = 140, Margin = new Thickness(2, 4, 0, 0) };
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        row.Children.Add(new TextBlock
-        {
+        row.Children.Add(new TextBlock {
             Text = "Initial Time:",
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new global::Avalonia.Thickness(16, 4, 8, 0)
+            Width = 80,
+            Margin = new Thickness(16, 4, 8, 0)
         });
         row.Children.Add(initialTimeBox);
         panel.Children.Add(row);
 
-        var reverseCb = new CheckBox
-        {
+        var reverseCb = new CheckBox {
             Content = "Reverse Subathon?",
             IsChecked = false,
-            Margin = new global::Avalonia.Thickness(4, 12, 4, 8)
+            Margin = new Thickness(4, 12, 4, 8)
         };
         ToolTip.SetTip(reverseCb, "When enabled, time will tick up, and events reduce the timer");
         panel.Children.Add(reverseCb);
 
-        var dialog = new FAContentDialog
-        {
+        var dialog = new FAContentDialog {
             Title = "Start New Subathon",
             PrimaryButtonText = "Confirm",
             CloseButtonText = "Cancel",
@@ -131,9 +143,11 @@ public partial class MainWindow
         if (await dialog.ShowAsync() != FAContentDialogResult.Primary) return;
 
         await Task.Run(async () => AppDbContext.DisableAllTimers(await _factory.CreateDbContextAsync()));
-        await using var db = await _factory.CreateDbContextAsync();
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
 
         var subathon = new SubathonData();
+        string chosenName = (nameBox.Text ?? string.Empty).Trim();
+        if (chosenName.Length > 0) subathon.Name = chosenName;
         TimeSpan initial = Utils.ParseDurationString(initialTimeBox.Text);
         if (initial == TimeSpan.Zero) initial = TimeSpan.FromSeconds(1);
 
@@ -150,21 +164,76 @@ public partial class MainWindow
         SubathonEvents.RaiseSubathonEventsDeleted([]);
     }
 
-    private void AddTime_Click(object? sender, RoutedEventArgs e) => AdjustSubathonTimeBy(1);
-    private void SubtractTime_Click(object? sender, RoutedEventArgs e) => AdjustSubathonTimeBy(-1);
+    private void RenameSubathonBtn_Click(object? sender, RoutedEventArgs e) {
+        if (RenamePopup.IsOpen) {
+            RenamePopup.IsOpen = false;
+            return;
+        }
 
-    private void SetTime_Click(object? sender, RoutedEventArgs e)
-    {
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+
+        RenameValidationMsg.Text = string.Empty;
+        if (subathon == null) {
+            RenameCurrentLabel.Text = "No active subathon";
+            SubathonNameInput.Text = string.Empty;
+            SubathonNameInput.IsEnabled = false;
+        }
+        else {
+            RenameCurrentLabel.Text = $"Currently: {subathon.Name}";
+            SubathonNameInput.Text = subathon.Name;
+            SubathonNameInput.IsEnabled = true;
+        }
+
+        RenamePopup.IsOpen = true;
+    }
+
+    private void CancelRename_Click(object? sender, RoutedEventArgs e) {
+        RenamePopup.IsOpen = false;
+    }
+
+    private async void SaveRename_Click(object? sender, RoutedEventArgs e) {
+        string name = (SubathonNameInput.Text ?? string.Empty).Trim();
+        if (name.Length == 0) {
+            RenameValidationMsg.Text = "Enter a name";
+            return;
+        }
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
+            .FirstOrDefaultAsync(s => s.IsActive);
+        if (subathon == null) {
+            RenameValidationMsg.Text = "No active subathon";
+            return;
+        }
+
+        if (subathon.Name != name) {
+            subathon.Name = name;
+            await db.SaveChangesAsync();
+            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+        }
+
+        RenamePopup.IsOpen = false;
+    }
+
+    private void AddTime_Click(object? sender, RoutedEventArgs e) {
+        AdjustSubathonTimeBy(1);
+    }
+
+    private void SubtractTime_Click(object? sender, RoutedEventArgs e) {
+        AdjustSubathonTimeBy(-1);
+    }
+
+    private void SetTime_Click(object? sender, RoutedEventArgs e) {
         TimeSpan timeToSet = Utils.ParseDurationString(AdjustSubathonTime.Text ?? "");
         if (timeToSet <= TimeSpan.Zero) return;
 
-        using var db = _factory.CreateDbContext();
-        var subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
 
         string rawText = (AdjustSubathonTime.Text ?? "").Replace(" ", "");
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Value = $"{SubathonCommandType.SetTime} {rawText}",
             SecondsValue = timeToSet.TotalSeconds,
@@ -176,15 +245,13 @@ public partial class MainWindow
         });
     }
 
-    private void AdjustSubathonTimeBy(int direction)
-    {
+    private void AdjustSubathonTimeBy(int direction) {
         TimeSpan timeToAdjust = Utils.ParseDurationString(AdjustSubathonTime.Text ?? "");
         if (timeToAdjust == TimeSpan.Zero) return;
 
         string rawText = (AdjustSubathonTime.Text ?? "").Replace(" ", "");
         SubathonCommandType cmd = direction > 0 ? SubathonCommandType.AddTime : SubathonCommandType.SubtractTime;
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = $"{cmd} {rawText}",
@@ -196,15 +263,18 @@ public partial class MainWindow
         });
     }
 
-    private void AddMoney_Click(object? sender, RoutedEventArgs e) => AdjustSubathonMoneyBy(1);
-    private void SubtractMoney_Click(object? sender, RoutedEventArgs e) => AdjustSubathonMoneyBy(-1);
+    private void AddMoney_Click(object? sender, RoutedEventArgs e) {
+        AdjustSubathonMoneyBy(1);
+    }
 
-    private void AdjustSubathonMoneyBy(int direction)
-    {
-        if (!double.TryParse(AdjustSubathonMoney.Text, out var parsedVal) || parsedVal <= 0) return;
+    private void SubtractMoney_Click(object? sender, RoutedEventArgs e) {
+        AdjustSubathonMoneyBy(-1);
+    }
+
+    private void AdjustSubathonMoneyBy(int direction) {
+        if (!double.TryParse(AdjustSubathonMoney.Text, out double parsedVal) || parsedVal <= 0) return;
         SubathonCommandType cmd = direction > 0 ? SubathonCommandType.AddMoney : SubathonCommandType.SubtractMoney;
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = AdjustSubathonMoney.Text ?? "",
@@ -217,19 +287,22 @@ public partial class MainWindow
         });
     }
 
-    private void AddPoints_Click(object? sender, RoutedEventArgs e) => AdjustSubathonPointsBy(1);
-    private void SubtractPoints_Click(object? sender, RoutedEventArgs e) => AdjustSubathonPointsBy(-1);
+    private void AddPoints_Click(object? sender, RoutedEventArgs e) {
+        AdjustSubathonPointsBy(1);
+    }
 
-    private void SetPoints_Click(object? sender, RoutedEventArgs e)
-    {
-        if (!int.TryParse(AdjustSubathonPoints.Text, out var parsedInt) || parsedInt < 0) return;
+    private void SubtractPoints_Click(object? sender, RoutedEventArgs e) {
+        AdjustSubathonPointsBy(-1);
+    }
 
-        using var db = _factory.CreateDbContext();
-        var subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+    private void SetPoints_Click(object? sender, RoutedEventArgs e) {
+        if (!int.TryParse(AdjustSubathonPoints.Text, out int parsedInt) || parsedInt < 0) return;
+
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
 
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Value = $"{SubathonCommandType.SetPoints} {AdjustSubathonPoints.Text}",
             Command = SubathonCommandType.SetPoints,
@@ -241,12 +314,10 @@ public partial class MainWindow
         });
     }
 
-    private void AdjustSubathonPointsBy(int direction)
-    {
-        if (!int.TryParse(AdjustSubathonPoints.Text, out var parsedInt) || parsedInt <= 0) return;
+    private void AdjustSubathonPointsBy(int direction) {
+        if (!int.TryParse(AdjustSubathonPoints.Text, out int parsedInt) || parsedInt <= 0) return;
         SubathonCommandType cmd = direction > 0 ? SubathonCommandType.AddPoints : SubathonCommandType.SubtractPoints;
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = $"{cmd} {AdjustSubathonPoints.Text}",
@@ -258,14 +329,12 @@ public partial class MainWindow
         });
     }
 
-    private void TogglePauseSubathon_Click(object? sender, RoutedEventArgs e)
-    {
-        using var db = _factory.CreateDbContext();
-        var subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+    private void TogglePauseSubathon_Click(object? sender, RoutedEventArgs e) {
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
         SubathonCommandType cmd = subathon.IsPaused ? SubathonCommandType.Resume : SubathonCommandType.Pause;
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = $"{cmd}",
@@ -277,14 +346,12 @@ public partial class MainWindow
         });
     }
 
-    private void ToggleLockSubathon_Click(object? sender, RoutedEventArgs e)
-    {
-        using var db = _factory.CreateDbContext();
-        var subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+    private void ToggleLockSubathon_Click(object? sender, RoutedEventArgs e) {
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
         if (subathon == null) return;
         SubathonCommandType cmd = subathon.IsLocked ? SubathonCommandType.Unlock : SubathonCommandType.Lock;
-        RaiseCommand(new SubathonEvent
-        {
+        RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),
             Command = cmd,
             Value = $"{cmd}",
@@ -296,12 +363,12 @@ public partial class MainWindow
         });
     }
 
-    private void RaiseCommand(SubathonEvent subathonEvent)
-    {
+    private void RaiseCommand(SubathonEvent subathonEvent) {
         _lastUpdatedTimerAt = null;
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }
 
-    private void SendRefreshRequest_Click(object? sender, RoutedEventArgs e)
-        => OverlayEvents.RaiseOverlayRefreshAllRequested();
+    private void SendRefreshRequest_Click(object? sender, RoutedEventArgs e) {
+        OverlayEvents.RaiseOverlayRefreshAllRequested();
+    }
 }

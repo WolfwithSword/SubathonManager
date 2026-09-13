@@ -16,9 +16,20 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews.External.KoFi;
 
-public partial class KoFiWebhookSettings : DevTunnelSettingsControl
-{
+public partial class KoFiWebhookSettings : DevTunnelSettingsControl {
     private const string ConfigSection = "KoFi";
+
+    public KoFiWebhookSettings() {
+        InitializeComponent();
+        Loaded += (_, _) => {
+            IntegrationEvents.ConnectionUpdated += UpdateStatus;
+            RegisterUnsavedChangeHandlers();
+            SuppressUnsavedChanges(() => WireControl(KoFiWebhookTokenBox));
+            RefreshFromStoredState();
+        };
+        Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
+    }
+
     protected override TextBox _WebhookUrlBox => WebhookUrlBox;
     protected override SubathonEventSource _EventSource => SubathonEventSource.KoFiTunnel;
     protected override TextBlock _WebhookStatusText => KoFiWebhookStatusText;
@@ -30,78 +41,61 @@ public partial class KoFiWebhookSettings : DevTunnelSettingsControl
     protected override Popup? _ForwardUrlsPopup => ForwardUrlsPopup;
     protected override Button? _ConnectBtn => ConnectBtn;
 
-    public KoFiWebhookSettings()
-    {
-        InitializeComponent();
-        Loaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated += UpdateStatus;
-            RegisterUnsavedChangeHandlers();
-            SuppressUnsavedChanges(() => WireControl(KoFiWebhookTokenBox));
-            RefreshFromStoredState();
-        };
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-        };
-    }
-
-    protected internal override void LoadValues(AppDbContext db)
-    {
-        SuppressUnsavedChanges(() =>
-        {
+    protected internal override void LoadValues(AppDbContext db) {
+        SuppressUnsavedChanges(() => {
             var config = AppServices.Provider.GetRequiredService<IConfig>();
             var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
-            KoFiWebhookTokenBox.Text = secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty) ?? string.Empty;
+            KoFiWebhookTokenBox.Text = secureStorage.GetOrDefault(StorageKeys.KoFiVerificationToken, string.Empty) ??
+                                       string.Empty;
             KoFiWebhookForwardUrlsBox.Text = config.Get(ConfigSection, "ForwardUrls", string.Empty) ?? string.Empty;
         });
     }
 
-    protected internal override bool UpdateConfigValueSettings()
-    {
+    protected internal override bool UpdateConfigValueSettings() {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        bool hasUpdated = false;
+        var hasUpdated = false;
 
         var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
         hasUpdated |= secureStorage.Set(StorageKeys.KoFiVerificationToken, (KoFiWebhookTokenBox.Text ?? "").Trim());
         hasUpdated |= config.Set(ConfigSection, "ForwardUrls", (KoFiWebhookForwardUrlsBox.Text ?? "").Trim());
 
-        if (hasUpdated)
-        {
-            _ = RestartKoFiAsync();
-        }
+        if (hasUpdated) _ = RestartKoFiAsync();
 
         return hasUpdated;
     }
 
-    private static async Task RestartKoFiAsync()
-    {
+    private static async Task RestartKoFiAsync() {
         var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
         await sm.StopAsync<KoFiService>();
         await sm.StartAsync<KoFiService>();
     }
 
-    public override bool UpdateValueSettings(AppDbContext db) => false;
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) => ("", "", null, null);
+    public override bool UpdateValueSettings(AppDbContext db) {
+        return false;
+    }
 
-    private async void ConnectKoFi_Click(object? sender, RoutedEventArgs e)
-    {
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
+
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        return ("", "", null, null);
+    }
+
+    private async void ConnectKoFi_Click(object? sender, RoutedEventArgs e) {
         var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
         secureStorage.Set(StorageKeys.KoFiVerificationToken, (KoFiWebhookTokenBox.Text ?? "").Trim());
         await RestartKoFiAsync();
     }
 
-    private void OpenKoFiTokenLink_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
+    private void OpenKoFiTokenLink_Click(object? sender, RoutedEventArgs e) {
+        try {
+            Process.Start(new ProcessStartInfo {
                 FileName = "https://ko-fi.com/manage/webhooks",
                 UseShellExecute = true
             });
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 }

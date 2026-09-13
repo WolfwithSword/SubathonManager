@@ -1,8 +1,10 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -13,44 +15,42 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Data.Overlays;
 using SubathonManager.UI.Controls;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views;
 
-public partial class ExportOverlayDialog : Window
-{
-    private readonly Route? _route;
-    private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ExportOverlayDialog>>();
+public partial class ExportOverlayDialog : Window {
+    private static readonly SolidColorBrush InUseBrush = new(Color.FromRgb(230, 170, 60));
 
     private readonly List<FileEntry> _allEntries = new();
+    private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ExportOverlayDialog>>();
+    private readonly Route? _route;
     private bool _suppressSelectAllSync;
 
-    public ExportOverlayDialog()
-    {
+    public ExportOverlayDialog() {
         InitializeComponent();
-        UiUtils.WindowIcons.Apply(this);
+        WindowIcons.Apply(this);
     }
 
-    public ExportOverlayDialog(Route route)
-    {
+    public ExportOverlayDialog(Route route) {
         var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        using var db = factory.CreateDbContext();
+        using AppDbContext db = factory.CreateDbContext();
         _route = db.Routes.AsNoTracking()
             .Include(r => r.Widgets).ThenInclude(w => w.CssVariables)
             .Include(r => r.Widgets).ThenInclude(w => w.JsVariables)
             .FirstOrDefault(r => r.Id == route.Id);
 
         InitializeComponent();
-        UiUtils.WindowIcons.Apply(this);
+        WindowIcons.Apply(this);
 
-        if (_route == null)
-        {
+        if (_route == null) {
             Opened += (_, _) => Close();
             return;
         }
 
         ExportNameBox.Text = $"{_route.Name} Export";
         VersionBox.Text = "1.0.0";
-        var fileList = BuildFileList(_route);
+        List<PreviewEntry> fileList = BuildFileList(_route);
         PopulateTree(fileList);
         SyncSelectAllBox();
         bool isDevOrBeta = AppServices.AppVersion.Contains('+');
@@ -58,101 +58,80 @@ public partial class ExportOverlayDialog : Window
         AppVersionBox.Text = $"{AppServices.AppVersion}";
     }
 
-    private sealed record PreviewEntry(
-        string ZipEntry,
-        string? AbsSource,
-        bool DefaultSelected = true,
-        bool InUse = false,
-        string? UsageHint = null);
-
-    private static List<PreviewEntry> BuildFileList(Route route)
-    {
+    private static List<PreviewEntry> BuildFileList(Route route) {
         var result = new List<PreviewEntry>();
         var resourceUsage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        void Add(string zipEntry, string? absSource) => result.Add(new PreviewEntry(zipEntry, absSource));
 
-        var widgets = route.Widgets.ToList();
-        var widgetRoots = widgets.Select(w => w.GetPath()).ToList();
-        var zipRoots = OverlayPorter.GetZipWidgetRoots(widgetRoots);
+        void Add(string zipEntry, string? absSource) {
+            result.Add(new PreviewEntry(zipEntry, absSource));
+        }
 
-        for (int wi = 0; wi < widgets.Count; wi++)
-        {
-            var widget = widgets[wi];
+        List<Widget> widgets = route.Widgets.ToList();
+        List<string> widgetRoots = widgets.Select(w => w.GetPath()).ToList();
+        List<string> zipRoots = OverlayPorter.GetZipWidgetRoots(widgetRoots);
+
+        for (var wi = 0; wi < widgets.Count; wi++) {
+            Widget widget = widgets[wi];
             string widgetRoot = widgetRoots[wi];
             string zipWidgetRoot = zipRoots[wi];
 
-            if (widget.Type.IsAsset())
-            {
-                if (WidgetFiles.Current.Exists(widget.HtmlPath))
-                {
+            if (widget.Type.IsAsset()) {
+                if (WidgetFiles.Current.Exists(widget.HtmlPath)) {
                     string fileName = Path.GetFileName(widget.HtmlPath);
                     Add($"{zipWidgetRoot}/{fileName}", widget.HtmlPath);
                 }
             }
-            else
-            {
-                foreach (var file in WidgetFiles.Current.EnumerateFiles(widgetRoot))
+            else {
+                foreach (string file in WidgetFiles.Current.EnumerateFiles(widgetRoot))
                     Add($"{zipWidgetRoot}/{Path.GetRelativePath(widgetRoot, file).Replace('\\', '/')}", file);
             }
 
-            foreach (var jsVar in widget.JsVariables)
-            {
+            foreach (JsVariable jsVar in widget.JsVariables) {
                 if (!((WidgetVariableType?)jsVar.Type).IsFileVariable()) continue;
                 if (string.IsNullOrWhiteSpace(jsVar.Value)) continue;
 
-                if (ResourcePaths.RelativeFromUrl(jsVar.Value) is { } resourceRel)
-                {
+                if (ResourcePaths.RelativeFromUrl(jsVar.Value) is { } resourceRel) {
                     resourceUsage[resourceRel] = $"Used by \"{widget.Name}\" - variable \"{jsVar.Name}\"";
                     continue;
                 }
 
                 bool isAbsolute = !jsVar.Value.StartsWith("./") && !jsVar.Value.StartsWith("../")
-                                  && Path.IsPathRooted(jsVar.Value);
+                                                                && Path.IsPathRooted(jsVar.Value);
                 if (!isAbsolute) continue;
                 bool isFolderType = jsVar.Type == WidgetVariableType.FolderPath;
                 if (isFolderType && Directory.Exists(jsVar.Value))
-                {
-                    foreach (var file in Directory.EnumerateFiles(jsVar.Value, "*", SearchOption.AllDirectories))
+                    foreach (string file in Directory.EnumerateFiles(jsVar.Value, "*", SearchOption.AllDirectories))
                         Add($"{zipWidgetRoot}/_external/{jsVar.Name}/" +
                             $"{Path.GetRelativePath(jsVar.Value, file).Replace('\\', '/')}", file);
-                }
                 else if (!isFolderType && File.Exists(jsVar.Value))
-                {
                     Add($"{zipWidgetRoot}/_external/{Path.GetFileName(jsVar.Value)}", jsVar.Value);
-                }
             }
         }
 
-        foreach (var rel in ResourcePaths.EnumerateRelative())
-        {
-            bool inUse = resourceUsage.TryGetValue(rel, out var hint);
+        foreach (string rel in ResourcePaths.EnumerateRelative()) {
+            bool inUse = resourceUsage.TryGetValue(rel, out string? hint);
             result.Add(new PreviewEntry(
                 $"{OverlayPorter.ResourcesFolder}/{rel}",
                 ResourcePaths.ToLocalPath(ResourcePaths.UrlPrefix + rel),
-                DefaultSelected: false,
-                InUse: inUse,
-                UsageHint: hint));
+                false,
+                inUse,
+                hint));
         }
 
         Add("overlay.json", null);
         return result;
     }
 
-    private void PopulateTree(List<PreviewEntry> files)
-    {
+    private void PopulateTree(List<PreviewEntry> files) {
         var root = new TreeNode("root");
 
-        foreach (var file in files)
-        {
-            var parts = file.ZipEntry.Split('/');
-            var node = root;
-            for (int i = 0; i < parts.Length; i++)
-            {
+        foreach (PreviewEntry file in files) {
+            string[] parts = file.ZipEntry.Split('/');
+            TreeNode node = root;
+            for (var i = 0; i < parts.Length; i++) {
                 bool isLeaf = i == parts.Length - 1;
-                if (!node.Children.TryGetValue(parts[i], out var child))
-                {
-                    child = new TreeNode(parts[i])
-                    {
+                if (!node.Children.TryGetValue(parts[i], out TreeNode? child)) {
+                    child = new TreeNode(parts[i]) {
                         AbsSource = isLeaf ? file.AbsSource : null,
                         IsLeaf = isLeaf,
                         ZipEntry = isLeaf ? file.ZipEntry : null,
@@ -163,38 +142,35 @@ public partial class ExportOverlayDialog : Window
                     };
                     node.Children[parts[i]] = child;
                 }
+
                 node = child;
             }
         }
 
-        foreach (var child in root.Children.Values)
+        foreach (TreeNode child in root.Children.Values)
             FileTree.Items.Add(BuildTreeItem(child));
     }
 
-    private TreeViewItem BuildTreeItem(TreeNode node)
-    {
+    private TreeViewItem BuildTreeItem(TreeNode node) {
         bool isLeaf = node.Children.Count == 0;
         bool isGenerated = isLeaf && node.AbsSource == null;
         bool isSharedResources = IsSharedResourceNode(node);
 
-        var checkBox = new CheckBox
-        {
+        var checkBox = new CheckBox {
             IsChecked = node.DefaultSelected,
-            Margin = new global::Avalonia.Thickness(0, 0, 4, 0),
+            Margin = new Thickness(0, 0, 4, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsEnabled = !isGenerated
         };
 
-        var icon = new SymIcon
-        {
+        var icon = new SymIcon {
             Glyph = isLeaf ? "Document24" : "Folder24",
-            Margin = new global::Avalonia.Thickness(0, 0, 5, 0),
+            Margin = new Thickness(0, 0, 5, 0),
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 14
         };
 
-        var label = new TextBlock
-        {
+        var label = new TextBlock {
             Text = node.Name,
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 12,
@@ -208,17 +184,14 @@ public partial class ExportOverlayDialog : Window
         header.Children.Add(icon);
         header.Children.Add(label);
 
-        var item = new TreeViewItem
-        {
+        var item = new TreeViewItem {
             Header = header,
             IsExpanded = !isSharedResources,
-            Padding = new global::Avalonia.Thickness(2)
+            Padding = new Thickness(2)
         };
 
-        if (isLeaf)
-        {
-            var entry = new FileEntry(node.ZipEntry ?? node.Name, node.AbsSource, checkBox, icon, label)
-            {
+        if (isLeaf) {
+            var entry = new FileEntry(node.ZipEntry ?? node.Name, node.AbsSource, checkBox, icon, label) {
                 IsIncluded = node.DefaultSelected,
                 InUse = node.InUse
             };
@@ -229,9 +202,8 @@ public partial class ExportOverlayDialog : Window
 
             checkBox.IsCheckedChanged += (_, _) => OnEntryCheckedChanged(entry, checkBox.IsChecked ?? false);
         }
-        else
-        {
-            foreach (var child in node.Children.Values)
+        else {
+            foreach (TreeNode child in node.Children.Values)
                 item.Items.Add(BuildTreeItem(child));
 
             checkBox.IsChecked = DescendantState(item);
@@ -241,25 +213,19 @@ public partial class ExportOverlayDialog : Window
         return item;
     }
 
-    private void OnEntryCheckedChanged(FileEntry entry, bool isChecked)
-    {
+    private void OnEntryCheckedChanged(FileEntry entry, bool isChecked) {
         entry.IsIncluded = isChecked;
         ApplyEntryStyle(entry, isChecked);
         SyncSelectAllBox();
     }
 
-    private static readonly SolidColorBrush InUseBrush = new(Color.FromRgb(230, 170, 60));
-
-    private void ApplyEntryStyle(FileEntry entry, bool isChecked)
-    {
-        if (isChecked)
-        {
+    private void ApplyEntryStyle(FileEntry entry, bool isChecked) {
+        if (isChecked) {
             entry.Label.Foreground = PrimaryTextBrush();
             entry.Label.Opacity = 1.0;
             entry.Icon.Opacity = 1.0;
         }
-        else
-        {
+        else {
             entry.Label.Foreground = entry.InUse
                 ? InUseBrush
                 : new SolidColorBrush(Color.FromArgb(200, 180, 60, 60));
@@ -268,26 +234,24 @@ public partial class ExportOverlayDialog : Window
         }
     }
 
-    private static bool IsSharedResourceNode(TreeNode node)
-        => node.ZipPath.Equals(OverlayPorter.ResourcesFolder, StringComparison.OrdinalIgnoreCase);
+    private static bool IsSharedResourceNode(TreeNode node) {
+        return node.ZipPath.Equals(OverlayPorter.ResourcesFolder, StringComparison.OrdinalIgnoreCase);
+    }
 
-    private void SetDescendantLeaves(TreeViewItem parent, bool isChecked)
-    {
-        foreach (var obj in parent.Items)
-        {
+    private void SetDescendantLeaves(TreeViewItem parent, bool isChecked) {
+        foreach (object? obj in parent.Items) {
             if (obj is not TreeViewItem child) continue;
-            if (child.Header is StackPanel sp)
-            {
-                var cb = sp.Children.OfType<CheckBox>().FirstOrDefault();
+            if (child.Header is StackPanel sp) {
+                CheckBox? cb = sp.Children.OfType<CheckBox>().FirstOrDefault();
                 if (cb is { IsEnabled: true })
                     cb.IsChecked = isChecked;
             }
+
             SetDescendantLeaves(child, isChecked);
         }
     }
 
-    private static bool? DescendantState(TreeViewItem parent)
-    {
+    private static bool? DescendantState(TreeViewItem parent) {
         var boxes = new List<CheckBox>();
         CollectLeafBoxes(parent, boxes);
         if (boxes.Count == 0) return false;
@@ -296,44 +260,37 @@ public partial class ExportOverlayDialog : Window
         return null;
     }
 
-    private static void CollectLeafBoxes(TreeViewItem parent, List<CheckBox> into)
-    {
-        foreach (var obj in parent.Items)
-        {
+    private static void CollectLeafBoxes(TreeViewItem parent, List<CheckBox> into) {
+        foreach (object? obj in parent.Items) {
             if (obj is not TreeViewItem child) continue;
-            if (child.Items.Count == 0)
-            {
+            if (child.Items.Count == 0) {
                 if (child.Header is StackPanel sp && sp.Children.OfType<CheckBox>().FirstOrDefault() is { } cb)
                     into.Add(cb);
             }
-            else
-            {
+            else {
                 CollectLeafBoxes(child, into);
             }
         }
     }
 
-    private void SyncSelectAllBox()
-    {
+    private void SyncSelectAllBox() {
         _suppressSelectAllSync = true;
-        var checkable = _allEntries.Where(e => e.CheckBox.IsEnabled).ToList();
+        List<FileEntry> checkable = _allEntries.Where(e => e.CheckBox.IsEnabled).ToList();
         bool allOn = checkable.All(e => e.IsIncluded);
         bool allOff = checkable.All(e => !e.IsIncluded);
         SelectAllBox.IsChecked = allOn ? true : allOff ? false : null;
         _suppressSelectAllSync = false;
     }
 
-    private void SelectAllBox_Changed(object? sender, RoutedEventArgs e)
-    {
+    private void SelectAllBox_Changed(object? sender, RoutedEventArgs e) {
         if (_suppressSelectAllSync) return;
         bool? state = SelectAllBox.IsChecked;
         if (state is null) return;
-        foreach (var entry in _allEntries.Where(e2 => e2.CheckBox.IsEnabled))
+        foreach (FileEntry entry in _allEntries.Where(e2 => e2.CheckBox.IsEnabled))
             entry.CheckBox.IsChecked = state.Value;
     }
 
-    private async void ConfirmButton_Click(object? sender, RoutedEventArgs e)
-    {
+    private async void ConfirmButton_Click(object? sender, RoutedEventArgs e) {
         string exportName = ExportNameBox.Text?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(exportName))
             exportName = _route!.Name;
@@ -347,15 +304,13 @@ public partial class ExportOverlayDialog : Window
         string exportsDir = Path.GetFullPath("./exports");
         Directory.CreateDirectory(exportsDir);
 
-        var startFolder = await StorageProvider.TryGetFolderFromPathAsync(exportsDir);
-        var picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
+        IStorageFolder? startFolder = await StorageProvider.TryGetFolderFromPathAsync(exportsDir);
+        IStorageFile? picked = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions {
             Title = "Save Overlay Export",
             SuggestedFileName = safeFileName,
             DefaultExtension = "smo",
             SuggestedStartLocation = startFolder,
-            FileTypeChoices = new[]
-            {
+            FileTypeChoices = new[] {
                 new FilePickerFileType("Subathon Manager Overlay (*.smo)") { Patterns = new[] { "*.smo" } }
             }
         });
@@ -367,42 +322,39 @@ public partial class ExportOverlayDialog : Window
         CancelButton.IsEnabled = false;
         ConfirmButton.Content = "Exporting...";
 
-        try
-        {
-            if (_route == null)
-            {
+        try {
+            if (_route == null) {
                 await ShowError("Could not load route data for export.");
                 return;
             }
 
-            var excludedZipEntries = _allEntries
+            HashSet<string> excludedZipEntries = _allEntries
                 .Where(entry => entry is { IsIncluded: false, AbsSource: not null })
                 .Select(entry => entry.ZipEntry)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            await OverlayPorter.ExportRouteAsync(_route, outputPath, exportName, excludedZipEntries, version, appVersion,
+            await OverlayPorter.ExportRouteAsync(_route, outputPath, exportName, excludedZipEntries, version,
+                appVersion,
                 AuthorBox.Text?.Trim() ?? string.Empty, WidgetPorter.ParseTags(TagsBox.Text));
             Close();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             await ShowError($"Export failed: {ex.Message}");
             _logger?.LogError(ex, "Export failed");
         }
-        finally
-        {
+        finally {
             ConfirmButton.IsEnabled = true;
             CancelButton.IsEnabled = true;
             ConfirmButton.Content = "Export...";
         }
     }
 
-    private void CancelButton_Click(object? sender, RoutedEventArgs e) => Close();
+    private void CancelButton_Click(object? sender, RoutedEventArgs e) {
+        Close();
+    }
 
-    private async Task ShowError(string message)
-    {
-        var box = new FluentAvalonia.UI.Controls.FAContentDialog
-        {
+    private async Task ShowError(string message) {
+        var box = new FAContentDialog {
             Title = "Export Error",
             Content = message,
             CloseButtonText = "OK"
@@ -410,13 +362,21 @@ public partial class ExportOverlayDialog : Window
         await box.ShowAsync();
     }
 
-    private IBrush PrimaryTextBrush()
-        => this.TryFindResource("TextFillColorPrimaryBrush", this.ActualThemeVariant, out var b) && b is IBrush brush
+    private IBrush PrimaryTextBrush() {
+        return this.TryFindResource("TextFillColorPrimaryBrush", this.ActualThemeVariant, out object? b) &&
+               b is IBrush brush
             ? brush
             : Brushes.Gray;
+    }
 
-    private class TreeNode(string name)
-    {
+    private sealed record PreviewEntry(
+        string ZipEntry,
+        string? AbsSource,
+        bool DefaultSelected = true,
+        bool InUse = false,
+        string? UsageHint = null);
+
+    private class TreeNode(string name) {
         public string Name { get; } = name;
         public string? AbsSource { get; set; }
         public bool IsLeaf { get; set; }
@@ -428,8 +388,7 @@ public partial class ExportOverlayDialog : Window
         public Dictionary<string, TreeNode> Children { get; } = new();
     }
 
-    private class FileEntry(string zipEntry, string? absSource, CheckBox checkBox, SymIcon icon, TextBlock label)
-    {
+    private class FileEntry(string zipEntry, string? absSource, CheckBox checkBox, SymIcon icon, TextBlock label) {
         public string ZipEntry { get; } = zipEntry;
         public string? AbsSource { get; } = absSource;
         public CheckBox CheckBox { get; } = checkBox;

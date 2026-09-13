@@ -1,7 +1,6 @@
 ﻿namespace SubathonManager.Core.Enums;
 
-public enum OrderTypeModes
-{
+public enum OrderTypeModes {
     Item,
     Order,
     Dollar

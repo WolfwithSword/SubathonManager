@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             x:CompileBindings="False"
+             d:DesignWidth="360"
+             x:Class="SubathonManager.UI.Controls.FilterPopout">
+    <Grid>
+        <TextBox x:Name="SummaryBox" IsReadOnly="True" Height="34" Tapped="Open_Click"
+                 PlaceholderText="Click to choose" ToolTip.Tip="Click to choose" />
+
+        <!-- ReSharper disable once Xaml.InvalidType -->
+        <Popup x:Name="ChoicesPopup" IsLightDismissEnabled="True" Placement="Bottom"
+               PlacementTarget="{Binding #SummaryBox}">
+            <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                    BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                    BorderThickness="1" CornerRadius="6" Padding="10" Width="440">
+                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                    <TextBox Grid.Row="0" x:Name="SearchBox" PlaceholderText="Search..." Margin="0,0,0,6"
+                             TextChanged="Search_TextChanged" />
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,6">
+                        <Button Content="All" Padding="10,2" FontSize="11" Margin="0,0,4,0" Click="All_Click"
+                                ToolTip.Tip="Select everything currently shown" />
+                        <Button Content="None" Padding="10,2" FontSize="11" Margin="0,0,4,0" Click="None_Click" />
+                        <Button Content="Expand All" Padding="10,2" FontSize="11" Margin="0,0,4,0"
+                                Click="ExpandAll_Click" />
+                        <Button Content="Collapse All" Padding="10,2" FontSize="11" Click="CollapseAll_Click" />
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="2" MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="GroupList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Expander Header="{Binding Header}" IsExpanded="{Binding IsExpanded}"
+                                              IsVisible="{Binding HasMatches}" Margin="0,0,0,4" Padding="6,2">
+                                        <ItemsControl ItemsSource="{Binding Items}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Content="{Binding Label}" IsChecked="{Binding Selected}"
+                                                              IsVisible="{Binding MatchesSearch}" Margin="4,0,0,0" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Expander>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                        <TextBlock Grid.Column="0" x:Name="CountText" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <Button Grid.Column="1" Content="Done" Width="70" Height="28" Padding="4,2"
+                                Click="Close_Click"
+                                Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

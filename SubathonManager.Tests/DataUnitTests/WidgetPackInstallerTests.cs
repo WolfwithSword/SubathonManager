@@ -2,25 +2,22 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO.Compression;
 using SubathonManager.Data.Widgets;
 using SubathonManager.Tests.Utility;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.DataUnitTests;
 
 [Collection("WorkingDirectory")]
 [SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments")]
-public class WidgetPackInstallerTests
-{
-    
+public class WidgetPackInstallerTests {
     [Fact]
-    public void ReadManifest_MissingFile_ReturnsNull()
-    {
+    public void ReadManifest_MissingFile_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         Assert.Null(WidgetPackInstaller.ReadManifest(Path.Combine(ws.Root, "nope.smw")));
     }
 
     [Fact]
-    public void ReadManifest_NotAZip_ReturnsNull()
-    {
+    public void ReadManifest_NotAZip_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string path = ws.WriteFile("broken.smw", "definitely not a zip");
 
@@ -28,8 +25,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_ZipWithoutWidgetJson_ReturnsNull()
-    {
+    public void ReadManifest_ZipWithoutWidgetJson_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteZip(ws.Path_("nomanifest.smw"),
             new Dictionary<string, string> { ["content/widget.html"] = "<html></html>" });
@@ -38,8 +34,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_MalformedJson_ReturnsNull()
-    {
+    public void ReadManifest_MalformedJson_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteZip(ws.Path_("bad.smw"),
             new Dictionary<string, string> { ["widget.json"] = "{ not json" });
@@ -48,16 +43,15 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_FullManifest_MapsEveryField()
-    {
+    public void ReadManifest_FullManifest_MapsEveryField() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteSmw(ws.Path_("full.smw"), TestPacks.WidgetManifestJson(
-            name: "Sub Timer", author: "Wolf", group: "Alerts", version: "2.1.0",
-            entry: "content/timer.html", packId: "custom.pack.id", preview: "preview.png",
-            docsUrl: "https://docs.example.com", tags: ["timer", "sub"],
-            width: 640, height: 480, scaleX: 1.5f, scaleY: 2f));
+            "Sub Timer", "Wolf", "Alerts", "2.1.0",
+            "content/timer.html", "custom.pack.id", "preview.png",
+            "https://docs.example.com", ["timer", "sub"],
+            640, 480, 1.5f, 2f));
 
-        var manifest = WidgetPackInstaller.ReadManifest(path);
+        WidgetPackManifest? manifest = WidgetPackInstaller.ReadManifest(path);
 
         Assert.NotNull(manifest);
         Assert.Equal("1", manifest!.FormatVersion);
@@ -68,7 +62,7 @@ public class WidgetPackInstallerTests
         Assert.Equal("Alerts", manifest.Group);
         Assert.Equal("2.1.0", manifest.Version);
         Assert.Equal("https://docs.example.com", manifest.DocsUrl);
-        Assert.Equal(new[] {"timer", "sub"}, manifest.Tags);
+        Assert.Equal(new[] { "timer", "sub" }, manifest.Tags);
         Assert.Equal("preview.png", manifest.PreviewImage);
         Assert.Equal("content/timer.html", manifest.Entry);
         Assert.Equal(640, manifest.Width);
@@ -78,13 +72,12 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_NoWidgetObject_UsesEveryFallback()
-    {
+    public void ReadManifest_NoWidgetObject_UsesEveryFallback() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteZip(ws.Path_("MyPack.smw"),
             new Dictionary<string, string> { ["widget.json"] = "{}" });
 
-        var manifest = WidgetPackInstaller.ReadManifest(path);
+        WidgetPackManifest? manifest = WidgetPackInstaller.ReadManifest(path);
 
         Assert.NotNull(manifest);
         Assert.Equal("MyPack", manifest!.Name);
@@ -100,18 +93,16 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_BlankPackId_IsDerivedFromAuthorGroupName()
-    {
+    public void ReadManifest_BlankPackId_IsDerivedFromAuthorGroupName() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteSmw(ws.Path_("p.smw"),
-            TestPacks.WidgetManifestJson(name: "My Timer", author: "Wolf", group: "Alerts", packId: ""));
+            TestPacks.WidgetManifestJson("My Timer", "Wolf", "Alerts", packId: ""));
 
         Assert.Equal("wolf.alerts.my-timer", WidgetPackInstaller.ReadManifest(path)!.PackId);
     }
 
     [Fact]
-    public void ReadManifest_EntryIsNormalised()
-    {
+    public void ReadManifest_EntryIsNormalised() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteSmw(ws.Path_("p.smw"),
             TestPacks.WidgetManifestJson(entry: @"\content\widget.html"));
@@ -120,26 +111,24 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_WrongTypedFields_FallBackInsteadOfThrowing()
-    {
+    public void ReadManifest_WrongTypedFields_FallBackInsteadOfThrowing() {
         using var ws = new TempWorkspace("packinstaller");
-        string path = TestPacks.WriteZip(ws.Path_("typed.smw"), new Dictionary<string, string>
-        {
+        string path = TestPacks.WriteZip(ws.Path_("typed.smw"), new Dictionary<string, string> {
             ["widget.json"] = """
-                {
-                  "version": 5,
-                  "widget": {
-                    "name": 42,
-                    "tags": "not-an-array",
-                    "entry": "content/a.html",
-                    "size": { "width": 12.5, "height": 200 },
-                    "scale": { "x": -3, "y": 2.5 }
-                  }
-                }
-                """
+                              {
+                                "version": 5,
+                                "widget": {
+                                  "name": 42,
+                                  "tags": "not-an-array",
+                                  "entry": "content/a.html",
+                                  "size": { "width": 12.5, "height": 200 },
+                                  "scale": { "x": -3, "y": 2.5 }
+                                }
+                              }
+                              """
         });
 
-        var manifest = WidgetPackInstaller.ReadManifest(path);
+        WidgetPackManifest? manifest = WidgetPackInstaller.ReadManifest(path);
 
         Assert.NotNull(manifest);
         Assert.Equal(string.Empty, manifest!.FormatVersion);
@@ -152,30 +141,26 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void ReadManifest_TagsArray_DropsNonStringsAndBlanks()
-    {
+    public void ReadManifest_TagsArray_DropsNonStringsAndBlanks() {
         using var ws = new TempWorkspace("packinstaller");
-        string path = TestPacks.WriteZip(ws.Path_("tags.smw"), new Dictionary<string, string>
-        {
+        string path = TestPacks.WriteZip(ws.Path_("tags.smw"), new Dictionary<string, string> {
             ["widget.json"] = """
-                { "widget": { "entry": "a.html", "tags": ["good", 7, "  ", "", "also-good"] } }
-                """
+                              { "widget": { "entry": "a.html", "tags": ["good", 7, "  ", "", "also-good"] } }
+                              """
         });
 
-        Assert.Equal(new[] {"good", "also-good"}, WidgetPackInstaller.ReadManifest(path)!.Tags);
+        Assert.Equal(new[] { "good", "also-good" }, WidgetPackInstaller.ReadManifest(path)!.Tags);
     }
 
-        
+
     [Fact]
-    public void Install_MissingFile_ReturnsNull()
-    {
+    public void Install_MissingFile_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         Assert.Null(WidgetPackInstaller.Install(Path.Combine(ws.Root, "nope.smw")));
     }
 
     [Fact]
-    public void Install_ManifestWithoutEntry_ReturnsNull()
-    {
+    public void Install_ManifestWithoutEntry_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteSmw(ws.Path_("noentry.smw"), TestPacks.WidgetManifestJson(entry: ""));
 
@@ -183,13 +168,12 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void Install_CopiesPackIntoPackedStore_UnderSluggedVersion()
-    {
+    public void Install_CopiesPackIntoPackedStore_UnderSluggedVersion() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.2.0"));
 
-        var installed = WidgetPackInstaller.Install(source);
+        WidgetPackInstaller.InstalledPack? installed = WidgetPackInstaller.Install(source);
 
         Assert.NotNull(installed);
         Assert.Equal(WidgetPackPaths.PackFile("wolf.widgets.timer", "1-2-0"), installed!.PackFile);
@@ -199,31 +183,29 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void Install_UnsluggableVersion_FallsBackTo1_0_0()
-    {
+    public void Install_UnsluggableVersion_FallsBackTo1_0_0() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "!!!"));
 
-        var installed = WidgetPackInstaller.Install(source);
+        WidgetPackInstaller.InstalledPack? installed = WidgetPackInstaller.Install(source);
 
         Assert.NotNull(installed);
         Assert.EndsWith(Path.Combine("wolf.widgets.timer", "1-0-0.smw"), installed!.PackFile);
     }
 
     [Fact]
-    public void Install_Reinstall_OverwritesAndClearsTheCacheDirectory()
-    {
+    public void Install_Reinstall_OverwritesAndClearsTheCacheDirectory() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"));
 
-        var first = WidgetPackInstaller.Install(source)!;
+        WidgetPackInstaller.InstalledPack first = WidgetPackInstaller.Install(source)!;
         string cacheDir = WidgetPackPaths.CacheDirFor(first.PackFile);
         Directory.CreateDirectory(cacheDir);
         File.WriteAllText(Path.Combine(cacheDir, "stale.bin"), "old");
 
-        var second = WidgetPackInstaller.Install(source);
+        WidgetPackInstaller.InstalledPack? second = WidgetPackInstaller.Install(source);
 
         Assert.NotNull(second);
         Assert.Equal(first.PackFile, second!.PackFile);
@@ -231,15 +213,14 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void Install_SourceAlreadyAtTarget_DoesNotSelfCopy()
-    {
+    public void Install_SourceAlreadyAtTarget_DoesNotSelfCopy() {
         using var ws = new TempWorkspace("packinstaller");
         string target = WidgetPackPaths.PackFile("wolf.widgets.timer", "1-0-0");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
         TestPacks.WriteSmw(target,
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"));
 
-        var installed = WidgetPackInstaller.Install(target);
+        WidgetPackInstaller.InstalledPack? installed = WidgetPackInstaller.Install(target);
 
         Assert.NotNull(installed);
         Assert.Equal(target, installed!.PackFile);
@@ -247,8 +228,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void Install_InvalidatesTheResolveCache()
-    {
+    public void Install_InvalidatesTheResolveCache() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"));
@@ -256,23 +236,21 @@ public class WidgetPackInstallerTests
         string mountRoot = WidgetPackPaths.MountRoot("wolf.widgets.timer", "1-0-0");
         Assert.Null(WidgetPackPaths.Resolve(Path.Combine(mountRoot, "content", "widget.html")));
 
-        var installed = WidgetPackInstaller.Install(source);
+        WidgetPackInstaller.InstalledPack? installed = WidgetPackInstaller.Install(source);
 
         Assert.NotNull(installed);
         Assert.NotNull(WidgetPackPaths.Resolve(installed!.HtmlPath));
     }
 
-        
+
     [Fact]
-    public void MountInPlace_MissingFile_ReturnsNull()
-    {
+    public void MountInPlace_MissingFile_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         Assert.Null(WidgetPackInstaller.MountInPlace(Path.Combine(ws.Root, "nope.smw")));
     }
 
     [Fact]
-    public void MountInPlace_NoEntry_ReturnsNull()
-    {
+    public void MountInPlace_NoEntry_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string path = TestPacks.WriteSmw(ws.Path_("p.smw"), TestPacks.WidgetManifestJson(entry: ""));
 
@@ -280,13 +258,12 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void MountInPlace_MountsBesideThePack_WithoutCopying()
-    {
+    public void MountInPlace_MountsBesideThePack_WithoutCopying() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("presets", "honse", "1-0-0.smw"),
             TestPacks.WidgetManifestJson(entry: "content/widget.html"));
 
-        var mounted = WidgetPackInstaller.MountInPlace(source);
+        WidgetPackInstaller.InstalledPack? mounted = WidgetPackInstaller.MountInPlace(source);
 
         Assert.NotNull(mounted);
         Assert.Equal(Path.GetFullPath(source), mounted!.PackFile);
@@ -296,14 +273,13 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void MountInPlace_ProducesAResolvablePath()
-    {
+    public void MountInPlace_ProducesAResolvablePath() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("presets", "honse", "1-0-0.smw"),
             TestPacks.WidgetManifestJson(entry: "content/widget.html"));
 
-        var mounted = WidgetPackInstaller.MountInPlace(source)!;
-        var location = WidgetPackPaths.Resolve(mounted.HtmlPath);
+        WidgetPackInstaller.InstalledPack mounted = WidgetPackInstaller.MountInPlace(source)!;
+        WidgetPackPaths.PackLocation? location = WidgetPackPaths.Resolve(mounted.HtmlPath);
 
         Assert.NotNull(location);
         Assert.Equal(Path.GetFullPath(source), location!.PackFileStr);
@@ -311,17 +287,15 @@ public class WidgetPackInstallerTests
         Assert.Equal("1-0-0", location.VersionStr);
     }
 
-        
+
     [Fact]
-    public void DropIntoImports_MissingFile_ReturnsNull()
-    {
+    public void DropIntoImports_MissingFile_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         Assert.Null(WidgetPackInstaller.DropIntoImports(Path.Combine(ws.Root, "nope.smw")));
     }
 
     [Fact]
-    public void DropIntoImports_ValidPack_UsesTheNormalInstallPath()
-    {
+    public void DropIntoImports_ValidPack_UsesTheNormalInstallPath() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"));
@@ -331,8 +305,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void DropIntoImports_UninstallablePack_LandsFlatInPackedRoot()
-    {
+    public void DropIntoImports_UninstallablePack_LandsFlatInPackedRoot() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteZip(ws.Path_("downloads", "mystery.smw"),
             new Dictionary<string, string> { ["readme.txt"] = "hi" });
@@ -344,8 +317,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void DropIntoImports_UninstallablePackAlreadyInPlace_ReturnsPathWithoutCopying()
-    {
+    public void DropIntoImports_UninstallablePackAlreadyInPlace_ReturnsPathWithoutCopying() {
         using var ws = new TempWorkspace("packinstaller");
         Directory.CreateDirectory(WidgetPackPaths.PackedRoot);
         string source = TestPacks.WriteZip(Path.Combine(WidgetPackPaths.PackedRoot, "mystery.smw"),
@@ -354,17 +326,15 @@ public class WidgetPackInstallerTests
         Assert.Equal(source, WidgetPackInstaller.DropIntoImports(source));
     }
 
-        
+
     [Fact]
-    public void SweepCache_NoCacheRoot_ReturnsZero()
-    {
+    public void SweepCache_NoCacheRoot_ReturnsZero() {
         using var ws = new TempWorkspace("packinstaller");
         Assert.Equal(0, WidgetPackInstaller.SweepCache([]));
     }
 
     [Fact]
-    public void SweepCache_RemovesEveryDirectory_WhenNothingIsLive()
-    {
+    public void SweepCache_RemovesEveryDirectory_WhenNothingIsLive() {
         using var ws = new TempWorkspace("packinstaller");
         Directory.CreateDirectory(Path.Combine(WidgetPackPaths.CacheRoot, "orphan-a"));
         Directory.CreateDirectory(Path.Combine(WidgetPackPaths.CacheRoot, "orphan-b"));
@@ -374,12 +344,11 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void SweepCache_KeepsCacheDirsForLiveWidgets()
-    {
+    public void SweepCache_KeepsCacheDirsForLiveWidgets() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"));
-        var installed = WidgetPackInstaller.Install(source)!;
+        WidgetPackInstaller.InstalledPack installed = WidgetPackInstaller.Install(source)!;
 
         string liveCache = WidgetPackPaths.CacheDirFor(installed.PackFile);
         Directory.CreateDirectory(liveCache);
@@ -393,40 +362,39 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void SweepCache_UnresolvableLivePaths_AreIgnored()
-    {
+    public void SweepCache_UnresolvableLivePaths_AreIgnored() {
         using var ws = new TempWorkspace("packinstaller");
         Directory.CreateDirectory(Path.Combine(WidgetPackPaths.CacheRoot, "orphan"));
 
         Assert.Equal(1, WidgetPackInstaller.SweepCache([Path.Combine(ws.Root, "loose", "widget.html")]));
     }
 
-            private static string InstallVersion(string version)
-    {
+    private static string InstallVersion(string version) {
         string temp = Path.Combine(Path.GetTempPath(), $"smw-{Guid.NewGuid():N}.smw");
         TestPacks.WriteSmw(temp, TestPacks.WidgetManifestJson(
             packId: "wolf.widgets.timer", version: version, entry: "content/widget.html"));
-        try
-        {
+        try {
             return WidgetPackInstaller.Install(temp)!.HtmlPath;
         }
-        finally
-        {
-            try { File.Delete(temp); } catch { /**/ }
+        finally {
+            try {
+                File.Delete(temp);
+            }
+            catch {
+                /**/
+            }
         }
     }
 
     [Fact]
-    public void FindUpdate_UnresolvablePath_ReturnsNull()
-    {
+    public void FindUpdate_UnresolvablePath_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         Assert.Null(WidgetPackInstaller.FindUpdate(Path.Combine(ws.Root, "loose", "widget.html")));
         Assert.Null(WidgetPackInstaller.FindNewerVersion(Path.Combine(ws.Root, "loose", "widget.html")));
     }
 
     [Fact]
-    public void FindUpdate_OnlyVersionInstalled_ReturnsNull()
-    {
+    public void FindUpdate_OnlyVersionInstalled_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string html = InstallVersion("1.0.0");
 
@@ -434,14 +402,13 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void FindUpdate_NewerSiblingVersion_IsFound()
-    {
+    public void FindUpdate_NewerSiblingVersion_IsFound() {
         using var ws = new TempWorkspace("packinstaller");
         string html = InstallVersion("1.0.0");
         InstallVersion("1.2.0");
         WidgetPackPaths.InvalidateVersionCache();
 
-        var update = WidgetPackInstaller.FindUpdate(html);
+        WidgetPackInstaller.PackUpdate? update = WidgetPackInstaller.FindUpdate(html);
 
         Assert.NotNull(update);
         Assert.Equal("1-2-0", update!.Version);
@@ -451,8 +418,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void FindUpdate_PicksTheHighestOfSeveralNewerVersions()
-    {
+    public void FindUpdate_PicksTheHighestOfSeveralNewerVersions() {
         using var ws = new TempWorkspace("packinstaller");
         string html = InstallVersion("1.0.0");
         InstallVersion("1.2.0");
@@ -464,8 +430,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void FindUpdate_OlderSiblingsOnly_ReturnsNull()
-    {
+    public void FindUpdate_OlderSiblingsOnly_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         InstallVersion("1.0.0");
         string html = InstallVersion("2.0.0");
@@ -475,8 +440,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void FindUpdate_NonVersionFolderNames_AreIgnored()
-    {
+    public void FindUpdate_NonVersionFolderNames_AreIgnored() {
         using var ws = new TempWorkspace("packinstaller");
         string html = InstallVersion("1.0.0");
 
@@ -488,8 +452,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void FindUpdate_CurrentVersionNotVersionShaped_ReturnsNull()
-    {
+    public void FindUpdate_CurrentVersionNotVersionShaped_ReturnsNull() {
         using var ws = new TempWorkspace("packinstaller");
         string folder = Path.Combine(WidgetPackPaths.PackedRoot, "wolf.widgets.timer");
         Directory.CreateDirectory(folder);
@@ -502,8 +465,7 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void FindUpdate_NewerPackWithUnreadableManifest_ReportsEmptyEntry()
-    {
+    public void FindUpdate_NewerPackWithUnreadableManifest_ReportsEmptyEntry() {
         using var ws = new TempWorkspace("packinstaller");
         string html = InstallVersion("1.0.0");
 
@@ -511,23 +473,22 @@ public class WidgetPackInstallerTests
         File.WriteAllText(Path.Combine(folder, "9-0-0.smw"), "not a zip");
         WidgetPackPaths.InvalidateVersionCache();
 
-        var update = WidgetPackInstaller.FindUpdate(html);
+        WidgetPackInstaller.PackUpdate? update = WidgetPackInstaller.FindUpdate(html);
 
         Assert.NotNull(update);
         Assert.Equal("9-0-0", update!.Version);
         Assert.Equal(string.Empty, update.Entry);
     }
 
-        
+
     [Fact]
-    public void InstalledPack_ContentsAreReadableThroughTheFileSystemAdapter()
-    {
+    public void InstalledPack_ContentsAreReadableThroughTheFileSystemAdapter() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"),
             new Dictionary<string, string> { ["content/widget.html"] = "<html>hi</html>" });
 
-        var installed = WidgetPackInstaller.Install(source)!;
+        WidgetPackInstaller.InstalledPack installed = WidgetPackInstaller.Install(source)!;
         var fs = new WidgetPackFileSystem();
 
         Assert.True(fs.Exists(installed.HtmlPath));
@@ -535,18 +496,16 @@ public class WidgetPackInstallerTests
     }
 
     [Fact]
-    public void Install_CopiedPackIsStillAValidZip()
-    {
+    public void Install_CopiedPackIsStillAValidZip() {
         using var ws = new TempWorkspace("packinstaller");
         string source = TestPacks.WriteSmw(ws.Path_("downloads", "timer.smw"),
             TestPacks.WidgetManifestJson(packId: "wolf.widgets.timer", version: "1.0.0"),
             new Dictionary<string, string> { ["content/widget.html"] = "<html></html>" });
 
-        var installed = WidgetPackInstaller.Install(source)!;
+        WidgetPackInstaller.InstalledPack installed = WidgetPackInstaller.Install(source)!;
 
-        using var zip = ZipFile.OpenRead(installed.PackFile);
+        using ZipArchive zip = ZipFile.OpenRead(installed.PackFile);
         Assert.NotNull(zip.GetEntry("widget.json"));
         Assert.NotNull(zip.GetEntry("content/widget.html"));
     }
-
 }

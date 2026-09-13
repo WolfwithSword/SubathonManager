@@ -1,0 +1,447 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:ctl="using:SubathonManager.UI.Controls"
+        mc:Ignorable="d"
+        x:CompileBindings="False"
+        x:Class="SubathonManager.UI.Views.SubathonSummaryWindow"
+        Title="Subathon Summary"
+        Width="1280" Height="820"
+        MinWidth="940" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppGeneralBackground}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrushSoft}" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#C42B1C" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#D13A2B" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="TextBlock.brheader">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Margin" Value="0,8,0,2" />
+        </Style>
+        <Style Selector="DataGridRow:nth-child(2n)">
+            <Setter Property="Background" Value="#14808080" />
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="DataGridColumnHeader /template/ Rectangle#VerticalSeparator">
+            <Setter Property="Width" Value="2" />
+            <Setter Property="Fill" Value="{DynamicResource DataGridGridLinesBrush}" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- header -->
+        <Border Grid.Row="0" Background="{DynamicResource AppHeaderBackground}" Padding="12,8">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="Subathon" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox Grid.Column="1" x:Name="SubathonBox" MinWidth="380" VerticalAlignment="Center"
+                          SelectionChanged="SubathonBox_SelectionChanged" />
+                <TextBlock Grid.Column="2" x:Name="ReadOnlyNotice" VerticalAlignment="Center" Margin="12,0,0,0"
+                           Classes="hint" Foreground="#E8A33D"
+                           Text="Viewing a past subathon - editing and deleting are disabled"
+                           IsVisible="False" />
+                <Button Grid.Column="3" Content="Refresh" Width="90" Click="Refresh_Click" />
+            </Grid>
+        </Border>
+
+        <TabControl Grid.Row="1" x:Name="MainTabs" Margin="8"
+                    SelectionChanged="MainTabs_SelectionChanged">
+
+            <TabItem Header="Events">
+                <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="4">
+
+                    <Expander Grid.Row="0" Header="Filters" IsExpanded="True" Margin="0,0,0,8">
+                        <Grid ColumnDefinitions="*,*" Margin="4">
+
+                            <!-- left: time + users -->
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="Time Range" Classes="section" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <ComboBox x:Name="TimePresetBox" Width="150"
+                                              SelectionChanged="TimePreset_SelectionChanged" />
+                                    <TextBlock Text="From" VerticalAlignment="Center" Margin="12,0,4,0" />
+                                    <TextBox x:Name="FromBox" Width="150" PlaceholderText="yyyy-MM-dd HH:mm" />
+                                    <TextBlock Text="To" VerticalAlignment="Center" Margin="8,0,4,0" />
+                                    <TextBox x:Name="ToBox" Width="150" PlaceholderText="yyyy-MM-dd HH:mm" />
+                                </StackPanel>
+                                <TextBlock Classes="hint" Margin="0,0,0,10"
+                                           Text="Leave blank for no bound. Presets fill these in" />
+
+                                <TextBlock Text="Users" Classes="section" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <RadioButton x:Name="UserBlacklistRadio" GroupName="UserMode" Content="Blacklist"
+                                                 IsChecked="True" Margin="0,0,12,0" />
+                                    <RadioButton x:Name="UserWhitelistRadio" GroupName="UserMode" Content="Whitelist" />
+                                </StackPanel>
+                                <TextBox x:Name="UserListBox" PlaceholderText="SYSTEM*, Anonymous, someuser"
+                                         AcceptsReturn="False" />
+                                <TextBlock Classes="hint" Margin="0,2,0,10"
+                                           Text="Comma separated. A trailing * matches by prefix (anon*, SYSTEM*)" />
+
+                                <CheckBox x:Name="IncludeUnprocessedBox" Content="Include unprocessed events" />
+                            </StackPanel>
+
+                            <!-- right: sources + types + id -->
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <TextBlock Text="Sources" Classes="section" />
+                                <ctl:FilterPopout x:Name="SourcePopout" Margin="0,0,0,10" />
+
+                                <TextBlock Text="Event Types" Classes="section" />
+                                <ctl:FilterPopout x:Name="TypePopout" Margin="0,0,0,10" />
+
+                                <TextBlock Text="Event ID" Classes="section" />
+                                <TextBox x:Name="IdSearchBox" PlaceholderText="Full GUID, or the first few characters" />
+                                <TextBlock Classes="hint" Margin="0,2,0,0"
+                                           Text="Overrides filters. A full GUID is also looked up across all subathons" />
+                            </StackPanel>
+                        </Grid>
+                    </Expander>
+
+                    <!-- results + breakdown -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto">
+                        <DataGrid Grid.Column="0" x:Name="EventGrid"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column"
+                                  CanUserSortColumns="True" CanUserResizeColumns="True"
+                                  GridLinesVisibility="All" SelectionMode="Extended"
+                                  BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1"
+                                  SelectionChanged="EventGrid_SelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Time" Width="140" SortMemberPath="Timestamp">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock
+                                                Text="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                                ToolTip.Tip="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Source" Width="130" SortMemberPath="TrueSource">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding TrueSource}" ToolTip.Tip="{Binding TrueSource}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Type" Width="150" SortMemberPath="TypeLabel">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding TypeLabel}" ToolTip.Tip="{Binding TypeLabel}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Meta" Width="100" SortMemberPath="Meta">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Meta}" ToolTip.Tip="{Binding Meta}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="User" Width="170" SortMemberPath="User">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding User}" ToolTip.Tip="{Binding User}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Value" Width="130" SortMemberPath="DisplayValue">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayValue}"
+                                                       ToolTip.Tip="{Binding DisplayValue}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Amount" Width="80" SortMemberPath="Amount">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Amount}" ToolTip.Tip="{Binding Amount}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Seconds" Width="90" SortMemberPath="FinalSeconds">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FinalSeconds}"
+                                                       ToolTip.Tip="{Binding FinalSeconds}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Points" Width="80" SortMemberPath="FinalPoints">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding FinalPoints}" ToolTip.Tip="{Binding FinalPoints}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Processed" Width="90" SortMemberPath="ProcessedText">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ProcessedText}"
+                                                       ToolTip.Tip="{Binding ProcessedText}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                      IsVisible="{Binding #BreakdownPane.IsVisible}" />
+
+                        <Border Grid.Column="2" x:Name="BreakdownPane" Width="420" IsVisible="False"
+                                Background="{DynamicResource AppHeaderBackground}"
+                                BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1"
+                                CornerRadius="8" Padding="12" BoxShadow="0 2 12 0 #40000000">
+                            <Grid RowDefinitions="Auto,Auto,*">
+                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                                    <TextBlock Grid.Column="0" Text="Breakdown" FontWeight="Bold" FontSize="15"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Content="Close" Padding="10,2" FontSize="11"
+                                            Click="CloseBreakdown_Click" />
+                                </Grid>
+                                <Border Grid.Row="1" Height="1" Margin="0,0,0,6"
+                                        Background="{DynamicResource ControlElevationBorderBrush}" />
+                                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="BreakdownList" Margin="0,0,14,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ColumnDefinitions="*,Auto" Margin="{Binding Indent}">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                               Classes.brheader="{Binding IsHeader}"
+                                                               TextWrapping="Wrap" Margin="0,1" />
+                                                    <TextBlock Grid.Column="1" Text="{Binding Value}"
+                                                               Classes.brheader="{Binding IsHeader}"
+                                                               Margin="12,1,0,1" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- pagination -->
+                    <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,8,0,0">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="FirstPageBtn" Content="&#x23EE;" Width="36" Padding="4,2" Margin="0,0,4,0"
+                                    Click="FirstPage_Click" ToolTip.Tip="First page" />
+                            <Button x:Name="PrevPageBtn" Content="&#x25C0;" Width="36" Padding="4,2" Margin="0,0,4,0"
+                                    Click="PrevPage_Click" ToolTip.Tip="Previous page" />
+                            <Button x:Name="NextPageBtn" Content="&#x25B6;" Width="36" Padding="4,2" Margin="0,0,4,0"
+                                    Click="NextPage_Click" ToolTip.Tip="Next page" />
+                            <Button x:Name="LastPageBtn" Content="&#x23ED;" Width="36" Padding="4,2" Margin="0,0,12,0"
+                                    Click="LastPage_Click" ToolTip.Tip="Last page" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" x:Name="PageStatus" VerticalAlignment="Center" Text="&#x2014;" />
+                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Rows per page" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <ComboBox x:Name="PageSizeBox" Width="90" SelectionChanged="PageSize_SelectionChanged" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- footer -->
+                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                        <TextBlock Grid.Column="0" x:Name="ResultStatus" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Text="No query run yet" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Apply Filters" Width="110" Margin="0,0,6,0" Click="Refresh_Click" />
+                            <Button Content="Reset" Width="70" Margin="0,0,18,0" Click="ResetFilters_Click" />
+                            <Button x:Name="EditUserBtn" Content="Edit User" Width="100" Margin="0,0,6,0"
+                                    IsEnabled="False" Click="EditUser_Click" />
+                            <Button x:Name="DeleteEventBtn" Classes="danger" Content="Delete Event" Width="110"
+                                    Margin="0,0,18,0" IsEnabled="False" Click="DeleteEvent_Click" />
+                            <Button Content="Export CSV" Width="110" Margin="0,0,6,0" Click="ExportEvents_Click"
+                                    ToolTip.Tip="Write every matched event to the exports folder" />
+                            <Button Content="Breakdown" Width="110" Click="Breakdown_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- leaderboard -->
+            <TabItem Header="Leaderboard">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="4">
+
+                    <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="0,0,0,8">
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Event Types" Classes="section" />
+                            <ctl:FilterPopout x:Name="LbTypePopout" />
+                            <TextBlock Classes="hint" Margin="0,2,0,0"
+                                       Text="Pick more than one to get a combined board (points only, ignores meta)" />
+                        </StackPanel>
+                        <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="90,*"
+                              Margin="8,0,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Method" VerticalAlignment="Center"
+                                       Margin="0,0,0,4" />
+                            <ComboBox Grid.Row="0" Grid.Column="1" x:Name="LbMethodBox" HorizontalAlignment="Stretch"
+                                      Margin="0,0,0,4" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Top N" VerticalAlignment="Center"
+                                       Margin="0,0,0,4" />
+                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="LbTopBox" Text="10" Margin="0,0,0,4"
+                                     PlaceholderText="10, or 'all'" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Meta" VerticalAlignment="Center"
+                                       Margin="0,0,0,4" />
+                            <TextBox Grid.Row="2" Grid.Column="1" x:Name="LbMetaBox" Margin="0,0,0,4"
+                                     PlaceholderText="1000, T1, ... (single type only)" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Blacklist" VerticalAlignment="Center"
+                                       Margin="0,0,0,4" />
+                            <TextBox Grid.Row="3" Grid.Column="1" x:Name="LbBlacklistBox" Margin="0,0,0,4"
+                                     PlaceholderText="SYSTEM*, Anonymous" />
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Aliases" VerticalAlignment="Center" />
+                            <TextBox Grid.Row="4" Grid.Column="1" x:Name="LbAliasBox"
+                                     PlaceholderText="someguy1:AltGuy_ttv|AltGuy_YT, other:alt" />
+                        </Grid>
+                    </Grid>
+
+                    <Grid Grid.Row="1" RowDefinitions="*,Auto,120">
+                        <DataGrid Grid.Row="0" x:Name="LbGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="All" CanUserResizeColumns="True"
+                                  BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="#" Width="60" SortMemberPath="Rank">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Rank}" ToolTip.Tip="{Binding Rank}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="User" Width="2*" SortMemberPath="User">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding User}" ToolTip.Tip="{Binding User}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Value" Width="*" SortMemberPath="Value">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Value}" ToolTip.Tip="{Binding Value}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Events" Width="100" SortMemberPath="Events">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Events}" ToolTip.Tip="{Binding Events}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Count" Width="100" SortMemberPath="Count">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Count}" ToolTip.Tip="{Binding Count}"
+                                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,8,0,2">
+                            <TextBlock Grid.Column="0" Text="Generated URL" Classes="section"
+                                       VerticalAlignment="Center" />
+                            <CheckBox Grid.Column="1" x:Name="LbIncludeSubathonBox" Margin="16,0,0,0"
+                                      Content="Link subathon Id in URL"
+                                      IsCheckedChanged="LbIncludeSubathon_Changed"
+                                      ToolTip.Tip="Off: the URL is linked to the active subathon. On: URL links to selected subathon" />
+                        </Grid>
+                        <Grid Grid.Row="2" RowDefinitions="Auto,*">
+                            <TextBox Grid.Row="0" x:Name="LbUrlBox" IsReadOnly="True" FontFamily="Consolas,monospace"
+                                     FontSize="11" TextWrapping="Wrap" MaxHeight="60" Margin="0,0,0,4" />
+                            <TextBox Grid.Row="1" x:Name="LbRawBox" IsReadOnly="True" AcceptsReturn="True"
+                                     FontFamily="Consolas,monospace" FontSize="11"
+                                     VerticalContentAlignment="Top" PlaceholderText="Raw JSON response" />
+                        </Grid>
+                    </Grid>
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                        <TextBlock Grid.Column="0" x:Name="LbStatus" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="Pick at least one event type, then Visualize" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Visualize" Width="110" Margin="0,0,6,0" Click="LbRun_Click" />
+                            <Button x:Name="LbCopyUrlBtn" Content="Copy URL" Width="110" Margin="0,0,6,0"
+                                    IsEnabled="False" Click="LbCopyUrl_Click" />
+                            <Button x:Name="LbOpenBtn" Content="Open in Browser" Width="140" Margin="0,0,6,0"
+                                    IsEnabled="False" Click="LbOpen_Click" />
+                            <Button x:Name="LbExportBtn" Content="Export CSV" Width="110" IsEnabled="False"
+                                    Click="ExportLeaderboard_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+            <!-- summary json -->
+            <TabItem x:Name="AmountsTab" Header="Summary JSON">
+                <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="4">
+                    <TextBlock Grid.Row="0" Classes="hint" Margin="0,0,0,6"
+                               Text="The raw /api/data/amounts response: totals per event type for this subathon, split into real and simulated" />
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                        <TextBox Grid.Column="0" x:Name="AmountsUrlBox" IsReadOnly="True"
+                                 FontFamily="Consolas,monospace" FontSize="11" />
+                        <CheckBox Grid.Column="1" x:Name="AmountsIncludeSubathonBox" Margin="10,0,0,0"
+                                  Content="Link subathon Id in URL" VerticalAlignment="Center"
+                                  IsCheckedChanged="AmountsIncludeSubathon_Changed"
+                                  ToolTip.Tip="Off: the URL is linked to the active subathon. On: URL links to selected subathon" />
+                    </Grid>
+                    <TextBox Grid.Row="2" x:Name="AmountsJsonBox" IsReadOnly="True" AcceptsReturn="True"
+                             FontFamily="Consolas,monospace" FontSize="12" VerticalContentAlignment="Top"
+                             PlaceholderText="Press Load to fetch the summary" />
+                    <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                        <TextBlock Grid.Column="0" x:Name="AmountsStatus" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Text="Not loaded yet" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Load" Width="90" Margin="0,0,6,0" Click="AmountsRun_Click" />
+                            <Button Content="Copy URL" Width="110" Margin="0,0,6,0" Click="AmountsCopyUrl_Click" />
+                            <Button Content="Copy JSON" Width="110" Margin="0,0,6,0" Click="AmountsCopyJson_Click" />
+                            <Button Content="Open in Browser" Width="140" Click="AmountsOpen_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

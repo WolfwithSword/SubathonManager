@@ -3,16 +3,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SubathonManager.Core.Models;
 
-public class GoAffProStore
-{
+public class GoAffProStore {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int RowId { get; set; }
+
     public int SiteId { get; init; }
     public string StoreName { get; set; } = "";
     public string EventName { get; set; } = "";
 
     public bool Enabled { get; set; } = true;
-    public string InternalName => StoreName.Replace(" ", "");  
-    public string InternalEventName => EventName.Replace(" ", "");  
+    public string InternalName => StoreName.Replace(" ", "");
+    public string InternalEventName => EventName.Replace(" ", "");
 }

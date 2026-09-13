@@ -16,102 +16,86 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
-public partial class StreamElementsSettings : SettingsControl
-{
+public partial class StreamElementsSettings : SettingsControl {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<StreamElementsSettings>>();
 
-    public StreamElementsSettings()
-    {
+    public StreamElementsSettings() {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
+        Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
             UpdateStatus(Utils.GetConnection(SubathonEventSource.StreamElements, "Socket"));
         };
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-        };
+        Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
     }
 
-    public override void Init(SettingsView host)
-    {
+    public override void Init(SettingsView host) {
         Host = host;
         var secureStorage = AppServices.Provider.GetRequiredService<ISecureStorage>();
         SEJWTTokenBox.Text = secureStorage.GetOrDefault(StorageKeys.StreamElementsJwt, string.Empty)!;
         UpdateStatus(Utils.GetConnection(SubathonEventSource.StreamElements, "Socket"));
     }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var seTipValue = db.SubathonValues.FirstOrDefault(sv =>
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? seTipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.StreamElementsDonation && sv.Meta == "");
-        if (seTipValue != null && double.TryParse(DonoBox.Text, out var seTipSeconds) && !seTipSeconds.Equals(seTipValue.Seconds))
-        {
+        if (seTipValue != null && double.TryParse(DonoBox.Text, out double seTipSeconds) &&
+            !seTipSeconds.Equals(seTipValue.Seconds)) {
             seTipValue.Seconds = seTipSeconds;
             hasUpdated = true;
         }
-        if (seTipValue != null && double.TryParse(DonoBox2.Text, out var seTipPoints) && !seTipPoints.Equals(seTipValue.Points))
-        {
+
+        if (seTipValue != null && double.TryParse(DonoBox2.Text, out double seTipPoints) &&
+            !seTipPoints.Equals(seTipValue.Points)) {
             seTipValue.Points = seTipPoints;
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection)
-    {
+    internal override void UpdateStatus(IntegrationConnection? connection) {
         if (connection is not { Source: SubathonEventSource.StreamElements }) return;
         Host.UpdateConnectionStatus(connection.Status, SEStatusText, ConnectSEBtn);
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
-    {
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
         CurrencyBox.ItemsSource = currencies;
         CurrencyBox.SelectedItem = selected;
     }
 
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
         TextBox? box = null;
         TextBox? box2 = null;
-        if (val.EventType == SubathonEventType.StreamElementsDonation)
-        {
+        if (val.EventType == SubathonEventType.StreamElementsDonation) {
             box = DonoBox;
             box2 = DonoBox2;
         }
+
         return (v, p, box, box2);
     }
 
-    private async void ConnectSEButton_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
+    private async void ConnectSEButton_Click(object? sender, RoutedEventArgs e) {
+        try {
             ServiceManager.StreamElements.Disconnect();
             ServiceManager.StreamElements.SetJwtToken(SEJWTTokenBox.Text ?? "");
             await Task.Delay(100);
             ServiceManager.StreamElements.InitClient();
             if (ServiceManager.StreamElements.IsTokenEmpty())
-            {
-                Process.Start(new ProcessStartInfo
-                {
+                Process.Start(new ProcessStartInfo {
                     FileName = "https://streamelements.com/dashboard/account/channels",
                     UseShellExecute = true
                 });
-            }
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to initialize StreamElements Service");
         }
     }
 
-    private void TestSETip_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestSETip_Click(object? sender, RoutedEventArgs e) {
         StreamElementsService.SimulateTip(SimulateSETipAmountBox.Text ?? "", CurrencyBox.Text ?? "");
     }
 }

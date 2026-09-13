@@ -4,8 +4,11 @@ using SubathonManager.UI.Views.SettingsViews.Streaming;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class StreamingSettings : SettingsGroupControl
-{
+public partial class StreamingSettings : SettingsGroupControl {
+    public StreamingSettings() {
+        InitializeComponent();
+    }
+
     protected override IEnumerable<SubathonEventSource> _eventSources =>
         Enum.GetValues<SubathonEventSource>().Where(s => s.GetGroup() == SubathonSourceGroup.Stream)
             .OrderBy(g => g.GetGroupLabelOrder());
@@ -13,17 +16,10 @@ public partial class StreamingSettings : SettingsGroupControl
     protected override StackPanel? GetSourceContents => SourceContents;
     protected override Panel? GetSourceList => SourceList;
 
-    public StreamingSettings()
-    {
-        InitializeComponent();
-    }
+    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource) {
+        if (_settingsControls.TryGetValue(eventSource, out SettingsControl? control)) return control;
 
-    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
-    {
-        if (_settingsControls.TryGetValue(eventSource, out var control)) return control;
-
-        switch (eventSource)
-        {
+        switch (eventSource) {
             case SubathonEventSource.Twitch:
                 _settingsControls[eventSource] = new TwitchSettings();
                 break;
@@ -35,14 +31,14 @@ public partial class StreamingSettings : SettingsGroupControl
                 break;
             default: return null;
         }
+
         _settingsControls[eventSource].Init(Host);
         return _settingsControls[eventSource];
     }
 
-    public void RefreshTierCombo(SubathonEventSource source)
-    {
+    public void RefreshTierCombo(SubathonEventSource source) {
         if (source != SubathonEventSource.YouTube) return;
-        _settingsControls.TryGetValue(source, out var control);
+        _settingsControls.TryGetValue(source, out SettingsControl? control);
         (control as YouTubeSettings)?.RefreshTierCombo();
     }
 }

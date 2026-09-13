@@ -1,386 +1,343 @@
-﻿using Moq;
+﻿using System.Reflection;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Integration;
-using SubathonManager.Core.Events;
-using SubathonManager.Core.Enums;
-using SubathonManager.Core.Models;
-using Streamlabs.SocketClient.Messages;
-using System.Reflection;
+using Moq;
 using Streamlabs.SocketClient;
+using Streamlabs.SocketClient.Messages;
 using Streamlabs.SocketClient.Messages.DataTypes;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
+using SubathonManager.Integration;
 using SubathonManager.Tests.Utility;
 
-namespace SubathonManager.Tests.IntegrationUnitTests
-{
-    [Collection("GlobalState")]
-    public class StreamLabsServiceTests
-    {
-        private static SubathonEvent? CaptureEvent(Action trigger) =>
-            EventUtil.SubathonEventCapture.CaptureRequired(trigger);
-        
-        public StreamLabsServiceTests()
-        {
-            typeof(IntegrationEvents)
-                .GetField("RaiseConnectionUpdate", BindingFlags.Static | BindingFlags.NonPublic)
-                ?.SetValue(null, null);
-        }
-        
-        private static (StreamLabsService service, Mock<IStreamlabsClient> mockClient) MakeService(
-            string token = "valid_token")
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            
+namespace SubathonManager.Tests.IntegrationUnitTests;
 
-            var mockClient = new Mock<IStreamlabsClient>();
-            mockClient.Setup(c => c.ConnectAsync()).Returns(Task.CompletedTask);
-            mockClient.Setup(c => c.DisconnectAsync()).Returns(Task.CompletedTask);
+[Collection("GlobalState")]
+public class StreamLabsServiceTests {
+    public StreamLabsServiceTests() {
+        typeof(IntegrationEvents)
+            .GetField("RaiseConnectionUpdate", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+    }
 
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = token
-            });
-            
-            var service = new StreamLabsService(logger.Object, storage)
-            {
-                ClientFactory = _ => mockClient.Object
-            };
+    private static SubathonEvent? CaptureEvent(Action trigger) {
+        return EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    }
 
-            return (service, mockClient);
-        }
-        
-        [Fact]
-        public void IsTokenEmpty_ShouldReturnTrue_WhenTokenNotSet()
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            
-            // config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
-            
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = "",
-            });
-            var service = new StreamLabsService(logger.Object, storage);
-            Assert.True(service.IsTokenEmpty());
-        }
-
-        [Fact]
-        public void SetSocketToken_ShouldUpdateConfigAndSave()
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            
-            // config.Setup(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN")).Returns(true);
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = "OLD_TOKEN",
-            });
-            var service = new StreamLabsService(logger.Object, storage);
-
-            var result = service.SetSocketToken("NEW_TOKEN");
-
-            // config.Verify(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN"), Times.Once);
-            // config.Verify(c => c.Save(), Times.Once);
-            Assert.True(result);
-            Assert.Equal(1, storage.SetSuccessCount);
-            Assert.Equal(1, storage.SetCount);
-        }
-        
-        [Fact]
-        public void SetSocketToken_ShouldNotSave_WhenConfigSetReturnsFalse()
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = "OLD_TOKEN",
-            });
-            var service = new StreamLabsService(logger.Object, storage);
-
-            var result = service.SetSocketToken("OLD_TOKEN");
-
-            Assert.False(result);
-            Assert.Equal(0, storage.SetSuccessCount);
-            Assert.Equal(1, storage.SetCount);
-        }
-
-        [Fact]
-        public async Task InitClientAsync_ReturnsFalse_WhenTokenEmpty()
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = "",
-            });
-            var service = new StreamLabsService(logger.Object, storage);
-
-            var result = await service.InitClientAsync();
-
-            Assert.False(result);
-            Assert.False(service.Connected);
-        }
-        
-        [Fact]
-        public async Task InitClientAsync_ReturnsTrue_AndSetsConnected_WhenTokenValid()
-        {
-            var (service, mockClient) = MakeService("valid_token");
-
-            var result = await service.InitClientAsync();
-
-            Assert.True(result);
-            Assert.True(service.Connected);
-            mockClient.Verify(c => c.ConnectAsync(), Times.Once);
-        }
-        
-        [Fact]
-        public async Task InitClientAsync_ReturnsFalse_WhenConnectThrows()
-        {
-            var (service, mockClient) = MakeService("valid_token");
-            mockClient.Setup(c => c.ConnectAsync())
-                .ThrowsAsync(new Exception("connection refused"));
-
-            var result = await service.InitClientAsync();
-
-            Assert.False(result);
-            Assert.False(service.Connected);
-        }
-        
-        [Fact]
-        public async Task InitClientAsync_RaisesConnectionUpdate_TrueOnSuccess()
-        {
-            var (service, _) = MakeService("valid_token");
-
-            bool? lastStatus = null;
-            Action<IntegrationConnection> handler = (conn) =>
-            {
-                if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" })
-                {
-                    lastStatus = conn.Status;
-                }
-            };
-            IntegrationEvents.ConnectionUpdated += handler;
-
-            await service.InitClientAsync();
-
-            Assert.True(lastStatus);
-            IntegrationEvents.ConnectionUpdated -= handler;
-            Assert.True(Utils.GetConnection(SubathonEventSource.StreamLabs, "Socket").Status);
-        }
-        
-        [Fact]
-        public async Task StartAsync_Works()
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = "",
-            });
-            var service = new StreamLabsService(logger.Object, storage);
+    private static (StreamLabsService service, Mock<IStreamlabsClient> mockClient) MakeService(
+        string token = "valid_token") {
+        var logger = new Mock<ILogger<StreamLabsService>>();
 
 
-            await service.StartAsync(TestContext.Current.CancellationToken);
-            Assert.False(service.Connected);
-            await service.StopAsync(TestContext.Current.CancellationToken);
-        }
+        var mockClient = new Mock<IStreamlabsClient>();
+        mockClient.Setup(c => c.ConnectAsync()).Returns(Task.CompletedTask);
+        mockClient.Setup(c => c.DisconnectAsync()).Returns(Task.CompletedTask);
 
-        [Fact]
-        public async Task InitClientAsync_RaisesConnectionUpdate_FalseOnFailure()
-        {
-            var (service, mockClient) = MakeService("valid_token");
-            mockClient.Setup(c => c.ConnectAsync())
-                .ThrowsAsync(new Exception("fail"));
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = token
+        });
 
-            bool? lastStatus = null;
-            Action<IntegrationConnection> handler = (conn) =>
-            {
-                if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" })
-                {
-                    lastStatus = conn.Status;
-                }
-            };
-            IntegrationEvents.ConnectionUpdated += handler;
+        var service = new StreamLabsService(logger.Object, storage) {
+            ClientFactory = _ => mockClient.Object
+        };
 
-            await service.InitClientAsync();
+        return (service, mockClient);
+    }
 
-            Assert.False(lastStatus);
-            IntegrationEvents.ConnectionUpdated -= handler;
-        }
-        
-        [Fact]
-        public async Task InitClientAsync_DisconnectsExistingClient_BeforeCreatingNew()
-        {
-            var (service, mockClient) = MakeService("valid_token");
-            mockClient.Setup(c => c.ConnectAsync()).Returns(Task.CompletedTask);
-            mockClient.Setup(c => c.DisconnectAsync()).Returns(Task.CompletedTask);
+    [Fact]
+    public void IsTokenEmpty_ShouldReturnTrue_WhenTokenNotSet() {
+        var logger = new Mock<ILogger<StreamLabsService>>();
 
-            await service.InitClientAsync();
-            Assert.True(service.Connected);
+        // config.Setup(c => c.Get("StreamLabs", "SocketToken", "")).Returns("");
 
-            // disconnects old client first
-            await service.InitClientAsync();
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = ""
+        });
+        var service = new StreamLabsService(logger.Object, storage);
+        Assert.True(service.IsTokenEmpty());
+    }
 
-            mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
-            mockClient.Verify(c => c.ConnectAsync(), Times.Exactly(2));
-        }
-        
-        [Fact]
-        public async Task DisconnectAsync_SetsConnectedFalse_AndRaisesUpdate()
-        {
-            var (service, mockClient) = MakeService();
-            await service.InitClientAsync();
-            Assert.True(service.Connected);
+    [Fact]
+    public void SetSocketToken_ShouldUpdateConfigAndSave() {
+        var logger = new Mock<ILogger<StreamLabsService>>();
 
-            bool? lastStatus = null;
-            Action<IntegrationConnection> handler = (conn) =>
-            {
-                if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" })
-                {
-                    lastStatus = conn.Status;
-                }
-            };
-            IntegrationEvents.ConnectionUpdated += handler;
+        // config.Setup(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN")).Returns(true);
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = "OLD_TOKEN"
+        });
+        var service = new StreamLabsService(logger.Object, storage);
 
-            await service.DisconnectAsync();
+        bool result = service.SetSocketToken("NEW_TOKEN");
 
-            Assert.False(service.Connected);
-            Assert.False(lastStatus);
-            IntegrationEvents.ConnectionUpdated -= handler;
-            mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
-        }
+        // config.Verify(c => c.Set("StreamLabs", "SocketToken", "NEW_TOKEN"), Times.Once);
+        // config.Verify(c => c.Save(), Times.Once);
+        Assert.True(result);
+        Assert.Equal(1, storage.SetSuccessCount);
+        Assert.Equal(1, storage.SetCount);
+    }
 
-        [Fact]
-        public async Task DisconnectAsync_DoesNothing_WhenNotConnected()
-        {
-            var (service, mockClient) = MakeService();
+    [Fact]
+    public void SetSocketToken_ShouldNotSave_WhenConfigSetReturnsFalse() {
+        var logger = new Mock<ILogger<StreamLabsService>>();
 
-            await service.DisconnectAsync();
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = "OLD_TOKEN"
+        });
+        var service = new StreamLabsService(logger.Object, storage);
 
-            mockClient.Verify(c => c.DisconnectAsync(), Times.Never);
-        }
-        
-        [Fact]
-        public async Task StopAsync_Works_WhenConnected()
-        {
-            var (service, mockClient) = MakeService();
-            await service.InitClientAsync();
+        bool result = service.SetSocketToken("OLD_TOKEN");
 
-            await service.StopAsync(TestContext.Current.CancellationToken);
+        Assert.False(result);
+        Assert.Equal(0, storage.SetSuccessCount);
+        Assert.Equal(1, storage.SetCount);
+    }
 
-            Assert.False(service.Connected);
-            mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
-        }
-        
-        [Fact]
-        public void SimulateTip_ShouldRaiseSubathonEvent()
-        {
-            
-            SubathonEvent? capturedEvent = CaptureEvent( () => 
-                StreamLabsService.SimulateTip("25.5", "USD"));
+    [Fact]
+    public async Task InitClientAsync_ReturnsFalse_WhenTokenEmpty() {
+        var logger = new Mock<ILogger<StreamLabsService>>();
 
-            Assert.NotNull(capturedEvent);
-            Assert.Equal("25.5", capturedEvent.Value);
-            Assert.Equal("USD", capturedEvent.Currency);
-            Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
-            Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
-        }
-        
-        [Fact]
-        public async Task OnDonation_SubscribedAfterInit_UnsubscribedAfterDisconnect()
-        {
-            var (service, mockClient) = MakeService();
-            await service.InitClientAsync();
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = ""
+        });
+        var service = new StreamLabsService(logger.Object, storage);
 
-            mockClient.VerifyAdd(c => c.OnDonation += It.IsAny<EventHandler<DonationMessage>>(), Times.Once);
+        bool result = await service.InitClientAsync();
 
-            await service.DisconnectAsync();
+        Assert.False(result);
+        Assert.False(service.Connected);
+    }
 
-            mockClient.VerifyRemove(c => c.OnDonation -= It.IsAny<EventHandler<DonationMessage>>(), Times.Once);
-        }
-        
-        [Fact]
-        public async Task OnDonation_ShouldRaiseSubathonEvent()
-        {
-            var logger = new Mock<ILogger<StreamLabsService>>();
-            var storage = new InMemorySecureStorage(new()
-            {
-                [StorageKeys.StreamLabsSocketToken] = "",
-            });
-            var service = new StreamLabsService(logger.Object, storage);
+    [Fact]
+    public async Task InitClientAsync_ReturnsTrue_AndSetsConnected_WhenTokenValid() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+
+        bool result = await service.InitClientAsync();
+
+        Assert.True(result);
+        Assert.True(service.Connected);
+        mockClient.Verify(c => c.ConnectAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task InitClientAsync_ReturnsFalse_WhenConnectThrows() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+        mockClient.Setup(c => c.ConnectAsync())
+            .ThrowsAsync(new Exception("connection refused"));
+
+        bool result = await service.InitClientAsync();
+
+        Assert.False(result);
+        Assert.False(service.Connected);
+    }
+
+    [Fact]
+    public async Task InitClientAsync_RaisesConnectionUpdate_TrueOnSuccess() {
+        (StreamLabsService service, _) = MakeService();
+
+        bool? lastStatus = null;
+        Action<IntegrationConnection> handler = conn => {
+            if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" }) lastStatus = conn.Status;
+        };
+        IntegrationEvents.ConnectionUpdated += handler;
+
+        await service.InitClientAsync();
+
+        Assert.True(lastStatus);
+        IntegrationEvents.ConnectionUpdated -= handler;
+        Assert.True(Utils.GetConnection(SubathonEventSource.StreamLabs, "Socket").Status);
+    }
+
+    [Fact]
+    public async Task StartAsync_Works() {
+        var logger = new Mock<ILogger<StreamLabsService>>();
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = ""
+        });
+        var service = new StreamLabsService(logger.Object, storage);
 
 
-            var donation = new DonationMessage
-            {
-                Id = long.MaxValue,
-                FormattedAmount = "$5.00",
-                Emotes = "",
-                IconClassName = "",
-                To = new Recipient{Name = "TestTo"},
-                From = "TestFrom",
-                MessageId = Guid.NewGuid().ToString(),
-                FromUserId = 123456,
-                Source = "TestSource",
-                Priority = long.MinValue,
-                Name = "Donor",
-                Amount = (decimal)5.0,
-                Currency = Currency.Usd,
-                Message = "Test message"
-            };
+        await service.StartAsync(TestContext.Current.CancellationToken);
+        Assert.False(service.Connected);
+        await service.StopAsync(TestContext.Current.CancellationToken);
+    }
 
-            var method = typeof(StreamLabsService)
-                .GetMethod("OnDonation", BindingFlags.NonPublic | BindingFlags.Instance);
+    [Fact]
+    public async Task InitClientAsync_RaisesConnectionUpdate_FalseOnFailure() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+        mockClient.Setup(c => c.ConnectAsync())
+            .ThrowsAsync(new Exception("fail"));
 
-            SubathonEvent? capturedEvent = CaptureEvent( () => 
-                method?.Invoke(service, [null, donation]));
+        bool? lastStatus = null;
+        Action<IntegrationConnection> handler = conn => {
+            if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" }) lastStatus = conn.Status;
+        };
+        IntegrationEvents.ConnectionUpdated += handler;
 
-            Assert.NotNull(capturedEvent);
-            Assert.Equal("Donor", capturedEvent.User);
-            Assert.Equal("USD", capturedEvent.Currency); // should be uppercased
-            Assert.Equal("5", capturedEvent.Value);
-            Assert.Equal(SubathonEventSource.StreamLabs, capturedEvent.Source);
-            Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
-            Assert.Equal(Guid.Parse(donation.MessageId), capturedEvent.Id);
-            
-            await service.DisconnectAsync();
-        }
-        
-        [Fact]
-        public async Task OnDonation_RaisesSubathonEvent_WithCorrectFields()
-        {
-            var (service, _) = MakeService();
-            await service.InitClientAsync();
+        await service.InitClientAsync();
 
-            var msgId = Guid.NewGuid().ToString();
-            var donation = new DonationMessage
-            {
-                Id = 1,
-                Name = "Donor",
-                Amount = 5.0m,
-                Currency = Currency.Usd,
-                Message = "Test",
-                MessageId = msgId,
-                FormattedAmount = "$5.00",
-                Emotes = "",
-                IconClassName = "",
-                To = new Recipient { Name = "TestTo" },
-                From = "TestFrom",
-                FromUserId = 123456,
-                Source = "TestSource",
-                Priority = 0
-            };
+        Assert.False(lastStatus);
+        IntegrationEvents.ConnectionUpdated -= handler;
+    }
 
-            SubathonEvent? captured = CaptureEvent( () => 
-                typeof(StreamLabsService)
-                    .GetMethod("OnDonation", BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .Invoke(service, [null, donation]));
+    [Fact]
+    public async Task InitClientAsync_DisconnectsExistingClient_BeforeCreatingNew() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+        mockClient.Setup(c => c.ConnectAsync()).Returns(Task.CompletedTask);
+        mockClient.Setup(c => c.DisconnectAsync()).Returns(Task.CompletedTask);
 
-            Assert.NotNull(captured);
-            Assert.Equal("Donor", captured.User);
-            Assert.Equal("USD", captured.Currency);
-            Assert.Equal("5.0", captured.Value);
-            Assert.Equal(SubathonEventSource.StreamLabs, captured.Source);
-            Assert.Equal(SubathonEventType.StreamLabsDonation, captured.EventType);
-            Assert.Equal(Guid.Parse(msgId), captured.Id);
-        }
+        await service.InitClientAsync();
+        Assert.True(service.Connected);
+
+        // disconnects old client first
+        await service.InitClientAsync();
+
+        mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
+        mockClient.Verify(c => c.ConnectAsync(), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task DisconnectAsync_SetsConnectedFalse_AndRaisesUpdate() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+        await service.InitClientAsync();
+        Assert.True(service.Connected);
+
+        bool? lastStatus = null;
+        Action<IntegrationConnection> handler = conn => {
+            if (conn is { Source: SubathonEventSource.StreamLabs, Service: "Socket" }) lastStatus = conn.Status;
+        };
+        IntegrationEvents.ConnectionUpdated += handler;
+
+        await service.DisconnectAsync();
+
+        Assert.False(service.Connected);
+        Assert.False(lastStatus);
+        IntegrationEvents.ConnectionUpdated -= handler;
+        mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task DisconnectAsync_DoesNothing_WhenNotConnected() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+
+        await service.DisconnectAsync();
+
+        mockClient.Verify(c => c.DisconnectAsync(), Times.Never);
+    }
+
+    [Fact]
+    public async Task StopAsync_Works_WhenConnected() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+        await service.InitClientAsync();
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(service.Connected);
+        mockClient.Verify(c => c.DisconnectAsync(), Times.Once);
+    }
+
+    [Fact]
+    public void SimulateTip_ShouldRaiseSubathonEvent() {
+        SubathonEvent? capturedEvent = CaptureEvent(() =>
+            StreamLabsService.SimulateTip("25.5"));
+
+        Assert.NotNull(capturedEvent);
+        Assert.Equal("25.5", capturedEvent.Value);
+        Assert.Equal("USD", capturedEvent.Currency);
+        Assert.Equal(SubathonEventSource.Simulated, capturedEvent.Source);
+        Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
+    }
+
+    [Fact]
+    public async Task OnDonation_SubscribedAfterInit_UnsubscribedAfterDisconnect() {
+        (StreamLabsService service, Mock<IStreamlabsClient> mockClient) = MakeService();
+        await service.InitClientAsync();
+
+        mockClient.VerifyAdd(c => c.OnDonation += It.IsAny<EventHandler<DonationMessage>>(), Times.Once);
+
+        await service.DisconnectAsync();
+
+        mockClient.VerifyRemove(c => c.OnDonation -= It.IsAny<EventHandler<DonationMessage>>(), Times.Once);
+    }
+
+    [Fact]
+    public async Task OnDonation_ShouldRaiseSubathonEvent() {
+        var logger = new Mock<ILogger<StreamLabsService>>();
+        var storage = new InMemorySecureStorage(new Dictionary<string, string> {
+            [StorageKeys.StreamLabsSocketToken] = ""
+        });
+        var service = new StreamLabsService(logger.Object, storage);
+
+
+        var donation = new DonationMessage {
+            Id = long.MaxValue,
+            FormattedAmount = "$5.00",
+            Emotes = "",
+            IconClassName = "",
+            To = new Recipient { Name = "TestTo" },
+            From = "TestFrom",
+            MessageId = Guid.NewGuid().ToString(),
+            FromUserId = 123456,
+            Source = "TestSource",
+            Priority = long.MinValue,
+            Name = "Donor",
+            Amount = (decimal)5.0,
+            Currency = Currency.Usd,
+            Message = "Test message"
+        };
+
+        MethodInfo? method = typeof(StreamLabsService)
+            .GetMethod("OnDonation", BindingFlags.NonPublic | BindingFlags.Instance);
+
+        SubathonEvent? capturedEvent = CaptureEvent(() =>
+            method?.Invoke(service, [null, donation]));
+
+        Assert.NotNull(capturedEvent);
+        Assert.Equal("Donor", capturedEvent.User);
+        Assert.Equal("USD", capturedEvent.Currency); // should be uppercased
+        Assert.Equal("5", capturedEvent.Value);
+        Assert.Equal(SubathonEventSource.StreamLabs, capturedEvent.Source);
+        Assert.Equal(SubathonEventType.StreamLabsDonation, capturedEvent.EventType);
+        Assert.Equal(Guid.Parse(donation.MessageId), capturedEvent.Id);
+
+        await service.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task OnDonation_RaisesSubathonEvent_WithCorrectFields() {
+        (StreamLabsService service, _) = MakeService();
+        await service.InitClientAsync();
+
+        var msgId = Guid.NewGuid().ToString();
+        var donation = new DonationMessage {
+            Id = 1,
+            Name = "Donor",
+            Amount = 5.0m,
+            Currency = Currency.Usd,
+            Message = "Test",
+            MessageId = msgId,
+            FormattedAmount = "$5.00",
+            Emotes = "",
+            IconClassName = "",
+            To = new Recipient { Name = "TestTo" },
+            From = "TestFrom",
+            FromUserId = 123456,
+            Source = "TestSource",
+            Priority = 0
+        };
+
+        SubathonEvent? captured = CaptureEvent(() =>
+            typeof(StreamLabsService)
+                .GetMethod("OnDonation", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(service, [null, donation]));
+
+        Assert.NotNull(captured);
+        Assert.Equal("Donor", captured.User);
+        Assert.Equal("USD", captured.Currency);
+        Assert.Equal("5.0", captured.Value);
+        Assert.Equal(SubathonEventSource.StreamLabs, captured.Source);
+        Assert.Equal(SubathonEventType.StreamLabsDonation, captured.EventType);
+        Assert.Equal(Guid.Parse(msgId), captured.Id);
     }
 }

@@ -13,94 +13,88 @@ using SubathonManager.Integration;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
 
-public partial class ExternalServiceSettings : SettingsControl
-{
+public partial class ExternalServiceSettings : SettingsControl {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<ExternalServiceSettings>>();
-    protected override StackPanel? _MembershipsPanel => MembershipsPanel;
-    protected override SubathonEventType? _membershipEventType => SubathonEventType.ExternalSub;
 
-    public ExternalServiceSettings()
-    {
+    public ExternalServiceSettings() {
         InitializeComponent();
         Loaded += (_, _) => RegisterUnsavedChangeHandlers();
     }
 
-    public override void Init(SettingsView host)
-    {
+    protected override StackPanel? _MembershipsPanel => MembershipsPanel;
+    protected override SubathonEventType? _membershipEventType => SubathonEventType.ExternalSub;
+
+    public override void Init(SettingsView host) {
         Host = host;
         RegisterUnsavedChangeHandlers();
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection) { }
+    internal override void UpdateStatus(IntegrationConnection? connection) {
+    }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.ExternalDonation && sv.Meta == "");
-        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out var exSeconds) &&
-            !exSeconds.Equals(externalDonoValue.Seconds))
-        {
+        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out double exSeconds) &&
+            !exSeconds.Equals(externalDonoValue.Seconds)) {
             externalDonoValue.Seconds = exSeconds;
             hasUpdated = true;
         }
-        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out var exPoints) &&
-            !exPoints.Equals(externalDonoValue.Points))
-        {
+
+        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out double exPoints) &&
+            !exPoints.Equals(externalDonoValue.Points)) {
             externalDonoValue.Points = exPoints;
             hasUpdated = true;
         }
 
-        var defaultSubValue = db.SubathonValues.FirstOrDefault(sv =>
+        SubathonValue? defaultSubValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.ExternalSub && sv.Meta == "DEFAULT");
-        if (defaultSubValue != null && double.TryParse(SubDTextBox.Text, out var defaultSeconds) &&
-            !defaultSeconds.Equals(defaultSubValue.Seconds))
-        {
+        if (defaultSubValue != null && double.TryParse(SubDTextBox.Text, out double defaultSeconds) &&
+            !defaultSeconds.Equals(defaultSubValue.Seconds)) {
             defaultSubValue.Seconds = defaultSeconds;
             hasUpdated = true;
         }
-        if (defaultSubValue != null && double.TryParse(SubDTextBox2.Text, out var defaultPoints) &&
-            !defaultPoints.Equals(defaultSubValue.Points))
-        {
+
+        if (defaultSubValue != null && double.TryParse(SubDTextBox2.Text, out double defaultPoints) &&
+            !defaultPoints.Equals(defaultSubValue.Points)) {
             defaultSubValue.Points = defaultPoints;
             hasUpdated = true;
         }
 
-        var removeRows = _dynamicSubRows.Where(row => string.IsNullOrWhiteSpace(row.NameBox.Text)).ToList();
+        List<DynamicSubRow> removeRows =
+            _dynamicSubRows.Where(row => string.IsNullOrWhiteSpace(row.NameBox.Text)).ToList();
         if (removeRows.Any()) hasUpdated = true;
-        foreach (var row in removeRows)
+        foreach (DynamicSubRow row in removeRows)
             DeleteRow(row.SubValue, row);
 
         EnsureUniqueName(_dynamicSubRows);
 
-        foreach (var subRow in _dynamicSubRows)
-        {
+        foreach (DynamicSubRow subRow in _dynamicSubRows) {
             string meta = (subRow.NameBox.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(meta))
-            {
+            if (string.IsNullOrWhiteSpace(meta)) {
                 DeleteRow(subRow.SubValue, subRow);
                 hasUpdated = true;
                 continue;
             }
+
             if (meta == "DEFAULT") continue;
 
             if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
             if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
 
 #pragma warning disable CA1862
-            var existing = db.SubathonValues.FirstOrDefault(sv =>
+            SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>
                 sv.EventType == SubathonEventType.ExternalSub && sv.Meta.ToLower() == meta.ToLower());
 #pragma warning restore CA1862
-            if (existing != null)
-            {
+            if (existing != null) {
                 existing.Seconds = seconds;
                 existing.Points = points;
                 subRow.SubValue = existing;
                 if (!seconds.Equals(existing.Seconds) || !points.Equals(existing.Points))
                     hasUpdated = true;
             }
-            else
-            {
+            else {
                 subRow.SubValue.Meta = meta;
                 subRow.SubValue.Seconds = seconds;
                 subRow.SubValue.Points = points;
@@ -110,47 +104,43 @@ public partial class ExternalServiceSettings : SettingsControl
         }
 
         List<string> names = ["DEFAULT"];
-        foreach (var row in _dynamicSubRows)
+        foreach (DynamicSubRow row in _dynamicSubRows)
             names.Add((row.NameBox.Text ?? "").Trim());
 
-        var dbRows = db.SubathonValues.Where(x =>
+        List<SubathonValue> dbRows = db.SubathonValues.Where(x =>
             !names.Contains(x.Meta) && x.EventType == SubathonEventType.ExternalSub).ToList();
-        if (dbRows.Count > 0)
-        {
+        if (dbRows.Count > 0) {
             db.SubathonValues.RemoveRange(dbRows);
             hasUpdated = true;
         }
+
         return hasUpdated;
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected)
-    {
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
         CurrencyBox.ItemsSource = currencies;
         CurrencyBox.SelectedItem = selected;
     }
 
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
         TextBox? box = null;
         TextBox? box2 = null;
-        switch (val.EventType)
-        {
+        switch (val.EventType) {
             case SubathonEventType.ExternalDonation:
                 box = DonoBox;
                 box2 = DonoBox2;
                 break;
         }
+
         return (v, p, box, box2);
     }
 
-    private void TestExternalDonation_Click(object? sender, RoutedEventArgs e)
-    {
-        var value = SimulateExternalAmt.Text;
-        var currency = CurrencyBox.Text;
-        var data = new Dictionary<string, JsonElement>
-        {
+    private void TestExternalDonation_Click(object? sender, RoutedEventArgs e) {
+        string? value = SimulateExternalAmt.Text;
+        string? currency = CurrencyBox.Text;
+        var data = new Dictionary<string, JsonElement> {
             { "type", JsonSerializer.SerializeToElement($"{SubathonEventType.ExternalDonation}") },
             { "user", JsonSerializer.SerializeToElement("SYSTEM") },
             { "currency", JsonSerializer.SerializeToElement(currency) },
@@ -159,38 +149,33 @@ public partial class ExternalServiceSettings : SettingsControl
         ExternalEventService.ProcessExternalDonation(data);
     }
 
-    protected internal override void LoadValues(AppDbContext db)
-    {
+    protected internal override void LoadValues(AppDbContext db) {
         SuppressUnsavedChanges(() => LoadValuesCore(db));
     }
 
-    private void LoadValuesCore(AppDbContext db)
-    {
-        var values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.ExternalSub)
+    private void LoadValuesCore(AppDbContext db) {
+        List<SubathonValue> values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.ExternalSub)
             .OrderBy(meta => meta)
             .AsNoTracking().ToList();
 
-        for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--)
-        {
-            var child = MembershipsPanel.Children[i];
+        for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--) {
+            Control child = MembershipsPanel.Children[i];
             if (child is { } fe && fe.Name != "DefaultMember" && fe.Name != "AddBtn")
                 MembershipsPanel.Children.RemoveAt(i);
         }
+
         _dynamicSubRows.Clear();
-        foreach (var value in values)
-        {
+        foreach (SubathonValue value in values) {
             TextBox? box1 = null;
             TextBox? box2 = null;
             var v = $"{value.Seconds}";
             var p = $"{value.Points}";
 
-            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.ExternalSub })
-            {
+            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.ExternalSub }) {
                 box1 = SubDTextBox;
                 box2 = SubDTextBox2;
             }
-            else if (value.EventType == SubathonEventType.ExternalSub)
-            {
+            else if (value.EventType == SubathonEventType.ExternalSub) {
                 AddMembershipRow(value);
             }
 
@@ -201,12 +186,10 @@ public partial class ExternalServiceSettings : SettingsControl
         RefreshTierCombo();
     }
 
-    private void TestSub_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestSub_Click(object? sender, RoutedEventArgs e) {
         string selectedTier = (SimTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
         string amount = SimCount.Text ?? "1";
-        var data = new Dictionary<string, JsonElement>
-        {
+        var data = new Dictionary<string, JsonElement> {
             { "user", JsonSerializer.SerializeToElement("SYSTEM") },
             { "type", JsonSerializer.SerializeToElement(nameof(SubathonEventType.ExternalSub)) },
             { "value", JsonSerializer.SerializeToElement(selectedTier) },
@@ -216,12 +199,11 @@ public partial class ExternalServiceSettings : SettingsControl
         ExternalEventService.ProcessExternalSub(data);
     }
 
-    public void RefreshTierCombo()
-    {
+    public void RefreshTierCombo() {
         string selectedTier = (SimTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-        using var db = _factory.CreateDbContext();
+        using AppDbContext db = _factory.CreateDbContext();
 
-        var metas = db.SubathonValues
+        List<string> metas = db.SubathonValues
             .Where(v => v.EventType == SubathonEventType.ExternalSub)
             .Select(v => v.Meta)
             .Where(meta => meta != "DEFAULT" && !string.IsNullOrWhiteSpace(meta))
@@ -232,11 +214,10 @@ public partial class ExternalServiceSettings : SettingsControl
 
         SimTierSelection.Items.Clear();
         SimTierSelection.Items.Add(new ComboBoxItem { Content = "DEFAULT" });
-        foreach (var meta in metas)
+        foreach (string meta in metas)
             SimTierSelection.Items.Add(new ComboBoxItem { Content = meta });
 
-        foreach (var comboItem in SimTierSelection.Items)
-        {
+        foreach (object? comboItem in SimTierSelection.Items) {
             if (comboItem is not ComboBoxItem cbi ||
                 !string.Equals(cbi.Content?.ToString(), selectedTier, StringComparison.OrdinalIgnoreCase)) continue;
             SimTierSelection.SelectedItem = cbi;

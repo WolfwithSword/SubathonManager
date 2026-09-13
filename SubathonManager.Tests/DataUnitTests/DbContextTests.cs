@@ -1,14 +1,14 @@
-﻿using SubathonManager.Core.Models;
-using SubathonManager.Core.Enums;
+﻿using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 using SubathonManager.Data;
+
 namespace SubathonManager.Tests.DataUnitTests;
 
-public class DbContextTests
-{
-    private AppDbContext CreateInMemorySqliteDb()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+public class DbContextTests {
+    private AppDbContext CreateInMemorySqliteDb() {
+        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite("DataSource=:memory:;Cache=Shared")
             .Options;
         var db = new AppDbContext(options);
@@ -16,10 +16,9 @@ public class DbContextTests
         db.Database.EnsureCreated();
         return db;
     }
-    
-    private AppDbContext CreateInMemoryDb()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+
+    private AppDbContext CreateInMemoryDb() {
+        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var db = new AppDbContext(options);
@@ -27,11 +26,10 @@ public class DbContextTests
     }
 
     [Fact]
-    public async Task Deleting_Route_Deletes_Widgets_And_Css()
-    {
-        await using var db = CreateInMemoryDb();
+    public async Task Deleting_Route_Deletes_Widgets_And_Css() {
+        await using AppDbContext db = CreateInMemoryDb();
 
-        var route = new Route() { Name = "Test" };
+        var route = new Route { Name = "Test" };
         var widget = new Widget("W", "test.html") { Route = route };
         widget.CssVariables.Add(new CssVariable { Name = "color", Value = "red" });
 
@@ -44,17 +42,16 @@ public class DbContextTests
         Assert.Empty(db.Widgets);
         Assert.Empty(db.CssVariables);
     }
-    
+
     [Fact]
-    public async Task SubathonValue_Composite_Key_Is_Enforced()
-    {
-        await using var db = CreateInMemorySqliteDb();
+    public async Task SubathonValue_Composite_Key_Is_Enforced() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
 
         db.SubathonValues.Add(new SubathonValue {
             EventType = SubathonEventType.TwitchSub,
             Meta = "1000"
         });
-        
+
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
@@ -65,25 +62,24 @@ public class DbContextTests
 
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
-    
+
     [Fact]
-    public async Task Saving_Widget_Updates_Parent_Route_Timestamp()
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task Saving_Widget_Updates_Parent_Route_Timestamp() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         var route = new Route();
         db.Routes.Add(route);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var original = route.UpdatedTimestamp;
+        DateTime original = route.UpdatedTimestamp;
 
         var widget = new Widget("W", "x.html") { RouteId = route.Id };
         db.Widgets.Add(widget);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         Assert.True(route.UpdatedTimestamp > original);
-        var original2 = route.UpdatedTimestamp;
-        
+        DateTime original2 = route.UpdatedTimestamp;
+
         var jsVar = new JsVariable { Name = "jsVar", Value = "1", WidgetId = widget.Id };
         db.JsVariables.Add(jsVar);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -91,9 +87,8 @@ public class DbContextTests
     }
 
     [Fact]
-    public async Task GetSubathonCurrencyEvents_Returns_Only_Currency_Events()
-    {
-        var db = CreateInMemoryDb();
+    public async Task GetSubathonCurrencyEvents_Returns_Only_Currency_Events() {
+        AppDbContext db = CreateInMemoryDb();
 
         var subathon = new SubathonData { IsActive = true };
         db.SubathonDatas.Add(subathon);
@@ -109,15 +104,14 @@ public class DbContextTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         Utils.DonationSettings["BitsLikeAsDonation"] = false;
 
-        var result = await AppDbContext.GetSubathonCurrencyEvents(db);
+        List<SubathonEvent> result = await AppDbContext.GetSubathonCurrencyEvents(db);
 
         Assert.Single(result);
     }
 
     [Fact]
-    public async Task ActiveEventsToCsv_Writes_File()
-    {
-        var db = CreateInMemoryDb();
+    public async Task ActiveEventsToCsv_Writes_File() {
+        AppDbContext db = CreateInMemoryDb();
 
         var subathon = new SubathonData { IsActive = true };
         db.SubathonDatas.Add(subathon);
@@ -133,19 +127,16 @@ public class DbContextTests
 
         await AppDbContext.ActiveEventsToCsv(db);
 
-        var files = Directory.GetFiles(Path.Combine(Config.DataFolder, "exports"));
+        string[] files = Directory.GetFiles(Path.Combine(Config.DataFolder, "exports"));
         Assert.Single(files);
         File.Delete(files[0]);
-        
     }
-    
-    [Fact]
-    public async Task UpdateSubathonCurrency_Updates_Active_Subathon()
-    {
-        await using var db = CreateInMemorySqliteDb();
 
-        var subathon = new SubathonData
-        {
+    [Fact]
+    public async Task UpdateSubathonCurrency_Updates_Active_Subathon() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
+
+        var subathon = new SubathonData {
             IsActive = true,
             Currency = "USD"
         };
@@ -156,17 +147,15 @@ public class DbContextTests
 
         await AppDbContext.UpdateSubathonCurrency(db, "CAD");
 
-        var updated = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData updated = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("CAD", updated.Currency);
     }
-    
-    [Fact]
-    public async Task PauseAllTimers_Sets_IsPaused()
-    {
-        await using var db = CreateInMemorySqliteDb();
 
-        var subathon = new SubathonData
-        {
+    [Fact]
+    public async Task PauseAllTimers_Sets_IsPaused() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
+
+        var subathon = new SubathonData {
             IsActive = true,
             IsPaused = false
         };
@@ -177,17 +166,15 @@ public class DbContextTests
 
         await AppDbContext.PauseAllTimers(db);
         db.ChangeTracker.Clear();
-        var updated = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData updated = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(updated.IsPaused);
     }
-    
-    [Fact]
-    public async Task Saving_Widget_Without_Route_Fails()
-    {
-        await using var db = CreateInMemorySqliteDb();
 
-        var widget = new Widget("W", "x.html")
-        {
+    [Fact]
+    public async Task Saving_Widget_Without_Route_Fails() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
+
+        var widget = new Widget("W", "x.html") {
             RouteId = Guid.NewGuid()
         };
 
@@ -195,25 +182,22 @@ public class DbContextTests
 
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
-    
+
     [Fact]
-    public async Task Duplicate_Route_Entities_Fail()
-    {
-        await using var db = CreateInMemorySqliteDb();
+    public async Task Duplicate_Route_Entities_Fail() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
         var guid = Guid.NewGuid();
         db.Routes.Add(new Route { Name = "Test", Id = guid });
 
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-        {
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => {
             db.Routes.Add(new Route { Name = "Test", Id = guid });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         });
     }
-    
+
     [Fact]
-    public async Task Updating_Widget_Path_Does_Not_Update_Route_Timestamp()
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task Updating_Widget_Path_Does_Not_Update_Route_Timestamp() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         var route = new Route();
         db.Routes.Add(route);
@@ -224,7 +208,7 @@ public class DbContextTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        var timestamp = route.UpdatedTimestamp;
+        DateTime timestamp = route.UpdatedTimestamp;
 
         widget.HtmlPath = "y.html";
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -234,23 +218,21 @@ public class DbContextTests
     }
 
     [Fact]
-    public async Task GetSubathonCurrencyEvents_No_Active_Subathon_Returns_Empty()
-    {
-        var db = CreateInMemoryDb();
+    public async Task GetSubathonCurrencyEvents_No_Active_Subathon_Returns_Empty() {
+        AppDbContext db = CreateInMemoryDb();
 
         db.SubathonDatas.Add(new SubathonData { IsActive = false });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        var result = await AppDbContext.GetSubathonCurrencyEvents(db);
+        List<SubathonEvent> result = await AppDbContext.GetSubathonCurrencyEvents(db);
 
         Assert.Empty(result);
     }
 
     [Fact]
-    public async Task GetSubathonCurrencyEvents_Unprocessed_Excluded()
-    {
-        var db = CreateInMemoryDb();
+    public async Task GetSubathonCurrencyEvents_Unprocessed_Excluded() {
+        AppDbContext db = CreateInMemoryDb();
 
         var subathon = new SubathonData { IsActive = true };
         db.SubathonDatas.Add(subathon);
@@ -266,15 +248,14 @@ public class DbContextTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        var result = await AppDbContext.GetSubathonCurrencyEvents(db);
+        List<SubathonEvent> result = await AppDbContext.GetSubathonCurrencyEvents(db);
 
         Assert.Empty(result);
     }
-    
+
     [Fact]
-    public async Task PauseAllTimers_No_Active_Subathon_No_Change()
-    {
-        await using var db = CreateInMemorySqliteDb();
+    public async Task PauseAllTimers_No_Active_Subathon_No_Change() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
 
         db.SubathonDatas.Add(new SubathonData {
             IsActive = false,
@@ -287,15 +268,14 @@ public class DbContextTests
         await AppDbContext.PauseAllTimers(db);
         db.ChangeTracker.Clear();
 
-        var subathon = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData subathon = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(subathon.IsActive);
         Assert.True(subathon.IsPaused);
     }
 
     [Fact]
-    public async Task UpdateSubathonCurrency_Ignores_Inactive()
-    {
-        await using var db = CreateInMemorySqliteDb();
+    public async Task UpdateSubathonCurrency_Ignores_Inactive() {
+        await using AppDbContext db = CreateInMemorySqliteDb();
 
         db.SubathonDatas.Add(new SubathonData {
             IsActive = false,
@@ -308,7 +288,7 @@ public class DbContextTests
         await AppDbContext.UpdateSubathonCurrency(db, "CAD");
         db.ChangeTracker.Clear();
 
-        var subathon = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData subathon = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("USD", subathon.Currency);
     }
 
@@ -316,9 +296,8 @@ public class DbContextTests
     [InlineData(SubathonEventType.TwitchSub, "1000")]
     [InlineData(SubathonEventType.YouTubeMembership, "DEFAULT")]
     [InlineData(SubathonEventType.KoFiSub, "DEFAULT")]
-    public async Task CurrencyEvents_Ignore_Non_Currency_Types(SubathonEventType type, string value)
-    {
-        var db = CreateInMemoryDb();
+    public async Task CurrencyEvents_Ignore_Non_Currency_Types(SubathonEventType type, string value) {
+        AppDbContext db = CreateInMemoryDb();
 
         var subathon = new SubathonData { IsActive = true };
         db.SubathonDatas.Add(subathon);
@@ -335,17 +314,16 @@ public class DbContextTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        var result = await AppDbContext.GetSubathonCurrencyEvents(db);
+        List<SubathonEvent> result = await AppDbContext.GetSubathonCurrencyEvents(db);
         Assert.Empty(result);
     }
-    
+
     [Theory]
     [InlineData(SubathonEventType.TwitchCharityDonation)]
     [InlineData(SubathonEventType.YouTubeSuperChat)]
     [InlineData(SubathonEventType.KoFiDonation)]
-    public async Task CurrencyEvents_Contains_Currency_Types(SubathonEventType type)
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task CurrencyEvents_Contains_Currency_Types(SubathonEventType type) {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         var subathon = new SubathonData { IsActive = true };
         Utils.DonationSettings["BitsLikeAsDonation"] = false;
@@ -362,14 +340,13 @@ public class DbContextTests
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        var result = await AppDbContext.GetSubathonCurrencyEvents(db);
+        List<SubathonEvent> result = await AppDbContext.GetSubathonCurrencyEvents(db);
         Assert.Single(result);
     }
 
     [Fact]
-    public async Task ResetPowerHour_ResetsMultiplierData()
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task ResetPowerHour_ResetsMultiplierData() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         db.MultiplierDatas.Add(new MultiplierData { Multiplier = 5, ApplyToSeconds = true });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -377,7 +354,7 @@ public class DbContextTests
         db.ChangeTracker.Clear();
         await AppDbContext.ResetPowerHour(db);
 
-        var updated = await db.MultiplierDatas.FirstAsync(TestContext.Current.CancellationToken);
+        MultiplierData updated = await db.MultiplierDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, updated.Multiplier);
         Assert.False(updated.ApplyToSeconds);
         Assert.False(updated.ApplyToPoints);
@@ -386,9 +363,8 @@ public class DbContextTests
     }
 
     [Fact]
-    public async Task DisableAllTimers_Sets_IsActiveFalse_And_IsPaused()
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task DisableAllTimers_Sets_IsActiveFalse_And_IsPaused() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         db.SubathonDatas.Add(new SubathonData { IsActive = true, IsPaused = false });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -396,16 +372,15 @@ public class DbContextTests
         await AppDbContext.DisableAllTimers(db);
 
         db.ChangeTracker.Clear();
-        var sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(sub.IsActive);
         Assert.True(sub.IsPaused);
     }
-    
-    
+
+
     [Fact]
-    public void SeedDefaultValues_AddsMissingValuesAndSubathonData()
-    {
-        var db = CreateInMemorySqliteDb();
+    public void SeedDefaultValues_AddsMissingValuesAndSubathonData() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         // no seed
         Assert.Empty(db.SubathonValues);
@@ -422,31 +397,30 @@ public class DbContextTests
         AppDbContext.SeedDefaultValues(db);
         Assert.Equal(db.SubathonValues.Count(), db.SubathonValues.Distinct().Count());
     }
-    
+
     [Fact]
-    public async Task MigrateLegacyData_FixesNullProperties()
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task MigrateLegacyData_FixesNullProperties() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         db.SubathonGoalSets.Add(new SubathonGoalSet { Type = null });
         db.SubathonDatas.Add(new SubathonData { ReversedTime = null });
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         db.ChangeTracker.Clear();
-        var method = typeof(AppDbContext).GetMethod("MigrateLegacyData", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        MethodInfo? method =
+            typeof(AppDbContext).GetMethod("MigrateLegacyData", BindingFlags.NonPublic | BindingFlags.Static);
         if (method != null) method.Invoke(null, [db]);
 
-        var goalSet = await db.SubathonGoalSets.FirstAsync(TestContext.Current.CancellationToken);
-        var subathon = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonGoalSet goalSet = await db.SubathonGoalSets.FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData subathon = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(GoalsType.Points, goalSet.Type);
         Assert.False(subathon.ReversedTime);
     }
-    
+
     [Fact]
-    public async Task UpdateSubathonMoney_UpdatesValueAndRaisesEvents()
-    {
-        var db = CreateInMemorySqliteDb();
+    public async Task UpdateSubathonMoney_UpdatesValueAndRaisesEvents() {
+        AppDbContext db = CreateInMemorySqliteDb();
 
         var multiplier = new MultiplierData();
         var subathon = new SubathonData { IsActive = true, Multiplier = multiplier };
@@ -458,14 +432,16 @@ public class DbContextTests
         goalSet.Goals.Add(goal);
         db.SubathonGoalSets.Add(goalSet);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        
+
         await db.UpdateSubathonMoney(100.5, subathon.Id);
 
-        var updatedSubathon = await db.SubathonDatas.Include(s => s.Multiplier).FirstAsync(TestContext.Current.CancellationToken);
+        SubathonData updatedSubathon = await db.SubathonDatas.Include(s => s.Multiplier)
+            .FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(subathon.MillisecondsCumulative, updatedSubathon.MillisecondsCumulative);
         Assert.Equal(multiplier.Id, updatedSubathon.Multiplier.Id);
 
-        var fetchedGoalSet = await db.SubathonGoalSets.Include(g => g.Goals).FirstAsync(TestContext.Current.CancellationToken);
+        SubathonGoalSet fetchedGoalSet = await db.SubathonGoalSets.Include(g => g.Goals)
+            .FirstAsync(TestContext.Current.CancellationToken);
         Assert.Single(fetchedGoalSet.Goals);
     }
 }

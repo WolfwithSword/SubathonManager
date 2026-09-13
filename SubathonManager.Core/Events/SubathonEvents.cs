@@ -1,26 +1,28 @@
-﻿using SubathonManager.Core.Models;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core.Events;
 
 [ExcludeFromCodeCoverage]
-public static class SubathonEvents
-{
+public static class SubathonEvents {
     public static event Action<SubathonEvent>? SubathonEventCreated;
-    public static event Action<SubathonEvent, bool>? SubathonEventProcessed; // Run through queue, processed or not to subathon
+
+    public static event Action<SubathonEvent, bool>?
+        SubathonEventProcessed; // Run through queue, processed or not to subathon
+
     public static event Action<List<SubathonEvent>>? SubathonEventsDeleted;
     public static event Action<SubathonData, DateTime>? SubathonDataUpdate;
-    
+
     public static event Action<List<SubathonGoal>, long, GoalsType>? SubathonGoalListUpdated;
     public static event Action<SubathonGoal, long>? SubathonGoalCompleted;
 
     public static event Action<string>? SubathonValueConfigRequested;
     public static event Action? SubathonValueConfigUpdatedRemote;
-    
+
     public static event Action<List<SubathonValueDto>>? SubathonValuesPatched;
-    
+
     public static event Action<SubathonTotals>? SubathonTotalsUpdated;
     public static event Action<SubscriptionTotals>? SubscriptionTotalsUpdated;
 
@@ -30,83 +32,78 @@ public static class SubathonEvents
     public static event Action? PromptRunCancelRequested;
     public static event Action<Guid>? PromptRunNowRequested;
 
-    public static void RaiseSubathonTotalsUpdated(SubathonTotals totals)
-    {
+    public static void RaiseSubathonTotalsUpdated(SubathonTotals totals) {
         SubathonTotalsUpdated?.Invoke(totals);
     }
 
-    public static void RaiseSubscriptionTotalsUpdated(SubscriptionTotals totals)
-    {
+    public static void RaiseSubscriptionTotalsUpdated(SubscriptionTotals totals) {
         SubscriptionTotalsUpdated?.Invoke(totals);
     }
 
-    
-    public static void RaisePromptRunStarted(SubathonPromptRun run, SubathonPrompt? prompt)
-        => PromptRunStarted?.Invoke(run, prompt);
-    
-    public static void RaisePromptRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt)
-        => PromptRunUpdate?.Invoke(run, prompt);
-    
-    public static void RaisePromptRunProgressUpdated(SubathonPromptRun run, long progress)
-        => PromptRunProgressUpdated?.Invoke(run, progress);
-    
-    public static void RaisePromptRunNowRequested(Guid guid)
-        => PromptRunNowRequested?.Invoke(guid);
 
-    
-    public static void RaiseSubathonValuesPatched(List<SubathonValueDto> values)
-    {
+    public static void RaisePromptRunStarted(SubathonPromptRun run, SubathonPrompt? prompt) {
+        PromptRunStarted?.Invoke(run, prompt);
+    }
+
+    public static void RaisePromptRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt) {
+        PromptRunUpdate?.Invoke(run, prompt);
+    }
+
+    public static void RaisePromptRunProgressUpdated(SubathonPromptRun run, long progress) {
+        PromptRunProgressUpdated?.Invoke(run, progress);
+    }
+
+    public static void RaisePromptRunNowRequested(Guid guid) {
+        PromptRunNowRequested?.Invoke(guid);
+    }
+
+
+    public static void RaiseSubathonValuesPatched(List<SubathonValueDto> values) {
         SubathonValuesPatched?.Invoke(values);
     }
-    
-    public static void RaisePromptRunCancelRequested()
-        => PromptRunCancelRequested?.Invoke();
- 
+
+    public static void RaisePromptRunCancelRequested() {
+        PromptRunCancelRequested?.Invoke();
+    }
+
     public static event Action<bool>? PromptSetEnabledChanged;
- 
-    public static void RaisePromptSetEnabledChanged(bool enabled)
-        => PromptSetEnabledChanged?.Invoke(enabled);
+
+    public static void RaisePromptSetEnabledChanged(bool enabled) {
+        PromptSetEnabledChanged?.Invoke(enabled);
+    }
 
 
-    
-    public static void RaiseSubathonEventsDeleted(List<SubathonEvent> subathonEvent)
-    {
+    public static void RaiseSubathonEventsDeleted(List<SubathonEvent> subathonEvent) {
         SubathonEventsDeleted?.Invoke(subathonEvent);
     }
 
-    public static void RaiseSubathonEventCreated(SubathonEvent subathonEvent)
-    {
+    public static void RaiseSubathonEventCreated(SubathonEvent subathonEvent) {
         SubathonEventCreated?.Invoke(subathonEvent);
     }
-    
-    public static void RaiseSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective)
-    {
+
+    public static void RaiseSubathonEventProcessed(SubathonEvent subathonEvent, bool wasEffective) {
         SubathonEventProcessed?.Invoke(subathonEvent, wasEffective);
     }
 
-    public static void RaiseSubathonValueConfigRequested(string jsonData)
-    {
+    public static void RaiseSubathonValueConfigRequested(string jsonData) {
         SubathonValueConfigRequested?.Invoke(jsonData);
     }
-    
-    public static void RaiseSubathonValueConfigUpdatedRemote()
-    {
+
+    public static void RaiseSubathonValueConfigUpdatedRemote() {
         SubathonValueConfigUpdatedRemote?.Invoke();
     }
-    
-    public static void RaiseSubathonDataUpdate(SubathonData data, DateTime time)
-    {
+
+    public static void RaiseSubathonDataUpdate(SubathonData data, DateTime time) {
         SubathonDataUpdate?.Invoke(data, time);
     }
 
-    public static void RaiseSubathonGoalCompleted(SubathonGoal goal, long points)
-    {
+    public static void RaiseSubathonGoalCompleted(SubathonGoal goal, long points) {
         // do we want all goals?
         SubathonGoalCompleted?.Invoke(goal, points);
     }
 
-    public static void RaiseSubathonGoalListUpdated(List<SubathonGoal> goals, long points, GoalsType type = GoalsType.Points)
-    {
+    public static void RaiseSubathonGoalListUpdated(List<SubathonGoal> goals, long points,
+        GoalsType type = GoalsType.Points) {
         SubathonGoalListUpdated?.Invoke(goals, points, type);
     }
 }

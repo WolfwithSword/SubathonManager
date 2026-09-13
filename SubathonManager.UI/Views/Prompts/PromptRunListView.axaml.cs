@@ -13,14 +13,11 @@ using SubathonManager.Data;
 
 namespace SubathonManager.UI.Views.Prompts;
 
-public partial class PromptRunListView : UserControl
-{
-    public ObservableCollection<PromptRunViewModel> RunItems { get; } = new();
+public partial class PromptRunListView : UserControl {
     private const int MaxItems = 20;
     private readonly IDbContextFactory<AppDbContext> _factory;
 
-    public PromptRunListView()
-    {
+    public PromptRunListView() {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         PromptRunListPanel.ItemsSource = RunItems;
@@ -32,65 +29,59 @@ public partial class PromptRunListView : UserControl
         SubathonEvents.PromptRunProgressUpdated += OnProgressUpdated;
     }
 
-    private void OnRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            var vm = RunItems.FirstOrDefault(v => v.RunId == run.Id);
-            if (vm != null)
-            {
+    public ObservableCollection<PromptRunViewModel> RunItems { get; } = new();
+
+    private void OnRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt) {
+        Dispatcher.UIThread.Post(() => {
+            PromptRunViewModel? vm = RunItems.FirstOrDefault(v => v.RunId == run.Id);
+            if (vm != null) {
                 vm.UpdateFromRun(run);
                 if (run.Status == SubathonPromptRunStatus.Completed)
                     vm.Progress = vm.SnapshotTargetValue;
                 else if (run.Status != SubathonPromptRunStatus.Active)
                     vm.Progress = 0;
             }
-            else
-            {
+            else {
                 _ = LoadRecentRuns();
             }
         });
     }
 
-    private void OnProgressUpdated(SubathonPromptRun run, long progress)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            var vm = RunItems.FirstOrDefault(v => v.RunId == run.Id);
+    private void OnProgressUpdated(SubathonPromptRun run, long progress) {
+        Dispatcher.UIThread.Post(() => {
+            PromptRunViewModel? vm = RunItems.FirstOrDefault(v => v.RunId == run.Id);
             if (vm != null) vm.Progress = progress;
         });
     }
 
-    private async Task LoadRecentRuns()
-    {
+    private async Task LoadRecentRuns() {
         await Task.Delay(200);
-        await using var db = await _factory.CreateDbContextAsync();
-        var runs = await db.SubathonPromptRuns
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        List<SubathonPromptRun> runs = await db.SubathonPromptRuns
             .Include(r => r.LinkedPrompt)
             .OrderByDescending(r => r.StartedAt)
             .Take(MaxItems)
             .AsNoTracking()
             .ToListAsync();
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            var existingProgress = RunItems.ToDictionary(v => v.RunId, v => v.Progress);
+        await Dispatcher.UIThread.InvokeAsync(() => {
+            Dictionary<Guid, long> existingProgress = RunItems.ToDictionary(v => v.RunId, v => v.Progress);
 
             RunItems.Clear();
-            foreach (var run in runs)
-            {
-                existingProgress.TryGetValue(run.Id, out var progress);
+            foreach (SubathonPromptRun run in runs) {
+                existingProgress.TryGetValue(run.Id, out long progress);
                 RunItems.Add(new PromptRunViewModel(run, progress));
             }
         });
     }
 }
 
-public class PromptRunViewModel(SubathonPromptRun run, long progress = 0) : INotifyPropertyChanged
-{
-    public event PropertyChangedEventHandler? PropertyChanged;
-    private void Notify([CallerMemberName] string? n = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+public class PromptRunViewModel(SubathonPromptRun run, long progress = 0) : INotifyPropertyChanged {
+    private DateTime? _endedAt = run.EndedAt;
+
+    private long _progress = progress;
+
+    private SubathonPromptRunStatus _status = run.Status;
 
     public SubathonPromptRun Run { get; } = run;
     public Guid RunId => Run.Id;
@@ -99,25 +90,31 @@ public class PromptRunViewModel(SubathonPromptRun run, long progress = 0) : INot
     public DateTime StartedAt => Run.StartedAt;
     public long SnapshotTargetValue => Run.SnapshotTargetValue;
 
-    private SubathonPromptRunStatus _status = run.Status;
-    public SubathonPromptRunStatus Status
-    {
+    public SubathonPromptRunStatus Status {
         get => _status;
-        set { _status = value; Notify(); Notify(nameof(IsActive)); }
+        set {
+            _status = value;
+            Notify();
+            Notify(nameof(IsActive));
+        }
     }
 
-    private DateTime? _endedAt = run.EndedAt;
-    public DateTime? EndedAt
-    {
+    public DateTime? EndedAt {
         get => _endedAt;
-        set { _endedAt = value; Notify(); }
+        set {
+            _endedAt = value;
+            Notify();
+        }
     }
 
-    private long _progress = progress;
-    public long Progress
-    {
+    public long Progress {
         get => _progress;
-        set { _progress = value; Notify(); Notify(nameof(ProgressText)); Notify(nameof(ProgressPct)); }
+        set {
+            _progress = value;
+            Notify();
+            Notify(nameof(ProgressText));
+            Notify(nameof(ProgressPct));
+        }
     }
 
     public string ProgressText => $"{_progress} / {SnapshotTargetValue}";
@@ -126,12 +123,16 @@ public class PromptRunViewModel(SubathonPromptRun run, long progress = 0) : INot
         ? Math.Min((double)_progress / SnapshotTargetValue, 1.0)
         : 0;
 
-    public void UpdateFromRun(SubathonPromptRun updated)
-    {
+    public bool IsActive => Status == SubathonPromptRunStatus.Active;
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void Notify([CallerMemberName] string? n = null) {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+    }
+
+    public void UpdateFromRun(SubathonPromptRun updated) {
         Status = updated.Status;
         EndedAt = updated.EndedAt;
         Notify(nameof(IsActive));
     }
-
-    public bool IsActive => Status == SubathonPromptRunStatus.Active;
 }

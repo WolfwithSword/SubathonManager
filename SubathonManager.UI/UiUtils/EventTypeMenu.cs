@@ -13,15 +13,12 @@ public sealed record EventTypeMenuEntry(
     Action OnSelected,
     string? Category = null);
 
-public static class EventTypeMenu
-{
+public static class EventTypeMenu {
     public static void Show(Control placementTarget, IReadOnlyList<EventTypeMenuEntry> entries,
-        bool groupBySourceType = true, string? clearLabel = null, Action? onClear = null)
-    {
+        bool groupBySourceType = true, string? clearLabel = null, Action? onClear = null) {
         var flyout = new MenuFlyout { Placement = PlacementMode.Bottom };
 
-        var searchBox = new TextBox
-        {
+        var searchBox = new TextBox {
             PlaceholderText = "Search...",
             MinWidth = 170,
             Height = 34,
@@ -31,11 +28,9 @@ public static class EventTypeMenu
         var searchItem = new MenuItem { Header = searchBox, StaysOpenOnClick = true, Focusable = false };
         flyout.Items.Add(searchItem);
 
-        int fixedItemCount = 1;
-        if (onClear != null)
-        {
-            var clearItem = new MenuItem
-            {
+        var fixedItemCount = 1;
+        if (onClear != null) {
+            var clearItem = new MenuItem {
                 Header = new TextBlock { Text = clearLabel ?? "(none)", FontStyle = FontStyle.Italic }
             };
             clearItem.Click += (_, _) => onClear();
@@ -43,29 +38,25 @@ public static class EventTypeMenu
             fixedItemCount = 2;
         }
 
-        var nestedItems = BuildNested(entries, groupBySourceType);
-        foreach (var item in nestedItems) flyout.Items.Add(item);
+        List<MenuItem> nestedItems = BuildNested(entries, groupBySourceType);
+        foreach (MenuItem item in nestedItems) flyout.Items.Add(item);
 
         List<EventTypeMenuEntry> currentMatches = [];
 
-        searchBox.TextChanged += (_, _) =>
-        {
+        searchBox.TextChanged += (_, _) => {
             while (flyout.Items.Count > fixedItemCount) flyout.Items.RemoveAt(fixedItemCount);
-            var query = (searchBox.Text ?? string.Empty).Trim();
+            string query = (searchBox.Text ?? string.Empty).Trim();
 
-            if (query.Length == 0)
-            {
+            if (query.Length == 0) {
                 currentMatches.Clear();
-                foreach (var item in nestedItems) flyout.Items.Add(item);
+                foreach (MenuItem item in nestedItems) flyout.Items.Add(item);
                 return;
             }
 
             currentMatches = entries.Where(en => Matches(en, query, groupBySourceType)).ToList();
-            foreach (var entry in currentMatches)
-            {
-                var captured = entry;
-                var flat = new MenuItem
-                {
+            foreach (EventTypeMenuEntry entry in currentMatches) {
+                EventTypeMenuEntry captured = entry;
+                var flat = new MenuItem {
                     Header = MakeHeader(entry.Category is { Length: > 0 }
                         ? $"{entry.Source} - {entry.Category} - {entry.Label}"
                         : $"{entry.Source} - {entry.Label}", entry.IsSelected)
@@ -75,8 +66,7 @@ public static class EventTypeMenu
             }
         };
 
-        searchBox.KeyDown += (_, e) =>
-        {
+        searchBox.KeyDown += (_, e) => {
             if (e.Key != Key.Enter || currentMatches.Count == 0) return;
             e.Handled = true;
             flyout.Hide();
@@ -87,20 +77,17 @@ public static class EventTypeMenu
         flyout.ShowAt(placementTarget);
     }
 
-    private static bool Matches(EventTypeMenuEntry entry, string query, bool groupBySourceType)
-    {
-        var haystack = groupBySourceType
+    private static bool Matches(EventTypeMenuEntry entry, string query, bool groupBySourceType) {
+        string haystack = groupBySourceType
             ? $"{entry.Source.GetGroup().GetLabel()} {entry.Source} {entry.Category} {entry.Label}"
             : $"{entry.Source} {entry.Category} {entry.Label}";
         return haystack.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static List<MenuItem> BuildNested(IReadOnlyList<EventTypeMenuEntry> entries, bool groupBySourceType)
-    {
-        if (!groupBySourceType)
-        {
+    private static List<MenuItem> BuildNested(IReadOnlyList<EventTypeMenuEntry> entries, bool groupBySourceType) {
+        if (!groupBySourceType) {
             var sourceItems = new List<MenuItem>();
-            foreach (var sourceGroup in entries.GroupBy(en => en.Source)
+            foreach (IGrouping<SubathonEventSource, EventTypeMenuEntry> sourceGroup in entries.GroupBy(en => en.Source)
                          .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key)))
                 sourceItems.Add(BuildSourceItem(sourceGroup, out _));
             return sourceItems;
@@ -108,19 +95,17 @@ public static class EventTypeMenu
 
         var groupItems = new List<MenuItem>();
 
-        var groups = entries
+        IOrderedEnumerable<IGrouping<SubathonSourceGroup, EventTypeMenuEntry>> groups = entries
             .GroupBy(en => en.Source.GetGroup())
             .OrderBy(g => g.Min(en => SubathonEventSourceHelper.GetSourceOrder(en.Source)));
 
-        foreach (var group in groups)
-        {
+        foreach (IGrouping<SubathonSourceGroup, EventTypeMenuEntry> group in groups) {
             var groupItem = new MenuItem();
-            bool groupHasSelection = false;
+            var groupHasSelection = false;
 
-            foreach (var sourceGroup in group.GroupBy(en => en.Source)
-                         .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key)))
-            {
-                var sourceItem = BuildSourceItem(sourceGroup, out bool sourceHasSelection);
+            foreach (IGrouping<SubathonEventSource, EventTypeMenuEntry> sourceGroup in group.GroupBy(en => en.Source)
+                         .OrderBy(g => SubathonEventSourceHelper.GetSourceOrder(g.Key))) {
+                MenuItem sourceItem = BuildSourceItem(sourceGroup, out bool sourceHasSelection);
                 groupHasSelection |= sourceHasSelection;
                 groupItem.Items.Add(sourceItem);
             }
@@ -133,48 +118,42 @@ public static class EventTypeMenu
     }
 
     private static MenuItem BuildSourceItem(IGrouping<SubathonEventSource, EventTypeMenuEntry> sourceGroup,
-        out bool hasSelection)
-    {
+        out bool hasSelection) {
         var sourceItem = new MenuItem();
         hasSelection = false;
         var categoryItems = new Dictionary<string, MenuItem>(StringComparer.OrdinalIgnoreCase);
         var categorySelections = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var entry in sourceGroup)
-        {
-            var captured = entry;
+        foreach (EventTypeMenuEntry entry in sourceGroup) {
+            EventTypeMenuEntry captured = entry;
             var leaf = new MenuItem { Header = MakeHeader(entry.Label, entry.IsSelected) };
             hasSelection |= entry.IsSelected;
             leaf.Click += (_, _) => captured.OnSelected();
 
-            if (entry.Category is { Length: > 0 } category)
-            {
-                if (!categoryItems.TryGetValue(category, out var categoryItem))
-                {
+            if (entry.Category is { Length: > 0 } category) {
+                if (!categoryItems.TryGetValue(category, out MenuItem? categoryItem)) {
                     categoryItem = new MenuItem();
                     categoryItems[category] = categoryItem;
                     sourceItem.Items.Add(categoryItem);
                 }
+
                 categoryItem.Items.Add(leaf);
                 categorySelections[category] = categorySelections.GetValueOrDefault(category) | entry.IsSelected;
             }
-            else
-            {
+            else {
                 sourceItem.Items.Add(leaf);
             }
         }
 
-        foreach (var (category, categoryItem) in categoryItems)
+        foreach ((string category, MenuItem categoryItem) in categoryItems)
             categoryItem.Header = MakeHeader(category, categorySelections.GetValueOrDefault(category));
 
         sourceItem.Header = MakeHeader(sourceGroup.Key.ToString(), hasSelection);
         return sourceItem;
     }
 
-    private static TextBlock MakeHeader(string text, bool hasSelection)
-    {
-        var header = new TextBlock
-        {
+    private static TextBlock MakeHeader(string text, bool hasSelection) {
+        var header = new TextBlock {
             Text = text,
             FontWeight = hasSelection ? FontWeight.SemiBold : FontWeight.Normal
         };

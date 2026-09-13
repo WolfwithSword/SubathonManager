@@ -2,29 +2,26 @@ using System.Text.RegularExpressions;
 
 namespace SubathonManager.Core;
 
-public static partial class ResourcePaths
-{
+public static partial class ResourcePaths {
     public const string UrlPrefix = "/resources/";
     public const string BundleFolder = "resources";
-
-    public static string Root => Path.GetFullPath("./resources");
     public static readonly string[] DefaultFolders = ["images", "images/logos", "audio"]; // think of more later?
 
-    public static void EnsureCreated()
-    {
-        try
-        {
+    public static string Root => Path.GetFullPath("./resources");
+
+    public static void EnsureCreated() {
+        try {
             Directory.CreateDirectory(Root);
-            foreach (var folder in DefaultFolders)
+            foreach (string folder in DefaultFolders)
                 Directory.CreateDirectory(Path.Combine(Root, folder.Replace('/', Path.DirectorySeparatorChar)));
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
     }
 
-    public static List<string> EnumerateRelative()
-    {
-        try
-        {
+    public static List<string> EnumerateRelative() {
+        try {
             string root = Root;
             if (!Directory.Exists(root)) return [];
 
@@ -34,26 +31,24 @@ public static partial class ResourcePaths
                 .OrderBy(rel => rel, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
-        catch { return []; }
+        catch {
+            return [];
+        }
     }
 
-    public static IEnumerable<string> FindReferences(string? text)
-    {
+    public static IEnumerable<string> FindReferences(string? text) {
         if (string.IsNullOrEmpty(text)) yield break;
 
-        foreach (Match m in ReferenceRegex().Matches(text))
-        {
+        foreach (Match m in ReferenceRegex().Matches(text)) {
             string? rel = NormalizeReference(m.Groups[1].Value);
             if (rel != null) yield return rel;
         }
     }
 
-    public static string RewriteReferences(string text, Func<string, string?> prefixFor)
-    {
+    public static string RewriteReferences(string text, Func<string, string?> prefixFor) {
         if (string.IsNullOrEmpty(text)) return text;
 
-        return ReferenceRegex().Replace(text, m =>
-        {
+        return ReferenceRegex().Replace(text, m => {
             string? rel = NormalizeReference(m.Groups[1].Value);
             if (rel == null) return m.Value;
 
@@ -62,33 +57,34 @@ public static partial class ResourcePaths
         });
     }
 
-    private static string? NormalizeReference(string captured)
-    {
+    private static string? NormalizeReference(string captured) {
         string rel = captured.Split('?')[0].Split('#')[0].Trim('/');
         if (rel.Length == 0) return null;
 
-        try { return Uri.UnescapeDataString(rel); }
-        catch { return rel; }
+        try {
+            return Uri.UnescapeDataString(rel);
+        }
+        catch {
+            return rel;
+        }
     }
 
-    public static string? RelativeFromUrl(string? value)
-    {
+    public static string? RelativeFromUrl(string? value) {
         if (!IsResourceUrl(value)) return null;
         string rel = value!.Replace('\\', '/')[UrlPrefix.Length..].Split('?')[0].Split('#')[0].Trim('/');
         return rel.Length == 0 ? null : rel;
     }
 
-    public static bool IsResourceUrl(string? value)
-        => !string.IsNullOrWhiteSpace(value)
-           && value.Replace('\\', '/').StartsWith(UrlPrefix, StringComparison.OrdinalIgnoreCase);
+    public static bool IsResourceUrl(string? value) {
+        return !string.IsNullOrWhiteSpace(value)
+               && value.Replace('\\', '/').StartsWith(UrlPrefix, StringComparison.OrdinalIgnoreCase);
+    }
 
-    public static string? ToResourceUrl(string? localPath)
-    {
+    public static string? ToResourceUrl(string? localPath) {
         if (string.IsNullOrWhiteSpace(localPath)) return null;
         if (IsResourceUrl(localPath)) return localPath.Replace('\\', '/');
 
-        try
-        {
+        try {
             string root = Root;
             string full = Path.GetFullPath(localPath);
 
@@ -98,15 +94,15 @@ public static partial class ResourcePaths
             string relative = full[(root.Length + 1)..].Replace('\\', '/').Trim('/');
             return relative.Length == 0 ? null : UrlPrefix + relative;
         }
-        catch { return null; }
+        catch {
+            return null;
+        }
     }
 
-    public static string? ToLocalPath(string? resourceUrl)
-    {
+    public static string? ToLocalPath(string? resourceUrl) {
         if (!IsResourceUrl(resourceUrl)) return null;
 
-        try
-        {
+        try {
             string relative = resourceUrl!.Replace('\\', '/')[UrlPrefix.Length..].Trim('/');
             string root = Root;
             string full = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar)));
@@ -115,14 +111,15 @@ public static partial class ResourcePaths
                 ? full
                 : null;
         }
-        catch { return null; }
+        catch {
+            return null;
+        }
     }
 
     [GeneratedRegex(@"(?<![^\s""'`(=,;\[])/resources/([^""'`\s\\>)]+)", RegexOptions.IgnoreCase)]
     private static partial Regex ReferenceRegex();
 
-    public static string? ResolveRequestPath(string? requestPath)
-    {
+    public static string? ResolveRequestPath(string? requestPath) {
         if (string.IsNullOrWhiteSpace(requestPath)) return null;
 
         string relative = requestPath.Split('?')[0];
@@ -132,8 +129,7 @@ public static partial class ResourcePaths
 
         if (relative.Length == 0) return null;
 
-        try
-        {
+        try {
             relative = Uri.UnescapeDataString(relative);
             if (relative.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return null;
 
@@ -145,6 +141,8 @@ public static partial class ResourcePaths
 
             return File.Exists(full) ? full : null;
         }
-        catch { return null; }
+        catch {
+            return null;
+        }
     }
 }
