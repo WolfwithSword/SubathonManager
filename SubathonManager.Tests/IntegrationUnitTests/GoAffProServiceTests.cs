@@ -232,8 +232,8 @@ public class GoAffProServiceTests {
         Assert.NotNull(status);
         Assert.True(status);
         await service.StopAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(1, webserver.PostCallCount);
-        Assert.Equal(1, webserver.GetCallCount);
+        Assert.Equal(1, webserver.CallCount("POST", "/user/login"));
+        Assert.Equal(1, webserver.CallCount("GET", "/user/sites"));
     }
 
     [Fact]
@@ -307,8 +307,8 @@ public class GoAffProServiceTests {
         Assert.NotNull(status);
         Assert.False(status);
         await service.StopAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(1, webserver.PostCallCount);
-        Assert.Equal(2, webserver.GetCallCount);
+        Assert.Equal(1, webserver.CallCount("POST", "/user/login"));
+        Assert.Equal(2, webserver.CallCount("GET", "/user/sites"));
     }
 
     [Fact]

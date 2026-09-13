@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -8,6 +9,10 @@ namespace SubathonManager.Tests.Utility;
 
 public class MockWebServerHost : IAsyncDisposable {
     private readonly WebApplication _app;
+
+    private readonly ConcurrentDictionary<(string method, string path), int> _callCounts = new();
+    private int _getCallCount;
+    private int _postCallCount;
 
     private readonly Dictionary<(string method, string path), Func<HttpRequest, (int statusCode, string body)>>
         _dynamicRoutes = new();
@@ -23,8 +28,9 @@ public class MockWebServerHost : IAsyncDisposable {
         _app = builder.Build();
 
         _app.Use(async (context, next) => {
-            if (context.Request.Method == "GET") GetCallCount += 1;
-            else if (context.Request.Method == "POST") PostCallCount += 1;
+            if (context.Request.Method == "GET") Interlocked.Increment(ref _getCallCount);
+            else if (context.Request.Method == "POST") Interlocked.Increment(ref _postCallCount);
+            _callCounts.AddOrUpdate((context.Request.Method, context.Request.Path.Value ?? "/"), 1, (_, c) => c + 1);
             // useful for breakpoint checking
             Console.WriteLine(
                 $"[MockServer] Incoming: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}");
@@ -63,8 +69,12 @@ public class MockWebServerHost : IAsyncDisposable {
     }
 
     public string BaseUrl { get; }
-    public int GetCallCount { get; private set; }
-    public int PostCallCount { get; private set; }
+    public int GetCallCount => Volatile.Read(ref _getCallCount);
+    public int PostCallCount => Volatile.Read(ref _postCallCount);
+
+    public int CallCount(string method, string path) {
+        return _callCounts.GetValueOrDefault((method, path));
+    }
 
     public async ValueTask DisposeAsync() {
         await _app.StopAsync();
