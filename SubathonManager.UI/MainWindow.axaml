@@ -135,16 +135,22 @@
                                 <!-- Pause / Lock + Timer -->
                                 <Grid Margin="124,0,0,0" ColumnDefinitions="180,*">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="12,0,16,5">
-                                        <Button x:Name="TogglePauseTimerBtn" Click="TogglePauseSubathon_Click"
-                                                ToolTip.Tip="Resume"
-                                                Classes="iconbtn" Width="34" Height="34" Margin="0,10,6,5">
-                                            <ctl:SymIcon x:Name="PauseIcon" Glyph="Pause16" />
-                                        </Button>
-                                        <Button x:Name="ToggleLockTimerBtn" Click="ToggleLockSubathon_Click"
-                                                Classes="iconbtn"
-                                                Width="34" Height="34" Margin="0,10,6,5">
-                                            <ctl:SymIcon x:Name="LockIcon" Glyph="LockClosed16" />
-                                        </Button>
+                                        <Border x:Name="PauseButtonBorder" VerticalAlignment="Center" CornerRadius="6"
+                                                BorderThickness="1" BorderBrush="Transparent" Margin="0,10,6,5">
+                                            <Button x:Name="TogglePauseTimerBtn" Click="TogglePauseSubathon_Click"
+                                                    ToolTip.Tip="Resume"
+                                                    Classes="iconbtn" Width="34" Height="34">
+                                                <ctl:SymIcon x:Name="PauseIcon" Glyph="Pause16" />
+                                            </Button>
+                                        </Border>
+                                        <Border x:Name="LockButtonBorder" VerticalAlignment="Center" CornerRadius="6"
+                                                BorderThickness="1" BorderBrush="Transparent" Margin="0,10,6,5">
+                                            <Button x:Name="ToggleLockTimerBtn" Click="ToggleLockSubathon_Click"
+                                                    Classes="iconbtn"
+                                                    Width="34" Height="34">
+                                                <ctl:SymIcon x:Name="LockIcon" Glyph="LockClosed16" />
+                                            </Button>
+                                        </Border>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                         <ctl:SymIcon x:Name="LockStatus" Glyph="LockClosed16" Margin="4" />

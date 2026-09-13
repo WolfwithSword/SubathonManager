@@ -23,6 +23,9 @@ public partial class MainWindow {
     internal readonly IDbContextFactory<AppDbContext> _factory =
         AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
+    private static readonly SolidColorBrush PausedBorderBrush = new(Color.FromRgb(0xF5, 0xA6, 0x23));
+    private static readonly SolidColorBrush LockedBorderBrush = new(Color.FromRgb(0xE0, 0x52, 0x52));
+
     private DateTime? _lastUpdatedTimerAt;
 
     private void InitHome() {
@@ -73,6 +76,9 @@ public partial class MainWindow {
 
             ToolTip.SetTip(TogglePauseTimerBtn, subathon.IsPaused ? "Resume" : "Pause");
             ToolTip.SetTip(ToggleLockTimerBtn, subathon.IsLocked ? "Unlock" : "Lock");
+
+            PauseButtonBorder.BorderBrush = subathon.IsPaused ? PausedBorderBrush : Brushes.Transparent;
+            LockButtonBorder.BorderBrush = subathon.IsLocked ? LockedBorderBrush : Brushes.Transparent;
 
             string capGlyph = subathon.CapDateTime.HasValue && subathon.CapDateTime > DateTime.Now
                 ? "Flag20"
