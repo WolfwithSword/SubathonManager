@@ -56,7 +56,7 @@ public class AppDbContext : DbContext {
         {
             string dbPath = Config.DatabasePath;
             Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-            optionsBuilder.UseSqlite($"Data Source={dbPath}");
+            optionsBuilder.UseAppSqlite(dbPath);
         }
     }
 

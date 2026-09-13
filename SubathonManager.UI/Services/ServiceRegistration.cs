@@ -117,7 +117,7 @@ public static class ServiceRegistration {
     private static void ConfigureDatabase(IServiceProvider sp, DbContextOptionsBuilder options) {
         string dbPath = Config.DatabasePath;
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-        options.UseSqlite($"Data Source={dbPath}");
+        options.UseAppSqlite(dbPath);
     }
 
     private static CurrencyService BuildCurrencyService(IServiceProvider sp) {

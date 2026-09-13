@@ -30,6 +30,8 @@ namespace SubathonManager.UI.Views.WheelSpin;
 
 public partial class WheelEditor : UserControl {
     private const int HistoryPageSize = 10;
+    private const int SpinCooldownMs = 6000;
+    private const int MaxQueuedSpins = 50;
 
     private static readonly SolidColorBrush SelectedRowBrush = new(Color.FromArgb(30, 100, 149, 237));
 
@@ -45,6 +47,7 @@ public partial class WheelEditor : UserControl {
     private int _historyOffset;
     private bool _initialized;
     private bool _isSpinning;
+    private int _queuedSpins;
     private volatile bool _multiplierActive;
     private int _multiplierRefreshQueued;
     private WheelItem? _selectedItem;
@@ -835,7 +838,19 @@ public partial class WheelEditor : UserControl {
 
     private void OnWheelSpinRequested() {
         Dispatcher.UIThread.Post(async void () => {
-            if (_activeWheel == null || _isSpinning || !SpinWheelBtn.IsEnabled) return;
+            if (_activeWheel == null) return;
+            if (_isSpinning) {
+                if (_queuedSpins >= MaxQueuedSpins) {
+                    _logger?.LogWarning("[WheelSpin] Spin queue full ({Max}); ignoring request.", MaxQueuedSpins);
+                    return;
+                }
+
+                _queuedSpins++;
+                _logger?.LogInformation("[WheelSpin] Spin already in progress; queued (queue={Queued}).",
+                    _queuedSpins);
+                return;
+            }
+
             await PerformSpinAsync();
         });
     }
@@ -844,6 +859,37 @@ public partial class WheelEditor : UserControl {
         if (_activeWheel == null || _isSpinning) return;
         _isSpinning = true;
         SpinWheelBtn.IsEnabled = false;
+
+        try {
+            while (true) {
+                try {
+                    await RunSingleSpinAsync();
+                }
+                catch (Exception ex) {
+                    _logger?.LogError(ex, "[WheelSpin] Spin failed: {Message}", ex.Message);
+                }
+
+                await Task.Delay(SpinCooldownMs);
+                if (_queuedSpins <= 0 || _activeWheel == null) break;
+                _queuedSpins--;
+                _logger?.LogInformation("[WheelSpin] Running queued spin ({Remaining} left after this)",
+                    _queuedSpins);
+            }
+        }
+        catch (Exception ex) {
+            _logger?.LogError(ex, "[WheelSpin] Spin loop failed: {Message}", ex.Message);
+        }
+        finally {
+            await Dispatcher.UIThread.InvokeAsync(() => {
+                _queuedSpins = 0;
+                _isSpinning = false;
+                SpinWheelBtn.IsEnabled = true;
+            });
+        }
+    }
+
+    private async Task RunSingleSpinAsync() {
+        if (_activeWheel == null) return;
 
         await using (AppDbContext db = await _factory.CreateDbContextAsync()) {
             WheelSet? tracked = await db.WheelSets.FindAsync(_activeWheel.Id);
@@ -907,7 +953,7 @@ public partial class WheelEditor : UserControl {
                     case WheelSpinActionType.AddTime:
                     case WheelSpinActionType.SubtractTime: {
                         TimeSpan duration = Utils.ParseDurationString(item.Action.Parameter);
-                        if (duration == TimeSpan.Zero) return;
+                        if (duration == TimeSpan.Zero) break;
                         SubathonCommandType cmd = item.Action.ActionType.ToCommandType();
                         SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
                             Source = SubathonEventSource.WheelSpin,
@@ -944,11 +990,6 @@ public partial class WheelEditor : UserControl {
             }
 
         RaiseWheelDataChanged();
-        _isSpinning = false;
-        await Dispatcher.UIThread.InvokeAsync(async () => {
-            await Task.Delay(1500);
-            SpinWheelBtn.IsEnabled = true;
-        });
     }
 
     private WheelItem? PickWeightedItem() {
