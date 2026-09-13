@@ -560,4 +560,256 @@ public class WebServerLeaderboardTests {
         Assert.Equal(10, root.GetProperty("results")[0].GetProperty("value").GetDouble());
         AppServices.Provider = null!;
     }
+
+    [Fact]
+    public async Task Alias_Attributes_Alternate_Name_To_Canonical_User() {
+        WebServer server = CreateServer();
+        await SeedAsync(server,
+            GiftSub("doodleGuy", "1000", 1, 10),
+            Donation("MayhemMan", "5.00", 25),
+            GiftSub("bob", "1000", 1, 5));
+
+        JsonElement root = await QueryAsync(server,
+            "type=TwitchGiftSub,StreamElementsDonation&alias=doodleGuy:MayhemMan");
+
+        Assert.Equal(2, root.GetProperty("user_count").GetInt32());
+
+        JsonElement results = root.GetProperty("results");
+        Assert.Equal("doodleGuy", results[0].GetProperty("user").GetString());
+        Assert.Equal(35, results[0].GetProperty("value").GetDouble());
+        Assert.Equal(2, results[0].GetProperty("events").GetInt32());
+
+        JsonElement echoed = root.GetProperty("aliases").GetProperty("doodleGuy");
+        Assert.Equal("MayhemMan", echoed[0].GetString());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Accepts_Multiple_Alternates_And_Repeated_Params() {
+        WebServer server = CreateServer();
+        await SeedAsync(server,
+            GiftSub("doodleGuy", "1000", 1, 10),
+            Donation("MayhemMan", "5.00", 5),
+            Donation("dg_yt", "5.00", 5),
+            Donation("@DoodleG", "5.00", 5));
+
+        JsonElement root = await QueryAsync(server,
+            "type=TwitchGiftSub,StreamElementsDonation&alias=doodleGuy:MayhemMan|dg_yt&alias=doodleGuy:DoodleG");
+
+        Assert.Equal(1, root.GetProperty("user_count").GetInt32());
+        Assert.Equal(25, root.GetProperty("results")[0].GetProperty("value").GetDouble());
+        Assert.Equal(3, root.GetProperty("aliases").GetProperty("doodleGuy").GetArrayLength());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Matching_Is_Case_Insensitive() {
+        WebServer server = CreateServer();
+        await SeedAsync(server,
+            GiftSub("doodleGuy", "1000", 1, 10),
+            Donation("mayhemman", "5.00", 5));
+
+        JsonElement root = await QueryAsync(server,
+            "type=TwitchGiftSub,StreamElementsDonation&alias=DOODLEGUY:MayhemMan");
+
+        Assert.Equal(1, root.GetProperty("user_count").GetInt32());
+        Assert.Equal(15, root.GetProperty("results")[0].GetProperty("value").GetDouble());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Chains_Collapse_To_The_Final_Canonical() {
+        WebServer server = CreateServer();
+        await SeedAsync(server,
+            GiftSub("doodleGuy", "1000", 1, 10),
+            Donation("MayhemMan", "5.00", 5),
+            Donation("dg_alt", "5.00", 5));
+
+        // dg_alt -> MayhemMan -> doodleGuy
+        JsonElement root = await QueryAsync(server,
+            "type=TwitchGiftSub,StreamElementsDonation&alias=doodleGuy:MayhemMan,MayhemMan:dg_alt");
+
+        Assert.Equal(1, root.GetProperty("user_count").GetInt32());
+        Assert.Equal("doodleGuy", root.GetProperty("results")[0].GetProperty("user").GetString());
+        Assert.Equal(20, root.GetProperty("results")[0].GetProperty("value").GetDouble());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Applies_In_Single_Type_Mode_Too() {
+        WebServer server = CreateServer();
+        await SeedAsync(server,
+            GiftSub("doodleGuy", "1000", 2, 10),
+            GiftSub("MayhemMan", "1000", 3, 10));
+
+        JsonElement root = await QueryAsync(server, "type=TwitchGiftSub&alias=doodleGuy:MayhemMan");
+
+        Assert.Equal(1, root.GetProperty("user_count").GetInt32());
+        Assert.Equal(50, root.GetProperty("results")[0].GetProperty("value").GetDouble());
+        Assert.Equal(5, root.GetProperty("results")[0].GetProperty("count").GetInt32());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Blacklist_Works_On_Either_Name() {
+        WebServer server = CreateServer();
+        await SeedAsync(server,
+            GiftSub("doodleGuy", "1000", 1, 10),
+            Donation("MayhemMan", "5.00", 5),
+            GiftSub("bob", "1000", 1, 5));
+
+        JsonElement byAlt = await QueryAsync(server,
+            "type=TwitchGiftSub,StreamElementsDonation&alias=doodleGuy:MayhemMan&blacklist=MayhemMan");
+        Assert.Equal(10, byAlt.GetProperty("results")[0].GetProperty("value").GetDouble());
+
+        JsonElement byCanonical = await QueryAsync(server,
+            "type=TwitchGiftSub,StreamElementsDonation&alias=doodleGuy:MayhemMan&blacklist=doodleGuy");
+        Assert.Equal(1, byCanonical.GetProperty("user_count").GetInt32());
+        Assert.Equal("bob", byCanonical.GetProperty("results")[0].GetProperty("user").GetString());
+        AppServices.Provider = null!;
+    }
+
+    [Theory]
+    [InlineData("alias=doodleGuy")]
+    [InlineData("alias=:MayhemMan")]
+    [InlineData("alias=doodleGuy:")]
+    public async Task Alias_Malformed_Entry_Returns_400(string aliasQuery) {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+
+        (int code, string body) = await RawQueryAsync(server, $"type=TwitchGiftSub&{aliasQuery}");
+
+        Assert.Equal(400, code);
+        Assert.Contains("alias", body, StringComparison.OrdinalIgnoreCase);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Conflicting_Canonicals_Return_400() {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+
+        (int code, string body) = await RawQueryAsync(server,
+            "type=TwitchGiftSub&alias=doodleGuy:MayhemMan,otherGuy:MayhemMan");
+
+        Assert.Equal(400, code);
+        Assert.Contains("MayhemMan", body);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Alias_Loop_Returns_400() {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+
+        (int code, string body) = await RawQueryAsync(server,
+            "type=TwitchGiftSub&alias=a:b,b:c,c:a");
+
+        Assert.Equal(400, code);
+        Assert.Contains("loop", body, StringComparison.OrdinalIgnoreCase);
+        AppServices.Provider = null!;
+    }
+
+    private static async Task<Guid> SeedInactiveAsync(WebServer server, string name, params SubathonEvent[] events) {
+        var subathon = new SubathonData { IsActive = false, Name = name };
+        await using AppDbContext db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        db.SubathonDatas.Add(subathon);
+        foreach (SubathonEvent ev in events) {
+            ev.SubathonId = subathon.Id;
+            ev.ProcessedToSubathon = true;
+            db.SubathonEvents.Add(ev);
+        }
+
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return subathon.Id;
+    }
+
+    [Fact]
+    public async Task Subathon_Param_Defaults_To_Active() {
+        WebServer server = CreateServer();
+        Guid active = await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+        await SeedInactiveAsync(server, "Old One", GiftSub("bob", "1000", 1, 99));
+
+        JsonElement root = await QueryAsync(server, "type=TwitchGiftSub");
+
+        Assert.Equal(active.ToString(), root.GetProperty("subathon_id").GetString());
+        Assert.True(root.GetProperty("subathon_active").GetBoolean());
+        Assert.Equal(1, root.GetProperty("user_count").GetInt32());
+        Assert.Equal("alice", root.GetProperty("results")[0].GetProperty("user").GetString());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Subathon_Param_Selects_A_Past_Subathon() {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+        Guid old = await SeedInactiveAsync(server, "Old One", GiftSub("bob", "1000", 1, 99));
+
+        JsonElement root = await QueryAsync(server, $"type=TwitchGiftSub&subathon={old}");
+
+        Assert.Equal(old.ToString(), root.GetProperty("subathon_id").GetString());
+        Assert.Equal("Old One", root.GetProperty("subathon_name").GetString());
+        Assert.False(root.GetProperty("subathon_active").GetBoolean());
+        Assert.Equal("bob", root.GetProperty("results")[0].GetProperty("user").GetString());
+        Assert.Equal(99, root.GetProperty("results")[0].GetProperty("value").GetDouble());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Subathon_Param_Accepts_Literal_Active() {
+        WebServer server = CreateServer();
+        Guid active = await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+        await SeedInactiveAsync(server, "Old One", GiftSub("bob", "1000", 1, 99));
+
+        JsonElement root = await QueryAsync(server, "type=TwitchGiftSub&subathon=active");
+
+        Assert.Equal(active.ToString(), root.GetProperty("subathon_id").GetString());
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Subathon_Param_Invalid_Guid_Returns_400() {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+
+        (int code, string body) = await RawQueryAsync(server, "type=TwitchGiftSub&subathon=not-a-guid");
+
+        Assert.Equal(400, code);
+        Assert.Contains("subathon", body, StringComparison.OrdinalIgnoreCase);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Subathon_Param_Unknown_Id_Returns_400() {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+        var missing = Guid.NewGuid();
+
+        (int code, string body) = await RawQueryAsync(server, $"type=TwitchGiftSub&subathon={missing}");
+
+        Assert.Equal(400, code);
+        Assert.Contains(missing.ToString(), body);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Amounts_Endpoint_Honours_Subathon_Param() {
+        WebServer server = CreateServer();
+        await SeedAsync(server, GiftSub("alice", "1000", 1, 10));
+        Guid old = await SeedInactiveAsync(server, "Old One", GiftSub("bob", "1000", 1, 99));
+
+        var ctx = new MockHttpContext {
+            Method = "GET",
+            Path = "/api/data/amounts",
+            QueryString = $"subathon={old}"
+        };
+        await server.HandleAmountsRequestAsync(ctx);
+
+        Assert.Equal(200, ctx.StatusCode);
+        JsonElement root = JsonDocument.Parse(ctx.ResponseBody).RootElement;
+        Assert.Equal(old.ToString(), root.GetProperty("subathon_id").GetString());
+        Assert.Equal("Old One", root.GetProperty("subathon_name").GetString());
+        Assert.False(root.GetProperty("subathon_active").GetBoolean());
+        AppServices.Provider = null!;
+    }
 }

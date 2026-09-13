@@ -10,6 +10,21 @@
             <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#424242" />
             <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#484848" />
             <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFFFFF" />
+
+            <SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="#2E2E2E" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="#3A3A3A" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="#454545" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderDraggedBackgroundBrush" Color="#3A3A3A" />
+            <SolidColorBrush x:Key="DataGridGridLinesBrush" Color="#4A4A4A" />
+            <SolidColorBrush x:Key="DataGridFillerColumnGridLinesBrush" Color="#4A4A4A" />
+            <SolidColorBrush x:Key="DataGridRowBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="DataGridCellBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="#2F5E8C" />
+            <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="#3A73A8" />
+            <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" Color="#3A3F45" />
+            <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" Color="#454B52" />
+
             <SolidColorBrush x:Key="TextFillColorPrimaryBrushSoft" Color="#CCCCCC" />
             <SolidColorBrush x:Key="AppGeneralBackground" Color="#202020" />
 
@@ -48,6 +63,21 @@
             <SolidColorBrush x:Key="OpaqueSecondaryBackgroundHover" Color="#b0b0b0" />
             <SolidColorBrush x:Key="OpaqueSecondaryBackgroundPressed" Color="#8f8f8f" />
             <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#101010" />
+
+            <SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="#101010" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="#dcdcdc" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="#cccccc" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="#bcbcbc" />
+            <SolidColorBrush x:Key="DataGridColumnHeaderDraggedBackgroundBrush" Color="#cccccc" />
+            <SolidColorBrush x:Key="DataGridGridLinesBrush" Color="#a8a8a8" />
+            <SolidColorBrush x:Key="DataGridFillerColumnGridLinesBrush" Color="#a8a8a8" />
+            <SolidColorBrush x:Key="DataGridRowBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="DataGridCellBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="DataGridRowSelectedBackgroundBrush" Color="#A8CCEC" />
+            <SolidColorBrush x:Key="DataGridRowSelectedHoveredBackgroundBrush" Color="#93BEE4" />
+            <SolidColorBrush x:Key="DataGridRowSelectedUnfocusedBackgroundBrush" Color="#c8c8c8" />
+            <SolidColorBrush x:Key="DataGridRowSelectedHoveredUnfocusedBackgroundBrush" Color="#bcbcbc" />
+
             <SolidColorBrush x:Key="TextFillColorPrimaryBrushSoft" Color="#1c1c1c" />
             <SolidColorBrush x:Key="AppGeneralBackground" Color="#ececec" />
 

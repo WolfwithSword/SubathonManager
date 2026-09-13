@@ -21,9 +21,9 @@
                         <Button Content="Export Events" Width="120" VerticalAlignment="Center"
                                 Click="ExportEvents_Click" FontSize="12" Margin="8,0,0,10"
                                 ToolTip.Tip="Export events to CSV" />
-                        <Button Content="View Summary" Width="120" VerticalAlignment="Center"
+                        <Button Content="Subathon Summary" Width="150" VerticalAlignment="Center"
                                 Click="EventsSummary_Click" FontSize="12" Margin="8,0,0,10"
-                                ToolTip.Tip="View subathon/donothon summary as JSON in browser" />
+                                ToolTip.Tip="Browse, filter and break down events in a subathon" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Grid.Column="1" HorizontalAlignment="Right">

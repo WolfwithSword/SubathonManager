@@ -43,6 +43,40 @@
 
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,16,5">
                                     <Panel>
+                                        <Button x:Name="RenameSubathonBtn" Click="RenameSubathonBtn_Click"
+                                                ToolTip.Tip="View / rename the current subathon"
+                                                Width="30" Height="30" Margin="0,2,8,5" Padding="2">
+                                            <ctl:SymIcon Glyph="Edit20" />
+                                        </Button>
+                                        <!-- ReSharper disable once Xaml.InvalidType -->
+                                        <Popup x:Name="RenamePopup" PlacementTarget="{Binding #RenameSubathonBtn}"
+                                               Placement="Bottom" IsLightDismissEnabled="True">
+                                            <Border Background="{DynamicResource ApplicationBackgroundBrush}"
+                                                    BorderBrush="{DynamicResource ControlElevationBorderBrush}"
+                                                    BorderThickness="1" CornerRadius="8" Padding="14">
+                                                <StackPanel Width="300">
+                                                    <TextBlock Text="Subathon name" FontSize="14"
+                                                               FontWeight="SemiBold" Margin="0,0,0,10" />
+                                                    <TextBlock x:Name="RenameCurrentLabel" Text="" FontSize="12"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                               Margin="0,0,0,10" />
+                                                    <TextBox x:Name="SubathonNameInput" Height="34" MaxLength="120"
+                                                             PlaceholderText="Subathon name" />
+                                                    <TextBlock x:Name="RenameValidationMsg" Text="" FontSize="11"
+                                                               Foreground="OrangeRed" Margin="0,4,0,8"
+                                                               TextWrapping="Wrap" />
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                        <Button Content="Cancel" Width="72" Height="30"
+                                                                Margin="0,0,8,0" Click="CancelRename_Click" />
+                                                        <Button Content="Save" Classes="accent" Width="80" Height="30"
+                                                                Click="SaveRename_Click" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </Popup>
+                                    </Panel>
+                                    <Panel>
                                         <Button x:Name="CapBtn" Click="CapBtn_Click" ToolTip.Tip="Set End Date (Cap)"
                                                 Width="30" Height="30" Margin="0,2,8,5" Padding="2">
                                             <ctl:SymIcon x:Name="CapIcon" Glyph="Flag20" />

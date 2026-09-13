@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -32,12 +31,10 @@ public partial class SettingsView {
         UiHelpers.OpenFolder(Config.DataFolder);
     }
 
-    private void EventsSummary_Click(object? sender, RoutedEventArgs e) {
-        var config = AppServices.Provider.GetRequiredService<IConfig>();
-        Process.Start(new ProcessStartInfo {
-            FileName = $"http://localhost:{config.Get("Server", "Port", "14040")}/api/data/amounts",
-            UseShellExecute = true
-        });
+    private async void EventsSummary_Click(object? sender, RoutedEventArgs e) {
+        var window = new SubathonSummaryWindow();
+        if (TopLevel.GetTopLevel(this) is Window owner) await window.ShowDialog(owner);
+        else window.Show();
     }
 
     private async void ExportEvents_Click(object? sender, RoutedEventArgs e) {

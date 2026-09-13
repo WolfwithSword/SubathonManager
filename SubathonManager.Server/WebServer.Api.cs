@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+using System.Collections.Specialized;
+using System.Text.Json;
+using System.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
@@ -225,12 +227,12 @@ public partial class WebServer {
     }
 
     internal async Task HandleAmountsRequestAsync(IHttpContext ctx) {
+        NameValueCollection query = HttpUtility.ParseQueryString(ctx.QueryString);
+
         await using AppDbContext db = await _factory.CreateDbContextAsync();
-        SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.IsActive);
+        (SubathonData? subathon, string? subathonError) = await ResolveSubathonAsync(db, query, true);
         if (subathon == null) {
-            await ctx.WriteResponse(400, "Invalid status request");
+            await ctx.WriteResponse(400, subathonError ?? "Invalid status request");
             return;
         }
 
@@ -246,6 +248,9 @@ public partial class WebServer {
             .Where(e => e.User != null && !e.User.StartsWith("SYSTEM") && !e.User.StartsWith("SIMULATED")).ToList();
 
         object response = new {
+            subathon_id = subathon.Id,
+            subathon_name = subathon.Name,
+            subathon_active = subathon.IsActive,
             simulated = BuildDataSummary(simulated),
             real = BuildDataSummary(real)
         };

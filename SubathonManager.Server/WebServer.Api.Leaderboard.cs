@@ -88,6 +88,13 @@ public partial class WebServer {
         HashSet<string> blacklist = ParseCsvParam(query, "blacklist", "exclude", "ignore")
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        (Dictionary<string, string>? aliases, string? aliasError) =
+            ParseUserAliases(ParseCsvParam(query, "alias", "aliases", "merge"));
+        if (aliases == null) {
+            await ReturnError(ctx, aliasError!);
+            return;
+        }
+
         bool includeUnprocessed = Utils.IsTruthy(FirstParam(query, "includeunprocessed", "unprocessed"));
 
         string targetCurrency = (FirstParam(query, "currency", "target") ??
@@ -98,9 +105,9 @@ public partial class WebServer {
         }
 
         await using AppDbContext db = await _factory.CreateDbContextAsync();
-        SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+        (SubathonData? subathon, string? subathonError) = await ResolveSubathonAsync(db, query);
         if (subathon == null) {
-            await ReturnError(ctx, "No active subathon");
+            await ReturnError(ctx, subathonError!);
             return;
         }
 
@@ -114,7 +121,7 @@ public partial class WebServer {
             .AsAsyncEnumerable();
 
         Dictionary<string, LeaderboardEntry> entries =
-            await BuildLeaderboardEntriesAsync(events, metas, blacklist, isMoney, needsTokens);
+            await BuildLeaderboardEntriesAsync(events, metas, blacklist, aliases, isMoney, needsTokens);
 
         var unconverted = new List<string>();
         Dictionary<string, double> rates = isMoney
@@ -130,6 +137,9 @@ public partial class WebServer {
         IEnumerable<(LeaderboardEntry entry, double value)> page = top > 0 ? ranked.Take(top) : ranked;
 
         object response = new {
+            subathon_id = subathon.Id,
+            subathon_name = subathon.Name,
+            subathon_active = subathon.IsActive,
             event_type = combined ? null : types[0].ToString(),
             event_types = types.Select(t => t.ToString()).ToArray(),
             source = combined ? null : primary.GetSource().ToString(),
@@ -142,6 +152,12 @@ public partial class WebServer {
             meta = metas.Count == 0 ? null : metas.OrderBy(m => m, StringComparer.OrdinalIgnoreCase).ToArray(),
             meta_ignored = combined && requestedMetas.Count > 0,
             blacklist = blacklist.OrderBy(b => b, StringComparer.OrdinalIgnoreCase).ToArray(),
+            aliases = aliases.Count == 0
+                ? null
+                : aliases.GroupBy(a => a.Value, StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key,
+                        g => g.Select(a => a.Key).OrderBy(a => a, StringComparer.OrdinalIgnoreCase).ToArray()),
             include_unprocessed = includeUnprocessed,
             top,
             user_count = ranked.Count,
@@ -165,13 +181,17 @@ public partial class WebServer {
 
     private async Task<Dictionary<string, LeaderboardEntry>> BuildLeaderboardEntriesAsync(
         IAsyncEnumerable<SubathonEvent> events, HashSet<string> metas, HashSet<string> blacklist,
-        bool needsMoney, bool needsTokens) {
+        Dictionary<string, string> aliases, bool needsMoney, bool needsTokens) {
         Dictionary<string, LeaderboardEntry> entries = new(StringComparer.OrdinalIgnoreCase);
         Dictionary<(SubathonEventType?, string?), bool> commissionFlags = new();
 
         await foreach (SubathonEvent ev in events) {
             string user = NormalizeUser(ev.User);
             if (user.Length == 0) continue;
+            
+            if (IsBlacklistedUser(user, blacklist)) continue;
+            bool aliased = aliases.TryGetValue(user, out string? canonical);
+            if (aliased) user = canonical!;
             if (IsBlacklistedUser(user, blacklist)) continue;
             if (!MatchesLeaderboardMeta(ev, metas)) continue;
 
@@ -179,6 +199,8 @@ public partial class WebServer {
                 entry = new LeaderboardEntry { User = user };
                 entries[user] = entry;
             }
+
+            if (aliased) entry.User = user;
 
             entry.Events++;
             entry.Items += Math.Max(ev.Amount, 0);
@@ -196,6 +218,26 @@ public partial class WebServer {
         }
 
         return entries;
+    }
+
+    private static async Task<(SubathonData?, string?)> ResolveSubathonAsync(AppDbContext db,
+        NameValueCollection query, bool includeMultiplier = false) {
+        IQueryable<SubathonData> set = includeMultiplier
+            ? db.SubathonDatas.Include(s => s.Multiplier).AsNoTracking()
+            : db.SubathonDatas.AsNoTracking();
+
+        string? raw = FirstParam(query, "subathon", "subathonid");
+        if (string.IsNullOrWhiteSpace(raw) || raw.Trim().Equals("active", StringComparison.OrdinalIgnoreCase)) {
+            SubathonData? active = await set.FirstOrDefaultAsync(s => s.IsActive);
+            return (active, active == null ? "No active subathon" : null);
+        }
+
+        string trimmed = raw.Trim();
+        if (!Guid.TryParse(trimmed, out Guid id))
+            return (null, $"Invalid 'subathon' parameter, expected a subathon Id or 'active': {trimmed}");
+
+        SubathonData? found = await set.FirstOrDefaultAsync(s => s.Id == id);
+        return (found, found == null ? $"No subathon with Id {id}" : null);
     }
 
     private static (List<SubathonEventType>?, string?) ParseLeaderboardTypes(List<string> raw) {
@@ -226,6 +268,52 @@ public partial class WebServer {
 
     private static string NormalizeUser(string? user) {
         return (user ?? string.Empty).Trim().TrimStart('@').Trim();
+    }
+
+    private static (Dictionary<string, string>?, string?) ParseUserAliases(List<string> raw) {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (raw.Count == 0) return (map, null);
+
+        foreach (string pair in raw) {
+            int split = pair.IndexOf(':');
+            if (split <= 0 || split == pair.Length - 1)
+                return (null, $"Invalid 'alias' entry '{pair}', expected 'canonical:alternate'");
+
+            string canonical = NormalizeUser(pair[..split]);
+            if (canonical.Length == 0)
+                return (null, $"Invalid 'alias' entry '{pair}', the canonical name is empty");
+
+            foreach (string alt in pair[(split + 1)..]
+                         .Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                         .Select(NormalizeUser)
+                         .Where(a => a.Length > 0)) {
+                if (map.TryGetValue(alt, out string? existing) &&
+                    !string.Equals(existing, canonical, StringComparison.OrdinalIgnoreCase))
+                    return (null, $"Alias '{alt}' is mapped to both '{existing}' and '{canonical}'");
+                map[alt] = canonical;
+            }
+        }
+
+        return CollapseAliasChains(map);
+    }
+
+    private static (Dictionary<string, string>?, string?) CollapseAliasChains(Dictionary<string, string> map) {
+        var collapsed = new Dictionary<string, string>(map.Count, StringComparer.OrdinalIgnoreCase);
+
+        foreach ((string alt, string canonical) in map) {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { alt };
+            string target = canonical;
+
+            while (map.TryGetValue(target, out string? next)) {
+                if (!seen.Add(target))
+                    return (null, $"Alias '{alt}' forms a loop through '{target}'");
+                target = next;
+            }
+
+            if (!string.Equals(alt, target, StringComparison.OrdinalIgnoreCase)) collapsed[alt] = target;
+        }
+
+        return (collapsed, null);
     }
 
     private static LeaderboardCategory GetLeaderboardCategory(SubathonEventType? type) {

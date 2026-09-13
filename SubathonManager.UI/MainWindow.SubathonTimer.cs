@@ -96,11 +96,25 @@ public partial class MainWindow {
             Text = "Confirm deleting the current subathon (time, points, events) and starting a new one?"
         });
 
+        var nameBox = new TextBox {
+            Text = "New Subathon", Width = 200, MaxLength = 120, Margin = new Thickness(2, 4, 0, 0)
+        };
+        var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
+        nameRow.Children.Add(new TextBlock {
+            Text = "Name:",
+            VerticalAlignment = VerticalAlignment.Center,
+            Width = 80,
+            Margin = new Thickness(16, 4, 8, 0)
+        });
+        nameRow.Children.Add(nameBox);
+        panel.Children.Add(nameRow);
+
         var initialTimeBox = new TextBox { Text = "8h", Width = 140, Margin = new Thickness(2, 4, 0, 0) };
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(new TextBlock {
             Text = "Initial Time:",
             VerticalAlignment = VerticalAlignment.Center,
+            Width = 80,
             Margin = new Thickness(16, 4, 8, 0)
         });
         row.Children.Add(initialTimeBox);
@@ -126,6 +140,8 @@ public partial class MainWindow {
         await using AppDbContext db = await _factory.CreateDbContextAsync();
 
         var subathon = new SubathonData();
+        string chosenName = (nameBox.Text ?? string.Empty).Trim();
+        if (chosenName.Length > 0) subathon.Name = chosenName;
         TimeSpan initial = Utils.ParseDurationString(initialTimeBox.Text);
         if (initial == TimeSpan.Zero) initial = TimeSpan.FromSeconds(1);
 
@@ -140,6 +156,58 @@ public partial class MainWindow {
 
         SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
         SubathonEvents.RaiseSubathonEventsDeleted([]);
+    }
+
+    private void RenameSubathonBtn_Click(object? sender, RoutedEventArgs e) {
+        if (RenamePopup.IsOpen) {
+            RenamePopup.IsOpen = false;
+            return;
+        }
+
+        using AppDbContext db = _factory.CreateDbContext();
+        SubathonData? subathon = db.SubathonDatas.AsNoTracking().FirstOrDefault(s => s.IsActive);
+
+        RenameValidationMsg.Text = string.Empty;
+        if (subathon == null) {
+            RenameCurrentLabel.Text = "No active subathon";
+            SubathonNameInput.Text = string.Empty;
+            SubathonNameInput.IsEnabled = false;
+        }
+        else {
+            RenameCurrentLabel.Text = $"Currently: {subathon.Name}";
+            SubathonNameInput.Text = subathon.Name;
+            SubathonNameInput.IsEnabled = true;
+        }
+
+        RenamePopup.IsOpen = true;
+    }
+
+    private void CancelRename_Click(object? sender, RoutedEventArgs e) {
+        RenamePopup.IsOpen = false;
+    }
+
+    private async void SaveRename_Click(object? sender, RoutedEventArgs e) {
+        string name = (SubathonNameInput.Text ?? string.Empty).Trim();
+        if (name.Length == 0) {
+            RenameValidationMsg.Text = "Enter a name";
+            return;
+        }
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
+            .FirstOrDefaultAsync(s => s.IsActive);
+        if (subathon == null) {
+            RenameValidationMsg.Text = "No active subathon";
+            return;
+        }
+
+        if (subathon.Name != name) {
+            subathon.Name = name;
+            await db.SaveChangesAsync();
+            SubathonEvents.RaiseSubathonDataUpdate(subathon, DateTime.Now);
+        }
+
+        RenamePopup.IsOpen = false;
     }
 
     private void AddTime_Click(object? sender, RoutedEventArgs e) {

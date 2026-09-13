@@ -53,13 +53,13 @@ public partial class MainWindow {
         }
 
         if (!int.TryParse(CapHourInput.Text, out int hour) || hour < 0 || hour > 23) {
-            CapValidationMsg.Text = "Hour must be 0–23.";
+            CapValidationMsg.Text = "Hour must be 0-23.";
             SetCapBtn.IsEnabled = false;
             return false;
         }
 
         if (!int.TryParse(CapMinuteInput.Text, out int minute) || minute < 0 || minute > 59) {
-            CapValidationMsg.Text = "Minute must be 0–59.";
+            CapValidationMsg.Text = "Minute must be 0-59.";
             SetCapBtn.IsEnabled = false;
             return false;
         }
