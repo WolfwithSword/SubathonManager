@@ -31,7 +31,7 @@
 
         <TextBlock FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,2,0,8"
                    TextWrapping="Wrap"
-                   Text="Install the Azure DevTunnels CLI from Microsoft. Once installed, click Check to confirm." />
+                   Text="Install the Azure DevTunnels CLI from Microsoft. Once installed, click Check to confirm. If it is installed but not found, try restarting SubathonManager" />
 
         <Separator Margin="0,4,0,8" />
 

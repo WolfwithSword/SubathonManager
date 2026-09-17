@@ -11,6 +11,7 @@
         <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
             <TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12" />
             <TextBlock x:Name="KoFiWebhookStatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12" />
+            <TextBlock Text="Please verify the URL below is setup in KoFi" VerticalAlignment="Center" FontSize="10" Margin="16 0 0 0" />
         </StackPanel>
 
         <Border x:Name="TunnelStatusBorder" BorderThickness="1" CornerRadius="4" Padding="8,6"

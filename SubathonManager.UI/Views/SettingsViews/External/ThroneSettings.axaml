@@ -14,6 +14,7 @@
                 <TextBlock Text="Status:" Width="80" VerticalAlignment="Center" FontSize="12" />
                 <TextBlock x:Name="ThroneWebhookStatusText" Text="Disconnected" VerticalAlignment="Center"
                            FontSize="12" />
+                <TextBlock Text="Please verify the URL below is setup in Throne" VerticalAlignment="Center" FontSize="10" Margin="16 0 0 0" />
             </StackPanel>
 
             <Border x:Name="TunnelStatusBorder" BorderThickness="1" CornerRadius="4" Padding="8,6"
