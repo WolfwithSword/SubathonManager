@@ -12,6 +12,33 @@ using Avalonia.VisualTree;
 namespace SubathonManager.UI.UiUtils;
 
 public static class UiHelpers {
+
+    public static void CenterOver(Window window, Window? anchor) {
+        if (anchor == null || anchor.WindowState == WindowState.Minimized) {
+            window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            return;
+        }
+
+        double scale = anchor.DesktopScaling;
+        Size anchorSize = anchor.FrameSize ?? anchor.ClientSize;
+        double width = double.IsNaN(window.Width) ? window.MinWidth : window.Width;
+        double height = double.IsNaN(window.Height) ? window.MinHeight : window.Height;
+
+        var x = (int)(anchor.Position.X + (anchorSize.Width - width) * scale / 2);
+        var y = (int)(anchor.Position.Y + (anchorSize.Height - height) * scale / 2);
+
+        PixelRect? area = anchor.Screens.ScreenFromWindow(anchor)?.WorkingArea;
+        if (area is { } a) {
+            var pixelWidth = (int)(width * scale);
+            var pixelHeight = (int)(height * scale);
+            x = Math.Max(a.X, Math.Min(x, a.Right - pixelWidth));
+            y = Math.Max(a.Y, Math.Min(y, a.Bottom - pixelHeight));
+        }
+
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.Position = new PixelPoint(x, y);
+    }
+
     public static async Task<bool> TrySetClipboardTextAsync(string text) {
         IClipboard? clipboard = GetClipboard();
         if (clipboard == null) return false;

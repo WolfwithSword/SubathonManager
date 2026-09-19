@@ -9,7 +9,7 @@
         Title="Subathon Summary"
         Width="1280" Height="820"
         MinWidth="940" MinHeight="600"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppGeneralBackground}">
 
     <Window.Styles>

@@ -31,10 +31,29 @@ public partial class SettingsView {
         UiHelpers.OpenFolder(Config.DataFolder);
     }
 
-    private async void EventsSummary_Click(object? sender, RoutedEventArgs e) {
+    private SubathonSummaryWindow? _summaryWindow;
+
+    private void EventsSummary_Click(object? sender, RoutedEventArgs e) {
+        if (_summaryWindow != null) {
+            if (_summaryWindow.WindowState == WindowState.Minimized) _summaryWindow.WindowState = WindowState.Normal;
+            _summaryWindow.Activate();
+            return;
+        }
+
         var window = new SubathonSummaryWindow();
-        if (TopLevel.GetTopLevel(this) is Window owner) await window.ShowDialog(owner);
-        else window.Show();
+        _summaryWindow = window;
+
+        Window? main = TopLevel.GetTopLevel(this) as Window;
+        void CloseWithMain(object? s, EventArgs a) => window.Close();
+        if (main != null) main.Closed += CloseWithMain;
+
+        window.Closed += (_, _) => {
+            if (main != null) main.Closed -= CloseWithMain;
+            _summaryWindow = null;
+        };
+
+        UiHelpers.CenterOver(window, main);
+        window.Show();
     }
 
     private async void ExportEvents_Click(object? sender, RoutedEventArgs e) {

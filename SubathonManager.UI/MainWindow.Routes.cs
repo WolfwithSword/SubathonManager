@@ -302,6 +302,7 @@ public partial class MainWindow {
             _editWindow = null;
         };
 
+        UiHelpers.CenterOver(_editWindow, this);
         _editWindow.Show();
         _editWindow.Activate();
     }

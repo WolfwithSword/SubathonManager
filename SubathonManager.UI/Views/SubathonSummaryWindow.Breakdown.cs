@@ -106,7 +106,7 @@ public partial class SubathonSummaryWindow {
             Add(source, count.ToString("N0"), 1);
 
         Add("Event Types", "", 0, true);
-        foreach ((SubathonEventType? type, Tally tally) in agg.Types.OrderByDescending(t => t.Value.Count)) {
+        foreach ((SubathonEventType type, Tally tally) in agg.Types.OrderByDescending(t => t.Value.Count)) {
             Add($"{type.GetSource()} {type.GetLabel()}", $"{tally.Count:N0}  ({tally.Amount:N0} amt)", 1);
 
             List<KeyValuePair<(SubathonEventType?, string), Tally>> metas = agg.Metas
@@ -135,7 +135,7 @@ public partial class SubathonSummaryWindow {
 
         var total = 0.0;
         List<string> unconverted = [];
-        var service = AppServices.Provider?.GetService<CurrencyService>();
+        var service = AppServices.Provider.GetService<CurrencyService>();
 
         foreach ((string currency, double sum) in agg.Currencies) {
             if (string.Equals(currency, target, StringComparison.OrdinalIgnoreCase)) {
