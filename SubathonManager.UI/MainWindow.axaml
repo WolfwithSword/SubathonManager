@@ -12,7 +12,6 @@
         Title="Subathon Manager"
         Width="1200" Height="800"
         MinWidth="1200" MinHeight="800"
-        CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppGeneralBackground}">
 
@@ -21,7 +20,7 @@
         <TabControl x:Name="MainWindowTabs" Classes="pagetabs" Background="Transparent">
             <TabItem Header="Home">
                 <Grid ColumnDefinitions="500,*">
-                    <Grid Grid.Column="0" Margin="10" RowDefinitions="Auto,*">
+                    <Grid Grid.Column="0" Margin="10" RowDefinitions="Auto,*" MinWidth="500">
                         <StackPanel Grid.Row="0" Spacing="6">
                             <TextBlock Text="Welcome to Subathon Manager!" FontSize="22" FontWeight="Bold" />
                             <TextBlock TextWrapping="Wrap" FontSize="14"
@@ -37,7 +36,7 @@
                             </TabItem>
                         </TabControl>
                     </Grid>
-                    <StackPanel Grid.Column="1" Margin="34,2,10,10">
+                    <Grid Grid.Column="1" Margin="34,2,10,10" MinWidth="700">
                         <Grid RowDefinitions="300,*">
                             <StackPanel Grid.Row="0" Margin="10,2,10,10">
 
@@ -262,8 +261,8 @@
                                 </StackPanel>
                             </StackPanel>
 
-                            <Grid Grid.Row="1">
-                                <StackPanel>
+                            <Grid Grid.Row="1" RowDefinitions="Auto,*">
+                                <StackPanel Grid.Row="0">
                                     <Separator Margin="51,4,13,4" />
                                     <Grid ColumnDefinitions="*,*">
                                         <TextBlock x:Name="MoneyValue" HorizontalAlignment="Left" Text=""
@@ -319,7 +318,7 @@
                                 </StackPanel>
                             </Grid>
                         </Grid>
-                    </StackPanel>
+                    </Grid>
                 </Grid>
             </TabItem>
             <TabItem x:Name="OverlayTabItem" Header="Overlays">

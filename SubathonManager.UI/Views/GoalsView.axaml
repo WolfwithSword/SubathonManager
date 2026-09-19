@@ -5,10 +5,12 @@
              mc:Ignorable="d" d:DesignHeight="400" d:DesignWidth="600"
              x:CompileBindings="False"
              x:Class="SubathonManager.UI.Views.GoalsView">
-    <Grid Height="300" MaxHeight="300">
-        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" MaxHeight="300" Height="300" Width="600"
-                      Padding="4" HorizontalAlignment="Right" Margin="4,8,16,4">
-            <ItemsControl x:Name="GoalsList">
+    <!-- <Grid MinHeight="200" MaxWidth="1000"> -->
+        <Grid MinHeight="200"> 
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"
+                      Padding="4" HorizontalAlignment="Stretch" Margin="4,8,16,4"
+                      VerticalContentAlignment="Top" HorizontalContentAlignment="Stretch">
+            <ItemsControl x:Name="GoalsList" VerticalAlignment="Top">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border Margin="0,0,8,10" Padding="12" CornerRadius="6"

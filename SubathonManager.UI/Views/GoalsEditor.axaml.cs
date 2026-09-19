@@ -231,7 +231,7 @@ public partial class GoalsEditor : UserControl {
             AppendBlankGoalRow();
         }
 
-        GoalsEditorScroller.Height = 600;
+        // no explicit Height: the scroller fills its grid row, so the list stays pinned to the top
         GoalsEditorScroller.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         Dispatcher.UIThread.Post(() => {
             _suppressCount--;
@@ -239,12 +239,14 @@ public partial class GoalsEditor : UserControl {
         }, DispatcherPriority.Background);
     }
 
-    private StackPanel AddGoalRow(SubathonGoal goal, bool isUnsaved) {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(4, 0, 4, 8) };
+    private Grid AddGoalRow(SubathonGoal goal, bool isUnsaved) {
+        var panel = new Grid {
+            Margin = new Thickness(4, 0, 4, 8),
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto")
+        };
 
         var textBox = new TextBox {
             Text = goal.Text,
-            Width = 522,
             Margin = new Thickness(0, 0, 8, 0),
             PlaceholderText = "Goal Description...",
             VerticalContentAlignment = VerticalAlignment.Center
@@ -279,6 +281,10 @@ public partial class GoalsEditor : UserControl {
         ToolTip.SetTip(deleteBtn, "Remove");
         deleteBtn.Click += (_, _) => DeleteGoal_Click(goal);
 
+        Grid.SetColumn(textBox, 0);
+        Grid.SetColumn(pointsBox, 1);
+        Grid.SetColumn(deleteBtn, 2);
+
         panel.Children.Add(textBox);
         panel.Children.Add(pointsBox);
         panel.Children.Add(deleteBtn);
@@ -293,7 +299,7 @@ public partial class GoalsEditor : UserControl {
         if (_activeGoalSet == null) return;
 
         var goal = new SubathonGoal { Text = "", Points = 0, GoalSetId = _activeGoalSet.Id };
-        StackPanel panel = AddGoalRow(goal, true);
+        Grid panel = AddGoalRow(goal, true);
 
         Dispatcher.UIThread.Post(() => {
             panel.BringIntoView();
@@ -302,7 +308,7 @@ public partial class GoalsEditor : UserControl {
     }
 
     private bool IsInLastGoalRow(object? source) {
-        StackPanel? last = GoalsStack.Children.OfType<StackPanel>().LastOrDefault();
+        Grid? last = GoalsStack.Children.OfType<Grid>().LastOrDefault();
         if (last == null) return false;
 
         var visual = source as Visual;
@@ -316,7 +322,7 @@ public partial class GoalsEditor : UserControl {
 
     private async void DeleteGoal_Click(SubathonGoal goal) {
         if (_unsavedGoals.Remove(goal)) {
-            StackPanel? row = GoalsStack.Children.OfType<StackPanel>()
+            Grid? row = GoalsStack.Children.OfType<Grid>()
                 .FirstOrDefault(p => ReferenceEquals(p.Tag, goal));
             if (row != null) GoalsStack.Children.Remove(row);
             return;
@@ -369,7 +375,7 @@ public partial class GoalsEditor : UserControl {
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         db.Update(_activeGoalSet);
 
-        foreach (StackPanel panel in GoalsStack.Children.OfType<StackPanel>()) {
+        foreach (Grid panel in GoalsStack.Children.OfType<Grid>()) {
             if (panel.Tag is not SubathonGoal goal) continue;
             var textBox = panel.Children[0] as TextBox;
             var pointsBox = panel.Children[1] as TextBox;
