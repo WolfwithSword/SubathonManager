@@ -28,6 +28,11 @@ public partial class GoalsEditor : UserControl {
     private readonly HashSet<SubathonGoal> _unsavedGoals = new();
     private SubathonGoalSet? _activeGoalSet;
     private bool _appendRowAfterSave;
+    private int _autoIncrement = 1;
+    private List<string> _dragPoints = [];
+    private Grid? _dragRow;
+    private int _dragStartIndex = -1;
+    private CancellationTokenSource? _incrementSaveCts;
     private bool _initialized;
     private int _suppressCount;
 
@@ -35,6 +40,8 @@ public partial class GoalsEditor : UserControl {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         GoalSetType.ItemsSource = Enum.GetNames<GoalsType>().ToList();
+        NumericInputBehaviour.SetMode(AutoIncrementBox, NumericInputBehaviour.NumericMode.Integer);
+        LoadAutoIncrement();
         LoadAllSets();
         SubathonEvents.SubathonDataUpdate += UpdatePointsCount;
 
@@ -68,7 +75,7 @@ public partial class GoalsEditor : UserControl {
         });
 
         if (allSets.Count == 0) {
-            StatusText.Text = "No goal sets found. Create a new one.";
+            StatusText.Text = "No goal sets found. Create a new one";
             DeleteGoalSetBtn.IsEnabled = false;
             return;
         }
@@ -92,7 +99,7 @@ public partial class GoalsEditor : UserControl {
             .FirstOrDefault(gs => gs.Id == setId);
 
         if (_activeGoalSet == null) {
-            StatusText.Text = "Set not found.";
+            StatusText.Text = "Set not found";
             return;
         }
 
@@ -231,7 +238,6 @@ public partial class GoalsEditor : UserControl {
             AppendBlankGoalRow();
         }
 
-        // no explicit Height: the scroller fills its grid row, so the list stays pinned to the top
         GoalsEditorScroller.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         Dispatcher.UIThread.Post(() => {
             _suppressCount--;
@@ -242,7 +248,7 @@ public partial class GoalsEditor : UserControl {
     private Grid AddGoalRow(SubathonGoal goal, bool isUnsaved) {
         var panel = new Grid {
             Margin = new Thickness(4, 0, 4, 8),
-            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto")
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto")
         };
 
         var textBox = new TextBox {
@@ -281,13 +287,17 @@ public partial class GoalsEditor : UserControl {
         ToolTip.SetTip(deleteBtn, "Remove");
         deleteBtn.Click += (_, _) => DeleteGoal_Click(goal);
 
-        Grid.SetColumn(textBox, 0);
-        Grid.SetColumn(pointsBox, 1);
-        Grid.SetColumn(deleteBtn, 2);
+        Border grip = CreateDragGrip(panel);
+
+        Grid.SetColumn(textBox, 1);
+        Grid.SetColumn(pointsBox, 2);
+        Grid.SetColumn(deleteBtn, 3);
+        Grid.SetColumn(grip, 0);
 
         panel.Children.Add(textBox);
         panel.Children.Add(pointsBox);
         panel.Children.Add(deleteBtn);
+        panel.Children.Add(grip);
         panel.Tag = goal;
 
         if (isUnsaved) _unsavedGoals.Add(goal);
@@ -295,15 +305,128 @@ public partial class GoalsEditor : UserControl {
         return panel;
     }
 
+    private static TextBox? RowTextBox(Grid row) {
+        return row.Children[0] as TextBox;
+    }
+
+    private static TextBox? RowPointsBox(Grid row) {
+        return row.Children[1] as TextBox;
+    }
+
+    private List<Grid> GoalRows() {
+        return GoalsStack.Children.OfType<Grid>().ToList();
+    }
+
+    private Border CreateDragGrip(Grid row) {
+        var grip = new Border {
+            Width = 18,
+            Margin = new Thickness(0, 0, 4, 0),
+            Background = Brushes.Transparent,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Cursor = new Cursor(StandardCursorType.SizeAll),
+            Child = new SymIcon {
+                Glyph = "ReOrderDotsVertical20",
+                Opacity = 0.6,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        ToolTip.SetTip(grip, "Drag to reorder. Points stay where they were");
+
+        grip.PointerPressed += (_, e) => BeginRowDrag(grip, row, e);
+        grip.PointerMoved += (_, e) => RowDragMove(e);
+        grip.PointerReleased += (_, e) => {
+            e.Pointer.Capture(null);
+            FinishRowDrag();
+        };
+        grip.PointerCaptureLost += (_, _) => FinishRowDrag();
+        return grip;
+    }
+
+    private void BeginRowDrag(Border grip, Grid row, PointerPressedEventArgs e) {
+        if (!e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed) return;
+
+        List<Grid> rows = GoalRows();
+        int index = rows.IndexOf(row);
+        if (index < 0 || rows.Count < 2) return;
+
+        if (rows.Any(r => !long.TryParse(RowPointsBox(r)?.Text, out _))) {
+            StatusText.Text = "Every goal needs a points value before reordering";
+            return;
+        }
+
+        StatusText.Text = "";
+        _dragRow = row;
+        _dragStartIndex = index;
+        _dragPoints = rows.Select(r => RowPointsBox(r)?.Text ?? "").ToList();
+        row.Opacity = 0.6;
+        e.Pointer.Capture(grip);
+        e.Handled = true;
+    }
+
+    private void RowDragMove(PointerEventArgs e) {
+        if (_dragRow == null) return;
+
+        List<Grid> rows = GoalRows();
+        int current = rows.IndexOf(_dragRow);
+        if (current < 0 || rows.Count < 2) return;
+
+        double y = e.GetPosition(GoalsStack).Y;
+        int target = current;
+        if (y <= rows[0].Bounds.Top) {
+            target = 0;
+        }
+        else if (y >= rows[^1].Bounds.Bottom) {
+            target = rows.Count - 1;
+        }
+        else {
+            for (var i = 0; i < rows.Count; i++) {
+                if (y < rows[i].Bounds.Top || y > rows[i].Bounds.Bottom) continue;
+                target = i;
+                break;
+            }
+        }
+
+        if (target == current) return;
+        GoalsStack.Children.Move(current, target);
+    }
+
+    private void FinishRowDrag() {
+        if (_dragRow == null) return;
+
+        Grid row = _dragRow;
+        _dragRow = null;
+        row.Opacity = 1;
+
+        List<Grid> rows = GoalRows();
+        int index = rows.IndexOf(row);
+        int startIndex = _dragStartIndex;
+        _dragStartIndex = -1;
+        if (index < 0 || index == startIndex) return;
+
+        for (var i = 0; i < rows.Count && i < _dragPoints.Count; i++) {
+            TextBox? pointsBox = RowPointsBox(rows[i]);
+            if (pointsBox == null || pointsBox.Text == _dragPoints[i]) continue;
+            pointsBox.Text = _dragPoints[i];
+        }
+
+        UpdateSaveButtonBorder(true);
+    }
+
     private void AppendBlankGoalRow() {
         if (_activeGoalSet == null) return;
 
-        var goal = new SubathonGoal { Text = "", Points = 0, GoalSetId = _activeGoalSet.Id };
+        var goal = new SubathonGoal { Text = "", Points = NextGoalPoints(), GoalSetId = _activeGoalSet.Id };
         Grid panel = AddGoalRow(goal, true);
+        TextBox? pointsBox = RowPointsBox(panel);
+        if (pointsBox != null) {
+            pointsBox.Text = goal.Points.ToString();
+            DirtySaveGuard.Rebase(pointsBox);
+        }
 
         Dispatcher.UIThread.Post(() => {
             panel.BringIntoView();
-            (panel.Children[0] as TextBox)?.Focus();
+            RowTextBox(panel)?.Focus();
         }, DispatcherPriority.Background);
     }
 
@@ -344,8 +467,7 @@ public partial class GoalsEditor : UserControl {
 
         await using AppDbContext db = await _factory.CreateDbContextAsync();
 
-        long maxPoints = _activeGoalSet.Goals.Count > 0 ? _activeGoalSet.Goals.Max(g => g.Points) : 0;
-        var newGoal = new SubathonGoal { Points = maxPoints + 1, GoalSetId = _activeGoalSet.Id };
+        var newGoal = new SubathonGoal { Points = NextGoalPoints(), GoalSetId = _activeGoalSet.Id };
 
         db.SubathonGoals.Add(newGoal);
         await db.SaveChangesAsync();
@@ -377,8 +499,8 @@ public partial class GoalsEditor : UserControl {
 
         foreach (Grid panel in GoalsStack.Children.OfType<Grid>()) {
             if (panel.Tag is not SubathonGoal goal) continue;
-            var textBox = panel.Children[0] as TextBox;
-            var pointsBox = panel.Children[1] as TextBox;
+            TextBox? textBox = RowTextBox(panel);
+            TextBox? pointsBox = RowPointsBox(panel);
 
             bool hasPoints = long.TryParse(pointsBox?.Text, out long pts);
             if (string.IsNullOrWhiteSpace(textBox?.Text) || !hasPoints) {
@@ -431,6 +553,54 @@ public partial class GoalsEditor : UserControl {
 
     private void Grid_PointerPressed(object? sender, PointerPressedEventArgs e) {
         (sender as Control)?.Focus();
+    }
+
+    private void LoadAutoIncrement() {
+        using AppDbContext db = _factory.CreateDbContext();
+        _autoIncrement = Math.Max(1, StateValueHelper.Get(db, StateKeys.GoalAutoIncrement, 1));
+        SuppressChanges(() => AutoIncrementBox.Text = _autoIncrement.ToString());
+        DirtySaveGuard.Rebase(AutoIncrementBox);
+    }
+
+    private long NextGoalPoints() {
+        long max = 0;
+        var any = false;
+        foreach (Grid row in GoalRows()) {
+            if (!long.TryParse(RowPointsBox(row)?.Text, out long pts)) continue;
+            max = any ? Math.Max(max, pts) : pts;
+            any = true;
+        }
+
+        if (!any && _activeGoalSet is { Goals.Count: > 0 }) {
+            max = _activeGoalSet.Goals.Max(g => g.Points);
+            any = true;
+        }
+
+        return any ? max + _autoIncrement : _autoIncrement;
+    }
+
+    private void AutoIncrement_OnChanged(object? sender, TextChangedEventArgs e) {
+        if (!int.TryParse(AutoIncrementBox.Text, out int value) || value < 1) return;
+        if (value == _autoIncrement) return;
+        _autoIncrement = value;
+
+        _incrementSaveCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _incrementSaveCts = cts;
+        _ = Task.Run(async () => {
+            try {
+                await Task.Delay(400, cts.Token);
+                await StateValueHelper.SetAsync(_factory, StateKeys.GoalAutoIncrement, value);
+            }
+            catch (OperationCanceledException) {
+                /**/
+            }
+        }, cts.Token);
+    }
+
+    private void AutoIncrement_OnLostFocus(object? sender, RoutedEventArgs e) {
+        if (int.TryParse(AutoIncrementBox.Text, out int value) && value >= 1) return;
+        AutoIncrementBox.Text = _autoIncrement.ToString();
     }
 
     private void Value_OnChanged(object? sender, TextChangedEventArgs e) {

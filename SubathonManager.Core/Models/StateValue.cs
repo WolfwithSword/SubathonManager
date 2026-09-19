@@ -17,4 +17,6 @@ public static class StateKeys {
     public const string WidgetBrowserSkipDeleteConfirm = "WidgetBrowserSkipDeleteConfirm";
     public const string WidgetBrowserAllVersions = "WidgetBrowserAllVersions";
     public const string EditorPreviewLightBg = "EditorPreviewLightBg";
+
+    public const string GoalAutoIncrement = "GoalAutoIncrement";
 }
