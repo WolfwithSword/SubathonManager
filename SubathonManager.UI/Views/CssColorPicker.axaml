@@ -10,14 +10,14 @@
             <Button.Flyout>
                 <Flyout Placement="Bottom">
                     <ColorView x:Name="ColorViewCtl" IsAlphaEnabled="True" MinWidth="320"
-                               ColorChanged="ColorView_ColorChanged"/>
+                               ColorChanged="ColorView_ColorChanged" />
                 </Flyout>
             </Button.Flyout>
             <Border x:Name="SwatchFill" CornerRadius="3" MinWidth="20" MinHeight="20"
-                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
         </Button>
         <TextBox Grid.Column="1" x:Name="CssValueBox" Height="32" Margin="4,0,0,0" Padding="4,0"
                  HorizontalAlignment="Stretch" VerticalContentAlignment="Center"
-                 TextChanged="CssValueBox_TextChanged" LostFocus="CssValueBox_LostFocus"/>
+                 TextChanged="CssValueBox_TextChanged" LostFocus="CssValueBox_LostFocus" />
     </Grid>
 </UserControl>

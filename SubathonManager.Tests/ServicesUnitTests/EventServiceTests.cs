@@ -1,15 +1,17 @@
-﻿using Moq;
+﻿using System.Net;
+using System.Reflection;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Services;
-using SubathonManager.Data;
-using SubathonManager.Core.Models;
+using Moq;
+using Moq.Protected;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
-using System.Net;
-using System.Reflection;
-using Moq.Protected;
+using SubathonManager.Core.Models;
+using SubathonManager.Data;
+using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
+
 // ReSharper disable RedundantAssignment
 // ReSharper disable NotAccessedVariable
 // ReSharper disable UnusedVariable
@@ -19,12 +21,9 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.ServicesUnitTests;
 
 [Collection("SequentialParallel")]
-public class EventServiceTests
-{
-    
+public class EventServiceTests {
     // ReSharper disable once InconsistentNaming
-    internal static CurrencyService SetupCurrencyService()
-    {
+    internal static CurrencyService SetupCurrencyService() {
         var jsonResponse = @"{
                 ""usd"": {""code"": ""USD"", ""rate"": 1.0},
                 ""gbp"": {""code"": ""GBP"", ""rate"": 0.9},
@@ -41,8 +40,7 @@ public class EventServiceTests
                 ItExpr.IsAny<CancellationToken>()
             )
             .Returns<HttpRequestMessage, CancellationToken>((req, ct) =>
-                Task.FromResult(new HttpResponseMessage
-                {
+                Task.FromResult(new HttpResponseMessage {
                     StatusCode = HttpStatusCode.OK,
                     Content = new StringContent(jsonResponse)
                 }));
@@ -50,70 +48,66 @@ public class EventServiceTests
         var httpClient = new HttpClient(handlerMock.Object);
 
         var loggerMock = new Mock<ILogger<CurrencyService>>();
-        var currencyMock = new CurrencyService(loggerMock.Object, MockConfig.MakeMockConfig(new Dictionary<(string, string), string>
-        {
-            { ("Currency", "Primary"), "USD" }
-        }), httpClient);
-        currencyMock.SetRates(new Dictionary<string, double>
-        {
+        var currencyMock = new CurrencyService(loggerMock.Object, MockConfig.MakeMockConfig(
+            new Dictionary<(string, string), string> {
+                { ("Currency", "Primary"), "USD" }
+            }), httpClient);
+        currencyMock.SetRates(new Dictionary<string, double> {
             { "USD", 1.0 }, { "GBP", 0.9 }, { "CAD", 0.8 }, { "TWD", 0.6 }, { "AUD", 0.5 }
         });
         return currencyMock;
     }
 
     internal static async Task<(EventService, DbContextOptions<AppDbContext>,
-        Microsoft.Data.Sqlite.SqliteConnection)> SetupServiceWithDb(int initialPoints = 10, bool isLocked = true, bool showEventsState = false, bool allowPointsLocked = true)
-    {
+        SqliteConnection)> SetupServiceWithDb(int initialPoints = 10, bool isLocked = true,
+        bool showEventsState = false, bool allowPointsLocked = true) {
         var dbName = $"test_{Guid.NewGuid():N}";
         var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
 
-        var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+        var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connectionString)
             .Options;
-        
-        await using (var db = new AppDbContext(options))
-        {
+
+        await using (var db = new AppDbContext(options)) {
             await db.Database.EnsureCreatedAsync();
-            db.SubathonDatas.Add(new SubathonData
-            {
+            db.SubathonDatas.Add(new SubathonData {
                 Id = Guid.NewGuid(), Points = initialPoints, IsActive = true, IsLocked = isLocked, Currency = "USD"
             });
             db.SubathonGoalSets.Add(new SubathonGoalSet
-                { Id = Guid.NewGuid(), IsActive = true, Goals = [new SubathonGoal() { Text = "New Goal", Points = 1 }] });
+                { Id = Guid.NewGuid(), IsActive = true, Goals = [new SubathonGoal { Text = "New Goal", Points = 1 }] });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
             AppDbContext.SeedDefaultValues(db);
-            SubathonManager.Core.GoAffProStoreRegistry.Initialize(db.GoAffProStores.ToList());
+            GoAffProStoreRegistry.Initialize(db.GoAffProStores.ToList());
         }
 
         var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
         factoryMock
             .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new AppDbContext(options));
-        typeof(Core.Events.SubathonEvents)
+        typeof(SubathonEvents)
             .GetField("SubathonGoalCompleted", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        typeof(Core.Events.SubathonEvents)
+        typeof(SubathonEvents)
             .GetField("SubathonDataUpdate", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        typeof(Core.Events.SubathonEvents)
+        typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        typeof(Core.Events.SubathonEvents)
+        typeof(SubathonEvents)
             .GetField("SubathonEventProcessed", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        typeof(Core.Events.SubathonEvents)
+        typeof(SubathonEvents)
             .GetField("SubathonGoalListUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
-        typeof(Core.Events.ErrorMessageEvents)
+        typeof(ErrorMessageEvents)
             .GetField("ErrorEventOccured", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
         var service = new EventService(factoryMock.Object, Mock.Of<ILogger<EventService>>(), MockConfig.MakeMockConfig(
-            new Dictionary<(string, string), string>
-            {
+            new Dictionary<(string, string), string> {
                 { ("Currency", "Primary"), "USD" },
                 { ("Currency", "BitsLikeAsDonation"), "True" },
                 { ("GoAffPro", "UwUMarket.CommissionAsDonation"), "True" },
@@ -124,59 +118,57 @@ public class EventServiceTests
                 { ("Twitch", "HypeTrainMultiplier.Points"), "True" },
                 { ("Twitch", "HypeTrainMultiplier.Time"), "True" },
                 { ("Twitch", "HypeTrainMultiplier.Multiplier"), "2" },
-                { ("App", "OtherValuesWhenLocked"), allowPointsLocked.ToString()},
-                { ("App", "ShowLockedEvents"), showEventsState.ToString()}
+                { ("App", "OtherValuesWhenLocked"), allowPointsLocked.ToString() },
+                { ("App", "ShowLockedEvents"), showEventsState.ToString() }
             }), SetupCurrencyService());
         await service.StartAsync();
 
         return (service, options, connection);
     }
 
-    internal static Task RunUndoAndWait(EventService service, AppDbContext db, List<SubathonEvent> events, bool doAll = false)
-    {
+    internal static Task RunUndoAndWait(EventService service, AppDbContext db, List<SubathonEvent> events,
+        bool doAll = false) {
         var tcs = new TaskCompletionSource<bool>();
         Action<List<SubathonEvent>>? handler = null;
-        handler = _ =>
-        {
-            Core.Events.SubathonEvents.SubathonEventsDeleted -= handler!;
+        handler = _ => {
+            SubathonEvents.SubathonEventsDeleted -= handler!;
             tcs.TrySetResult(true);
         };
-        Core.Events.SubathonEvents.SubathonEventsDeleted += handler;
-        var task = service.UndoSimulatedEvents(db, events, doAll);
+        SubathonEvents.SubathonEventsDeleted += handler;
+        Task task = service.UndoSimulatedEvents(db, events, doAll);
         return Task.WhenAny(tcs.Task, task, Task.Delay(3000));
     }
 
     [Fact]
-    public async Task FetchValidCurrencies_Test()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(10);
+    public async Task FetchValidCurrencies_Test() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var data = service.ValidEventCurrencies();
+        List<string> data = service.ValidEventCurrencies();
         Assert.NotNull(data);
         Assert.NotEmpty(data);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
-    public async Task AddPointsCommand_Works()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(10);
+    public async Task AddPointsCommand_Works() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.AddPoints,
             PointsValue = 5
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
 
         Assert.True(processed);
         Assert.False(dupe);
 
         await using var checkDb = new AppDbContext(options);
-        var sub = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(15, sub.Points);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -184,24 +176,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task SubtractPointsCommand_Works()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task SubtractPointsCommand_Works() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.SubtractPoints,
             PointsValue = 5
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
 
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(5, sub.Points);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -209,24 +200,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task SetPointsCommand_Works()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task SetPointsCommand_Works() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.SetPoints,
             PointsValue = 100
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
 
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(100, sub.Points);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -234,29 +224,26 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task SpinWheelCommand_RaisesWheelSpinRequested()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task SpinWheelCommand_RaisesWheelSpinRequested() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
         int requested = 0;
         Action handler = () => requested++;
         WheelEvents.WheelSpinRequested += handler;
-        try
-        {
-            var ev = new SubathonEvent
-            {
+        try {
+            var ev = new SubathonEvent {
                 Id = Guid.NewGuid(),
                 EventType = SubathonEventType.Command,
                 Command = SubathonCommandType.SpinWheel
             };
 
-            var (processed, _) = await service.ProcessSubathonEvent(ev);
+            (bool processed, _) = await service.ProcessSubathonEvent(ev);
 
             Assert.True(processed);
             Assert.Equal(1, requested);
         }
-        finally
-        {
+        finally {
             WheelEvents.WheelSpinRequested -= handler;
             await service.StopAsync(TestContext.Current.CancellationToken);
             await conn.CloseAsync();
@@ -264,23 +251,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task AddTimeCommand_Works()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task AddTimeCommand_Works() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.AddTime,
             SecondsValue = 120
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(120_000, sub.MillisecondsCumulative);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -288,23 +274,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task SubtractTimeCommand_Works()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task SubtractTimeCommand_Works() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.SubtractTime,
             SecondsValue = 30
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(-30_000, sub.MillisecondsCumulative);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -312,28 +297,26 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task DonationEvent_CalculatesPointsAndSeconds()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(allowPointsLocked: false);
-        var ev = new SubathonEvent
-        {
+    public async Task DonationEvent_CalculatesPointsAndSeconds() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(allowPointsLocked: false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
             Value = "10"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.False(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        var ev2 = new SubathonEvent
-        {
+        var ev2 = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
@@ -343,7 +326,7 @@ public class EventServiceTests
         (processed, _) = await service.ProcessSubathonEvent(ev2);
         Assert.True(processed);
 
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(sub.Points > 0);
         Assert.True(sub.MillisecondsCumulative > 0);
 
@@ -352,11 +335,10 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task OrderEvent_WithCommission()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task OrderEvent_WithCommission() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.GoAffProOrder,
             EventTypeMeta = "132230", // UwU Market
@@ -365,23 +347,23 @@ public class EventServiceTests
             SecondaryValue = "2.00|USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(sub.Points > 0);
         Assert.True(sub.MillisecondsCumulative > 0);
         Assert.True(sub.MoneySum > 0);
         Assert.Equal(2.00, sub.MoneySum);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("USD", ev2.Currency);
         Assert.True(ev2.ProcessedToSubathon);
         Assert.Equal(0, ev2.PointsValue);
@@ -393,11 +375,10 @@ public class EventServiceTests
     [Theory]
     [InlineData(0, 3)]
     [InlineData(1, 3)]
-    public async Task OrderEvent_ByItemsNoCommission(int pointsValue, int itemCount)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task OrderEvent_ByItemsNoCommission(int pointsValue, int itemCount) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.GoAffProOrder,
             EventTypeMeta = "165328", // GamerSupps
@@ -408,29 +389,29 @@ public class EventServiceTests
         };
 
         await using var db = new AppDbContext(options);
-        var value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.GoAffProOrder && x.Meta == "165328").FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonValue value = await db.SubathonValues
+            .Where(x => x.EventType == SubathonEventType.GoAffProOrder && x.Meta == "165328")
+            .FirstAsync(TestContext.Current.CancellationToken);
         value.Points = pointsValue;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         if (pointsValue * itemCount > 0)
             Assert.True(sub.Points > 0);
         else
-        {
             Assert.False(sub.Points > 0);
-        }
         Assert.True(sub.MillisecondsCumulative > 0);
         Assert.False(sub.MoneySum > 0);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("items", ev2.Currency);
         Assert.True(ev2.ProcessedToSubathon);
         Assert.Equal(pointsValue * itemCount, ev2.PointsValue);
@@ -441,12 +422,11 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task OrderEvent_ByOrderNoCommission()
-    {
+    public async Task OrderEvent_ByOrderNoCommission() {
         //
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.GoAffProOrder,
             EventTypeMeta = "165328", // GamerSupps
@@ -455,21 +435,21 @@ public class EventServiceTests
             SecondaryValue = "2.00|USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(sub.Points > 0);
         Assert.True(sub.MillisecondsCumulative > 0);
         Assert.False(sub.MoneySum > 0);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("order", ev2.Currency);
         Assert.True(ev2.ProcessedToSubathon);
         Assert.Equal(0, ev2.PointsValue);
@@ -480,23 +460,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task DuplicateEvent_IsDetected()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task DuplicateEvent_IsDetected() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.AddPoints,
             PointsValue = 5
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         Assert.False(dupe);
 
-        var (processed2, dupe2) = await service.ProcessSubathonEvent(ev);
+        (bool processed2, bool dupe2) = await service.ProcessSubathonEvent(ev);
         Assert.False(processed2);
         Assert.True(dupe2);
 
@@ -505,45 +484,42 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task Event_WithLockedSubathon_DoesNotUpdatePoints()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(allowPointsLocked: false);
+    public async Task Event_WithLockedSubathon_DoesNotUpdatePoints() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(allowPointsLocked: false);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = true;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Value = "10.00",
             Currency = "USD"
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.False(processed);
         Assert.False(dupe);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
-    [Fact]
-    public async Task DeleteOrderTypeSubathonEvent_RemovesPointsAndTimeAndMoney()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
 
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+    [Fact]
+    public async Task DeleteOrderTypeSubathonEvent_RemovesPointsAndTimeAndMoney() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             Assert.Equal(0, sub.Points);
             Assert.Equal(0, sub.MillisecondsCumulative);
         }
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.GoAffProOrder,
             EventTypeMeta = "132230", // UwUMarket
@@ -552,12 +528,12 @@ public class EventServiceTests
             Currency = "USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed);
 
         await using var checkDb1 = new AppDbContext(options);
-        var sub2 = await checkDb1.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub2 = await checkDb1.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, sub2.Points);
         Assert.Equal(12 * 10 * 1000, sub2.MillisecondsCumulative);
         Assert.True(sub2.MoneySum > 0);
@@ -568,7 +544,7 @@ public class EventServiceTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb2 = new AppDbContext(options);
-        var subUpdated = await checkDb2.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb2.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
         Assert.Equal(0, subUpdated.MoneySum);
@@ -577,24 +553,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task UndoSimulatedEvents_RemovesSingleEvent()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0);
+    public async Task UndoSimulatedEvents_RemovesSingleEvent() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.IsLocked = false;
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, Source = SubathonEventSource.Simulated,
                 User = "SYSTEM", EventType = SubathonEventType.KoFiDonation, Value = "10",
                 Currency = "USD", PointsValue = 5, SecondsValue = 10, ProcessedToSubathon = true
             };
             db.SubathonEvents.Add(ev);
-            sub.Points += (int) ev.PointsValue;
-            sub.MillisecondsCumulative += (int) ev.SecondsValue * 1000;
+            sub.Points += (int)ev.PointsValue;
+            sub.MillisecondsCumulative += (int)ev.SecondsValue * 1000;
             sub.MoneySum += 10;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
@@ -605,7 +579,7 @@ public class EventServiceTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
         Assert.Equal(0, subUpdated.MoneySum);
@@ -614,25 +588,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task UndoSimulatedEvents_RemovesSingleOrderCommissionEvent()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0);
+    public async Task UndoSimulatedEvents_RemovesSingleOrderCommissionEvent() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.IsLocked = false;
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, Source = SubathonEventSource.Simulated,
                 User = "SYSTEM", EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230", Value = "10",
                 Currency = "USD", SecondaryValue = "2.00|USD", PointsValue = 5, SecondsValue = 10,
                 ProcessedToSubathon = true
             };
             db.SubathonEvents.Add(ev);
-            sub.Points += (int) ev.PointsValue;
-            sub.MillisecondsCumulative += (int) ev.SecondsValue * 1000;
+            sub.Points += (int)ev.PointsValue;
+            sub.MillisecondsCumulative += (int)ev.SecondsValue * 1000;
             sub.MoneySum += 2;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
@@ -643,7 +615,7 @@ public class EventServiceTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
         Assert.Equal(0, subUpdated.MoneySum);
@@ -652,24 +624,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task UndoSimulatedEvents_RemovesSingleBitsCheerEvent()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0);
+    public async Task UndoSimulatedEvents_RemovesSingleBitsCheerEvent() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.IsLocked = false;
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, Source = SubathonEventSource.Simulated,
                 User = "SYSTEM", EventType = SubathonEventType.TwitchCheer, Value = "30",
                 Currency = "bits", PointsValue = 5, SecondsValue = 10, ProcessedToSubathon = true
             };
             db.SubathonEvents.Add(ev);
-            sub.Points += (int) ev.PointsValue;
-            sub.MillisecondsCumulative += (int) ev.SecondsValue * 1000;
+            sub.Points += (int)ev.PointsValue;
+            sub.MillisecondsCumulative += (int)ev.SecondsValue * 1000;
             sub.MoneySum += 0.3;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
@@ -679,7 +649,7 @@ public class EventServiceTests
         await RunUndoAndWait(service, serviceDb, [ev]);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
         Assert.Equal(0, subUpdated.MoneySum);
@@ -688,50 +658,47 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task HypeTrainStart_UpdatesMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task HypeTrainStart_UpdatesMultiplier() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchHypeTrain,
             Value = "start"
         };
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(ev2.ProcessedToSubathon);
         Assert.Contains("start | x2", ev2.Value);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
-    
-    
+
+
     [Fact]
-    public async Task HypeTrain_UpdatesMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task HypeTrain_UpdatesMultiplier() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchHypeTrain,
             Value = "start"
         };
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
-        await using (var checkDb1 = new AppDbContext(options))
-        {
-            var ev2 = await checkDb1.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var checkDb1 = new AppDbContext(options)) {
+            SubathonEvent ev2 = await checkDb1.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
             Assert.True(ev2.ProcessedToSubathon);
             Assert.Contains("start | x2 Points Time", ev2.Value);
-            var mult1Check = await checkDb1.MultiplierDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+            MultiplierData mult1Check =
+                await checkDb1.MultiplierDatas.FirstAsync(TestContext.Current.CancellationToken);
             Assert.True(mult1Check.IsRunning());
         }
 
-        var ev3 = new SubathonEvent
-        {
+        var ev3 = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchHypeTrain,
             Value = "progress",
@@ -739,9 +706,8 @@ public class EventServiceTests
         };
         (processed, dupe) = await service.ProcessSubathonEvent(ev3);
         Assert.True(processed);
-        
-        var ev4 = new SubathonEvent
-        {
+
+        var ev4 = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchHypeTrain,
             Value = "end",
@@ -752,27 +718,27 @@ public class EventServiceTests
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         await using var checkDb2 = new AppDbContext(options);
-        var mult2 = await checkDb2.MultiplierDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        MultiplierData mult2 = await checkDb2.MultiplierDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(mult2.IsRunning());
     }
 
 
     [Fact]
-    public async Task HypeTrainEnd_ResetsMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task HypeTrainEnd_ResetsMultiplier() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.Include(subathonData => subathonData.Multiplier).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.Include(subathonData => subathonData.Multiplier)
+            .FirstAsync(TestContext.Current.CancellationToken);
         sub.Multiplier.FromHypeTrain = true;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchHypeTrain,
             Value = "end"
         };
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
@@ -780,49 +746,52 @@ public class EventServiceTests
     [Theory]
     [InlineData(SubathonCommandType.Lock, true)]
     [InlineData(SubathonCommandType.Unlock, false)]
-    public async Task Command_LockUnlock_UpdatesIsLocked(SubathonCommandType cmd, bool expected)
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task Command_LockUnlock_UpdatesIsLocked(SubathonCommandType cmd, bool expected) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
         var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.Command, Command = cmd };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expected, sub.IsLocked);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
-    public async Task DonationEvent_InvalidCurrency_SetsCurrencyUnknown()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Value="10", Currency="" };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+    public async Task DonationEvent_InvalidCurrency_SetsCurrencyUnknown() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        var ev = new SubathonEvent
+            { Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Value = "10", Currency = "" };
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
 
         Assert.False(processed);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
 
-    
+
     [Fact]
-    public async Task DonationEvent_InvalidCurrency_SetsCurrencyUnknown2()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Value="10", Currency="XXX" };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+    public async Task DonationEvent_InvalidCurrency_SetsCurrencyUnknown2() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        var ev = new SubathonEvent
+            { Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Value = "10", Currency = "XXX" };
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
 
         Assert.False(processed);
         Assert.Equal("XXX", ev.Currency);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
-    
+
     [Fact]
-    public async Task DonationAdjustment_Event_SetsPointsAndSecondsZero()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.DonationAdjustment, Value="10", Currency="USD" };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+    public async Task DonationAdjustment_Event_SetsPointsAndSecondsZero() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent
+            { Id = Guid.NewGuid(), EventType = SubathonEventType.DonationAdjustment, Value = "10", Currency = "USD" };
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed);
         Assert.Equal(0, ev.PointsValue);
@@ -830,11 +799,11 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task DonationEvent_ReversedSubathon_AffectsSecondsNegatively()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task DonationEvent_ReversedSubathon_AffectsSecondsNegatively() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         sub.MillisecondsCumulative = 0;
         sub.MillisecondsElapsed = 100_000;
@@ -846,23 +815,23 @@ public class EventServiceTests
         sub.ReversedTime = true;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Value="10", Currency="USD" };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        var ev = new SubathonEvent
+            { Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Value = "10", Currency = "USD" };
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed);
     }
-    
+
     [Theory]
     [InlineData(SubathonCommandType.SetTime, 5000)]
     [InlineData(SubathonCommandType.SetMultiplier, 0)]
     [InlineData(SubathonCommandType.StopMultiplier, 0)]
-    public async Task AdditionalCommands_Work(SubathonCommandType cmd, int value)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task AdditionalCommands_Work(SubathonCommandType cmd, int value) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
         await using var db = new AppDbContext(options);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = cmd,
@@ -870,12 +839,12 @@ public class EventServiceTests
             Value = cmd == SubathonCommandType.SetMultiplier ? "2|xs|true|false" : $"{value}"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
-        var sub = await db.SubathonDatas.Include(s => s.Multiplier).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        switch (cmd)
-        {
+        SubathonData sub = await db.SubathonDatas.Include(s => s.Multiplier)
+            .FirstAsync(TestContext.Current.CancellationToken);
+        switch (cmd) {
             case SubathonCommandType.SetTime:
                 Assert.Equal(ev.SecondsValue * 1000, sub.MillisecondsCumulative + sub.MillisecondsElapsed);
                 break;
@@ -892,23 +861,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task DonationEvent_AltCurrencyModifier_AppliesCorrectly()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task DonationEvent_AltCurrencyModifier_AppliesCorrectly() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
         await using var db = new AppDbContext(options);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Value = "100",
             Currency = "USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(sub.MoneySum > 0);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -917,45 +885,43 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task DonationEvent_ReversedSubathon_NegatesTime()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task DonationEvent_ReversedSubathon_NegatesTime() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
         await using var db = new AppDbContext(options);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         sub.ReversedTime = true;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Value = "10",
             Currency = "USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         Assert.True(ev.WasReversed);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task DonationAdjustment_Event_SetsPointsAndSecondsZero_ProcessedTrue()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task DonationAdjustment_Event_SetsPointsAndSecondsZero_ProcessedTrue() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.DonationAdjustment,
             Value = "50",
             Currency = "USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
 
         Assert.True(processed);
         Assert.Equal(0, ev.PointsValue);
@@ -966,18 +932,17 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task HypeTrainProgress_UpdatesMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        var ev = new SubathonEvent
-        {
+    public async Task HypeTrainProgress_UpdatesMultiplier() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchHypeTrain,
             Value = "progress",
             Amount = 7
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -988,18 +953,17 @@ public class EventServiceTests
     [InlineData(SubathonCommandType.SetPoints, -5)]
     [InlineData(SubathonCommandType.AddPoints, 0)]
     [InlineData(SubathonCommandType.SubtractPoints, 0)]
-    public async Task Command_NegativeOrZeroPoints_ReturnsFalseFalse(SubathonCommandType cmd, int pts)
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        var ev = new SubathonEvent
-        {
+    public async Task Command_NegativeOrZeroPoints_ReturnsFalseFalse(SubathonCommandType cmd, int pts) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = cmd,
             PointsValue = pts
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
 
         Assert.False(processed);
         Assert.False(dupe);
@@ -1009,24 +973,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_NoActiveSubathon_ReturnsFalseFalse()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_NoActiveSubathon_ReturnsFalseFalse() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsActive = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
             Value = "10"
         };
-        
+
         db.ChangeTracker.Clear();
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.False(processed);
         Assert.False(dupe);
 
@@ -1035,27 +998,27 @@ public class EventServiceTests
     }
 
     [Theory]
-    
     [InlineData(true)]
     [InlineData(false)]
-    public async Task ProcessSubathonEvent_SubathonLocked_NonHypeTrain_SavesButReturnsFalse(bool allowValuesWhenLocked)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, true, false, allowValuesWhenLocked);
+    public async Task
+        ProcessSubathonEvent_SubathonLocked_NonHypeTrain_SavesButReturnsFalse(bool allowValuesWhenLocked) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, true, false, allowValuesWhenLocked);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
             Value = "10"
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.Equal(processed, allowValuesWhenLocked);
         Assert.False(dupe);
 
         await using var db = new AppDbContext(options);
-        var stored = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent? stored =
+            await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(stored);
         Assert.Equal(stored.ProcessedToSubathon, allowValuesWhenLocked);
         Assert.NotNull(stored.SubathonId);
@@ -1069,12 +1032,11 @@ public class EventServiceTests
     [Theory]
     [InlineData(SubathonEventType.ExternalSub)]
     [InlineData(SubathonEventType.DonationAdjustment)]
-    public async Task ProcessSubathonEvent_SkipsSubathonValueLookup_ForExemptTypes(SubathonEventType eventType)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_SkipsSubathonValueLookup_ForExemptTypes(SubathonEventType eventType) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = eventType,
             Currency = "USD",
@@ -1084,7 +1046,7 @@ public class EventServiceTests
             Source = SubathonEventSource.External
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         Assert.False(dupe);
 
@@ -1093,23 +1055,22 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_NoSubathonValue_ReturnsFalseFalse()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_NoSubathonValue_ReturnsFalseFalse() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
         await using var db = new AppDbContext(options);
         db.SubathonValues.RemoveRange(db.SubathonValues.Where(v => v.EventType == SubathonEventType.KoFiDonation));
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
             Value = "10"
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.False(processed);
         Assert.False(dupe);
 
@@ -1118,23 +1079,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_InvalidCurrencyOnCurrencyDonation_ZeroesValues()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_InvalidCurrencyOnCurrencyDonation_ZeroesValues() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "ZZZ",
             Value = "10"
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         Assert.False(processed);
 
         await using var db = new AppDbContext(options);
-        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent? saved =
+            await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.Equal(0, saved.PointsValue);
         Assert.Equal(0, saved.SecondsValue);
@@ -1145,12 +1106,11 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_ZeroPointsAndSeconds_WithNonUnknownCurrency_SetsProcessedTrue()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_ZeroPointsAndSeconds_WithNonUnknownCurrency_SetsProcessedTrue() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.ExternalSub,
             Currency = "sub",
@@ -1160,11 +1120,12 @@ public class EventServiceTests
             SecondsValue = 0
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent? saved =
+            await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.True(saved.ProcessedToSubathon);
 
@@ -1173,12 +1134,11 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_ExistingDupeEvent_UpdatesRatherThanAdds()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_ExistingDupeEvent_UpdatesRatherThanAdds() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
@@ -1186,14 +1146,12 @@ public class EventServiceTests
             ProcessedToSubathon = false // first pass
         };
 
-        await using (var db = new AppDbContext(options))
-        {
+        await using (var db = new AppDbContext(options)) {
             db.SubathonEvents.Add(ev);
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        var ev2 = new SubathonEvent
-        {
+        var ev2 = new SubathonEvent {
             Id = ev.Id, //
             Source = ev.Source,
             EventType = SubathonEventType.KoFiDonation,
@@ -1201,7 +1159,7 @@ public class EventServiceTests
             Value = "10"
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev2);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev2);
         Assert.False(dupe); // false because ProcessedToSubathon was false on the first, i.e., reprocessed
         Assert.True(processed);
 
@@ -1210,25 +1168,24 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_WasReversed_DecrementsMilliseconds()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_WasReversed_DecrementsMilliseconds() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
         await using var db = new AppDbContext(options);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.ReversedTime = true;
         sub.MillisecondsCumulative = 500_000;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
             Value = "10"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
@@ -1239,15 +1196,14 @@ public class EventServiceTests
     }
 
     [Theory]
-    [InlineData("132230", true)]  // UwUMarket - commission as donation on
+    [InlineData("132230", true)] // UwUMarket - commission as donation on
     [InlineData("165328", false)] // GamerSupps - commission as donation off
     public async Task ProcessSubathonEvent_OrderCommission_MoneySum_Branches(
-        string storeMeta, bool commissionAsDonation)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        string storeMeta, bool commissionAsDonation) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.GoAffProOrder,
             EventTypeMeta = storeMeta,
@@ -1256,11 +1212,11 @@ public class EventServiceTests
             SecondaryValue = "5.00|USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
 
         if (commissionAsDonation)
             Assert.True(sub.MoneySum > 0);
@@ -1272,37 +1228,35 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task ProcessSubathonEvent_CurrencyDonation_AddsMoney()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task ProcessSubathonEvent_CurrencyDonation_AddsMoney() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
             Value = "25.00"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(sub.MoneySum > 0);
         Assert.Equal(25.0, sub.MoneySum!.Value, 2);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
-    [Fact]
-    public async Task ProcessSubathonEvent_MoneyChangedAfterSave_RaisesDataUpdate()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+    [Fact]
+    public async Task ProcessSubathonEvent_MoneyChangedAfterSave_RaisesDataUpdate() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "USD",
@@ -1310,26 +1264,29 @@ public class EventServiceTests
         };
 
         bool updateRaised = false;
-        void OnDataUpdate(SubathonData _, DateTime __) { updateRaised = true; }
-        Core.Events.SubathonEvents.SubathonDataUpdate += OnDataUpdate;
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        void OnDataUpdate(SubathonData _, DateTime __) {
+            updateRaised = true;
+        }
+
+        SubathonEvents.SubathonDataUpdate += OnDataUpdate;
+
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         Assert.True(updateRaised);
 
-        Core.Events.SubathonEvents.SubathonDataUpdate -= OnDataUpdate;
+        SubathonEvents.SubathonDataUpdate -= OnDataUpdate;
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
 
     [Fact]
-    public async Task Command_AddMoney_SetsEventTypeToDonationAdjustment()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task Command_AddMoney_SetsEventTypeToDonationAdjustment() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.AddMoney,
@@ -1337,7 +1294,7 @@ public class EventServiceTests
             Currency = "USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
         Assert.Equal(SubathonEventType.DonationAdjustment, ev.EventType);
 
@@ -1346,12 +1303,11 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task Command_SubtractMoney_NegatesValue()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task Command_SubtractMoney_NegatesValue() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.SubtractMoney,
@@ -1359,12 +1315,13 @@ public class EventServiceTests
             Currency = "USD"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await using var db = new AppDbContext(options);
-        var saved = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent? saved =
+            await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
         Assert.True(double.Parse(saved.Value) < 0);
 
@@ -1372,24 +1329,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task Command_SetTime_ReversedSubathon_UpdatesElapsed()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task Command_SetTime_ReversedSubathon_UpdatesElapsed() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.ReversedTime = true;
         sub.MillisecondsCumulative = 1_000_000;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.SetTime,
             SecondsValue = 300
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -1401,19 +1357,18 @@ public class EventServiceTests
     [InlineData(SubathonCommandType.SetMultiplier, "2|xs|notabool|true", false)]
     [InlineData(SubathonCommandType.SetMultiplier, "2|xs|true|notabool", false)]
     public async Task Command_SetMultiplier_InvalidData_ReturnsFalse(SubathonCommandType cmd, string value,
-        bool expected)
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+        bool expected) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = cmd,
             Value = value
         };
 
-        var (processed, dupe) = await service.ProcessSubathonEvent(ev);
+        (bool processed, bool dupe) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expected, processed);
         Assert.False(dupe);
@@ -1421,23 +1376,23 @@ public class EventServiceTests
     }
 
     [Fact]
-    public async Task Command_SetMultiplier_WithDuration_SetsMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb(0, false);
+    public async Task Command_SetMultiplier_WithDuration_SetsMultiplier() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.Command,
             Command = SubathonCommandType.SetMultiplier,
             Value = "3|1h|true|true"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.Include(s => s.Multiplier).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.Include(s => s.Multiplier)
+            .FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, sub.Multiplier.Multiplier);
         Assert.NotNull(sub.Multiplier.Duration);
 
@@ -1447,38 +1402,36 @@ public class EventServiceTests
 }
 
 [Collection("Sequential")]
-public class EventServiceSequentialTests
-{
-    
+public class EventServiceSequentialTests {
     [Theory]
     [InlineData(0, 300, 0)]
     [InlineData(1, 300, 3)]
     [InlineData(1, 50, 0)]
-    public async Task BitsCheerEvent_WithPoints(int pointsValue, int bitsCount, int expectedPoints)
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task BitsCheerEvent_WithPoints(int pointsValue, int bitsCount, int expectedPoints) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchCheer,
             Currency = "bits",
-            Value = bitsCount.ToString(),
+            Value = bitsCount.ToString()
         };
         await using var db = new AppDbContext(options);
-        var value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.TwitchCheer).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonValue value = await db.SubathonValues.Where(x => x.EventType == SubathonEventType.TwitchCheer)
+            .FirstAsync(TestContext.Current.CancellationToken);
         value.Points = pointsValue;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
-        
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         if (expectedPoints > 0)
             Assert.True(sub.Points > 0);
         else
@@ -1486,7 +1439,7 @@ public class EventServiceSequentialTests
         Assert.True(sub.MillisecondsCumulative > 0);
         Assert.True(sub.MoneySum > 0);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("bits", ev2.Currency);
         Assert.True(ev2.ProcessedToSubathon);
         Assert.Equal(expectedPoints, ev2.PointsValue);
@@ -1496,29 +1449,28 @@ public class EventServiceSequentialTests
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task DonationEvent_InvalidCurrency()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task DonationEvent_InvalidCurrency() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "EEE",
             Value = "10"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.False(processed); // will have 0 values
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(sub.Points > 0);
         Assert.False(sub.MillisecondsCumulative > 0);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("EEE", ev2.Currency);
         Assert.False(ev2.ProcessedToSubathon);
         Assert.Equal(0, ev2.PointsValue);
@@ -1528,28 +1480,27 @@ public class EventServiceSequentialTests
     }
 
     [Fact]
-    public async Task DonationEvent_InvalidCurrency2()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task DonationEvent_InvalidCurrency2() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Currency = "",
             Value = "10"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.False(processed); // will have 0 values
 
         await using var db = new AppDbContext(options);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(sub.Points > 0);
         Assert.False(sub.MillisecondsCumulative > 0);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("???", ev2.Currency);
         Assert.False(ev2.ProcessedToSubathon);
         Assert.Equal(0, ev2.PointsValue);
@@ -1557,19 +1508,17 @@ public class EventServiceSequentialTests
         await conn.CloseAsync();
     }
 
-    
+
     [Fact]
-    public async Task DeleteSubathonEvent_SubtractPoints_Command_ReversesPoints()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_SubtractPoints_Command_ReversesPoints() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.Points = 15; // already subtracted
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.Command,
                 Command = SubathonCommandType.SubtractPoints, PointsValue = 5, SecondsValue = 0,
                 Source = SubathonEventSource.Command, ProcessedToSubathon = true
@@ -1583,25 +1532,23 @@ public class EventServiceSequentialTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(20, subUpdated.Points);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task DeleteSubathonEvent_SubtractTime_Command_ReversesMilliseconds()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_SubtractTime_Command_ReversesMilliseconds() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.MillisecondsCumulative = 30_000; // already subtracted
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.Command,
                 Command = SubathonCommandType.SubtractTime, SecondsValue = 30, PointsValue = 0,
                 Source = SubathonEventSource.Command, ProcessedToSubathon = true
@@ -1615,26 +1562,24 @@ public class EventServiceSequentialTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(60_000, subUpdated.MillisecondsCumulative);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Theory]
     [InlineData(SubathonCommandType.SetPoints)]
     [InlineData(SubathonCommandType.SetTime)]
-    public async Task DeleteSubathonEvent_SetPointsOrTime_LogsWarningAndReturns(SubathonCommandType cmd)
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_SetPointsOrTime_LogsWarningAndReturns(SubathonCommandType cmd) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-            ev = new SubathonEvent
-            {
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.Command,
                 Command = cmd, PointsValue = cmd == SubathonCommandType.SetPoints ? 10 : 0,
                 SecondsValue = cmd == SubathonCommandType.SetTime ? 60 : 0,
@@ -1645,36 +1590,39 @@ public class EventServiceSequentialTests
         }
 
         bool errorRaised = false;
-        void OnError(string level, string _, string __, DateTime ___) { if (level == "WARN") errorRaised = true; }
-        Core.Events.ErrorMessageEvents.ErrorEventOccured += OnError;
+
+        void OnError(string level, string _, string __, DateTime ___) {
+            if (level == "WARN") errorRaised = true;
+        }
+
+        ErrorMessageEvents.ErrorEventOccured += OnError;
 
         await using var serviceDb = new AppDbContext(options);
         await service.DeleteSubathonEvent(serviceDb, ev);
 
-        Core.Events.ErrorMessageEvents.ErrorEventOccured -= OnError;
+        ErrorMessageEvents.ErrorEventOccured -= OnError;
 
         Assert.True(errorRaised);
 
         await using var checkDb = new AppDbContext(options);
-        var stillExists = await checkDb.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent? stillExists =
+            await checkDb.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(stillExists);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task DeleteSubathonEvent_WasReversed_InvertsMilliseconds()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_WasReversed_InvertsMilliseconds() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.MillisecondsCumulative = -30_000; // already decremented by reversed event
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.KoFiDonation,
                 Currency = "USD", Value = "10", SecondsValue = 30, PointsValue = 0,
                 ProcessedToSubathon = true, WasReversed = true, Command = SubathonCommandType.None
@@ -1688,26 +1636,24 @@ public class EventServiceSequentialTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(subUpdated.MillisecondsCumulative >= 0);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task DeleteSubathonEvent_NotProcessed_ZeroesAllValues()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_NotProcessed_ZeroesAllValues() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.Points = 10;
             sub.MillisecondsCumulative = 60_000;
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.KoFiDonation,
                 Currency = "USD", Value = "10", SecondsValue = 30, PointsValue = 5, ProcessedToSubathon = false
             };
@@ -1720,26 +1666,24 @@ public class EventServiceSequentialTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(10, subUpdated.Points);
         Assert.Equal(60_000, subUpdated.MillisecondsCumulative);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task DeleteSubathonEvent_BitsAsDonation_RemovesMoney()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_BitsAsDonation_RemovesMoney() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.MoneySum = 0.30;
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.TwitchCheer,
                 Currency = "bits", Value = "30", SecondsValue = 5, PointsValue = 0,
                 ProcessedToSubathon = true, Source = SubathonEventSource.Twitch
@@ -1753,27 +1697,25 @@ public class EventServiceSequentialTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.True(subUpdated.MoneySum <= 0);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
-    [Fact]
-    public async Task DeleteSubathonEvent_WrongSubathonId_ReturnsEarly()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
 
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+    [Fact]
+    public async Task DeleteSubathonEvent_WrongSubathonId_ReturnsEarly() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
+
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.Points = 10;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(), SubathonId = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation, PointsValue = 5, SecondsValue = 30, ProcessedToSubathon = true
         };
@@ -1782,27 +1724,25 @@ public class EventServiceSequentialTests
         await service.DeleteSubathonEvent(serviceDb, ev);
 
         await using var checkDb = new AppDbContext(options);
-        var subUnchanged = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUnchanged = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(10, subUnchanged.Points);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
-    [Fact]
-    public async Task DeleteSubathonEvent_NullSubathonId_ReturnsEarly()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
 
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+    [Fact]
+    public async Task DeleteSubathonEvent_NullSubathonId_ReturnsEarly() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
+
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.Points = 10;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        var ev = new SubathonEvent
-        {
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(), SubathonId = null,
             EventType = SubathonEventType.KoFiDonation, PointsValue = 5, ProcessedToSubathon = true
         };
@@ -1811,7 +1751,7 @@ public class EventServiceSequentialTests
         await service.DeleteSubathonEvent(serviceDb, ev);
 
         await using var checkDb = new AppDbContext(options);
-        var subUnchanged = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUnchanged = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(10, subUnchanged.Points);
 
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -1819,13 +1759,12 @@ public class EventServiceSequentialTests
     }
 
     [Fact]
-    public async Task UndoSimulatedEvents_DoAll_RemovesAllSimulatedEvents()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task UndoSimulatedEvents_DoAll_RemovesAllSimulatedEvents() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
         Guid subId;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             subId = sub.Id;
             sub.IsLocked = false;
             sub.Points = 20;
@@ -1833,9 +1772,7 @@ public class EventServiceSequentialTests
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
             for (int i = 0; i < 3; i++)
-            {
-                db.SubathonEvents.Add(new SubathonEvent
-                {
+                db.SubathonEvents.Add(new SubathonEvent {
                     Id = Guid.NewGuid(),
                     SubathonId = sub.Id,
                     Source = SubathonEventSource.Simulated,
@@ -1847,19 +1784,18 @@ public class EventServiceSequentialTests
                     SecondsValue = 30,
                     ProcessedToSubathon = true
                 });
-            }
 
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         } // db disposed fyi
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await using var serviceDb = new AppDbContext(options);
-        await EventServiceTests.RunUndoAndWait(service, serviceDb, [], doAll: true);
+        await EventServiceTests.RunUndoAndWait(service, serviceDb, [], true);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
-        var remaining = await checkDb.SubathonEvents
-            .Where(e => e.Source == SubathonEventSource.Simulated).ToListAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+        List<SubathonEvent> remaining = await checkDb.SubathonEvents
+            .Where(e => e.Source == SubathonEventSource.Simulated).ToListAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(remaining);
         Assert.Equal(5, subUpdated.Points);
@@ -1868,20 +1804,18 @@ public class EventServiceSequentialTests
     }
 
     [Fact]
-    public async Task UndoSimulatedEvents_SkipsEventsFromOtherSubathon()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task UndoSimulatedEvents_SkipsEventsFromOtherSubathon() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent evFromOtherSubathon;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.Points = 10;
             sub.MillisecondsCumulative = 60_000;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            evFromOtherSubathon = new SubathonEvent
-            {
+            evFromOtherSubathon = new SubathonEvent {
                 Id = Guid.NewGuid(),
                 SubathonId = Guid.NewGuid(), // different subathon
                 Source = SubathonEventSource.Simulated,
@@ -1900,28 +1834,26 @@ public class EventServiceSequentialTests
         await EventServiceTests.RunUndoAndWait(service, serviceDb, [evFromOtherSubathon]);
 
         await using var checkDb = new AppDbContext(options);
-        var subUnchanged = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUnchanged = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(10, subUnchanged.Points);
         Assert.Equal(60_000, subUnchanged.MillisecondsCumulative);
 
         await conn.CloseAsync();
     }
-    
+
     [Fact]
-    public async Task UndoSimulatedEvents_SkipsUnprocessedEvents()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task UndoSimulatedEvents_SkipsUnprocessedEvents() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         SubathonEvent unprocessedEv;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             sub.Points = 10;
             sub.MillisecondsCumulative = 60_000;
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-            unprocessedEv = new SubathonEvent
-            {
+            unprocessedEv = new SubathonEvent {
                 Id = Guid.NewGuid(),
                 SubathonId = sub.Id,
                 Source = SubathonEventSource.Simulated,
@@ -1942,21 +1874,21 @@ public class EventServiceSequentialTests
         await EventServiceTests.RunUndoAndWait(service, serviceDb, [unprocessedEv]);
 
         await using var checkDb = new AppDbContext(options);
-        var subUnchanged = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUnchanged = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(10, subUnchanged.Points);
         Assert.Equal(60_000, subUnchanged.MillisecondsCumulative);
 
         await conn.CloseAsync();
     }
-    
-    
+
+
     [Fact]
-    public async Task TwitchSubEvent_DoNotDupeEvent()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb();
+    public async Task TwitchSubEvent_DoNotDupeEvent() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb();
         await using var db = new AppDbContext(options);
 
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         sub.IsPaused = true;
         sub.ReversedTime = false;
@@ -1964,26 +1896,8 @@ public class EventServiceSequentialTests
 
         var initialSubTime = sub.MillisecondsCumulative;
         var initialSubPoints = sub.Points;
-        
-        var ev = new SubathonEvent
-        {
-            Id = Guid.NewGuid(),
-            EventType = SubathonEventType.TwitchSub,
-            Value = "1000",
-            Currency = "sub",
-            User = "TestUser",
-            Source = SubathonEventSource.Twitch,
-        };
-        
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
-        Assert.True(processed);
-        await Task.Delay(25, TestContext.Current.CancellationToken).ConfigureAwait(true);
-        await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(sub.Points, initialSubPoints + 1);
-        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (60 * 1000));
-        
-        var ev2 = new SubathonEvent
-        {
+
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Value = "1000",
@@ -1991,18 +1905,33 @@ public class EventServiceSequentialTests
             User = "TestUser",
             Source = SubathonEventSource.Twitch
         };
-        
-        var (processed2, _) = await service.ProcessSubathonEvent(ev2);
+
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
+        Assert.True(processed);
+        await Task.Delay(25, TestContext.Current.CancellationToken).ConfigureAwait(true);
+        await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(sub.Points, initialSubPoints + 1);
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + 60 * 1000);
+
+        var ev2 = new SubathonEvent {
+            Id = Guid.NewGuid(),
+            EventType = SubathonEventType.TwitchSub,
+            Value = "1000",
+            Currency = "sub",
+            User = "TestUser",
+            Source = SubathonEventSource.Twitch
+        };
+
+        (bool processed2, _) = await service.ProcessSubathonEvent(ev2);
         Assert.False(processed2);
         await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
-        
+
         Assert.Equal(sub.Points, initialSubPoints + 1);
-        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (60 * 1000));
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + 60 * 1000);
 
         await Task.Delay(25, TestContext.Current.CancellationToken);
-        
-        var ev3 = new SubathonEvent
-        {
+
+        var ev3 = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Value = "1000",
@@ -2010,16 +1939,15 @@ public class EventServiceSequentialTests
             User = "TestUser2",
             Source = SubathonEventSource.Twitch
         };
-        
-        var (processed3, _) = await service.ProcessSubathonEvent(ev3);
+
+        (bool processed3, _) = await service.ProcessSubathonEvent(ev3);
         Assert.True(processed3);
-        
+
         await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(sub.Points, initialSubPoints + 2);
-        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (2 * 60 * 1000));
-                
-        var ev4 = new SubathonEvent
-        {
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + 2 * 60 * 1000);
+
+        var ev4 = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Value = "3000",
@@ -2027,43 +1955,46 @@ public class EventServiceSequentialTests
             User = "TestUser",
             Source = SubathonEventSource.Twitch
         };
-        
-        var (processed4, _) = await service.ProcessSubathonEvent(ev4);
+
+        (bool processed4, _) = await service.ProcessSubathonEvent(ev4);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed4);
         await db.Entry(sub).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(sub.Points, initialSubPoints + 7);
-        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + (7 * 60 * 1000));
+        Assert.Equal(sub.MillisecondsCumulative, initialSubTime + 7 * 60 * 1000);
         await conn.CloseAsync();
     }
-    
+
     [Theory]
     [InlineData(SubathonCommandType.Pause, true)]
     [InlineData(SubathonCommandType.Resume, false)]
-    public async Task Command_PauseResume_UpdatesIsPaused(SubathonCommandType cmd, bool expected)
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task Command_PauseResume_UpdatesIsPaused(SubathonCommandType cmd, bool expected) {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
         var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.Command, Command = cmd };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expected, sub.IsPaused);
     }
 
     [Fact]
-    public async Task Command_StopMultiplier_SetsMultiplierToOne()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb();
+    public async Task Command_StopMultiplier_SetsMultiplierToOne() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb();
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.Include(subathonData => subathonData.Multiplier).FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.Include(subathonData => subathonData.Multiplier)
+            .FirstAsync(TestContext.Current.CancellationToken);
         sub.Multiplier.Multiplier = 5;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var ev = new SubathonEvent { Id = Guid.NewGuid(), EventType = SubathonEventType.Command, Command = SubathonCommandType.StopMultiplier };
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        var ev = new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.Command, Command = SubathonCommandType.StopMultiplier
+        };
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         await service.StopAsync(TestContext.Current.CancellationToken);
         Assert.True(processed);
 
@@ -2071,35 +2002,34 @@ public class EventServiceSequentialTests
         await db.Entry(sub.Multiplier).ReloadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, sub.Multiplier.Multiplier);
     }
-    
-    
+
+
     [Fact]
-    public async Task BitsCheerEvent_AsDonation()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
-        var ev = new SubathonEvent
-        {
+    public async Task BitsCheerEvent_AsDonation() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
+        var ev = new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchCheer,
             Currency = "bits",
-            Value = "30",
+            Value = "30"
         };
 
-        var (processed, _) = await service.ProcessSubathonEvent(ev);
+        (bool processed, _) = await service.ProcessSubathonEvent(ev);
         Assert.True(processed);
 
         await using var db = new AppDbContext(options);
-        var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         sub.IsLocked = false;
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         db.ChangeTracker.Clear();
 
-        sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.False(sub.Points > 0);
         Assert.True(sub.MillisecondsCumulative > 0);
         Assert.True(sub.MoneySum > 0);
 
-        var ev2 = await db.SubathonEvents.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonEvent ev2 = await db.SubathonEvents.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal("bits", ev2.Currency);
         Assert.True(ev2.ProcessedToSubathon);
         Assert.Equal(0, ev2.PointsValue);
@@ -2109,26 +2039,24 @@ public class EventServiceSequentialTests
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
-    
-    
+
+
     [Fact]
-    public async Task DeleteSubathonEvent_RemovesPointsAndTime()
-    {
-        var (service, options, conn) = await EventServiceTests.SetupServiceWithDb(0, false);
+    public async Task DeleteSubathonEvent_RemovesPointsAndTime() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await EventServiceTests.SetupServiceWithDb(0, false);
 
         Guid subId;
         SubathonEvent ev;
-        await using (var db = new AppDbContext(options))
-        {
-            var sub = await db.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await using (var db = new AppDbContext(options)) {
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
             subId = sub.Id;
             Assert.Equal(0, sub.Points);
             Assert.Equal(0, sub.MillisecondsCumulative);
             sub.IsLocked = false;
             sub.Points += 10;
             sub.MillisecondsCumulative += 120 * 1000;
-            ev = new SubathonEvent
-            {
+            ev = new SubathonEvent {
                 Id = Guid.NewGuid(), SubathonId = sub.Id, EventType = SubathonEventType.ExternalSub,
                 PointsValue = 10, SecondsValue = 120, Source = SubathonEventSource.External, ProcessedToSubathon = true
             };
@@ -2142,10 +2070,9 @@ public class EventServiceSequentialTests
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         await using var checkDb = new AppDbContext(options);
-        var subUpdated = await checkDb.SubathonDatas.FirstAsync(cancellationToken: TestContext.Current.CancellationToken);
+        SubathonData subUpdated = await checkDb.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, subUpdated.Points);
         Assert.Equal(0, subUpdated.MillisecondsCumulative);
         await conn.CloseAsync();
     }
-
 }

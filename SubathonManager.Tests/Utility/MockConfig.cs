@@ -5,51 +5,49 @@ using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.Tests.Utility;
 
-public class MockConfig
-{
-    public static IConfig MakeMockConfig(Dictionary<(string, string), string>? values = null)
-    {
+public class MockConfig {
+    public static IConfig MakeMockConfig(Dictionary<(string, string), string>? values = null) {
         var mock = new Mock<IConfig>();
         mock.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns((string s, string k, string d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? v : d);
+                values != null && values.TryGetValue((s, k), out string? v) ? v : d);
         mock.Setup(c => c.GetOrderTypeMode(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<OrderTypeModes>()))
             .Returns((string s, string k, OrderTypeModes d) =>
-                values != null && values.TryGetValue((s, $"{k}.Mode"), out var v) ? Enum.Parse<OrderTypeModes>(v) : d);
+                values != null && values.TryGetValue((s, $"{k}.Mode"), out string? v)
+                    ? Enum.Parse<OrderTypeModes>(v)
+                    : d);
         mock.Setup(c => c.GetBool(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()))
             .Returns((string s, string k, bool d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? bool.TryParse(v, out var boolParse) ? boolParse : d : d);
+                values != null && values.TryGetValue((s, k), out string? v)
+                    ? bool.TryParse(v, out bool boolParse) ? boolParse : d
+                    : d);
         mock.Setup(c => c.GetFromEncoded(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns((string s, string k, string d) =>
-                values != null && values.TryGetValue((s, k), out var v) ? v : d);
+                values != null && values.TryGetValue((s, k), out string? v) ? v : d);
 
         if (values == null) return mock.Object;
-        foreach (var valueTuple in values.Keys)
-        {
-            var (section, key) = valueTuple;
-            mock.Setup(c => c.GetSection(section)).Returns(() =>
-            {
+        foreach ((string, string) valueTuple in values.Keys) {
+            (string section, string key) = valueTuple;
+            mock.Setup(c => c.GetSection(section)).Returns(() => {
                 var kdc = new KeyDataCollection();
-                var val = values.TryGetValue(valueTuple, out var v) ? v : "";
-                kdc.AddKey(new KeyData(key)
-                {
+                string val = values.TryGetValue(valueTuple, out string? v) ? v : "";
+                kdc.AddKey(new KeyData(key) {
                     Value = val
                 });
                 return kdc;
             });
         }
-        
+
         /** Forced KeyData **/
-        
+
         var kd = new KeyData("Commands.Pause");
         kd.Value = "pause";
-        mock.Setup(c => c.GetSection("Chat")).Returns(() =>
-        {
+        mock.Setup(c => c.GetSection("Chat")).Returns(() => {
             var kdc = new KeyDataCollection();
             kdc.AddKey(kd);
             return kdc;
         });
-            
+
         return mock.Object;
     }
 }

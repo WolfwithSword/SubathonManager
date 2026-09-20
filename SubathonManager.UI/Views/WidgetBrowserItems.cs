@@ -7,24 +7,20 @@ using SubathonManager.Data.Widgets;
 
 namespace SubathonManager.UI.Views;
 
-public sealed class CatalogItem : INotifyPropertyChanged
-{
-    public event PropertyChangedEventHandler? PropertyChanged;
+public sealed class CatalogItem : INotifyPropertyChanged {
+    public const string PresetSection = "Presets";
+    public const string UnknownAuthor = "Unknown Author";
+    public const string UngroupedName = "Ungrouped";
     private bool _isSelected;
-    public bool IsSelected
-    {
+
+    public bool IsSelected {
         get => _isSelected;
-        set
-        {
+        set {
             if (_isSelected == value) return;
             _isSelected = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
         }
     }
-
-    public const string PresetSection = "Presets";
-    public const string UnknownAuthor = "Unknown Author";
-    public const string UngroupedName = "Ungrouped";
 
     public required WidgetCatalogEntry Entry { get; init; }
 
@@ -45,7 +41,7 @@ public sealed class CatalogItem : INotifyPropertyChanged
 
     public string? DocsUrl
         => !string.IsNullOrWhiteSpace(Entry.DocsUrl) &&
-           Uri.TryCreate(Entry.DocsUrl, UriKind.Absolute, out var uri) &&
+           Uri.TryCreate(Entry.DocsUrl, UriKind.Absolute, out Uri? uri) &&
            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
             ? Entry.DocsUrl
             : null;
@@ -56,10 +52,8 @@ public sealed class CatalogItem : INotifyPropertyChanged
         ? "Delete this package file from disk"
         : "Widgets included with the app cannot be deleted";
 
-    public string TooltipText
-    {
-        get
-        {
+    public string TooltipText {
+        get {
             var lines = new List<string> { Name, $"{AuthorLabel} - {VersionLabel}" };
             if (!string.IsNullOrWhiteSpace(Entry.Tags)) lines.Add(Entry.Tags);
             lines.Add(Entry.PackPath);
@@ -71,16 +65,13 @@ public sealed class CatalogItem : INotifyPropertyChanged
 
     public bool HasTags => TagList.Count > 0;
 
-    public static IReadOnlyList<string> SplitTags(string? tags)
-        => string.IsNullOrWhiteSpace(tags)
-            ? []
-            : tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
     public string SearchBlob { get; init; } = string.Empty;
 
     public string SectionTitle => Entry.Source == WidgetCatalogSource.Preset
         ? PresetSection
-        : string.IsNullOrWhiteSpace(Entry.Author) ? UnknownAuthor : Entry.Author.Trim();
+        : string.IsNullOrWhiteSpace(Entry.Author)
+            ? UnknownAuthor
+            : Entry.Author.Trim();
 
     public string GroupTitle =>
         string.IsNullOrWhiteSpace(Entry.Group) ||
@@ -91,10 +82,17 @@ public sealed class CatalogItem : INotifyPropertyChanged
     public string VersionKey => string.IsNullOrWhiteSpace(Entry.PackId)
         ? Entry.PackPath
         : $"{Entry.Source}|{Entry.PackId}";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public static IReadOnlyList<string> SplitTags(string? tags) {
+        return string.IsNullOrWhiteSpace(tags)
+            ? []
+            : tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
 }
 
-public sealed class CatalogGroup
-{
+public sealed class CatalogGroup {
     public required string Title { get; init; }
 
     public required string Key { get; init; }
@@ -104,8 +102,7 @@ public sealed class CatalogGroup
     public ObservableCollection<CatalogItem> Items { get; } = [];
 }
 
-public sealed class CatalogSection
-{
+public sealed class CatalogSection {
     public required string Title { get; init; }
 
     public required string Key { get; init; }

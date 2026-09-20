@@ -16,44 +16,34 @@ using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
-public partial class PicartoSettings : SettingsControl
-{
+public partial class PicartoSettings : SettingsControl {
     private readonly ILogger? _logger = AppServices.Provider.GetRequiredService<ILogger<PicartoSettings>>();
 
-    public PicartoSettings()
-    {
+    public PicartoSettings() {
         InitializeComponent();
-        Loaded += (_, _) =>
-        {
+        Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
             UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Chat"));
             UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Alerts"));
         };
-        Unloaded += (_, _) =>
-        {
-            IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-        };
+        Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
     }
 
-    public override void Init(SettingsView host)
-    {
+    public override void Init(SettingsView host) {
         Host = host;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         PicartoUserBox.Text = config.Get("Picarto", "Username", string.Empty)!;
 
-        Dispatcher.UIThread.Post(() =>
-        {
+        Dispatcher.UIThread.Post(() => {
             UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Chat"));
             UpdateStatus(Utils.GetConnection(SubathonEventSource.Picarto, "Alerts"));
         });
     }
 
-    internal override void UpdateStatus(IntegrationConnection? connection)
-    {
+    internal override void UpdateStatus(IntegrationConnection? connection) {
         if (connection is not { Source: SubathonEventSource.Picarto }) return;
-        Dispatcher.UIThread.Post(() =>
-        {
+        Dispatcher.UIThread.Post(() => {
             if (connection.Service == "Chat")
                 Host.UpdateConnectionStatus(connection.Status, PicartoChatStatusText, ConnectPicartoBtn);
             else if (connection.Service == "Alerts")
@@ -61,24 +51,22 @@ public partial class PicartoSettings : SettingsControl
         });
     }
 
-    protected internal override bool UpdateConfigValueSettings()
-    {
-        bool hasUpdated = false;
+    protected internal override bool UpdateConfigValueSettings() {
+        var hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
         hasUpdated |= config.Set("Picarto", "Username", $"{PicartoUserBox.Text}");
         return hasUpdated;
     }
 
-    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) { }
+    public override void UpdateCurrencyBoxes(List<string> currencies, string selected) {
+    }
 
-    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val)
-    {
-        string v = $"{val.Seconds}";
-        string p = $"{val.Points}";
+    public override (string, string, TextBox?, TextBox?) GetValueBoxes(SubathonValue val) {
+        var v = $"{val.Seconds}";
+        var p = $"{val.Points}";
         TextBox? box = null;
         TextBox? box2 = null;
-        switch (val.EventType)
-        {
+        switch (val.EventType) {
             case SubathonEventType.PicartoFollow:
                 box = FollowTextBox;
                 box2 = Follow2TextBox;
@@ -89,62 +77,76 @@ public partial class PicartoSettings : SettingsControl
                 box2 = Kudos2TextBox;
                 break;
             case SubathonEventType.PicartoSub:
-                switch (val.Meta)
-                {
-                    case "T1": box = SubT1TextBox; box2 = SubT1TextBox2; break;
-                    case "T2": box = SubT2TextBox; box2 = SubT2TextBox2; break;
-                    case "T3": box = SubT3TextBox; box2 = SubT3TextBox2; break;
+                switch (val.Meta) {
+                    case "T1":
+                        box = SubT1TextBox;
+                        box2 = SubT1TextBox2;
+                        break;
+                    case "T2":
+                        box = SubT2TextBox;
+                        box2 = SubT2TextBox2;
+                        break;
+                    case "T3":
+                        box = SubT3TextBox;
+                        box2 = SubT3TextBox2;
+                        break;
                 }
+
                 break;
             case SubathonEventType.PicartoGiftSub:
-                if (val.Meta == "T1") { box = GiftSubTextBox; box2 = GiftSubTextBox2; }
+                if (val.Meta == "T1") {
+                    box = GiftSubTextBox;
+                    box2 = GiftSubTextBox2;
+                }
+
                 break;
         }
+
         return (v, p, box, box2);
     }
 
-    private async void ConnectPicartoButton_Click(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var updated = UpdateConfigValueSettings();
-            if (updated)
-            {
+    private async void ConnectPicartoButton_Click(object? sender, RoutedEventArgs e) {
+        try {
+            bool updated = UpdateConfigValueSettings();
+            if (updated) {
                 var config = AppServices.Provider.GetRequiredService<IConfig>();
                 config.Save();
             }
+
             await ServiceManager.Picarto.UpdateChannel();
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger?.LogError(ex, "Failed to initialize PicartoService");
         }
     }
 
-    public override bool UpdateValueSettings(AppDbContext db)
-    {
-        bool hasUpdated = false;
-        var cheerValue = db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.PicartoTip && sv.Meta == "");
+    public override bool UpdateValueSettings(AppDbContext db) {
+        var hasUpdated = false;
+        SubathonValue? cheerValue =
+            db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.PicartoTip && sv.Meta == "");
         // divide by 100 since UI shows "per 100 kudos"
-        if (cheerValue != null && double.TryParse(KudosTextBox.Text, out var cheerSeconds) && !cheerValue.Seconds.Equals(cheerSeconds / 100.0))
-        {
+        if (cheerValue != null && double.TryParse(KudosTextBox.Text, out double cheerSeconds) &&
+            !cheerValue.Seconds.Equals(cheerSeconds / 100.0)) {
             cheerValue.Seconds = cheerSeconds / 100.0;
             hasUpdated = true;
         }
-        if (cheerValue != null && double.TryParse(Kudos2TextBox.Text, out var cheerPoints) && !cheerValue.Points.Equals(cheerPoints))
-        {
+
+        if (cheerValue != null && double.TryParse(Kudos2TextBox.Text, out double cheerPoints) &&
+            !cheerValue.Points.Equals(cheerPoints)) {
             cheerValue.Points = cheerPoints;
             hasUpdated = true;
         }
 
-        var followValue = db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.PicartoFollow && sv.Meta == "");
-        if (followValue != null && double.TryParse(FollowTextBox.Text, out var followSeconds) && !followValue.Seconds.Equals(followSeconds))
-        {
+        SubathonValue? followValue =
+            db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.PicartoFollow && sv.Meta == "");
+        if (followValue != null && double.TryParse(FollowTextBox.Text, out double followSeconds) &&
+            !followValue.Seconds.Equals(followSeconds)) {
             followValue.Seconds = followSeconds;
             hasUpdated = true;
         }
-        if (followValue != null && double.TryParse(Follow2TextBox.Text, out var followPoints) && !followValue.Points.Equals(followPoints))
-        {
+
+        if (followValue != null && double.TryParse(Follow2TextBox.Text, out double followPoints) &&
+            !followValue.Points.Equals(followPoints)) {
             followValue.Points = followPoints;
             hasUpdated = true;
         }
@@ -156,13 +158,11 @@ public partial class PicartoSettings : SettingsControl
         return hasUpdated;
     }
 
-    private void TestPicartoTip_Click(object? sender, RoutedEventArgs e)
-    {
-        var value = SimulateTipAmt.Text;
+    private void TestPicartoTip_Click(object? sender, RoutedEventArgs e) {
+        string? value = SimulateTipAmt.Text;
         if (string.IsNullOrWhiteSpace(value)) return;
 
-        PicartoTip tip = new PicartoTip
-        {
+        var tip = new PicartoTip {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,
             Amount = decimal.Parse(value),
             Username = "SYSTEM"
@@ -170,34 +170,28 @@ public partial class PicartoSettings : SettingsControl
         PicartoService.ProcessAlert(tip);
     }
 
-    private void TestPicartoFollow_Click(object? sender, RoutedEventArgs e)
-    {
-        PicartoFollow follow = new PicartoFollow
-        {
+    private void TestPicartoFollow_Click(object? sender, RoutedEventArgs e) {
+        var follow = new PicartoFollow {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,
             Username = "SYSTEM"
         };
         PicartoService.ProcessAlert(follow);
     }
 
-    private void TestPicartoSub_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestPicartoSub_Click(object? sender, RoutedEventArgs e) {
         string selectedTier = (SimSubTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-        int tier = selectedTier switch
-        {
+        int tier = selectedTier switch {
             "Tier 1" => 1,
             "Tier 2" => 2,
             "Tier 3" => 3,
             _ => 1
         };
-        decimal amount = tier switch
-        {
+        decimal amount = tier switch {
             2 => 9.99m,
             3 => 14.99m,
             _ => 4.99m
         };
-        PicartoSubscription sub = new PicartoSubscription
-        {
+        var sub = new PicartoSubscription {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,
             Username = "SYSTEM",
             Amount = amount,
@@ -206,14 +200,12 @@ public partial class PicartoSettings : SettingsControl
         PicartoService.ProcessAlert(sub);
     }
 
-    private void TestPicartoSubMonths_Click(object? sender, RoutedEventArgs e)
-    {
+    private void TestPicartoSubMonths_Click(object? sender, RoutedEventArgs e) {
         string selectedMonths = (SimSubMonthSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
         int.TryParse(selectedMonths.Replace(" Months", "").Replace(" Month", "").Trim(), out int months);
 
         decimal amount = 4.99m * months;
-        PicartoSubscription sub = new PicartoSubscription
-        {
+        var sub = new PicartoSubscription {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,
             Username = "SYSTEM",
             Amount = amount,
@@ -222,17 +214,15 @@ public partial class PicartoSettings : SettingsControl
         PicartoService.ProcessAlert(sub);
     }
 
-    private void TestPicartoGiftSub_Click(object? sender, RoutedEventArgs e)
-    {
-        var value = SimGiftSubAmtInput.Text;
+    private void TestPicartoGiftSub_Click(object? sender, RoutedEventArgs e) {
+        string? value = SimGiftSubAmtInput.Text;
         if (string.IsNullOrWhiteSpace(value)) return;
 
         string selectedMonths = (SimGiftSubMonthSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
         int.TryParse(selectedMonths.Replace(" Months", "").Replace(" Month", "").Trim(), out int months);
         int.TryParse(value, out int amt);
         decimal amount = 4.99m * months * amt;
-        PicartoSubscription sub = new PicartoSubscription
-        {
+        var sub = new PicartoSubscription {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,
             Username = "SYSTEM",
             Amount = amount,

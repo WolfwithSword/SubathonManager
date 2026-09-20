@@ -1,14 +1,13 @@
 using SubathonManager.Data.Widgets;
 using SubathonManager.Tests.Utility;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.DataUnitTests;
 
 [Collection("WorkingDirectory")]
-public class WidgetPackFileSystemTests
-{
-    private static string MakePackedWidget(params (string entry, string content)[] files)
-    {
+public class WidgetPackFileSystemTests {
+    private static string MakePackedWidget(params (string entry, string content)[] files) {
         string folder = Path.Combine(WidgetPackPaths.PackedRoot, "wolf.widgets.timer");
         Directory.CreateDirectory(folder);
         TestPacks.WriteZip(Path.Combine(folder, "1-0-0.smw"),
@@ -18,8 +17,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void Exists_PackedEntry_IsTrue()
-    {
+    public void Exists_PackedEntry_IsTrue() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("content/widget.html", "<html></html>"));
         var fs = new WidgetPackFileSystem();
@@ -29,8 +27,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void IsPacked_DistinguishesPackedFromLoose()
-    {
+    public void IsPacked_DistinguishesPackedFromLoose() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("content/widget.html", "<html></html>"));
         string loose = ws.WriteFile("loose/widget.html", "<html></html>");
@@ -41,8 +38,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void ReadAllText_And_ReadAllBytes_ComeFromTheArchive()
-    {
+    public void ReadAllText_And_ReadAllBytes_ComeFromTheArchive() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("content/widget.html", "<html>packed</html>"));
         var fs = new WidgetPackFileSystem();
@@ -53,8 +49,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void ReadAllText_MissingPackedEntry_ReturnsNull()
-    {
+    public void ReadAllText_MissingPackedEntry_ReturnsNull() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("content/widget.html", "x"));
         var fs = new WidgetPackFileSystem();
@@ -64,8 +59,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void GetRealFilePath_SmallPackedEntry_ReturnsNull()
-    {
+    public void GetRealFilePath_SmallPackedEntry_ReturnsNull() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("content/widget.html", "small"));
         var fs = new WidgetPackFileSystem();
@@ -73,8 +67,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void GetRealFilePath_LargePackedEntry_MaterialisesToTheCache()
-    {
+    public void GetRealFilePath_LargePackedEntry_MaterialisesToTheCache() {
         using var ws = new TempWorkspace("packfs");
         string big = new('x', (int)WidgetPackMemoryCache.MaxEntrySize + 16);
         string mount = MakePackedWidget(("content/widget.html", "<html></html>"), ("media/big.txt", big));
@@ -88,8 +81,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void EnumerateFiles_PackedFolder_ListsMountedEntryPaths()
-    {
+    public void EnumerateFiles_PackedFolder_ListsMountedEntryPaths() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(
             ("widget.json", "{}"),
@@ -97,7 +89,7 @@ public class WidgetPackFileSystemTests
             ("content/sub/style.css", "body{}"));
         var fs = new WidgetPackFileSystem();
 
-        var files = fs.EnumerateFiles(Path.Combine(mount, "content")).ToList();
+        List<string> files = fs.EnumerateFiles(Path.Combine(mount, "content")).ToList();
 
         Assert.Equal(2, files.Count);
         Assert.Contains(Path.Combine(mount, "content", "widget.html"), files);
@@ -106,21 +98,19 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void EnumerateFiles_MountRoot_ListsEverything()
-    {
+    public void EnumerateFiles_MountRoot_ListsEverything() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("widget.json", "{}"), ("content/widget.html", "<html></html>"));
         var fs = new WidgetPackFileSystem();
 
-        var files = fs.EnumerateFiles(mount).ToList();
+        List<string> files = fs.EnumerateFiles(mount).ToList();
 
         Assert.Equal(2, files.Count);
         Assert.Contains(Path.Combine(mount, "widget.json"), files);
     }
 
     [Fact]
-    public void Unpack_PackedPath_ExtractsEverything()
-    {
+    public void Unpack_PackedPath_ExtractsEverything() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("widget.json", "{}"), ("content/widget.html", "<html>u</html>"));
         var fs = new WidgetPackFileSystem();
@@ -131,8 +121,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void Unpack_LoosePath_ReturnsFalse()
-    {
+    public void Unpack_LoosePath_ReturnsFalse() {
         using var ws = new TempWorkspace("packfs");
         string loose = ws.Dir("loose");
         var fs = new WidgetPackFileSystem();
@@ -144,8 +133,7 @@ public class WidgetPackFileSystemTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void BlankPath_FallsBackToDiskAndReportsMissing(string? path)
-    {
+    public void BlankPath_FallsBackToDiskAndReportsMissing(string? path) {
         using var ws = new TempWorkspace("packfs");
         var fs = new WidgetPackFileSystem();
 
@@ -155,8 +143,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void LooseFile_IsReadFromDisk()
-    {
+    public void LooseFile_IsReadFromDisk() {
         using var ws = new TempWorkspace("packfs");
         string loose = ws.WriteFile("loose/widget.html", "<html>disk</html>");
         var fs = new WidgetPackFileSystem();
@@ -168,8 +155,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void MissingLooseFile_ReturnsNulls()
-    {
+    public void MissingLooseFile_ReturnsNulls() {
         using var ws = new TempWorkspace("packfs");
         string missing = Path.Combine(ws.Root, "loose", "nope.html");
         var fs = new WidgetPackFileSystem();
@@ -181,21 +167,19 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void EnumerateFiles_LooseFolder_RecursesOnDisk()
-    {
+    public void EnumerateFiles_LooseFolder_RecursesOnDisk() {
         using var ws = new TempWorkspace("packfs");
         ws.WriteFile("loose/widget.html", "a");
         ws.WriteFile("loose/sub/style.css", "b");
         var fs = new WidgetPackFileSystem();
 
-        var files = fs.EnumerateFiles(Path.Combine(ws.Root, "loose")).ToList();
+        List<string> files = fs.EnumerateFiles(Path.Combine(ws.Root, "loose")).ToList();
 
         Assert.Equal(2, files.Count);
     }
 
     [Fact]
-    public void EnumerateFiles_MissingFolder_ReturnsEmpty()
-    {
+    public void EnumerateFiles_MissingFolder_ReturnsEmpty() {
         using var ws = new TempWorkspace("packfs");
         var fs = new WidgetPackFileSystem();
 
@@ -203,8 +187,7 @@ public class WidgetPackFileSystemTests
     }
 
     [Fact]
-    public void ReadersAreReusedPerPackFile()
-    {
+    public void ReadersAreReusedPerPackFile() {
         using var ws = new TempWorkspace("packfs");
         string mount = MakePackedWidget(("content/widget.html", "<html>cached</html>"));
         var fs = new WidgetPackFileSystem();

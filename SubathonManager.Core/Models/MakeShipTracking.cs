@@ -4,10 +4,9 @@ using SubathonManager.Core.Enums;
 
 namespace SubathonManager.Core.Models;
 
-public class MakeShipTracking
-{
-    [Key]
-    public Guid Id { get; set; } = Guid.NewGuid();
+public class MakeShipTracking {
+    [Key] public Guid Id { get; set; } = Guid.NewGuid();
+
     public string Url { get; set; } = "";
     public string Name { get; set; } = "";
     public string ShopifyProductId { get; set; } = "";
@@ -16,6 +15,5 @@ public class MakeShipTracking
     public int Sales { get; set; }
     public int Orders { get; set; }
 
-    [NotMapped]
-    public bool PollFailing { get; set; }
+    [NotMapped] public bool PollFailing { get; set; }
 }

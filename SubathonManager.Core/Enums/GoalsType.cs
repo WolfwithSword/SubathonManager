@@ -1,7 +1,6 @@
 ﻿namespace SubathonManager.Core.Enums;
 
-public enum GoalsType
-{
+public enum GoalsType {
     Points,
     Money
 }

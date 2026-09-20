@@ -1,12 +1,13 @@
 using System.IO.Compression;
 using System.Text.Json;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Data.Widgets;
 
-public class WidgetPackManifest
-{
+public class WidgetPackManifest {
     public string FormatVersion { get; init; } = "1";
     public string AppVersion { get; init; } = string.Empty;
     public string PackId { get; init; } = string.Empty;
@@ -27,35 +28,29 @@ public class WidgetPackManifest
     public float ScaleY { get; init; } = 1;
 }
 
-public static class WidgetPackInstaller
-{
+public static class WidgetPackInstaller {
     public const string ManifestFileName = "widget.json";
-    public record InstalledPack(WidgetPackManifest Manifest, string HtmlPath, string PackFile);
 
-    public static WidgetPackManifest? ReadManifest(string smwPath)
-    {
-        try
-        {
+    public static WidgetPackManifest? ReadManifest(string smwPath) {
+        try {
             using var stream = new FileStream(smwPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
-            var entry = archive.Entries.FirstOrDefault(e =>
+            ZipArchiveEntry? entry = archive.Entries.FirstOrDefault(e =>
                 string.Equals(e.FullName.Replace('\\', '/'), ManifestFileName, StringComparison.OrdinalIgnoreCase));
             if (entry == null) return null;
 
             using var reader = new StreamReader(entry.Open());
-            using var doc = JsonDocument.Parse(reader.ReadToEnd());
+            using JsonDocument doc = JsonDocument.Parse(reader.ReadToEnd());
             return Parse(doc.RootElement, smwPath);
         }
-        catch
-        {
+        catch {
             return null;
         }
     }
 
-    public static InstalledPack? Install(string smwPath)
-    {
-        var manifest = ReadManifest(smwPath);
+    public static InstalledPack? Install(string smwPath) {
+        WidgetPackManifest? manifest = ReadManifest(smwPath);
         if (manifest == null || string.IsNullOrWhiteSpace(manifest.Entry)) return null;
 
         string packId = manifest.PackId;
@@ -64,21 +59,19 @@ public static class WidgetPackInstaller
 
         string target = WidgetPackPaths.PackFile(packId, version);
 
-        try
-        {
+        try {
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             if (!string.Equals(Path.GetFullPath(smwPath), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
-                File.Copy(smwPath, target, overwrite: true);
+                File.Copy(smwPath, target, true);
 
             string cacheDir = WidgetPackPaths.CacheDirFor(target);
-            if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, recursive: true);
+            if (Directory.Exists(cacheDir)) Directory.Delete(cacheDir, true);
 
             WidgetPackMemoryCache.InvalidatePack(target);
             WidgetPackPaths.InvalidateVersionCache(packId);
             WidgetPackPaths.InvalidateResolveCache();
         }
-        catch
-        {
+        catch {
             return null;
         }
 
@@ -86,11 +79,10 @@ public static class WidgetPackInstaller
         return new InstalledPack(manifest, htmlPath, target);
     }
 
-    public static InstalledPack? MountInPlace(string smwPath)
-    {
+    public static InstalledPack? MountInPlace(string smwPath) {
         if (!File.Exists(smwPath)) return null;
 
-        var manifest = ReadManifest(smwPath);
+        WidgetPackManifest? manifest = ReadManifest(smwPath);
         if (manifest == null || string.IsNullOrWhiteSpace(manifest.Entry)) return null;
 
         string full = Path.GetFullPath(smwPath);
@@ -103,13 +95,11 @@ public static class WidgetPackInstaller
         return new InstalledPack(manifest, WidgetPackPaths.EntryPathIn(mountRoot, manifest.Entry), full);
     }
 
-    public static string? DropIntoImports(string smwPath)
-    {
-        try
-        {
+    public static string? DropIntoImports(string smwPath) {
+        try {
             if (!File.Exists(smwPath)) return null;
 
-            var installed = Install(smwPath);
+            InstalledPack? installed = Install(smwPath);
             if (installed != null) return installed.PackFile;
 
             Directory.CreateDirectory(WidgetPackPaths.PackedRoot);
@@ -117,52 +107,47 @@ public static class WidgetPackInstaller
             if (string.Equals(Path.GetFullPath(smwPath), Path.GetFullPath(target), StringComparison.OrdinalIgnoreCase))
                 return target;
 
-            File.Copy(smwPath, target, overwrite: true);
+            File.Copy(smwPath, target, true);
             return target;
         }
-        catch
-        {
+        catch {
             return null;
         }
     }
 
-    public static int SweepCache(IEnumerable<string> liveWidgetPaths)
-    {
+    public static int SweepCache(IEnumerable<string> liveWidgetPaths) {
         string cacheRoot = WidgetPackPaths.CacheRoot;
         if (!Directory.Exists(cacheRoot)) return 0;
 
         var live = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in liveWidgetPaths)
-        {
-            var location = WidgetPackPaths.Resolve(path);
+        foreach (string path in liveWidgetPaths) {
+            WidgetPackPaths.PackLocation? location = WidgetPackPaths.Resolve(path);
             if (location != null) live.Add(WidgetPackPaths.CacheDirFor(location.PackFileStr));
         }
 
-        int removed = 0;
+        var removed = 0;
 
-        try
-        {
-            foreach (var dir in Directory.EnumerateDirectories(cacheRoot))
-            {
+        try {
+            foreach (string dir in Directory.EnumerateDirectories(cacheRoot)) {
                 if (live.Contains(dir)) continue;
-                try
-                {
-                    Directory.Delete(dir, recursive: true);
+                try {
+                    Directory.Delete(dir, true);
                     removed++;
                 }
-                catch { /**/ }
+                catch {
+                    /**/
+                }
             }
         }
-        catch { /**/ }
+        catch {
+            /**/
+        }
 
         return removed;
     }
 
-    public record PackUpdate(string PackFile, string Version, string Entry);
-
-    public static PackUpdate? FindUpdate(string widgetHtmlPath)
-    {
-        var location = WidgetPackPaths.Resolve(widgetHtmlPath);
+    public static PackUpdate? FindUpdate(string widgetHtmlPath) {
+        WidgetPackPaths.PackLocation? location = WidgetPackPaths.Resolve(widgetHtmlPath);
         if (location == null) return null;
 
         return WidgetPackPaths.IsInPresets(location.PackFileStr)
@@ -170,16 +155,14 @@ public static class WidgetPackInstaller
             : FindVersionedFolderUpdate(location);
     }
 
-    private static PackUpdate? FindPresetUpdate(WidgetPackPaths.PackLocation location)
-    {
-        var current = WidgetCatalog.EntryForPackFile(location.PackFileStr);
+    private static PackUpdate? FindPresetUpdate(WidgetPackPaths.PackLocation location) {
+        WidgetCatalogEntry? current = WidgetCatalog.EntryForPackFile(location.PackFileStr);
         if (current == null || string.IsNullOrWhiteSpace(current.PackId)) return null;
 
         PackUpdate? best = null;
         string bestVersion = current.Version;
 
-        foreach (var candidate in WidgetCatalog.EntriesForPackId(current.PackId))
-        {
+        foreach (WidgetCatalogEntry candidate in WidgetCatalog.EntriesForPackId(current.PackId)) {
             if (candidate.Source != WidgetCatalogSource.Preset) continue;
             if (string.Equals(candidate.PackPath, current.PackPath, StringComparison.OrdinalIgnoreCase)) continue;
             if (WidgetPackPaths.CompareVersions(candidate.Version, bestVersion) <= 0) continue;
@@ -191,13 +174,11 @@ public static class WidgetPackInstaller
         return best;
     }
 
-    private static PackUpdate? FindVersionedFolderUpdate(WidgetPackPaths.PackLocation location)
-    {
+    private static PackUpdate? FindVersionedFolderUpdate(WidgetPackPaths.PackLocation location) {
         if (!WidgetPackPaths.IsVersionName(location.VersionStr)) return null;
 
         string? best = null;
-        foreach (var candidate in WidgetPackPaths.VersionsIn(location.PackFolderStr))
-        {
+        foreach (string candidate in WidgetPackPaths.VersionsIn(location.PackFolderStr)) {
             if (!WidgetPackPaths.IsVersionName(candidate)) continue;
             if (WidgetPackPaths.CompareVersions(candidate, location.VersionStr) <= 0) continue;
             if (best == null || WidgetPackPaths.CompareVersions(candidate, best) > 0) best = candidate;
@@ -209,11 +190,12 @@ public static class WidgetPackInstaller
         return new PackUpdate(file, best, ReadManifest(file)?.Entry ?? string.Empty);
     }
 
-    public static string? FindNewerVersion(string widgetHtmlPath) => FindUpdate(widgetHtmlPath)?.Version;
+    public static string? FindNewerVersion(string widgetHtmlPath) {
+        return FindUpdate(widgetHtmlPath)?.Version;
+    }
 
-    private static WidgetPackManifest Parse(JsonElement root, string smwPath)
-    {
-        var widget = root.TryGetProperty("widget", out var w) ? w : default;
+    private static WidgetPackManifest Parse(JsonElement root, string smwPath) {
+        JsonElement widget = root.TryGetProperty("widget", out JsonElement w) ? w : default;
 
         string name = Str(widget, "name");
         if (string.IsNullOrWhiteSpace(name)) name = Path.GetFileNameWithoutExtension(smwPath);
@@ -226,13 +208,16 @@ public static class WidgetPackInstaller
         string version = Str(widget, "widget_version");
         if (string.IsNullOrWhiteSpace(version)) version = "1.0.0";
 
-        var size = widget.ValueKind == JsonValueKind.Object && widget.TryGetProperty("size", 
-            out var s) ? s : default;
-        var scale = widget.ValueKind == JsonValueKind.Object && widget.TryGetProperty("scale", 
-            out var c) ? c : default;
+        JsonElement size = widget.ValueKind == JsonValueKind.Object && widget.TryGetProperty("size",
+            out JsonElement s)
+            ? s
+            : default;
+        JsonElement scale = widget.ValueKind == JsonValueKind.Object && widget.TryGetProperty("scale",
+            out JsonElement c)
+            ? c
+            : default;
 
-        return new WidgetPackManifest
-        {
+        return new WidgetPackManifest {
             FormatVersion = Str(root, "version"),
             AppVersion = Str(root, "app_version"),
             PackId = packId,
@@ -251,15 +236,16 @@ public static class WidgetPackInstaller
         };
     }
 
-    private static string Str(JsonElement el, string name)
-        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
+    private static string Str(JsonElement el, string name) {
+        return el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out JsonElement v) &&
+               v.ValueKind == JsonValueKind.String
             ? v.GetString() ?? string.Empty
             : string.Empty;
+    }
 
-    private static List<string> StrList(JsonElement el, string name)
-    {
+    private static List<string> StrList(JsonElement el, string name) {
         if (el.ValueKind != JsonValueKind.Object ||
-            !el.TryGetProperty(name, out var v) ||
+            !el.TryGetProperty(name, out JsonElement v) ||
             v.ValueKind != JsonValueKind.Array)
             return new List<string>();
 
@@ -270,15 +256,21 @@ public static class WidgetPackInstaller
             .ToList();
     }
 
-    private static int Int(JsonElement el, string name, int fallback)
-        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, 
-            out var v) && v.TryGetInt32(out var i)
+    private static int Int(JsonElement el, string name, int fallback) {
+        return el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name,
+            out JsonElement v) && v.TryGetInt32(out int i)
             ? i
             : fallback;
+    }
 
-    private static float Flt(JsonElement el, string name, float fallback)
-        => el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name,
-            out var v) && v.TryGetSingle(out var f) && f > 0
+    private static float Flt(JsonElement el, string name, float fallback) {
+        return el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name,
+            out JsonElement v) && v.TryGetSingle(out float f) && f > 0
             ? f
             : fallback;
+    }
+
+    public record InstalledPack(WidgetPackManifest Manifest, string HtmlPath, string PackFile);
+
+    public record PackUpdate(string PackFile, string Version, string Entry);
 }

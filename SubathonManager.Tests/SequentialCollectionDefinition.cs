@@ -1,25 +1,25 @@
 ﻿namespace SubathonManager.Tests;
 
 [CollectionDefinition("Sequential", DisableParallelization = true)]
-public class SequentialCollectionDefinition
-{
+public class SequentialCollectionDefinition {
 }
-
 
 [CollectionDefinition("SequentialParallel", DisableParallelization = true)]
-public class SequentialParallelCollectionDefinition
-{
+public class SequentialParallelCollectionDefinition {
 }
 
-
 [CollectionDefinition("GlobalState", DisableParallelization = true)]
-public class GlobalStateCollection { }
+public class GlobalStateCollection {
+}
 
 [CollectionDefinition("ServicesTests", DisableParallelization = true)]
-public class ServicesTestsCollection { }
+public class ServicesTestsCollection {
+}
 
 [CollectionDefinition("CurrencyServiceTests", DisableParallelization = true)]
-public class CurrencyServiceTestsCollection { }
+public class CurrencyServiceTestsCollection {
+}
 
 [CollectionDefinition("WorkingDirectory", DisableParallelization = true)]
-public class WorkingDirectoryCollection { }
+public class WorkingDirectoryCollection {
+}

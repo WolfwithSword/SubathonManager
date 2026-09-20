@@ -1,5 +1,6 @@
 using System.Net;
 using System.Reflection;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,15 +11,14 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.ServicesUnitTests;
 
 [Collection("GlobalState")]
-public class WheelSpinTriggerServiceTests
-{
-    private static CurrencyService MakeCurrencyService()
-    {
+public class WheelSpinTriggerServiceTests {
+    private static CurrencyService MakeCurrencyService() {
         var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
         handlerMock
             .Protected()
@@ -28,15 +28,14 @@ public class WheelSpinTriggerServiceTests
                 ItExpr.IsAny<CancellationToken>()
             )
             .Returns<HttpRequestMessage, CancellationToken>((_, _) =>
-                Task.FromResult(new HttpResponseMessage
-                {
+                Task.FromResult(new HttpResponseMessage {
                     StatusCode = HttpStatusCode.OK,
                     Content = new StringContent("{}")
                 }));
 
         var currency = new CurrencyService(
             new Mock<ILogger<CurrencyService>>().Object,
-            MockConfig.MakeMockConfig(new() { { ("Currency", "Primary"), "USD" } }),
+            MockConfig.MakeMockConfig(new Dictionary<(string, string), string> { { ("Currency", "Primary"), "USD" } }),
             new HttpClient(handlerMock.Object));
         currency.SetRates(new Dictionary<string, double>
             { { "USD", 1.0 }, { "GBP", 0.9 }, { "CAD", 0.8 } });
@@ -44,16 +43,17 @@ public class WheelSpinTriggerServiceTests
     }
 
     private static async Task<(WheelSpinTriggerService service, DbContextOptions<AppDbContext> options,
-        Microsoft.Data.Sqlite.SqliteConnection conn)> SetupServiceWithDb()
-    {
+        SqliteConnection conn)> SetupServiceWithDb() {
         var dbName = $"test_{Guid.NewGuid():N}";
         var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
-        var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+        var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
-        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
-        await using (var db = new AppDbContext(options))
+        DbContextOptions<AppDbContext> options =
+            new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
+        await using (var db = new AppDbContext(options)) {
             await db.Database.EnsureCreatedAsync();
+        }
 
         var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
         factoryMock
@@ -76,21 +76,19 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task CommandEvent_IsSkipped()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
+    public async Task CommandEvent_IsSkipped() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { EventType = SubathonEventType.TwitchSub, IsEnabled = true, SpinsToAdd = 1 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.AddPoints,
@@ -108,21 +106,19 @@ public class WheelSpinTriggerServiceTests
     [InlineData(SubathonEventType.TwitchFollow)]
     [InlineData(SubathonEventType.TwitchRaid)]
     [InlineData(SubathonEventType.TwitchHypeTrain)]
-    public async Task IgnoredSubType_IsSkipped(SubathonEventType eventType)
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
+    public async Task IgnoredSubType_IsSkipped(SubathonEventType eventType) {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { EventType = eventType, IsEnabled = true, SpinsToAdd = 1 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = eventType, Command = SubathonCommandType.None
         }, true);
 
@@ -136,24 +132,21 @@ public class WheelSpinTriggerServiceTests
     [Theory]
     [InlineData("")]
     [InlineData("???")]
-    public async Task DonationWithBadCurrency_IsSkipped(string currency)
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task DonationWithBadCurrency_IsSkipped(string currency) {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.KoFiDonation, IsEnabled = true,
                 SpinsToAdd = 1, MoneyThreshold = 5, Currency = "USD"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.KoFiDonation,
             Command = SubathonCommandType.None,
@@ -169,15 +162,13 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task NoMatchingTriggerInDb_DoesNotFire()
-    {
-        var (service, _, conn) = await SetupServiceWithDb();
+    public async Task NoMatchingTriggerInDb_DoesNotFire() {
+        (WheelSpinTriggerService service, _, SqliteConnection conn) = await SetupServiceWithDb();
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None,
@@ -192,21 +183,19 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task DisabledTrigger_DoesNotFire()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
+    public async Task DisabledTrigger_DoesNotFire() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { EventType = SubathonEventType.TwitchSub, IsEnabled = false, SpinsToAdd = 1 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None,
@@ -221,24 +210,21 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task SubLike_TierMismatch_DoesNotFire()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task SubLike_TierMismatch_DoesNotFire() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchSub, IsEnabled = true,
                 SpinsToAdd = 1, TierValue = "3000"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None,
@@ -253,15 +239,13 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task SubLike_TierMatch_Fires_WithCorrectSpinsAndHistory()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task SubLike_TierMatch_Fires_WithCorrectSpinsAndHistory() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
         var triggerId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 Id = triggerId,
                 EventType = SubathonEventType.TwitchSub, IsEnabled = true,
                 SpinsToAdd = 2, TierValue = "1000"
@@ -271,16 +255,16 @@ public class WheelSpinTriggerServiceTests
 
         WheelSpinTrigger? firedTrigger = null;
         WheelSpinTriggerHistory? firedHistory = null;
-        int firedNewSpins = 0;
+        var firedNewSpins = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (t, h, s) =>
-        {
-            firedTrigger = t; firedHistory = h; firedNewSpins = s;
+        WheelEvents.WheelSpinTriggerFired += (t, h, s) => {
+            firedTrigger = t;
+            firedHistory = h;
+            firedNewSpins = s;
             tcs.TrySetResult(true);
         };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = eventId,
             EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None,
@@ -300,13 +284,11 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task SubLike_NullTierValue_MatchesAnyTier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task SubLike_NullTierValue_MatchesAnyTier() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchSub, IsEnabled = true,
                 SpinsToAdd = 1, TierValue = null
             });
@@ -316,8 +298,7 @@ public class WheelSpinTriggerServiceTests
         var tcs = new TaskCompletionSource<bool>();
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => tcs.TrySetResult(true);
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(),
             EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None,
@@ -332,11 +313,10 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task ProcessTriggers_UpdatesSpinsOwedInDb()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
+    public async Task ProcessTriggers_UpdatesSpinsOwedInDb() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { EventType = SubathonEventType.TwitchSub, IsEnabled = true, SpinsToAdd = 3 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -345,8 +325,7 @@ public class WheelSpinTriggerServiceTests
         var tcs = new TaskCompletionSource<bool>();
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => tcs.TrySetResult(true);
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None, Value = "1000", User = "TestUser"
         }, true);
@@ -355,20 +334,19 @@ public class WheelSpinTriggerServiceTests
         Assert.True(tcs.Task.IsCompleted);
 
         await using var checkDb = new AppDbContext(options);
-        Assert.Equal(3, StateValueHelper.Get<int>(checkDb, StateKeys.WheelSpinsOwed, 0));
+        Assert.Equal(3, StateValueHelper.Get<int>(checkDb, StateKeys.WheelSpinsOwed));
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
 
     [Fact]
-    public async Task ProcessTriggers_SavesHistoryToDb()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
+    public async Task ProcessTriggers_SavesHistoryToDb() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
         var triggerId = Guid.NewGuid();
         var eventId = Guid.NewGuid();
-        await using (var db = new AppDbContext(options))
-        {
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { Id = triggerId, EventType = SubathonEventType.TwitchSub, IsEnabled = true, SpinsToAdd = 1 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -377,8 +355,7 @@ public class WheelSpinTriggerServiceTests
         var tcs = new TaskCompletionSource<bool>();
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => tcs.TrySetResult(true);
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = eventId, EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None, Value = "1000",
             User = "HistoryUser", Source = SubathonEventSource.Twitch
@@ -388,7 +365,7 @@ public class WheelSpinTriggerServiceTests
         Assert.True(tcs.Task.IsCompleted);
 
         await using var checkDb = new AppDbContext(options);
-        var history = checkDb.WheelSpinTriggerHistories.FirstOrDefault();
+        WheelSpinTriggerHistory? history = checkDb.WheelSpinTriggerHistories.FirstOrDefault();
         Assert.NotNull(history);
         Assert.Equal(triggerId, history.TriggerId);
         Assert.Equal("HistoryUser", history.TriggerUser);
@@ -401,23 +378,20 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task ProcessTriggers_AccumulatesSpinsOverMultipleFires()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
+    public async Task ProcessTriggers_AccumulatesSpinsOverMultipleFires() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { EventType = SubathonEventType.TwitchSub, IsEnabled = true, SpinsToAdd = 2 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        for (int i = 0; i < 3; i++)
-        {
+        for (var i = 0; i < 3; i++) {
             var tcs = new TaskCompletionSource<bool>();
             WheelEvents.WheelSpinTriggerFired += (_, _, _) => tcs.TrySetResult(true);
 
-            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-            {
+            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
                 Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchSub,
                 Command = SubathonCommandType.None, Value = "1000", User = $"User{i}"
             }, true);
@@ -427,32 +401,32 @@ public class WheelSpinTriggerServiceTests
         }
 
         await using var checkDb = new AppDbContext(options);
-        Assert.Equal(6, StateValueHelper.Get<int>(checkDb, StateKeys.WheelSpinsOwed, 0));
+        Assert.Equal(6, StateValueHelper.Get<int>(checkDb, StateKeys.WheelSpinsOwed));
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();
     }
 
     [Fact]
-    public async Task GiftSub_NoCountThreshold_ReturnsSpinsToAddFlat()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task GiftSub_NoCountThreshold_ReturnsSpinsToAddFlat() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchGiftSub, IsEnabled = true,
                 SpinsToAdd = 5, CountThreshold = null
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        int spinsAdded = 0;
+        var spinsAdded = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (_, h, _) => { spinsAdded = h.SpinsAdded; tcs.TrySetResult(true); };
+        WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+            spinsAdded = h.SpinsAdded;
+            tcs.TrySetResult(true);
+        };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchGiftSub,
             Command = SubathonCommandType.None, Amount = 10, User = "GifterA"
         }, true);
@@ -466,30 +440,30 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Theory]
-    [InlineData(10, 5, 2, 4)]  // 10/5=2 * 2spins = 4
-    [InlineData(15, 5, 1, 3)]  // 15/5=3 * 1spin  = 3
-    [InlineData(3,  5, 1, 0)]  // 3/5=0 -> no fire
-    public async Task GiftSub_WithCountThreshold_ComputesMultiplier(int giftCount, int threshold, int spinsToAdd, int expectedSpins)
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    [InlineData(10, 5, 2, 4)] // 10/5=2 * 2spins = 4
+    [InlineData(15, 5, 1, 3)] // 15/5=3 * 1spin  = 3
+    [InlineData(3, 5, 1, 0)] // 3/5=0 -> no fire
+    public async Task GiftSub_WithCountThreshold_ComputesMultiplier(int giftCount, int threshold, int spinsToAdd,
+        int expectedSpins) {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchGiftSub, IsEnabled = true,
                 SpinsToAdd = spinsToAdd, CountThreshold = threshold
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        if (expectedSpins > 0)
-        {
-            int actual = 0;
+        if (expectedSpins > 0) {
+            var actual = 0;
             var tcs = new TaskCompletionSource<bool>();
-            WheelEvents.WheelSpinTriggerFired += (_, h, _) => { actual = h.SpinsAdded; tcs.TrySetResult(true); };
+            WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+                actual = h.SpinsAdded;
+                tcs.TrySetResult(true);
+            };
 
-            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-            {
+            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
                 Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchGiftSub,
                 Command = SubathonCommandType.None, Amount = giftCount, User = "Gifter"
             }, true);
@@ -498,13 +472,11 @@ public class WheelSpinTriggerServiceTests
             Assert.True(tcs.Task.IsCompleted);
             Assert.Equal(expectedSpins, actual);
         }
-        else
-        {
-            bool fired = false;
+        else {
+            var fired = false;
             WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-            {
+            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
                 Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchGiftSub,
                 Command = SubathonCommandType.None, Amount = giftCount, User = "Gifter"
             }, true);
@@ -518,24 +490,21 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Token_NoCountThreshold_DoesNotFire()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Token_NoCountThreshold_DoesNotFire() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchCheer, IsEnabled = true,
                 SpinsToAdd = 1, CountThreshold = null
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchCheer,
             Command = SubathonCommandType.None, Value = "500", Currency = "bits"
         }, true);
@@ -548,25 +517,25 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Token_WithCountThreshold_ComputesMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Token_WithCountThreshold_ComputesMultiplier() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchCheer, IsEnabled = true,
                 SpinsToAdd = 2, CountThreshold = 100
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        int actual = 0;
+        var actual = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (_, h, _) => { actual = h.SpinsAdded; tcs.TrySetResult(true); };
+        WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+            actual = h.SpinsAdded;
+            tcs.TrySetResult(true);
+        };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchCheer,
             Command = SubathonCommandType.None, Value = "350", Currency = "bits"
         }, true); // 350/100=3 * 2 = 6
@@ -580,24 +549,21 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Token_BelowCountThreshold_DoesNotFire()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Token_BelowCountThreshold_DoesNotFire() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.TwitchCheer, IsEnabled = true,
                 SpinsToAdd = 1, CountThreshold = 100
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchCheer,
             Command = SubathonCommandType.None, Value = "50", Currency = "bits"
         }, true); // 50/100=0 -> no fire
@@ -610,24 +576,21 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Donation_NoMoneyThreshold_DoesNotFire()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Donation_NoMoneyThreshold_DoesNotFire() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.KoFiDonation, IsEnabled = true,
                 SpinsToAdd = 1, MoneyThreshold = null, Currency = "USD"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation,
             Command = SubathonCommandType.None, Currency = "USD", Value = "50"
         }, true);
@@ -640,24 +603,21 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Donation_BelowMoneyThreshold_DoesNotFire()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Donation_BelowMoneyThreshold_DoesNotFire() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.KoFiDonation, IsEnabled = true,
                 SpinsToAdd = 1, MoneyThreshold = 50, Currency = "USD"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation,
             Command = SubathonCommandType.None, Currency = "USD", Value = "5"
         }, true); // 5/50=0 -> no fire
@@ -670,25 +630,25 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Donation_WithMoneyThreshold_ComputesMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Donation_WithMoneyThreshold_ComputesMultiplier() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.KoFiDonation, IsEnabled = true,
                 SpinsToAdd = 1, MoneyThreshold = 10, Currency = "USD"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        int actual = 0;
+        var actual = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (_, h, _) => { actual = h.SpinsAdded; tcs.TrySetResult(true); };
+        WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+            actual = h.SpinsAdded;
+            tcs.TrySetResult(true);
+        };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation,
             Command = SubathonCommandType.None, Currency = "USD", Value = "25"
         }, true); // (int)(25/10)=2 * 1 = 2
@@ -702,25 +662,25 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Order_NoThreshold_ReturnsFlatSpins()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Order_NoThreshold_ReturnsFlatSpins() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.GoAffProOrder, IsEnabled = true,
                 SpinsToAdd = 4, CountThreshold = null, MoneyThreshold = null
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        int actual = 0;
+        var actual = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (_, h, _) => { actual = h.SpinsAdded; tcs.TrySetResult(true); };
+        WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+            actual = h.SpinsAdded;
+            tcs.TrySetResult(true);
+        };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230",
             Command = SubathonCommandType.None, Amount = 99, Value = "100.00", Currency = "USD"
         }, true);
@@ -734,25 +694,25 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Order_WithCountThreshold_ComputesItemMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Order_WithCountThreshold_ComputesItemMultiplier() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.GoAffProOrder, TierValue = "132230", IsEnabled = true,
                 SpinsToAdd = 1, CountThreshold = 3
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        int actual = 0;
+        var actual = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (_, h, _) => { actual = h.SpinsAdded; tcs.TrySetResult(true); };
+        WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+            actual = h.SpinsAdded;
+            tcs.TrySetResult(true);
+        };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230",
             Command = SubathonCommandType.None, Amount = 9
         }, true); // 9/3=3 * 1 = 3
@@ -766,25 +726,25 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Order_WithMoneyThreshold_ComputesCurrencyMultiplier()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
-            db.WheelSpinTriggers.Add(new WheelSpinTrigger
-            {
+    public async Task Order_WithMoneyThreshold_ComputesCurrencyMultiplier() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger {
                 EventType = SubathonEventType.GoAffProOrder, TierValue = "132230", IsEnabled = true,
                 SpinsToAdd = 1, MoneyThreshold = 10, Currency = "USD"
             });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
-        int actual = 0;
+        var actual = 0;
         var tcs = new TaskCompletionSource<bool>();
-        WheelEvents.WheelSpinTriggerFired += (_, h, _) => { actual = h.SpinsAdded; tcs.TrySetResult(true); };
+        WheelEvents.WheelSpinTriggerFired += (_, h, _) => {
+            actual = h.SpinsAdded;
+            tcs.TrySetResult(true);
+        };
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.GoAffProOrder, EventTypeMeta = "132230",
             Command = SubathonCommandType.None, Value = "30.00", Currency = "USD"
         }, true); // (int)(30/10)=3 * 1 = 3
@@ -798,20 +758,18 @@ public class WheelSpinTriggerServiceTests
     }
 
     [Fact]
-    public async Task Dispose_DoesNotThrow()
-    {
-        var (service, _, conn) = await SetupServiceWithDb();
+    public async Task Dispose_DoesNotThrow() {
+        (WheelSpinTriggerService service, _, SqliteConnection conn) = await SetupServiceWithDb();
         Exception? ex = Record.Exception(() => service.Dispose());
         Assert.Null(ex);
         await conn.CloseAsync();
     }
 
     [Fact]
-    public async Task StopAsync_UnsubscribesFromEventBus()
-    {
-        var (service, options, conn) = await SetupServiceWithDb();
-        await using (var db = new AppDbContext(options))
-        {
+    public async Task StopAsync_UnsubscribesFromEventBus() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
             db.WheelSpinTriggers.Add(new WheelSpinTrigger
                 { EventType = SubathonEventType.TwitchSub, IsEnabled = true, SpinsToAdd = 1 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -819,11 +777,10 @@ public class WheelSpinTriggerServiceTests
 
         await service.StopAsync(TestContext.Current.CancellationToken);
 
-        bool fired = false;
+        var fired = false;
         WheelEvents.WheelSpinTriggerFired += (_, _, _) => fired = true;
 
-        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent
-        {
+        SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
             Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchSub,
             Command = SubathonCommandType.None, Value = "1000", User = "TestUser"
         }, true);

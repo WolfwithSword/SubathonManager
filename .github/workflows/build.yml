@@ -321,7 +321,7 @@ jobs:
           -p:FileVersion=${{ steps.avars.outputs.file_version }}
           -p:AssemblyVersion=${{ steps.avars.outputs.file_version }}
           -p:InformationalVersion=${{ steps.avars.outputs.version }}
-          -p:Copyright="© 2025–${{ env.CopyrightYear }} WolfwithSword and contributors"
+          -p:Copyright="© 2025-${{ env.CopyrightYear }} WolfwithSword and contributors"
           -o build-avalonia
 
       - name: Copy presets, resources folder and license into build output
@@ -611,7 +611,7 @@ jobs:
               else
                 LINK="-"
               fi
-              echo "| \`${RUNTIME}\` | $(icon "$STATUS") | ${STORAGE:-–} | ${LINK} |"
+              echo "| \`${RUNTIME}\` | $(icon "$STATUS") | ${STORAGE:--} | ${LINK} |"
             done
             if [ "$found" -eq 0 ]; then
               echo "| - | no platform builds ran | - | - |"

@@ -4,8 +4,11 @@ using SubathonManager.UI.Views.SettingsViews.Extensions;
 
 namespace SubathonManager.UI.Views.SettingsViews;
 
-public partial class ExtensionSettings : SettingsGroupControl
-{
+public partial class ExtensionSettings : SettingsGroupControl {
+    public ExtensionSettings() {
+        InitializeComponent();
+    }
+
     protected override IEnumerable<SubathonEventSource> _eventSources =>
         Enum.GetValues<SubathonEventSource>().Where(s => s.GetGroup() == SubathonSourceGroup.StreamExtension)
             .OrderBy(g => g.GetGroupLabelOrder());
@@ -13,17 +16,10 @@ public partial class ExtensionSettings : SettingsGroupControl
     protected override StackPanel? GetSourceContents => SourceContents;
     protected override Panel? GetSourceList => SourceList;
 
-    public ExtensionSettings()
-    {
-        InitializeComponent();
-    }
+    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource) {
+        if (_settingsControls.TryGetValue(eventSource, out SettingsControl? control)) return control;
 
-    protected override SettingsControl? GetSettingsControl(SubathonEventSource eventSource)
-    {
-        if (_settingsControls.TryGetValue(eventSource, out var control)) return control;
-
-        switch (eventSource)
-        {
+        switch (eventSource) {
             case SubathonEventSource.Blerp:
                 _settingsControls[eventSource] = new ChatExtensionSettings();
                 break;
@@ -44,19 +40,18 @@ public partial class ExtensionSettings : SettingsGroupControl
                 break;
             default: return null;
         }
+
         _settingsControls[eventSource].Init(Host);
         return _settingsControls[eventSource];
     }
 
-    public bool SaveConfigValues()
-    {
+    public bool SaveConfigValues() {
         // blerp only atm
         if (GetSettingsControl(SubathonEventSource.Blerp) is not ChatExtensionSettings control) return false;
         return control.SaveConfigValues();
     }
 
-    public void LoadConfigValues()
-    {
+    public void LoadConfigValues() {
         // blerp only atm
         if (GetSettingsControl(SubathonEventSource.Blerp) is not ChatExtensionSettings control) return;
         control.LoadConfigValues();

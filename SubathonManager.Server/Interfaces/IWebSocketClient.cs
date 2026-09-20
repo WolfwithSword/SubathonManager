@@ -1,25 +1,24 @@
-﻿using SubathonManager.Core.Enums;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
+using SubathonManager.Core.Enums;
 
-namespace SubathonManager.Server;
+namespace SubathonManager.Server.Interfaces;
 
-public interface IWebSocketClient
-{
+public interface IWebSocketClient {
     List<WebsocketClientMessageType> ClientTypes { get; set; }
-    
+
     WebSocketState State { get; }
-    
+
     Guid ClientId { get; }
 
     List<SubathonEventSource> IntegrationSources { get; }
-    
-    Task SendAsync(ArraySegment<byte> buffer, 
-        WebSocketMessageType messageType, 
-        bool endOfMessage, 
+
+    Task SendAsync(ArraySegment<byte> buffer,
+        WebSocketMessageType messageType,
+        bool endOfMessage,
         CancellationToken cancellationToken);
 
     Task<WebSocketReceiveResult> ReceiveAsync(
-        ArraySegment<byte> buffer, 
+        ArraySegment<byte> buffer,
         CancellationToken cancellationToke);
 
     Task CloseAsync(

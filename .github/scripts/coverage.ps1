@@ -5,7 +5,7 @@ try {
     Remove-Item -Path "SubathonManager.Tests\TestResults\*" -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item -Path "coverage-local" -Recurse -Force -ErrorAction SilentlyContinue
 
-    dotnet test SubathonManager.Tests\SubathonManager.Tests.csproj `
+    dotnet test --project SubathonManager.Tests\SubathonManager.Tests.csproj `
         --results-directory coverage-local `
         --coverage `
         --coverage-output-format cobertura `

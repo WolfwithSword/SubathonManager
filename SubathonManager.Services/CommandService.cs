@@ -1,36 +1,34 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using SubathonManager.Core.Enums;
+﻿using IniParser.Model;
+using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Services;
 
-public static class CommandService
-{
-    internal static IConfig? AppConfig { get; private set; }
-    
-    static CommandService()
-    {
+public static class CommandService {
+    static CommandService() {
         AppConfig ??= AppServices.Provider?.GetRequiredService<IConfig>()!;
     }
-    
-    public static bool ChatCommandRequest(SubathonEventSource source, string message, string user, 
+
+    internal static IConfig? AppConfig { get; private set; }
+
+    public static bool ChatCommandRequest(SubathonEventSource source, string message, string user,
         bool isBroadcaster, bool isModerator, bool isVip, DateTime? timestamp,
         Guid? overrideGuid = null,
-        SubathonCommandType cmdOverride = SubathonCommandType.None)
-    {
+        SubathonCommandType cmdOverride = SubathonCommandType.None) {
         timestamp ??= DateTime.Now;
 
         if (source.IsExternalSource())
             message = $"EXTERNAL {message}";
         SubathonCommandType command = ValidateCommand(message, cmdOverride);
         if (command == SubathonCommandType.Unknown) return false;
-        
-        SubathonEvent subathonEvent = new SubathonEvent
-        {
+
+        var subathonEvent = new SubathonEvent {
             Source = source,
             EventTimestamp = timestamp.Value,
             Command = command,
@@ -56,67 +54,59 @@ public static class CommandService
         return true;
     }
 
-    internal static void SetConfig(IConfig config)
-    {
+    internal static void SetConfig(IConfig config) {
         AppConfig = config;
     }
 
     private static bool ValidateUser(SubathonEvent subathonEvent, string user, bool isBroadcaster,
-        bool isModerator, bool isVip)
-    {
+        bool isModerator, bool isVip) {
         if (isBroadcaster) return true;
 
-        string configKey = $"Commands.{subathonEvent.Command}.permissions";
-        if (isModerator && AppConfig!.GetBool("Chat", $"{configKey}.Mods", false))
+        var configKey = $"Commands.{subathonEvent.Command}.permissions";
+        if (isModerator && AppConfig!.GetBool("Chat", $"{configKey}.Mods"))
             return true;
-        if (isVip && AppConfig!.GetBool("Chat", $"{configKey}.VIPs", false))
+        if (isVip && AppConfig!.GetBool("Chat", $"{configKey}.VIPs"))
             return true;
-        
+
         string[] whitelist = AppConfig!.Get("Chat", $"{configKey}.Whitelist")!.ToLower()
             .Split(',').Select(s => s.Trim()).ToArray();
 
         if (whitelist.Contains(user.ToLower().Trim())) return true;
-        
+
         return false;
     }
 
-    private static SubathonCommandType ValidateCommand(string message, SubathonCommandType cmdOverride)
-    {
+    private static SubathonCommandType ValidateCommand(string message, SubathonCommandType cmdOverride) {
         if (cmdOverride != SubathonCommandType.None && cmdOverride != SubathonCommandType.Unknown) return cmdOverride;
         string[] parts = message.Split(' ');
-        string cmdName = parts[0].Substring(1, parts[0].Length -1 ).Trim();
-        
-        foreach (var keyData in AppConfig!.GetSection("Chat")!)
-        {
+        string cmdName = parts[0].Substring(1, parts[0].Length - 1).Trim();
+
+        foreach (KeyData? keyData in AppConfig!.GetSection("Chat")!) {
             if (!keyData.KeyName.StartsWith("Commands.")) continue;
 
             if (!keyData.Value.Equals(cmdName, StringComparison.InvariantCultureIgnoreCase)) continue;
-            if (Enum.TryParse<SubathonCommandType>(keyData.KeyName.Split('.')[1] ?? "Unknown", 
+            if (Enum.TryParse(keyData.KeyName.Split('.')[1] ?? "Unknown",
                     out SubathonCommandType command))
                 return command;
         }
-        
+
         return SubathonCommandType.Unknown;
     }
 
-    private static bool ValidateParameters(SubathonEvent subathonEvent, string message)
-    {
+    private static bool ValidateParameters(SubathonEvent subathonEvent, string message) {
         string[] parts = message.Split(' ');
 
         if (subathonEvent.Command.IsParametersRequired() && parts.Length <= 1) return false;
-         if (!subathonEvent.Command.IsParametersRequired())
-        {
+        if (!subathonEvent.Command.IsParametersRequired()) {
             subathonEvent.Value = $"{subathonEvent.Command}";
             return true;
         }
 
-        bool isValid = false;
-        switch (subathonEvent.Command)
-        {
+        var isValid = false;
+        switch (subathonEvent.Command) {
             case SubathonCommandType.AddMoney:
             case SubathonCommandType.SubtractMoney:
-                if (parts.Length >= 3 && double.TryParse(parts[1], out double value))
-                {
+                if (parts.Length >= 3 && double.TryParse(parts[1], out double value)) {
                     if (value <= 0) break;
                     var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
                     string currency = parts[2];
@@ -126,29 +116,28 @@ public static class CommandService
                     // event service sets it from command to donation adjustment
                     isValid = true;
                 }
+
                 break;
             case SubathonCommandType.AddPoints:
             case SubathonCommandType.SubtractPoints:
             case SubathonCommandType.SetPoints:
-                if (parts.Length >= 2 && int.TryParse(parts[1], out var parsedInt1))
-                {
+                if (parts.Length >= 2 && int.TryParse(parts[1], out int parsedInt1)) {
                     subathonEvent.Value = $"{subathonEvent.Command} {parsedInt1}";
                     subathonEvent.PointsValue = parsedInt1;
                     subathonEvent.SecondsValue = 0;
-                    isValid = parsedInt1 > 0 && subathonEvent.Command != SubathonCommandType.SetPoints ||
+                    isValid = (parsedInt1 > 0 && subathonEvent.Command != SubathonCommandType.SetPoints) ||
                               subathonEvent.Command == SubathonCommandType.SetPoints;
                 }
 
-                break;        
+                break;
             case SubathonCommandType.SetSpins:
             case SubathonCommandType.AddSpins:
             case SubathonCommandType.SubtractSpins:
-                if (parts.Length >= 2 && int.TryParse(parts[1], out var parsedInt2))
-                {
+                if (parts.Length >= 2 && int.TryParse(parts[1], out int parsedInt2)) {
                     subathonEvent.Value = $"{subathonEvent.Command} {parsedInt2}";
                     subathonEvent.Amount = parsedInt2;
                     subathonEvent.SecondsValue = 0;
-                    isValid = parsedInt2 > 0 && subathonEvent.Command != SubathonCommandType.SetSpins ||
+                    isValid = (parsedInt2 > 0 && subathonEvent.Command != SubathonCommandType.SetSpins) ||
                               subathonEvent.Command == SubathonCommandType.SetSpins;
                 }
 
@@ -166,17 +155,14 @@ public static class CommandService
                 isValid = true;
                 break;
             case SubathonCommandType.SetMultiplier:
-                double multiplier = double.MinValue;
-                bool applyTime = false;
-                bool applyPoints = false;
-                string durationString = "";
+                var multiplier = double.MinValue;
+                var applyTime = false;
+                var applyPoints = false;
+                var durationString = "";
 
-                foreach (string part in parts)
-                {
-                    if (part.ToLower().Contains('x') && multiplier <= double.MinValue + 5)
-                    {
-                        if (!double.TryParse(part.ToLower().Split('x')[0].Trim(), out multiplier))
-                        {
+                foreach (string part in parts) {
+                    if (part.ToLower().Contains('x') && multiplier <= double.MinValue + 5) {
+                        if (!double.TryParse(part.ToLower().Split('x')[0].Trim(), out multiplier)) {
                             multiplier = double.MinValue;
                             continue;
                         }
@@ -188,24 +174,20 @@ public static class CommandService
                     }
 
                     if (!part.StartsWith('!') && !part.ToLower().Contains('x') && part.Any(c => char.IsDigit(c)))
-                    {
                         durationString += part;
-                    }
                 }
 
-                if ((!applyPoints && !applyTime) || (multiplier.Equals(1) || !(multiplier > 0)))
-                {
+                if ((!applyPoints && !applyTime) || multiplier.Equals(1) || !(multiplier > 0)) {
                     subathonEvent.Value = $"{SubathonCommandType.SetMultiplier} Failed";
                     subathonEvent.Command = SubathonCommandType.StopMultiplier;
                     isValid = true;
                 }
 
-                else
-                {
+                else {
                     if (multiplier <= double.MinValue + 5) return false;
                     TimeSpan duration = Utils.ParseDurationString(durationString);
                     durationString = duration == TimeSpan.Zero ? "x" : ((int)duration.TotalSeconds).ToString();
-                    string dataStr = $"{multiplier}|{durationString}s|{applyPoints}|{applyTime}";
+                    var dataStr = $"{multiplier}|{durationString}s|{applyPoints}|{applyTime}";
 
                     subathonEvent.Value = dataStr;
                     isValid = true;

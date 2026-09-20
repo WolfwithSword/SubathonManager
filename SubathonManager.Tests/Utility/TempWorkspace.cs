@@ -2,18 +2,15 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using SubathonManager.Data.Widgets;
+
 // ReSharper disable NullableWarningSuppressionIsUsed
 
 namespace SubathonManager.Tests.Utility;
 
-public sealed class TempWorkspace : IDisposable
-{
+public sealed class TempWorkspace : IDisposable {
     private readonly string _previousCwd;
 
-    public string Root { get; }
-
-    public TempWorkspace(string? label = null)
-    {
+    public TempWorkspace(string? label = null) {
         _previousCwd = Directory.GetCurrentDirectory();
         Root = Path.Combine(Path.GetTempPath(), "SubathonManagerTests",
             $"{label ?? "ws"}-{Guid.NewGuid():N}");
@@ -21,70 +18,75 @@ public sealed class TempWorkspace : IDisposable
         Directory.SetCurrentDirectory(Root);
     }
 
-    public string Path_(params string[] segments)
-    {
-        string full = System.IO.Path.Combine(new[] { Root }.Concat(segments).ToArray());
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(full)!);
+    public string Root { get; }
+
+    public void Dispose() {
+        try {
+            Directory.SetCurrentDirectory(_previousCwd);
+        }
+        catch {
+            /**/
+        }
+
+        TestPacks.ResetPathCaches();
+        try {
+            Directory.Delete(Root, true);
+        }
+        catch {
+            /**/
+        }
+    }
+
+    public string Path_(params string[] segments) {
+        string full = Path.Combine(new[] { Root }.Concat(segments).ToArray());
+        Directory.CreateDirectory(Path.GetDirectoryName(full)!);
         return full;
     }
 
-    public string Dir(params string[] segments)
-    {
-        string full = System.IO.Path.Combine(new[] { Root }.Concat(segments).ToArray());
+    public string Dir(params string[] segments) {
+        string full = Path.Combine(new[] { Root }.Concat(segments).ToArray());
         Directory.CreateDirectory(full);
         return full;
     }
 
-    public string WriteFile(string relativePath, string content)
-    {
+    public string WriteFile(string relativePath, string content) {
         string full = Path_(relativePath.Split('/', '\\'));
         File.WriteAllText(full, content);
         return full;
     }
 
-    public string WriteBytes(string relativePath, byte[] content)
-    {
+    public string WriteBytes(string relativePath, byte[] content) {
         string full = Path_(relativePath.Split('/', '\\'));
         File.WriteAllBytes(full, content);
         return full;
     }
-
-    public void Dispose()
-    {
-        try { Directory.SetCurrentDirectory(_previousCwd); } catch { /**/ }
-        TestPacks.ResetPathCaches();
-        try { Directory.Delete(Root, recursive: true); } catch { /**/ }
-    }
 }
 
-public static class TestPacks
-{
-    public static void ResetPathCaches()
-    {
+public static class TestPacks {
+    public static void ResetPathCaches() {
         WidgetPackPaths.InvalidateResolveCache();
         WidgetPackPaths.InvalidateVersionCache();
         WidgetPackMemoryCache.Clear();
     }
 
-    public static string WriteZip(string path, IEnumerable<KeyValuePair<string, byte[]>> entries)
-    {
+    public static string WriteZip(string path, IEnumerable<KeyValuePair<string, byte[]>> entries) {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         if (File.Exists(path)) File.Delete(path);
 
-        using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
-        foreach (var (name, bytes) in entries)
-        {
-            var entry = zip.CreateEntry(name);
-            using var stream = entry.Open();
+        using ZipArchive zip = ZipFile.Open(path, ZipArchiveMode.Create);
+        foreach ((string name, byte[] bytes) in entries) {
+            ZipArchiveEntry entry = zip.CreateEntry(name);
+            using Stream stream = entry.Open();
             stream.Write(bytes);
         }
 
         return path;
     }
 
-    public static string WriteZip(string path, IEnumerable<KeyValuePair<string, string>> entries)
-        => WriteZip(path, entries.Select(kv =>
+    public static string WriteZip(string path, IEnumerable<KeyValuePair<string, string>> entries) {
+        return WriteZip(path, entries.Select(kv =>
             new KeyValuePair<string, byte[]>(kv.Key, Encoding.UTF8.GetBytes(kv.Value))));
+    }
 
     public static string WidgetManifestJson(
         string name = "Timer",
@@ -99,14 +101,11 @@ public static class TestPacks
         int width = 400,
         int height = 300,
         float scaleX = 1f,
-        float scaleY = 1f)
-    {
-        var obj = new Dictionary<string, object?>
-        {
+        float scaleY = 1f) {
+        var obj = new Dictionary<string, object?> {
             ["version"] = "1",
             ["app_version"] = "9.9.9",
-            ["widget"] = new Dictionary<string, object?>
-            {
+            ["widget"] = new Dictionary<string, object?> {
                 ["pack_id"] = packId,
                 ["name"] = name,
                 ["author"] = author,
@@ -124,10 +123,8 @@ public static class TestPacks
     }
 
     public static string WriteSmw(string path, string manifestJson,
-        IEnumerable<KeyValuePair<string, string>>? files = null)
-    {
-        var entries = new List<KeyValuePair<string, string>>
-        {
+        IEnumerable<KeyValuePair<string, string>>? files = null) {
+        var entries = new List<KeyValuePair<string, string>> {
             new("widget.json", manifestJson)
         };
         if (files != null) entries.AddRange(files);
@@ -135,14 +132,11 @@ public static class TestPacks
     }
 
     public static string CollectionManifestJson(string name = "Pack", string author = "Wolf",
-        string version = "2.0.0", string description = "desc", IEnumerable<string>? tags = null)
-    {
-        var obj = new Dictionary<string, object?>
-        {
+        string version = "2.0.0", string description = "desc", IEnumerable<string>? tags = null) {
+        var obj = new Dictionary<string, object?> {
             ["format_version"] = "1",
             ["app_version"] = "9.9.9",
-            ["collection"] = new Dictionary<string, object?>
-            {
+            ["collection"] = new Dictionary<string, object?> {
                 ["name"] = name,
                 ["author"] = author,
                 ["version"] = version,
@@ -155,18 +149,15 @@ public static class TestPacks
 
     public static string OverlayManifestJson(string name = "My Overlay", string author = "Wolf",
         string? overlayVersion = "1.2.0", string formatVersion = "1", string rootVersion = "",
-        IEnumerable<string>? tags = null)
-    {
-        var route = new Dictionary<string, object?>
-        {
+        IEnumerable<string>? tags = null) {
+        var route = new Dictionary<string, object?> {
             ["name"] = name,
             ["author"] = author,
             ["tags"] = tags?.ToList() ?? []
         };
         if (overlayVersion != null) route["overlay_version"] = overlayVersion;
 
-        var obj = new Dictionary<string, object?>
-        {
+        var obj = new Dictionary<string, object?> {
             ["format_version"] = formatVersion,
             ["app_version"] = "9.9.9",
             ["route"] = route
@@ -177,8 +168,7 @@ public static class TestPacks
     }
 
     public static string WriteSmo(string path, string manifestJson,
-        IEnumerable<KeyValuePair<string, string>>? files = null)
-    {
+        IEnumerable<KeyValuePair<string, string>>? files = null) {
         var entries = new List<KeyValuePair<string, string>> { new("overlay.json", manifestJson) };
         if (files != null) entries.AddRange(files);
         return WriteZip(path, entries);

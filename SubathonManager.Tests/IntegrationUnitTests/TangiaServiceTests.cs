@@ -14,31 +14,28 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class TangiaServiceTests
-{
-    public TangiaServiceTests()
-    {
+public class TangiaServiceTests {
+    public TangiaServiceTests() {
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
     }
 
-    private static SubathonEvent? CaptureEvent(Action trigger) =>
-        EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    private static SubathonEvent? CaptureEvent(Action trigger) {
+        return EventUtil.SubathonEventCapture.CaptureRequired(trigger);
+    }
 
-    private static TangiaService MakeService(string? eventKey = null, IHttpClientFactory? httpFactory = null)
-    {
+    private static TangiaService MakeService(string? eventKey = null, IHttpClientFactory? httpFactory = null) {
         var logger = new Mock<ILogger<TangiaService>>();
         var storage = new InMemorySecureStorage(eventKey != null
             ? new Dictionary<string, string> { [StorageKeys.TangiaEventKey] = eventKey }
             : null);
-        var factory = httpFactory ?? new Mock<IHttpClientFactory>().Object;
+        IHttpClientFactory factory = httpFactory ?? new Mock<IHttpClientFactory>().Object;
         return new TangiaService(logger.Object, factory, storage);
     }
 
     private static (IHttpClientFactory Factory, MockHttpHandler Handler) MakeHttpFactory(
-        HttpStatusCode statusCode, string? body = null, bool throwTimeout = false)
-    {
+        HttpStatusCode statusCode, string? body = null, bool throwTimeout = false) {
         var handler = new MockHttpHandler(statusCode, body, throwTimeout);
         var mock = new Mock<IHttpClientFactory>();
         mock.Setup(f => f.CreateClient(It.IsAny<string>()))
@@ -46,33 +43,34 @@ public class TangiaServiceTests
         return (mock.Object, handler);
     }
 
-    private static async Task<SubathonEvent?> CaptureEventFromPoll(TangiaService service, string key)
-    {
+    private static async Task<SubathonEvent?> CaptureEventFromPoll(TangiaService service, string key) {
         typeof(SubathonEvents)
             .GetField("SubathonEventCreated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
         SubathonEvent? captured = null;
-        void Handler(SubathonEvent e) => captured = e;
+
+        void Handler(SubathonEvent e) {
+            captured = e;
+        }
+
         SubathonEvents.SubathonEventCreated += Handler;
-        try
-        {
+        try {
             await service.PollOnceAsync(key, CancellationToken.None);
             return captured;
         }
-        finally
-        {
+        finally {
             SubathonEvents.SubathonEventCreated -= Handler;
         }
     }
 
     [Theory]
-    [InlineData("https://overlays.tangia.co/stream-overlay/fullscreen/evt_a1a11AaAAaaAaAaa1Aa1A1?tp=a", "evt_a1a11AaAAaaAaAaa1Aa1A1")]
+    [InlineData("https://overlays.tangia.co/stream-overlay/fullscreen/evt_a1a11AaAAaaAaAaa1Aa1A1?tp=a",
+        "evt_a1a11AaAAaaAaAaa1Aa1A1")]
     [InlineData("https://overlays.tangia.co/stream-overlay/fullscreen/evt_abc123", "evt_abc123")]
     [InlineData("https://overlays.tangia.co/stream-overlay/fullscreen/evt_xyz?foo=bar&baz=qux", "evt_xyz")]
-    public void TryParseEventKey_ValidUrl_ExtractsKey(string url, string expectedKey)
-    {
-        var result = TangiaService.TryParseEventKey(url, out var key);
+    public void TryParseEventKey_ValidUrl_ExtractsKey(string url, string expectedKey) {
+        bool result = TangiaService.TryParseEventKey(url, out string key);
 
         Assert.True(result);
         Assert.Equal(expectedKey, key);
@@ -81,18 +79,16 @@ public class TangiaServiceTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void TryParseEventKey_EmptyOrWhitespace_ReturnsFalse(string url)
-    {
-        var result = TangiaService.TryParseEventKey(url, out var key);
+    public void TryParseEventKey_EmptyOrWhitespace_ReturnsFalse(string url) {
+        bool result = TangiaService.TryParseEventKey(url, out string key);
 
         Assert.False(result);
         Assert.Equal(string.Empty, key);
     }
 
     [Fact]
-    public void TryParseEventKey_NotAUrl_ReturnsFalse()
-    {
-        var result = TangiaService.TryParseEventKey("not-a-valid-url", out var key);
+    public void TryParseEventKey_NotAUrl_ReturnsFalse() {
+        bool result = TangiaService.TryParseEventKey("not-a-valid-url", out string key);
 
         Assert.False(result);
         Assert.Equal(string.Empty, key);
@@ -102,9 +98,8 @@ public class TangiaServiceTests
     [InlineData("https://overlays.tangia.co/stream-overlay/fullscreen/not_an_evt")]
     [InlineData("https://overlays.tangia.co/stream-overlay/fullscreen/")]
     [InlineData("https://overlays.tangia.co/")]
-    public void TryParseEventKey_NoEvtSegment_ReturnsFalse(string url)
-    {
-        var result = TangiaService.TryParseEventKey(url, out var key);
+    public void TryParseEventKey_NoEvtSegment_ReturnsFalse(string url) {
+        bool result = TangiaService.TryParseEventKey(url, out string key);
 
         Assert.False(result);
         Assert.Equal(string.Empty, key);
@@ -112,9 +107,8 @@ public class TangiaServiceTests
 
 
     [Fact]
-    public void SimulateTangiaTokens_RaisesEventWithCorrectFields()
-    {
-        var ev = CaptureEvent(() => TangiaService.SimulateTangiaTokens(250));
+    public void SimulateTangiaTokens_RaisesEventWithCorrectFields() {
+        SubathonEvent? ev = CaptureEvent(() => TangiaService.SimulateTangiaTokens(250));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.TangiaTokens, ev.EventType);
@@ -126,110 +120,135 @@ public class TangiaServiceTests
 
 
     [Fact]
-    public async Task StartAsync_NoKey_BroadcastsFalse()
-    {
-        var service = MakeService();
+    public async Task StartAsync_NoKey_BroadcastsFalse() {
+        TangiaService service = MakeService();
 
         bool? status = null;
-        void Handler(IntegrationConnection c) { if (c.Source == SubathonEventSource.Tangia) status = c.Status; }
+
+        void Handler(IntegrationConnection c) {
+            if (c.Source == SubathonEventSource.Tangia) status = c.Status;
+        }
+
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StartAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.False(status);
     }
 
     [Fact]
-    public async Task StartAsync_EmptyKey_BroadcastsFalse()
-    {
-        var service = MakeService(eventKey: "");
+    public async Task StartAsync_EmptyKey_BroadcastsFalse() {
+        TangiaService service = MakeService("");
 
         bool? status = null;
-        void Handler(IntegrationConnection c) { if (c.Source == SubathonEventSource.Tangia) status = c.Status; }
+
+        void Handler(IntegrationConnection c) {
+            if (c.Source == SubathonEventSource.Tangia) status = c.Status;
+        }
+
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StartAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.False(status);
     }
 
     [Fact]
-    public async Task StartAsync_ValidKey_BroadcastsTrue()
-    {
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.NoContent);
-        var service = MakeService("evt_testkey", factory);
+    public async Task StartAsync_ValidKey_BroadcastsTrue() {
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.NoContent);
+        TangiaService service = MakeService("evt_testkey", factory);
 
         bool? status = null;
-        void Handler(IntegrationConnection c) { if (c.Source == SubathonEventSource.Tangia) status = c.Status; }
+
+        void Handler(IntegrationConnection c) {
+            if (c.Source == SubathonEventSource.Tangia) status = c.Status;
+        }
+
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StartAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.True(status);
         await service.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
-    public async Task StopAsync_BroadcastsFalse()
-    {
-        var service = MakeService("evt_testkey");
+    public async Task StopAsync_BroadcastsFalse() {
+        TangiaService service = MakeService("evt_testkey");
 
         bool? status = null;
-        void Handler(IntegrationConnection c) { if (c.Source == SubathonEventSource.Tangia) status = c.Status; }
+
+        void Handler(IntegrationConnection c) {
+            if (c.Source == SubathonEventSource.Tangia) status = c.Status;
+        }
+
         IntegrationEvents.ConnectionUpdated += Handler;
-        try { await service.StopAsync(TestContext.Current.CancellationToken); }
-        finally { IntegrationEvents.ConnectionUpdated -= Handler; }
+        try {
+            await service.StopAsync(TestContext.Current.CancellationToken);
+        }
+        finally {
+            IntegrationEvents.ConnectionUpdated -= Handler;
+        }
 
         Assert.False(status);
     }
 
 
     [Fact]
-    public async Task PollOnce_NoContent_NoEventRaised()
-    {
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.NoContent);
-        var service = MakeService("evt_testkey", factory);
+    public async Task PollOnce_NoContent_NoEventRaised() {
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.NoContent);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
-
-        Assert.Null(ev);
-    }
-
-    [Fact]
-    public async Task PollOnce_ErrorStatus_NoEventRaised()
-    {
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.InternalServerError, "error");
-        var service = MakeService("evt_testkey", factory);
-
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public async Task PollOnce_ValidEvent_RaisesEventWithCorrectFields()
-    {
+    public async Task PollOnce_ErrorStatus_NoEventRaised() {
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.InternalServerError, "error");
+        TangiaService service = MakeService("evt_testkey", factory);
+
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
+
+        Assert.Null(ev);
+    }
+
+    [Fact]
+    public async Task PollOnce_ValidEvent_RaisesEventWithCorrectFields() {
         const string json = """
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "evt_abc123",
-                "Data": {
-                  "type": "interaction",
-                  "URL": "",
-                  "OverlayParams": {
-                    "TriggerData": { "price": 50 },
-                    "BuyerInfo": { "name": "TestUser", "has-plus": false },
-                    "name": "TestUser"
-                  }
-                }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                            {
+                              "Events": [{
+                                "UnixMS": 1718600000000,
+                                "EventID": "evt_abc123",
+                                "Data": {
+                                  "type": "interaction",
+                                  "URL": "",
+                                  "OverlayParams": {
+                                    "TriggerData": { "price": 50 },
+                                    "BuyerInfo": { "name": "TestUser", "has-plus": false },
+                                    "name": "TestUser"
+                                  }
+                                }
+                              }]
+                            }
+                            """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventType.TangiaTokens, ev.EventType);
@@ -242,21 +261,20 @@ public class TangiaServiceTests
     [Theory]
     [InlineData("evt__test_abc")]
     [InlineData("evt_xyz_test_123")]
-    public async Task PollOnce_TestEventId_Filtered(string eventId)
-    {
+    public async Task PollOnce_TestEventId_Filtered(string eventId) {
         var json = $$"""
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "{{eventId}}",
-                "Data": { "OverlayParams": { "TriggerData": { "price": 50 }, "BuyerInfo": { "name": "User" } } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                     {
+                       "Events": [{
+                         "UnixMS": 1718600000000,
+                         "EventID": "{{eventId}}",
+                         "Data": { "OverlayParams": { "TriggerData": { "price": 50 }, "BuyerInfo": { "name": "User" } } }
+                       }]
+                     }
+                     """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.Null(ev);
     }
@@ -264,41 +282,39 @@ public class TangiaServiceTests
     [Theory]
     [InlineData("evt__cp_abc")]
     [InlineData("evt_xyz_cp_123")]
-    public async Task PollOnce_CpEventId_Filtered(string eventId)
-    {
+    public async Task PollOnce_CpEventId_Filtered(string eventId) {
         var json = $$"""
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "{{eventId}}",
-                "Data": { "OverlayParams": { "TriggerData": { "price": 50 }, "BuyerInfo": { "name": "User" } } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                     {
+                       "Events": [{
+                         "UnixMS": 1718600000000,
+                         "EventID": "{{eventId}}",
+                         "Data": { "OverlayParams": { "TriggerData": { "price": 50 }, "BuyerInfo": { "name": "User" } } }
+                       }]
+                     }
+                     """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public async Task PollOnce_EmptyEventId_Filtered()
-    {
+    public async Task PollOnce_EmptyEventId_Filtered() {
         const string json = """
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "",
-                "Data": { "OverlayParams": { "TriggerData": { "price": 50 }, "BuyerInfo": { "name": "User" } } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                            {
+                              "Events": [{
+                                "UnixMS": 1718600000000,
+                                "EventID": "",
+                                "Data": { "OverlayParams": { "TriggerData": { "price": 50 }, "BuyerInfo": { "name": "User" } } }
+                              }]
+                            }
+                            """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.Null(ev);
     }
@@ -307,127 +323,118 @@ public class TangiaServiceTests
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(-100)]
-    public async Task PollOnce_ZeroOrNegativePrice_Filtered(int price)
-    {
+    public async Task PollOnce_ZeroOrNegativePrice_Filtered(int price) {
         var json = $$"""
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "evt_valid123",
-                "Data": { "OverlayParams": { "TriggerData": { "price": {{price}} }, "BuyerInfo": { "name": "User" } } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                     {
+                       "Events": [{
+                         "UnixMS": 1718600000000,
+                         "EventID": "evt_valid123",
+                         "Data": { "OverlayParams": { "TriggerData": { "price": {{price}} }, "BuyerInfo": { "name": "User" } } }
+                       }]
+                     }
+                     """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public async Task PollOnce_BuyerInfoName_UsedAsUser()
-    {
+    public async Task PollOnce_BuyerInfoName_UsedAsUser() {
         const string json = """
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "evt_abc123",
-                "Data": { "OverlayParams": { "TriggerData": { "price": 10 }, "BuyerInfo": { "name": "BuyerName" }, "name": "BuyerName" } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                            {
+                              "Events": [{
+                                "UnixMS": 1718600000000,
+                                "EventID": "evt_abc123",
+                                "Data": { "OverlayParams": { "TriggerData": { "price": 10 }, "BuyerInfo": { "name": "BuyerName" }, "name": "BuyerName" } }
+                              }]
+                            }
+                            """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.NotNull(ev);
         Assert.Equal("BuyerName", ev.User);
     }
 
     [Fact]
-    public async Task PollOnce_NoBuyerInfo_FallsBackToOverlayParamsName()
-    {
+    public async Task PollOnce_NoBuyerInfo_FallsBackToOverlayParamsName() {
         const string json = """
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "evt_abc123",
-                "Data": { "OverlayParams": { "TriggerData": { "price": 10 }, "name": "BuyerName" } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                            {
+                              "Events": [{
+                                "UnixMS": 1718600000000,
+                                "EventID": "evt_abc123",
+                                "Data": { "OverlayParams": { "TriggerData": { "price": 10 }, "name": "BuyerName" } }
+                              }]
+                            }
+                            """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.NotNull(ev);
         Assert.Equal("BuyerName", ev.User);
     }
 
     [Fact]
-    public async Task PollOnce_NoNamesAtAll_FallsBackToDefault()
-    {
+    public async Task PollOnce_NoNamesAtAll_FallsBackToDefault() {
         const string json = """
-            {
-              "Events": [{
-                "UnixMS": 1718600000000,
-                "EventID": "evt_abc123",
-                "Data": { "OverlayParams": { "TriggerData": { "price": 10 } } }
-              }]
-            }
-            """;
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+                            {
+                              "Events": [{
+                                "UnixMS": 1718600000000,
+                                "EventID": "evt_abc123",
+                                "Data": { "OverlayParams": { "TriggerData": { "price": 10 } } }
+                              }]
+                            }
+                            """;
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.NotNull(ev);
         Assert.Equal("Tangia User", ev.User);
     }
 
     [Fact]
-    public async Task PollOnce_EmptyEventsList_NoEventRaised()
-    {
+    public async Task PollOnce_EmptyEventsList_NoEventRaised() {
         const string json = """{ "Events": [] }""";
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
-        var service = MakeService("evt_testkey", factory);
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, json);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ev = await CaptureEventFromPoll(service, "evt_testkey");
+        SubathonEvent? ev = await CaptureEventFromPoll(service, "evt_testkey");
 
         Assert.Null(ev);
     }
 
     [Fact]
-    public async Task PollOnce_InvalidJson_DoesNotThrow()
-    {
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, "{{not valid json{{");
-        var service = MakeService("evt_testkey", factory);
+    public async Task PollOnce_InvalidJson_DoesNotThrow() {
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, "{{not valid json{{");
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ex = await Record.ExceptionAsync(() => service.PollOnceAsync("evt_testkey", CancellationToken.None));
+        Exception? ex = await Record.ExceptionAsync(() => service.PollOnceAsync("evt_testkey", CancellationToken.None));
 
         Assert.Null(ex);
     }
 
     [Fact]
-    public async Task PollOnce_Timeout_DoesNotThrow()
-    {
-        var (factory, _) = MakeHttpFactory(HttpStatusCode.OK, throwTimeout: true);
-        var service = MakeService("evt_testkey", factory);
+    public async Task PollOnce_Timeout_DoesNotThrow() {
+        (IHttpClientFactory factory, _) = MakeHttpFactory(HttpStatusCode.OK, throwTimeout: true);
+        TangiaService service = MakeService("evt_testkey", factory);
 
-        var ex = await Record.ExceptionAsync(() => service.PollOnceAsync("evt_testkey", CancellationToken.None));
+        Exception? ex = await Record.ExceptionAsync(() => service.PollOnceAsync("evt_testkey", CancellationToken.None));
 
         Assert.Null(ex);
     }
 
     private class MockHttpHandler(HttpStatusCode statusCode, string? body = null, bool throwTimeout = false)
-        : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
-        {
+        : HttpMessageHandler {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) {
             if (throwTimeout)
                 throw new TaskCanceledException("Simulated timeout");
 

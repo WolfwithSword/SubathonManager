@@ -14,48 +14,50 @@
 
         <DockPanel Grid.Row="0" LastChildFill="False" Margin="0,0,0,10">
             <StackPanel DockPanel.Dock="Left">
-                <TextBlock FontWeight="SemiBold" Text="Export Name" Margin="4,0,0,4"/>
-                <TextBox Width="240" x:Name="ExportNameBox" PlaceholderText="Overlay name..." VerticalContentAlignment="Center"/>
+                <TextBlock FontWeight="SemiBold" Text="Export Name" Margin="4,0,0,4" />
+                <TextBox Width="240" x:Name="ExportNameBox" PlaceholderText="Overlay name..."
+                         VerticalContentAlignment="Center" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right">
-                <TextBlock FontWeight="SemiBold" Text="Version" Margin="4,0,4,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Version" Margin="4,0,4,4" />
                 <TextBox Width="100" x:Name="VersionBox" ToolTip.Tip="Overlay Version" PlaceholderText="1.0.0"
-                         VerticalContentAlignment="Center"/>
+                         VerticalContentAlignment="Center" />
             </StackPanel>
         </DockPanel>
 
         <DockPanel Grid.Row="1" LastChildFill="True" Margin="0,0,0,12">
             <StackPanel x:Name="AppOverrideSection" DockPanel.Dock="Right" IsVisible="False" Margin="16,0,0,0">
-                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4"/>
+                <TextBlock FontWeight="SemiBold" Text="App Version" Margin="4,0,4,4" />
                 <TextBox Width="120" x:Name="AppVersionBox" ToolTip.Tip="Override App Version" PlaceholderText="v1.0.0"
-                         VerticalContentAlignment="Center"/>
+                         VerticalContentAlignment="Center" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Left" Width="240" Margin="0,0,16,0">
-                <TextBlock FontWeight="SemiBold" Text="Author" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Author" Margin="4,0,0,4" />
                 <TextBox x:Name="AuthorBox" PlaceholderText="Author name..." VerticalContentAlignment="Center"
-                         ToolTip.Tip="Groups this overlay under imports/overlays/&lt;author&gt; when imported"/>
+                         ToolTip.Tip="Groups this overlay under imports/overlays/&lt;author&gt; when imported" />
             </StackPanel>
             <StackPanel>
-                <TextBlock FontWeight="SemiBold" Text="Tags" Margin="4,0,0,4"/>
+                <TextBlock FontWeight="SemiBold" Text="Tags" Margin="4,0,0,4" />
                 <TextBox x:Name="TagsBox" PlaceholderText="alerts, goals..." VerticalContentAlignment="Center"
-                         ToolTip.Tip="Comma separated labels describing the overlay"/>
+                         ToolTip.Tip="Comma separated labels describing the overlay" />
             </StackPanel>
         </DockPanel>
 
         <StackPanel Grid.Row="2" Orientation="Vertical">
             <DockPanel Margin="0,0,0,6" LastChildFill="False">
-                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Files to be included" VerticalAlignment="Center"/>
+                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" Text="Files to be included"
+                           VerticalAlignment="Center" />
                 <CheckBox x:Name="SelectAllBox" DockPanel.Dock="Right" Content="Select all" IsChecked="True"
-                          VerticalAlignment="Center" IsThreeState="True" IsCheckedChanged="SelectAllBox_Changed"/>
+                          VerticalAlignment="Center" IsThreeState="True" IsCheckedChanged="SelectAllBox_Changed" />
             </DockPanel>
             <TextBlock TextWrapping="Wrap" MaxWidth="440" FontSize="12"
-                       Text="Please verify the files to be included in the export. Not all selected may be in use."/>
+                       Text="Please verify the files to be included in the export. Not all selected may be in use." />
         </StackPanel>
 
         <Border Grid.Row="3" BorderBrush="{DynamicResource UiBrushBorder}" BorderThickness="2"
                 CornerRadius="4" Margin="0,0,0,10">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Padding="4">
-                <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0" Padding="2"/>
+                <TreeView x:Name="FileTree" Background="Transparent" BorderThickness="0" Padding="2" />
             </ScrollViewer>
         </Border>
 
@@ -65,16 +67,16 @@
                 BorderThickness="1" CornerRadius="4" Padding="10,8" Margin="0,0,0,14">
             <StackPanel Orientation="Horizontal">
                 <ctl:SymIcon Glyph="Warning24" Foreground="{DynamicResource SystemFillColorCautionBrush}"
-                             Margin="0,0,8,0" VerticalAlignment="Top"/>
+                             Margin="0,0,8,0" VerticalAlignment="Top" />
                 <TextBlock TextWrapping="Wrap" MaxWidth="440" FontSize="12"
-                           Text="This export may not include all required files, and may include many not required. Files referenced by hardcoded paths inside widget HTML/JS/CSS sources, or assets outside each widget's folder, may not be bundled automatically."/>
+                           Text="This export may not include all required files, and may include many not required. Files referenced by hardcoded paths inside widget HTML/JS/CSS sources, or assets outside each widget's folder, may not be bundled automatically." />
             </StackPanel>
         </Border>
 
         <DockPanel Grid.Row="5" LastChildFill="False">
             <Button DockPanel.Dock="Right" x:Name="ConfirmButton" Content="Export..." Classes="accent"
-                    Width="110" Margin="8,0,0,0" Click="ConfirmButton_Click"/>
-            <Button DockPanel.Dock="Right" x:Name="CancelButton" Content="Cancel" Width="90" Click="CancelButton_Click"/>
+                    Width="110" Margin="8,0,0,0" Click="ConfirmButton_Click" />
+            <Button DockPanel.Dock="Right" x:Name="CancelButton" Content="Cancel" Width="90" Click="CancelButton_Click" />
         </DockPanel>
     </Grid>
 </Window>

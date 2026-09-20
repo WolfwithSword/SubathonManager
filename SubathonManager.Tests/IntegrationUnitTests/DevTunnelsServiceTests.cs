@@ -16,29 +16,24 @@ using SubathonManager.Tests.Utility;
 namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
-public class DevTunnelsServiceTests
-{
-    public DevTunnelsServiceTests()
-    {
+public class DevTunnelsServiceTests {
+    public DevTunnelsServiceTests() {
         typeof(IntegrationEvents)
             .GetField("ConnectionUpdated", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
     }
 
     private static (DevTunnelsService service, Mock<IDevTunnelsClient> mockClient) MakeService(
-        Dictionary<(string, string), string>? configValues = null)
-    {
+        Dictionary<(string, string), string>? configValues = null) {
         var logger = new Mock<ILogger<DevTunnelsService>>();
         var mockClient = new Mock<IDevTunnelsClient>();
-        IConfig config = MockConfig.MakeMockConfig(configValues ?? new Dictionary<(string, string), string>
-        {
-            { ("Server", "Port"), "14040" },
+        IConfig config = MockConfig.MakeMockConfig(configValues ?? new Dictionary<(string, string), string> {
+            { ("Server", "Port"), "14040" }
         });
         return (new DevTunnelsService(logger.Object, config, mockClient.Object), mockClient);
     }
 
-    private static Mock<IDevTunnelHostSession> MakeSession(string publicUrl = "https://test.devtunnels.ms")
-    {
+    private static Mock<IDevTunnelHostSession> MakeSession(string publicUrl = "https://test.devtunnels.ms") {
         var mockSession = new Mock<IDevTunnelHostSession>();
         _ = mockSession.Setup(s => s.PublicUrl).Returns(new Uri(publicUrl));
         _ = mockSession.Setup(s => s.WaitForReadyAsync(It.IsAny<CancellationToken>())).Returns(ValueTask.CompletedTask);
@@ -49,40 +44,38 @@ public class DevTunnelsServiceTests
         return mockSession;
     }
 
-    private static void SetupStartTunnel(Mock<IDevTunnelsClient> mockClient, IDevTunnelHostSession session)
-    {
-        mockClient.Setup(c => c.CreateOrUpdateTunnelAsync(It.IsAny<string>(), It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()))
+    private static void SetupStartTunnel(Mock<IDevTunnelsClient> mockClient, IDevTunnelHostSession session) {
+        mockClient.Setup(c =>
+                c.CreateOrUpdateTunnelAsync(It.IsAny<string>(), It.IsAny<DevTunnelOptions>(),
+                    It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<DevTunnelStatus>(new DevTunnelStatus()));
-        mockClient.Setup(c => c.CreateOrReplacePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<DevTunnelPortOptions>(), It.IsAny<CancellationToken>()))
+        mockClient.Setup(c => c.CreateOrReplacePortAsync(It.IsAny<string>(), It.IsAny<int>(),
+                It.IsAny<DevTunnelPortOptions>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<DevTunnelPortStatus>(new DevTunnelPortStatus()));
-        _ = mockClient.Setup(c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()))
+        _ = mockClient.Setup(c =>
+                c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<IDevTunnelHostSession>(session));
     }
 
     [Fact]
-    public async Task StartAsync_CliNotInstalled_BroadcastsCliOffline()
-    {
+    public async Task StartAsync_CliNotInstalled_BroadcastsCliOffline() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
         _ = mockClient.Setup(c => c.ProbeCliAsync(It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<DevTunnelCliProbeResult>(
                 new DevTunnelCliProbeResult(false, null, null, "not found", false, "CLI not found")));
 
         bool? lastTunnelStatus = null;
-        void Handler(IntegrationConnection conn)
-        {
+
+        void Handler(IntegrationConnection conn) {
             if (conn.Source == SubathonEventSource.DevTunnels && conn.Service == "Tunnel")
-            {
                 lastTunnelStatus = conn.Status;
-            }
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try
-        {
+        try {
             await service.StartAsync(TestContext.Current.CancellationToken);
         }
-        finally
-        {
+        finally {
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 
@@ -94,8 +87,7 @@ public class DevTunnelsServiceTests
     }
 
     [Fact]
-    public async Task StartAsync_CliInstalledButNotLoggedIn_DoesNotStartTunnel()
-    {
+    public async Task StartAsync_CliInstalledButNotLoggedIn_DoesNotStartTunnel() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
         _ = mockClient.Setup(c => c.ProbeCliAsync(It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<DevTunnelCliProbeResult>(
@@ -108,56 +100,55 @@ public class DevTunnelsServiceTests
         Assert.True(service.IsCliInstalled);
         Assert.False(service.IsLoggedIn);
         Assert.False(service.IsTunnelRunning);
-        mockClient.Verify(c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockClient.Verify(
+            c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task StartAsync_CliInstalledAndLoggedIn_DoesNotAutoStartTunnel()
-    {
+    public async Task StartAsync_CliInstalledAndLoggedIn_DoesNotAutoStartTunnel() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
         _ = mockClient.Setup(c => c.ProbeCliAsync(It.IsAny<CancellationToken>()))
             .Returns(new ValueTask<DevTunnelCliProbeResult>(
                 new DevTunnelCliProbeResult(true, "devtunnel", new Version(1, 0), "v1.0", true, null)));
         _ = mockClient.Setup(c => c.GetLoginStatusAsync(It.IsAny<CancellationToken>()))
-            .Returns(new ValueTask<DevTunnelLoginStatus>(new DevTunnelLoginStatus { Status = "Logged in", Username = "user@example.com" }));
+            .Returns(new ValueTask<DevTunnelLoginStatus>(new DevTunnelLoginStatus
+                { Status = "Logged in", Username = "user@example.com" }));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.True(service.IsCliInstalled);
         Assert.True(service.IsLoggedIn);
         Assert.False(service.IsTunnelRunning);
-        mockClient.Verify(c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockClient.Verify(
+            c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task StartTunnelAsync_StartsSessionAndBroadcastsPublicUrl()
-    {
-        (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("Server", "Port"), "14040" },
-            { ("DevTunnels", "TunnelId"), "my-tunnel" },
-        });
+    public async Task StartTunnelAsync_StartsSessionAndBroadcastsPublicUrl() {
+        (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService(
+            new Dictionary<(string, string), string> {
+                { ("Server", "Port"), "14040" },
+                { ("DevTunnels", "TunnelId"), "my-tunnel" }
+            });
 
         Mock<IDevTunnelHostSession> mockSession = MakeSession("https://my-tunnel.devtunnels.ms");
         SetupStartTunnel(mockClient, mockSession.Object);
 
         string? broadcastedUrl = null;
-        void Handler(IntegrationConnection conn)
-        {
+
+        void Handler(IntegrationConnection conn) {
             if (conn.Source == SubathonEventSource.DevTunnels && conn.Service == "Tunnel" && conn.Status)
-            {
                 broadcastedUrl = conn.Name;
-            }
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        try
-        {
+        try {
             await service.StartTunnelAsync(cts.Token);
         }
-        finally
-        {
+        finally {
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 
@@ -169,8 +160,7 @@ public class DevTunnelsServiceTests
     }
 
     [Fact]
-    public async Task StartTunnelAsync_WhenAlreadyRunning_IsIdempotent()
-    {
+    public async Task StartTunnelAsync_WhenAlreadyRunning_IsIdempotent() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
         Mock<IDevTunnelHostSession> mockSession = MakeSession();
         SetupStartTunnel(mockClient, mockSession.Object);
@@ -179,19 +169,20 @@ public class DevTunnelsServiceTests
         await service.StartTunnelAsync(cts.Token);
         await service.StartTunnelAsync(cts.Token);
 
-        mockClient.Verify(c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+        mockClient.Verify(
+            c => c.StartHostSessionAsync(It.IsAny<DevTunnelHostStartOptions>(), It.IsAny<CancellationToken>()),
+            Times.Once);
 
         await service.StopTunnelAsync();
     }
 
     [Fact]
-    public async Task StartTunnelAsync_InvalidStoredTunnelId_ResetsToGeneratedId()
-    {
-        (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService(new Dictionary<(string, string), string>
-        {
-            { ("Server", "Port"), "14040" },
-            { ("DevTunnels", "TunnelId"), "bad.cluster.qualified.id" },
-        });
+    public async Task StartTunnelAsync_InvalidStoredTunnelId_ResetsToGeneratedId() {
+        (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService(
+            new Dictionary<(string, string), string> {
+                { ("Server", "Port"), "14040" },
+                { ("DevTunnels", "TunnelId"), "bad.cluster.qualified.id" }
+            });
 
         Mock<IDevTunnelHostSession> mockSession = MakeSession();
         SetupStartTunnel(mockClient, mockSession.Object);
@@ -200,7 +191,7 @@ public class DevTunnelsServiceTests
         await service.StartTunnelAsync(cts.Token);
 
         mockClient.Verify(c => c.GetTunnelAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
-        
+
         mockClient.Verify(c => c.CreateOrUpdateTunnelAsync(
             It.Is<string>(id => id.StartsWith("subathon-")),
             It.IsAny<DevTunnelOptions>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -209,8 +200,7 @@ public class DevTunnelsServiceTests
     }
 
     [Fact]
-    public async Task StartTunnelAsync_MissingHostToken_RaisesDiscordErrorAndThrottles()
-    {
+    public async Task StartTunnelAsync_MissingHostToken_RaisesDiscordErrorAndThrottles() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
         var mockSession = new Mock<IDevTunnelHostSession>();
         _ = mockSession.Setup(s => s.WaitForReadyAsync(It.IsAny<CancellationToken>()))
@@ -220,11 +210,14 @@ public class DevTunnelsServiceTests
         SetupStartTunnel(mockClient, mockSession.Object);
 
         var errors = new List<(string level, string source, string message)>();
-        void OnError(string level, string source, string message, DateTime _) => errors.Add((level, source, message));
+
+        void OnError(string level, string source, string message, DateTime _) {
+            errors.Add((level, source, message));
+        }
+
         ErrorMessageEvents.ErrorEventOccured += OnError;
 
-        try
-        {
+        try {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await service.StartTunnelAsync(cts.Token);
             await service.StartTunnelAsync(cts.Token);
@@ -234,15 +227,13 @@ public class DevTunnelsServiceTests
             Assert.Equal("WARN", errors[0].level);
             Assert.Equal(nameof(SubathonEventSource.DevTunnels), errors[0].source);
         }
-        finally
-        {
+        finally {
             ErrorMessageEvents.ErrorEventOccured -= OnError;
         }
     }
 
     [Fact]
-    public async Task StopTunnelAsync_WithRunningSession_StopsSessionAndClearsState()
-    {
+    public async Task StopTunnelAsync_WithRunningSession_StopsSessionAndClearsState() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient>? mockClient) = MakeService();
         Mock<IDevTunnelHostSession> mockSession = MakeSession();
         SetupStartTunnel(mockClient, mockSession.Object);
@@ -259,26 +250,21 @@ public class DevTunnelsServiceTests
     }
 
     [Fact]
-    public async Task StopAsync_ResetsStateAndBroadcastsDisabled()
-    {
+    public async Task StopAsync_ResetsStateAndBroadcastsDisabled() {
         (DevTunnelsService? service, Mock<IDevTunnelsClient> _) = MakeService();
 
         bool? lastTunnelStatus = null;
-        void Handler(IntegrationConnection conn)
-        {
+
+        void Handler(IntegrationConnection conn) {
             if (conn.Source == SubathonEventSource.DevTunnels && conn.Service == "Tunnel")
-            {
                 lastTunnelStatus = conn.Status;
-            }
         }
 
         IntegrationEvents.ConnectionUpdated += Handler;
-        try
-        {
+        try {
             await service.StopAsync(TestContext.Current.CancellationToken);
         }
-        finally
-        {
+        finally {
             IntegrationEvents.ConnectionUpdated -= Handler;
         }
 

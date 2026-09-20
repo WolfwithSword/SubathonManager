@@ -1,8 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
+using SubathonManager.Core.Models;
+
 namespace SubathonManager.Core.Enums;
 
-public enum SubathonEventType
-{
+public enum SubathonEventType {
     [EventTypeMeta(Label = "Subscription", Source = SubathonEventSource.Twitch, IsSubscription = true, Order = 1)]
     TwitchSub, // remember subs can be of Value: 1000, 2000, 3000, Prime iirc... damnit looks like the TwitchLib doesnt separate Prime??
 
@@ -94,6 +95,7 @@ public enum SubathonEventType
     [GoAffProTypeMeta(Label = "GamerSupps Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 1,
         LegacySiteId = 165328, Enabled = false)]
     GamerSuppsOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "UwUMarket Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 2,
         LegacySiteId = 132230, Enabled = false)]
@@ -102,6 +104,7 @@ public enum SubathonEventType
     [GoAffProTypeMeta(Label = "Orchid Eight Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 3,
         LegacySiteId = 7142837, Enabled = false)]
     OrchidEightOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "KatDragonz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 4,
         LegacySiteId = 7160049, Enabled = false)]
@@ -134,10 +137,12 @@ public enum SubathonEventType
     [EventTypeMeta(Label = "Gift Order", Source = SubathonEventSource.FourthWall, IsOrder = true, IsExternal = true,
         Order = 4)]
     FourthWallGiftOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "Cheeky Soap Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 5,
         LegacySiteId = 7138531, Enabled = false)]
     CheekySoapOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "Advanced GG Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 6,
         LegacySiteId = 105752, Enabled = false)]
@@ -157,33 +162,40 @@ public enum SubathonEventType
         IsGenericEvent = true)]
     // will come in if contribution fully funds, so purely an alert, not event to add. So we do not allow configuration of it
     ThroneCrowdGiftComplete, // only config in settings is whether or not to display it
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "Rogue Energy Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 7,
         LegacySiteId = 7014645, Enabled = false)]
     RogueEnergyOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "Saucy Biz Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 8,
         LegacySiteId = 7118656, Enabled = false)]
     SaucyBizOrder,
-    
+
     // dynamic GoAffPro order type, meta is site id
-    [GoAffProTypeMeta(Label="GoAffPro Order", Source=SubathonEventSource.GoAffPro, IsOrder=true, Order=1, Enabled=true)]
+    [GoAffProTypeMeta(Label = "GoAffPro Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 1,
+        Enabled = true)]
     GoAffProOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "GFuel Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 9,
         LegacySiteId = 48808, Enabled = false)]
     GFuelOrder,
+
     [Obsolete]
     [GoAffProTypeMeta(Label = "Natura Pine Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 10,
         LegacySiteId = 7132796, Enabled = false)]
     NaturaPineOrder,
 
     [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.TipeeeStream, IsCurrencyDonation = true, Order = 1)]
-    TipeeeStreamDonation,    
+    TipeeeStreamDonation,
+
     [EventTypeMeta(Label = "Tokens", Source = SubathonEventSource.Tangia, IsToken = true, Order = 1)]
     TangiaTokens, // no way to distinguish twitch bits or tangia coins
 
-    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.PallyGG, IsCurrencyDonation = true, IsExternal = true,
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.PallyGG, IsCurrencyDonation = true,
+        IsExternal = true,
         Order = 1)]
     // Pally.gg is USD only :/
     PallyGGDonation,
@@ -194,78 +206,108 @@ public enum SubathonEventType
     // items only
     [EventTypeMeta(Label = "Pledge", Source = SubathonEventSource.MakeShip, IsOrder = true, Order = 1)]
     MakeShipPledge,
+
     // items only
     [EventTypeMeta(Label = "Campaign Sale", Source = SubathonEventSource.MakeShip, IsOrder = true, Order = 2)]
     MakeShipSale,
-    [EventTypeMeta(Label="Merch Sale", Source=SubathonEventSource.JuniperCreates, IsOrder=true, Order=1, Enabled=true)]
-    JuniperMerchSale,
+
+    [EventTypeMeta(Label = "Merch Sale", Source = SubathonEventSource.JuniperCreates, IsOrder = true, Order = 1,
+        Enabled = true)]
+    JuniperMerchSale
     // any new must be added after the last
 }
 
 [ExcludeFromCodeCoverage]
-public static class SubathonEventTypeHelper
-{
-
-    private static EventTypeMetaAttribute? Meta(this SubathonEventType? value)
-    {
+public static class SubathonEventTypeHelper {
+    private static EventTypeMetaAttribute? Meta(this SubathonEventType? value) {
         if (!value.HasValue) return null;
         var meta = EnumMetaCache.Get<EventTypeMetaAttribute>(value);
         if (meta?.Source == SubathonEventSource.GoAffPro)
             return GoAffProMeta(value);
         return meta;
     }
-    
-    private static GoAffProTypeMetaAttribute? GoAffProMeta(this SubathonEventType? value)
-    {
+
+    private static GoAffProTypeMetaAttribute? GoAffProMeta(this SubathonEventType? value) {
         return value != null ? EnumMetaCache.Get<GoAffProTypeMetaAttribute>(value) : null;
     }
 
-    public static bool IsCurrencyDonation(this SubathonEventType? value)
-        => value.Meta()?.IsCurrencyDonation == true;
-    
-    public static bool IsSubscription(this SubathonEventType? value)
-        => value.Meta()?.IsSubscriptionLike == true;
+    public static bool IsCurrencyDonation(this SubathonEventType? value) {
+        return value.Meta()?.IsCurrencyDonation == true;
+    }
 
-    public static bool IsGift(this SubathonEventType? value)
-        => value.Meta()?.IsGift == true;
-    
-    public static bool IsToken(this SubathonEventType? value)
-        => value.Meta()?.IsToken == true;
-    
-    public static bool IsCommand(this SubathonEventType? value)
-        => value.Meta()?.IsCommand == true;
-    
-    public static bool IsExternal(this SubathonEventType? value)
-        => value.Meta()?.IsExternal == true;
-    
-    public static bool IsRaid(this SubathonEventType? value)
-        => value.Meta()?.IsRaid == true;
-    public static bool IsFollow(this SubathonEventType? value)
-        => value.Meta()?.IsFollow == true;
+    public static bool IsSubscription(this SubathonEventType? value) {
+        return value.Meta()?.IsSubscriptionLike == true;
+    }
 
-    public static bool IsTrain(this SubathonEventType? value) => value.Meta()?.IsTrain == true;
-    public static bool IsOrder(this SubathonEventType? value) => value.Meta()?.IsOrder == true;
-    
-    public static bool IsEvent(this SubathonEventType? value) => value.Meta()?.IsGenericEvent == true;
-    public static bool IsExtension(this SubathonEventType? value) => value.Meta()?.IsExtension == true;
-    public static bool IsOther(this SubathonEventType? value)
-        => value.Meta()?.IsOther == true;
+    public static bool IsGift(this SubathonEventType? value) {
+        return value.Meta()?.IsGift == true;
+    }
 
-    public static bool HasNoValueConfig(this SubathonEventType? value) => value.Meta()?.HasValueConfig == true;
+    public static bool IsToken(this SubathonEventType? value) {
+        return value.Meta()?.IsToken == true;
+    }
 
-    public static SubathonEventSource GetSource(this SubathonEventType value) =>
-        ((SubathonEventType?)value).GetSource();
-    public static SubathonEventSource GetSource(this SubathonEventType? value)
-        => value.Meta()?.Source ?? SubathonEventSource.Unknown;
+    public static bool IsCommand(this SubathonEventType? value) {
+        return value.Meta()?.IsCommand == true;
+    }
 
-    public static string GetLabel(this SubathonEventType? value) => value.Meta()?.Label ?? value.ToString() ?? string.Empty;
-    
-    public static SubathonEventSubType? GetSubType(this SubathonEventType eventType) => GetSubType((SubathonEventType?)eventType);
-    public static SubathonEventSubType GetSubType(this SubathonEventType? eventType)
-    {
+    public static bool IsExternal(this SubathonEventType? value) {
+        return value.Meta()?.IsExternal == true;
+    }
+
+    public static bool IsRaid(this SubathonEventType? value) {
+        return value.Meta()?.IsRaid == true;
+    }
+
+    public static bool IsFollow(this SubathonEventType? value) {
+        return value.Meta()?.IsFollow == true;
+    }
+
+    public static bool IsTrain(this SubathonEventType? value) {
+        return value.Meta()?.IsTrain == true;
+    }
+
+    public static bool IsOrder(this SubathonEventType? value) {
+        return value.Meta()?.IsOrder == true;
+    }
+
+    public static bool IsEvent(this SubathonEventType? value) {
+        return value.Meta()?.IsGenericEvent == true;
+    }
+
+    public static bool IsExtension(this SubathonEventType? value) {
+        return value.Meta()?.IsExtension == true;
+    }
+
+    public static bool IsOther(this SubathonEventType? value) {
+        return value.Meta()?.IsOther == true;
+    }
+
+    public static bool HasNoValueConfig(this SubathonEventType? value) {
+        return value.Meta()?.HasValueConfig == true;
+    }
+
+    public static SubathonEventSource GetSource(this SubathonEventType value) {
+        return ((SubathonEventType?)value).GetSource();
+    }
+
+    public static SubathonEventSource GetSource(this SubathonEventType? value) {
+        return value.Meta()?.Source ?? SubathonEventSource.Unknown;
+    }
+
+    public static string GetLabel(this SubathonEventType? value) {
+        return value.Meta()?.Label ?? value.ToString() ?? string.Empty;
+    }
+
+    public static SubathonEventSubType? GetSubType(this SubathonEventType eventType) {
+        return GetSubType((SubathonEventType?)eventType);
+    }
+
+    public static SubathonEventSubType GetSubType(this SubathonEventType? eventType) {
         if (eventType == null) return SubathonEventSubType.Unknown;
         if (eventType.IsGift()) return SubathonEventSubType.GiftSubLike;
-        if (eventType.IsSubscription()) return SubathonEventSubType.SubLike; // important GiftType is above, so it has priority
+        if (eventType.IsSubscription())
+            return SubathonEventSubType.SubLike; // important GiftType is above, so it has priority
         if (eventType.IsToken()) return SubathonEventSubType.TokenLike;
         if (eventType.IsCurrencyDonation()) return SubathonEventSubType.DonationLike;
         if (eventType.IsOrder()) return SubathonEventSubType.OrderLike;
@@ -276,29 +318,28 @@ public static class SubathonEventTypeHelper
         if (eventType.IsEvent()) return SubathonEventSubType.EventLike;
         return SubathonEventSubType.Unknown;
     }
-    
-    public static string? GetTypeTrueSource(this SubathonEventType eventType, string? meta = null) => GetTypeTrueSource((SubathonEventType?)eventType, meta);
 
-    public static string? GetTypeTrueSource(this SubathonEventType? eventType, string? meta = null)
-    {
+    public static string? GetTypeTrueSource(this SubathonEventType eventType, string? meta = null) {
+        return GetTypeTrueSource((SubathonEventType?)eventType, meta);
+    }
+
+    public static string? GetTypeTrueSource(this SubathonEventType? eventType, string? meta = null) {
         if (eventType is null or SubathonEventType.Command) return "Manual";
-        if (eventType.GetSource() == SubathonEventSource.GoAffPro)
-        {
-            var siteId = eventType == SubathonEventType.GoAffProOrder && meta != null && int.TryParse(meta, out var parsed)
+        if (eventType.GetSource() == SubathonEventSource.GoAffPro) {
+            int siteId = eventType == SubathonEventType.GoAffProOrder && meta != null &&
+                         int.TryParse(meta, out int parsed)
                 ? parsed
                 : eventType.GoAffProMeta()?.LegacySiteId ?? -1;
-            return GoAffProStoreRegistry.TryGetBySiteId(siteId, out var store)
+            return GoAffProStoreRegistry.TryGetBySiteId(siteId, out GoAffProStore? store)
                 ? store.InternalName
                 : nameof(SubathonEventSource.GoAffPro);
         }
 
-        if (eventType.GetSource() == SubathonEventSource.JuniperCreates)
-        {
-            return JuniperOrderHelper.GetStoreLabel(meta);
-        }
+        if (eventType.GetSource() == SubathonEventSource.JuniperCreates) return JuniperOrderHelper.GetStoreLabel(meta);
         return eventType.GetSource().ToString();
     }
 
-    public static int GetLegacyGoAffProSiteId(this SubathonEventType eventType) =>
-        ((SubathonEventType?)eventType).GoAffProMeta()?.LegacySiteId ?? -1;
+    public static int GetLegacyGoAffProSiteId(this SubathonEventType eventType) {
+        return ((SubathonEventType?)eventType).GoAffProMeta()?.LegacySiteId ?? -1;
+    }
 }
