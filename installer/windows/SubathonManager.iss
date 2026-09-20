@@ -10,6 +10,7 @@
 ;   ZipName    asset file name
 ;   ZipSha256  hex SHA-256 of the asset; omit to skip verification, which is what
 ;              nightly does since that asset is replaced on every build
+;   ZipSize    total uncompressed size of the archive contents in bytes; required
 
 #ifndef AppVer
   #define AppVer "0.0.0"
@@ -25,6 +26,9 @@
 #endif
 #ifndef ZipSha256
   #define ZipSha256 ""
+#endif
+#ifndef ZipSize
+  #error ZipSize must be defined
 #endif
 
 #define AppName "SubathonManager"
@@ -71,7 +75,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; Downloaded to {tmp} by the code below, then extracted
-Source: "{tmp}\{#ZipName}"; DestDir: "{app}"; Flags: external extractarchive ignoreversion
+; recursesubdirs/createallsubdirs are required or only root-level entries come out.
+Source: "{tmp}\{#ZipName}"; DestDir: "{app}"; Flags: external extractarchive ignoreversion recursesubdirs createallsubdirs; ExternalSize: {#ZipSize}
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"

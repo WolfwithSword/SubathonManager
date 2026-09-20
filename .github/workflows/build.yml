@@ -419,12 +419,17 @@ jobs:
           $url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.avars.outputs.release_tag }}/$asset"
           $appVer = $localSuffix -replace '^v', ''
 
+          $size = (Get-ChildItem build-avalonia -Recurse -File |
+            Measure-Object -Property Length -Sum).Sum
+          Write-Host "Installer payload size: $size bytes"
+
           $isccArgs = @(
             '/Qp'
             "/DAppVer=$appVer"
             "/DFileVer=${{ steps.avars.outputs.file_version }}"
             "/DZipUrl=$url"
             "/DZipName=$asset"
+            "/DZipSize=$size"
             '/Oinstaller-out'
           )
 
