@@ -26,8 +26,10 @@
                     <TextBlock Margin="8 0 0 0" Text="Seconds per 1$" Width="150" VerticalAlignment="Center" />
                     <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
                              x:Name="DonoBox2" />
-                    <TextBlock Margin="8 0 0 0" Text="Points per 1$, rounded down" Width="180"
+                    <TextBlock Margin="8 0 0 0" Text="Points per 1$" Width="150"  ToolTip.Tip="Rounded down"
                                VerticalAlignment="Center" />
+                    <TextBlock x:Name="DonoRateHint" Text="" FontSize="11"
+                               Foreground="Gray" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBox Margin="10 0 4 0" Width="80" Text="10.00" PlaceholderText="10.00"

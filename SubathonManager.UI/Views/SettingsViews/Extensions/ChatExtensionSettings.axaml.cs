@@ -8,12 +8,15 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
 public partial class ChatExtensionSettings : SettingsControl {
     public ChatExtensionSettings() {
         InitializeComponent();
+        UiHelpers.AttachTokenPointRateHint(Bits2TextBox, BitsRateHint, "bits");
+        UiHelpers.AttachTokenPointRateHint(Beets2TextBox, BeetsRateHint, "beets");
         Loaded += (_, _) => RegisterUnsavedChangeHandlers();
     }
 
@@ -44,13 +47,13 @@ public partial class ChatExtensionSettings : SettingsControl {
 
         SubathonValue? blerpBeetsValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.BlerpBits && sv.Meta == "");
-        if (blerpBeetsValue != null && double.TryParse(BitsTextBox.Text, out double beetsSeconds) &&
+        if (blerpBeetsValue != null && double.TryParse(BeetsTextBox.Text, out double beetsSeconds) &&
             !beetsSeconds.Equals(blerpBeetsValue.Seconds / 100.0)) {
             blerpBeetsValue.Seconds = beetsSeconds / 100.0;
             hasUpdated = true;
         }
 
-        if (blerpBeetsValue != null && double.TryParse(Bits2TextBox.Text, out double beetsPoints) &&
+        if (blerpBeetsValue != null && double.TryParse(Beets2TextBox.Text, out double beetsPoints) &&
             !beetsPoints.Equals(blerpBeetsValue.Points)) {
             blerpBeetsValue.Points = beetsPoints;
             hasUpdated = true;

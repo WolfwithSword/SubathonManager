@@ -10,6 +10,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
 
@@ -18,6 +19,7 @@ public partial class ExternalServiceSettings : SettingsControl {
 
     public ExternalServiceSettings() {
         InitializeComponent();
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
         Loaded += (_, _) => RegisterUnsavedChangeHandlers();
     }
 

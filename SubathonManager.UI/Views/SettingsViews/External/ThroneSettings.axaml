@@ -60,19 +60,23 @@
 
         <StackPanel Margin="10,5,0,5">
             <Grid Margin="0,4" ColumnDefinitions="*,300">
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Contributions:" Width="100" VerticalAlignment="Center"
-                               ToolTip.Tip="Contributions toward crowd gifts" />
-                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12"
-                             x:Name="ContribBox" />
-                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center" />
-                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
-                             x:Name="ContribBox2" />
-                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"
-                               ToolTip.Tip="Rounded down" />
-                    <TextBlock Text="Per Dollar" VerticalAlignment="Center" Width="60" Margin="12 0 2 0" />
+                <StackPanel Grid.Column="0" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Contributions:" Width="100" VerticalAlignment="Center"
+                                   ToolTip.Tip="Contributions toward crowd gifts" />
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12"
+                                 x:Name="ContribBox" />
+                        <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center" />
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
+                                 x:Name="ContribBox2" />
+                        <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center"
+                                   ToolTip.Tip="Rounded down" />
+                        <TextBlock Text="Per Dollar" VerticalAlignment="Center" Width="60" Margin="12 0 2 0" />
+                    </StackPanel>
+                    <TextBlock x:Name="ContribRateHint" Text="" FontSize="11" Foreground="Gray" IsVisible="False"
+                               HorizontalAlignment="Right" Margin="0,2,6,0" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Grid.Column="1" VerticalAlignment="Top" Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBox Margin="10,0,4,0" Width="80" Text="10.00" PlaceholderText="1.00"
                              VerticalAlignment="Center" FontSize="12" Height="34"
                              views:SettingsProperties.ExcludeFromUnsaved="True"
@@ -87,21 +91,25 @@
             </Grid>
 
             <Grid Margin="0 4" ColumnDefinitions="*,400">
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Gifts:" Width="100" VerticalAlignment="Center" x:Name="ThroneGiftsText"
-                               ToolTip.Tip="Gift purchased" />
-                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12"
-                             x:Name="GiftsBox" />
-                    <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center" />
-                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
-                             x:Name="GiftsBox2" />
-                    <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center" />
-                    <TextBlock Text="Per " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"
-                               ToolTip.Tip="Item will be treated as per individual gift purchased." />
-                    <ComboBox PlaceholderText="Mode" Width="100" x:Name="ModeBox" SelectedIndex="0" Margin="4 0 4 0" />
+                <StackPanel Grid.Column="0" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Gifts:" Width="100" VerticalAlignment="Center" x:Name="ThroneGiftsText"
+                                   ToolTip.Tip="Gift purchased" />
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="12"
+                                 x:Name="GiftsBox" />
+                        <TextBlock Margin="8,0,0,0" Text="Seconds" Width="150" VerticalAlignment="Center" />
+                        <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
+                                 x:Name="GiftsBox2" />
+                        <TextBlock Margin="8,0,0,0" Text="Points" Width="80" VerticalAlignment="Center" />
+                        <TextBlock Text="Per " VerticalAlignment="Center" Width="30" Margin="12 0 2 0"
+                                   ToolTip.Tip="Item will be treated as per individual gift purchased." />
+                        <ComboBox PlaceholderText="Mode" Width="100" x:Name="ModeBox" SelectedIndex="0" Margin="4 0 4 0" />
+                    </StackPanel>
+                    <TextBlock x:Name="GiftsRateHint" Text="" FontSize="11" Foreground="Gray" IsVisible="False"
+                               HorizontalAlignment="Right" Margin="0,2,6,0" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Grid.Column="1" VerticalAlignment="Top" Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBox Margin="4 0 4 0" Width="188" Text="Fancy Item" VerticalAlignment="Center"
                              x:Name="GiftNameBox"
                              views:SettingsProperties.ExcludeFromUnsaved="True" />

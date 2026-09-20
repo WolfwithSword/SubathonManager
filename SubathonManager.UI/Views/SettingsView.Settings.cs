@@ -25,6 +25,16 @@ public partial class SettingsView {
         ExternalServiceSettingsControl.UpdateCurrencyBoxes(currencies,
             DefaultCurrencyBox.SelectedItem as string ?? "USD");
         StreamingSettingsControl.UpdateCurrencyBoxes(currencies, DefaultCurrencyBox.SelectedItem as string ?? "USD");
+        RaisePrimaryCurrency();
+    }
+
+    private void DefaultCurrencyBox_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
+        RaisePrimaryCurrency();
+    }
+
+    private void RaisePrimaryCurrency() {
+        string currency = (DefaultCurrencyBox.SelectedItem as string ?? "").Trim().ToUpperInvariant();
+        if (currency.Length >= 3) SettingsEvents.RaisePrimaryCurrencyChanged(currency);
     }
 
     private void OpenDataFolder_Click(object? sender, RoutedEventArgs e) {

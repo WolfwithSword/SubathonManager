@@ -19,11 +19,13 @@
                 <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center" />
                 <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
                          x:Name="Bits2TextBox" />
-                <TextBlock Margin="8 0 0 0" Text="Points/100" ToolTip.Tip="Rounded down" Width="140"
+                <TextBlock Margin="8 0 0 0" Text="Points/100" ToolTip.Tip="Rounded down" Width="90"
                            VerticalAlignment="Center" />
+                <TextBlock x:Name="BitsRateHint" Text="" MinWidth="120" FontSize="11"
+                           Foreground="Gray" VerticalAlignment="Center" />
                 <TextBox Width="70" v:NumericInputBehaviour.Mode="SignedDecimal" Text="1" PlaceholderText="0.80"
                          x:Name="BitsModifierTextBox" Margin="8 0" />
-                <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center"
+                <TextBlock Text="Donation Modifier" Width="120" VerticalAlignment="Center"
                            ToolTip.Tip="Only when counting as donations, what modifier to count it as? 0.8 = 80%" />
             </StackPanel>
 
@@ -34,11 +36,13 @@
                 <TextBlock Margin="8 0 0 0" Text="Seconds/100" Width="110" VerticalAlignment="Center" />
                 <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
                          x:Name="Beets2TextBox" />
-                <TextBlock Margin="8 0 0 0" Text="Points/100" ToolTip.Tip="Rounded down" Width="140"
+                <TextBlock Margin="8 0 0 0" Text="Points/100" ToolTip.Tip="Rounded down" Width="90"
                            VerticalAlignment="Center" />
+                <TextBlock x:Name="BeetsRateHint" Text="" MinWidth="120" FontSize="11"
+                           Foreground="Gray" VerticalAlignment="Center" />
                 <TextBox Width="70" v:NumericInputBehaviour.Mode="SignedDecimal" Text="1" PlaceholderText="0.8"
                          x:Name="BeetsModifierTextBox" Margin="8 0" />
-                <TextBlock Text="Donation Modifier" Width="150" VerticalAlignment="Center"
+                <TextBlock Text="Donation Modifier" Width="120" VerticalAlignment="Center"
                            ToolTip.Tip="Only when counting as donations, what modifier to count it as? 0.8 = 80%" />
             </StackPanel>
 

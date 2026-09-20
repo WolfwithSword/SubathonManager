@@ -13,6 +13,7 @@ using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
@@ -21,6 +22,7 @@ public partial class PicartoSettings : SettingsControl {
 
     public PicartoSettings() {
         InitializeComponent();
+        UiHelpers.AttachTokenPointRateHint(Kudos2TextBox, KudosRateHint, "kudos", "kudos");
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();

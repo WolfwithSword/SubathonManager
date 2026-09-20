@@ -46,7 +46,7 @@
                         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0 4 0 0">
                             <TextBlock Text="Default Currency:" Width="120" Margin="0 0 4 0" VerticalAlignment="Center" />
                             <ComboBox Width="100" x:Name="DefaultCurrencyBox" ToolTip.Tip="Currency" Margin="0 0 4 0"
-                                      IsEditable="True" />
+                                      IsEditable="True" SelectionChanged="DefaultCurrencyBox_SelectionChanged" />
                             <CheckBox x:Name="BitsAsCurrencyBox" Margin="4 0 4 0"
                                       ToolTip.Tip="Count 1 bit (or similar currency) as 0.01 USD for total money?"
                                       Content="Bits-Like as Donation?" />

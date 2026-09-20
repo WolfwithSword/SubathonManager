@@ -11,6 +11,7 @@ using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
@@ -19,6 +20,7 @@ public partial class TipeeeStreamSettings : SettingsControl {
 
     public TipeeeStreamSettings() {
         InitializeComponent();
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();

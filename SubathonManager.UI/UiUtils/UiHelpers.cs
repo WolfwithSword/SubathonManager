@@ -8,6 +8,11 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.DependencyInjection;
+using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
+using SubathonManager.Core.Interfaces;
 
 namespace SubathonManager.UI.UiUtils;
 
@@ -86,6 +91,50 @@ public static class UiHelpers {
         }
 
         return false;
+    }
+
+    public static void AttachTokenPointRateHint(TextBox pointsBox, TextBlock hint, string unitPlural,
+        string? unitSingular = null) {
+        void Update() {
+            hint.Text = Utils.DescribeTokenPointRate(pointsBox.Text, unitPlural, unitSingular);
+        }
+
+        pointsBox.TextChanged += (_, _) => Update();
+        Update();
+    }
+
+    public static void AttachMoneyPointRateHint(TextBox pointsBox, TextBlock hint) {
+        AttachMoneyHint(pointsBox, hint, null, false);
+    }
+
+    public static void AttachOrderPointRateHint(TextBox pointsBox, TextBlock hint, ComboBox? dollarModeBox) {
+        AttachMoneyHint(pointsBox, hint, dollarModeBox, true);
+    }
+
+    private static void AttachMoneyHint(TextBox pointsBox, TextBlock hint, ComboBox? dollarModeBox,
+        bool collapseWhenEmpty) {
+        string currency = PrimaryCurrency();
+
+        void Update() {
+            bool perDollar = dollarModeBox == null ||
+                             string.Equals($"{dollarModeBox.SelectedItem}", $"{OrderTypeModes.Dollar}",
+                                 StringComparison.OrdinalIgnoreCase);
+            hint.Text = perDollar ? Utils.DescribeMoneyPointRate(pointsBox.Text, currency) : "";
+            if (collapseWhenEmpty) hint.IsVisible = !string.IsNullOrEmpty(hint.Text);
+        }
+
+        pointsBox.TextChanged += (_, _) => Update();
+        if (dollarModeBox != null) dollarModeBox.SelectionChanged += (_, _) => Update();
+        SettingsEvents.PrimaryCurrencyChanged += updated => {
+            currency = updated;
+            Dispatcher.UIThread.Post(Update);
+        };
+        Update();
+    }
+
+    private static string PrimaryCurrency() {
+        var config = AppServices.Provider.GetRequiredService<IConfig>();
+        return (config.Get("Currency", "Primary", "USD") ?? "USD").Trim().ToUpperInvariant();
     }
 
     public static void UpdateButtonPendingBorder(Border border, bool hasPendingChanges) {

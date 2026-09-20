@@ -23,6 +23,7 @@ using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 using Amounts = Fourthwall.Client.Generated.Models.Openapi.Model.DonationV1.Amounts;
 using Order = Fourthwall.Client.Generated.Models.Openapi.Model.OrderV1.Source.Order;
 
@@ -33,6 +34,9 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
 
     public FourthWallSettings() {
         InitializeComponent();
+        UiHelpers.AttachOrderPointRateHint(ShopOrderBox2, ShopOrderRateHint, ModeBox);
+        UiHelpers.AttachOrderPointRateHint(gShopOrderBox2, gShopOrderRateHint, gModeBox);
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             IntegrationEvents.FourthWallMembershipsSynced += SyncMemberships;

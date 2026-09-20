@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
+using SubathonManager.Data.Widgets;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -66,6 +67,12 @@ public class AppDbContext : DbContext {
             .WithOne(w => w.Route)
             .HasForeignKey(w => w.RouteId)
             .OnDelete(DeleteBehavior.Cascade); // deleting route deletes its widgets
+
+        modelBuilder.Entity<Widget>()
+            .Property(w => w.HtmlPath)
+            .HasConversion(
+                v => WidgetPathStore.ToStored(v),
+                v => WidgetPathStore.ToAbsolute(v));
 
         modelBuilder.Entity<Widget>()
             .HasMany(w => w.CssVariables)

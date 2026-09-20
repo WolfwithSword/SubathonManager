@@ -13,6 +13,7 @@ using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.Extensions;
 
@@ -21,6 +22,7 @@ public partial class StreamLabsSettings : SettingsControl {
 
     public StreamLabsSettings() {
         InitializeComponent();
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
