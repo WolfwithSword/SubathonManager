@@ -71,7 +71,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 ; Downloaded to {tmp} by the code below, then extracted
-Source: "{tmp}\{#ZipName}"; DestDir: "{app}"; Flags: external extractarchive
+Source: "{tmp}\{#ZipName}"; DestDir: "{app}"; Flags: external extractarchive ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
