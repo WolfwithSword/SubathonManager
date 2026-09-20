@@ -302,6 +302,14 @@ jobs:
             echo "file_version=0.0.0.0" >> $GITHUB_OUTPUT
           fi
 
+          if [[ "${GITHUB_REF}" == refs/tags/* ]] && [ "${GITHUB_REF_NAME}" != "nightly" ]; then
+            echo "release_tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            echo "asset_suffix=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "release_tag=nightly" >> $GITHUB_OUTPUT
+            echo "asset_suffix=nightly" >> $GITHUB_OUTPUT
+          fi
+
       - name: Inject telemetry key
         shell: bash
         run: |
@@ -379,6 +387,59 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: Compress-Archive -Path build-avalonia/* -DestinationPath SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}.zip
+
+      - name: Build Windows installer
+        if: matrix.runtime == 'win-x64'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install innosetup --no-progress -y
+
+          $iscc = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { $iscc = (Get-Command ISCC.exe).Source }
+
+          Copy-Item LICENSE installer\windows\LICENSE.txt -Force
+
+          $assetSuffix = "${{ steps.avars.outputs.asset_suffix }}"
+          $localSuffix = "${{ steps.avars.outputs.suffix }}"
+          $asset = "SubathonManager_${{ matrix.runtime }}_$assetSuffix.zip"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.avars.outputs.release_tag }}/$asset"
+          $appVer = $localSuffix -replace '^v', ''
+
+          $isccArgs = @(
+            '/Qp'
+            "/DAppVer=$appVer"
+            "/DFileVer=${{ steps.avars.outputs.file_version }}"
+            "/DZipUrl=$url"
+            "/DZipName=$asset"
+            '/Oinstaller-out'
+          )
+
+          if ($assetSuffix -eq $localSuffix -and $assetSuffix -ne 'nightly') {
+            $sha = (Get-FileHash $asset -Algorithm SHA256).Hash
+            $isccArgs += "/DZipSha256=$sha"
+            Write-Host "Installer sha256:  $sha"
+          } else {
+            Write-Host "Installer sha256:  (not pinned; nightly asset rotates)"
+          }
+          Write-Host "Installer payload: $url"
+
+          $isccArgs += 'installer\windows\SubathonManager.iss'
+          & $iscc @isccArgs
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+
+          Get-ChildItem installer-out
+
+      - name: Upload Windows installer
+        if: matrix.runtime == 'win-x64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: SubathonManager_win-x64_Setup_${{ steps.avars.outputs.suffix }}
+          path: installer-out/*.exe
+          retention-days: 3
 
       - name: Resolve Nextcloud upload path
         shell: bash
@@ -737,6 +798,7 @@ jobs:
         with:
           files: |
             dist/*.zip
+            dist/*.exe
             *.sb
             *.streamDeckPlugin
         env:
@@ -768,6 +830,7 @@ jobs:
           prerelease: true
           files: |
             dist/*.zip
+            dist/*.exe
             *.sb
             *.streamDeckPlugin
           token: ${{ secrets.GITHUB_TOKEN }}
