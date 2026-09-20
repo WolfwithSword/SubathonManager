@@ -124,7 +124,7 @@ end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  AppDir: String;
+  AppDir, Msg: String;
 begin
   if CurUninstallStep <> usPostUninstall then
     Exit;
@@ -133,10 +133,10 @@ begin
   if not DirExists(AppDir) then
     Exit;
 
-  if SuppressibleMsgBox(
-       'Remove your SubathonManager data as well?' + #13#10#13#10 +
-       'This deletes the subathon database, settings, and imported widgets and overlays in:' +
-       #13#10 + AppDir,
-       mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
+  Msg := 'Remove your SubathonManager data as well?' + #13#10 + #13#10 +
+    'This deletes the subathon database, settings, and imported widgets and overlays in:' + #13#10 +
+    AppDir;
+
+  if SuppressibleMsgBox(Msg, mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
     DelTree(AppDir, True, True, True);
 end;
