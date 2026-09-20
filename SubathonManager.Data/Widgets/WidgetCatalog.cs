@@ -238,29 +238,11 @@ public static class WidgetCatalog {
     }
 
     public static string ToAbsolutePath(string storedPath) {
-        try {
-            return Path.IsPathRooted(storedPath)
-                ? storedPath
-                : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), storedPath));
-        }
-        catch {
-            return storedPath;
-        }
+        return WidgetPathStore.ToAbsolute(storedPath);
     }
 
     private static string ToStoredPath(string absolute) {
-        try {
-            string full = Path.GetFullPath(absolute);
-            string baseDir = Directory.GetCurrentDirectory();
-            string relative = Path.GetRelativePath(baseDir, full);
-
-            return relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative)
-                ? full
-                : relative;
-        }
-        catch {
-            return absolute;
-        }
+        return WidgetPathStore.ToStored(absolute);
     }
 
     private static IEnumerable<string> EnumeratePackages(string root) {

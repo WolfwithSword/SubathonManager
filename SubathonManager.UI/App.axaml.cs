@@ -80,7 +80,6 @@ public partial class App : Application {
             config.LoadOrCreateDefault();
             config.MigrateConfig();
             MigrateSecureStore(config);
-            SweepWidgetPackCache();
 
             bool bitsAsDonationCheck = config.GetBool("Currency", "BitsLikeAsDonation");
             Utils.DonationSettings["BitsLikeAsDonation"] = bitsAsDonationCheck;
@@ -123,6 +122,9 @@ public partial class App : Application {
                 JuniperStoreRegistry.Initialize(db.JuniperStores
                     .Include(s => s.Products).AsNoTracking().ToList());
             }
+
+            RepairWidgetPaths(config);
+            SweepWidgetPackCache();
 
             GoAffProConfigMigration.Run(config);
             foreach (GoAffProStore store in GoAffProStoreRegistry.All())
@@ -265,6 +267,33 @@ public partial class App : Application {
         (AppServices.Provider as IDisposable)?.Dispose();
         _logger?.LogInformation("======== Subathon Manager exit ========");
         //
+    }
+
+    private void RepairWidgetPaths(IConfig config) {
+        IDbContextFactory<AppDbContext>? factory = _factory;
+        if (factory == null) return;
+
+        try {
+            int repaired = WidgetPathRepair.Run(factory, _logger);
+            if (repaired > 0)
+                _logger?.LogInformation("Repointed {Count} widget path(s) to the current install folder", repaired);
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to repoint widget paths");
+        }
+
+        if (config.GetBool("App", "WidgetPathsNormalized")) return;
+
+        try {
+            int rewritten = WidgetPathRepair.Normalize(factory);
+            if (rewritten > 0)
+                _logger?.LogInformation("Stored {Count} widget path(s) relative to the install folder", rewritten);
+
+            if (config.SetBool("App", "WidgetPathsNormalized", true)) config.Save();
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to normalize widget paths");
+        }
     }
 
     private void SweepWidgetPackCache() {
