@@ -2,7 +2,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
-using Updatum;
+using StageKit.Updatum;
 
 namespace SubathonManager.Core;
 
@@ -99,8 +99,7 @@ public static class AppServices {
             return false;
 
         try {
-            await AppUpdater.InstallUpdateAsync(asset);
-            return true;
+            return await AppUpdater.InstallUpdateAsync(asset);
         }
         catch (Exception ex) {
             logger?.LogWarning(ex, "Failed to install update");
