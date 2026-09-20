@@ -12,6 +12,7 @@ using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
+using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views.SettingsViews.External.KoFi;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
@@ -25,6 +26,9 @@ public partial class KoFiCombinedSettings : SettingsControl {
 
     public KoFiCombinedSettings() {
         InitializeComponent();
+        UiHelpers.AttachOrderPointRateHint(ShopOrderBox2, ShopOrderRateHint, ModeBox);
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
+        UiHelpers.AttachMoneyPointRateHint(CommissionBox2, CommissionRateHint);
         Loaded += (_, _) => RegisterUnsavedChangeHandlers();
     }
 

@@ -7,11 +7,16 @@ namespace SubathonManager.Core.Events;
 public static class SettingsEvents {
     public static event Action<bool>? SettingsUnsavedChanges;
     public static event Action? EventVisibilityChanged;
+    public static event Action<string>? PrimaryCurrencyChanged;
     public static event Action? HotLinkToDevTunnelsRequested;
     public static event Action<SubathonEventSource, string?>? HotLinkToSourceRequested;
 
     public static void RaiseSettingsUnsavedChanges(bool hasPendingChanges) {
         SettingsUnsavedChanges?.Invoke(hasPendingChanges);
+    }
+
+    public static void RaisePrimaryCurrencyChanged(string currency) {
+        PrimaryCurrencyChanged?.Invoke(currency);
     }
 
     public static void RaiseEventVisibilityChanged() {

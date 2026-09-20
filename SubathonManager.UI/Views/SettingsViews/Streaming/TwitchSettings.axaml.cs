@@ -11,6 +11,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
@@ -19,6 +20,8 @@ public partial class TwitchSettings : SettingsControl {
 
     public TwitchSettings() {
         InitializeComponent();
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
+        UiHelpers.AttachTokenPointRateHint(Cheer2TextBox, CheerRateHint, "bits");
 
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;

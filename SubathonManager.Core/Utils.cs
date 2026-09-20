@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -190,6 +191,37 @@ public static class Utils {
         }
 
         return value;
+    }
+
+    public static string DescribeTokenPointRate(string? pointsPer100, string unitPlural, string? unitSingular = null) {
+        if (!decimal.TryParse(pointsPer100, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal points))
+            return "";
+        if (points < 0.0001m) return "";
+
+        if (points > 100m)
+            return $"= 1 {unitSingular ?? unitPlural.TrimEnd('s')} / {PointsLabel(points / 100m)}";
+
+        decimal needed = Math.Ceiling(100m / points);
+        string unit = needed == 1 ? unitSingular ?? unitPlural.TrimEnd('s') : unitPlural;
+        return $"= {needed.ToString("N0", CultureInfo.InvariantCulture)} {unit} / point";
+    }
+
+    public static string DescribeMoneyPointRate(string? pointsPerUnit, string? currency) {
+        if (!decimal.TryParse(pointsPerUnit, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal points))
+            return "";
+        if (points < 0.0001m) return "";
+
+        string unit = string.IsNullOrWhiteSpace(currency) ? "" : $" {currency.Trim()}";
+        if (points > 100m) return $"= 1{unit} / {PointsLabel(points)}";
+
+        decimal needed = Math.Ceiling(100m / points) / 100m;
+        return $"= {needed.ToString("#,##0.##", CultureInfo.InvariantCulture)}{unit} / point";
+    }
+
+    private static string PointsLabel(decimal points) {
+        return points == 1m
+            ? "point"
+            : $"{points.ToString("#,##0.##", CultureInfo.InvariantCulture)} points";
     }
 
     public static (bool, double) GetAltCurrencyUseAsDonation(IConfig config, SubathonEventType? eventType) {

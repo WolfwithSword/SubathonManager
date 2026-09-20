@@ -11,12 +11,14 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.Streaming;
 
 public partial class YouTubeSettings : SettingsControl {
     public YouTubeSettings() {
         InitializeComponent();
+        UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();

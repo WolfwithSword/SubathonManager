@@ -28,6 +28,54 @@ public class UtilsTests {
     }
 
     [Fact]
+    public void DescribeTokenPointRate() {
+        Assert.Equal("= 295 bits / point", Utils.DescribeTokenPointRate("0.34", "bits"));
+        Assert.Equal("= 300 bits / point", Utils.DescribeTokenPointRate("0.334", "bits"));
+        Assert.Equal("= 200 bits / point", Utils.DescribeTokenPointRate("0.5", "bits"));
+        Assert.Equal("= 100 bits / point", Utils.DescribeTokenPointRate("1", "bits"));
+        Assert.Equal("= 10 beets / point", Utils.DescribeTokenPointRate("10", "beets"));
+        Assert.Equal("= 1 bit / point", Utils.DescribeTokenPointRate("100", "bits"));
+        Assert.Equal("= 1 kudos / point", Utils.DescribeTokenPointRate("100", "kudos", "kudos"));
+
+        Assert.Equal("= 1 bit / 2.5 points", Utils.DescribeTokenPointRate("250", "bits"));
+        Assert.Equal("= 1 bit / 200 points", Utils.DescribeTokenPointRate("20000", "bits"));
+        Assert.Equal("= 1 beet / 1.5 points", Utils.DescribeTokenPointRate("150", "beets"));
+        Assert.Equal("= 1 kudos / 12,345.67 points", Utils.DescribeTokenPointRate("1234567", "kudos", "kudos"));
+        Assert.Equal("= 10,000 tokens / point", Utils.DescribeTokenPointRate("0.01", "tokens"));
+
+        Assert.Equal("", Utils.DescribeTokenPointRate("0", "bits"));
+        Assert.Equal("", Utils.DescribeTokenPointRate("-5", "bits"));
+        Assert.Equal("", Utils.DescribeTokenPointRate("", "bits"));
+        Assert.Equal("", Utils.DescribeTokenPointRate(null, "bits"));
+        Assert.Equal("", Utils.DescribeTokenPointRate("abc", "bits"));
+        Assert.Equal("", Utils.DescribeTokenPointRate("0.00000000000000000000000000001", "bits"));
+    }
+
+    [Fact]
+    public void DescribeMoneyPointRate() {
+        Assert.Equal("= 2.95 USD / point", Utils.DescribeMoneyPointRate("0.34", "USD"));
+        Assert.Equal("= 0.34 CAD / point", Utils.DescribeMoneyPointRate("3", "CAD"));
+        Assert.Equal("= 0.5 EUR / point", Utils.DescribeMoneyPointRate("2", "EUR"));
+        Assert.Equal("= 1 USD / point", Utils.DescribeMoneyPointRate("1", "USD"));
+        Assert.Equal("= 0.01 USD / point", Utils.DescribeMoneyPointRate("100", "USD"));
+
+        Assert.Equal("= 1 USD / 20,000 points", Utils.DescribeMoneyPointRate("20000", "USD"));
+        Assert.Equal("= 1 CAD / 150.5 points", Utils.DescribeMoneyPointRate("150.5", "CAD"));
+        Assert.Equal("= 1 / 200 points", Utils.DescribeMoneyPointRate("200", ""));
+        Assert.Equal("= 10 JPY / point", Utils.DescribeMoneyPointRate("0.1", "JPY"));
+        Assert.Equal("= 1,000 USD / point", Utils.DescribeMoneyPointRate("0.001", "USD"));
+        Assert.Equal("= 2.95 / point", Utils.DescribeMoneyPointRate("0.34", ""));
+        Assert.Equal("= 3 / point", Utils.DescribeMoneyPointRate("0.334", ""));
+
+        Assert.Equal("", Utils.DescribeMoneyPointRate("0", "USD"));
+        Assert.Equal("", Utils.DescribeMoneyPointRate("-2", "USD"));
+        Assert.Equal("", Utils.DescribeMoneyPointRate("", "USD"));
+        Assert.Equal("", Utils.DescribeMoneyPointRate(null, "USD"));
+        Assert.Equal("", Utils.DescribeMoneyPointRate("abc", "USD"));
+        Assert.Equal("", Utils.DescribeMoneyPointRate("0.00000000000000000000000000001", "USD"));
+    }
+
+    [Fact]
     public void GenerateHashFromString() {
         Assert.Equal(Guid.Parse("bdc43e17-41dc-fb50-8c1c-54a72b1ec93e"),
             Utils.CreateGuidFromUniqueString("subathonmanager"));

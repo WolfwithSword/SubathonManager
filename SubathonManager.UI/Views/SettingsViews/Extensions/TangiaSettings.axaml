@@ -28,8 +28,10 @@
                     <TextBlock Margin="8,0,0,0" Text="Seconds/100" Width="110" VerticalAlignment="Center" />
                     <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
                              x:Name="TokensPointsBox" />
-                    <TextBlock Margin="8,0,0,0" Text="Points/100" ToolTip.Tip="Rounded down" Width="140"
+                    <TextBlock Margin="8,0,0,0" Text="Points per 100" ToolTip.Tip="Rounded down" Width="150"
                                VerticalAlignment="Center" />
+                    <TextBlock x:Name="TokensRateHint" Text="" FontSize="11"
+                               Foreground="Gray" VerticalAlignment="Center" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBox Width="80" Text="100" PlaceholderText="100" VerticalAlignment="Center" Height="34"

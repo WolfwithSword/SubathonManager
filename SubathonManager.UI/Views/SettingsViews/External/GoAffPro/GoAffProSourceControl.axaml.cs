@@ -11,6 +11,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.External.GoAffPro;
 
@@ -27,6 +28,7 @@ public partial class GoAffProSourceControl : SettingsControl {
         InitializeComponent();
 
         StoreNameText.Text = Store.StoreName;
+        UiHelpers.AttachOrderPointRateHint(PointsBox, OrderRateHint, ModeBox);
 
         ToolTip.SetTip(TotalSimBox, "Order Total $");
         ToolTip.SetTip(CommSimBox, "Commission Total $");

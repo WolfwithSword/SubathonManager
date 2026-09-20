@@ -15,6 +15,7 @@ using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.SettingsViews.External;
 
@@ -24,6 +25,7 @@ public partial class PallySettings : SettingsControl {
 
     public PallySettings() {
         InitializeComponent();
+        UiHelpers.AttachMoneyPointRateHint(TipBox2, TipRateHint);
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
