@@ -427,7 +427,7 @@ public class FourthWallService(
                     Currency = sourceMode switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
                     },
                     Amount = Math.Max(itemCount, 1),
                     SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{
@@ -464,7 +464,7 @@ public class FourthWallService(
                     Currency = sourceMode2 switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
                     },
                     Amount = Math.Max(itemCount, 1),
                     SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{
