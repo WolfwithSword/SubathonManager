@@ -261,7 +261,10 @@ public class AppDbContext : DbContext {
         var orderTypesToInclude = new List<SubathonEventType>();
         foreach (SubathonEventType orderEvent in Enum.GetValues<SubathonEventType>().Where(et =>
                      ((SubathonEventType?)et).IsOrder() && !et.IsDisabled()
-                                                        && et.GetSource() != SubathonEventSource.GoAffPro)) {
+                                                        && et.GetSource() != SubathonEventSource.GoAffPro
+                                                        && et.GetSource() != SubathonEventSource.MakeShip
+                                                        && et.GetSource() != SubathonEventSource.JuniperCreates
+                                                        && et.GetSource() != SubathonEventSource.TreatStream)) {
             bool asDonation =
                 Utils.DonationSettings.TryGetValue($"{orderEvent.ToString()?.Split("Order")[0]}", out bool donation) &&
                 donation;
