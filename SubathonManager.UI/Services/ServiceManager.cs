@@ -68,6 +68,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     public static TreatStreamService TreatStream => Provider.GetRequiredService<TreatStreamService>();
     public static OBSService OBS => Provider.GetRequiredService<OBSService>();
     public static VTSService VTubeStudio => Provider.GetRequiredService<VTSService>();
+    public static MixItUpService MixItUp => Provider.GetRequiredService<MixItUpService>();
 
     public static WebServer Server => Provider.GetRequiredService<WebServer>();
 
@@ -92,6 +93,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StartAsync<KoFiService>();
         await StartAsync<FourthWallService>();
         await StartAsync<ThroneService>();
+        await StartAsync<MixItUpService>();
         await StartAsync<PallyService>();
         await StartAsync<DiscordWebhookService>();
     }
@@ -112,6 +114,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StopAsync<TangiaService>();
         await StopAsync<KoFiService>();
         await StopAsync<ThroneService>();
+        await StopAsync<MixItUpService>();
         await StopAsync<PallyService>();
         await StopAsync<FourthWallService>();
         await StopAsync<DevTunnelsService>();

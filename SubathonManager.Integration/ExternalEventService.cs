@@ -12,6 +12,14 @@ using SubathonManager.Services;
 namespace SubathonManager.Integration;
 
 public static class ExternalEventService {
+    public static void NotifySourceSeen(Dictionary<string, JsonElement> data) {
+        if (data.TryGetValue("source", out JsonElement elemSrc) && elemSrc.ValueKind == JsonValueKind.String
+                                                                && Enum.TryParse(elemSrc.GetString(), true,
+                                                                    out SubathonEventSource source)
+                                                                && source.IsExternalSource())
+            IntegrationEvents.RaiseExternalSourceSeen(source);
+    }
+
     public static bool ProcessExternalCommand(Dictionary<string, JsonElement> data) {
         data.TryGetValue("command", out JsonElement elemCmd);
         if (elemCmd.ValueKind == JsonValueKind.String && Enum.TryParse

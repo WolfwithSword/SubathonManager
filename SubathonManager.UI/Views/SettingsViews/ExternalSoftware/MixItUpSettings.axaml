@@ -1,0 +1,57 @@
+<views:SettingsControl xmlns="https://github.com/avaloniaui"
+                       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                       xmlns:views="using:SubathonManager.UI.Views"
+                       xmlns:ctl="using:SubathonManager.UI.Controls"
+                       xmlns:ui2="using:SubathonManager.UI.UiUtils"
+                       mc:Ignorable="d"
+                       x:Class="SubathonManager.UI.Views.SettingsViews.ExternalSoftware.MixItUpSettings">
+    <StackPanel Orientation="Vertical" Margin="0,0,0,6">
+        <StackPanel Orientation="Horizontal" Margin="0,4,0,6">
+            <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                    x:Name="GenerateCommandsBtn"
+                    Content="Generate Mix It Up Commands" Click="GenerateCommands_Click"
+                    Width="240" Padding="2" Height="34" Cursor="Hand"
+                    views:SettingsProperties.ExcludeFromUnsaved="True"
+                    ToolTip.Tip="Make a .miucommand file for every Subathon Manager command" />
+            <TextBlock Text="Status:" VerticalAlignment="Center" Margin="14,0,4,0" FontSize="12" />
+            <TextBlock x:Name="MixItUpStatusText" Text="Not seen" VerticalAlignment="Center" FontSize="12" />
+            <Button x:Name="CheckNowBtn" Height="30" Padding="8 2" Margin="8,0,0,0"
+                    Click="CheckNow_Click"
+                    ToolTip.Tip="Check for Mix It Up's Developer API"
+                    views:SettingsProperties.ExcludeFromUnsaved="True">
+                <ctl:SymIcon Glyph="ArrowClockwise16" />
+            </Button>
+        </StackPanel>
+        
+        <TextBlock TextWrapping="Wrap" FontSize="12" Margin="2,0,0,6"
+                   Text="Mix It Up -> new Action Group command OR Command Action etc -> Import and pick a generated file. Commands that take a parameter pass $allargs" />
+        <TextBlock TextWrapping="Wrap" FontSize="12" Margin="2,0,0,10"
+                   Text="Anywhere that lets you import an action file will work" />
+
+        <TextBlock Text="Send events to Mix It Up" FontWeight="SemiBold" Margin="0,16,0,4" />
+        <TextBlock TextWrapping="Wrap" FontSize="12" Margin="2,0,0,6"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Text="Requires Mix It Up's Developer API. In Mix It Up, open Services, find Developer API and click Connect to enable" />
+        <CheckBox x:Name="EnabledCheck" Content="Run Mix It Up commands when these fire" Margin="0,0,0,6" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="API URL:" Width="120" VerticalAlignment="Center" />
+            <TextBox x:Name="ApiUrlBox" Width="300" PlaceholderText="http://localhost:8911/api/v2"
+                     ui2:TextBoxAssist.Clear="True" />
+            <Button x:Name="LoadCommandsBtn" Content="Load Mix It Up Commands" Height="32" Margin="8,0,0,0"
+                    Click="LoadCommands_Click"
+                    ToolTip.Tip="Fetch your Mix It Up commands to pick them below"
+                    views:SettingsProperties.ExcludeFromUnsaved="True" />
+        </StackPanel>
+        <TextBlock x:Name="LoadCommandsStatusText" FontSize="12" Margin="2,0,0,6" IsVisible="False"
+                   TextWrapping="Wrap" />
+        <StackPanel x:Name="TriggerRowsPanel" Orientation="Vertical" />
+        <TextBlock TextWrapping="Wrap" FontSize="12" Margin="2,8,0,0"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Text="Event data is passed as arguments such as $subathonmanagertrigger and $subathonmanageruser. Hover a row's name to see what it sends." />
+        <TextBlock TextWrapping="Wrap" FontSize="12" Margin="2,8,0,0"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                   Text="Subathon Event includes $subathonmanagereventtype and $subathonmanagercommand, so you can branch in MixItUp" />
+    </StackPanel>
+</views:SettingsControl>

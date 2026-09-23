@@ -148,6 +148,8 @@ public partial class WebServer {
             return;
         }
 
+        ExternalEventService.NotifySourceSeen(data);
+
         var type = SubathonEventType.Unknown;
         if (!data.ContainsKey("type") || !data.TryGetValue("type", out JsonElement elem)
                                       || !Enum.TryParse(elem.GetString()!, true, out type)) {

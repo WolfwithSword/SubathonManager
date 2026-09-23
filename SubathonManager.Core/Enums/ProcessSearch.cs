@@ -11,5 +11,8 @@ public enum ProcessSearch {
     StreamerBot,
 
     [ProcessSearchMeta(QueryNames = ["Stream Deck", "StreamDeck"])]
-    StreamDeck
+    StreamDeck,
+
+    [ProcessSearchMeta(QueryNames = ["MixItUp", "Mix It Up"])]
+    MixItUp
 }

@@ -50,8 +50,8 @@ public enum SubathonEventSource {
         SourceOrder = 42, Visible = false, TrueSource = KoFi, Order = 41)]
     KoFiTunnel,
 
-    [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder = 904,
-        Visible = false, Order = 903)]
+    [EventSourceMeta(Description = "Dev Tunnels", SourceGroup = SubathonSourceGroup.ExternalSoftware, SourceOrder = 994,
+        Visible = false, Order = 993)]
     DevTunnels,
 
     [EventSourceMeta(Description = "FourthWall", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder = 62,
@@ -104,7 +104,11 @@ public enum SubathonEventSource {
 
     [EventSourceMeta(Description = "VTube Studio", SourceGroup = SubathonSourceGroup.ExternalSoftware,
         SourceOrder = 905, Order = 904, Visible = false)]
-    VTubeStudio
+    VTubeStudio,
+
+    [EventSourceMeta(Description = "Mix It Up", SourceGroup = SubathonSourceGroup.ExternalSoftware,
+        SourceOrder = 904, Order = 903, Visible = false, IsExternalSource = true)]
+    MixItUp
 }
 
 [ExcludeFromCodeCoverage]

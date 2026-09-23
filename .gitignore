@@ -15,6 +15,7 @@ riderModule.iml
 exports/
 imports/
 cache/
+external/mixitup/
 
 *.smo
 *.smw
