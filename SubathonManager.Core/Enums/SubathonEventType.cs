@@ -114,15 +114,15 @@ public enum SubathonEventType {
     YouTubeRedirect,
 
     [EventTypeMeta(Label = "Shop Order", Source = SubathonEventSource.KoFi, IsOrder = true, IsExternal = true,
-        Order = 3)]
+        HasCommissionData = true, Order = 3)]
     KoFiShopOrder,
 
     [EventTypeMeta(Label = "Commission", Source = SubathonEventSource.KoFi, IsOrder = true, IsExternal = true,
-        Order = 4)]
+        HasCommissionData = true, Order = 4)]
     KoFiCommissionOrder,
 
     [EventTypeMeta(Label = "Shop Order", Source = SubathonEventSource.FourthWall, IsOrder = true, IsExternal = true,
-        Order = 3)]
+        HasCommissionData = true, Order = 3)]
     FourthWallOrder,
 
     [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.FourthWall, IsCurrencyDonation = true,
@@ -135,7 +135,7 @@ public enum SubathonEventType {
     FourthWallMembership,
 
     [EventTypeMeta(Label = "Gift Order", Source = SubathonEventSource.FourthWall, IsOrder = true, IsExternal = true,
-        Order = 4)]
+        HasCommissionData = true, Order = 4)]
     FourthWallGiftOrder,
 
     [Obsolete]
@@ -175,7 +175,7 @@ public enum SubathonEventType {
 
     // dynamic GoAffPro order type, meta is site id
     [GoAffProTypeMeta(Label = "GoAffPro Order", Source = SubathonEventSource.GoAffPro, IsOrder = true, Order = 1,
-        Enabled = true)]
+        HasCommissionData = true, Enabled = true)]
     GoAffProOrder,
 
     [Obsolete]
@@ -269,6 +269,10 @@ public static class SubathonEventTypeHelper {
 
     public static bool IsOrder(this SubathonEventType? value) {
         return value.Meta()?.IsOrder == true;
+    }
+
+    public static bool IsOrderWitCommission(this SubathonEventType? value) {
+        return value.Meta()?.IsOrder == true && value.Meta()?.HasCommissionData == true;
     }
 
     public static bool IsEvent(this SubathonEventType? value) {

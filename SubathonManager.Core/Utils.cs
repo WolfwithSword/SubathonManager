@@ -273,7 +273,7 @@ public static class Utils {
         return config.GetBool(
             ev.EventType.GetSource().ToString(),
             $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-            ev.EventType.GetSource() != SubathonEventSource.GoAffPro);
+            ev.EventType.GetSource() != SubathonEventSource.GoAffPro && ev.EventType.IsOrderWitCommission());
     }
 
     public sealed class ServiceReconnectState : IDisposable {
