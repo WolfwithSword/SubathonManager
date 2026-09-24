@@ -8,6 +8,7 @@
         xmlns:wheel="using:SubathonManager.UI.Views.WheelSpin"
         xmlns:ctl="using:SubathonManager.UI.Controls"
         xmlns:v="using:SubathonManager.UI.Validation"
+        xmlns:schedule="clr-namespace:SubathonManager.UI.Views.Schedule"
         x:Class="SubathonManager.UI.MainWindow"
         Title="Subathon Manager"
         Width="1200" Height="800"
@@ -33,6 +34,9 @@
                             </TabItem>
                             <TabItem Header="Recent Prompts">
                                 <prompts:PromptRunListView />
+                            </TabItem>
+                            <TabItem Header="Schedule">
+                                <schedule:ScheduleUpcomingView x:Name="HomeScheduleList" />
                             </TabItem>
                         </TabControl>
                     </Grid>
@@ -502,6 +506,9 @@
             </TabItem>
             <TabItem Header="Wheel Spin">
                 <wheel:WheelEditor />
+            </TabItem>
+            <TabItem x:Name="ScheduleTabItem" Header="Schedule">
+                <schedule:ScheduleView x:Name="SchedulePage" />
             </TabItem>
             <TabItem x:Name="SettingsTabItem" Header="Settings">
                 <views:SettingsView />

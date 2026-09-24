@@ -50,6 +50,8 @@ public class AppDbContext : DbContext {
 
     public DbSet<StateValue> StateValues { get; set; }
 
+    public DbSet<ScheduleItem> ScheduleItems { get; set; }
+
     public DbSet<WidgetCatalogEntry> WidgetCatalogEntries => Set<WidgetCatalogEntry>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
@@ -97,6 +99,9 @@ public class AppDbContext : DbContext {
 
         modelBuilder.Entity<SubathonValue>()
             .HasKey(sv => new { sv.EventType, sv.Meta });
+
+        modelBuilder.Entity<ScheduleItem>()
+            .HasIndex(i => i.Date);
 
         modelBuilder.Entity<SubathonGoalSet>()
             .HasMany(s => s.Goals)
@@ -524,7 +529,7 @@ public class AppDbContext : DbContext {
             new() { SiteId = 7111695, StoreName = "V1 Tech", EventName = "V1 Tech Order" },
             new() { SiteId = 7120088, StoreName = "Plush Foundry", EventName = "PlushFoundry Order" },
             new() { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order" },
-            new() { SiteId = 7181690, StoreName = "Redtail Retail", EventName = "Redtail Order"}
+            new() { SiteId = 7181690, StoreName = "Redtail Retail", EventName = "Redtail Order" }
         };
 
         foreach (GoAffProStore def in defaults) {

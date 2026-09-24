@@ -19,4 +19,6 @@ public static class StateKeys {
     public const string EditorPreviewLightBg = "EditorPreviewLightBg";
 
     public const string GoalAutoIncrement = "GoalAutoIncrement";
+
+    public const string ScheduleSkipDeleteConfirm = "ScheduleSkipDeleteConfirm";
 }

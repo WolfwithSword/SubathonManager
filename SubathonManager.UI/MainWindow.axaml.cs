@@ -27,6 +27,11 @@ public partial class MainWindow : Window {
         InitHome();
         InitOverlays();
 
+        HomeScheduleList.ItemRequested += (date, id) => {
+            MainWindowTabs.SelectedItem = ScheduleTabItem;
+            SchedulePage.ShowItem(date, id);
+        };
+
         Loaded += async (_, _) => {
             await MaybeShowTelemetryPromptAsync();
             await ImportPendingOverlayAsync();
