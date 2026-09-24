@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
@@ -337,7 +338,7 @@ public partial class WebServer {
                         t => t.Key,
                         t => {
                             double sum = t.Sum(e =>
-                                double.TryParse(e.Value, out double amount)
+                                Utils.TryParseAmount(e.Value, out double amount)
                                     ? amount
                                     : 0
                             );
@@ -363,7 +364,7 @@ public partial class WebServer {
                         t => t.Key,
                         t => {
                             double sum = t.Sum(e =>
-                                double.TryParse(string.Equals(e.Value, "new", StringComparison.OrdinalIgnoreCase)
+                                Utils.TryParseAmount(string.Equals(e.Value, "new", StringComparison.OrdinalIgnoreCase)
                                     ? "1"
                                     : e.Value, out double amount)
                                     ? amount

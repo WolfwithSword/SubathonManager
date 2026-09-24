@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -151,9 +152,11 @@ public static class ExternalEventService {
             }
         }
 
-        if (!double.TryParse(elemValue.GetString()!, out double value)) return false;
+        if (!Utils.TryParseAmount(elemValue.GetString(), out double value)) return false;
 
-        var orderVal = $"{value}";
+        string orderVal = value.ToString(CultureInfo.InvariantCulture);
+
+        string moneyCurrency = currency;
         if (type != SubathonEventType.KoFiCommissionOrder) {
             var section = $"{type.GetSource()}";
             var modeKey = $"{type}";
@@ -191,7 +194,7 @@ public static class ExternalEventService {
             EventType = type,
             EventTypeMeta = goAffProMeta,
             Amount = amt,
-            SecondaryValue = $"{value}|{currency}"
+            SecondaryValue = $"{value.ToString(CultureInfo.InvariantCulture)}|{moneyCurrency}"
         };
 
         data.TryGetValue("id", out JsonElement elemId);
@@ -227,12 +230,12 @@ public static class ExternalEventService {
         data.TryGetValue("amount", out JsonElement elemValue);
         if (elemValue.ValueKind != JsonValueKind.String) return false;
 
-        if (!double.TryParse(elemValue.GetString()!, out double value)) return false;
+        if (!Utils.TryParseAmount(elemValue.GetString(), out double value)) return false;
 
         var subathonEvent = new SubathonEvent {
             Currency = currency,
             User = user,
-            Value = $"{value}",
+            Value = value.ToString(CultureInfo.InvariantCulture),
             Source = user == "SYSTEM" ? SubathonEventSource.Simulated : ((SubathonEventType?)type).GetSource(),
             EventType = type
         };

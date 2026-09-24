@@ -795,6 +795,7 @@ public class ExternalEventServiceTests {
         Assert.Equal("Buyer", ev!.User);
         Assert.Equal(expectedValue, ev.Value);
         Assert.Equal(expectedCurrency, ev.Currency);
+        Assert.Equal("25|USD", ev.SecondaryValue);
         Assert.Equal(2, ev.Amount);
         Assert.Equal(SubathonEventSource.KoFi, ev.Source);
         Assert.Equal(SubathonEventType.KoFiShopOrder, ev.EventType);

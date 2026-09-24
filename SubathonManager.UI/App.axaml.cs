@@ -486,13 +486,13 @@ public partial class App : Application {
             string? curr = ev.Currency;
             if (ev.EventType.IsOrder()) {
                 string[] parts = ev.SecondaryValue.Split('|');
-                if (parts.Length < 2 || !double.TryParse(parts[0], out _)) continue;
+                if (parts.Length < 2 || !Utils.TryParseAmount(parts[0], out _)) continue;
                 value = parts[0];
                 curr = parts[1];
                 if (!currencyService.IsValidCurrency(curr)) continue;
             }
 
-            double amt = await currencyService.ConvertAsync(double.Parse(value), curr, currency.ToUpper());
+            double amt = await currencyService.ConvertAsync(Utils.ParseAmount(value), curr, currency.ToUpper());
             sum += amt;
         }
 

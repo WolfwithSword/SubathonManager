@@ -51,6 +51,15 @@ public static class StateValueHelper {
         await SetAsync(db, name, value);
     }
 
+    public static async Task<int> AddIntAsync(IDbContextFactory<AppDbContext> factory, string name, int delta) {
+        await using AppDbContext db = await factory.CreateDbContextAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT OR IGNORE INTO StateValues (Name, Value, TypeName) VALUES ({name}, '0', 'Int32')");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE StateValues SET Value = CAST(MAX(0, CAST(Value AS INTEGER) + {delta}) AS TEXT), TypeName = 'Int32' WHERE Name = {name}");
+        return Get(db, name, 0);
+    }
+
     public static void Set<T>(AppDbContext db, string name, T value) where T : notnull {
         string strVal = value.ToString() ?? "";
         string typeName = typeof(T).Name;

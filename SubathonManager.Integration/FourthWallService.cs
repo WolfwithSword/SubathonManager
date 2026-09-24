@@ -390,7 +390,9 @@ public class FourthWallService(
                 var itemCount = 0;
                 double totalValue = 0;
                 double totalDirect = 0;
-                string currency = order.Amounts?.Subtotal?.Currency ?? defaultCurrency;
+                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+                    ? order.Amounts.Subtotal.Currency
+                    : defaultCurrency;
 
                 double costs = 0;
                 double prices = 0;
@@ -444,7 +446,9 @@ public class FourthWallService(
 
                 double totalValue = 0;
                 double totalDirect = 0;
-                string currency = order.Amounts?.Subtotal?.Currency ?? defaultCurrency;
+                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+                    ? order.Amounts.Subtotal.Currency
+                    : defaultCurrency;
 
                 totalValue += order.Amounts?.Subtotal?.Value ?? 0;
                 totalDirect += order.Amounts?.Profit?.Value ?? 0;

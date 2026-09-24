@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Globalization;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -841,7 +842,7 @@ public class TwitchService(
                 e.Payload.Event.Amount.Value
                 / (decimal)Math.Pow(10, e.Payload.Event.Amount.DecimalPlaces),
                 2
-            ).ToString("0.00"),
+            ).ToString("0.00", CultureInfo.InvariantCulture),
             Currency = e.Payload.Event.Amount.Currency,
             EventTimestamp = eventMeta.MessageTimestamp.ToLocalTime()
         };
