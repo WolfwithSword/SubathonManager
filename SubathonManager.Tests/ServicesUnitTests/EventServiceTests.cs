@@ -1318,6 +1318,48 @@ public class EventServiceTests {
     }
 
     [Fact]
+    public async Task CancelledOrder_RemovesTrackedEventAndWarns() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+
+        var order = new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.FourthWallOrder, Source = SubathonEventSource.FourthWall,
+            User = "Buyer", Currency = "USD", Value = "25.00", Amount = 1, SecondaryValue = "10.00|USD"
+        };
+        (bool processed, _) = await service.ProcessSubathonEvent(order);
+        Assert.True(processed);
+
+        var deleted = new TaskCompletionSource<bool>();
+        var warned = false;
+        void OnDeleted(List<SubathonEvent> evs) {
+            if (evs.Any(e => e.Id == order.Id)) deleted.TrySetResult(true);
+        }
+        void OnError(string level, string source, string message, DateTime _) {
+            if (level == "WARN" && message.Contains("#1234")) warned = true;
+        }
+        SubathonEvents.SubathonEventsDeleted += OnDeleted;
+        ErrorMessageEvents.ErrorEventOccured += OnError;
+
+        SubathonEvents.RaiseSubathonEventCancelled(order.Id, SubathonEventType.FourthWallOrder, "#1234");
+        await Task.WhenAny(deleted.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
+
+        SubathonEvents.SubathonEventsDeleted -= OnDeleted;
+        ErrorMessageEvents.ErrorEventOccured -= OnError;
+
+        Assert.True(deleted.Task.IsCompleted, "Cancelled order's event was never removed");
+        Assert.True(warned);
+        await using (var db = new AppDbContext(options)) {
+            Assert.False(await db.SubathonEvents.AnyAsync(e => e.Id == order.Id,
+                TestContext.Current.CancellationToken));
+        }
+
+        Assert.False(await service.DeleteCancelledEventAsync(Guid.NewGuid(), SubathonEventType.FourthWallOrder, "#9"));
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+
+    [Fact]
     public async Task ProcessSubathonEvent_MoneyChangedAfterSave_RaisesDataUpdate() {
         (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
             await SetupServiceWithDb(0, false);

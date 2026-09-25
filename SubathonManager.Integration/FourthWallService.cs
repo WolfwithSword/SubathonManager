@@ -56,6 +56,7 @@ public class FourthWallService(
     private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.FourthWallRefreshToken, string.Empty);
     private string? ShopName { get; set; }
     public string WebhookPath => "/api/webhooks/fourthwall";
+    public const string AutoDeleteCancelledKey = "AutoDeleteCancelledOrders";
 
     public async Task StartAsync(CancellationToken ct = default) {
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
@@ -114,11 +115,32 @@ public class FourthWallService(
             return;
         }
 
+        if (result.Event is FourthwallOrderUpdatedWebhookEvent orderUpdated) {
+            HandleOrderUpdated(orderUpdated);
+            return;
+        }
+
         SubathonEvent? ev = MapToSubathonEvent(result.Event);
         if (ev != null) {
             SubathonEvents.RaiseSubathonEventCreated(ev);
             logger?.LogDebug("[FourthWall] Raised {EventType} from {User}", ev.EventType, ev.User);
         }
+    }
+
+    internal bool HandleOrderUpdated(FourthwallOrderUpdatedWebhookEvent orderUpdated) {
+        OrderV1? order = orderUpdated.Data?.Order;
+        if (order?.Status != OrderV1_status.CANCELLED || string.IsNullOrWhiteSpace(order.Id)) return false;
+
+        string reference = $"#{order.FriendlyId ?? order.Id}";
+        if (!config.GetBool(_configSection, AutoDeleteCancelledKey, false)) {
+            logger?.LogInformation("[FourthWall] Order {Order} was cancelled, auto delete is off so its event is kept",
+                reference);
+            return false;
+        }
+
+        SubathonEvents.RaiseSubathonEventCancelled(Utils.TryParseGuid(order.Id), SubathonEventType.FourthWallOrder,
+            reference);
+        return true;
     }
 
     [ExcludeFromCodeCoverage]
@@ -212,9 +234,29 @@ public class FourthWallService(
                 if (!string.IsNullOrWhiteSpace(webhookConfigurationV1.Url) &&
                     webhookConfigurationV1.Url.Contains(tunnelConn.Name.Replace("https://", ""),
                         StringComparison.CurrentCultureIgnoreCase)) {
-                    // TODO what if we add more future scopes, we'd need to compare allowed_types.
                     hasWh = true;
                     logger?.LogDebug("Webhook found, no need to make a new one for fourthwall");
+                    if (webhookConfigurationV1.AllowedTypes?.Contains(WebhookConfigurationV1_allowedTypes.ORDER_UPDATED) != true &&
+                        !string.IsNullOrWhiteSpace(webhookConfigurationV1.Id))
+                        try {
+                            List<WebhookConfigurationUpdateRequest_allowedTypes?> types =
+                                (webhookConfigurationV1.AllowedTypes ?? [])
+                                .Select(t => Enum.TryParse($"{t}", out WebhookConfigurationUpdateRequest_allowedTypes u)
+                                    ? u
+                                    : (WebhookConfigurationUpdateRequest_allowedTypes?)null)
+                                .Where(t => t != null)
+                                .Append(WebhookConfigurationUpdateRequest_allowedTypes.ORDER_UPDATED)
+                                .ToList();
+                            await client.OpenApi.V10.Webhooks[webhookConfigurationV1.Id].PutAsync(
+                                new WebhookConfigurationUpdateRequest {
+                                    Url = webhookConfigurationV1.Url, AllowedTypes = types
+                                }, cancellationToken: ct);
+                            logger?.LogInformation("[FourthWall] Added order updates to existing webhook");
+                        }
+                        catch (Exception ex) {
+                            logger?.LogWarning(ex, "[FourthWall] Couldn't add order updates to existing webhook");
+                        }
+
                     break;
                 }
 
@@ -226,6 +268,7 @@ public class FourthWallService(
                 Url = fullUrl,
                 AllowedTypes = [
                     WebhookConfigurationCreateRequest_allowedTypes.ORDER_PLACED,
+                    WebhookConfigurationCreateRequest_allowedTypes.ORDER_UPDATED,
                     WebhookConfigurationCreateRequest_allowedTypes.DONATION,
                     WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_PURCHASED,
                     WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_CHANGED,

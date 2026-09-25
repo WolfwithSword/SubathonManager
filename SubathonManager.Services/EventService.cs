@@ -37,6 +37,7 @@ public class EventService : IDisposable, IAppService {
 
     public Task StartAsync(CancellationToken ct = default) {
         SubathonEvents.SubathonEventCreated += AddSubathonEvent;
+        SubathonEvents.SubathonEventCancelled += OnSubathonEventCancelled;
         _processingTask = Task.Run(LoopAsync, ct);
         _processingTask.ContinueWith(t =>
                 _logger?.LogError("Event loop crashed: {AggregateException}", t.Exception),
@@ -47,6 +48,8 @@ public class EventService : IDisposable, IAppService {
     }
 
     public async Task StopAsync(CancellationToken ct = default) {
+        SubathonEvents.SubathonEventCreated -= AddSubathonEvent;
+        SubathonEvents.SubathonEventCancelled -= OnSubathonEventCancelled;
         if (!_cts.IsCancellationRequested)
             _cts.Cancel();
         _signal.Release();
@@ -585,6 +588,38 @@ public class EventService : IDisposable, IAppService {
         }
 
         await Task.CompletedTask;
+    }
+
+    private void OnSubathonEventCancelled(Guid id, SubathonEventType type, string reference) {
+        Task.Run(async () => {
+            try {
+                await DeleteCancelledEventAsync(id, type, reference);
+            }
+            catch (Exception ex) {
+                _logger?.LogError(ex, "Failed to remove cancelled {EventType} {Reference}", type, reference);
+            }
+        });
+    }
+
+    public async Task<bool> DeleteCancelledEventAsync(Guid id, SubathonEventType type, string reference) {
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        SubathonEvent? ev = await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == id && e.EventType == type);
+        if (ev == null) {
+            _logger?.LogDebug("Cancelled {EventType} {Reference} was never tracked, nothing to remove", type, reference);
+            return false;
+        }
+
+        bool inActive = ev.SubathonId != null &&
+                        await db.SubathonDatas.AnyAsync(s => s.IsActive && s.Id == ev.SubathonId);
+        string label = ((SubathonEventType?)type).GetLabel();
+        string msg = inActive
+            ? $"{label} {reference} from {ev.User} was cancelled. Removed its event ({ev.Value} {ev.Currency})."
+            : $"{label} {reference} from {ev.User} was cancelled, but it's from a past subathon, so it will be kept";
+        _logger?.LogWarning("{Message}", msg);
+        ErrorMessageEvents.RaiseErrorEvent("WARN", ev.Source.ToString(), msg, DateTime.Now);
+
+        if (inActive) await DeleteSubathonEvent(db, ev);
+        return inActive;
     }
 
     public async Task DeleteSubathonEvent(AppDbContext db, SubathonEvent ev) {

@@ -13,6 +13,7 @@ public static class SubathonEvents {
         SubathonEventProcessed; // Run through queue, processed or not to subathon
 
     public static event Action<List<SubathonEvent>>? SubathonEventsDeleted;
+    public static event Action<Guid, SubathonEventType, string>? SubathonEventCancelled;
     public static event Action<SubathonData, DateTime>? SubathonDataUpdate;
 
     public static event Action<List<SubathonGoal>, long, GoalsType>? SubathonGoalListUpdated;
@@ -75,6 +76,10 @@ public static class SubathonEvents {
 
     public static void RaiseSubathonEventsDeleted(List<SubathonEvent> subathonEvent) {
         SubathonEventsDeleted?.Invoke(subathonEvent);
+    }
+
+    public static void RaiseSubathonEventCancelled(Guid id, SubathonEventType type, string reference) {
+        SubathonEventCancelled?.Invoke(id, type, reference);
     }
 
     public static void RaiseSubathonEventCreated(SubathonEvent subathonEvent) {
