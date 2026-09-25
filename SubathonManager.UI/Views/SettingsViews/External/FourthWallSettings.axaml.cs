@@ -95,6 +95,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
             $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar)}";
         GiftCommissionBox.IsChecked = config.GetBool(configSection,
             $"{nameof(SubathonEventType.FourthWallGiftOrder).Split("Order")[0]}.CommissionAsDonation");
+        AutoDeleteCancelledBox.IsChecked = config.GetBool(configSection, FourthWallService.AutoDeleteCancelledKey, false);
     }
 
     public override bool UpdateValueSettings(AppDbContext db) {
@@ -222,6 +223,8 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         hasUpdated |= config.SetBool(configSection,
             $"{nameof(SubathonEventType.FourthWallOrder).Split("Order")[0]}.CommissionAsDonation",
             OrderCommissionBox.IsChecked ?? false);
+        hasUpdated |= config.SetBool(configSection, FourthWallService.AutoDeleteCancelledKey,
+            AutoDeleteCancelledBox.IsChecked ?? false);
         return hasUpdated;
     }
 

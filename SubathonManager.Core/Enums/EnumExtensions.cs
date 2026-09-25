@@ -94,6 +94,8 @@ public class EventTypeMetaAttribute : EnumMetaAttribute {
     public bool IsOther { get; init; }
     public bool HasValueConfig { get; init; } = true;
 
+    public bool HasCommissionData{ get; init; }
+
     public SubathonEventSource Source { get; set; } = SubathonEventSource.Unknown;
 }
 

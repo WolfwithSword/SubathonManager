@@ -14,6 +14,7 @@ using Fourthwall.Client.Generated.Models.Openapi.Model.OfferAbstractV1;
 using Fourthwall.Client.Generated.Models.Openapi.Model.OfferAbstractV1.OfferVariantAbstractV1;
 using Fourthwall.Client.Generated.Models.Openapi.Model.OrderV1;
 using Fourthwall.Client.Generated.Models.Openapi.Model.OrderV1.Source;
+using Fourthwall.Client.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubathonManager.Core.Enums;
@@ -552,6 +553,44 @@ public class FourthWallServiceTests {
         Assert.NotNull(ev1);
         Assert.NotNull(ev2);
         Assert.NotEqual(ev1!.Id, ev2!.Id);
+    }
+
+    [Theory]
+    [InlineData(true, OrderV1_status.CANCELLED, true)]
+    [InlineData(false, OrderV1_status.CANCELLED, false)]
+    [InlineData(true, OrderV1_status.SHIPPED, false)]
+    public void HandleOrderUpdated_CancelledOrder_RaisesCancelForPlacedEventId(bool enabled, OrderV1_status status,
+        bool expectRaised) {
+        (FourthWallService service, _) = MakeService(new Dictionary<(string, string), string> {
+            { ("FourthWall", FourthWallService.AutoDeleteCancelledKey), $"{enabled}" }
+        });
+        FourthwallOrderPlacedWebhookEvent placed = MakeOrderEvent(id: "ord_abc123");
+        SubathonEvent? placedEv = service.MapToSubathonEvent(placed);
+
+        placed.Data.Status = status;
+        placed.Data.FriendlyId = "FW-1234";
+        var updated = new FourthwallOrderUpdatedWebhookEvent {
+            Id = Guid.NewGuid().ToString(),
+            Data = new OrderUpdatedV1 { Order = placed.Data, Update = new OrderUpdatedV1Update { Type = "STATUS" } },
+            CreatedAt = DateTimeOffset.UtcNow,
+            TestMode = false,
+            WebhookId = "", ShopId = "", Type = "ORDER_UPDATED", ApiVersion = ""
+        };
+
+        (Guid Id, SubathonEventType Type, string Reference)? raised = null;
+        void OnCancelled(Guid id, SubathonEventType type, string reference) {
+            raised = (id, type, reference);
+        }
+        SubathonEvents.SubathonEventCancelled += OnCancelled;
+        bool result = service.HandleOrderUpdated(updated);
+        SubathonEvents.SubathonEventCancelled -= OnCancelled;
+
+        Assert.Equal(expectRaised, result);
+        Assert.Equal(expectRaised, raised != null);
+        if (!expectRaised) return;
+        Assert.Equal(placedEv!.Id, raised!.Value.Id);
+        Assert.Equal(SubathonEventType.FourthWallOrder, raised.Value.Type);
+        Assert.Equal("#FW-1234", raised.Value.Reference);
     }
 
     [Fact]

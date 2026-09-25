@@ -27,11 +27,36 @@ public partial class MainWindow : Window {
         InitHome();
         InitOverlays();
 
+        RecentEventsList.HiddenTypesChanged += UpdateRecentEventsFilterTip;
+        UpdateRecentEventsFilterTip();
+
+        HomeScheduleList.ItemRequested += (date, id) => {
+            MainWindowTabs.SelectedItem = ScheduleTabItem;
+            SchedulePage.ShowItem(date, id);
+        };
+
         Loaded += async (_, _) => {
             await MaybeShowTelemetryPromptAsync();
             await ImportPendingOverlayAsync();
             await CollectPendingWidgetPackAsync();
         };
+    }
+
+    private void HomeListTabs_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
+        if (!ReferenceEquals(e.Source, HomeListTabs)) return;
+        RecentEventsFilterBtn.IsVisible = ReferenceEquals(HomeListTabs.SelectedItem, RecentEventsTab);
+    }
+
+    private void RecentEventsFilterBtn_Click(object? sender, RoutedEventArgs e) {
+        RecentEventsList.OpenTypeFilter(RecentEventsFilterBtn);
+    }
+
+    private void UpdateRecentEventsFilterTip() {
+        int hidden = RecentEventsList.HiddenTypeCount;
+        ToolTip.SetTip(RecentEventsFilterBtn, hidden == 0
+            ? "Choose which event types show here"
+            : $"Choose which event types show here ({hidden} hidden)");
+        RecentEventsFilterBtn.Opacity = hidden == 0 ? 0.7 : 1;
     }
 
     private async void CopyVersion_Click(object? sender, RoutedEventArgs e) {

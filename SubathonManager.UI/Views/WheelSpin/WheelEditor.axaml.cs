@@ -819,15 +819,13 @@ public partial class WheelEditor : UserControl {
 
     private async void SpinsOwedDecrement_Click(object? sender, RoutedEventArgs e) {
         if (_spinsOwed <= 0) return;
-        _spinsOwed = Math.Max(0, _spinsOwed - 1);
-        await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, _spinsOwed);
+        _spinsOwed = await StateValueHelper.AddIntAsync(_factory, StateKeys.WheelSpinsOwed, -1);
         SuppressChanges(() => SpinsOwedBox.Text = _spinsOwed.ToString());
         RaiseWheelDataChanged();
     }
 
     private async void SpinsOwedIncrement_Click(object? sender, RoutedEventArgs e) {
-        _spinsOwed++;
-        await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, _spinsOwed);
+        _spinsOwed = await StateValueHelper.AddIntAsync(_factory, StateKeys.WheelSpinsOwed, 1);
         SuppressChanges(() => SpinsOwedBox.Text = _spinsOwed.ToString());
         RaiseWheelDataChanged();
     }
@@ -903,8 +901,7 @@ public partial class WheelEditor : UserControl {
         SuppressChanges(() => SpinCountBox.Text = _activeWheel.SpinCount.ToString());
 
         if (_spinsOwed > 0) {
-            _spinsOwed--;
-            await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, _spinsOwed);
+            _spinsOwed = await StateValueHelper.AddIntAsync(_factory, StateKeys.WheelSpinsOwed, -1);
             SuppressChanges(() => SpinsOwedBox.Text = _spinsOwed.ToString());
         }
 
@@ -984,8 +981,7 @@ public partial class WheelEditor : UserControl {
 
         if (item?.Action?.ActionType == WheelSpinActionType.Reroll)
             if (int.TryParse(item.Action.Parameter, out int rerollCount) && rerollCount >= 1) {
-                _spinsOwed += rerollCount;
-                await StateValueHelper.SetAsync(_factory, StateKeys.WheelSpinsOwed, _spinsOwed);
+                _spinsOwed = await StateValueHelper.AddIntAsync(_factory, StateKeys.WheelSpinsOwed, rerollCount);
                 SuppressChanges(() => SpinsOwedBox.Text = _spinsOwed.ToString());
             }
 

@@ -43,6 +43,7 @@ public class FourthWallService(
     private readonly string _configSection = "FourthWall";
 
     private readonly FourthwallWebhookHandler _handler = new(new FourthwallWebhookSignatureVerifier());
+    private readonly SemaphoreSlim _initLock = new(1, 1);
     internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/fourthwall/login";
     internal readonly string _refreshURl = "https://oauth.subathonmanager.app/auth/fourthwall/refresh";
 
@@ -55,6 +56,7 @@ public class FourthWallService(
     private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.FourthWallRefreshToken, string.Empty);
     private string? ShopName { get; set; }
     public string WebhookPath => "/api/webhooks/fourthwall";
+    public const string AutoDeleteCancelledKey = "AutoDeleteCancelledOrders";
 
     public async Task StartAsync(CancellationToken ct = default) {
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
@@ -113,11 +115,32 @@ public class FourthWallService(
             return;
         }
 
+        if (result.Event is FourthwallOrderUpdatedWebhookEvent orderUpdated) {
+            HandleOrderUpdated(orderUpdated);
+            return;
+        }
+
         SubathonEvent? ev = MapToSubathonEvent(result.Event);
         if (ev != null) {
             SubathonEvents.RaiseSubathonEventCreated(ev);
             logger?.LogDebug("[FourthWall] Raised {EventType} from {User}", ev.EventType, ev.User);
         }
+    }
+
+    internal bool HandleOrderUpdated(FourthwallOrderUpdatedWebhookEvent orderUpdated) {
+        OrderV1? order = orderUpdated.Data?.Order;
+        if (order?.Status != OrderV1_status.CANCELLED || string.IsNullOrWhiteSpace(order.Id)) return false;
+
+        string reference = $"#{order.FriendlyId ?? order.Id}";
+        if (!config.GetBool(_configSection, AutoDeleteCancelledKey, false)) {
+            logger?.LogInformation("[FourthWall] Order {Order} was cancelled, auto delete is off so its event is kept",
+                reference);
+            return false;
+        }
+
+        SubathonEvents.RaiseSubathonEventCancelled(Utils.TryParseGuid(order.Id), SubathonEventType.FourthWallOrder,
+            reference);
+        return true;
     }
 
     [ExcludeFromCodeCoverage]
@@ -153,8 +176,32 @@ public class FourthWallService(
 
     [ExcludeFromCodeCoverage]
     public async Task Initialize(CancellationToken ct = default) {
+        if (!await _initLock.WaitAsync(0, ct)) return;
+        try {
+            await InitializeCoreAsync(ct);
+        }
+        finally {
+            _initLock.Release();
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task InitializeCoreAsync(CancellationToken ct) {
         IntegrationConnection tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-        if (!tunnelConn.Status) return;
+        if (!tunnelConn.Status) {
+            await devTunnels.StartTunnelAsync(ct);
+            tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
+            if (!tunnelConn.Status) {
+                string reason = !devTunnels.IsCliInstalled ? "the DevTunnels CLI isn't installed"
+                    : !devTunnels.IsLoggedIn ? "DevTunnels isn't logged in"
+                    : "the tunnel failed to start";
+                logger?.LogWarning("[FourthWall] Can't connect: {Reason}", reason);
+                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.FourthWall),
+                    $"FourthWall needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
+                BroadcastStatus(HasTokenFile(), null);
+                return;
+            }
+        }
 
         bool canConnect = await CheckForTokenAsync(ct);
         if (!canConnect || string.IsNullOrWhiteSpace(AccessToken)) {
@@ -187,9 +234,29 @@ public class FourthWallService(
                 if (!string.IsNullOrWhiteSpace(webhookConfigurationV1.Url) &&
                     webhookConfigurationV1.Url.Contains(tunnelConn.Name.Replace("https://", ""),
                         StringComparison.CurrentCultureIgnoreCase)) {
-                    // TODO what if we add more future scopes, we'd need to compare allowed_types.
                     hasWh = true;
                     logger?.LogDebug("Webhook found, no need to make a new one for fourthwall");
+                    if (webhookConfigurationV1.AllowedTypes?.Contains(WebhookConfigurationV1_allowedTypes.ORDER_UPDATED) != true &&
+                        !string.IsNullOrWhiteSpace(webhookConfigurationV1.Id))
+                        try {
+                            List<WebhookConfigurationUpdateRequest_allowedTypes?> types =
+                                (webhookConfigurationV1.AllowedTypes ?? [])
+                                .Select(t => Enum.TryParse($"{t}", out WebhookConfigurationUpdateRequest_allowedTypes u)
+                                    ? u
+                                    : (WebhookConfigurationUpdateRequest_allowedTypes?)null)
+                                .Where(t => t != null)
+                                .Append(WebhookConfigurationUpdateRequest_allowedTypes.ORDER_UPDATED)
+                                .ToList();
+                            await client.OpenApi.V10.Webhooks[webhookConfigurationV1.Id].PutAsync(
+                                new WebhookConfigurationUpdateRequest {
+                                    Url = webhookConfigurationV1.Url, AllowedTypes = types
+                                }, cancellationToken: ct);
+                            logger?.LogInformation("[FourthWall] Added order updates to existing webhook");
+                        }
+                        catch (Exception ex) {
+                            logger?.LogWarning(ex, "[FourthWall] Couldn't add order updates to existing webhook");
+                        }
+
                     break;
                 }
 
@@ -201,6 +268,7 @@ public class FourthWallService(
                 Url = fullUrl,
                 AllowedTypes = [
                     WebhookConfigurationCreateRequest_allowedTypes.ORDER_PLACED,
+                    WebhookConfigurationCreateRequest_allowedTypes.ORDER_UPDATED,
                     WebhookConfigurationCreateRequest_allowedTypes.DONATION,
                     WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_PURCHASED,
                     WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_CHANGED,
@@ -280,9 +348,10 @@ public class FourthWallService(
         logger?.LogDebug("Opening FourthWall OAuth...");
         OpenBrowser(_oAuthURl);
         (string? newAccess, string? newRefresh) = await WaitForProtocolCallbackAsync();
-        if (!string.IsNullOrEmpty(AccessToken) || string.IsNullOrEmpty(RefreshToken)) {
-            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess!);
-            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh!);
+
+        if (!string.IsNullOrEmpty(newAccess) && !string.IsNullOrEmpty(newRefresh)) {
+            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess);
+            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh);
         }
     }
 
@@ -390,7 +459,9 @@ public class FourthWallService(
                 var itemCount = 0;
                 double totalValue = 0;
                 double totalDirect = 0;
-                string currency = order.Amounts?.Subtotal?.Currency ?? defaultCurrency;
+                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+                    ? order.Amounts.Subtotal.Currency
+                    : defaultCurrency;
 
                 double costs = 0;
                 double prices = 0;
@@ -427,7 +498,7 @@ public class FourthWallService(
                     Currency = sourceMode switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
                     },
                     Amount = Math.Max(itemCount, 1),
                     SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{
@@ -444,7 +515,9 @@ public class FourthWallService(
 
                 double totalValue = 0;
                 double totalDirect = 0;
-                string currency = order.Amounts?.Subtotal?.Currency ?? defaultCurrency;
+                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+                    ? order.Amounts.Subtotal.Currency
+                    : defaultCurrency;
 
                 totalValue += order.Amounts?.Subtotal?.Value ?? 0;
                 totalDirect += order.Amounts?.Profit?.Value ?? 0;
@@ -464,7 +537,7 @@ public class FourthWallService(
                     Currency = sourceMode2 switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
                     },
                     Amount = Math.Max(itemCount, 1),
                     SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{

@@ -408,6 +408,44 @@ public class WheelSpinTriggerServiceTests {
     }
 
     [Fact]
+    public async Task ProcessTriggers_ConcurrentFires_DoNotLoseSpins() {
+        (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb();
+        await using (var db = new AppDbContext(options)) {
+            db.WheelSpinTriggers.Add(new WheelSpinTrigger
+                { EventType = SubathonEventType.TwitchSub, IsEnabled = true, SpinsToAdd = 2 });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        const int fires = 10;
+        var fired = 0;
+        var allFired = new TaskCompletionSource<bool>();
+        WheelEvents.WheelSpinTriggerFired += (_, _, _) => {
+            if (Interlocked.Increment(ref fired) == fires) allFired.TrySetResult(true);
+        };
+
+        for (var i = 0; i < fires; i++)
+            SubathonEvents.RaiseSubathonEventProcessed(new SubathonEvent {
+                Id = Guid.NewGuid(), EventType = SubathonEventType.TwitchSub,
+                Command = SubathonCommandType.None, Value = "1000", User = $"User{i}"
+            }, true);
+
+        await Task.WhenAny(allFired.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
+        Assert.True(allFired.Task.IsCompleted, $"Only {fired}/{fires} triggers fired");
+
+        await using var checkDb = new AppDbContext(options);
+        Assert.Equal(fires * 2, StateValueHelper.Get<int>(checkDb, StateKeys.WheelSpinsOwed));
+
+        var factory = new Mock<IDbContextFactory<AppDbContext>>();
+        factory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new AppDbContext(options));
+        Assert.Equal(0, await StateValueHelper.AddIntAsync(factory.Object, StateKeys.WheelSpinsOwed, -(fires * 2 + 5)));
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+
+    [Fact]
     public async Task GiftSub_NoCountThreshold_ReturnsSpinsToAddFlat() {
         (WheelSpinTriggerService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
             await SetupServiceWithDb();

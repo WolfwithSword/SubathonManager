@@ -128,8 +128,8 @@ public partial class SettingsView : SettingsControl {
             panel.Children.Add(new TextBlock {
                 Text = "Download and install now?", Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap
             });
-            panel.Children.Add(new TextBlock
-                { Text = "You will need to start the app manually once finished.", TextWrapping = TextWrapping.Wrap });
+            // panel.Children.Add(new TextBlock
+            //     { Text = "You will need to start the app manually once finished.", TextWrapping = TextWrapping.Wrap });
 
             var dialog = new FAContentDialog {
                 Title = "Updater",

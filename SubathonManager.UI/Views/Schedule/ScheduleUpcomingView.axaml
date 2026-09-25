@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" d:DesignHeight="500" d:DesignWidth="500"
+             Background="Transparent"
+             x:Class="SubathonManager.UI.Views.Schedule.ScheduleUpcomingView">
+
+    <UserControl.Styles>
+        <Style Selector="Border.upcard">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="BorderBrush" Value="#333" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Margin" Value="4,6" />
+            <Setter Property="Background" Value="{DynamicResource AppHeaderBackground}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.upcard:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+        </Style>
+        <Style Selector="Border.upcard Button.donebtn">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.upcard:pointerover Button.donebtn">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="TextBlock.soft">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrushSoft}" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="8">
+            <TextBlock x:Name="EmptyText" Margin="4,10" IsVisible="False" TextWrapping="Wrap"
+                       Text="Nothing coming up. Plan your days in the Schedule tab."
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            <StackPanel x:Name="CardsStack" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

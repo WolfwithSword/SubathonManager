@@ -139,6 +139,20 @@ public static class Utils {
         return new Guid(guidBytes);
     }
 
+    // handles locals where it may be "12,50" instead of "12.50"
+    public static bool TryParseAmount(string? text, out double value) {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        text = text.Trim();
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
+               double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture,
+                   out value);
+    }
+
+    public static double ParseAmount(string? text) {
+        return TryParseAmount(text, out double value) ? value : 0;
+    }
+
     public static string TryParseCurrency(string amountString) {
         var currency = "";
         Match match = Regex.Match(amountString, @"^(?<code>[A-Z]{3})(?![A-Z])");
@@ -273,7 +287,7 @@ public static class Utils {
         return config.GetBool(
             ev.EventType.GetSource().ToString(),
             $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
-            ev.EventType.GetSource() != SubathonEventSource.GoAffPro);
+            ev.EventType.GetSource() != SubathonEventSource.GoAffPro && ev.EventType.IsOrderWitCommission());
     }
 
     public sealed class ServiceReconnectState : IDisposable {

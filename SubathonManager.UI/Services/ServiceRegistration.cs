@@ -92,6 +92,8 @@ public static class ServiceRegistration {
         services.AddSingleton<DiscordWebhookService>();
         services.AddSingleton<OBSService>();
         services.AddSingleton<VTSService>();
+        services.AddHttpClient(nameof(MixItUpService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<MixItUpService>();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder) {

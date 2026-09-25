@@ -155,8 +155,13 @@ public partial class App : Application {
                 await AppDbContext.PauseAllTimers(context1);
                 await using AppDbContext context2 = await _factory.CreateDbContextAsync();
                 await AppDbContext.ResetPowerHour(context2);
-                await using AppDbContext context3 = await _factory.CreateDbContextAsync();
-                await SetupSubathonCurrencyData(context3, false);
+                try {
+                    await using AppDbContext context3 = await _factory.CreateDbContextAsync();
+                    await SetupSubathonCurrencyData(context3, false);
+                }
+                catch (Exception ex) {
+                    _logger?.LogError(ex, "Failed to recalculate subathon currency data on startup");
+                }
 
                 await sm.StartAsync<WebServer>(fireAndForget: true);
                 await sm.StartAsync<TimerService>(fireAndForget: true);
@@ -480,11 +485,14 @@ public partial class App : Application {
             string value = ev.Value;
             string? curr = ev.Currency;
             if (ev.EventType.IsOrder()) {
-                value = ev.SecondaryValue.Split('|')[0];
-                curr = ev.SecondaryValue.Split('|')[1];
+                string[] parts = ev.SecondaryValue.Split('|');
+                if (parts.Length < 2 || !Utils.TryParseAmount(parts[0], out _)) continue;
+                value = parts[0];
+                curr = parts[1];
+                if (!currencyService.IsValidCurrency(curr)) continue;
             }
 
-            double amt = await currencyService.ConvertAsync(double.Parse(value), curr, currency.ToUpper());
+            double amt = await currencyService.ConvertAsync(Utils.ParseAmount(value), curr, currency.ToUpper());
             sum += amt;
         }
 

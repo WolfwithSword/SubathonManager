@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -246,7 +247,7 @@ public class YouTubeService : IDisposable, IAppService {
             SubathonEvent subathonEvent = new() {
                 User = user,
                 Currency = $"{currency}".Trim().ToUpper(),
-                Value = $"{item.Superchat.AmountValue}",
+                Value = string.Create(CultureInfo.InvariantCulture, $"{item.Superchat.AmountValue}"),
                 Source = SubathonEventSource.YouTube,
                 EventType = SubathonEventType.YouTubeSuperChat,
                 Id = Utils.CreateGuidFromUniqueString(item.Id),

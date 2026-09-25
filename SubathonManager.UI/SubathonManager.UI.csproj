@@ -63,4 +63,13 @@
         <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <Compile Update="Views\Schedule\ScheduleUpcomingView.axaml.cs">
+            <SubType>Code</SubType>
+        </Compile>
+        <Compile Update="Views\Schedule\ScheduleView.axaml.cs">
+            <SubType>Code</SubType>
+        </Compile>
+    </ItemGroup>
+
 </Project>

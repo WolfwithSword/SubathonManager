@@ -19,4 +19,9 @@ public static class StateKeys {
     public const string EditorPreviewLightBg = "EditorPreviewLightBg";
 
     public const string GoalAutoIncrement = "GoalAutoIncrement";
+
+    public const string ScheduleSkipDeleteConfirm = "ScheduleSkipDeleteConfirm";
+
+    // bigint bitmask of enums
+    public const string RecentEventsHiddenTypes = "RecentEventsHiddenTypes";
 }

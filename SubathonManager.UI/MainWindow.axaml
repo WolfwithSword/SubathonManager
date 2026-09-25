@@ -8,6 +8,7 @@
         xmlns:wheel="using:SubathonManager.UI.Views.WheelSpin"
         xmlns:ctl="using:SubathonManager.UI.Controls"
         xmlns:v="using:SubathonManager.UI.Validation"
+        xmlns:schedule="clr-namespace:SubathonManager.UI.Views.Schedule"
         x:Class="SubathonManager.UI.MainWindow"
         Title="Subathon Manager"
         Width="1200" Height="800"
@@ -27,14 +28,26 @@
                                        Text="Use the Overlays tab to manage your overlays and widgets, the Goals tab to setup your goals, and Settings to configure everything else!" />
                             <Separator Margin="4,12,4,8" />
                         </StackPanel>
-                        <TabControl Grid.Row="1" Classes="boxed" Background="Transparent">
-                            <TabItem Header="Recent Events">
-                                <views:EventListView />
-                            </TabItem>
-                            <TabItem Header="Recent Prompts">
-                                <prompts:PromptRunListView />
-                            </TabItem>
-                        </TabControl>
+                        <Panel Grid.Row="1">
+                            <TabControl x:Name="HomeListTabs" Classes="boxed" Background="Transparent"
+                                        SelectionChanged="HomeListTabs_SelectionChanged">
+                                <TabItem x:Name="RecentEventsTab" Header="Recent Events">
+                                    <views:EventListView x:Name="RecentEventsList" />
+                                </TabItem>
+                                <TabItem Header="Recent Prompts">
+                                    <prompts:PromptRunListView />
+                                </TabItem>
+                                <TabItem Header="Schedule">
+                                    <schedule:ScheduleUpcomingView x:Name="HomeScheduleList" />
+                                </TabItem>
+                            </TabControl>
+                            <Button x:Name="RecentEventsFilterBtn" Classes="iconbtn" Width="30" Height="30"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,4,0"
+                                    ToolTip.Tip="Choose which event types show here"
+                                    Click="RecentEventsFilterBtn_Click">
+                                <ctl:SymIcon Glyph="Settings16" />
+                            </Button>
+                        </Panel>
                     </Grid>
                     <Grid Grid.Column="1" Margin="34,2,10,10" MinWidth="700">
                         <Grid RowDefinitions="300,*">
@@ -502,6 +515,9 @@
             </TabItem>
             <TabItem Header="Wheel Spin">
                 <wheel:WheelEditor />
+            </TabItem>
+            <TabItem x:Name="ScheduleTabItem" Header="Schedule">
+                <schedule:ScheduleView x:Name="SchedulePage" />
             </TabItem>
             <TabItem x:Name="SettingsTabItem" Header="Settings">
                 <views:SettingsView />
