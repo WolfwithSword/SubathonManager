@@ -43,6 +43,7 @@ public class FourthWallService(
     private readonly string _configSection = "FourthWall";
 
     private readonly FourthwallWebhookHandler _handler = new(new FourthwallWebhookSignatureVerifier());
+    private readonly SemaphoreSlim _initLock = new(1, 1);
     internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/fourthwall/login";
     internal readonly string _refreshURl = "https://oauth.subathonmanager.app/auth/fourthwall/refresh";
 
@@ -153,8 +154,32 @@ public class FourthWallService(
 
     [ExcludeFromCodeCoverage]
     public async Task Initialize(CancellationToken ct = default) {
+        if (!await _initLock.WaitAsync(0, ct)) return;
+        try {
+            await InitializeCoreAsync(ct);
+        }
+        finally {
+            _initLock.Release();
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task InitializeCoreAsync(CancellationToken ct) {
         IntegrationConnection tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-        if (!tunnelConn.Status) return;
+        if (!tunnelConn.Status) {
+            await devTunnels.StartTunnelAsync(ct);
+            tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
+            if (!tunnelConn.Status) {
+                string reason = !devTunnels.IsCliInstalled ? "the DevTunnels CLI isn't installed"
+                    : !devTunnels.IsLoggedIn ? "DevTunnels isn't logged in"
+                    : "the tunnel failed to start";
+                logger?.LogWarning("[FourthWall] Can't connect: {Reason}", reason);
+                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.FourthWall),
+                    $"FourthWall needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
+                BroadcastStatus(HasTokenFile(), null);
+                return;
+            }
+        }
 
         bool canConnect = await CheckForTokenAsync(ct);
         if (!canConnect || string.IsNullOrWhiteSpace(AccessToken)) {
@@ -280,9 +305,10 @@ public class FourthWallService(
         logger?.LogDebug("Opening FourthWall OAuth...");
         OpenBrowser(_oAuthURl);
         (string? newAccess, string? newRefresh) = await WaitForProtocolCallbackAsync();
-        if (!string.IsNullOrEmpty(AccessToken) || string.IsNullOrEmpty(RefreshToken)) {
-            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess!);
-            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh!);
+
+        if (!string.IsNullOrEmpty(newAccess) && !string.IsNullOrEmpty(newRefresh)) {
+            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess);
+            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh);
         }
     }
 
