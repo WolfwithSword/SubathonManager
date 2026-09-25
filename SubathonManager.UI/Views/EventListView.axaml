@@ -48,6 +48,8 @@
     </UserControl.Styles>
 
     <Grid>
+        <ctl:FilterPopout x:Name="TypeFilter" ShowSummary="False" Width="0" Height="0"
+                          HorizontalAlignment="Right" VerticalAlignment="Top" />
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl x:Name="EventListPanel">
                 <ItemsControl.ItemsPanel>
