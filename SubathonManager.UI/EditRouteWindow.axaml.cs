@@ -40,6 +40,8 @@ public partial class EditRouteWindow : Window {
     private readonly Dictionary<Guid, List<JsVariable>> _unsavedJsVars = new();
     private readonly Dictionary<Guid, Border> _widgetCardBorders = new();
     private readonly ObservableCollection<Widget> _widgets = new();
+    private Widget? _dragWidget;
+    private int _dragTargetIndex = -1;
 
     public readonly Guid EditorRouteId;
     private double _currentScale = 1;
@@ -462,6 +464,26 @@ public partial class EditRouteWindow : Window {
 
         _widgets[_widgets.IndexOf(a)] = wa;
         _widgets[_widgets.IndexOf(b)] = wb;
+        RefreshWebView();
+    }
+
+    private async Task MoveWidgetZAsync(int from, int to) {
+        _widgets.Move(from, to);
+        int lo = Math.Min(from, to), hi = Math.Max(from, to);
+        List<Guid> ids = _widgets.Skip(lo).Take(hi - lo + 1).Select(w => w.Id).ToList();
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        Dictionary<Guid, Widget> fresh = await db.Widgets.Include(w => w.CssVariables)
+            .Include(w => w.JsVariables).Where(w => ids.Contains(w.Id)).ToDictionaryAsync(w => w.Id);
+        for (int i = lo; i <= hi; i++)
+            if (fresh.TryGetValue(_widgets[i].Id, out Widget? w))
+                w.Z = _widgets.Count - i;
+
+        await db.SaveChangesAsync();
+
+        for (int i = lo; i <= hi; i++)
+            if (fresh.TryGetValue(_widgets[i].Id, out Widget? w))
+                _widgets[i] = w;
         RefreshWebView();
     }
 
