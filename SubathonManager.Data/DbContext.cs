@@ -465,6 +465,7 @@ public class AppDbContext : DbContext {
             new() { EventType = SubathonEventType.TipeeeStreamDonation, Seconds = 12 },
             new() { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
             new() { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
+            new() { EventType = SubathonEventType.TiltifyDonation, Seconds = 12 },
             new() { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
             new() {
                 EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60

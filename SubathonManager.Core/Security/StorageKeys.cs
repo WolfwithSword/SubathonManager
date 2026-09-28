@@ -29,4 +29,8 @@ public static class StorageKeys {
     public const string TreatStreamRefreshToken = "SM.TreatStream.RefreshToken";
     public const string TreatStreamTokenExpiry = "SM.TreatStream.TokenExpiry";
     public const string TreatStreamClientId = "SM.TreatStream.ClientId";
+
+    public const string TiltifyAccessToken = "SM.Tiltify.AccessToken";
+    public const string TiltifyRefreshToken = "SM.Tiltify.RefreshToken";
+    public const string TiltifyTokenExpiry = "SM.Tiltify.TokenExpiry";
 }

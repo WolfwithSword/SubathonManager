@@ -213,7 +213,10 @@ public enum SubathonEventType {
 
     [EventTypeMeta(Label = "Merch Sale", Source = SubathonEventSource.JuniperCreates, IsOrder = true, Order = 1,
         Enabled = true)]
-    JuniperMerchSale
+    JuniperMerchSale,
+
+    [EventTypeMeta(Label = "Donation", Source = SubathonEventSource.Tiltify, IsCurrencyDonation = true, Order = 1)]
+    TiltifyDonation
     // any new must be added after the last
 }
 

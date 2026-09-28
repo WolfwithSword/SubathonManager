@@ -77,6 +77,8 @@ public static class ServiceRegistration {
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
         services.AddSingleton<PallyService>();
+        services.AddHttpClient(nameof(TiltifyService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<TiltifyService>();
 
         // Stream Extensions //
         services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);

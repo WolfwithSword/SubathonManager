@@ -108,7 +108,11 @@ public enum SubathonEventSource {
 
     [EventSourceMeta(Description = "Mix It Up", SourceGroup = SubathonSourceGroup.ExternalSoftware,
         SourceOrder = 904, Order = 903, Visible = false, IsExternalSource = true)]
-    MixItUp
+    MixItUp,
+
+    [EventSourceMeta(Description = "Tiltify", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder = 67,
+        Order = 56)]
+    Tiltify
 }
 
 [ExcludeFromCodeCoverage]

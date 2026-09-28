@@ -57,6 +57,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     public static FourthWallService FourthWall => Provider.GetRequiredService<FourthWallService>();
     public static ThroneService Throne => Provider.GetRequiredService<ThroneService>();
     public static PallyService Pally => Provider.GetRequiredService<PallyService>();
+    public static TiltifyService Tiltify => Provider.GetRequiredService<TiltifyService>();
     public static DevTunnelsService DevTunnels => Provider.GetRequiredService<DevTunnelsService>();
     public static KoFiService KoFi => Provider.GetRequiredService<KoFiService>();
     public static TwitchService Twitch => Provider.GetRequiredService<TwitchService>();
@@ -95,6 +96,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StartAsync<ThroneService>();
         await StartAsync<MixItUpService>();
         await StartAsync<PallyService>();
+        await StartAsync<TiltifyService>();
         await StartAsync<DiscordWebhookService>();
     }
 
@@ -116,6 +118,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StopAsync<ThroneService>();
         await StopAsync<MixItUpService>();
         await StopAsync<PallyService>();
+        await StopAsync<TiltifyService>();
         await StopAsync<FourthWallService>();
         await StopAsync<DevTunnelsService>();
         await StopAsync<DiscordWebhookService>();
