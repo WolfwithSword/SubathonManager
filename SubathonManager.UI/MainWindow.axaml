@@ -328,8 +328,8 @@
                                                      v:NumericInputBehaviour.Mode="Integer" />
                                         </StackPanel>
                                     </Grid>
-                                    <views:GoalsView />
                                 </StackPanel>
+                                <views:GoalsView Grid.Row="1" />
                             </Grid>
                         </Grid>
                     </Grid>
