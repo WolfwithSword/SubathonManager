@@ -370,7 +370,7 @@ public class TiltifyService(
                     User = !string.IsNullOrWhiteSpace(match.MatchedBy) ? match.MatchedBy : "Donation Match",
                     Value = matchAmount.ToString("F2", CultureInfo.InvariantCulture),
                     Currency = !string.IsNullOrWhiteSpace(matchCurrency) ? matchCurrency : ev.Currency,
-                    EventTimestamp = ev.EventTimestamp,
+                    EventTimestamp = match.CompletedAt?.LocalDateTime ?? ev.EventTimestamp,
                     EventTypeMeta = ev.EventTypeMeta,
                     TertiaryValue = ev.TertiaryValue
                 };
@@ -534,6 +534,7 @@ public class TiltifyService(
         GC.SuppressFinalize(this);
     }
 
+    [ExcludeFromCodeCoverage]
     private sealed class TiltifyBearerAuthProvider(Func<string?> tokenAccessor) : IAuthenticationProvider {
         public Task AuthenticateRequestAsync(RequestInformation request,
             Dictionary<string, object>? additionalAuthenticationContext = null,

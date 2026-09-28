@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -12,6 +13,7 @@ using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Integration;
 
+[ExcludeFromCodeCoverage]
 public sealed record MixItUpCommandInfo(Guid Id, string Name, string Type, string GroupName, bool IsEnabled) {
     public string DisplayName => string.IsNullOrWhiteSpace(GroupName) ? Name : $"{GroupName} / {Name}";
 }
