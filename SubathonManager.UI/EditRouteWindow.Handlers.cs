@@ -1021,6 +1021,7 @@ public partial class EditRouteWindow {
             await db.SaveChangesAsync();
             UpdateWebViewScale();
             OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+            RouteSaved?.Invoke();
 
             SaveRouteButton.Content = "Saved!";
             await Task.Delay(1500);

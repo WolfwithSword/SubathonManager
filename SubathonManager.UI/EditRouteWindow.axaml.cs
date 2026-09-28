@@ -119,6 +119,8 @@ public partial class EditRouteWindow : Window {
         }, null, Timeout.Infinite, Timeout.Infinite);
     }
 
+    public event Action? RouteSaved;
+
     public bool ObsConnected {
         get => GetValue(ObsConnectedProperty);
         set => SetValue(ObsConnectedProperty, value);
@@ -198,6 +200,7 @@ public partial class EditRouteWindow : Window {
         WidgetPackPaths.InvalidateVersionCache();
         await WidgetCatalog.LoadIndexAsync(_factory);
 
+        bool firstLoad = _route == null;
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         _route = await db.Routes
             .Include(r => r.Widgets).ThenInclude(w => w.CssVariables)
@@ -209,9 +212,11 @@ public partial class EditRouteWindow : Window {
             return;
         }
 
-        if (RouteNameBox.Text != _route.Name) RouteNameBox.Text = _route.Name;
-        if (RouteWidthBox.Text != _route.Width.ToString()) RouteWidthBox.Text = _route.Width.ToString();
-        if (RouteHeightBox.Text != _route.Height.ToString()) RouteHeightBox.Text = _route.Height.ToString();
+        if (firstLoad) {
+            RouteNameBox.Text = _route.Name;
+            RouteWidthBox.Text = _route.Width.ToString();
+            RouteHeightBox.Text = _route.Height.ToString();
+        }
 
         _widgets.Clear();
         _erroredWidgets.Clear();

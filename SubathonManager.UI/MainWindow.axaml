@@ -22,7 +22,7 @@
             <TabItem Header="Home">
                 <Grid ColumnDefinitions="500,*">
                     <Grid Grid.Column="0" Margin="10" RowDefinitions="Auto,*" MinWidth="500">
-                        <StackPanel Grid.Row="0" Spacing="6">
+                        <StackPanel Grid.Row="0" Spacing="6" Margin="4 0 0 0">
                             <TextBlock Text="Welcome to Subathon Manager!" FontSize="22" FontWeight="Bold" />
                             <TextBlock TextWrapping="Wrap" FontSize="14"
                                        Text="Use the Overlays tab to manage your overlays and widgets, the Goals tab to setup your goals, and Settings to configure everything else!" />
@@ -45,7 +45,8 @@
                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,4,0"
                                     ToolTip.Tip="Choose which event types show here"
                                     Click="RecentEventsFilterBtn_Click">
-                                <ctl:SymIcon Glyph="Settings16" />
+                                <!-- <ctl:SymIcon Glyph="Settings16" /> -->
+                                    <ctl:SymIcon Glyph="Filter16"/>
                             </Button>
                         </Panel>
                     </Grid>
