@@ -73,7 +73,14 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         if (conn == null) return;
         base.UpdateStatus(conn);
         if (conn.Source != SubathonEventSource.FourthWall) return;
-        Dispatcher.UIThread.Post(() => DisconnBtn.IsVisible = conn.Status);
+        Dispatcher.UIThread.Post(() => {
+            DisconnBtn.IsVisible = conn.Status;
+            ImportMissedBtn.IsVisible = conn.Status;
+        });
+    }
+
+    private void ImportMissed_Click(object? sender, RoutedEventArgs e) {
+        ImportMissedWindow.Open(this, SubathonEventSource.FourthWall, ServiceManager.FourthWall);
     }
 
     protected internal override void LoadValues(AppDbContext db) {

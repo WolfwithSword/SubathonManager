@@ -24,7 +24,7 @@ public class TiltifyService(
     ILogger<TiltifyService>? logger,
     IConfig config,
     ITimerService timerService,
-    OAuthService oAuth) : IAppService, IDisposable {
+    OAuthService oAuth) : IAppService, IMissedEventSource, IDisposable {
     private const string ApiBase = "https://v5api.tiltify.com";
     internal const string CampaignIdsKey = "CampaignIds";
     internal const string TeamCampaignIdsKey = "TeamCampaignIds";
@@ -260,21 +260,36 @@ public class TiltifyService(
     [ExcludeFromCodeCoverage]
     private async Task PollCampaignAsync(Guid campaignId, bool isTeam, DateTimeOffset since, CancellationToken ct) {
         if (_client == null) return;
-        var completedAfter = (since - PollOverlap).UtcDateTime
-            .ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+        List<Donation> donations = await FetchDonationsAsync(campaignId, isTeam, since - PollOverlap,
+            MaxPagesPerPoll, ct);
+
+        foreach (Donation donation in donations.OrderBy(d => d.CompletedAt ?? DateTimeOffset.MinValue)) {
+            if (donation.Id == null || donation.CompletedAt == null) continue;
+            if (donation.CompletedAt > _watermarks.GetValueOrDefault(campaignId, since))
+                _watermarks[campaignId] = donation.CompletedAt.Value;
+            if (!_seen.TryAdd(donation.Id.Value, donation.CompletedAt.Value)) continue;
+            HandleDonation(donation, campaignId);
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task<List<Donation>> FetchDonationsAsync(Guid campaignId, bool isTeam,
+        DateTimeOffset completedAfter, int maxPages, CancellationToken ct) {
+        if (_client == null) return [];
+        string after = completedAfter.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
         string? cursor = null;
         List<Donation> donations = [];
 
-        for (var page = 0; page < MaxPagesPerPoll; page++) {
+        for (var page = 0; page < maxPages; page++) {
             string? pageCursor = cursor;
             RequestInformation req = isTeam
                 ? _client.Api.Public.Team_campaigns[campaignId.ToString()].Donations.ToGetRequestInformation(r => {
-                    r.QueryParameters.CompletedAfter = completedAfter;
+                    r.QueryParameters.CompletedAfter = after;
                     r.QueryParameters.Limit = PageSize;
                     r.QueryParameters.After = pageCursor;
                 })
                 : _client.Api.Public.Campaigns[campaignId.ToString()].Donations.ToGetRequestInformation(r => {
-                    r.QueryParameters.CompletedAfter = completedAfter;
+                    r.QueryParameters.CompletedAfter = after;
                     r.QueryParameters.Limit = PageSize;
                     r.QueryParameters.After = pageCursor;
                 });
@@ -285,13 +300,7 @@ public class TiltifyService(
             cursor = next;
         }
 
-        foreach (Donation donation in donations.OrderBy(d => d.CompletedAt ?? DateTimeOffset.MinValue)) {
-            if (donation.Id == null || donation.CompletedAt == null) continue;
-            if (donation.CompletedAt > _watermarks.GetValueOrDefault(campaignId, since))
-                _watermarks[campaignId] = donation.CompletedAt.Value;
-            if (!_seen.TryAdd(donation.Id.Value, donation.CompletedAt.Value)) continue;
-            HandleDonation(donation, campaignId);
-        }
+        return donations;
     }
 
     [ExcludeFromCodeCoverage]
@@ -322,9 +331,18 @@ public class TiltifyService(
     }
 
     internal void HandleDonation(Donation donation, Guid? polledCampaignId = null) {
+        foreach (SubathonEvent ev in MapDonation(donation, polledCampaignId)) {
+            SubathonEvents.RaiseSubathonEventCreated(ev);
+            if (logger?.IsEnabled(LogLevel.Debug) ?? false)
+                logger?.LogDebug("[Tiltify] Raised donation {Id} from {User}", ev.Id, ev.User);
+        }
+    }
+
+    private List<SubathonEvent> MapDonation(Donation donation, Guid? polledCampaignId = null) {
+        List<SubathonEvent> events = [];
         try {
             if (!double.TryParse(donation.Amount?.Value, NumberStyles.Any, CultureInfo.InvariantCulture,
-                    out double amount)) return;
+                    out double amount)) return events;
             string? currency = donation.Amount?.Currency;
 
             var ev = new SubathonEvent {
@@ -338,9 +356,7 @@ public class TiltifyService(
                 EventTypeMeta = (donation.CampaignId ?? polledCampaignId)?.ToString(),
                 TertiaryValue = GetCampaignName(donation.CampaignId) ?? GetCampaignName(polledCampaignId) ?? ""
             };
-
-            SubathonEvents.RaiseSubathonEventCreated(ev);
-            logger?.LogDebug("[Tiltify] Raised donation {Id} from {User}", ev.Id, ev.User);
+            events.Add(ev);
 
             foreach (DonationMatch match in donation.DonationMatches ?? []) {
                 if (match.Active != true || match.Id == null) continue;
@@ -348,7 +364,7 @@ public class TiltifyService(
                         out double matchAmount) || matchAmount <= 0) continue;
                 string? matchCurrency = match.Amount?.Currency;
 
-                var matchEv = new SubathonEvent {
+                events.Add(new SubathonEvent {
                     Id = match.Id.Value,
                     Source = SubathonEventSource.Tiltify,
                     EventType = SubathonEventType.TiltifyDonation,
@@ -358,16 +374,31 @@ public class TiltifyService(
                     EventTimestamp = match.CompletedAt?.LocalDateTime ?? ev.EventTimestamp,
                     EventTypeMeta = ev.EventTypeMeta,
                     TertiaryValue = ev.TertiaryValue
-                };
-
-                SubathonEvents.RaiseSubathonEventCreated(matchEv);
-                logger?.LogDebug("[Tiltify] Raised donation match {Id} from {User} on donation {Donation}",
-                    matchEv.Id, matchEv.User, ev.Id);
+                });
             }
         }
         catch (Exception ex) {
             logger?.LogWarning(ex, "[Tiltify] Failed to consume donation {Id}", donation.Id);
         }
+
+        return events;
+    }
+
+    [ExcludeFromCodeCoverage]
+    public async Task<List<SubathonEvent>> FetchMissedEventsAsync(DateTime from, DateTime to,
+        CancellationToken ct = default) {
+        if (_client == null) throw new InvalidOperationException("Tiltify is not connected");
+        if (oAuth.NeedsRefresh(OAuthKeys)) await oAuth.RefreshAsync(OAuthKeys, ct);
+
+        DateTimeOffset start = from.ToUniversalTime();
+        DateTimeOffset end = to.ToUniversalTime();
+        List<SubathonEvent> events = [];
+        foreach ((Guid id, bool isTeam) in GetSelectedCampaigns())
+        foreach (Donation donation in (await FetchDonationsAsync(id, isTeam, start, 1000, ct))
+                 .Where(donation => donation.CompletedAt <= end))
+            events.AddRange(MapDonation(donation, id));
+
+        return events;
     }
 
     public static void SimulateDonation(string amount, string currency, CampaignOption? campaign = null) {
