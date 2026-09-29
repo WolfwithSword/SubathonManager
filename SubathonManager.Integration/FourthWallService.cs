@@ -1,7 +1,5 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text.Json;
 using Agash.Webhook.Abstractions;
 using Fourthwall.Client.Authentication;
 using Fourthwall.Client.Events;
@@ -24,7 +22,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
-using SubathonManager.Core.Security.Interfaces;
+using SubathonManager.Services;
 using WebhookConfigurationV1 =
     Fourthwall.Client.Generated.Models.Openapi.Model.OpenApiPageResponseCom.Fourthwall.Openapi.Model.
     WebhookConfigurationV1;
@@ -36,24 +34,19 @@ namespace SubathonManager.Integration;
 public class FourthWallService(
     ILogger<FourthWallService>? logger,
     IConfig config,
-    IHttpClientFactory httpClientFactory,
     DevTunnelsService devTunnels,
-    ISecureStorage secureStorage)
+    OAuthService oAuth)
     : IWebhookIntegration {
     private readonly string _configSection = "FourthWall";
 
     private readonly FourthwallWebhookHandler _handler = new(new FourthwallWebhookSignatureVerifier());
     private readonly SemaphoreSlim _initLock = new(1, 1);
-    internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/fourthwall/login";
-    internal readonly string _refreshURl = "https://oauth.subathonmanager.app/auth/fourthwall/refresh";
+    private static readonly OAuthProvider OAuthKeys = new("fourthwall", StorageKeys.FourthWallAccessToken,
+        StorageKeys.FourthWallRefreshToken);
 
     public readonly Dictionary<string, string> MembershipNames = new();
 
-    internal Action<string> OpenBrowser =
-        url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-
-    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.FourthWallAccessToken, string.Empty);
-    private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.FourthWallRefreshToken, string.Empty);
+    private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
     private string? ShopName { get; set; }
     public string WebhookPath => "/api/webhooks/fourthwall";
     public const string AutoDeleteCancelledKey = "AutoDeleteCancelledOrders";
@@ -61,7 +54,6 @@ public class FourthWallService(
     public async Task StartAsync(CancellationToken ct = default) {
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
 
-        Utils.PendingOAuthCallback = null;
         bool enabled = HasTokenFile();
 
         if (enabled) {
@@ -144,35 +136,14 @@ public class FourthWallService(
     }
 
     [ExcludeFromCodeCoverage]
-    private bool CheckExpiry() {
-        if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-
-        DateTime? expires = Utils.GetAccessTokenExpiry(AccessToken);
-        if (expires == null) return false;
-        bool isExpired = DateTime.UtcNow >= expires.Value.AddSeconds(-60);
-        return isExpired;
-    }
-
-    [ExcludeFromCodeCoverage]
     private async Task<bool> CheckForTokenAsync(CancellationToken ct = default) {
-        if (!HasTokenFile()) {
-            await StartOAuthFlowAsync();
+        if (!HasTokenFile())
+            await oAuth.AuthorizeAsync(OAuthKeys, ct);
+        else if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct))
+            await oAuth.AuthorizeAsync(OAuthKeys, ct);
 
-            if (string.IsNullOrWhiteSpace(AccessToken) || string.IsNullOrWhiteSpace(RefreshToken)) return false;
-        }
-        else if (CheckExpiry()) {
-            bool success = await StartOAuthRefreshAsync(ct);
-            if (!success) {
-                RevokeTokenFile();
-                await StartOAuthFlowAsync();
-            }
-
-            if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-        }
-
-        return !string.IsNullOrWhiteSpace(AccessToken) && !CheckExpiry();
+        return HasTokenFile() && !oAuth.NeedsRefresh(OAuthKeys);
     }
-
 
     [ExcludeFromCodeCoverage]
     public async Task Initialize(CancellationToken ct = default) {
@@ -303,84 +274,13 @@ public class FourthWallService(
         await Task.CompletedTask;
     }
 
-    [ExcludeFromCodeCoverage]
-    private async Task<bool> StartOAuthRefreshAsync(CancellationToken ct = default) {
-        logger?.LogDebug("Refreshing FourthWall tokens...");
-
-        if (!HasTokenFile()) return false;
-
-        if (string.IsNullOrWhiteSpace(RefreshToken)) return false;
-
-        using HttpClient client = httpClientFactory.CreateClient(nameof(FourthWallService));
-        using var body = new FormUrlEncodedContent(new[] {
-            new KeyValuePair<string, string>("refresh_token", RefreshToken)
-        });
-
-        HttpResponseMessage response = await client.PostAsync(_refreshURl, body, ct);
-
-        if (!response.IsSuccessStatusCode) {
-            string error = await response.Content.ReadAsStringAsync(ct);
-            logger?.LogWarning("[FourthWall] Token refresh failed ({Status}): {Error}", response.StatusCode, error);
-            return false;
-        }
-
-        string responseJson = await response.Content.ReadAsStringAsync(ct);
-        var tokens = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseJson);
-
-        string? newAccess = tokens?.GetValueOrDefault("access_token").GetString();
-        string? newRefresh = tokens?.GetValueOrDefault("refresh_token").GetString() ?? RefreshToken;
-
-        if (string.IsNullOrWhiteSpace(newAccess)) {
-            logger?.LogWarning("[FourthWall] Token refresh returned no access_token");
-            return false;
-        }
-
-        secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess);
-        secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh);
-
-        logger?.LogDebug("[FourthWall] Tokens refreshed successfully");
-        return true;
-    }
-
-    private async Task StartOAuthFlowAsync() {
-        RevokeTokenFile();
-        Utils.PendingOAuthCallback = null;
-        logger?.LogDebug("Opening FourthWall OAuth...");
-        OpenBrowser(_oAuthURl);
-        (string? newAccess, string? newRefresh) = await WaitForProtocolCallbackAsync();
-
-        if (!string.IsNullOrEmpty(newAccess) && !string.IsNullOrEmpty(newRefresh)) {
-            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess);
-            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh);
-        }
-    }
-
-    private async Task<(string?, string?)> WaitForProtocolCallbackAsync(CancellationToken ct = default) {
-        DateTime timeout = DateTime.Now.AddMinutes(15);
-        while (DateTime.Now < timeout && !ct.IsCancellationRequested) {
-            OAuthCallback? cb = Utils.PendingOAuthCallback;
-            if (cb?.Provider == "fourthwall" &&
-                (!string.IsNullOrEmpty(cb.AccessToken) || !string.IsNullOrEmpty(cb.RefreshToken))) {
-                Utils.PendingOAuthCallback = null;
-                return (cb.AccessToken, cb.RefreshToken);
-            }
-
-            await Task.Delay(250, ct);
-        }
-
-        return (null, null);
-    }
-
     private bool HasTokenFile() {
-        return secureStorage.Exists(StorageKeys.FourthWallAccessToken) &&
-               secureStorage.Exists(StorageKeys.FourthWallRefreshToken)
-               && !string.IsNullOrWhiteSpace(AccessToken) && !string.IsNullOrWhiteSpace(RefreshToken);
+        return oAuth.HasTokens(OAuthKeys);
     }
 
     [ExcludeFromCodeCoverage]
     public void RevokeTokenFile() {
-        secureStorage.Delete(StorageKeys.FourthWallAccessToken);
-        secureStorage.Delete(StorageKeys.FourthWallRefreshToken);
+        oAuth.RevokeTokens(OAuthKeys);
     }
 
     [ExcludeFromCodeCoverage]

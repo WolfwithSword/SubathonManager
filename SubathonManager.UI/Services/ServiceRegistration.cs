@@ -34,6 +34,9 @@ public static class ServiceRegistration {
         services.AddSingleton<WheelSpinTriggerService>();
         services.AddSingleton<TelemetryService>();
 
+        services.AddHttpClient(nameof(OAuthService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<OAuthService>();
+
         if (OperatingSystem.IsWindows())
             services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
         else
@@ -71,13 +74,11 @@ public static class ServiceRegistration {
         services.AddHttpClient(nameof(KoFiService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<KoFiService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
-        services.AddHttpClient(nameof(FourthWallService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<FourthWallService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
         services.AddSingleton<PallyService>();
-        services.AddHttpClient(nameof(TiltifyService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<TiltifyService>();
 
         // Stream Extensions //

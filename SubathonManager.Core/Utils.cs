@@ -21,7 +21,6 @@ public static class Utils {
 
     public static string? PendingOverlayImportPath { get; set; }
     public static string? PendingWidgetPackImportPath { get; set; }
-    public static OAuthCallback? PendingOAuthCallback { get; set; }
 
     public static IEnumerable<IntegrationConnection> GetAllConnections() {
         return ConnectionDetails.Values;

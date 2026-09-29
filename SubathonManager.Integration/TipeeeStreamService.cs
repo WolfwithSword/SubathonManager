@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net.Http.Headers;
@@ -16,6 +15,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
+using SubathonManager.Services;
 using SocketIOType = SocketIOClient.SocketIO;
 
 namespace SubathonManager.Integration;
@@ -24,15 +24,16 @@ public class TipeeeStreamService(
     ILogger<TipeeeStreamService>? logger,
     IHttpClientFactory httpClientFactory,
     ISecureStorage secureStorage,
-    ITimerService timerService) : IAppService {
+    ITimerService timerService,
+    OAuthService oAuth) : IAppService {
     private const string ApiBase = "https://api.tipeeestream.com";
 
-    internal readonly string _oAuthUrl = "https://oauth.subathonmanager.app/auth/tipeeestream/login";
+    private static readonly OAuthProvider OAuthKeys = new("tipeeestream", StorageKeys.TipeeeStreamAccessToken,
+        StorageKeys.TipeeeStreamRefreshToken);
 
     private readonly Utils.ServiceReconnectState _reconnectState =
         new(TimeSpan.FromSeconds(3), 50, TimeSpan.FromMinutes(5));
 
-    internal readonly string _refreshUrl = "https://oauth.subathonmanager.app/auth/tipeeestream/refresh";
     private bool _apiKeyRetried;
     private bool _connected;
     private bool _hasAuthError;
@@ -42,16 +43,10 @@ public class TipeeeStreamService(
     private CancellationTokenSource? _socketCts;
     private string? _username = string.Empty;
 
-    internal Action<string> OpenBrowser =
-        url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-
-    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.TipeeeStreamAccessToken, string.Empty);
-    private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.TipeeeStreamRefreshToken, string.Empty);
+    private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
     private string? ApiKey => secureStorage.GetOrDefault(StorageKeys.TipeeeStreamApiKey, string.Empty);
 
     public async Task StartAsync(CancellationToken ct = default) {
-        Utils.PendingOAuthCallback = null;
-
         if (!HasTokens()) {
             logger?.LogInformation("[TipeeeStream] Not configured. Integration disabled.");
             BroadcastStatus(false);
@@ -70,16 +65,10 @@ public class TipeeeStreamService(
 
     [ExcludeFromCodeCoverage]
     private async Task InitializeAsync(CancellationToken ct = default) {
-        if (CheckExpiry()) {
-            bool refreshed = await RefreshAccessTokenAsync(ct);
-            if (!refreshed) {
-                RevokeTokens();
-                await StartOAuthFlowAsync(ct);
-                if (!HasTokens()) {
-                    BroadcastStatus(false);
-                    return;
-                }
-            }
+        if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
+            !await StartOAuthFlowAsync(ct)) {
+            BroadcastStatus(false);
+            return;
         }
 
         if (string.IsNullOrWhiteSpace(_username)) {
@@ -112,8 +101,8 @@ public class TipeeeStreamService(
             $"{nameof(TipeeeStreamService)}.TokenRefresh",
             TimeSpan.FromMinutes(30),
             async token => {
-                if (!CheckExpiry()) return;
-                bool ok = await RefreshAccessTokenAsync(token);
+                if (!oAuth.NeedsRefresh(OAuthKeys)) return;
+                bool ok = await oAuth.RefreshAsync(OAuthKeys, token);
                 if (!ok) {
                     logger?.LogWarning("[TipeeeStream] Periodic token refresh failed - disconnecting");
                     BroadcastStatus(false);
@@ -343,8 +332,7 @@ public class TipeeeStreamService(
     [ExcludeFromCodeCoverage]
     public async Task ConnectAsync(CancellationToken ct = default) {
         await StopAsync(ct);
-        await StartOAuthFlowAsync(ct);
-        if (!HasTokens()) {
+        if (!await StartOAuthFlowAsync(ct)) {
             BroadcastStatus(false);
             return;
         }
@@ -366,104 +354,17 @@ public class TipeeeStreamService(
         SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
-    [ExcludeFromCodeCoverage]
-    private bool CheckExpiry() {
-        if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-        DateTime? expires = Utils.GetAccessTokenExpiry(AccessToken);
-        if (expires == null) return false;
-        return DateTime.UtcNow >= expires.Value.AddSeconds(-60);
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task<bool> RefreshAccessTokenAsync(CancellationToken ct = default) {
-        if (string.IsNullOrWhiteSpace(RefreshToken)) return false;
-        logger?.LogDebug("[TipeeeStream] Refreshing access token...");
-
-        try {
-            using HttpClient client = httpClientFactory.CreateClient(nameof(TipeeeStreamService));
-            using var body = new FormUrlEncodedContent(
-            [
-                new KeyValuePair<string, string>("refresh_token", RefreshToken)
-            ]);
-
-            HttpResponseMessage response = await client.PostAsync(_refreshUrl, body, ct);
-            if (!response.IsSuccessStatusCode) {
-                logger?.LogWarning("[TipeeeStream] Token refresh failed ({Status})", response.StatusCode);
-                return false;
-            }
-
-            string json = await response.Content.ReadAsStringAsync(ct);
-            var tokens = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
-            string? newAccess = tokens?.GetValueOrDefault("access_token").GetString();
-            string? newRefresh = tokens?.GetValueOrDefault("refresh_token").GetString() ?? RefreshToken;
-
-            if (string.IsNullOrWhiteSpace(newAccess)) return false;
-
-            secureStorage.Set(StorageKeys.TipeeeStreamAccessToken, newAccess);
-            secureStorage.Set(StorageKeys.TipeeeStreamRefreshToken, newRefresh);
-            logger?.LogDebug("[TipeeeStream] Tokens refreshed successfully");
-            return true;
-        }
-        catch (Exception ex) {
-            logger?.LogWarning(ex, "[TipeeeStream] Token refresh error");
-            return false;
-        }
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task StartOAuthFlowAsync(CancellationToken ct = default) {
+    private Task<bool> StartOAuthFlowAsync(CancellationToken ct = default) {
         RevokeTokens();
-        Utils.PendingOAuthCallback = null;
-        logger?.LogDebug("[TipeeeStream] Opening OAuth...");
-        OpenBrowser(_oAuthUrl);
-        (string? newAccess, string? newRefresh) = await WaitForProtocolCallbackAsync(ct);
-        if (!string.IsNullOrEmpty(newAccess) && !string.IsNullOrEmpty(newRefresh)) {
-            secureStorage.Set(StorageKeys.TipeeeStreamAccessToken, newAccess);
-            secureStorage.Set(StorageKeys.TipeeeStreamRefreshToken, newRefresh);
-            logger?.LogInformation("[TipeeeStream] OAuth tokens stored");
-        }
-        else {
-            logger?.LogWarning("[TipeeeStream] OAuth flow did not produce tokens");
-        }
-    }
-
-    private async Task<(string?, string?)> WaitForProtocolCallbackAsync(CancellationToken ct = default) {
-        DateTime timeout = DateTime.Now.AddMinutes(15);
-        while (DateTime.Now < timeout && !ct.IsCancellationRequested) {
-            OAuthCallback? cb = Utils.PendingOAuthCallback;
-            if (cb?.Provider == "tipeeestream") {
-                Utils.PendingOAuthCallback = null;
-                if (!string.IsNullOrEmpty(cb.Error)) {
-                    logger?.LogWarning("[TipeeeStream] OAuth error from callback: {Error}", cb.Error);
-                    return (null, null);
-                }
-
-                if (!string.IsNullOrEmpty(cb.AccessToken) && !string.IsNullOrEmpty(cb.RefreshToken)) {
-                    logger?.LogInformation("[TipeeeStream] OAuth callback received");
-                    return (cb.AccessToken, cb.RefreshToken);
-                }
-
-                logger?.LogWarning("[TipeeeStream] OAuth callback had no tokens and no error");
-                return (null, null);
-            }
-
-            await Task.Delay(250, ct);
-        }
-
-        logger?.LogWarning("[TipeeeStream] OAuth callback timed out");
-        return (null, null);
+        return oAuth.AuthorizeAsync(OAuthKeys, ct);
     }
 
     private bool HasTokens() {
-        return secureStorage.Exists(StorageKeys.TipeeeStreamAccessToken)
-               && secureStorage.Exists(StorageKeys.TipeeeStreamRefreshToken)
-               && !string.IsNullOrWhiteSpace(AccessToken)
-               && !string.IsNullOrWhiteSpace(RefreshToken);
+        return oAuth.HasTokens(OAuthKeys);
     }
 
     public void RevokeTokens() {
-        secureStorage.Delete(StorageKeys.TipeeeStreamAccessToken);
-        secureStorage.Delete(StorageKeys.TipeeeStreamRefreshToken);
+        oAuth.RevokeTokens(OAuthKeys);
         secureStorage.Delete(StorageKeys.TipeeeStreamApiKey);
     }
 

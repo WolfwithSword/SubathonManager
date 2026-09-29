@@ -24,6 +24,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Integration;
+using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
 using Amounts = Fourthwall.Client.Generated.Models.Openapi.Model.DonationV1.Amounts;
 
@@ -56,18 +57,14 @@ public class FourthWallServiceTests {
         });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
 
-        var httpFactory = new Mock<IHttpClientFactory>();
-        httpFactory.Setup(f => f.CreateClient(nameof(FourthWallService))).Returns(new HttpClient());
-
         IConfig config = MockConfig.MakeMockConfig(configValues);
 
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.FourthWallAccessToken] = "123456abcdef",
             [StorageKeys.FourthWallRefreshToken] = "D34DBEEF"
         });
-        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels, storage);
-
-        service.OpenBrowser = _ => { };
+        var service = new FourthWallService(logger.Object, config, devTunnels,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
 
         return (service, devTunnels);
     }
@@ -611,9 +608,6 @@ public class FourthWallServiceTests {
             { { ("Server", "Port"), "14040" } });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
 
-        var httpFactory = new Mock<IHttpClientFactory>();
-        httpFactory.Setup(f => f.CreateClient(nameof(FourthWallService))).Returns(new HttpClient());
-
         IConfig config = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
             { ("FourthWall", "ForwardUrls"), mockServer.BaseUrl.TrimEnd('/') + "/fw-forward" }
         });
@@ -621,8 +615,8 @@ public class FourthWallServiceTests {
             [StorageKeys.FourthWallAccessToken] = "123456abcdef",
             [StorageKeys.FourthWallRefreshToken] = "D34DBEEF"
         });
-        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels, storage);
-        service.OpenBrowser = _ => { };
+        var service = new FourthWallService(logger.Object, config, devTunnels,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
 
         byte[] body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { type = "DONATION" }));
         var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };

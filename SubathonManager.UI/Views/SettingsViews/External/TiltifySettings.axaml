@@ -16,17 +16,6 @@
                        FontSize="12" Margin="14,0,0,10" />
         </StackPanel>
         <StackPanel Margin="10,0,0,5">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Campaigns:" Width="100" VerticalAlignment="Center" />
-                <Button x:Name="RefreshCampaignsBtn" Content="Refresh" Width="80" Height="30" Padding="2"
-                        IsEnabled="False" Click="RefreshCampaigns_Click"
-                        ToolTip.Tip="Reload your campaigns and your teams' campaigns from Tiltify" />
-                <TextBlock x:Name="CampaignsHint" Text="Connect to load your campaigns" FontSize="11"
-                           Foreground="Gray" VerticalAlignment="Center" Margin="10,0,0,0" />
-            </StackPanel>
-            <StackPanel x:Name="CampaignsPanel" Margin="100,4,0,6" />
-        </StackPanel>
-        <StackPanel Margin="10,5,0,5">
             <Grid Margin="0,2" ColumnDefinitions="*,470">
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="Donations:" Width="100" VerticalAlignment="Center" />
@@ -55,6 +44,17 @@
                             Margin="4,0,0,0" />
                 </StackPanel>
             </Grid>
+        </StackPanel>
+        <StackPanel Margin="10,5,0,5">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Campaigns:" Width="100" VerticalAlignment="Center" />
+                <Button x:Name="RefreshCampaignsBtn" Content="Refresh" Width="80" Height="30" Padding="2"
+                        IsEnabled="False" Click="RefreshCampaigns_Click"
+                        ToolTip.Tip="Reload your campaigns and your teams' campaigns from Tiltify" />
+                <TextBlock x:Name="CampaignsHint" Text="Connect to load your campaigns" FontSize="11"
+                           Foreground="Gray" VerticalAlignment="Center" Margin="10,0,0,0" />
+            </StackPanel>
+            <StackPanel x:Name="CampaignsPanel" Margin="100,4,0,6" />
         </StackPanel>
     </StackPanel>
 </views:SettingsControl>

@@ -58,8 +58,9 @@ public partial class App : Application {
         if (this.TryGetFeature<IActivatableLifetime>() is { } activatable)
             activatable.Activated += (_, e) => OnAppActivated(e);
 
-        if (desktop.Args is { Length: > 0 })
-            ProtocolParser.Parse(desktop.Args);
+        ActivationKind launchKind = desktop.Args is { Length: > 0 }
+            ? ProtocolParser.Parse(desktop.Args).Kind
+            : ActivationKind.Unknown;
 
         var services = new ServiceCollection();
 
@@ -139,7 +140,7 @@ public partial class App : Application {
 
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-            if (Utils.PendingOAuthCallback != null) {
+            if (launchKind == ActivationKind.OAuth) {
                 desktop.Shutdown();
                 return;
             }
@@ -200,7 +201,7 @@ public partial class App : Application {
                     Utils.PendingWidgetPackImportPath = request.Payload;
                     break;
                 case ActivationKind.OAuth:
-                    ProtocolParser.Parse([request.Payload]);
+                    AppServices.Provider.GetRequiredService<OAuthService>().HandleCallback(request.Payload);
                     break;
                 default:
                     _logger?.LogDebug("Activation received with no recognised payload: {Payload}", request.Payload);
@@ -221,7 +222,7 @@ public partial class App : Application {
         };
 
         if (request.Kind == ActivationKind.Unknown) return;
-        Dispatcher.UIThread.Post(() => DispatchToMainWindow(request.Kind));
+        OnActivationReceived(request);
     }
 
     private void DispatchToMainWindow(ActivationKind kind) {

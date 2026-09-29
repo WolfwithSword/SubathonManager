@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
@@ -13,7 +12,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
-using SubathonManager.Core.Security.Interfaces;
+using SubathonManager.Services;
 using SocketIOType = SocketIOClient.SocketIO;
 
 namespace SubathonManager.Integration;
@@ -21,14 +20,15 @@ namespace SubathonManager.Integration;
 public class TreatStreamService(
     ILogger<TreatStreamService>? logger,
     IHttpClientFactory httpClientFactory,
-    ISecureStorage secureStorage,
-    ITimerService timerService) : IAppService {
-    internal readonly string _oAuthUrl = "https://oauth.subathonmanager.app/auth/treatstream/login";
+    ITimerService timerService,
+    OAuthService oAuth) : IAppService {
+    // docs say 30 days, but if it is unknown, be safe with 15
+    private static readonly OAuthProvider OAuthKeys = new("treatstream", StorageKeys.TreatStreamAccessToken,
+        StorageKeys.TreatStreamRefreshToken, StorageKeys.TreatStreamTokenExpiry, StorageKeys.TreatStreamClientId,
+        DefaultLifetime: TimeSpan.FromDays(15), RefreshMargin: TimeSpan.FromHours(1));
 
     private readonly Utils.ServiceReconnectState _reconnectState =
         new(TimeSpan.FromSeconds(3), 50, TimeSpan.FromMinutes(5));
-
-    internal readonly string _refreshUrl = "https://oauth.subathonmanager.app/auth/treatstream/refresh";
 
     internal readonly string _socketTokenUrl = "https://treatstream.com/Oauth2/Authorize/socketToken";
     private bool _connected;
@@ -38,28 +38,12 @@ public class TreatStreamService(
     private SocketIOType? _socket;
     private CancellationTokenSource? _socketCts;
 
-    internal Action<string> OpenBrowser =
-        url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-
     internal string SocketUrl = "https://nodeapi.treatstream.com/";
 
-    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.TreatStreamAccessToken, string.Empty);
-    private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.TreatStreamRefreshToken, string.Empty);
-    private string? ClientId => secureStorage.GetOrDefault(StorageKeys.TreatStreamClientId, string.Empty);
-
-    private DateTime? TokenExpiry {
-        get {
-            string? raw = secureStorage.GetOrDefault(StorageKeys.TreatStreamTokenExpiry, string.Empty);
-            return DateTime.TryParse(raw, CultureInfo.InvariantCulture,
-                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out DateTime dt)
-                ? dt
-                : null;
-        }
-    }
+    private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
+    private string? ClientId => oAuth.GetClientId(OAuthKeys);
 
     public async Task StartAsync(CancellationToken ct = default) {
-        Utils.PendingOAuthCallback = null;
-
         if (!HasTokens()) {
             logger?.LogInformation("[TreatStream] Not configured. Integration disabled.");
             BroadcastStatus(false);
@@ -78,16 +62,10 @@ public class TreatStreamService(
 
     [ExcludeFromCodeCoverage]
     private async Task InitializeAsync(CancellationToken ct = default) {
-        if (CheckExpiry()) {
-            bool refreshed = await RefreshAccessTokenAsync(ct);
-            if (!refreshed) {
-                RevokeTokens();
-                await StartOAuthFlowAsync(ct);
-                if (!HasTokens()) {
-                    BroadcastStatus(false);
-                    return;
-                }
-            }
+        if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
+            !await oAuth.AuthorizeAsync(OAuthKeys, ct)) {
+            BroadcastStatus(false);
+            return;
         }
 
         RegisterRefreshTimer();
@@ -97,8 +75,7 @@ public class TreatStreamService(
     [ExcludeFromCodeCoverage]
     public async Task ConnectAsync(CancellationToken ct = default) {
         await StopAsync(ct);
-        await StartOAuthFlowAsync(ct);
-        if (!HasTokens()) {
+        if (!await oAuth.AuthorizeAsync(OAuthKeys, ct)) {
             BroadcastStatus(false);
             return;
         }
@@ -106,26 +83,11 @@ public class TreatStreamService(
         await InitializeAsync(ct);
     }
 
-    internal void StoreExpiry(string? expiresIn) {
-        double seconds = double.TryParse(expiresIn, NumberStyles.Any, CultureInfo.InvariantCulture, out double s) &&
-                         s > 0
-            ? s
-            : TimeSpan.FromDays(15).TotalSeconds; // docs say 30, but if it is unknown, be safe with 15
-        secureStorage.Set(StorageKeys.TreatStreamTokenExpiry,
-            DateTime.UtcNow.AddSeconds(seconds).ToString("O", CultureInfo.InvariantCulture));
-    }
-
-    private bool CheckExpiry() {
-        if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-        DateTime? expires = TokenExpiry;
-        if (expires == null) return false;
-        return DateTime.UtcNow >= expires.Value.AddHours(-1);
-    }
-
     [ExcludeFromCodeCoverage]
     private void RegisterRefreshTimer() {
         _refreshTimerHandle?.Dispose();
-        TimeSpan untilRefresh = (TokenExpiry ?? DateTime.UtcNow.AddDays(30)) - DateTime.UtcNow - TimeSpan.FromHours(1);
+        TimeSpan untilRefresh = (oAuth.GetExpiry(OAuthKeys) ?? DateTime.UtcNow.AddDays(30)) - DateTime.UtcNow -
+                                TimeSpan.FromHours(1);
         TimeSpan interval = TimeSpan.FromTicks(Math.Clamp(untilRefresh.Ticks,
             TimeSpan.FromMinutes(5).Ticks, TimeSpan.FromHours(24).Ticks));
 
@@ -133,8 +95,8 @@ public class TreatStreamService(
             $"{nameof(TreatStreamService)}.TokenRefresh",
             interval,
             async token => {
-                if (!CheckExpiry()) return;
-                bool ok = await RefreshAccessTokenAsync(token);
+                if (!oAuth.NeedsRefresh(OAuthKeys)) return;
+                bool ok = await oAuth.RefreshAsync(OAuthKeys, token);
                 if (ok) {
                     RegisterRefreshTimer();
                 }
@@ -146,108 +108,13 @@ public class TreatStreamService(
             });
     }
 
-    [ExcludeFromCodeCoverage]
-    internal async Task<bool> RefreshAccessTokenAsync(CancellationToken ct = default) {
-        if (string.IsNullOrWhiteSpace(RefreshToken)) return false;
-        logger?.LogDebug("[TreatStream] Refreshing access token...");
-
-        try {
-            using HttpClient client = httpClientFactory.CreateClient(nameof(TreatStreamService));
-            using var body = new FormUrlEncodedContent(
-            [
-                new KeyValuePair<string, string>("refresh_token", RefreshToken)
-            ]);
-
-            HttpResponseMessage response = await client.PostAsync(_refreshUrl, body, ct);
-            if (!response.IsSuccessStatusCode) {
-                logger?.LogWarning("[TreatStream] Token refresh failed ({Status})", response.StatusCode);
-                return false;
-            }
-
-            string json = await response.Content.ReadAsStringAsync(ct);
-            var tokens = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
-            var newAccess = tokens?.GetValueOrDefault("access_token").ToString();
-            string? newRefresh = tokens != null && tokens.TryGetValue("refresh_token", out JsonElement r)
-                ? r.ToString()
-                : RefreshToken;
-            string? expiresIn = tokens != null && tokens.TryGetValue("expires_in", out JsonElement e)
-                ? e.ToString()
-                : null;
-            string? clientId = tokens != null && tokens.TryGetValue("client_id", out JsonElement c)
-                ? c.ToString()
-                : null;
-
-            if (string.IsNullOrWhiteSpace(newAccess)) return false;
-
-            secureStorage.Set(StorageKeys.TreatStreamAccessToken, newAccess);
-            secureStorage.Set(StorageKeys.TreatStreamRefreshToken, newRefresh ?? RefreshToken!);
-            if (!string.IsNullOrWhiteSpace(clientId))
-                secureStorage.Set(StorageKeys.TreatStreamClientId, clientId);
-            StoreExpiry(expiresIn);
-            logger?.LogDebug("[TreatStream] Tokens refreshed successfully");
-            return true;
-        }
-        catch (Exception ex) {
-            logger?.LogWarning(ex, "[TreatStream] Token refresh error");
-            return false;
-        }
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task StartOAuthFlowAsync(CancellationToken ct = default) {
-        RevokeTokens();
-        Utils.PendingOAuthCallback = null;
-        logger?.LogDebug("[TreatStream] Opening OAuth...");
-        OpenBrowser(_oAuthUrl);
-        OAuthCallback? cb = await WaitForProtocolCallbackAsync(ct);
-        if (cb != null && !string.IsNullOrEmpty(cb.AccessToken) && !string.IsNullOrEmpty(cb.RefreshToken)) {
-            secureStorage.Set(StorageKeys.TreatStreamAccessToken, cb.AccessToken);
-            secureStorage.Set(StorageKeys.TreatStreamRefreshToken, cb.RefreshToken);
-            if (!string.IsNullOrWhiteSpace(cb.ClientId))
-                secureStorage.Set(StorageKeys.TreatStreamClientId, cb.ClientId);
-            StoreExpiry(cb.ExpiresIn);
-            logger?.LogInformation("[TreatStream] OAuth tokens stored");
-        }
-        else {
-            logger?.LogWarning("[TreatStream] OAuth flow did not produce tokens");
-        }
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task<OAuthCallback?> WaitForProtocolCallbackAsync(CancellationToken ct = default) {
-        DateTime timeout = DateTime.Now.AddMinutes(15);
-        while (DateTime.Now < timeout && !ct.IsCancellationRequested) {
-            OAuthCallback? cb = Utils.PendingOAuthCallback;
-            if (cb?.Provider == "treatstream") {
-                Utils.PendingOAuthCallback = null;
-                if (!string.IsNullOrEmpty(cb.Error)) {
-                    logger?.LogWarning("[TreatStream] OAuth error from callback: {Error}", cb.Error);
-                    return null;
-                }
-
-                return cb;
-            }
-
-            await Task.Delay(250, ct);
-        }
-
-        logger?.LogWarning("[TreatStream] OAuth callback timed out");
-        return null;
-    }
-
     public bool HasTokens() {
-        return secureStorage.Exists(StorageKeys.TreatStreamAccessToken)
-               && secureStorage.Exists(StorageKeys.TreatStreamRefreshToken)
-               && !string.IsNullOrWhiteSpace(AccessToken)
-               && !string.IsNullOrWhiteSpace(RefreshToken);
+        return oAuth.HasTokens(OAuthKeys);
     }
 
     [ExcludeFromCodeCoverage]
     public void RevokeTokens() {
-        secureStorage.Delete(StorageKeys.TreatStreamAccessToken);
-        secureStorage.Delete(StorageKeys.TreatStreamRefreshToken);
-        secureStorage.Delete(StorageKeys.TreatStreamTokenExpiry);
-        secureStorage.Delete(StorageKeys.TreatStreamClientId);
+        oAuth.RevokeTokens(OAuthKeys);
     }
 
     [ExcludeFromCodeCoverage]
@@ -366,7 +233,7 @@ public class TreatStreamService(
                 try {
                     await Task.Delay(delay, token);
 
-                    if (CheckExpiry()) await RefreshAccessTokenAsync(token);
+                    if (oAuth.NeedsRefresh(OAuthKeys)) await oAuth.RefreshAsync(OAuthKeys, token);
                     string? socketToken = await FetchSocketTokenAsync(token);
                     if (!string.IsNullOrWhiteSpace(socketToken) && !_connected && _socket != null) {
                         await DisconnectSocketOnlyAsync();

@@ -13,6 +13,7 @@ using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Integration;
+using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
 using Tiltify.Client.Generated.Models;
 
@@ -103,8 +104,8 @@ public class TiltifyServiceTests {
             .Setup(t => t.Register(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<Func<CancellationToken, Task>>()))
             .Returns(Mock.Of<IDisposable>());
 
-        var service = new TiltifyService(logger.Object, config.Object, new Mock<IHttpClientFactory>().Object,
-            storage, timerService.Object);
+        var service = new TiltifyService(logger.Object, config.Object, timerService.Object,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
         return (service, storage, configStore);
     }
 
@@ -297,24 +298,6 @@ public class TiltifyServiceTests {
             new TiltifyService.CampaignOption(other, "Other", false),
             new TiltifyService.CampaignOption(TeamCampaignId, "Team", true)
         ]));
-    }
-
-    [Fact]
-    public void StoreExpiry_UsesExpiresInOrDefaultsToTwoHours() {
-        (TiltifyService service, ISecureStorage storage, _) = MakeService();
-
-        DateTime ReadExpiry() {
-            string? raw = storage.GetOrDefault(StorageKeys.TiltifyTokenExpiry, "");
-            Assert.True(DateTime.TryParse(raw, CultureInfo.InvariantCulture,
-                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out DateTime expiry));
-            return expiry;
-        }
-
-        service.StoreExpiry("600");
-        Assert.InRange(ReadExpiry(), DateTime.UtcNow.AddMinutes(9), DateTime.UtcNow.AddMinutes(11));
-
-        service.StoreExpiry(null);
-        Assert.InRange(ReadExpiry(), DateTime.UtcNow.AddMinutes(115), DateTime.UtcNow.AddMinutes(125));
     }
 
     [Fact]

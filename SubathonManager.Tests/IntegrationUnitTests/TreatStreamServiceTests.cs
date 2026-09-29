@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubathonManager.Core.Enums;
@@ -7,6 +6,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Integration;
+using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
@@ -38,7 +38,8 @@ public class TreatStreamServiceTests {
         var storage = new InMemorySecureStorage(seed.Count > 0 ? seed : null);
         IHttpClientFactory httpFactory = new Mock<IHttpClientFactory>().Object;
         ITimerService timer = new Mock<ITimerService>().Object;
-        return (new TreatStreamService(logger.Object, httpFactory, storage, timer), storage);
+        return (new TreatStreamService(logger.Object, httpFactory, timer,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } }), storage);
     }
 
     [Fact]
@@ -112,31 +113,6 @@ public class TreatStreamServiceTests {
         Assert.Equal("item", ev.Currency);
         Assert.Equal(1, ev.Amount);
         Assert.Equal("Cupcake", ev.Value);
-    }
-
-    [Fact]
-    public void StoreExpiry_UsesExpiresIn() {
-        (TreatStreamService service, ISecureStorage storage) = MakeService("token", "refresh");
-        service.StoreExpiry("3600");
-
-        string? raw = storage.GetOrDefault(StorageKeys.TreatStreamTokenExpiry, "");
-        Assert.True(DateTime.TryParse(raw, CultureInfo.InvariantCulture,
-            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
-            out DateTime expiry));
-        Assert.InRange(expiry, DateTime.UtcNow.AddMinutes(55), DateTime.UtcNow.AddMinutes(65));
-    }
-
-    [Fact]
-    public void StoreExpiry_MissingExpiresIn_DefaultsTo15Days() {
-        // api says 30, we do half for safety
-        (TreatStreamService service, ISecureStorage storage) = MakeService("token", "refresh");
-        service.StoreExpiry(null);
-
-        string? raw = storage.GetOrDefault(StorageKeys.TreatStreamTokenExpiry, "");
-        Assert.True(DateTime.TryParse(raw, CultureInfo.InvariantCulture,
-            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
-            out DateTime expiry));
-        Assert.InRange(expiry, DateTime.UtcNow.AddDays(14), DateTime.UtcNow.AddDays(16));
     }
 
     [Fact]

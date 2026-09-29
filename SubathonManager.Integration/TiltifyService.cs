@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net;
@@ -8,14 +7,13 @@ using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Abstractions.Authentication;
 using Microsoft.Kiota.Abstractions.Serialization;
 using Microsoft.Kiota.Http.HttpClientLibrary;
-using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
-using SubathonManager.Core.Security.Interfaces;
+using SubathonManager.Services;
 using Tiltify.Client.Generated;
 using Tiltify.Client.Generated.Api.Public.CurrentUser;
 using Tiltify.Client.Generated.Models;
@@ -25,55 +23,39 @@ namespace SubathonManager.Integration;
 public class TiltifyService(
     ILogger<TiltifyService>? logger,
     IConfig config,
-    IHttpClientFactory httpClientFactory,
-    ISecureStorage secureStorage,
-    ITimerService timerService) : IAppService, IDisposable {
+    ITimerService timerService,
+    OAuthService oAuth) : IAppService, IDisposable {
     private const string ApiBase = "https://v5api.tiltify.com";
-    private readonly string _configSection = "Tiltify";
     internal const string CampaignIdsKey = "CampaignIds";
     internal const string TeamCampaignIdsKey = "TeamCampaignIds";
 
-    internal readonly string _oAuthUrl = "https://oauth.subathonmanager.app/auth/tiltify/login";
-    internal readonly string _refreshUrl = "https://oauth.subathonmanager.app/auth/tiltify/refresh";
+    private static readonly OAuthProvider OAuthKeys = new("tiltify", StorageKeys.TiltifyAccessToken,
+        StorageKeys.TiltifyRefreshToken, StorageKeys.TiltifyTokenExpiry,
+        DefaultLifetime: TimeSpan.FromHours(2), RefreshMargin: TimeSpan.FromMinutes(10));
 
-    internal TimeSpan PollInterval = TimeSpan.FromSeconds(15);
-    internal TimeSpan PollOverlap = TimeSpan.FromMinutes(2);
-    internal int PageSize = 100;
-    internal int MaxPagesPerPoll = 20;
+    private readonly string _configSection = "Tiltify";
+    private readonly Dictionary<Guid, DateTimeOffset> _seen = new();
 
     private readonly Dictionary<Guid, DateTimeOffset> _watermarks = new();
-    private readonly Dictionary<Guid, DateTimeOffset> _seen = new();
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private HttpClientRequestAdapter? _adapter;
 
     private TiltifyApiClient? _client;
-    private HttpClientRequestAdapter? _adapter;
+    private bool _disposed;
     private CancellationTokenSource? _pollCts;
     private IDisposable? _refreshTimerHandle;
     private Guid? _userId;
     private string? _username;
-    private bool _disposed;
+    internal int MaxPagesPerPoll = 20;
+    internal int PageSize = 100;
 
-    internal Action<string> OpenBrowser =
-        url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+    internal TimeSpan PollInterval = TimeSpan.FromSeconds(15);
+    internal TimeSpan PollOverlap = TimeSpan.FromMinutes(2);
 
-    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.TiltifyAccessToken, string.Empty);
-    private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.TiltifyRefreshToken, string.Empty);
+    public IReadOnlyList<CampaignOption> KnownCampaigns { get; private set; } = [];
 
-    private DateTime? TokenExpiry {
-        get {
-            string? raw = secureStorage.GetOrDefault(StorageKeys.TiltifyTokenExpiry, string.Empty);
-            return DateTime.TryParse(raw, CultureInfo.InvariantCulture,
-                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out DateTime dt)
-                ? dt
-                : null;
-        }
-    }
-
-    public record CampaignOption(Guid Id, string Name, bool IsTeam);
+    private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
 
     public async Task StartAsync(CancellationToken ct = default) {
-        Utils.PendingOAuthCallback = null;
-
         if (!HasTokens()) {
             logger?.LogInformation("[Tiltify] Not configured. Integration disabled.");
             BroadcastStatus(false);
@@ -94,10 +76,18 @@ public class TiltifyService(
     }
 
     [ExcludeFromCodeCoverage]
+    public void Dispose() {
+        if (_disposed) return;
+        _disposed = true;
+        _refreshTimerHandle?.Dispose();
+        StopPolling();
+        GC.SuppressFinalize(this);
+    }
+
+    [ExcludeFromCodeCoverage]
     public async Task ConnectAsync(CancellationToken ct = default) {
         await StopAsync(ct);
-        await StartOAuthFlowAsync(ct);
-        if (!HasTokens()) {
+        if (!await oAuth.AuthorizeAsync(OAuthKeys, ct)) {
             BroadcastStatus(false);
             return;
         }
@@ -107,13 +97,10 @@ public class TiltifyService(
 
     [ExcludeFromCodeCoverage]
     private async Task InitializeAsync(CancellationToken ct = default) {
-        if (CheckExpiry() && !await RefreshAccessTokenAsync(ct)) {
-            RevokeTokens();
-            await StartOAuthFlowAsync(ct);
-            if (!HasTokens()) {
-                BroadcastStatus(false);
-                return;
-            }
+        if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
+            !await oAuth.AuthorizeAsync(OAuthKeys, ct)) {
+            BroadcastStatus(false);
+            return;
         }
 
         _adapter = new HttpClientRequestAdapter(new TiltifyBearerAuthProvider(() => AccessToken)) {
@@ -143,8 +130,8 @@ public class TiltifyService(
             $"{nameof(TiltifyService)}.TokenRefresh",
             TimeSpan.FromMinutes(5),
             async token => {
-                if (!CheckExpiry()) return;
-                if (await RefreshAccessTokenAsync(token)) return;
+                if (!oAuth.NeedsRefresh(OAuthKeys)) return;
+                if (await oAuth.RefreshAsync(OAuthKeys, token)) return;
                 logger?.LogWarning("[Tiltify] Periodic token refresh failed - disconnecting");
                 await StopAsync(token);
             });
@@ -156,9 +143,9 @@ public class TiltifyService(
     }
 
     public List<(Guid Id, bool IsTeam)> GetSelectedCampaigns() {
-        return ParseIds(config.Get(_configSection, CampaignIdsKey, ""))
+        return ParseIds(config.Get(_configSection, CampaignIdsKey))
             .Select(id => (id, false))
-            .Concat(ParseIds(config.Get(_configSection, TeamCampaignIdsKey, "")).Select(id => (id, true)))
+            .Concat(ParseIds(config.Get(_configSection, TeamCampaignIdsKey)).Select(id => (id, true)))
             .ToList();
     }
 
@@ -182,7 +169,7 @@ public class TiltifyService(
 
     [ExcludeFromCodeCoverage]
     public async Task<List<CampaignOption>> GetAvailableCampaignsAsync(CancellationToken ct = default) {
-        List<CampaignOption> options = new();
+        List<CampaignOption> options = [];
         if (_client == null || _adapter == null || _userId == null) return options;
 
         try {
@@ -195,6 +182,7 @@ public class TiltifyService(
             RequestInformation teamsReq = _client.Api.Public.Users[_userId?.ToString()].Teams
                 .ToGetRequestInformation(r => r.QueryParameters.Limit = 100);
             (List<Team> teams, _) = await GetPageAsync(teamsReq, Team.CreateFromDiscriminatorValue, ct);
+
             foreach (Team team in teams.Where(t => t.Id != null)) {
                 RequestInformation teamCampaignsReq = _client.Api.Public.Teams[team.Id?.ToString()].Team_campaigns
                     .ToGetRequestInformation(r => r.QueryParameters.Limit = 100);
@@ -211,8 +199,6 @@ public class TiltifyService(
         if (options.Count > 0) KnownCampaigns = options.ToList();
         return options;
     }
-
-    public IReadOnlyList<CampaignOption> KnownCampaigns { get; private set; } = [];
 
     private string? GetCampaignName(Guid? id) {
         return id == null ? null : KnownCampaigns.FirstOrDefault(c => c.Id == id)?.Name;
@@ -244,7 +230,7 @@ public class TiltifyService(
 
         logger?.LogInformation("[Tiltify] Polling {Count} campaign(s) for donations...", campaigns.Count);
         while (!ct.IsCancellationRequested) {
-            foreach ((Guid id, bool isTeam) in campaigns) {
+            foreach ((Guid id, bool isTeam) in campaigns)
                 try {
                     await PollCampaignAsync(id, isTeam, _watermarks.GetValueOrDefault(id, startedAt), ct);
                 }
@@ -253,14 +239,13 @@ public class TiltifyService(
                 }
                 catch (ApiException ex) when (ex.ResponseStatusCode == (int)HttpStatusCode.Unauthorized) {
                     logger?.LogWarning("[Tiltify] Unauthorized while polling, refreshing token");
-                    if (await RefreshAccessTokenAsync(ct)) continue;
+                    if (await oAuth.RefreshAsync(OAuthKeys, ct)) continue;
                     await StopAsync(ct);
                     return;
                 }
                 catch (Exception ex) {
                     logger?.LogWarning(ex, "[Tiltify] Failed to poll campaign {Campaign}", id);
                 }
-            }
 
             PruneSeen();
             try {
@@ -275,7 +260,7 @@ public class TiltifyService(
     [ExcludeFromCodeCoverage]
     private async Task PollCampaignAsync(Guid campaignId, bool isTeam, DateTimeOffset since, CancellationToken ct) {
         if (_client == null) return;
-        string completedAfter = (since - PollOverlap).UtcDateTime
+        var completedAfter = (since - PollOverlap).UtcDateTime
             .ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
         string? cursor = null;
         List<Donation> donations = [];
@@ -313,7 +298,7 @@ public class TiltifyService(
     private async Task<(List<T> Items, string? After)> GetPageAsync<T>(RequestInformation req,
         ParsableFactory<T> factory, CancellationToken ct) where T : IParsable {
         if (_adapter == null) return ([], null);
-        await using Stream? stream = await _adapter.SendPrimitiveAsync<Stream>(req, cancellationToken: ct);
+        await using var stream = await _adapter.SendPrimitiveAsync<Stream>(req, cancellationToken: ct);
         if (stream == null) return ([], null);
 
         using JsonDocument doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
@@ -400,118 +385,12 @@ public class TiltifyService(
         SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
-    internal void StoreExpiry(string? expiresIn) {
-        double seconds = double.TryParse(expiresIn, NumberStyles.Any, CultureInfo.InvariantCulture, out double s) &&
-                         s > 0
-            ? s
-            : TimeSpan.FromHours(2).TotalSeconds;
-        secureStorage.Set(StorageKeys.TiltifyTokenExpiry,
-            DateTime.UtcNow.AddSeconds(seconds).ToString("O", CultureInfo.InvariantCulture));
-    }
-
-    private bool CheckExpiry() {
-        if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-        DateTime? expires = TokenExpiry;
-        return expires == null || DateTime.UtcNow >= expires.Value.AddMinutes(-10);
-    }
-
-    [ExcludeFromCodeCoverage]
-    internal async Task<bool> RefreshAccessTokenAsync(CancellationToken ct = default) {
-        if (string.IsNullOrWhiteSpace(RefreshToken)) return false;
-        await _refreshLock.WaitAsync(ct);
-        try {
-            logger?.LogDebug("[Tiltify] Refreshing access token...");
-            using HttpClient client = httpClientFactory.CreateClient(nameof(TiltifyService));
-            using var body = new FormUrlEncodedContent([
-                new KeyValuePair<string, string>("refresh_token", RefreshToken)
-            ]);
-
-            HttpResponseMessage response = await client.PostAsync(_refreshUrl, body, ct);
-            if (!response.IsSuccessStatusCode) {
-                logger?.LogWarning("[Tiltify] Token refresh failed ({Status})", response.StatusCode);
-                return false;
-            }
-
-            string json = await response.Content.ReadAsStringAsync(ct);
-            var tokens = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
-            string? newAccess = tokens != null && tokens.TryGetValue("access_token", out JsonElement acc)
-                ? acc.ToString()
-                : null;
-            string? newRefresh = tokens != null && tokens.TryGetValue("refresh_token", out JsonElement r)
-                ? r.ToString()
-                : RefreshToken;
-            string? expiresIn = tokens != null && tokens.TryGetValue("expires_in", out JsonElement e)
-                ? e.ToString()
-                : null;
-
-            if (string.IsNullOrWhiteSpace(newAccess)) return false;
-
-            secureStorage.Set(StorageKeys.TiltifyAccessToken, newAccess);
-            secureStorage.Set(StorageKeys.TiltifyRefreshToken, newRefresh ?? RefreshToken!);
-            StoreExpiry(expiresIn);
-            logger?.LogDebug("[Tiltify] Tokens refreshed successfully");
-            return true;
-        }
-        catch (Exception ex) {
-            logger?.LogWarning(ex, "[Tiltify] Token refresh error");
-            return false;
-        }
-        finally {
-            _refreshLock.Release();
-        }
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task StartOAuthFlowAsync(CancellationToken ct = default) {
-        RevokeTokens();
-        Utils.PendingOAuthCallback = null;
-        logger?.LogDebug("[Tiltify] Opening OAuth...");
-        OpenBrowser(_oAuthUrl);
-        OAuthCallback? cb = await WaitForProtocolCallbackAsync(ct);
-        if (cb != null && !string.IsNullOrEmpty(cb.AccessToken) && !string.IsNullOrEmpty(cb.RefreshToken)) {
-            secureStorage.Set(StorageKeys.TiltifyAccessToken, cb.AccessToken);
-            secureStorage.Set(StorageKeys.TiltifyRefreshToken, cb.RefreshToken);
-            StoreExpiry(cb.ExpiresIn);
-            logger?.LogInformation("[Tiltify] OAuth tokens stored");
-        }
-        else {
-            logger?.LogWarning("[Tiltify] OAuth flow did not produce tokens");
-        }
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task<OAuthCallback?> WaitForProtocolCallbackAsync(CancellationToken ct = default) {
-        DateTime timeout = DateTime.Now.AddMinutes(15);
-        while (DateTime.Now < timeout && !ct.IsCancellationRequested) {
-            OAuthCallback? cb = Utils.PendingOAuthCallback;
-            if (cb?.Provider == "tiltify") {
-                Utils.PendingOAuthCallback = null;
-                if (!string.IsNullOrEmpty(cb.Error)) {
-                    logger?.LogWarning("[Tiltify] OAuth error from callback: {Error}", cb.Error);
-                    return null;
-                }
-
-                return cb;
-            }
-
-            await Task.Delay(250, ct);
-        }
-
-        logger?.LogWarning("[Tiltify] OAuth callback timed out");
-        return null;
-    }
-
     public bool HasTokens() {
-        return secureStorage.Exists(StorageKeys.TiltifyAccessToken)
-               && secureStorage.Exists(StorageKeys.TiltifyRefreshToken)
-               && !string.IsNullOrWhiteSpace(AccessToken)
-               && !string.IsNullOrWhiteSpace(RefreshToken);
+        return oAuth.HasTokens(OAuthKeys);
     }
 
     public void RevokeTokens() {
-        secureStorage.Delete(StorageKeys.TiltifyAccessToken);
-        secureStorage.Delete(StorageKeys.TiltifyRefreshToken);
-        secureStorage.Delete(StorageKeys.TiltifyTokenExpiry);
+        oAuth.RevokeTokens(OAuthKeys);
     }
 
     private void BroadcastStatus(bool connected) {
@@ -524,15 +403,7 @@ public class TiltifyService(
         });
     }
 
-    [ExcludeFromCodeCoverage]
-    public void Dispose() {
-        if (_disposed) return;
-        _disposed = true;
-        _refreshTimerHandle?.Dispose();
-        StopPolling();
-        _refreshLock.Dispose();
-        GC.SuppressFinalize(this);
-    }
+    public record CampaignOption(Guid Id, string Name, bool IsTeam);
 
     [ExcludeFromCodeCoverage]
     private sealed class TiltifyBearerAuthProvider(Func<string?> tokenAccessor) : IAuthenticationProvider {

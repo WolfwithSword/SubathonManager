@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
@@ -9,7 +8,6 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
-using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Services;
 using TwitchLib.Api;
 using TwitchLib.Api.Auth;
@@ -32,7 +30,7 @@ namespace SubathonManager.Integration;
 public class TwitchService(
     ILogger<TwitchService>? logger,
     IConfig config,
-    ISecureStorage secureStorage,
+    OAuthService oAuth,
     ITimerService? timerService = null)
     : IDisposable, IAppService {
     private static int _hypeTrainLevel;
@@ -44,7 +42,7 @@ public class TwitchService(
         new(TimeSpan.FromSeconds(2.5), 200, TimeSpan.FromMinutes(5));
 
     private readonly TimeSpan _hypeTrainLevelDuration = TimeSpan.FromSeconds(5 * 60 + 15); // 5m + buffer time
-    internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/twitch/login";
+    internal static readonly OAuthProvider OAuthKeys = new("twitch", StorageKeys.TwitchAccessToken);
     private TwitchAPI? _api;
     private TwitchClient? _chat;
     private bool _disposed;
@@ -56,13 +54,10 @@ public class TwitchService(
     internal Uri? EventSubUrl = null;
     internal string? Login = string.Empty;
 
-    internal Action<string> OpenBrowser =
-        url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-
     public string? UserName { get; private set; } = string.Empty;
     private string? UserId { get; set; }
 
-    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.TwitchAccessToken, string.Empty);
+    private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
 
     [ExcludeFromCodeCoverage]
     public async Task StartAsync(CancellationToken ct = default) {
@@ -114,12 +109,11 @@ public class TwitchService(
     }
 
     public bool HasTokenFile() {
-        return secureStorage.Exists(StorageKeys.TwitchAccessToken) &&
-               !string.IsNullOrWhiteSpace(AccessToken);
+        return oAuth.HasTokens(OAuthKeys);
     }
 
     public void RevokeTokenFile() {
-        secureStorage.Delete(StorageKeys.TwitchAccessToken);
+        oAuth.RevokeTokens(OAuthKeys);
     }
 
     public async Task<bool> ValidateTokenAsync() {
@@ -149,7 +143,7 @@ public class TwitchService(
 
     [ExcludeFromCodeCoverage]
     public async Task InitializeAsync(CancellationToken ct = default) {
-        if (string.IsNullOrEmpty(AccessToken)) await StartOAuthFlowAsync();
+        if (string.IsNullOrEmpty(AccessToken)) await oAuth.AuthorizeAsync(OAuthKeys, ct);
 
         try {
             await InitializeApiAsync();
@@ -165,31 +159,6 @@ public class TwitchService(
                 $"Error initializing Twitch Service: {ex.Message}. " +
                 $"Please try reconnecting twitch or restarting the application", DateTime.Now);
         }
-    }
-
-    private async Task StartOAuthFlowAsync() {
-        Utils.PendingOAuthCallback = null;
-        logger?.LogDebug("Opening Twitch OAuth...");
-        OpenBrowser(_oAuthURl);
-        string? token = await WaitForProtocolCallbackAsync();
-        if (!string.IsNullOrWhiteSpace(token)) secureStorage.Set(StorageKeys.TwitchAccessToken, token);
-    }
-
-    private async Task<string?> WaitForProtocolCallbackAsync(CancellationToken ct = default) {
-        DateTime timeout = DateTime.Now.AddMinutes(15);
-        while (DateTime.Now < timeout && !ct.IsCancellationRequested) {
-            OAuthCallback? cb = Utils.PendingOAuthCallback;
-            if (cb?.Provider == "twitch" && !string.IsNullOrEmpty(cb.AccessToken)) {
-                logger?.LogInformation("Twitch OAuth Callback received");
-                string? token = cb.AccessToken;
-                Utils.PendingOAuthCallback = null;
-                return token;
-            }
-
-            await Task.Delay(250, ct);
-        }
-
-        return null;
     }
 
     [ExcludeFromCodeCoverage]
