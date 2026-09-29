@@ -25,10 +25,11 @@ public class CssVariableTemplateSelector : IDataTemplate {
     private IDataTemplate? Pick(object? item) {
         if (item is CssVariable cssVar) {
             if (cssVar.Type == WidgetCssVariableType.Color) return ColorTemplate;
-            if (cssVar.Type == WidgetCssVariableType.Size) return SizeTemplate;
+            if (cssVar.Type is WidgetCssVariableType.Size or WidgetCssVariableType.Angle
+                or WidgetCssVariableType.Time) return SizeTemplate;
             if (cssVar.Type == WidgetCssVariableType.Int) return IntTemplate;
             if (cssVar.Type == WidgetCssVariableType.Float) return FloatTemplate;
-            if (cssVar.Type == WidgetCssVariableType.Opacity) return OpacityTemplate;
+            if (cssVar.Type is WidgetCssVariableType.Opacity or WidgetCssVariableType.Percent) return OpacityTemplate;
             if (cssVar.Type.GetOptions().Count > 0) return OptionsTemplate;
         }
 

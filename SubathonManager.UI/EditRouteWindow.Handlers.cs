@@ -1127,21 +1127,27 @@ public partial class EditRouteWindow {
     private void SizeValueBox_TextChanged(object? sender, TextChangedEventArgs e) {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
         if (string.IsNullOrWhiteSpace(tb.Text)) tb.Text = "0";
-        string unit = FindSiblingUnitBox(tb)?.SelectedItem as string ?? "px";
+        string unit = FindSiblingUnitBox(tb)?.SelectedItem as string ?? DefaultUnit(cssVar);
         cssVar.Value = tb.Text + unit;
     }
 
     private void SizeUnitBox_Loaded(object? sender, RoutedEventArgs e) {
         if (sender is not ComboBox cb) return;
+        if (cb is { SelectedItem: null, Tag: CssVariable cssVar }) cb.SelectedItem = DefaultUnit(cssVar);
         cb.SelectionChanged += SizeUnitBox_SelectionChanged;
         AttachChangeHandler(sender, e);
+    }
+
+    private static string DefaultUnit(CssVariable cssVar) {
+        List<string> units = cssVar.Type.GetOptions();
+        return units.Count > 0 ? units[0] : "px";
     }
 
     private void SizeUnitBox_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
         if (sender is not ComboBox { Tag: CssVariable cssVar } cb) return;
         if (e.AddedItems.Count == 0) return;
 
-        string unit = cb.SelectedItem as string ?? "px";
+        string unit = cb.SelectedItem as string ?? DefaultUnit(cssVar);
         if ((cssVar.Value ?? "").EndsWith(unit)) return;
 
         string numericPart = IsNumberRegex().Match(cssVar.Value ?? "").Value;
@@ -1154,32 +1160,54 @@ public partial class EditRouteWindow {
 
     private void OpacitySlider_Loaded(object? sender, RoutedEventArgs e) {
         if (sender is not Slider { Tag: CssVariable cssVar } slider) return;
-        if (float.TryParse(cssVar.Value, out float initial)) slider.Value = initial;
+        bool isPercent = cssVar.Type == WidgetCssVariableType.Percent;
+        slider.Maximum = isPercent ? 100 : 1;
+        slider.TickFrequency = isPercent ? 1 : 0.01;
+        if (TryParseSliderValue(cssVar.Value, out float initial)) slider.Value = initial;
 
         slider.ValueChanged += (_, args) => {
             var floatVal = (float)args.NewValue;
-            cssVar.Value = floatVal.ToString(CultureInfo.InvariantCulture);
-            if (FindPercentSiblingBox(slider) is { } tb && tb.Text != floatVal.ToString(CultureInfo.InvariantCulture))
-                tb.Text = floatVal.ToString(CultureInfo.InvariantCulture);
+            cssVar.Value = FormatSliderCssValue(cssVar, floatVal);
+            string boxText = FormatSliderBoxText(cssVar, floatVal);
+            if (FindPercentSiblingBox(slider) is { } tb && tb.Text != boxText)
+                tb.Text = boxText;
         };
         AttachChangeHandler(sender, e);
     }
 
     private void OpacityBox_Loaded(object? sender, RoutedEventArgs e) {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
-        tb.Text = float.TryParse(cssVar.Value, out float initial)
-            ? initial.ToString(CultureInfo.InvariantCulture)
+        float max = cssVar.Type == WidgetCssVariableType.Percent ? 100 : 1;
+        tb.Text = TryParseSliderValue(cssVar.Value, out float initial)
+            ? FormatSliderBoxText(cssVar, initial)
             : "0";
 
         tb.TextChanged += (_, _) => {
             if (string.IsNullOrWhiteSpace(tb.Text)) return;
-            if (!float.TryParse(tb.Text, out float val)) return;
-            val = Math.Clamp(val, 0, 1);
-            cssVar.Value = val.ToString(CultureInfo.InvariantCulture);
+            if (!TryParseSliderValue(tb.Text, out float val)) return;
+            val = Math.Clamp(val, 0, max);
+            cssVar.Value = FormatSliderCssValue(cssVar, val);
             if (FindPercentSiblingSlider(tb) is { } slider && Math.Abs((float)slider.Value - val) > 0.001)
                 slider.Value = val;
         };
         AttachChangeHandler(sender, e);
+    }
+
+    private static bool TryParseSliderValue(string? text, out float value) {
+        return float.TryParse((text ?? "").Trim().TrimEnd('%'), NumberStyles.Float,
+            CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string FormatSliderBoxText(CssVariable cssVar, float value) {
+        return cssVar.Type == WidgetCssVariableType.Percent
+            ? Math.Round(value).ToString(CultureInfo.InvariantCulture)
+            : value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatSliderCssValue(CssVariable cssVar, float value) {
+        return cssVar.Type == WidgetCssVariableType.Percent
+            ? FormatSliderBoxText(cssVar, value) + "%"
+            : value.ToString(CultureInfo.InvariantCulture);
     }
 
     private void ResetVars_Click(object? sender, RoutedEventArgs e) {

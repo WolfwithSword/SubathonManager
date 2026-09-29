@@ -232,10 +232,10 @@ public partial class CssSizeValueConverter : IValueConverter {
 }
 
 public partial class CssSizeUnitConverter : IValueConverter {
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) {
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) {
         string str = value as string ?? "";
         Match match = SizeUnitRegex().Match(str);
-        return match.Success ? match.Value : "px";
+        return match.Success ? match.Value : null;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) {
