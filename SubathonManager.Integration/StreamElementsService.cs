@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Globalization;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using StreamElements.WebSocket;
 using StreamElements.WebSocket.Models.Internal;
@@ -194,7 +195,7 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
         SubathonEvent subathonEvent = new() {
             User = e.Username,
             Currency = e.Currency,
-            Value = $"{e.Amount}",
+            Value = string.Create(CultureInfo.InvariantCulture, $"{e.Amount}"),
             Source = SubathonEventSource.StreamElements,
             EventType = SubathonEventType.StreamElementsDonation
         };

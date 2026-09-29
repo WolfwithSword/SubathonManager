@@ -40,11 +40,12 @@ public partial class GoalsView : UserControl {
     }
 
     private void OnSubathonUpdate(SubathonData subathon, DateTime timestamp) {
-        if (string.IsNullOrWhiteSpace(_currency)) _currency = subathon.Currency ?? "";
+        string currency = subathon.Currency ?? "";
+        if (string.IsNullOrWhiteSpace(_currency)) _currency = currency;
 
         Dispatcher.UIThread.Post(() => {
             long moneySum = subathon.GetRoundedMoneySum();
-            if (_currency == subathon.Currency &&
+            if (_currency == currency &&
                 (_subathonLastPoints == subathon.Points || _type != GoalsType.Points) &&
                 (_subathonLastPoints == moneySum || _type != GoalsType.Money)) return;
 
@@ -52,8 +53,8 @@ public partial class GoalsView : UserControl {
                                    ((!goal.Completed && subathon.Points >= goal.Points) || subathon.Points == 0)) ||
                                   (_type == GoalsType.Money &&
                                    ((!goal.Completed && moneySum >= goal.Points)
-                                    || moneySum == 0 || _currency != subathon.Currency)))) {
-                _currency = subathon.Currency ?? "";
+                                    || moneySum == 0 || _currency != currency)))) {
+                _currency = currency;
                 LoadGoals();
             }
 

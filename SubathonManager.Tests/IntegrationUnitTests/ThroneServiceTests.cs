@@ -463,6 +463,26 @@ public class ThroneServiceTests {
         Assert.Equal("EUR", ev.Currency);
     }
 
+    [Theory]
+    [InlineData("", "USD")]
+    [InlineData("  ", "USD")]
+    [InlineData("eur", "EUR")]
+    public void ProcessData_MoneyEvents_BlankCurrencyFallsBackAndIsUppercased(string sent, string expected) {
+        (ThroneService service, _) = MakeService();
+
+        string[] payloads = [
+            BuildGiftPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Mug", 2500, sent),
+            BuildContributionPurchasedJson(Guid.NewGuid().ToString(), "Gifter", "Campaign", 5000, sent),
+            BuildCrowdfundedJson(Guid.NewGuid().ToString(), "Desk", 10000, sent)
+        ];
+
+        foreach (string json in payloads) {
+            SubathonEvent? ev = CaptureEvent(() => service.ProcessData(json));
+            Assert.NotNull(ev);
+            Assert.Equal(expected, ev.Currency);
+        }
+    }
+
     [Fact]
     public void ProcessData_ContributionPurchased_IsSim_SetsSimulatedSource() {
         (ThroneService service, _) = MakeService();

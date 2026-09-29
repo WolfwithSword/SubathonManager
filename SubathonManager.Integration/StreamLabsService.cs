@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Streamlabs.SocketClient;
@@ -97,7 +98,7 @@ public class StreamLabsService : IAppService {
         SubathonEvent subathonEvent = new() {
             User = message.Name,
             Currency = $"{message.Currency}".ToUpper(),
-            Value = $"{message.Amount}",
+            Value = string.Create(CultureInfo.InvariantCulture, $"{message.Amount}"),
             Source = SubathonEventSource.StreamLabs,
             EventType = SubathonEventType.StreamLabsDonation
         };

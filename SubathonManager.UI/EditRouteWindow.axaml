@@ -421,7 +421,11 @@
                 </StackPanel>
             </StackPanel>
 
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Grid.Row="2" x:Name="WidgetsScroll" VerticalScrollBarVisibility="Auto">
+                <Panel>
+                <Border x:Name="WidgetDropLine" Height="3" CornerRadius="2" VerticalAlignment="Top" ZIndex="10"
+                        IsVisible="False" IsHitTestVisible="False"
+                        Background="{DynamicResource AccentFillColorDefaultBrush}" />
                 <ItemsControl x:Name="WidgetsList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
@@ -458,8 +462,18 @@
                                         BorderBrush="Transparent"
                                         Padding="10" Tag="{Binding Id}" Loaded="WidgetDirtyBorder_Loaded"
                                         Unloaded="WidgetDirtyBorder_Unloaded">
-                                    <Grid>
-                                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Stretch">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Border Grid.Column="0" Width="18" Margin="-6,0,4,0" Background="Transparent"
+                                                Cursor="SizeAll" Tag="{Binding}"
+                                                ToolTip.Tip="Drag to change the layer order"
+                                                PointerPressed="WidgetGrip_PointerPressed"
+                                                PointerMoved="WidgetGrip_PointerMoved"
+                                                PointerReleased="WidgetGrip_PointerReleased"
+                                                PointerCaptureLost="WidgetGrip_PointerCaptureLost">
+                                            <ctl:SymIcon Glyph="ReOrderDotsVertical20" Opacity="0.6"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Stretch">
                                             <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
                                                        TextWrapping="Wrap" ToolTip.Tip="{Binding Name}" />
                                             <TextBlock Text="{Binding Z, StringFormat='Z: {0}'}" FontSize="11"
@@ -467,7 +481,8 @@
                                             <TextBlock FontSize="10" FontStyle="Italic" Foreground="#FF6B8FC9"
                                                        Text="{Binding Converter={StaticResource AssetTypeLabel}}" />
                                         </StackPanel>
-                                        <StackPanel Classes="actions" Orientation="Horizontal" VerticalAlignment="Top"
+                                        <StackPanel Grid.Column="1" Classes="actions" Orientation="Horizontal"
+                                                    VerticalAlignment="Top"
                                                     ZIndex="1" HorizontalAlignment="Right">
                                             <Button Classes="opaquesecondary iconbtn" Padding="2" Margin="2,0"
                                                     ToolTip.Tip="Toggle Visibility" Click="ToggleVisibility_Click"
@@ -497,7 +512,7 @@
                                                 <ctl:SymIcon Glyph="Delete16" />
                                             </Button>
                                         </StackPanel>
-                                        <Button Classes="accent" Padding="8,2" FontSize="11" ZIndex="1"
+                                        <Button Grid.Column="1" Classes="accent" Padding="8,2" FontSize="11" ZIndex="1"
                                                 VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                                 Tag="{Binding}" Click="UpdateWidgetVersion_Click"
                                                 Content="Update Available"
@@ -509,6 +524,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </Panel>
             </ScrollViewer>
         </Grid>
 

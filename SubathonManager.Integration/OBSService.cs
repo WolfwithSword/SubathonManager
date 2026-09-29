@@ -112,24 +112,23 @@ public class OBSService : IAppService {
 
         if (v.AvailableRequests.Contains("GetCanvasList"))
             try {
-                JObject? response = _obs.SendRequest("GetCanvasList");
                 var count = 1;
-                if (response != null && response.TryGetValue("canvases", out JToken? _canvases))
-                    foreach (JToken canvas in _canvases) {
+                foreach (JObject canvas in _obs.GetCanvasList()) {
 #pragma warning disable CS8600
-                        // Converting null literal or possible null value to non-nullable type.
-                        string canvasName = (string)canvas["canvasName"] ?? $"Canvas {count}";
+                    // Converting null literal or possible null value to non-nullable type.
+                    string canvasName = (string)canvas["canvasName"] ?? $"Canvas {count}";
+                    count++;
 
-                        JToken? videoSettings = canvas["canvasVideoSettings"];
-                        JToken? flags = canvas["canvasFlags"];
-                        if ((bool)(flags?["MAIN"] ?? false)) canvases.Remove("Default");
-                        canvases.Add(canvasName, new Dictionary<string, int> {
-                            { "Width", (int)(videoSettings?["baseWidth"] ?? 1920) },
-                            { "Height", (int)(videoSettings?["baseHeight"] ?? 1080) }
-                        });
+                    JToken? videoSettings = canvas["canvasVideoSettings"];
+                    JToken? flags = canvas["canvasFlags"];
+                    if ((bool)(flags?["MAIN"] ?? false)) canvases.Remove("Default");
+                    canvases.Add(canvasName, new Dictionary<string, int> {
+                        { "Width", (int)(videoSettings?["baseWidth"] ?? 1920) },
+                        { "Height", (int)(videoSettings?["baseHeight"] ?? 1080) }
+                    });
 #pragma warning restore CS8600
-                        // Converting null literal or possible null value to non-nullable type.
-                    }
+                    // Converting null literal or possible null value to non-nullable type.
+                }
             }
             catch (Exception ex) {
                 _logger?.LogWarning(ex, "[OBSService] GetCanvasList request failed");

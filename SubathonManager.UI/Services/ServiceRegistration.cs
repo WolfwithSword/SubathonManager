@@ -34,6 +34,9 @@ public static class ServiceRegistration {
         services.AddSingleton<WheelSpinTriggerService>();
         services.AddSingleton<TelemetryService>();
 
+        services.AddHttpClient(nameof(OAuthService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<OAuthService>();
+
         if (OperatingSystem.IsWindows())
             services.AddSingleton<ISecureStorage, DpapiSecureStorage>();
         else
@@ -71,12 +74,12 @@ public static class ServiceRegistration {
         services.AddHttpClient(nameof(KoFiService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<KoFiService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
-        services.AddHttpClient(nameof(FourthWallService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<FourthWallService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
         services.AddSingleton<PallyService>();
+        services.AddSingleton<TiltifyService>();
 
         // Stream Extensions //
         services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
@@ -92,6 +95,8 @@ public static class ServiceRegistration {
         services.AddSingleton<DiscordWebhookService>();
         services.AddSingleton<OBSService>();
         services.AddSingleton<VTSService>();
+        services.AddHttpClient(nameof(MixItUpService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<MixItUpService>();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder) {

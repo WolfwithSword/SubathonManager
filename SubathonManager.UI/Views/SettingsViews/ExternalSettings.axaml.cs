@@ -47,6 +47,9 @@ public partial class ExternalSettings : SettingsGroupControl {
             case SubathonEventSource.JuniperCreates:
                 _settingsControls[eventSource] = new JuniperSettings();
                 break;
+            case SubathonEventSource.Tiltify:
+                _settingsControls[eventSource] = new TiltifySettings();
+                break;
             default: return null;
         }
 

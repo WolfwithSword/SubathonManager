@@ -40,6 +40,8 @@ public partial class EditRouteWindow : Window {
     private readonly Dictionary<Guid, List<JsVariable>> _unsavedJsVars = new();
     private readonly Dictionary<Guid, Border> _widgetCardBorders = new();
     private readonly ObservableCollection<Widget> _widgets = new();
+    private Widget? _dragWidget;
+    private int _dragTargetIndex = -1;
 
     public readonly Guid EditorRouteId;
     private double _currentScale = 1;
@@ -116,6 +118,8 @@ public partial class EditRouteWindow : Window {
             OverlayEvents.RaiseWidgetVarsUpdated(_selectedWidget.Id, _editingCssVars, []);
         }, null, Timeout.Infinite, Timeout.Infinite);
     }
+
+    public event Action? RouteSaved;
 
     public bool ObsConnected {
         get => GetValue(ObsConnectedProperty);
@@ -196,6 +200,7 @@ public partial class EditRouteWindow : Window {
         WidgetPackPaths.InvalidateVersionCache();
         await WidgetCatalog.LoadIndexAsync(_factory);
 
+        bool firstLoad = _route == null;
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         _route = await db.Routes
             .Include(r => r.Widgets).ThenInclude(w => w.CssVariables)
@@ -207,9 +212,11 @@ public partial class EditRouteWindow : Window {
             return;
         }
 
-        if (RouteNameBox.Text != _route.Name) RouteNameBox.Text = _route.Name;
-        if (RouteWidthBox.Text != _route.Width.ToString()) RouteWidthBox.Text = _route.Width.ToString();
-        if (RouteHeightBox.Text != _route.Height.ToString()) RouteHeightBox.Text = _route.Height.ToString();
+        if (firstLoad) {
+            RouteNameBox.Text = _route.Name;
+            RouteWidthBox.Text = _route.Width.ToString();
+            RouteHeightBox.Text = _route.Height.ToString();
+        }
 
         _widgets.Clear();
         _erroredWidgets.Clear();
@@ -462,6 +469,26 @@ public partial class EditRouteWindow : Window {
 
         _widgets[_widgets.IndexOf(a)] = wa;
         _widgets[_widgets.IndexOf(b)] = wb;
+        RefreshWebView();
+    }
+
+    private async Task MoveWidgetZAsync(int from, int to) {
+        _widgets.Move(from, to);
+        int lo = Math.Min(from, to), hi = Math.Max(from, to);
+        List<Guid> ids = _widgets.Skip(lo).Take(hi - lo + 1).Select(w => w.Id).ToList();
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        Dictionary<Guid, Widget> fresh = await db.Widgets.Include(w => w.CssVariables)
+            .Include(w => w.JsVariables).Where(w => ids.Contains(w.Id)).ToDictionaryAsync(w => w.Id);
+        for (int i = lo; i <= hi; i++)
+            if (fresh.TryGetValue(_widgets[i].Id, out Widget? w))
+                w.Z = _widgets.Count - i;
+
+        await db.SaveChangesAsync();
+
+        for (int i = lo; i <= hi; i++)
+            if (fresh.TryGetValue(_widgets[i].Id, out Widget? w))
+                _widgets[i] = w;
         RefreshWebView();
     }
 

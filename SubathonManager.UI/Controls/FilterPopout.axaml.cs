@@ -11,9 +11,17 @@ public partial class FilterPopout : UserControl {
         InitializeComponent();
         GroupList.ItemsSource = _groups;
         UpdateSummary();
+        ChoicesPopup.Closed += (_, _) => Closed?.Invoke(this, EventArgs.Empty);
     }
 
     public string EmptyText { get; set; } = "All (no filter)";
+
+    public bool ShowSummary {
+        get => SummaryBox.IsVisible;
+        set => SummaryBox.IsVisible = value;
+    }
+
+    public event EventHandler? Closed;
 
     public IReadOnlyList<FilterOption> Options => _options;
 
@@ -66,10 +74,16 @@ public partial class FilterPopout : UserControl {
             CountText.Text = $"{selected.Count} of {_options.Count} selected";
     }
 
-    private void Open_Click(object? sender, RoutedEventArgs e) {
+    public void Open(Control? anchor = null) {
+        ChoicesPopup.PlacementTarget = anchor ?? SummaryBox;
+        ChoicesPopup.Placement = anchor == null ? PlacementMode.Bottom : PlacementMode.BottomEdgeAlignedRight;
         SearchBox.Text = string.Empty;
         ApplySearch(string.Empty);
         ChoicesPopup.IsOpen = true;
+    }
+
+    private void Open_Click(object? sender, RoutedEventArgs e) {
+        Open();
     }
 
     private void Close_Click(object? sender, RoutedEventArgs e) {

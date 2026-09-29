@@ -31,7 +31,7 @@ namespace SubathonManager.UI;
 
 public partial class EditRouteWindow {
     private MenuFlyout? _statusFlyout;
-    
+
     #region GeneralHandlers
 
     private void WidgetDirtyBorder_Loaded(object? sender, RoutedEventArgs e) {
@@ -148,11 +148,11 @@ public partial class EditRouteWindow {
             _logger?.LogError(ex, "Failed to copy overlay URL");
         }
     }
-    
+
     private void ShowObsCanvasSelection_Click(object? sender, RoutedEventArgs e) {
         var flyout = new MenuFlyout { Placement = PlacementMode.Bottom };
-        
-        FillObsCanvases(flyout.Items);///////
+
+        FillObsCanvases(flyout.Items); ///////
         flyout.Closed += (_, _) => {
             if (ReferenceEquals(_statusFlyout, flyout)) _statusFlyout = null;
         };
@@ -162,12 +162,12 @@ public partial class EditRouteWindow {
 
     private void FillObsCanvases(ItemCollection items) {
         items.Clear();
-        var canvases = ServiceManager.OBS.GetCanvases();
+        Dictionary<string, Dictionary<string, int>> canvases = ServiceManager.OBS.GetCanvases();
         if (canvases.Count == 0) return;
-        
-        foreach (var canvasData in canvases) {
-            var width = canvasData.Value["Width"];
-            var height = canvasData.Value["Height"];
+
+        foreach (KeyValuePair<string, Dictionary<string, int>> canvasData in canvases) {
+            int width = canvasData.Value["Width"];
+            int height = canvasData.Value["Height"];
             var name = $"{canvasData.Key} (WxH {width}x{height})";
             var groupItem = new MenuItem {
                 Header = name
@@ -934,6 +934,73 @@ public partial class EditRouteWindow {
         }
     }
 
+    private void WidgetGrip_PointerPressed(object? sender, PointerPressedEventArgs e) {
+        if (sender is not Control { Tag: Widget w } grip || !e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed)
+            return;
+        _dragWidget = w;
+        _dragTargetIndex = _widgets.IndexOf(w);
+        WidgetsList.ContainerFromItem(w)?.SetValue(OpacityProperty, 0.6);
+        e.Pointer.Capture(grip);
+        e.Handled = true;
+    }
+
+    private void WidgetGrip_PointerMoved(object? sender, PointerEventArgs e) {
+        if (_dragWidget == null) return;
+        int from = _widgets.IndexOf(_dragWidget);
+        if (from < 0) return;
+
+        double viewY = e.GetPosition(WidgetsScroll).Y;
+        if (viewY < 24) WidgetsScroll.Offset = WidgetsScroll.Offset.WithY(Math.Max(0, WidgetsScroll.Offset.Y - 12));
+        else if (viewY > WidgetsScroll.Bounds.Height - 24)
+            WidgetsScroll.Offset = WidgetsScroll.Offset.WithY(WidgetsScroll.Offset.Y + 12);
+
+        double y = e.GetPosition(WidgetsList).Y;
+        int target = from;
+        Rect? targetBounds = null;
+        for (var i = 0; i < _widgets.Count; i++) {
+            if (WidgetsList.ContainerFromIndex(i) is not { } c) continue;
+            Rect b = c.Bounds;
+            if ((i == 0 && y < b.Top) || (y >= b.Top && y <= b.Bottom) || (i == _widgets.Count - 1 && y > b.Bottom)) {
+                target = i;
+                targetBounds = b;
+                break;
+            }
+        }
+
+        if (targetBounds is not { } tb) return;
+        _dragTargetIndex = target;
+        WidgetDropLine.IsVisible = target != from;
+        WidgetDropLine.Margin = new Thickness(0, target < from ? Math.Max(0, tb.Top - 5) : tb.Bottom - 6, 0, 0);
+    }
+
+    private async void WidgetGrip_PointerReleased(object? sender, PointerReleasedEventArgs e) {
+        e.Pointer.Capture(null);
+        await FinishWidgetDragAsync();
+    }
+
+    private async void WidgetGrip_PointerCaptureLost(object? sender, PointerCaptureLostEventArgs e) {
+        await FinishWidgetDragAsync();
+    }
+
+    private async Task FinishWidgetDragAsync() {
+        if (_dragWidget == null) return;
+        Widget moving = _dragWidget;
+        int to = _dragTargetIndex;
+        _dragWidget = null;
+        _dragTargetIndex = -1;
+        WidgetDropLine.IsVisible = false;
+        WidgetsList.ContainerFromItem(moving)?.SetValue(OpacityProperty, 1.0);
+
+        int from = _widgets.IndexOf(moving);
+        if (from < 0 || to < 0 || to >= _widgets.Count || from == to) return;
+        try {
+            await MoveWidgetZAsync(from, to);
+        }
+        catch (Exception ex) {
+            _logger?.LogError(ex, "Failed to reorder widget Z-Index");
+        }
+    }
+
     private async void SaveRouteButton_Click(object? sender, RoutedEventArgs e) {
         if (_route == null) return;
         await SaveCurrentRoute();
@@ -954,6 +1021,7 @@ public partial class EditRouteWindow {
             await db.SaveChangesAsync();
             UpdateWebViewScale();
             OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
+            RouteSaved?.Invoke();
 
             SaveRouteButton.Content = "Saved!";
             await Task.Delay(1500);
@@ -1059,21 +1127,27 @@ public partial class EditRouteWindow {
     private void SizeValueBox_TextChanged(object? sender, TextChangedEventArgs e) {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
         if (string.IsNullOrWhiteSpace(tb.Text)) tb.Text = "0";
-        string unit = FindSiblingUnitBox(tb)?.SelectedItem as string ?? "px";
+        string unit = FindSiblingUnitBox(tb)?.SelectedItem as string ?? DefaultUnit(cssVar);
         cssVar.Value = tb.Text + unit;
     }
 
     private void SizeUnitBox_Loaded(object? sender, RoutedEventArgs e) {
         if (sender is not ComboBox cb) return;
+        if (cb is { SelectedItem: null, Tag: CssVariable cssVar }) cb.SelectedItem = DefaultUnit(cssVar);
         cb.SelectionChanged += SizeUnitBox_SelectionChanged;
         AttachChangeHandler(sender, e);
+    }
+
+    private static string DefaultUnit(CssVariable cssVar) {
+        List<string> units = cssVar.Type.GetOptions();
+        return units.Count > 0 ? units[0] : "px";
     }
 
     private void SizeUnitBox_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
         if (sender is not ComboBox { Tag: CssVariable cssVar } cb) return;
         if (e.AddedItems.Count == 0) return;
 
-        string unit = cb.SelectedItem as string ?? "px";
+        string unit = cb.SelectedItem as string ?? DefaultUnit(cssVar);
         if ((cssVar.Value ?? "").EndsWith(unit)) return;
 
         string numericPart = IsNumberRegex().Match(cssVar.Value ?? "").Value;
@@ -1086,32 +1160,54 @@ public partial class EditRouteWindow {
 
     private void OpacitySlider_Loaded(object? sender, RoutedEventArgs e) {
         if (sender is not Slider { Tag: CssVariable cssVar } slider) return;
-        if (float.TryParse(cssVar.Value, out float initial)) slider.Value = initial;
+        bool isPercent = cssVar.Type == WidgetCssVariableType.Percent;
+        slider.Maximum = isPercent ? 100 : 1;
+        slider.TickFrequency = isPercent ? 1 : 0.01;
+        if (TryParseSliderValue(cssVar.Value, out float initial)) slider.Value = initial;
 
         slider.ValueChanged += (_, args) => {
             var floatVal = (float)args.NewValue;
-            cssVar.Value = floatVal.ToString(CultureInfo.InvariantCulture);
-            if (FindPercentSiblingBox(slider) is { } tb && tb.Text != floatVal.ToString(CultureInfo.InvariantCulture))
-                tb.Text = floatVal.ToString(CultureInfo.InvariantCulture);
+            cssVar.Value = FormatSliderCssValue(cssVar, floatVal);
+            string boxText = FormatSliderBoxText(cssVar, floatVal);
+            if (FindPercentSiblingBox(slider) is { } tb && tb.Text != boxText)
+                tb.Text = boxText;
         };
         AttachChangeHandler(sender, e);
     }
 
     private void OpacityBox_Loaded(object? sender, RoutedEventArgs e) {
         if (sender is not TextBox { Tag: CssVariable cssVar } tb) return;
-        tb.Text = float.TryParse(cssVar.Value, out float initial)
-            ? initial.ToString(CultureInfo.InvariantCulture)
+        float max = cssVar.Type == WidgetCssVariableType.Percent ? 100 : 1;
+        tb.Text = TryParseSliderValue(cssVar.Value, out float initial)
+            ? FormatSliderBoxText(cssVar, initial)
             : "0";
 
         tb.TextChanged += (_, _) => {
             if (string.IsNullOrWhiteSpace(tb.Text)) return;
-            if (!float.TryParse(tb.Text, out float val)) return;
-            val = Math.Clamp(val, 0, 1);
-            cssVar.Value = val.ToString(CultureInfo.InvariantCulture);
+            if (!TryParseSliderValue(tb.Text, out float val)) return;
+            val = Math.Clamp(val, 0, max);
+            cssVar.Value = FormatSliderCssValue(cssVar, val);
             if (FindPercentSiblingSlider(tb) is { } slider && Math.Abs((float)slider.Value - val) > 0.001)
                 slider.Value = val;
         };
         AttachChangeHandler(sender, e);
+    }
+
+    private static bool TryParseSliderValue(string? text, out float value) {
+        return float.TryParse((text ?? "").Trim().TrimEnd('%'), NumberStyles.Float,
+            CultureInfo.InvariantCulture, out value);
+    }
+
+    private static string FormatSliderBoxText(CssVariable cssVar, float value) {
+        return cssVar.Type == WidgetCssVariableType.Percent
+            ? Math.Round(value).ToString(CultureInfo.InvariantCulture)
+            : value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatSliderCssValue(CssVariable cssVar, float value) {
+        return cssVar.Type == WidgetCssVariableType.Percent
+            ? FormatSliderBoxText(cssVar, value) + "%"
+            : value.ToString(CultureInfo.InvariantCulture);
     }
 
     private void ResetVars_Click(object? sender, RoutedEventArgs e) {
@@ -1232,7 +1328,7 @@ public partial class EditRouteWindow {
 
     private static string JsEventTypeDisplay(string? value) {
         if (string.IsNullOrWhiteSpace(value)) return "- none -";
-        if (Enum.TryParse<SubathonEventType>(value, out SubathonEventType et))
+        if (Enum.TryParse(value, out SubathonEventType et))
             return $"{et.GetSource()} - {et.GetLabel()}";
         GoAffProStore? store = GoAffProStoreRegistry.All().FirstOrDefault(s => s.InternalEventName == value);
         return store != null ? $"{SubathonEventSource.GoAffPro} - {store.EventName}" : value;

@@ -198,7 +198,7 @@ public class DiscordWebhookService : IDisposable, IAppService {
                     _currencyService.IsValidCurrency(subathonEvent.Currency)) {
                     double result = Task.Run(async () => {
                         return await _currencyService.ConvertAsync(
-                            double.Parse(subathonEvent.Value),
+                            Utils.ParseAmount(subathonEvent.Value),
                             subathonEvent.Currency!, currency);
                     }).GetAwaiter().GetResult();
                     totalMoney += result;

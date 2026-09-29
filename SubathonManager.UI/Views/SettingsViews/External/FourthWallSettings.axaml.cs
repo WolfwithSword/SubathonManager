@@ -95,6 +95,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
             $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar)}";
         GiftCommissionBox.IsChecked = config.GetBool(configSection,
             $"{nameof(SubathonEventType.FourthWallGiftOrder).Split("Order")[0]}.CommissionAsDonation");
+        AutoDeleteCancelledBox.IsChecked = config.GetBool(configSection, FourthWallService.AutoDeleteCancelledKey, false);
     }
 
     public override bool UpdateValueSettings(AppDbContext db) {
@@ -222,6 +223,8 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         hasUpdated |= config.SetBool(configSection,
             $"{nameof(SubathonEventType.FourthWallOrder).Split("Order")[0]}.CommissionAsDonation",
             OrderCommissionBox.IsChecked ?? false);
+        hasUpdated |= config.SetBool(configSection, FourthWallService.AutoDeleteCancelledKey,
+            AutoDeleteCancelledBox.IsChecked ?? false);
         return hasUpdated;
     }
 
@@ -420,7 +423,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
 
     private void SyncMemberships(Dictionary<string, string> memberships) {
         List<string> names = memberships.Values.ToList();
-        AppDbContext db = _factory.CreateDbContext();
+        using AppDbContext db = _factory.CreateDbContext();
         List<string> existing = db.SubathonValues.Where(v => names.Contains(v.Meta)).Select(v => v.Meta).ToList();
         var newValues = new List<SubathonValue>();
         foreach (string tier in names.Where(x => !existing.Contains(x))) {
@@ -440,7 +443,9 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
     }
 
     private void LoadValuesForMemberships(AppDbContext? db) {
-        db ??= _factory.CreateDbContext();
+        using AppDbContext? owned = db == null ? _factory.CreateDbContext() : null;
+        // ReSharper disable once NullableWarningSuppressionIsUsed
+        db ??= owned!;
         List<SubathonValue> values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.FourthWallMembership)
             .OrderBy(meta => meta)
             .AsNoTracking().ToList();

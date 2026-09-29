@@ -130,7 +130,10 @@ public enum WidgetCssVariableType {
     Float,
     Int,
     Opacity,
-    Weight
+    Weight,
+    Angle,
+    Time,
+    Percent
 }
 
 [ExcludeFromCodeCoverage]
@@ -144,6 +147,8 @@ public static class WidgetCssVariableTypeHelper {
                 "normal", "bold", "100", "200", "300", "400", "500", "600", "700", "800", "900",
                 "bolder", "lighter", "initial", "inherit"
             ],
+            WidgetCssVariableType.Time => ["s", "ms"],
+            WidgetCssVariableType.Angle => ["deg", "rad", "turn"],
             _ => []
         };
     }

@@ -1,7 +1,5 @@
-﻿using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Text.Json;
 using Agash.Webhook.Abstractions;
 using Fourthwall.Client.Authentication;
 using Fourthwall.Client.Events;
@@ -24,7 +22,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
-using SubathonManager.Core.Security.Interfaces;
+using SubathonManager.Services;
 using WebhookConfigurationV1 =
     Fourthwall.Client.Generated.Models.Openapi.Model.OpenApiPageResponseCom.Fourthwall.Openapi.Model.
     WebhookConfigurationV1;
@@ -36,30 +34,26 @@ namespace SubathonManager.Integration;
 public class FourthWallService(
     ILogger<FourthWallService>? logger,
     IConfig config,
-    IHttpClientFactory httpClientFactory,
     DevTunnelsService devTunnels,
-    ISecureStorage secureStorage)
+    OAuthService oAuth)
     : IWebhookIntegration {
     private readonly string _configSection = "FourthWall";
 
     private readonly FourthwallWebhookHandler _handler = new(new FourthwallWebhookSignatureVerifier());
-    internal readonly string _oAuthURl = "https://oauth.subathonmanager.app/auth/fourthwall/login";
-    internal readonly string _refreshURl = "https://oauth.subathonmanager.app/auth/fourthwall/refresh";
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private static readonly OAuthProvider OAuthKeys = new("fourthwall", StorageKeys.FourthWallAccessToken,
+        StorageKeys.FourthWallRefreshToken);
 
     public readonly Dictionary<string, string> MembershipNames = new();
 
-    internal Action<string> OpenBrowser =
-        url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
-
-    private string? AccessToken => secureStorage.GetOrDefault(StorageKeys.FourthWallAccessToken, string.Empty);
-    private string? RefreshToken => secureStorage.GetOrDefault(StorageKeys.FourthWallRefreshToken, string.Empty);
+    private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
     private string? ShopName { get; set; }
     public string WebhookPath => "/api/webhooks/fourthwall";
+    public const string AutoDeleteCancelledKey = "AutoDeleteCancelledOrders";
 
     public async Task StartAsync(CancellationToken ct = default) {
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
 
-        Utils.PendingOAuthCallback = null;
         bool enabled = HasTokenFile();
 
         if (enabled) {
@@ -113,6 +107,11 @@ public class FourthWallService(
             return;
         }
 
+        if (result.Event is FourthwallOrderUpdatedWebhookEvent orderUpdated) {
+            HandleOrderUpdated(orderUpdated);
+            return;
+        }
+
         SubathonEvent? ev = MapToSubathonEvent(result.Event);
         if (ev != null) {
             SubathonEvents.RaiseSubathonEventCreated(ev);
@@ -120,41 +119,60 @@ public class FourthWallService(
         }
     }
 
-    [ExcludeFromCodeCoverage]
-    private bool CheckExpiry() {
-        if (string.IsNullOrWhiteSpace(AccessToken)) return false;
+    internal bool HandleOrderUpdated(FourthwallOrderUpdatedWebhookEvent orderUpdated) {
+        OrderV1? order = orderUpdated.Data?.Order;
+        if (order?.Status != OrderV1_status.CANCELLED || string.IsNullOrWhiteSpace(order.Id)) return false;
 
-        DateTime? expires = Utils.GetAccessTokenExpiry(AccessToken);
-        if (expires == null) return false;
-        bool isExpired = DateTime.UtcNow >= expires.Value.AddSeconds(-60);
-        return isExpired;
+        string reference = $"#{order.FriendlyId ?? order.Id}";
+        if (!config.GetBool(_configSection, AutoDeleteCancelledKey, false)) {
+            logger?.LogInformation("[FourthWall] Order {Order} was cancelled, auto delete is off so its event is kept",
+                reference);
+            return false;
+        }
+
+        SubathonEvents.RaiseSubathonEventCancelled(Utils.TryParseGuid(order.Id), SubathonEventType.FourthWallOrder,
+            reference);
+        return true;
     }
 
     [ExcludeFromCodeCoverage]
     private async Task<bool> CheckForTokenAsync(CancellationToken ct = default) {
-        if (!HasTokenFile()) {
-            await StartOAuthFlowAsync();
+        if (!HasTokenFile())
+            await oAuth.AuthorizeAsync(OAuthKeys, ct);
+        else if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct))
+            await oAuth.AuthorizeAsync(OAuthKeys, ct);
 
-            if (string.IsNullOrWhiteSpace(AccessToken) || string.IsNullOrWhiteSpace(RefreshToken)) return false;
-        }
-        else if (CheckExpiry()) {
-            bool success = await StartOAuthRefreshAsync(ct);
-            if (!success) {
-                RevokeTokenFile();
-                await StartOAuthFlowAsync();
-            }
-
-            if (string.IsNullOrWhiteSpace(AccessToken)) return false;
-        }
-
-        return !string.IsNullOrWhiteSpace(AccessToken) && !CheckExpiry();
+        return HasTokenFile() && !oAuth.NeedsRefresh(OAuthKeys);
     }
-
 
     [ExcludeFromCodeCoverage]
     public async Task Initialize(CancellationToken ct = default) {
+        if (!await _initLock.WaitAsync(0, ct)) return;
+        try {
+            await InitializeCoreAsync(ct);
+        }
+        finally {
+            _initLock.Release();
+        }
+    }
+
+    [ExcludeFromCodeCoverage]
+    private async Task InitializeCoreAsync(CancellationToken ct) {
         IntegrationConnection tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-        if (!tunnelConn.Status) return;
+        if (!tunnelConn.Status) {
+            await devTunnels.StartTunnelAsync(ct);
+            tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
+            if (!tunnelConn.Status) {
+                string reason = !devTunnels.IsCliInstalled ? "the DevTunnels CLI isn't installed"
+                    : !devTunnels.IsLoggedIn ? "DevTunnels isn't logged in"
+                    : "the tunnel failed to start";
+                logger?.LogWarning("[FourthWall] Can't connect: {Reason}", reason);
+                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.FourthWall),
+                    $"FourthWall needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
+                BroadcastStatus(HasTokenFile(), null);
+                return;
+            }
+        }
 
         bool canConnect = await CheckForTokenAsync(ct);
         if (!canConnect || string.IsNullOrWhiteSpace(AccessToken)) {
@@ -187,9 +205,29 @@ public class FourthWallService(
                 if (!string.IsNullOrWhiteSpace(webhookConfigurationV1.Url) &&
                     webhookConfigurationV1.Url.Contains(tunnelConn.Name.Replace("https://", ""),
                         StringComparison.CurrentCultureIgnoreCase)) {
-                    // TODO what if we add more future scopes, we'd need to compare allowed_types.
                     hasWh = true;
                     logger?.LogDebug("Webhook found, no need to make a new one for fourthwall");
+                    if (webhookConfigurationV1.AllowedTypes?.Contains(WebhookConfigurationV1_allowedTypes.ORDER_UPDATED) != true &&
+                        !string.IsNullOrWhiteSpace(webhookConfigurationV1.Id))
+                        try {
+                            List<WebhookConfigurationUpdateRequest_allowedTypes?> types =
+                                (webhookConfigurationV1.AllowedTypes ?? [])
+                                .Select(t => Enum.TryParse($"{t}", out WebhookConfigurationUpdateRequest_allowedTypes u)
+                                    ? u
+                                    : (WebhookConfigurationUpdateRequest_allowedTypes?)null)
+                                .Where(t => t != null)
+                                .Append(WebhookConfigurationUpdateRequest_allowedTypes.ORDER_UPDATED)
+                                .ToList();
+                            await client.OpenApi.V10.Webhooks[webhookConfigurationV1.Id].PutAsync(
+                                new WebhookConfigurationUpdateRequest {
+                                    Url = webhookConfigurationV1.Url, AllowedTypes = types
+                                }, cancellationToken: ct);
+                            logger?.LogInformation("[FourthWall] Added order updates to existing webhook");
+                        }
+                        catch (Exception ex) {
+                            logger?.LogWarning(ex, "[FourthWall] Couldn't add order updates to existing webhook");
+                        }
+
                     break;
                 }
 
@@ -201,6 +239,7 @@ public class FourthWallService(
                 Url = fullUrl,
                 AllowedTypes = [
                     WebhookConfigurationCreateRequest_allowedTypes.ORDER_PLACED,
+                    WebhookConfigurationCreateRequest_allowedTypes.ORDER_UPDATED,
                     WebhookConfigurationCreateRequest_allowedTypes.DONATION,
                     WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_PURCHASED,
                     WebhookConfigurationCreateRequest_allowedTypes.SUBSCRIPTION_CHANGED,
@@ -235,83 +274,13 @@ public class FourthWallService(
         await Task.CompletedTask;
     }
 
-    [ExcludeFromCodeCoverage]
-    private async Task<bool> StartOAuthRefreshAsync(CancellationToken ct = default) {
-        logger?.LogDebug("Refreshing FourthWall tokens...");
-
-        if (!HasTokenFile()) return false;
-
-        if (string.IsNullOrWhiteSpace(RefreshToken)) return false;
-
-        using HttpClient client = httpClientFactory.CreateClient(nameof(FourthWallService));
-        using var body = new FormUrlEncodedContent(new[] {
-            new KeyValuePair<string, string>("refresh_token", RefreshToken)
-        });
-
-        HttpResponseMessage response = await client.PostAsync(_refreshURl, body, ct);
-
-        if (!response.IsSuccessStatusCode) {
-            string error = await response.Content.ReadAsStringAsync(ct);
-            logger?.LogWarning("[FourthWall] Token refresh failed ({Status}): {Error}", response.StatusCode, error);
-            return false;
-        }
-
-        string responseJson = await response.Content.ReadAsStringAsync(ct);
-        var tokens = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseJson);
-
-        string? newAccess = tokens?.GetValueOrDefault("access_token").GetString();
-        string? newRefresh = tokens?.GetValueOrDefault("refresh_token").GetString() ?? RefreshToken;
-
-        if (string.IsNullOrWhiteSpace(newAccess)) {
-            logger?.LogWarning("[FourthWall] Token refresh returned no access_token");
-            return false;
-        }
-
-        secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess);
-        secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh);
-
-        logger?.LogDebug("[FourthWall] Tokens refreshed successfully");
-        return true;
-    }
-
-    private async Task StartOAuthFlowAsync() {
-        RevokeTokenFile();
-        Utils.PendingOAuthCallback = null;
-        logger?.LogDebug("Opening FourthWall OAuth...");
-        OpenBrowser(_oAuthURl);
-        (string? newAccess, string? newRefresh) = await WaitForProtocolCallbackAsync();
-        if (!string.IsNullOrEmpty(AccessToken) || string.IsNullOrEmpty(RefreshToken)) {
-            secureStorage.Set(StorageKeys.FourthWallAccessToken, newAccess!);
-            secureStorage.Set(StorageKeys.FourthWallRefreshToken, newRefresh!);
-        }
-    }
-
-    private async Task<(string?, string?)> WaitForProtocolCallbackAsync(CancellationToken ct = default) {
-        DateTime timeout = DateTime.Now.AddMinutes(15);
-        while (DateTime.Now < timeout && !ct.IsCancellationRequested) {
-            OAuthCallback? cb = Utils.PendingOAuthCallback;
-            if (cb?.Provider == "fourthwall" &&
-                (!string.IsNullOrEmpty(cb.AccessToken) || !string.IsNullOrEmpty(cb.RefreshToken))) {
-                Utils.PendingOAuthCallback = null;
-                return (cb.AccessToken, cb.RefreshToken);
-            }
-
-            await Task.Delay(250, ct);
-        }
-
-        return (null, null);
-    }
-
     private bool HasTokenFile() {
-        return secureStorage.Exists(StorageKeys.FourthWallAccessToken) &&
-               secureStorage.Exists(StorageKeys.FourthWallRefreshToken)
-               && !string.IsNullOrWhiteSpace(AccessToken) && !string.IsNullOrWhiteSpace(RefreshToken);
+        return oAuth.HasTokens(OAuthKeys);
     }
 
     [ExcludeFromCodeCoverage]
     public void RevokeTokenFile() {
-        secureStorage.Delete(StorageKeys.FourthWallAccessToken);
-        secureStorage.Delete(StorageKeys.FourthWallRefreshToken);
+        oAuth.RevokeTokens(OAuthKeys);
     }
 
     [ExcludeFromCodeCoverage]
@@ -390,7 +359,9 @@ public class FourthWallService(
                 var itemCount = 0;
                 double totalValue = 0;
                 double totalDirect = 0;
-                string currency = order.Amounts?.Subtotal?.Currency ?? defaultCurrency;
+                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+                    ? order.Amounts.Subtotal.Currency
+                    : defaultCurrency;
 
                 double costs = 0;
                 double prices = 0;
@@ -427,7 +398,7 @@ public class FourthWallService(
                     Currency = sourceMode switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
                     },
                     Amount = Math.Max(itemCount, 1),
                     SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{
@@ -444,7 +415,9 @@ public class FourthWallService(
 
                 double totalValue = 0;
                 double totalDirect = 0;
-                string currency = order.Amounts?.Subtotal?.Currency ?? defaultCurrency;
+                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+                    ? order.Amounts.Subtotal.Currency
+                    : defaultCurrency;
 
                 totalValue += order.Amounts?.Subtotal?.Value ?? 0;
                 totalDirect += order.Amounts?.Profit?.Value ?? 0;
@@ -464,7 +437,7 @@ public class FourthWallService(
                     Currency = sourceMode2 switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
                     },
                     Amount = Math.Max(itemCount, 1),
                     SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{

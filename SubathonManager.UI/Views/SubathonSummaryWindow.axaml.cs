@@ -73,7 +73,7 @@ public partial class SubathonSummaryWindow : Window {
         SourcePopout.EmptyText = "All sources";
         TypePopout.EmptyText = "All event types";
         SourcePopout.SetOptions(BuildSourceOptions());
-        TypePopout.SetOptions(BuildTypeOptions());
+        TypePopout.SetOptions(FilterOption.EventTypes());
 
         InitLeaderboardTab();
 
@@ -120,19 +120,6 @@ public partial class SubathonSummaryWindow : Window {
             if (_subathons.Count > 0) SubathonBox.SelectedIndex = 0;
             else ResultStatus.Text = "No subathons found";
         });
-    }
-
-    private static List<FilterOption> BuildTypeOptions() {
-        return Enum.GetValues<SubathonEventType>()
-            .Where(t => t is not (SubathonEventType.Unknown or SubathonEventType.Command))
-            .OrderBy(t => SubathonEventSourceHelper.GetSourceOrder(((SubathonEventType?)t).GetSource()))
-            .ThenBy(t => ((SubathonEventType?)t).GetLabel(), StringComparer.OrdinalIgnoreCase)
-            .Select(t => new FilterOption {
-                Label = ((SubathonEventType?)t).GetLabel(),
-                Value = t.ToString(),
-                Group = ((SubathonEventType?)t).GetSource().ToString()
-            })
-            .ToList();
     }
 
     private static List<FilterOption> BuildSourceOptions() {

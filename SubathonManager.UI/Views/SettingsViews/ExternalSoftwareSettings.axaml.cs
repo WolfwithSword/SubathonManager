@@ -41,6 +41,9 @@ public partial class ExternalSoftwareSettings : SettingsGroupControl {
             case SubathonEventSource.StreamerBot:
                 _settingsControls[eventSource] = new StreamerBotSettings();
                 break;
+            case SubathonEventSource.MixItUp:
+                _settingsControls[eventSource] = new MixItUpSettings();
+                break;
             case SubathonEventSource.VTubeStudio:
                 if (!FeatureFlags.VTubeStudioEnabled) return null;
                 _settingsControls[eventSource] = new VTubeStudioSettings();

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Numerics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -10,6 +11,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.UI.Controls;
 using SubathonManager.UI.Services;
 
 namespace SubathonManager.UI.Views;
@@ -19,11 +21,17 @@ public partial class EventListView : UserControl {
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly int _maxItems = 20;
 
+    private HashSet<SubathonEventType> _hiddenTypes = [];
+
     public EventListView() {
         _factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         InitializeComponent();
         EventListPanel.ItemsSource = EventItems;
         _config = AppServices.Provider.GetRequiredService<IConfig>();
+
+        LoadHiddenTypes();
+        TypeFilter.SetOptions(FilterOption.EventTypes(true));
+        TypeFilter.Closed += (_, _) => SaveHiddenTypesFromPicker();
         Task.Run(async () => await LoadRecentEvents());
 
         SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
@@ -32,6 +40,40 @@ public partial class EventListView : UserControl {
     }
 
     public ObservableCollection<SubathonEvent> EventItems { get; set; } = new();
+
+    public int HiddenTypeCount => _hiddenTypes.Count;
+
+    public void OpenTypeFilter(Control anchor) {
+        TypeFilter.SetSelected(Enum.GetValues<SubathonEventType>()
+            .Where(t => !_hiddenTypes.Contains(t))
+            .Select(t => t.ToString()));
+        TypeFilter.Open(anchor);
+    }
+
+    public event Action? HiddenTypesChanged;
+
+    private void LoadHiddenTypes() {
+        using AppDbContext db = _factory.CreateDbContext();
+        string raw = StateValueHelper.Get<string>(db, StateKeys.RecentEventsHiddenTypes);
+        if (!BigInteger.TryParse(raw, out BigInteger mask) || mask.IsZero) return;
+        _hiddenTypes = Enum.GetValues<SubathonEventType>()
+            .Where(t => !((mask >> (int)t) & BigInteger.One).IsZero)
+            .ToHashSet();
+    }
+
+    private void SaveHiddenTypesFromPicker() {
+        HashSet<SubathonEventType> hidden = TypeFilter.Options
+            .Where(o => !o.Selected)
+            .Select(o => Enum.Parse<SubathonEventType>(o.Value))
+            .ToHashSet();
+        if (hidden.SetEquals(_hiddenTypes)) return;
+
+        _hiddenTypes = hidden;
+        BigInteger mask = hidden.Aggregate(BigInteger.Zero, (m, t) => m | (BigInteger.One << (int)t));
+        _ = StateValueHelper.SetAsync(_factory, StateKeys.RecentEventsHiddenTypes, mask.ToString());
+        HiddenTypesChanged?.Invoke();
+        Task.Run(async () => await LoadRecentEvents());
+    }
 
     private void OnSubathonEventsDeleted(List<SubathonEvent> events) {
         Task.Run(async () => await LoadRecentEvents());
@@ -49,6 +91,7 @@ public partial class EventListView : UserControl {
                           && subathonEvent.EventType != SubathonEventType.Command
                           && subathonEvent.EventType != SubathonEventType.DonationAdjustment
                           && subathonEvent.EventType != SubathonEventType.TwitchHypeTrain) return;
+        if (subathonEvent.EventType is { } type && _hiddenTypes.Contains(type)) return;
 
         await Dispatcher.UIThread.InvokeAsync(() => {
             SubathonEvent? existing = EventItems.FirstOrDefault(x => x.Id == subathonEvent.Id);
@@ -66,8 +109,10 @@ public partial class EventListView : UserControl {
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
         List<SubathonEvent> events = new();
+        List<SubathonEventType?> hidden = _hiddenTypes.Select(t => (SubathonEventType?)t).ToList();
         if (subathon != null)
             events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id
+                                                         && !hidden.Contains(ev.EventType)
                                                          && (showOverride || ev.SecondsValue > 0 || ev.PointsValue >= 1
                                                              || ev.Command != SubathonCommandType.None
                                                              || ev.EventType == SubathonEventType.TwitchHypeTrain

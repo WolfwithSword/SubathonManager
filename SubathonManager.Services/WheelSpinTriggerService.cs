@@ -85,9 +85,7 @@ public class WheelSpinTriggerService(
         int spinsToAdd = await CalculateSpins(ev, trigger, subType);
         if (spinsToAdd < 1) return;
 
-        var currentSpins = await StateValueHelper.GetAsync<int>(factory, StateKeys.WheelSpinsOwed);
-        int newSpins = currentSpins + spinsToAdd;
-        await StateValueHelper.SetAsync(factory, StateKeys.WheelSpinsOwed, newSpins);
+        int newSpins = await StateValueHelper.AddIntAsync(factory, StateKeys.WheelSpinsOwed, spinsToAdd);
 
         var history = new WheelSpinTriggerHistory {
             TriggerId = trigger.Id,
@@ -125,7 +123,7 @@ public class WheelSpinTriggerService(
 
             case SubathonEventSubType.TokenLike: {
                 if (trigger.CountThreshold is null or <= 0) return 0;
-                if (!double.TryParse(ev.Value, out double tokenCount)) return 0;
+                if (!Utils.TryParseAmount(ev.Value, out double tokenCount)) return 0;
                 int multiplier = (int)tokenCount / trigger.CountThreshold.Value;
                 return multiplier * trigger.SpinsToAdd;
             }
@@ -140,7 +138,7 @@ public class WheelSpinTriggerService(
                 if (trigger.MoneyThreshold is > 0
                     && !string.IsNullOrEmpty(trigger.Currency) && !string.IsNullOrEmpty(ev.Currency)
                     && !string.IsNullOrEmpty(ev.Value)) {
-                    if (!double.TryParse(ev.Value, out double orderValue)) return 0;
+                    if (!Utils.TryParseAmount(ev.Value, out double orderValue)) return 0;
                     double converted = await currencyService.ConvertAsync(orderValue, ev.Currency, trigger.Currency);
                     var multiplier = (int)(converted / trigger.MoneyThreshold.Value);
                     return multiplier * trigger.SpinsToAdd;
@@ -153,7 +151,7 @@ public class WheelSpinTriggerService(
             case SubathonEventSubType.DonationLike: {
                 if (trigger.MoneyThreshold is null or <= 0) return 0;
                 if (string.IsNullOrEmpty(trigger.Currency) || string.IsNullOrEmpty(ev.Currency)) return 0;
-                if (!double.TryParse(ev.Value, out double donationValue)) return 0;
+                if (!Utils.TryParseAmount(ev.Value, out double donationValue)) return 0;
                 double converted = await currencyService.ConvertAsync(donationValue, ev.Currency, trigger.Currency);
                 var multiplier = (int)(converted / trigger.MoneyThreshold.Value);
                 return multiplier * trigger.SpinsToAdd;

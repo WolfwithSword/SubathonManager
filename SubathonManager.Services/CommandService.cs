@@ -1,4 +1,5 @@
-﻿using IniParser.Model;
+﻿using System.Globalization;
+using IniParser.Model;
 using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -106,12 +107,12 @@ public static class CommandService {
         switch (subathonEvent.Command) {
             case SubathonCommandType.AddMoney:
             case SubathonCommandType.SubtractMoney:
-                if (parts.Length >= 3 && double.TryParse(parts[1], out double value)) {
+                if (parts.Length >= 3 && Utils.TryParseAmount(parts[1], out double value)) {
                     if (value <= 0) break;
                     var currencyService = AppServices.Provider.GetRequiredService<CurrencyService>();
                     string currency = parts[2];
                     if (!currencyService.IsValidCurrency(currency)) break;
-                    subathonEvent.Value = $"{value:N2}";
+                    subathonEvent.Value = value.ToString("F2", CultureInfo.InvariantCulture);
                     subathonEvent.Currency = currency.ToUpper().Trim();
                     // event service sets it from command to donation adjustment
                     isValid = true;
@@ -162,7 +163,7 @@ public static class CommandService {
 
                 foreach (string part in parts) {
                     if (part.ToLower().Contains('x') && multiplier <= double.MinValue + 5) {
-                        if (!double.TryParse(part.ToLower().Split('x')[0].Trim(), out multiplier)) {
+                        if (!Utils.TryParseAmount(part.ToLower().Split('x')[0], out multiplier)) {
                             multiplier = double.MinValue;
                             continue;
                         }
@@ -187,7 +188,8 @@ public static class CommandService {
                     if (multiplier <= double.MinValue + 5) return false;
                     TimeSpan duration = Utils.ParseDurationString(durationString);
                     durationString = duration == TimeSpan.Zero ? "x" : ((int)duration.TotalSeconds).ToString();
-                    var dataStr = $"{multiplier}|{durationString}s|{applyPoints}|{applyTime}";
+                    var dataStr =
+                        $"{multiplier.ToString(CultureInfo.InvariantCulture)}|{durationString}s|{applyPoints}|{applyTime}";
 
                     subathonEvent.Value = dataStr;
                     isValid = true;

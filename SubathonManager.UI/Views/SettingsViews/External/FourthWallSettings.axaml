@@ -159,6 +159,8 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <CheckBox x:Name="OrderCommissionBox" Content="Add order profit as donation?" Margin="-10 0 0 0" />
                     <CheckBox x:Name="GiftCommissionBox" Content="Add gift order profit as donation?" Margin="14 0 0 0" />
+                    <CheckBox x:Name="AutoDeleteCancelledBox" Content="Auto delete cancelled orders?" Margin="14 0 0 0"
+                              ToolTip.Tip="When a shop order is cancelled, remove its event and the time, points and money it added. Only applies to orders in the active subathon and if both events were while live. Gift orders aren't covered." />
                 </StackPanel>
             </Grid>
         </StackPanel>

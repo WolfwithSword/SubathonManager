@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Controls;
 
@@ -17,7 +18,7 @@ public static class NumericInputBehaviour {
         AvaloniaProperty.RegisterAttached<TextBox, NumericMode>(
             "Mode", typeof(NumericInputBehaviour));
 
-    private static readonly Dictionary<TextBox, string> LastValid = new();
+    private static readonly ConditionalWeakTable<TextBox, string> LastValid = new();
 
     static NumericInputBehaviour() {
         ModeProperty.Changed.AddClassHandler<TextBox>(OnModeChanged);
@@ -35,9 +36,8 @@ public static class NumericInputBehaviour {
         tb.TextChanged -= OnTextChanged;
         LastValid.Remove(tb);
         if (GetMode(tb) != NumericMode.None) {
-            LastValid[tb] = tb.Text ?? string.Empty;
+            LastValid.AddOrUpdate(tb, tb.Text ?? string.Empty);
             tb.TextChanged += OnTextChanged;
-            tb.DetachedFromVisualTree += (_, _) => LastValid.Remove(tb);
         }
     }
 
@@ -48,7 +48,7 @@ public static class NumericInputBehaviour {
 
         string text = tb.Text ?? string.Empty;
         if (IsAcceptable(text, mode)) {
-            LastValid[tb] = text;
+            LastValid.AddOrUpdate(tb, text);
             return;
         }
 

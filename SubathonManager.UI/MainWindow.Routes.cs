@@ -297,6 +297,7 @@ public partial class MainWindow {
         }
 
         _editWindow = new EditRouteWindow(route.Id);
+        _editWindow.RouteSaved += LoadRoutes;
         _editWindow.Closed += (_, _) => {
             LoadRoutes();
             _editWindow = null;

@@ -8,6 +8,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Integration;
+using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.IntegrationUnitTests;
@@ -35,7 +36,8 @@ public class TipeeeStreamServiceTests {
         timerService
             .Setup(t => t.Register(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<Func<CancellationToken, Task>>()))
             .Returns(Mock.Of<IDisposable>());
-        return new TipeeeStreamService(logger.Object, httpFactory.Object, storage, timerService.Object);
+        return new TipeeeStreamService(logger.Object, httpFactory.Object, storage, timerService.Object,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
     }
 
     private static SubathonEvent? InvokeProcessEventJson(TipeeeStreamService service, string json) {
@@ -380,7 +382,8 @@ public class TipeeeStreamServiceTests {
             new Mock<ILogger<TipeeeStreamService>>().Object,
             new Mock<IHttpClientFactory>().Object,
             storage,
-            new Mock<ITimerService>().Object);
+            new Mock<ITimerService>().Object,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
 
         service.RevokeTokens();
 

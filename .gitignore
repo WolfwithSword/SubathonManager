@@ -15,6 +15,7 @@ riderModule.iml
 exports/
 imports/
 cache/
+external/mixitup/
 
 *.smo
 *.smw
@@ -234,3 +235,7 @@ coverage-local/
 # Stream Deck plugin packaging stuff
 *.streamDeckPlugin
 external/streamdeck/**/images/
+
+# Windows installer build output
+installer/windows/LICENSE.txt
+installer-out/

@@ -1068,7 +1068,7 @@ public class VTSService(
 
     [ExcludeFromCodeCoverage]
     private void OnSubathonDataUpdate(SubathonData data, DateTime timestamp) {
-        _ = Task.Run(() => RefreshPublishedValuesAsync(CancellationToken.None));
+        _ = Task.Run(() => RefreshPublishedValuesAsync(CancellationToken.None, data));
     }
 
     [ExcludeFromCodeCoverage]
@@ -1083,7 +1083,7 @@ public class VTSService(
     }
 
     [ExcludeFromCodeCoverage]
-    private async Task RefreshPublishedValuesAsync(CancellationToken ct) {
+    private async Task RefreshPublishedValuesAsync(CancellationToken ct, SubathonData? handed = null) {
         if (!Connected) return;
         if (dbFactory == null) {
             _logger?.LogDebug("[VTSService] No database factory; cannot read subathon values to publish");
@@ -1093,10 +1093,12 @@ public class VTSService(
         try {
             await using AppDbContext db = await dbFactory.CreateDbContextAsync(ct);
 
-            SubathonData? subathon = await db.SubathonDatas
-                .Include(x => x.Multiplier)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.IsActive, ct);
+            SubathonData? subathon = handed is { IsActive: true }
+                ? handed
+                : await db.SubathonDatas
+                    .Include(x => x.Multiplier)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.IsActive, ct);
             if (subathon == null) return;
 
             SetCustomParameter(ParamCurrentPoints, Math.Max(0, subathon.Points));

@@ -170,6 +170,7 @@ public partial class SettingsView {
         ExternalServiceSettingsControl.RefreshTierCombo(SubathonEventSource.External);
         StreamingSettingsControl.RefreshTierCombo(SubathonEventSource.YouTube);
         hasUpdated |= ExternalServiceSettingsControl.UpdateConfigValueSettings();
+        hasUpdated |= ExternalSoftwareSettingsControl.UpdateConfigValueSettings();
         hasUpdated |= CommandsSettingsControl.UpdateConfigValueSettings();
         hasUpdated |= WebhookLogSettingsControl.UpdateConfigValueSettings();
 

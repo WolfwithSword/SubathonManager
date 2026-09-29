@@ -158,7 +158,7 @@ public class KoFiService(
                     EventType = SubathonEventType.KoFiDonation,
                     User = username,
                     Value = d.Amount.ToString("F2", CultureInfo.InvariantCulture),
-                    Currency = string.IsNullOrWhiteSpace(d.Currency) ? d.Currency : defaultCurrency,
+                    Currency = !string.IsNullOrWhiteSpace(d.Currency) ? d.Currency : defaultCurrency,
                     EventTimestamp = d.Timestamp.LocalDateTime
                 },
                 KoFiSubscriptionStartedEvent s => new SubathonEvent {
@@ -194,11 +194,11 @@ public class KoFiService(
                     Currency = sourceMode switch {
                         OrderTypeModes.Item => "items",
                         OrderTypeModes.Order => "order",
-                        _ => string.IsNullOrWhiteSpace(shop.Currency) ? shop.Currency : defaultCurrency
+                        _ => !string.IsNullOrWhiteSpace(shop.Currency) ? shop.Currency : defaultCurrency
                     },
                     Amount = shop.ShopItems?.Count ?? 1,
                     SecondaryValue = $"{shop.Amount.ToString("F2", CultureInfo.InvariantCulture)}|{
-                        (string.IsNullOrWhiteSpace(shop.Currency) ? shop.Currency : defaultCurrency)}",
+                        (!string.IsNullOrWhiteSpace(shop.Currency) ? shop.Currency : defaultCurrency)}",
                     EventTimestamp = shop.Timestamp.LocalDateTime
                 },
                 KoFiCommissionEvent comm => new SubathonEvent {
@@ -207,7 +207,9 @@ public class KoFiService(
                     EventType = SubathonEventType.KoFiCommissionOrder,
                     User = username,
                     Value = comm.Amount.ToString("F2", CultureInfo.InvariantCulture),
-                    Currency = string.IsNullOrWhiteSpace(comm.Currency) ? comm.Currency : defaultCurrency,
+                    Currency = !string.IsNullOrWhiteSpace(comm.Currency) ? comm.Currency : defaultCurrency,
+                    SecondaryValue = $"{comm.Amount.ToString("F2", CultureInfo.InvariantCulture)}|{
+                        (!string.IsNullOrWhiteSpace(comm.Currency) ? comm.Currency : defaultCurrency)}",
                     Amount = 1,
                     EventTimestamp = comm.Timestamp.LocalDateTime
                 },

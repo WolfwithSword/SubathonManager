@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
@@ -139,7 +140,7 @@ public class TangiaService(
             var sev = new SubathonEvent {
                 User = ev.Data?.OverlayParams?.BuyerInfo?.Name ?? ev.Data?.OverlayParams?.Name ?? "Tangia User",
                 Id = Utils.CreateGuidFromUniqueString(ev.EventId),
-                Value = $"{ev.Data?.OverlayParams?.TriggerData?.Price}",
+                Value = string.Create(CultureInfo.InvariantCulture, $"{ev.Data?.OverlayParams?.TriggerData?.Price}"),
                 Currency = "tokens",
                 Source = SubathonEventSource.Tangia,
                 EventType = SubathonEventType.TangiaTokens

@@ -81,9 +81,9 @@ public partial class App {
                 snapshot.IsLocked = true;
             }
             else if (snapshot.CapDateTime != null && DateTime.Now >= snapshot.CapDateTime &&
-                     snapshot is { IsPaused: false }) {
+                    (snapshot is { IsPaused: false } or { IsLocked: false })) {
                 await db.Database.ExecuteSqlRawAsync(
-                    "UPDATE SubathonDatas SET IsLocked = 1 WHERE IsActive = 1 AND IsPaused = 1 AND Id = {0}",
+                    "UPDATE SubathonDatas SET IsLocked = 1, IsPaused = 1 WHERE IsActive = 1 AND Id = {0} AND (IsLocked = 0 OR IsPaused = 0)",
                     snapshot.Id);
                 snapshot.IsLocked = true;
                 snapshot.IsPaused = true;

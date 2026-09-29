@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Web;
 using Avalonia.Interactivity;
 using Microsoft.Extensions.Logging;
+using SubathonManager.UI.Controls;
 using SubathonManager.UI.UiUtils;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
@@ -24,7 +25,7 @@ public partial class SubathonSummaryWindow {
 
     private void InitLeaderboardTab() {
         LbTypePopout.EmptyText = "Pick at least one event type";
-        LbTypePopout.SetOptions(BuildTypeOptions());
+        LbTypePopout.SetOptions(FilterOption.EventTypes());
 
         LbMethodBox.ItemsSource = LeaderboardMethods;
         LbMethodBox.SelectedIndex = 0;

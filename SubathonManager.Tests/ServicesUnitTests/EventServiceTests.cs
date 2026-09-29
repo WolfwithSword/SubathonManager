@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Globalization;
+using System.Net;
 using System.Reflection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -1227,25 +1228,132 @@ public class EventServiceTests {
         await conn.CloseAsync();
     }
 
+    [Theory]
+    [InlineData("en-US", "25.50")]
+    [InlineData("de-DE", "25.50")]
+    [InlineData("de-DE", "25,50")]
+    [InlineData("fr-FR", "25.50")]
+    public async Task ProcessSubathonEvent_CurrencyDonation_AddsMoney_InAnyLocale(string culture, string value) {
+        CultureInfo previous = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = new CultureInfo(culture);
+        try {
+            (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+                await SetupServiceWithDb(0, false);
+
+            var ev = new SubathonEvent {
+                Id = Guid.NewGuid(),
+                EventType = SubathonEventType.KoFiDonation,
+                Currency = "USD",
+                Value = value
+            };
+
+            (bool processed, _) = await service.ProcessSubathonEvent(ev);
+            Assert.True(processed);
+
+            await using var db = new AppDbContext(options);
+            SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(25.5, sub.MoneySum!.Value, 2);
+
+            await service.StopAsync(TestContext.Current.CancellationToken);
+            await conn.CloseAsync();
+        }
+        finally {
+            CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     [Fact]
-    public async Task ProcessSubathonEvent_CurrencyDonation_AddsMoney() {
+    public async Task EventLoop_KeepsProcessingAfterAnEventThrows() {
         (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
             await SetupServiceWithDb(0, false);
 
-        var ev = new SubathonEvent {
-            Id = Guid.NewGuid(),
-            EventType = SubathonEventType.KoFiDonation,
-            Currency = "USD",
-            Value = "25.00"
+        var good = new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Currency = "USD", Value = "5.00",
+            EventTimestamp = DateTime.Now.AddSeconds(1)
+        };
+        var goodDone = new TaskCompletionSource<bool>();
+        SubathonEvents.SubathonEventProcessed += (ev, _) => {
+            if (ev.Id == good.Id) goodDone.TrySetResult(true);
         };
 
-        (bool processed, _) = await service.ProcessSubathonEvent(ev);
-        Assert.True(processed);
+        SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Currency = "USD", Value = null!,
+            EventTimestamp = DateTime.Now
+        });
+        SubathonEvents.RaiseSubathonEventCreated(good);
+
+        await Task.WhenAny(goodDone.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
+        Assert.True(goodDone.Task.IsCompleted, "Event after the failing one was never processed");
 
         await using var db = new AppDbContext(options);
         SubathonData sub = await db.SubathonDatas.FirstAsync(TestContext.Current.CancellationToken);
-        Assert.True(sub.MoneySum > 0);
-        Assert.Equal(25.0, sub.MoneySum!.Value, 2);
+        Assert.Equal(5.0, sub.MoneySum!.Value, 2);
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+
+    [Fact]
+    public async Task DonationCrossingGoal_RaisesGoalCompletedOnce() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+        await using (var db = new AppDbContext(options)) {
+            SubathonGoalSet set = await db.SubathonGoalSets.FirstAsync(TestContext.Current.CancellationToken);
+            set.Type = GoalsType.Money;
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var completions = 0;
+        SubathonEvents.SubathonGoalCompleted += (_, _) => Interlocked.Increment(ref completions);
+
+        (bool processed, _) = await service.ProcessSubathonEvent(new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.KoFiDonation, Currency = "USD", Value = "25.00"
+        });
+
+        Assert.True(processed);
+        Assert.Equal(1, completions);
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+
+    [Fact]
+    public async Task CancelledOrder_RemovesTrackedEventAndWarns() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(0, false);
+
+        var order = new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.FourthWallOrder, Source = SubathonEventSource.FourthWall,
+            User = "Buyer", Currency = "USD", Value = "25.00", Amount = 1, SecondaryValue = "10.00|USD"
+        };
+        (bool processed, _) = await service.ProcessSubathonEvent(order);
+        Assert.True(processed);
+
+        var deleted = new TaskCompletionSource<bool>();
+        var warned = false;
+        void OnDeleted(List<SubathonEvent> evs) {
+            if (evs.Any(e => e.Id == order.Id)) deleted.TrySetResult(true);
+        }
+        void OnError(string level, string source, string message, DateTime _) {
+            if (level == "WARN" && message.Contains("#1234")) warned = true;
+        }
+        SubathonEvents.SubathonEventsDeleted += OnDeleted;
+        ErrorMessageEvents.ErrorEventOccured += OnError;
+
+        SubathonEvents.RaiseSubathonEventCancelled(order.Id, SubathonEventType.FourthWallOrder, "#1234");
+        await Task.WhenAny(deleted.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
+
+        SubathonEvents.SubathonEventsDeleted -= OnDeleted;
+        ErrorMessageEvents.ErrorEventOccured -= OnError;
+
+        Assert.True(deleted.Task.IsCompleted, "Cancelled order's event was never removed");
+        Assert.True(warned);
+        await using (var db = new AppDbContext(options)) {
+            Assert.False(await db.SubathonEvents.AnyAsync(e => e.Id == order.Id,
+                TestContext.Current.CancellationToken));
+        }
+
+        Assert.False(await service.DeleteCancelledEventAsync(Guid.NewGuid(), SubathonEventType.FourthWallOrder, "#9"));
 
         await service.StopAsync(TestContext.Current.CancellationToken);
         await conn.CloseAsync();

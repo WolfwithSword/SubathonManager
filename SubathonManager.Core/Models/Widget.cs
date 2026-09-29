@@ -35,7 +35,9 @@ public class CssVariable : INotifyPropertyChanged {
             if (string.IsNullOrWhiteSpace(_value)) {
                 if (Type is WidgetCssVariableType.Int or WidgetCssVariableType.Float)
                     _value = "0";
-                else if (Type is WidgetCssVariableType.Size) _value = "0px";
+                else if (Type is WidgetCssVariableType.Size or WidgetCssVariableType.Angle
+                         or WidgetCssVariableType.Time) _value = "0" + Type.GetOptions()[0];
+                else if (Type is WidgetCssVariableType.Percent) _value = "0%";
             }
 
             OnPropertyChanged();

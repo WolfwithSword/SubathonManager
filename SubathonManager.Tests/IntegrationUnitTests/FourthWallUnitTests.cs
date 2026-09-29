@@ -14,6 +14,7 @@ using Fourthwall.Client.Generated.Models.Openapi.Model.OfferAbstractV1;
 using Fourthwall.Client.Generated.Models.Openapi.Model.OfferAbstractV1.OfferVariantAbstractV1;
 using Fourthwall.Client.Generated.Models.Openapi.Model.OrderV1;
 using Fourthwall.Client.Generated.Models.Openapi.Model.OrderV1.Source;
+using Fourthwall.Client.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SubathonManager.Core.Enums;
@@ -23,6 +24,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Integration;
+using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
 using Amounts = Fourthwall.Client.Generated.Models.Openapi.Model.DonationV1.Amounts;
 
@@ -55,18 +57,14 @@ public class FourthWallServiceTests {
         });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
 
-        var httpFactory = new Mock<IHttpClientFactory>();
-        httpFactory.Setup(f => f.CreateClient(nameof(FourthWallService))).Returns(new HttpClient());
-
         IConfig config = MockConfig.MakeMockConfig(configValues);
 
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.FourthWallAccessToken] = "123456abcdef",
             [StorageKeys.FourthWallRefreshToken] = "D34DBEEF"
         });
-        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels, storage);
-
-        service.OpenBrowser = _ => { };
+        var service = new FourthWallService(logger.Object, config, devTunnels,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
 
         return (service, devTunnels);
     }
@@ -554,6 +552,44 @@ public class FourthWallServiceTests {
         Assert.NotEqual(ev1!.Id, ev2!.Id);
     }
 
+    [Theory]
+    [InlineData(true, OrderV1_status.CANCELLED, true)]
+    [InlineData(false, OrderV1_status.CANCELLED, false)]
+    [InlineData(true, OrderV1_status.SHIPPED, false)]
+    public void HandleOrderUpdated_CancelledOrder_RaisesCancelForPlacedEventId(bool enabled, OrderV1_status status,
+        bool expectRaised) {
+        (FourthWallService service, _) = MakeService(new Dictionary<(string, string), string> {
+            { ("FourthWall", FourthWallService.AutoDeleteCancelledKey), $"{enabled}" }
+        });
+        FourthwallOrderPlacedWebhookEvent placed = MakeOrderEvent(id: "ord_abc123");
+        SubathonEvent? placedEv = service.MapToSubathonEvent(placed);
+
+        placed.Data.Status = status;
+        placed.Data.FriendlyId = "FW-1234";
+        var updated = new FourthwallOrderUpdatedWebhookEvent {
+            Id = Guid.NewGuid().ToString(),
+            Data = new OrderUpdatedV1 { Order = placed.Data, Update = new OrderUpdatedV1Update { Type = "STATUS" } },
+            CreatedAt = DateTimeOffset.UtcNow,
+            TestMode = false,
+            WebhookId = "", ShopId = "", Type = "ORDER_UPDATED", ApiVersion = ""
+        };
+
+        (Guid Id, SubathonEventType Type, string Reference)? raised = null;
+        void OnCancelled(Guid id, SubathonEventType type, string reference) {
+            raised = (id, type, reference);
+        }
+        SubathonEvents.SubathonEventCancelled += OnCancelled;
+        bool result = service.HandleOrderUpdated(updated);
+        SubathonEvents.SubathonEventCancelled -= OnCancelled;
+
+        Assert.Equal(expectRaised, result);
+        Assert.Equal(expectRaised, raised != null);
+        if (!expectRaised) return;
+        Assert.Equal(placedEv!.Id, raised!.Value.Id);
+        Assert.Equal(SubathonEventType.FourthWallOrder, raised.Value.Type);
+        Assert.Equal("#FW-1234", raised.Value.Reference);
+    }
+
     [Fact]
     public async Task HandleWebhookAsync_ForwardsToConfiguredUrl() {
         await using MockWebServerHost mockServer = new MockWebServerHost().OnPost("/fw-forward", "");
@@ -572,9 +608,6 @@ public class FourthWallServiceTests {
             { { ("Server", "Port"), "14040" } });
         var devTunnels = new DevTunnelsService(dtLogger.Object, dtConfig, mockClient.Object);
 
-        var httpFactory = new Mock<IHttpClientFactory>();
-        httpFactory.Setup(f => f.CreateClient(nameof(FourthWallService))).Returns(new HttpClient());
-
         IConfig config = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
             { ("FourthWall", "ForwardUrls"), mockServer.BaseUrl.TrimEnd('/') + "/fw-forward" }
         });
@@ -582,8 +615,8 @@ public class FourthWallServiceTests {
             [StorageKeys.FourthWallAccessToken] = "123456abcdef",
             [StorageKeys.FourthWallRefreshToken] = "D34DBEEF"
         });
-        var service = new FourthWallService(logger.Object, config, httpFactory.Object, devTunnels, storage);
-        service.OpenBrowser = _ => { };
+        var service = new FourthWallService(logger.Object, config, devTunnels,
+            new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } });
 
         byte[] body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { type = "DONATION" }));
         var headers = new Dictionary<string, string> { { "Content-Type", "application/json" } };

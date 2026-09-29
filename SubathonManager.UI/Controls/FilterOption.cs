@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using SubathonManager.Core.Enums;
 
 namespace SubathonManager.UI.Controls;
 
@@ -9,6 +10,19 @@ public sealed class FilterOption : INotifyPropertyChanged {
     public string Label { get; init; } = "";
     public string Value { get; init; } = "";
     public string Group { get; init; } = "";
+
+    public static List<FilterOption> EventTypes(bool includeCommands = false) {
+        return Enum.GetValues<SubathonEventType>()
+            .Where(t => t != SubathonEventType.Unknown && (includeCommands || t != SubathonEventType.Command))
+            .OrderBy(t => SubathonEventSourceHelper.GetSourceOrder(((SubathonEventType?)t).GetSource()))
+            .ThenBy(t => ((SubathonEventType?)t).GetLabel(), StringComparer.OrdinalIgnoreCase)
+            .Select(t => new FilterOption {
+                Label = ((SubathonEventType?)t).GetLabel(),
+                Value = t.ToString(),
+                Group = ((SubathonEventType?)t).GetSource().ToString()
+            })
+            .ToList();
+    }
 
     public bool Selected {
         get => _selected;

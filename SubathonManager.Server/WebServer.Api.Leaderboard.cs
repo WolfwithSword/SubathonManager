@@ -207,7 +207,7 @@ public partial class WebServer {
             entry.Points += ev.GetFinalPointsValue();
 
             if (needsTokens &&
-                double.TryParse(ev.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double tokenValue))
+                Utils.TryParseAmount(ev.Value, out double tokenValue))
                 entry.Tokens += tokenValue * (ev.EventType.IsOrder() ? 1 : Math.Max(ev.Amount, 0));
 
             if (!needsMoney) continue;
@@ -409,7 +409,7 @@ public partial class WebServer {
             return (commission, commissionCurrency);
 
         if (IsCurrencyCode(ev.Currency) &&
-            double.TryParse(ev.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out double value))
+            Utils.TryParseAmount(ev.Value, out double value))
             return (value, ev.Currency!.ToUpperInvariant().Trim());
 
         if (TrySplitSecondaryValue(ev, out double secondary, out string secondaryCurrency))
@@ -425,7 +425,7 @@ public partial class WebServer {
 
         string[] parts = ev.SecondaryValue.Split('|');
         if (parts.Length < 2 || !IsCurrencyCode(parts[1])) return false;
-        if (!double.TryParse(parts[0], NumberStyles.Any, CultureInfo.InvariantCulture, out amount)) return false;
+        if (!Utils.TryParseAmount(parts[0], out amount)) return false;
 
         currency = parts[1].ToUpperInvariant().Trim();
         return true;

@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 using System.Web;
 using SubathonManager.Core;
-using SubathonManager.Core.Objects;
 
 namespace SubathonManager.UI.Platform;
 
@@ -30,21 +29,8 @@ public static class ProtocolParser {
 
         var uri = new Uri(arg);
 
-        if (uri.Host == "oauth") {
-            string provider = uri.AbsolutePath.TrimStart('/');
-            NameValueCollection oauthQuery = HttpUtility.ParseQueryString(uri.Query);
-
-            Utils.PendingOAuthCallback = new OAuthCallback {
-                Provider = provider,
-                AccessToken = oauthQuery["access_token"] ?? "",
-                RefreshToken = oauthQuery["refresh_token"] ?? "",
-                Code = oauthQuery["code"] ?? "",
-                Error = oauthQuery["error"] ?? "",
-                ExpiresIn = oauthQuery["expires_in"] ?? "",
-                ClientId = oauthQuery["client_id"] ?? ""
-            };
+        if (uri.Host == "oauth")
             return new ActivationRequest(ActivationKind.OAuth, arg);
-        }
 
         NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
         string? url = query["url"];

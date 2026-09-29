@@ -7,11 +7,13 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
+using Moq;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Integration;
 using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
@@ -33,6 +35,10 @@ namespace SubathonManager.Tests.IntegrationUnitTests;
 
 [Collection("GlobalState")]
 public class TwitchServiceTests {
+    private static OAuthService MakeOAuth(ISecureStorage storage) {
+        return new OAuthService(null, new Mock<IHttpClientFactory>().Object, storage) { OpenBrowser = _ => { } };
+    }
+
     public TwitchServiceTests() {
         string path = Path.GetFullPath(Path.Combine(string.Empty
             , "data"));
@@ -166,7 +172,7 @@ public class TwitchServiceTests {
         });
 
 
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
 
         var ev = CaptureEvent(() =>
             service
@@ -193,7 +199,7 @@ public class TwitchServiceTests {
         });
 
 
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
 
         var ev = CaptureEvent(() =>
             service
@@ -219,7 +225,7 @@ public class TwitchServiceTests {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
 
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
 
         var ev = CaptureEvent(() =>
             service
@@ -244,7 +250,7 @@ public class TwitchServiceTests {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
 
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
 
         var ev = CaptureEvent(() =>
             service
@@ -266,7 +272,7 @@ public class TwitchServiceTests {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
 
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var meta = new WebsocketEventSubMetadata {
             MessageId = Guid.NewGuid().ToString(),
@@ -320,7 +326,7 @@ public class TwitchServiceTests {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
 
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
         service.Login = "teststreamer";
 
         ChatMessage MakeMessage(string message, bool isVip, bool isMod, bool isBroadcaster, string userName,
@@ -446,7 +452,7 @@ public class TwitchServiceTests {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
 
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
         Assert.True(service.HasTokenFile());
         storage.Delete(StorageKeys.TwitchAccessToken);
         Assert.False(service.HasTokenFile());
@@ -458,7 +464,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
         service.RevokeTokenFile();
         Assert.False(storage.Exists(StorageKeys.TwitchAccessToken));
         await service.StopAsync(TestContext.Current.CancellationToken);
@@ -469,7 +475,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "badtoken"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         bool result = await service.ValidateTokenAsync();
 
@@ -482,7 +488,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var meta = new WebsocketEventSubMetadata
             { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
@@ -509,7 +515,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var meta = new WebsocketEventSubMetadata
             { MessageId = Guid.NewGuid().ToString(), MessageTimestamp = DateTime.UtcNow };
@@ -536,7 +542,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var args = new ChannelSubscribeArgs {
             Metadata = new WebsocketEventSubMetadata {
@@ -569,7 +575,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var args = new ChannelSubscriptionMessageArgs {
             Metadata = new WebsocketEventSubMetadata {
@@ -599,7 +605,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var args = new ChannelRaidArgs {
             Metadata = new WebsocketEventSubMetadata {
@@ -629,7 +635,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var args = new ChannelHypeTrainBeginV2Args {
             Metadata = new WebsocketEventSubMetadata {
@@ -660,7 +666,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
         await service.InvokePrivate("HandleHypeTrainBeginV2", null, new ChannelHypeTrainBeginV2Args {
             Metadata = new WebsocketEventSubMetadata {
                 MessageId = Guid.NewGuid().ToString(),
@@ -703,7 +709,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var args = new ChannelHypeTrainEndV2Args {
             Metadata = new WebsocketEventSubMetadata {
@@ -734,7 +740,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
 
         var args = new ChannelCharityCampaignDonateArgs {
             Metadata = new WebsocketEventSubMetadata {
@@ -770,7 +776,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
         await service.StartAsync(CancellationToken.None);
 
         await service.StopAsync(CancellationToken.None);
@@ -783,7 +789,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
 
         service.Login = "teststreamer";
 
@@ -848,7 +854,7 @@ public class TwitchServiceTests {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = "123456abcdef"
         });
-        var service = new TwitchService(null, config, storage);
+        var service = new TwitchService(null, config, MakeOAuth(storage));
 
         service.Login = "teststreamer2";
 
@@ -905,31 +911,17 @@ public class TwitchServiceTests {
     }
 
     [Fact]
-    public async Task StartOAuthFlow_WritesTokenFile() {
+    public async Task OAuthLogin_WritesTokenFile() {
         var storage = new InMemorySecureStorage(new Dictionary<string, string> {
             [StorageKeys.TwitchAccessToken] = ""
         });
-        var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+        OAuthService oAuth = MakeOAuth(storage);
+        var service = new TwitchService(null, MockConfig.MakeMockConfig(), oAuth);
 
-        service.OpenBrowser = _ => { };
+        Task<bool> login = oAuth.AuthorizeAsync(TwitchService.OAuthKeys, TestContext.Current.CancellationToken);
+        Assert.True(oAuth.HandleCallback("subathonmanager://oauth/twitch?access_token=test_access_token_abc123"));
 
-        var fakeToken = "test_access_token_abc123";
-
-        var callbackSim = Task.Run(async () => {
-            await Task.Delay(200);
-            Utils.PendingOAuthCallback = new OAuthCallback {
-                Provider = "twitch",
-                AccessToken = fakeToken
-            };
-        }, TestContext.Current.CancellationToken);
-
-        var oauthMethod = typeof(TwitchService)
-            .GetMethod("StartOAuthFlowAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
-
-        await Task.WhenAll(
-            callbackSim,
-            (Task)oauthMethod.Invoke(service, null)!
-        );
+        Assert.True(await login);
         Assert.True(service.HasTokenFile());
         Assert.True(storage.Exists(StorageKeys.TwitchAccessToken));
         service.RevokeTokenFile();
@@ -952,7 +944,7 @@ public class TwitchServiceTests {
             var storage = new InMemorySecureStorage(new Dictionary<string, string> {
                 [StorageKeys.TwitchAccessToken] = "123456abcdef"
             });
-            var service = new TwitchService(null, MockConfig.MakeMockConfig(), storage);
+            var service = new TwitchService(null, MockConfig.MakeMockConfig(), MakeOAuth(storage));
             service.EventSubUrl = wsServer.Uri;
 
             _ = Task.Run(async () => {

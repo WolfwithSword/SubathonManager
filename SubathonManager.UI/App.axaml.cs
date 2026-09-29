@@ -58,8 +58,9 @@ public partial class App : Application {
         if (this.TryGetFeature<IActivatableLifetime>() is { } activatable)
             activatable.Activated += (_, e) => OnAppActivated(e);
 
-        if (desktop.Args is { Length: > 0 })
-            ProtocolParser.Parse(desktop.Args);
+        ActivationKind launchKind = desktop.Args is { Length: > 0 }
+            ? ProtocolParser.Parse(desktop.Args).Kind
+            : ActivationKind.Unknown;
 
         var services = new ServiceCollection();
 
@@ -139,7 +140,7 @@ public partial class App : Application {
 
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
-            if (Utils.PendingOAuthCallback != null) {
+            if (launchKind == ActivationKind.OAuth) {
                 desktop.Shutdown();
                 return;
             }
@@ -155,8 +156,13 @@ public partial class App : Application {
                 await AppDbContext.PauseAllTimers(context1);
                 await using AppDbContext context2 = await _factory.CreateDbContextAsync();
                 await AppDbContext.ResetPowerHour(context2);
-                await using AppDbContext context3 = await _factory.CreateDbContextAsync();
-                await SetupSubathonCurrencyData(context3, false);
+                try {
+                    await using AppDbContext context3 = await _factory.CreateDbContextAsync();
+                    await SetupSubathonCurrencyData(context3, false);
+                }
+                catch (Exception ex) {
+                    _logger?.LogError(ex, "Failed to recalculate subathon currency data on startup");
+                }
 
                 await sm.StartAsync<WebServer>(fireAndForget: true);
                 await sm.StartAsync<TimerService>(fireAndForget: true);
@@ -195,7 +201,7 @@ public partial class App : Application {
                     Utils.PendingWidgetPackImportPath = request.Payload;
                     break;
                 case ActivationKind.OAuth:
-                    ProtocolParser.Parse([request.Payload]);
+                    AppServices.Provider.GetRequiredService<OAuthService>().HandleCallback(request.Payload);
                     break;
                 default:
                     _logger?.LogDebug("Activation received with no recognised payload: {Payload}", request.Payload);
@@ -216,7 +222,7 @@ public partial class App : Application {
         };
 
         if (request.Kind == ActivationKind.Unknown) return;
-        Dispatcher.UIThread.Post(() => DispatchToMainWindow(request.Kind));
+        OnActivationReceived(request);
     }
 
     private void DispatchToMainWindow(ActivationKind kind) {
@@ -480,11 +486,14 @@ public partial class App : Application {
             string value = ev.Value;
             string? curr = ev.Currency;
             if (ev.EventType.IsOrder()) {
-                value = ev.SecondaryValue.Split('|')[0];
-                curr = ev.SecondaryValue.Split('|')[1];
+                string[] parts = ev.SecondaryValue.Split('|');
+                if (parts.Length < 2 || !Utils.TryParseAmount(parts[0], out _)) continue;
+                value = parts[0];
+                curr = parts[1];
+                if (!currencyService.IsValidCurrency(curr)) continue;
             }
 
-            double amt = await currencyService.ConvertAsync(double.Parse(value), curr, currency.ToUpper());
+            double amt = await currencyService.ConvertAsync(Utils.ParseAmount(value), curr, currency.ToUpper());
             sum += amt;
         }
 
