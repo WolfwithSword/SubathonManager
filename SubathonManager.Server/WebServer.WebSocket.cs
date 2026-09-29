@@ -446,7 +446,7 @@ public partial class WebServer {
             string msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
             var clientMessageType = WebsocketClientMessageType.None;
             try {
-                JsonDocument json = JsonDocument.Parse(msg);
+                using JsonDocument json = JsonDocument.Parse(msg);
                 if (json.RootElement.TryGetProperty("ws_type", out JsonElement type)) {
                     switch (type.GetString()) {
                         case "ping":

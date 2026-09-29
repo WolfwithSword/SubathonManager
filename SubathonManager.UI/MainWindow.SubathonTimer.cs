@@ -26,6 +26,7 @@ public partial class MainWindow {
     private static readonly SolidColorBrush PausedBorderBrush = new(Color.FromRgb(0xF5, 0xA6, 0x23));
     private static readonly SolidColorBrush LockedBorderBrush = new(Color.FromRgb(0xE0, 0x52, 0x52));
 
+    private bool? _capInEffect;
     private DateTime? _lastUpdatedTimerAt;
 
     private void InitHome() {
@@ -74,8 +75,10 @@ public partial class MainWindow {
 
             if (LockStatus.IsVisible != subathon.IsLocked) LockStatus.IsVisible = subathon.IsLocked;
 
-            ToolTip.SetTip(TogglePauseTimerBtn, subathon.IsPaused ? "Resume" : "Pause");
-            ToolTip.SetTip(ToggleLockTimerBtn, subathon.IsLocked ? "Unlock" : "Lock");
+            string pauseTip = subathon.IsPaused ? "Resume" : "Pause";
+            if (ToolTip.GetTip(TogglePauseTimerBtn) as string != pauseTip) ToolTip.SetTip(TogglePauseTimerBtn, pauseTip);
+            string lockTip = subathon.IsLocked ? "Unlock" : "Lock";
+            if (ToolTip.GetTip(ToggleLockTimerBtn) as string != lockTip) ToolTip.SetTip(ToggleLockTimerBtn, lockTip);
 
             PauseButtonBorder.BorderBrush = subathon.IsPaused ? PausedBorderBrush : Brushes.Transparent;
             LockButtonBorder.BorderBrush = subathon.IsLocked ? LockedBorderBrush : Brushes.Transparent;
@@ -85,7 +88,10 @@ public partial class MainWindow {
                 : "FlagOff20";
             if (CapIcon.Glyph != capGlyph) CapIcon.Glyph = capGlyph;
 
-            if (subathon.IsCapInEffect())
+            bool capInEffect = subathon.IsCapInEffect();
+            if (_capInEffect == capInEffect) return;
+            _capInEffect = capInEffect;
+            if (capInEffect)
                 CapIcon.Foreground = Brushes.Orange;
             else
                 CapIcon.SetDynamicResource(ForegroundProperty, "TextFillColorPrimaryBrush");
@@ -142,7 +148,10 @@ public partial class MainWindow {
         };
         if (await dialog.ShowAsync() != FAContentDialogResult.Primary) return;
 
-        await Task.Run(async () => AppDbContext.DisableAllTimers(await _factory.CreateDbContextAsync()));
+        await Task.Run(async () => {
+            await using AppDbContext disableDb = await _factory.CreateDbContextAsync();
+            await AppDbContext.DisableAllTimers(disableDb);
+        });
         await using AppDbContext db = await _factory.CreateDbContextAsync();
 
         var subathon = new SubathonData();
