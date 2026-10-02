@@ -120,13 +120,13 @@ public class PatreonServiceTests {
     [Fact]
     public async Task PayloadTier_OverridesAStaleCachedTier() {
         PatreonService service = MakeService();
-        service.Tiers["t2"] = "Old Gold";
+        service.Tiers["t2"] = ("Old Gold", 400);
 
         SubathonEvent? ev = await SendAsync(service, PatreonService.PledgeCreated, Payload());
 
         Assert.NotNull(ev);
         Assert.Equal("Gold", ev.Value);
-        Assert.Equal("Gold", service.Tiers["t2"]);
+        Assert.Equal(("Gold", 500), service.Tiers["t2"]);
     }
 
     [Fact]
@@ -166,8 +166,8 @@ public class PatreonServiceTests {
 
     [Theory]
     [InlineData(false, "Gold", "member")]
-    [InlineData(true, "5.00", "USD")]
-    public async Task PledgeUpdate_Upgrade_CountsTheTierOrTheDifference(bool byAmount, string value,
+    [InlineData(true, "10.00", "USD")]
+    public async Task PledgeUpdate_Upgrade_CountsTheTierOrTheWillPayAmount(bool byAmount, string value,
         string currency) {
         SubathonEvent? ev = await SendAsync(MakeService(byAmount: byAmount), PatreonService.PledgeUpdated,
             Payload(1000, 500, lastCharge: MinutesAgo(1), chargeStatus: "Paid"));
@@ -176,7 +176,7 @@ public class PatreonServiceTests {
         Assert.Equal(value, ev.Value);
         Assert.Equal(currency, ev.Currency);
         Assert.Equal(1, ev.Amount);
-        Assert.Equal("5.00|USD", ev.SecondaryValue);
+        Assert.Equal("10.00|USD", ev.SecondaryValue);
     }
 
     [Fact]
@@ -190,15 +190,13 @@ public class PatreonServiceTests {
     }
 
     [Theory]
-    [InlineData(300, 500, 1, "Paid")]
-    [InlineData(500, 500, null, null)]
+    [InlineData(300, 500, 60 * 24 * 10, "Paid")]
     [InlineData(500, 500, 2, "Declined")]
     [InlineData(500, 500, 120, "Paid")]
     public async Task PledgeUpdate_DowngradeOrNoFreshPaidCharge_IsIgnored(int willPay, int entitled,
-        int? chargedMinutesAgo, string? chargeStatus) {
+        int chargedMinutesAgo, string? chargeStatus) {
         Assert.Null(await SendAsync(MakeService(), PatreonService.PledgeUpdated,
-            Payload(willPay, entitled, lastCharge: chargedMinutesAgo is { } m ? MinutesAgo(m) : null,
-                chargeStatus: chargeStatus)));
+            Payload(willPay, entitled, lastCharge: MinutesAgo(chargedMinutesAgo), chargeStatus: chargeStatus)));
     }
 
     [Theory]
@@ -231,6 +229,14 @@ public class PatreonServiceTests {
     public async Task MemberUpdate_WithoutAFreshPaidCharge_IsIgnored(int? chargedMinutesAgo, string? chargeStatus) {
         Assert.Null(await SendAsync(MakeService(), PatreonService.MemberUpdated,
             Payload(lastCharge: chargedMinutesAgo is { } m ? MinutesAgo(m) : null, chargeStatus: chargeStatus)));
+    }
+
+    [Fact]
+    public async Task PledgeUpdate_WithNoChargeDate_IsCounted() {
+        SubathonEvent? ev = await SendAsync(MakeService(), PatreonService.PledgeUpdated, Payload());
+        Assert.NotNull(ev);
+        Assert.Equal("Gold", ev.Value);
+        Assert.Equal("5.00|USD", ev.SecondaryValue);
     }
 
     [Theory]
@@ -289,15 +295,20 @@ public class PatreonServiceTests {
         Assert.Equal(expected, Utils.IsCommissionAsDonation(config, ev));
     }
 
-    [Fact]
-    public void SimulateMembership_RaisesSimulatedEventForChosenTier() {
+    [Theory]
+    [InlineData("Silver", true, 12, "96.00|USD")]
+    [InlineData("Silver", false, 1, "8.00|USD")]
+    [InlineData("DEFAULT", false, 1, "5.00|USD")]
+    public void SimulateMembership_ChargesTheTiersPrice(string tier, bool annual, int amount, string charged) {
         PatreonService service = MakeService();
+        service.Tiers["t9"] = ("Silver", 800);
 
-        SubathonEvent? ev = EventUtil.SubathonEventCapture.Capture(() => service.SimulateMembership("Silver", true));
+        SubathonEvent? ev = EventUtil.SubathonEventCapture.Capture(() => service.SimulateMembership(tier, annual));
 
         Assert.NotNull(ev);
         Assert.Equal(SubathonEventSource.Simulated, ev.Source);
-        Assert.Equal("Silver", ev.Value);
-        Assert.Equal(12, ev.Amount);
+        Assert.Equal(tier, ev.Value);
+        Assert.Equal(amount, ev.Amount);
+        Assert.Equal(charged, ev.SecondaryValue);
     }
 }

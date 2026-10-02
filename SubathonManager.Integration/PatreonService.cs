@@ -47,8 +47,9 @@ public class PatreonService(
     private readonly PatreonWebhookHandler _handler = new(new PatreonWebhookSignatureVerifier());
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
-    // tier id -> title, refreshed from webhook payloads so renames follow the id
-    internal readonly ConcurrentDictionary<string, string> Tiers = new();
+    // tier id -> (title, cents), refreshed from webhook payloads so renames follow the id
+    // cents stored is for simulating/testing
+    internal readonly ConcurrentDictionary<string, (string Title, int Cents)> Tiers = new();
     private string? _campaignId;
     private string _currency = "USD";
 
@@ -275,8 +276,9 @@ public class PatreonService(
 
         foreach (JsonApiResource<TierAttributes> tier in tiers ?? [])
             if (tier.Attributes is { AmountCents: > 0 } attrs && !string.IsNullOrWhiteSpace(attrs.Title))
-                Tiers[tier.Id] = attrs.Title;
-        IntegrationEvents.RaiseMembershipTiersSynced(SubathonEventSource.Patreon, Tiers.Values.ToList());
+                Tiers[tier.Id] = (attrs.Title, attrs.AmountCents);
+        IntegrationEvents.RaiseMembershipTiersSynced(SubathonEventSource.Patreon,
+            Tiers.Values.Select(t => t.Title).ToList());
 
         string url = tunnelConn.Name.TrimEnd('/') + WebhookPath;
         if (!await EnsureWebhookAsync(client, url, ct)) {
@@ -379,15 +381,19 @@ public class PatreonService(
                 name, tier, willPay, currency, cadence, Utils.ParseDateFromString(member.PledgeRelationshipStart) ?? now);
         }
 
-        if (!IsPaid(member.LastChargeStatus) || charged == null || charged < now - LiveWindow) return null;
+        // charge date needed for members:update to be within window
+        // created and update for pledge can be null just bc it's surely a pledge, but also, their test webhooks have it null...
+        if (charged != null && (!IsPaid(member.LastChargeStatus) || charged < now - LiveWindow)) return null;
         if (eventType == MemberUpdated)
-            return BuildPledgeEvent(chargeKey, name, tier, willPay, currency, cadence, charged.Value);
+            return charged is { } paidAt
+                ? BuildPledgeEvent(chargeKey, name, tier, willPay, currency, cadence, paidAt)
+                : null;
 
         // assumes an upgrade shows will_pay below entitled so only the difference counts
         // unless its upgrade to annual, then will pay is above likely. Either way we don't care much
         // we get the amount charged anyways
         return BuildPledgeEvent(chargeKey, name, tier, willPay, currency,
-            cadence, charged.Value);
+            cadence, charged ?? now);
     }
 
     private static string? PatronVanity(string? fullName, JsonApiIncludedIndex included) {
@@ -421,14 +427,16 @@ public class PatreonService(
         if (included.TryGet("tier", id, out JsonElement tier))
             attrs = tier.TryGetProperty("attributes", out JsonElement nested) ? nested : tier;
         if (attrs.ValueKind != JsonValueKind.Object || Utils.GetJsonString(attrs, "title") is not { Length: > 0 } title)
-            return Tiers.TryGetValue(id, out string? known) ? (known, 0) : null;
+            return Tiers.TryGetValue(id, out (string Title, int Cents) known) ? known : null;
 
-        bool newTitle = !Tiers.Values.Contains(title);
-        Tiers[id] = title;
-        if (newTitle) IntegrationEvents.RaiseMembershipTiersSynced(SubathonEventSource.Patreon, Tiers.Values.ToList());
         int cents = attrs.TryGetProperty("amount_cents", out JsonElement amount) && amount.TryGetInt32(out int c)
             ? c
-            : 0;
+            : Tiers.TryGetValue(id, out (string Title, int Cents) cached) ? cached.Cents : 0;
+        bool newTitle = Tiers.Values.All(t => t.Title != title);
+        Tiers[id] = (title, cents);
+        if (newTitle)
+            IntegrationEvents.RaiseMembershipTiersSynced(SubathonEventSource.Patreon,
+                Tiers.Values.Select(t => t.Title).ToList());
         return (title, cents);
     }
 
@@ -455,8 +463,9 @@ public class PatreonService(
     }
 
     public void SimulateMembership(string tierName, bool annual) {
+        int cents = Tiers.Values.FirstOrDefault(t => t.Title == tierName).Cents is > 0 and var known ? known : 500;
         SubathonEvent ev = BuildPledgeEvent($"patreon|simulated|{Guid.NewGuid()}", "SYSTEM", tierName,
-            annual ? 6000 : 500, _currency, annual ? 12 : 1, DateTimeOffset.Now);
+            annual ? cents * 12 : cents, _currency, annual ? 12 : 1, DateTimeOffset.Now);
         SubathonEvents.RaiseSubathonEventCreated(ev);
     }
 
