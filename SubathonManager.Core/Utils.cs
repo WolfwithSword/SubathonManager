@@ -274,7 +274,26 @@ public static class Utils {
         }
     }
 
+    public static string? GetJsonString(JsonElement element, string property) {
+        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(property, out JsonElement value) &&
+               value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
+
+    // dates without an offset are taken as utc
+    public static DateTimeOffset? ParseDateFromString(string? value) {
+        return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal,
+            out DateTimeOffset parsed)
+            ? parsed
+            : null;
+    }
+    
+    public const string PerUnitMeta = "PER_UNIT";
+
     public static bool IsCommissionAsDonation(IConfig config, SubathonEvent ev) {
+        if (ev.EventType == SubathonEventType.PatreonPledge)
+            return config.GetBool(nameof(SubathonEventSource.Patreon),$"{ev.EventType}.CommissionAsDonation");
         if (!ev.EventType.IsOrder()) return false;
 
         if (ev.EventType == SubathonEventType.GoAffProOrder) {

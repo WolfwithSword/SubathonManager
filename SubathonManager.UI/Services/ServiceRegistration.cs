@@ -76,6 +76,12 @@ public static class ServiceRegistration {
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
         services.AddSingleton<FourthWallService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
+        services.AddHttpClient(nameof(PatreonService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan)
+            .AddHttpMessageHandler(sp =>
+                // logging handler is so client logs responses instead of null return
+                new PatreonService.ErrorLoggingHandler(sp.GetService<ILogger<PatreonService>>()));
+        services.AddSingleton<PatreonService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<PatreonService>());
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
         services.AddSingleton<PallyService>();

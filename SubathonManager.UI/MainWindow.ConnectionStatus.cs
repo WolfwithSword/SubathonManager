@@ -141,7 +141,7 @@ public partial class MainWindow {
         SubathonSourceGroup sourceGroup = source.GetGroup();
         if (sourceGroup is SubathonSourceGroup.StreamExtension or SubathonSourceGroup.ExternalSoftware
             || source is SubathonEventSource.FourthWall or SubathonEventSource.Throne
-                or SubathonEventSource.MakeShip) {
+                or SubathonEventSource.MakeShip or SubathonEventSource.Patreon) {
             bool up = connections.Any(c => c.Status);
             IBrush brush = up
                 ? StatusUpBrush

@@ -33,4 +33,10 @@ public static class StorageKeys {
     public const string TiltifyAccessToken = "SM.Tiltify.AccessToken";
     public const string TiltifyRefreshToken = "SM.Tiltify.RefreshToken";
     public const string TiltifyTokenExpiry = "SM.Tiltify.TokenExpiry";
+
+    public const string PatreonAccessToken = "SM.Patreon.AccessToken";
+    public const string PatreonRefreshToken = "SM.Patreon.RefreshToken";
+    public const string PatreonTokenExpiry = "SM.Patreon.TokenExpiry";
+    public const string PatreonWebhookId = "SM.Patreon.WebhookId";
+    public const string PatreonWebhookSecret = "SM.Patreon.WebhookSecret";
 }

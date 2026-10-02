@@ -160,20 +160,9 @@ public class FourthWallService(
 
     [ExcludeFromCodeCoverage]
     private async Task InitializeCoreAsync(CancellationToken ct) {
-        IntegrationConnection tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-        if (!tunnelConn.Status) {
-            await devTunnels.StartTunnelAsync(ct);
-            tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-            if (!tunnelConn.Status) {
-                string reason = !devTunnels.IsCliInstalled ? "the DevTunnels CLI isn't installed"
-                    : !devTunnels.IsLoggedIn ? "DevTunnels isn't logged in"
-                    : "the tunnel failed to start";
-                logger?.LogWarning("[FourthWall] Can't connect: {Reason}", reason);
-                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.FourthWall),
-                    $"FourthWall needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
-                BroadcastStatus(HasTokenFile(), null);
-                return;
-            }
+        if (await devTunnels.RequireTunnelAsync(SubathonEventSource.FourthWall, ct) is not { } tunnelConn) {
+            BroadcastStatus(HasTokenFile(), null);
+            return;
         }
 
         bool canConnect = await CheckForTokenAsync(ct);
@@ -268,7 +257,7 @@ public class FourthWallService(
 
                 MembershipNames[x.Id] = x.Name;
             });
-        IntegrationEvents.RaiseFourthWallMembershipsSynced(MembershipNames);
+        IntegrationEvents.RaiseMembershipTiersSynced(SubathonEventSource.FourthWall, MembershipNames.Values.ToList());
 
         // Seed status; include public URL if the tunnel is already running
         tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");

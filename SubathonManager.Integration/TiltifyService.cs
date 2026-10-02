@@ -7,6 +7,7 @@ using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Abstractions.Authentication;
 using Microsoft.Kiota.Abstractions.Serialization;
 using Microsoft.Kiota.Http.HttpClientLibrary;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
@@ -315,9 +316,8 @@ public class TiltifyService(
                         data.ValueKind == JsonValueKind.Array
             ? (await KiotaJsonSerializer.DeserializeCollectionAsync(data.GetRawText(), factory, ct)).ToList()
             : [];
-        string? after = doc.RootElement.TryGetProperty("metadata", out JsonElement meta) &&
-                        meta.TryGetProperty("after", out JsonElement a) && a.ValueKind == JsonValueKind.String
-            ? a.GetString()
+        string? after = doc.RootElement.TryGetProperty("metadata", out JsonElement meta)
+            ? Utils.GetJsonString(meta, "after")
             : null;
         return (items, after);
     }

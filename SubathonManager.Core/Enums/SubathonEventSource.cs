@@ -112,7 +112,11 @@ public enum SubathonEventSource {
 
     [EventSourceMeta(Description = "Tiltify", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder = 67,
         Order = 56)]
-    Tiltify
+    Tiltify,
+
+    [EventSourceMeta(Description = "Patreon", SourceGroup = SubathonSourceGroup.ExternalService, SourceOrder = 68,
+        Order = 57)]
+    Patreon
 }
 
 [ExcludeFromCodeCoverage]

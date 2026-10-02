@@ -216,8 +216,10 @@ public class EventService : IDisposable, IAppService {
             }
             else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency)
                                                         && (ev.EventType.IsCurrencyDonation() ||
-                                                            ev.EventType
-                                                                .IsOrder())) // includes orders when parsed as money mode
+                                                            ev.EventType.IsOrder() ||
+                                                            ev.EventType == SubathonEventType.PatreonPledge))
+                // includes orders when parsed as money mode, and patreon pledges valued by amount
+                // currency would be "member" if it was not added in currency mode
             {
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(Utils.ParseAmount(ev.Value), ev.Currency)).Result;

@@ -283,8 +283,12 @@ public class AppDbContext : DbContext {
             .Select(s => s.SiteId.ToString())
             .ToHashSet();
 
+        bool includePatreon = Utils.DonationSettings.TryGetValue(nameof(SubathonEventType.PatreonPledge),
+            out bool patreonAsDonation) && patreonAsDonation;
+
         events = events.Where(e => e.EventType != null &&
                                    (e.EventType.IsCurrencyDonation() ||
+                                    (includePatreon && e.EventType == SubathonEventType.PatreonPledge) ||
                                     (e.EventType == SubathonEventType.GoAffProOrder &&
                                      !string.IsNullOrEmpty(e.EventTypeMeta) &&
                                      goAffProMetasToInclude.Contains(e.EventTypeMeta)) ||
@@ -466,6 +470,8 @@ public class AppDbContext : DbContext {
             new() { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
             new() { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
             new() { EventType = SubathonEventType.TiltifyDonation, Seconds = 12 },
+            new() { EventType = SubathonEventType.PatreonPledge, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.PatreonPledge, Meta = Utils.PerUnitMeta, Seconds = 12 },
             new() { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
             new() {
                 EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60

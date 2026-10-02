@@ -39,17 +39,20 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
-            IntegrationEvents.FourthWallMembershipsSynced += SyncMemberships;
+            IntegrationEvents.MembershipTiersSynced += OnTiersSynced;
             RegisterUnsavedChangeHandlers();
             RefreshFromStoredState();
         };
         Unloaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated -= UpdateStatus;
-            IntegrationEvents.FourthWallMembershipsSynced -= SyncMemberships;
+            IntegrationEvents.MembershipTiersSynced -= OnTiersSynced;
         };
     }
 
     protected override StackPanel? _MembershipsPanel => MembershipsPanel;
+    protected override TextBox? _DefaultMembershipSecondsBox => FwSubDTextBox;
+    protected override TextBox? _DefaultMembershipPointsBox => FwSubDTextBox2;
+    protected override ComboBox? _MembershipTierCombo => SimFwTierSelection;
 
     protected override TextBox _WebhookUrlBox => WebhookUrlBox;
     protected override TextBlock _WebhookStatusText => FwWebhookStatusText;
@@ -85,7 +88,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
 
     protected internal override void LoadValues(AppDbContext db) {
         SuppressUnsavedChanges(() => {
-            LoadValuesForMemberships(db);
+            LoadMembershipValues(db);
             LoadConfigValues();
         });
     }
@@ -121,71 +124,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
             hasUpdated = true;
         }
 
-        SubathonValue? defaultSubValue = db.SubathonValues.FirstOrDefault(sv =>
-            sv.EventType == SubathonEventType.FourthWallMembership && sv.Meta == "DEFAULT");
-        if (defaultSubValue != null && double.TryParse(FwSubDTextBox.Text, out double defaultSeconds) &&
-            !defaultSeconds.Equals(defaultSubValue.Seconds)) {
-            defaultSubValue.Seconds = defaultSeconds;
-            hasUpdated = true;
-        }
-
-        if (defaultSubValue != null && double.TryParse(FwSubDTextBox2.Text, out double defaultPoints) &&
-            !defaultPoints.Equals(defaultSubValue.Points)) {
-            defaultSubValue.Points = defaultPoints;
-            hasUpdated = true;
-        }
-
-        List<DynamicSubRow> removeRows =
-            _dynamicSubRows.Where(row => string.IsNullOrWhiteSpace(row.NameBox.Text)).ToList();
-        if (removeRows.Any()) hasUpdated = true;
-        foreach (DynamicSubRow row in removeRows)
-            DeleteRow(row.SubValue, row);
-
-        EnsureUniqueName(_dynamicSubRows);
-
-        foreach (DynamicSubRow subRow in _dynamicSubRows) {
-            string meta = (subRow.NameBox.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(meta)) {
-                DeleteRow(subRow.SubValue, subRow);
-                hasUpdated = true;
-                continue;
-            }
-
-            if (meta == "DEFAULT") continue;
-
-            if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
-            if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
-
-#pragma warning disable CA1862
-            SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>
-                sv.EventType == SubathonEventType.FourthWallMembership && sv.Meta.ToLower() == meta.ToLower());
-#pragma warning restore CA1862
-            if (existing != null) {
-                existing.Seconds = seconds;
-                existing.Points = points;
-                subRow.SubValue = existing;
-                if (!seconds.Equals(existing.Seconds) || !points.Equals(existing.Points))
-                    hasUpdated = true;
-            }
-            else {
-                subRow.SubValue.Meta = meta;
-                subRow.SubValue.Seconds = seconds;
-                subRow.SubValue.Points = points;
-                db.SubathonValues.Add(subRow.SubValue);
-                hasUpdated = true;
-            }
-        }
-
-        List<string> names = ["DEFAULT"];
-        foreach (DynamicSubRow row in _dynamicSubRows)
-            names.Add((row.NameBox.Text ?? "").Trim());
-
-        List<SubathonValue> dbRows = db.SubathonValues.Where(x =>
-            !names.Contains(x.Meta) && x.EventType == SubathonEventType.FourthWallMembership).ToList();
-        if (dbRows.Count > 0) {
-            db.SubathonValues.RemoveRange(dbRows);
-            hasUpdated = true;
-        }
+        hasUpdated |= SaveMembershipValues(db);
 
         SubathonValue? orderVal =
             db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallOrder && x.Meta == "");
@@ -428,88 +367,10 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         ServiceManager.FourthWall.RevokeTokenFile();
     }
 
-    private void SyncMemberships(Dictionary<string, string> memberships) {
-        List<string> names = memberships.Values.ToList();
-        using AppDbContext db = _factory.CreateDbContext();
-        List<string> existing = db.SubathonValues.Where(v => names.Contains(v.Meta)).Select(v => v.Meta).ToList();
-        var newValues = new List<SubathonValue>();
-        foreach (string tier in names.Where(x => !existing.Contains(x))) {
-            var val = new SubathonValue
-                { Meta = tier, Seconds = 0, Points = 0, EventType = SubathonEventType.FourthWallMembership };
-            newValues.Add(val);
-        }
-
-        if (newValues.Any()) {
-            db.SubathonValues.AddRange(newValues);
-            db.SaveChanges();
-            Dispatcher.UIThread.Post(() => SuppressUnsavedChanges(() => LoadValuesForMemberships(null)));
-        }
+    private void OnTiersSynced(SubathonEventSource source, IReadOnlyCollection<string> tierNames) {
+        if (source == SubathonEventSource.FourthWall) SyncMembershipTiers(tierNames);
     }
 
     internal override void AddMembership_Click(object? sender, RoutedEventArgs e) {
-    }
-
-    private void LoadValuesForMemberships(AppDbContext? db) {
-        using AppDbContext? owned = db == null ? _factory.CreateDbContext() : null;
-        // ReSharper disable once NullableWarningSuppressionIsUsed
-        db ??= owned!;
-        List<SubathonValue> values = db.SubathonValues.Where(v => v.EventType == SubathonEventType.FourthWallMembership)
-            .OrderBy(meta => meta)
-            .AsNoTracking().ToList();
-
-        for (int i = MembershipsPanel.Children.Count - 1; i >= 0; i--) {
-            Control child = MembershipsPanel.Children[i];
-            if (child.Name != "DefaultMember" && child.Name != "AddBtn")
-                MembershipsPanel.Children.RemoveAt(i);
-        }
-
-        _dynamicSubRows.Clear();
-        foreach (SubathonValue value in values) {
-            TextBox? box1 = null;
-            TextBox? box2 = null;
-            var v = $"{value.Seconds}";
-            var p = $"{value.Points}";
-
-            if (value is { Meta: "DEFAULT", EventType: SubathonEventType.FourthWallMembership }) {
-                box1 = FwSubDTextBox;
-                box2 = FwSubDTextBox2;
-            }
-            else if (value.EventType == SubathonEventType.FourthWallMembership) {
-                AddMembershipRow(value);
-            }
-
-            if (!string.IsNullOrWhiteSpace(v) && !string.IsNullOrWhiteSpace(p) && box1 != null && box2 != null)
-                Host.UpdateTimePointsBoxes(box1, box2, v, p);
-        }
-
-        RefreshTierCombo();
-    }
-
-    private void RefreshTierCombo() {
-        string selectedTier = (SimFwTierSelection.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
-        using AppDbContext db = _factory.CreateDbContext();
-
-        List<string> metas = db.SubathonValues
-            .Where(v => v.EventType == SubathonEventType.FourthWallMembership)
-            .Select(v => v.Meta)
-            .Where(meta => meta != "DEFAULT" && !string.IsNullOrWhiteSpace(meta))
-            .Distinct()
-            .OrderBy(meta => meta)
-            .AsNoTracking()
-            .ToList();
-
-        SimFwTierSelection.Items.Clear();
-        SimFwTierSelection.Items.Add(new ComboBoxItem { Content = "DEFAULT" });
-        foreach (string meta in metas)
-            SimFwTierSelection.Items.Add(new ComboBoxItem { Content = meta });
-
-        foreach (object? comboItem in SimFwTierSelection.Items) {
-            if (comboItem is not ComboBoxItem cbi ||
-                !string.Equals(cbi.Content?.ToString(), selectedTier, StringComparison.OrdinalIgnoreCase)) continue;
-            SimFwTierSelection.SelectedItem = cbi;
-            break;
-        }
-
-        SimFwTierSelection.SelectedItem ??= SimFwTierSelection.Items[0];
     }
 }
