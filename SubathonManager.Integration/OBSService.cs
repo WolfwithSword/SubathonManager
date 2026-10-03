@@ -31,7 +31,7 @@ public sealed record ObsBrowserSourceCard(
     Guid? RouteId);
 
 [ExcludeFromCodeCoverage]
-public class OBSService : IAppService {
+public class OBSService : IAppService, IActionStepRunner {
     private const string HelperHotkeyName = "subathonmanager_apply_tweaks";
     private const string HelperVersionHotkeyPrefix = "subathonmanager_version_";
     private const string ManagedMarkerKey = "subathon_managed";
@@ -723,5 +723,168 @@ public class OBSService : IAppService {
 
         await TryApplyHelperTweaksAsync();
         BrowserSourcesChanged?.Invoke();
+    }
+
+    ////////////////////////// action steps
+    
+    public IReadOnlyCollection<ActionStepType> StepTypes { get; } = [
+        ActionStepType.ObsSourceVisibility, 
+        ActionStepType.ObsFilter,
+        ActionStepType.ObsAudio,
+        ActionStepType.ObsMedia
+    ];
+
+    public Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
+        CancellationToken ct) {
+        if (!_obs.IsConnected) return Task.FromResult(false);
+        return Task.Run(() => {
+            try {
+                return RunStep(step);
+            }
+            catch (Exception ex) {
+                _logger?.LogWarning(ex, "[OBSService] Action \"{Step}\" failed", step.Describe());
+                return false;
+            }
+        }, ct);
+    }
+
+    private bool RunStep(ActionStep step) {
+        switch (step.Type) {
+            case ActionStepType.ObsSourceVisibility: {
+                (string scene, int id)? item = FindSceneItem(step.Scope ?? "", step.Target, []);
+                if (item == null) {
+                    _logger?.LogWarning("[OBSService] Source \"{Source}\" not found in \"{Scene}\"", step.Target,
+                        step.Scope);
+                    return false;
+                }
+
+                bool visible = step.Operation switch {
+                    ActionOperation.Show => true,
+                    ActionOperation.Hide => false,
+                    _ => !(_obs.SendRequest("GetSceneItemEnabled", new JObject {
+                        ["sceneName"] = item.Value.scene, ["sceneItemId"] = item.Value.id
+                    })?["sceneItemEnabled"]?.Value<bool>() ?? false)
+                };
+                _obs.SendRequest("SetSceneItemEnabled", new JObject {
+                    ["sceneName"] = item.Value.scene, ["sceneItemId"] = item.Value.id, ["sceneItemEnabled"] = visible
+                });
+                return true;
+            }
+
+            case ActionStepType.ObsFilter: {
+                var filter = new JObject { ["sourceName"] = step.Scope, ["filterName"] = step.Target };
+                bool enabled = step.Operation switch {
+                    ActionOperation.Enable => true,
+                    ActionOperation.Disable => false,
+                    _ => !(_obs.SendRequest("GetSourceFilter", filter)?["filterEnabled"]?.Value<bool>() ?? false)
+                };
+                filter["filterEnabled"] = enabled;
+                _obs.SendRequest("SetSourceFilterEnabled", filter);
+                return true;
+            }
+
+            case ActionStepType.ObsAudio:
+                if (step.Operation == ActionOperation.Toggle)
+                    _obs.SendRequest("ToggleInputMute", new JObject { ["inputName"] = step.Target });
+                else
+                    _obs.SendRequest("SetInputMute", new JObject {
+                        ["inputName"] = step.Target, ["inputMuted"] = step.Operation == ActionOperation.Mute
+                    });
+                return true;
+
+            case ActionStepType.ObsMedia:
+                _obs.SendRequest("TriggerMediaInputAction", new JObject {
+                    ["inputName"] = step.Target,
+                    ["mediaAction"] = step.Operation switch {
+                        ActionOperation.Pause => "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PAUSE",
+                        ActionOperation.Restart => "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART",
+                        ActionOperation.Stop => "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_STOP",
+                        _ => "OBS_WEBSOCKET_MEDIA_INPUT_ACTION_PLAY"
+                    }
+                });
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    private (string scene, int id)? FindSceneItem(string sceneName, string sourceName, HashSet<string> visited) {
+        if (string.IsNullOrWhiteSpace(sceneName) || !visited.Add(sceneName)) return null;
+        JArray? items = ListSceneItems(sceneName, visited.Count > 1);
+        if (items == null) return null;
+
+        foreach (JToken item in items)
+            if (string.Equals(item["sourceName"]?.ToString(), sourceName, StringComparison.Ordinal))
+                return (sceneName, item["sceneItemId"]?.Value<int>() ?? -1);
+
+        foreach (JToken item in items.Where(i => i["isGroup"]?.Value<bool?>() == true))
+            if (FindSceneItem(item["sourceName"]?.ToString() ?? "", sourceName, visited) is { } nested)
+                return nested;
+
+        return null;
+    }
+
+    private JArray? ListSceneItems(string sceneName, bool isGroup) {
+        try {
+            return _obs.SendRequest(isGroup ? "GetGroupSceneItemList" : "GetSceneItemList",
+                new JObject { ["sceneName"] = sceneName })?["sceneItems"] as JArray;
+        }
+        catch (Exception ex) {
+            if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
+                _logger?.LogDebug(ex, "[OBSService] Failed to list scene items for '{Scene}'", sceneName);
+            return null;
+        }
+    }
+
+    public (List<string> scopes, List<string> targets) GetActionTargets(ActionStepType type, string? scope) {
+        if (!_obs.IsConnected) return ([], []);
+        try {
+            List<(string name, string kind)> inputs = _obs.GetInputList()
+                .Select(i => (i.InputName, i.InputKind)).ToList();
+
+            switch (type) {
+                case ActionStepType.ObsSourceVisibility: {
+                    List<string> scenes = GetScenes();
+                    var sources = new List<string>();
+
+                    if (!string.IsNullOrWhiteSpace(scope)) CollectSourceNames(scope, false, sources, []);
+
+                    return (scenes, sources.Distinct().ToList());
+                }
+                case ActionStepType.ObsFilter: {
+                    List<string> owners = inputs.Select(i => i.name).Concat(GetScenes()).Distinct().ToList();
+
+                    if (string.IsNullOrWhiteSpace(scope)) return (owners, []);
+                    var filters = _obs.SendRequest("GetSourceFilterList", new JObject { ["sourceName"] = scope })?
+                        ["filters"] as JArray;
+
+                    return (owners, filters?.Select(f => f["filterName"]?.ToString() ?? "")
+                        .Where(n => n.Length > 0).ToList() ?? []);
+                }
+                case ActionStepType.ObsMedia:
+                    return ([], inputs.Where(i => i.kind.Contains("ffmpeg") || i.kind.Contains("vlc"))
+                        .Select(i => i.name).ToList());
+                default:
+                    return ([], inputs.Select(i => i.name).ToList());
+            }
+        }
+        catch (Exception ex) {
+            if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
+                _logger?.LogDebug(ex, "[OBSService] Listing action targets failed");
+            return ([], []);
+        }
+    }
+
+    private void CollectSourceNames(string sceneName, bool isGroup, List<string> names, HashSet<string> visited) {
+        if (!visited.Add(sceneName)) return;
+        JArray? items = ListSceneItems(sceneName, isGroup);
+        if (items == null) return;
+        foreach (JToken item in items) {
+            var name = item["sourceName"]?.ToString();
+            if (string.IsNullOrEmpty(name)) continue;
+            names.Add(name);
+            if (item["isGroup"]?.Value<bool?>() == true) CollectSourceNames(name, true, names, visited);
+        }
     }
 }

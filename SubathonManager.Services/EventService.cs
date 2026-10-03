@@ -438,6 +438,9 @@ public class EventService : IDisposable, IAppService {
             case SubathonCommandType.SpinWheel:
                 WheelEvents.RaiseWheelSpinRequested();
                 break;
+            case SubathonCommandType.RunAction:
+                ActionEvents.RaiseCustomActionRunRequested(ev);
+                break;
             case SubathonCommandType.AddMoney:
                 ev.EventType = SubathonEventType.DonationAdjustment;
                 break;

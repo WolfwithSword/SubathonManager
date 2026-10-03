@@ -136,6 +136,7 @@ public partial class MainWindow {
             case SubathonEventSource.PallyGG: return BuildPallyItem(connections);
             case SubathonEventSource.DevTunnels: return BuildDevTunnelsItem(connections);
             case SubathonEventSource.OBS: return BuildObsItem(connections);
+            case SubathonEventSource.StreamerBot: return BuildStreamerBotItem(connections);
         }
 
         SubathonSourceGroup sourceGroup = source.GetGroup();
@@ -259,6 +260,22 @@ public partial class MainWindow {
         item.Items.Add(MakeLeafItem(helperLabel,
             helperUp ? StatusUpBrush : StatusNoneBrush,
             helperUp ? null : "Not detected. Add via OBS Tools -> Scripts", SubathonEventSource.OBS));
+        return item;
+    }
+
+    private MenuItem BuildStreamerBotItem(List<IntegrationConnection> connections) {
+        IntegrationConnection? extension = connections.FirstOrDefault(c => c.Service == "Socket");
+        IntegrationConnection? http = connections.FirstOrDefault(c => c.Service == "Http");
+
+        var item = new MenuItem {
+            Icon = MakeStatusDot(GetAggregateBrush(connections)),
+            StaysOpenOnClick = true
+        };
+        SetParentHeader(item, SubathonEventSource.StreamerBot.GetDescription());
+        item.Items.Add(MakeLeafItem("Extension",
+            extension?.Status == true ? StatusUpBrush : StatusDownBrush, null, SubathonEventSource.StreamerBot));
+        item.Items.Add(MakeLeafItem("HTTP API", LeafBrush(http),
+            http is { Configured: true } ? null : "Not enabled", SubathonEventSource.StreamerBot));
         return item;
     }
 

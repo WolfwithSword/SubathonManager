@@ -116,7 +116,35 @@ public class CommandMetaAttribute : EnumMetaAttribute {
 public class WheelSpinActionMetaAttribute : EnumMetaAttribute {
     public bool IsCommand { get; init; } = false;
     public bool HasAction { get; init; } = true;
-    public bool IsDoneImmediately { get; init; } = false;
+    public bool AutoRun { get; init; } = false;
+
+    public string QuickLabel { get; init; } = "M";
+}
+
+[ExcludeFromCodeCoverage]
+public class ActionStepMetaAttribute : EnumMetaAttribute {
+    public string Group { get; init; } = "";
+    public ActionOperation[] Operations { get; init; } = [];
+
+    // editor labels
+    public string? TargetLabel { get; init; }
+    public string? ScopeLabel { get; init; }
+    public string? ValueLabel { get; init; }
+    public string? DurationLabel { get; init; }
+    public string? BodyLabel { get; init; }
+
+    // operations which have parameter vals
+    public ActionOperation[] ValueOperations { get; init; } = [];
+
+    // %variables% in config will be accepted
+    public bool AllowsVariables { get; init; }
+}
+
+[ExcludeFromCodeCoverage]
+public class ActionVariableMetaAttribute : EnumMetaAttribute {
+    public string Token { get; init; } = "";
+    public string Group { get; init; } = "";
+    public string ValueType { get; init; } = "text";
 }
 
 public static class EnumMetaCache {

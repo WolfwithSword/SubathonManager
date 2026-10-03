@@ -54,7 +54,7 @@
             </StackPanel>
             <TextBlock FontSize="11" Margin="4,2,0,0" TextWrapping="Wrap"
                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                       Text="New pledges, renewals and paid pledge changes add time; upgrades count the difference. Free members, trials and downgrades do not. Tiers sync on connect" />
+                       Text="New pledges, renewals, and upgrades add based on the amount charged or by tier" />
 
             <Separator Margin="0,8,0,8" />
 

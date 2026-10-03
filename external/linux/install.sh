@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Registers Linux binary as the handler for subathonmanager:// links
-# and .smo + .smw files
+# and .smo, .smw, .smwc + .sma files
 # The app should self-register this already on launch, however, this is to manually set it up if desired or remove it.
 #
 # Usage:
@@ -20,6 +20,7 @@ SCHEME="x-scheme-handler/subathonmanager"
 OVERLAY="application/x-subathonmanager-overlay"
 WIDGET="application/x-subathonmanager-widget"
 COLLECTION="application/x-subathonmanager-widget-collection"
+ACTION="application/x-subathonmanager-action"
 ICON_NAME="subathonmanager"
 ICON_SIZES="48 64 128 256"
 
@@ -74,7 +75,7 @@ Terminal=false
 NoDisplay=false
 Categories=Utility;
 StartupWMClass=SubathonManager
-MimeType=$OVERLAY;$WIDGET;$COLLECTION;$SCHEME;
+MimeType=$OVERLAY;$WIDGET;$COLLECTION;$ACTION;$SCHEME;
 EOF
 
 cat > "$MIME_XML" <<EOF
@@ -95,6 +96,11 @@ cat > "$MIME_XML" <<EOF
     <icon name="$ICON_NAME"/>
     <glob pattern="*.smwc"/>
   </mime-type>
+  <mime-type type="$ACTION">
+    <comment>Subathon Manager Action</comment>
+    <icon name="$ICON_NAME"/>
+    <glob pattern="*.sma"/>
+  </mime-type>
 </mime-info>
 EOF
 
@@ -104,6 +110,7 @@ xdg-mime default subathonmanager.desktop "$SCHEME"
 xdg-mime default subathonmanager.desktop "$OVERLAY"
 xdg-mime default subathonmanager.desktop "$WIDGET"
 xdg-mime default subathonmanager.desktop "$COLLECTION"
+xdg-mime default subathonmanager.desktop "$ACTION"
 
 echo "installed:"
 echo "  $DESKTOP  ->  $BIN"

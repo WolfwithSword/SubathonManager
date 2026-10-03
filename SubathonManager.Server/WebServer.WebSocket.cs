@@ -575,7 +575,8 @@ public partial class WebServer {
                             || !Guid.TryParse(idProp.GetString(), out Guid histId))
                             break;
                         if (!json.RootElement.TryGetProperty("status", out JsonElement statusProp)
-                            || !Enum.TryParse(statusProp.GetString(), true, out WheelSpinHistoryStatus newStatus))
+                            || !Enum.TryParse(statusProp.GetString(), true, out WheelSpinHistoryStatus newStatus)
+                            || newStatus == WheelSpinHistoryStatus.Running)
                             break;
 
                         await using AppDbContext db = await _factory.CreateDbContextAsync();

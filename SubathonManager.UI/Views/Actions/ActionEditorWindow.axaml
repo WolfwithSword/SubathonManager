@@ -1,0 +1,318 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:ctl="using:SubathonManager.UI.Controls"
+        xmlns:val="using:SubathonManager.UI.Validation"
+        xmlns:local="using:SubathonManager.UI.Views.Actions"
+        xmlns:nodify="clr-namespace:Nodify.Avalonia;assembly=Nodify.Avalonia"
+        xmlns:connections="clr-namespace:Nodify.Avalonia.Connections;assembly=Nodify.Avalonia"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="760"
+        x:Class="SubathonManager.UI.Views.Actions.ActionEditorWindow"
+        Title="Custom Action"
+        Width="1740" Height="900"
+        MinWidth="900" MinHeight="520"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppGeneralBackground}">
+
+    <Window.Resources>
+        <DataTemplate x:Key="SuggestionTemplate" x:DataType="x:String">
+            <TextBlock Text="{Binding}" Width="230" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding}" />
+        </DataTemplate>
+
+        <ControlTheme x:Key="StepContainerTheme" x:DataType="local:ActionNodeVm"
+                      TargetType="nodify:ItemContainer"
+                      BasedOn="{StaticResource {x:Type nodify:ItemContainer}}">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlElevationBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="SelectedBorderThickness" Value="2" />
+            <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+            <Style Selector="^:pointerover">
+                <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+            </Style>
+        </ControlTheme>
+
+        <ControlTheme x:Key="ConnectorLeftTheme" TargetType="connections:Connector"
+                      BasedOn="{StaticResource {x:Type connections:Connector}}">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent" Width="14">
+                        <Border Name="PART_Connector" Background="{TemplateBinding Background}"
+                                HorizontalAlignment="Left" Width="3" CornerRadius="1" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
+        <ControlTheme x:Key="ConnectorRightTheme" TargetType="connections:Connector"
+                      BasedOn="{StaticResource {x:Type connections:Connector}}">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="Transparent" Width="14">
+                        <Border Name="PART_Connector" Background="{TemplateBinding Background}"
+                                HorizontalAlignment="Right" Width="5" CornerRadius="2" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+
+        <ControlTheme x:Key="StepConnectionTheme" TargetType="connections:StepConnection"
+                      BasedOn="{StaticResource {x:Type connections:StepConnection}}">
+            <Setter Property="SourceOffset" Value="8,0" />
+            <Setter Property="TargetOffset" Value="8,0" />
+            <Setter Property="Stroke" Value="{DynamicResource AccentFillColorTertiaryBrush}" />
+            <Setter Property="Fill" Value="{DynamicResource AccentFillColorTertiaryBrush}" />
+        </ControlTheme>
+
+        <DataTemplate x:Key="InputConnectorTemplate" x:DataType="local:ActionConnectorVm">
+            <connections:Connector Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="True"
+                                   VerticalAlignment="Center" Theme="{StaticResource ConnectorLeftTheme}"
+                                   ToolTip.Tip="Runs after everything connected has finished" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="OutputConnectorTemplate" x:DataType="local:ActionConnectorVm">
+            <connections:Connector Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="True"
+                                   VerticalAlignment="Center" Theme="{StaticResource ConnectorRightTheme}"
+                                   ToolTip.Tip="Drag onto another step to run it after this one" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="StepTemplate" x:DataType="local:ActionNodeVm">
+            <StackPanel Orientation="Horizontal" Opacity="{Binding CardOpacity}">
+                <ContentControl Content="{Binding Input}" ContentTemplate="{StaticResource InputConnectorTemplate}" />
+                <Grid Width="200" Margin="6,6" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Title}" FontSize="10" Foreground="Gray"
+                               TextTrimming="CharacterEllipsis" />
+                    
+                    <!--- TODO check col/row spacing -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="3" Margin="4,0,0,0">
+                        <Border IsVisible="{Binding HasBranches}" Background="#6A4C93" CornerRadius="3" Padding="4,0"
+                                ToolTip.Tip="These steps run at the same time after this one">
+                            <TextBlock Text="{Binding BranchLabel}" FontSize="9" Foreground="White" />
+                        </Border>
+                        <Border IsVisible="{Binding IsStart}" Background="#2E7D32" CornerRadius="3" Padding="4,0">
+                            <TextBlock Text="START" FontSize="9" Foreground="White" />
+                        </Border>
+                        <Border IsVisible="{Binding IsDisabled}" Background="#555555" CornerRadius="3" Padding="4,0"
+                                ToolTip.Tip="Skipped when the action runs; right click to enable">
+                            <TextBlock Text="OFF" FontSize="9" Foreground="White" />
+                        </Border>
+                        <Border IsVisible="{Binding IsEnd}" Background="#8E3B46" CornerRadius="3" Padding="4,0"
+                                ToolTip.Tip="Nothing runs after this step">
+                            <TextBlock Text="END" FontSize="9" Foreground="White" />
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Grid.Column="0" Text="{Binding Summary}" FontSize="12"
+                               FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2"
+                               TextTrimming="CharacterEllipsis" Margin="0,3,0,0" />
+                    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Grid.Column="0" Text="{Binding Error}"
+                               IsVisible="{Binding HasError}" Foreground="OrangeRed" FontSize="10"
+                               TextWrapping="Wrap" Margin="0,2,0,0" />
+                </Grid>
+                <ContentControl Content="{Binding Output}" ContentTemplate="{StaticResource OutputConnectorTemplate}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ConnectionTemplate" x:DataType="local:ActionConnectionVm">
+            <connections:StepConnection Source="{Binding Source.Anchor}" Target="{Binding Target.Anchor}"
+                                        Theme="{StaticResource StepConnectionTheme}"
+                                        connections:BaseConnection.IsSelectable="True" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="PendingConnectionTemplate">
+            <connections:PendingConnection AllowOnlyConnectors="True" EnablePreview="True"
+                                           Stroke="{DynamicResource AccentFillColorTertiaryBrush}" />
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Grid Grid.Row="0" Margin="12,10,12,8" ColumnDefinitions="*,Auto">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBox x:Name="NameBox" Width="240" Height="34" FontWeight="SemiBold"
+                         PlaceholderText="Action name" />
+                <TextBox x:Name="AuthorBox" Width="140" Height="34" PlaceholderText="Author" />
+                <TextBox x:Name="VersionBox" Width="80" Height="34" PlaceholderText="1.0.0" />
+                <TextBlock Text="If already running:" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <ComboBox x:Name="RepeatBox" Width="170" Height="34" SelectionChanged="Repeat_SelectionChanged" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Button Height="34" Click="TestRun_Click"
+                        ToolTip.Tip="Run all steps now (real)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ctl:SymIcon Glyph="Play16" />
+                        <TextBlock Text="Test Run" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Height="34" Click="Export_Click" ToolTip.Tip="Save a shareable .sma copy to exports/actions">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <ctl:SymIcon Glyph="ArrowExportUp16" />
+                        <TextBlock Text="Export" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Border x:Name="SaveButtonBorder" CornerRadius="4" BorderThickness="2" BorderBrush="Transparent">
+                    <Button Height="30" Width="80" Classes="accent" Content="Save" Click="Save_Click" />
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="12,0,12,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="230" MinWidth="160" MaxWidth="400" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" MinWidth="300" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
+            
+            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="8" Padding="8">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBox x:Name="PaletteSearchBox" Height="30" FontSize="12" Margin="0,0,0,6"
+                             PlaceholderText="Search actions"
+                             ToolTip.Tip="Filter the actions below; Enter auto-adds first match" />
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel x:Name="PalettePanel" Spacing="2" />
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"
+                          ToolTip.Tip="Drag to resize" />
+
+            <Border Grid.Column="2" Margin="0,0,8,0" BorderBrush="#333" BorderThickness="1" CornerRadius="8"
+                    ClipToBounds="True" Background="#181818">
+                <Grid>
+                    <nodify:NodifyEditor x:Name="Editor" Background="Transparent" GridCellSize="10"
+                                         ItemTemplate="{StaticResource StepTemplate}"
+                                         ItemContainerTheme="{StaticResource StepContainerTheme}"
+                                         ConnectionTemplate="{StaticResource ConnectionTemplate}"
+                                         PendingConnectionTemplate="{StaticResource PendingConnectionTemplate}" />
+
+                    <nodify:Minimap x:Name="Minimap" Width="200" Height="130" Margin="10"
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                    ItemsSource="{Binding #Editor.ItemsSource}"
+                                    ViewportLocation="{Binding #Editor.ViewportLocation, Mode=TwoWay}"
+                                    ViewportSize="{Binding #Editor.ViewportSize}">
+                        <nodify:Minimap.ItemTemplate>
+                            <DataTemplate>
+                                <Grid />
+                            </DataTemplate>
+                        </nodify:Minimap.ItemTemplate>
+                        <nodify:Minimap.Styles>
+                            <Style Selector="nodify|MinimapItem" x:DataType="local:ActionNodeVm">
+                                <Setter Property="Location" Value="{Binding Location}" />
+                                <Setter Property="Width" Value="230" />
+                                <Setter Property="Height" Value="70" />
+                            </Style>
+                        </nodify:Minimap.Styles>
+                    </nodify:Minimap>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="3" BorderBrush="#333" BorderThickness="1" CornerRadius="8" Padding="10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="3*" MinHeight="140" />
+                        <RowDefinition Height="8" />
+                        <RowDefinition Height="2*" MinHeight="120" />
+                    </Grid.RowDefinitions>
+                <ScrollViewer Grid.Row="0">
+                    <StackPanel>
+                        <StackPanel x:Name="AboutPanel">
+                            <TextBlock Text="About this action" FontSize="13" FontWeight="SemiBold"
+                                       Margin="0,0,0,6" />
+                            <TextBox x:Name="DescriptionBox" Height="110" AcceptsReturn="True"
+                                     TextWrapping="Wrap" PlaceholderText="What it does, what it needs..." />
+                            <!-- todo fiddle with newline -->
+                            <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="2,10,0,0"
+                                       Text="Add new steps from the left. If you have an action selected, it will chain it, else it will start a new parallel branch.&#x0a;&#x0a;You can drag an arrow to and from steps to create new connections and branches.&#x0a;&#x0a;If an action has multiple inputs, it waits for all paths to complete before running.&#x0a;&#x0a;Select actions or a connection and press Delete to remove them." />
+                        </StackPanel>
+
+                        <StackPanel x:Name="StepPanel" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <TextBlock x:Name="StepHeader" FontSize="13" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Padding="6,2" Click="DeleteStep_Click"
+                                        ToolTip.Tip="Remove this action" Foreground="IndianRed">
+                                    <ctl:SymIcon Glyph="Delete16" />
+                                </Button>
+                            </Grid>
+
+                            <StackPanel x:Name="OpPanel" Margin="0,0,0,8">
+                                <TextBlock Text="Do:" FontSize="12" Margin="2,0,0,3" />
+                                <ComboBox x:Name="OpBox" Height="34" HorizontalAlignment="Stretch"
+                                          SelectionChanged="StepField_Changed" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="ScopePanel" Margin="0,0,0,8">
+                                <TextBlock x:Name="ScopeLabel" Text="Scene:" FontSize="12" Margin="2,0,0,3" />
+                                <AutoCompleteBox x:Name="ScopeBox" Height="34" FilterMode="ContainsOrdinal"
+                                                 ItemTemplate="{StaticResource SuggestionTemplate}"
+                                                 MinimumPrefixLength="0" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="TargetPanel" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock x:Name="TargetLabel" Text="Target:" FontSize="12" Margin="2,0,0,3" />
+                                    <TextBlock Grid.Column="1" x:Name="TargetHint" FontSize="10" Foreground="Gray"
+                                               VerticalAlignment="Bottom" Margin="0,0,2,3" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <AutoCompleteBox x:Name="TargetBox" Height="34" Margin="0,0,4,0"
+                                                     ItemTemplate="{StaticResource SuggestionTemplate}"
+                                                     FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
+                                    <Button Grid.Column="1" Height="34" Padding="8,2" Click="RefreshTargets_Click"
+                                            ToolTip.Tip="Reload the list from the connected integration">
+                                        <ctl:SymIcon Glyph="ArrowClockwise16" />
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel x:Name="ValuePanel" Margin="0,0,0,8">
+                                <TextBlock x:Name="ValueLabel" Text="Value:" FontSize="12" Margin="2,0,0,3" />
+                                <TextBox x:Name="ValueBox" Height="34"
+                                         val:NumericInputBehaviour.Mode="SignedDecimal" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="DurationPanel" Margin="0,0,0,8">
+                                <TextBlock x:Name="DurationLabel" Text="Duration:" FontSize="12" Margin="2,0,0,3" />
+                                <TextBox x:Name="DurationBox" Height="34" PlaceholderText="e.g. 30s, 5m, 1h30m" />
+                            </StackPanel>
+
+                            <StackPanel x:Name="BodyPanel" Margin="0,0,0,8">
+                                <TextBlock x:Name="BodyLabel" Text="Body:" FontSize="12" Margin="2,0,0,3" />
+                                <TextBox x:Name="BodyBox" Height="120" AcceptsReturn="True" TextWrapping="Wrap"
+                                         FontFamily="Consolas, Menlo, monospace" FontSize="12" />
+                            </StackPanel>
+
+                            <TextBlock x:Name="VariablesHint" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
+                                       Margin="2,0,0,8"
+                                       Text="Variables such as %points% are filled in when this step runs. Click any to copy it" />
+
+                            <TextBlock x:Name="StepError" FontSize="11" Foreground="OrangeRed" TextWrapping="Wrap"
+                                       Margin="2,2,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <GridSplitter Grid.Row="1" Background="Transparent" ResizeDirection="Rows"
+                              ToolTip.Tip="Drag to resize" />
+
+                <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">
+                    <TextBlock Text="Variables" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBox Grid.Row="1" x:Name="VariableSearchBox" Height="30" FontSize="12" Margin="0,0,0,6"
+                             PlaceholderText="Search variables" />
+                    <ScrollViewer Grid.Row="2">
+                        <StackPanel x:Name="VariablesPanel" Spacing="2" />
+                    </ScrollViewer>
+                </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="2" x:Name="StatusText" Margin="14,6,14,10" FontSize="11" Foreground="Gray"
+                   TextWrapping="Wrap" />
+    </Grid>
+</Window>

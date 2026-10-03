@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data.Widgets;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
@@ -39,6 +40,7 @@ public partial class MainWindow : Window {
             await MaybeShowTelemetryPromptAsync();
             await ImportPendingOverlayAsync();
             await CollectPendingWidgetPackAsync();
+            await ImportPendingActionAsync();
         };
     }
 
@@ -72,6 +74,31 @@ public partial class MainWindow : Window {
             case ActivationKind.SmwFile:
                 _ = CollectPendingWidgetPackAsync();
                 break;
+            case ActivationKind.SmaFile:
+                _ = ImportPendingActionAsync();
+                break;
+        }
+    }
+
+    private async Task ImportPendingActionAsync() {
+        string? path = Utils.PendingActionImportPath;
+        Utils.PendingActionImportPath = null;
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try {
+            if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase)) {
+                using var client = new HttpClient();
+                string json = await client.GetStringAsync(path);
+                path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}{CustomAction.FileExtension}");
+                await File.WriteAllTextAsync(path, json);
+            }
+
+            CustomAction? added = await ServiceManager.Actions.AddCustomActionCopyAsync(path);
+            MainWindowTabs.SelectedItem = ActionsTabItem;
+            ActionsPage.ShowAdded(added, path);
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to add custom action {Path}", path);
         }
     }
 

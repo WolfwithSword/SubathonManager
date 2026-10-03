@@ -95,6 +95,7 @@
                                       SelectionChanged="HistoryFilter_SelectionChanged">
                                 <ComboBoxItem Content="All" Tag="All" FontSize="10" />
                                 <ComboBoxItem Content="Pending" Tag="Pending" FontSize="10" />
+                                <ComboBoxItem Content="Running" Tag="Running" FontSize="10" />
                                 <ComboBoxItem Content="Completed" Tag="Done" FontSize="10" />
                                 <ComboBoxItem Content="Cancelled" Tag="Cancelled" FontSize="10" />
                             </ComboBox>
@@ -344,6 +345,101 @@
                                                     <TextBlock x:Name="VtsHintText" FontSize="11" Foreground="Gray"
                                                                TextWrapping="Wrap" Margin="2,2,0,0" />
                                                 </StackPanel>
+
+                                                <StackPanel x:Name="ObsParamPanel" IsVisible="False">
+                                                    <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,10,*">
+                                                        <StackPanel>
+                                                            <TextBlock Text="Target:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <ComboBox x:Name="ObsKindBox" Height="36" Width="130"
+                                                                      SelectionChanged="ObsKind_SelectionChanged" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" x:Name="ObsScopePanel">
+                                                            <TextBlock x:Name="ObsScopeLabel" Text="Scene:"
+                                                                       FontSize="12" Margin="2,0,0,3" />
+                                                            <AutoCompleteBox x:Name="ObsScopeBox" Height="36"
+                                                                             FilterMode="ContainsOrdinal"
+                                                                             MinimumPrefixLength="0" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <StackPanel Margin="0,0,0,8">
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock x:Name="ObsTargetLabel" Text="Source:"
+                                                                       FontSize="12" Margin="2,0,0,3" />
+                                                            <TextBlock Grid.Column="1" x:Name="ObsConnectionHint"
+                                                                       FontSize="10" Margin="0,0,2,3"
+                                                                       VerticalAlignment="Bottom" Foreground="Gray" />
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <AutoCompleteBox x:Name="ObsTargetBox" Height="36"
+                                                                             Margin="0,0,4,0"
+                                                                             FilterMode="ContainsOrdinal"
+                                                                             MinimumPrefixLength="0" />
+                                                            <Button Grid.Column="1" Height="36" Padding="8,2"
+                                                                    Click="ObsRefreshTargets_Click"
+                                                                    ToolTip.Tip="Reload the lists from OBS">
+                                                                <ctl:SymIcon Glyph="ArrowClockwise16" />
+                                                            </Button>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <Grid Margin="0,0,0,8" ColumnDefinitions="Auto,10,Auto">
+                                                        <StackPanel>
+                                                            <TextBlock Text="When Rolled:" FontSize="12"
+                                                                       Margin="2,0,0,3" />
+                                                            <ComboBox x:Name="ObsOpBox" Height="36" Width="130"
+                                                                      SelectionChanged="ObsOp_SelectionChanged" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2">
+                                                            <TextBlock Text="Duration:" FontSize="12"
+                                                                       Margin="0,0,0,3" />
+                                                            <TextBox x:Name="ObsDurationBox" Height="36" Width="230"
+                                                                     PlaceholderText="e.g. 30s (blank = no revert)" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <StackPanel Margin="0,0,0,8">
+                                                        <TextBlock Text="After Timer:" FontSize="12"
+                                                                   Margin="2,0,0,3" />
+                                                        <ComboBox x:Name="ObsAfterBox" Height="36" Width="180"
+                                                                  SelectionChanged="ObsOp_SelectionChanged" />
+                                                    </StackPanel>
+
+                                                    <TextBlock x:Name="ObsHintText" FontSize="11" Foreground="Gray"
+                                                               TextWrapping="Wrap" Margin="2,2,0,0" />
+                                                </StackPanel>
+
+                                                <StackPanel x:Name="CustomParamPanel" IsVisible="False">
+                                                    <TextBlock Text="Custom Action:" FontSize="12" Margin="2,0,0,3" />
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                                        <ComboBox x:Name="CustomActionBox" Height="36"
+                                                                  HorizontalAlignment="Stretch" Margin="0,0,4,0"
+                                                                  SelectionChanged="CustomAction_SelectionChanged" />
+                                                        <Button Grid.Column="1" Height="36" Padding="8,2"
+                                                                Margin="0,0,4,0" Click="EditCustomAction_Click"
+                                                                ToolTip.Tip="Open the selected action in the editor">
+                                                            <ctl:SymIcon Glyph="Edit16" />
+                                                        </Button>
+                                                        <Button Grid.Column="2" Height="36" Padding="8,2"
+                                                                Margin="0,0,4,0" Click="NewCustomAction_Click"
+                                                                ToolTip.Tip="Create a new custom action">
+                                                            <ctl:SymIcon Glyph="Add16" />
+                                                        </Button>
+                                                        <Button Grid.Column="3" Height="36" Padding="8,2"
+                                                                Click="ImportCustomAction_Click"
+                                                                ToolTip.Tip="Import a .sma file into the actions library">
+                                                            <ctl:SymIcon Glyph="ArrowDownload16" />
+                                                        </Button>
+                                                    </Grid>
+                                                    <TextBlock x:Name="CustomHintText" FontSize="11" Foreground="Gray"
+                                                               TextWrapping="Wrap" Margin="2,4,0,0" />
+                                                </StackPanel>
+
+                                                <Button x:Name="ConvertToCustomBtn" IsVisible="False" Margin="0,4,0,0"
+                                                        Content="Convert to Custom Action"
+                                                        Click="ConvertToCustom_Click"
+                                                        ToolTip.Tip="Copy this action into the node editor, where more actions can be chained" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>

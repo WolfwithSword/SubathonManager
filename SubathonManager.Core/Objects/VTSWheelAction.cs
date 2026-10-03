@@ -163,13 +163,59 @@ public sealed class VTSWheelAction {
             _ => AfterHotkey.ToString()
         };
 
-        return $"{Target} {initial} for {FormatDuration(Duration)} then {after}";
+        return $"{Target} {initial} for {Utils.FormatShortDuration(Duration)} then {after}";
     }
 
-    private static string FormatDuration(TimeSpan duration) {
-        if (duration.TotalHours >= 1) return $"{(int)duration.TotalHours}h{duration.Minutes:00}m";
-        if (duration.TotalMinutes >= 1) return $"{(int)duration.TotalMinutes}m{duration.Seconds:00}s";
-        return $"{(int)duration.TotalSeconds}s";
+    // migration path
+    public ActionGraph ToActionGraph() {
+        ActionStepType type = Kind switch {
+            VtsTargetKind.Parameter => ActionStepType.VtsParameter,
+            VtsTargetKind.Hotkey => ActionStepType.VtsHotkey,
+            _ => ActionStepType.VtsExpression
+        };
+
+        var initial = new ActionStep {
+            Type = type,
+            Target = Target.Trim(),
+            Operation = Kind switch {
+                VtsTargetKind.Expression => ToToggleOp(ToggleAction),
+                VtsTargetKind.Parameter => ActionOperation.Hold,
+                _ => ActionOperation.Trigger
+            },
+            Value = Kind == VtsTargetKind.Parameter ? Value : null
+        };
+
+        // held parameter with no duration stays held until something else releases it
+        if (!HasRevert) return ActionGraph.Sequence(initial);
+
+        var after = new ActionStep { Type = type, Target = initial.Target };
+        switch (Kind) {
+            case VtsTargetKind.Expression:
+                after.Operation = ToToggleOp(AfterToggle);
+                break;
+            case VtsTargetKind.Parameter:
+                after.Operation = AfterParameter switch {
+                    VtsParameterAfterAction.ResetToOriginal => ActionOperation.Restore,
+                    VtsParameterAfterAction.SetNewValue => ActionOperation.Set,
+                    _ => ActionOperation.Release
+                };
+                after.Value = AfterParameter == VtsParameterAfterAction.SetNewValue ? AfterValue : null;
+                break;
+            default:
+                after.Operation = ActionOperation.Trigger;
+                break;
+        }
+
+        var wait = new ActionStep { Type = ActionStepType.Wait, Seconds = Duration.TotalSeconds };
+        return ActionGraph.Sequence(initial, wait, after);
+
+        static ActionOperation ToToggleOp(VtsToggleAction action) {
+            return action switch {
+                VtsToggleAction.Off => ActionOperation.Off,
+                VtsToggleAction.Toggle => ActionOperation.Toggle,
+                _ => ActionOperation.On
+            };
+        }
     }
 
     private static bool TryParseNumber(string text, out double value) {

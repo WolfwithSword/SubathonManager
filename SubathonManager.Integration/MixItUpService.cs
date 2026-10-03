@@ -22,7 +22,7 @@ public class MixItUpService(
     ILogger<MixItUpService>? logger,
     IConfig config,
     IHttpClientFactory httpClientFactory,
-    ITimerService timerService) : IAppService, IDisposable {
+    ITimerService timerService) : IAppService, IDisposable, IActionStepRunner {
 
     public const string ConfigSection = "MixItUp";
     public const string DefaultApiUrl = "http://localhost:8911/api/v2";
@@ -222,9 +222,30 @@ public class MixItUpService(
             return false;
         }
         catch (Exception ex) {
-            logger?.LogDebug("[MixItUp] Running command {CommandId} failed: {Message}", commandId, ex.Message);
+            if (logger?.IsEnabled(LogLevel.Debug) ?? false)
+                logger?.LogDebug("[MixItUp] Running command {CommandId} failed: {Message}", commandId, ex.Message);
             return false;
         }
+    }
+    
+    public IReadOnlyCollection<ActionStepType> StepTypes { get; } = [ActionStepType.MixItUpCommand];
+
+    public async Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
+        CancellationToken ct) {
+        if (!Enabled || !Guid.TryParse(step.Target, out Guid commandId)) return false;
+        var identifiers = new Dictionary<string, string> {
+            [$"{IdentifierPrefix}trigger"] = "action",
+            [$"{IdentifierPrefix}user"] = ctx.User,
+            [$"{IdentifierPrefix}source"] = $"{ctx.Source}",
+            [$"{IdentifierPrefix}label"] = ctx.Label ?? ""
+        };
+
+        foreach ((string name, string value) in step.BodyArguments()) {
+            string key = name.TrimStart('$').ToLowerInvariant();
+            if (key.Length > 0) identifiers[key] = value;
+        }
+
+        return await RunCommandAsync(commandId, identifiers, ct);
     }
 
     public async Task<IReadOnlyList<MixItUpCommandInfo>?> GetCommandsAsync(CancellationToken ct = default) {

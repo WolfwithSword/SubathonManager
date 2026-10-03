@@ -15,7 +15,7 @@ namespace SubathonManager.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
             modelBuilder.Entity("SubathonManager.Core.Models.CssVariable", b =>
                 {
@@ -709,6 +709,9 @@ namespace SubathonManager.Data.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActionProgress")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")

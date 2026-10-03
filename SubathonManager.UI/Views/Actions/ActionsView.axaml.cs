@@ -1,0 +1,296 @@
+using System.ComponentModel;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using FluentAvalonia.UI.Controls;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Objects;
+using SubathonManager.Data;
+using SubathonManager.Services;
+using SubathonManager.UI.Services;
+using SubathonManager.UI.UiUtils;
+
+namespace SubathonManager.UI.Views.Actions;
+
+public partial class ActionsView : UserControl {
+    private readonly IDbContextFactory<AppDbContext> _factory =
+        AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+
+    private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ActionsView>>();
+    private List<ActionCard> _cards = [];
+    private Guid? _selectedId;
+
+    public ActionsView() {
+        InitializeComponent();
+        SearchBox.TextChanged += (_, _) => Refresh();
+        Loaded += (_, _) => {
+            ServiceManager.Actions.CustomActionsChanged -= OnLibraryChanged;
+            ServiceManager.Actions.CustomActionsChanged += OnLibraryChanged;
+            Refresh();
+        };
+        Unloaded += (_, _) => ServiceManager.Actions.CustomActionsChanged -= OnLibraryChanged;
+    }
+
+    private void OnLibraryChanged() {
+        Dispatcher.UIThread.Post(Refresh);
+    }
+
+    private void Refresh() {
+        IReadOnlyList<CustomAction> all = ServiceManager.Actions.CustomActions;
+        string query = (SearchBox.Text ?? "").Trim();
+        List<ActionCard> cards = all
+            .Where(a => query.Length == 0
+                        || a.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                        || (a.Author?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (a.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Select(a => new ActionCard(a) { IsSelected = a.Id == _selectedId })
+            .ToList();
+
+        _cards = cards;
+        ActionsList.ItemsSource = cards;
+        EmptyText.IsVisible = cards.Count == 0;
+        EmptyText.Text = all.Count == 0
+            ? "No actions yet. Create one, import a .sma file, or convert a VTube Studio / OBS wheel item"
+            : $"Nothing matches \"{query}\"";
+        ShowDetails();
+    }
+
+    public void ShowAdded(CustomAction? action, string source) {
+        if (action == null) {
+            StatusText.Text = $"{Path.GetFileName(source)} is not a valid custom action";
+            return;
+        }
+
+        SearchBox.Text = "";
+        _selectedId = action.Id;
+        Refresh();
+        StatusText.Text = $"Added \"{action.Name}\" to your actions";
+    }
+
+    private static CustomAction? CardOf(object? sender) {
+        return (sender as Control)?.DataContext is ActionCard card ? card.Action : null;
+    }
+
+    private void Card_Tapped(object? sender, TappedEventArgs e) {
+        if (CardOf(sender) is not { } action) return;
+        _selectedId = action.Id;
+        foreach (ActionCard card in _cards) card.IsSelected = card.Action.Id == action.Id;
+        ShowDetails();
+    }
+
+    private void ShowDetails() {
+        CustomAction? action = _selectedId is { } id ? ServiceManager.Actions.GetCustomAction(id) : null;
+        DetailsPanel.IsVisible = action != null;
+        NoSelectionText.IsVisible = action == null;
+        if (action == null) {
+            _selectedId = null;
+            return;
+        }
+
+        DetailTitle.Text = action.Name;
+
+        var meta = new List<string> { $"v{action.Version}" };
+        if (!string.IsNullOrWhiteSpace(action.Author)) meta.Add($"by {action.Author}");
+        string? path = ServiceManager.Actions.GetCustomActionPath(action.Id);
+        if (path != null && File.Exists(path)) meta.Add($"updated {File.GetLastWriteTime(path):yyyy-MM-dd HH:mm}");
+        DetailMeta.Text = string.Join("  -  ", meta);
+
+        DetailSteps.Text = $"{action.Graph.Nodes.Count}";
+        DetailBranches.Text = $"{CountBranches(action.Graph)}";
+        DetailError.Text = action.Graph.IsValid(out string error) ? "" : $"Needs fixing: {error}";
+        DetailError.IsVisible = DetailError.Text.Length > 0;
+        DetailDescription.Text = string.IsNullOrWhiteSpace(action.Description) ? "No description." : action.Description;
+    }
+
+    private static int CountBranches(ActionGraph graph) {
+        if (graph.Nodes.Count == 0 || !graph.IsValid(out _)) return 0;
+        var paths = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        int PathsFrom(string id) {
+            if (paths.TryGetValue(id, out int known)) return known;
+            List<string> next = graph.Outgoing(id).ToList();
+            int count = next.Count == 0 ? 1 : next.Sum(PathsFrom);
+            paths[id] = count;
+            return count;
+        }
+
+        return graph.Nodes.Where(n => !graph.Incoming(n.Id).Any()).Sum(n => PathsFrom(n.Id));
+    }
+
+    private async void Run_Click(object? sender, RoutedEventArgs e) {
+        if (CardOf(sender) is { } action) await RunAsync(action);
+    }
+
+    private async void RunSelected_Click(object? sender, RoutedEventArgs e) {
+        if (_selectedId is { } id && ServiceManager.Actions.GetCustomAction(id) is { } action) await RunAsync(action);
+    }
+
+    private async Task RunAsync(CustomAction action) {
+        if (!action.Graph.IsValid(out string error) || action.Graph.Nodes.Count == 0) {
+            StatusText.Text = action.Graph.Nodes.Count == 0
+                ? $"\"{action.Name}\" has no steps yet"
+                : $"\"{action.Name}\" can't run yet: {error}";
+            return;
+        }
+
+        StatusText.Text = $"Running \"{action.Name}\"...";
+        ActionRunResult result = await ServiceManager.Actions.RunManuallyAsync(action);
+        StatusText.Text = result switch {
+            ActionRunResult.Done => $"\"{action.Name}\" finished",
+            ActionRunResult.Skipped => $"\"{action.Name}\" is already running and ignores repeats",
+            ActionRunResult.Cancelled => $"\"{action.Name}\" was cancelled",
+            _ => $"\"{action.Name}\" stopped at a step that could not run (is the app connected?) - see the log"
+        };
+    }
+
+    private void EditSelected_Click(object? sender, RoutedEventArgs e) {
+        if (_selectedId is { } id && ServiceManager.Actions.GetCustomAction(id) is { } action)
+            OpenEditor(action);
+    }
+
+    private void OpenEditor(CustomAction action) {
+        ActionEditorWindow editor = ActionEditorWindow.Open(action);
+        editor.Saved -= OnEditorSaved;
+        editor.Saved += OnEditorSaved;
+    }
+
+    private void OnEditorSaved(Guid id) {
+        _selectedId = id;
+        Refresh();
+    }
+
+    private void Card_DoubleTapped(object? sender, TappedEventArgs e) {
+        if (CardOf(sender) is { } action) OpenEditor(action);
+    }
+
+    private void Edit_Click(object? sender, RoutedEventArgs e) {
+        if (CardOf(sender) is { } action) OpenEditor(action);
+    }
+
+    private void CreateNew_Click(object? sender, RoutedEventArgs e) {
+        OpenEditor(new CustomAction { Name = "New Action" });
+    }
+
+    private async void Duplicate_Click(object? sender, RoutedEventArgs e) {
+        if (CardOf(sender) is not { } original) return;
+        CustomAction copy = await ServiceManager.Actions.DuplicateCustomActionAsync(original);
+        _selectedId = copy.Id;
+        Refresh();
+        StatusText.Text = $"Duplicated \"{original.Name}\" as \"{copy.Name}\"";
+    }
+
+    private async void Export_Click(object? sender, RoutedEventArgs e) {
+        if (CardOf(sender) is not { } action) return;
+        try {
+            string path = await ActionService.ExportCustomActionAsync(action);
+            StatusText.Text = $"Exported to {path}";
+            UiHelpers.OpenFolder(Path.GetDirectoryName(path));
+        }
+        catch (Exception ex) {
+            _logger?.LogError(ex, "[Actions] Export of {Name} failed", action.Name);
+            StatusText.Text = $"Export failed: {ex.Message}";
+        }
+    }
+
+    private async void Delete_Click(object? sender, RoutedEventArgs e) {
+        if (CardOf(sender) is not { } action) return;
+
+        string id = action.Id.ToString();
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        
+        // TODO when more than just wheel spins, check
+        int uses = await db.WheelSpinActions
+            .CountAsync(a => a.ActionType == WheelSpinActionType.CustomAction && a.Parameter == id);
+
+        var dialog = new FAContentDialog {
+            Title = "Delete action",
+            Content = uses > 0
+                ? $"Delete \"{action.Name}\"? {uses} wheel item(s) use it and will stop running anything until you pick another action."
+                : $"Delete \"{action.Name}\"? Its .sma file is removed from the actions folder.",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel"
+        };
+        if (await dialog.ShowAsync() != FAContentDialogResult.Primary) return;
+
+        ServiceManager.Actions.DeleteCustomAction(action.Id);
+        StatusText.Text = $"Deleted \"{action.Name}\"";
+    }
+
+    private async void Import_Click(object? sender, RoutedEventArgs e) {
+        if (TopLevel.GetTopLevel(this) is not { } top) return;
+        IReadOnlyList<IStorageFile> picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
+            Title = "Import Custom Action",
+            AllowMultiple = true,
+            FileTypeFilter = [
+                new FilePickerFileType("Subathon Manager Action") { Patterns = [$"*{CustomAction.FileExtension}"] }
+            ]
+        });
+        if (picked.Count == 0) return;
+
+        int added = 0, updated = 0, failed = 0;
+        foreach (IStorageFile file in picked) {
+            (CustomAction Action, bool Replaced)? result =
+                await ServiceManager.Actions.ImportCustomActionAsync(file.Path.LocalPath);
+            if (result == null) failed++;
+            else if (result.Value.Replaced) updated++;
+            else added++;
+        }
+
+        StatusText.Text = $"Imported {added}, updated {updated}" + (failed > 0 ? $", {failed} not valid" : "");
+    }
+
+    private void OpenActionsFolder_Click(object? sender, RoutedEventArgs e) {
+        OpenFolder(ActionService.DefaultActionsFolder);
+    }
+
+    private void OpenExportsFolder_Click(object? sender, RoutedEventArgs e) {
+        OpenFolder(ActionService.ExportsFolder);
+    }
+
+    private async void Reload_Click(object? sender, RoutedEventArgs e) {
+        await ServiceManager.Actions.LoadLibraryAsync();
+        StatusText.Text = $"Loaded {ServiceManager.Actions.CustomActions.Count} action(s)";
+    }
+
+    private void OpenFolder(string path) {
+        try {
+            Directory.CreateDirectory(path);
+            if (!UiHelpers.OpenFolder(path)) _logger?.LogWarning("[Actions] Unable to open {Path}", path);
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "[Actions] Unable to open {Path}", path);
+        }
+    }
+}
+
+public sealed class ActionCard(CustomAction action) : INotifyPropertyChanged {
+    private bool _isSelected;
+
+    public CustomAction Action { get; } = action;
+
+    public bool IsSelected {
+        get => _isSelected;
+        set {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Name => Action.Name;
+    public string? Description => Action.Description;
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Action.Description);
+
+    public string Detail =>
+        $"{Action.Graph.Nodes.Count} step(s) - v{Action.Version}"
+        + (string.IsNullOrWhiteSpace(Action.Author) ? "" : $" - by {Action.Author}")
+        + (Action.Graph.IsValid(out _) ? "" : " - needs fixing");
+}

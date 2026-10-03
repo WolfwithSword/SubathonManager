@@ -14,6 +14,7 @@
         <PackageReference Include="DevTunnels.Client.DependencyInjection" Version="1.1.0"/>
         <PackageReference Include="DevTunnels.Client.Installer" Version="1.1.0"/>
         <PackageReference Include="Fourthwall.Client" Version="0.1.0"/>
+        <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
         <PackageReference Include="KoFi.Client" Version="0.1.1"/>
         <PackageReference Include="Agash.YTLiveChat" Version="4.2.0"/>
         <PackageReference Include="GoAffPro.Client" Version="0.4.1"/>

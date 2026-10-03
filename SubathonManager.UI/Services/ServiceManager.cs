@@ -71,6 +71,8 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     public static OBSService OBS => Provider.GetRequiredService<OBSService>();
     public static VTSService VTubeStudio => Provider.GetRequiredService<VTSService>();
     public static MixItUpService MixItUp => Provider.GetRequiredService<MixItUpService>();
+    public static StreamerBotService StreamerBot => Provider.GetRequiredService<StreamerBotService>();
+    public static ActionService Actions => Provider.GetRequiredService<ActionService>();
 
     public static WebServer Server => Provider.GetRequiredService<WebServer>();
 
@@ -80,6 +82,11 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     public async Task StartIntegrationsAsync() {
         await StartAsync<OBSService>();
         if (FeatureFlags.VTubeStudioEnabled) await StartAsync<VTSService>();
+        await StartAsync<MixItUpService>();
+        await StartAsync<StreamerBotService>();
+        await StartAsync<ActionService>();
+        await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
+        
         await StartAsync<TwitchService>();
         await StartAsync<YouTubeService>();
         await StartAsync<PicartoService>();
@@ -91,12 +98,10 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StartAsync<MakeShipService>();
         await StartAsync<JuniperService>();
         await StartAsync<TangiaService>();
-        await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
         await StartAsync<KoFiService>();
         await StartAsync<FourthWallService>();
         await StartAsync<PatreonService>();
         await StartAsync<ThroneService>();
-        await StartAsync<MixItUpService>();
         await StartAsync<PallyService>();
         await StartAsync<TiltifyService>();
         await StartAsync<DiscordWebhookService>();
@@ -118,7 +123,9 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StopAsync<TangiaService>();
         await StopAsync<KoFiService>();
         await StopAsync<ThroneService>();
+        await StopAsync<ActionService>();
         await StopAsync<MixItUpService>();
+        await StopAsync<StreamerBotService>();
         await StopAsync<PallyService>();
         await StopAsync<TiltifyService>();
         await StopAsync<FourthWallService>();
@@ -154,7 +161,9 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
             else
                 await service.StartAsync(ct);
             _running.Add(typeof(T));
-            logger?.LogDebug("{Service} started", typeof(T).Name);
+            
+            if (logger?.IsEnabled(LogLevel.Debug) ?? false)
+                logger?.LogDebug("{Service} started", typeof(T).Name);
         }
         finally {
             lk.Release();
@@ -171,7 +180,8 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
             if (service != null)
                 await service.StopAsync(ct);
             _running.Remove(typeof(T));
-            logger?.LogDebug("{Service} stopped", typeof(T).Name);
+            if (logger?.IsEnabled(LogLevel.Debug) ?? false)
+                logger?.LogDebug("{Service} stopped", typeof(T).Name);
         }
         finally {
             lk.Release();

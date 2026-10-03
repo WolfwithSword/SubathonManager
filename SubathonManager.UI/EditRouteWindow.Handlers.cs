@@ -371,8 +371,15 @@ public partial class EditRouteWindow {
     }
 
     private async void SaveWidgetButton_Click(object? sender, RoutedEventArgs e) {
+        if (!await SaveSelectedWidgetAsync()) return;
+        SaveWidgetButton.Content = "Saved!";
+        await Task.Delay(1500);
+        SaveWidgetButton.Content = "Save";
+    }
+
+    private async Task<bool> SaveSelectedWidgetAsync() {
         try {
-            if (_selectedWidget == null) return;
+            if (_selectedWidget == null) return true;
             var widgetHelper = new WidgetEntityHelper(_factory, null);
 
             widgetHelper.SyncCssVariables(_selectedWidget);
@@ -426,12 +433,11 @@ public partial class EditRouteWindow {
 
             await db.Entry(_selectedWidget).ReloadAsync();
             UpdateSaveButtonBorder(SaveButtonBorder, false);
-            SaveWidgetButton.Content = "Saved!";
-            await Task.Delay(1500);
-            SaveWidgetButton.Content = "Save";
+            return true;
         }
         catch (Exception ex) {
             _logger?.LogError(ex, "Failed to save widget");
+            return false;
         }
     }
 
@@ -1002,12 +1008,14 @@ public partial class EditRouteWindow {
     }
 
     private async void SaveRouteButton_Click(object? sender, RoutedEventArgs e) {
-        if (_route == null) return;
-        await SaveCurrentRoute();
+        if (_route == null || !await SaveCurrentRoute()) return;
+        SaveRouteButton.Content = "Saved!";
+        await Task.Delay(1500);
+        SaveRouteButton.Content = "Save";
     }
 
-    private async Task SaveCurrentRoute() {
-        if (_route == null) return;
+    private async Task<bool> SaveCurrentRoute() {
+        if (_route == null) return true;
         try {
             await SaveAllPendingWidgetChangesAsync();
 
@@ -1022,13 +1030,11 @@ public partial class EditRouteWindow {
             UpdateWebViewScale();
             OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
             RouteSaved?.Invoke();
-
-            SaveRouteButton.Content = "Saved!";
-            await Task.Delay(1500);
-            SaveRouteButton.Content = "Save";
+            return true;
         }
         catch (Exception ex) {
             _logger?.LogError(ex, "Failed to save overlay");
+            return false;
         }
     }
 

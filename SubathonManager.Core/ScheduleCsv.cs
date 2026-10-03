@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 
@@ -19,31 +18,28 @@ public static class ScheduleCsv {
     ];
 
     public static string Write(IEnumerable<ScheduleItem> items) {
-        var sb = new StringBuilder();
-        sb.AppendLine(string.Join(',', Columns));
-        foreach (ScheduleItem item in items)
-            sb.AppendLine(string.Join(',',
-                item.Date.ToString(DateFormat, CultureInfo.InvariantCulture),
-                item.Kind.ToString(),
-                item.StartMinute is { } s ? ScheduleItem.FormatMinute(s) : "",
-                item.EndMinute is { } e ? ScheduleItem.FormatMinute(e) : "",
-                Utils.EscapeCsv(item.Title),
-                Utils.EscapeCsv(item.Description),
-                item.IsDone ? "true" : "false"));
-        return sb.ToString();
+        return CsvUtils.Write([Columns], items, item => [
+            item.Date.ToString(DateFormat, CultureInfo.InvariantCulture),
+            item.Kind,
+            item.StartMinute is { } s ? ScheduleItem.FormatMinute(s) : "",
+            item.EndMinute is { } e ? ScheduleItem.FormatMinute(e) : "",
+            item.Title,
+            item.Description,
+            item.IsDone ? "true" : "false"
+        ]);
     }
 
     public static ParseResult Parse(string csv) {
         var items = new List<ScheduleItem>();
         var errors = new List<string>();
 
-        List<(int line, List<string> fields)> records = ReadRecords(csv);
+        List<(int Line, string[] Fields)> records = CsvUtils.ReadRecords(csv);
         if (records.Count == 0) {
             errors.Add("File is empty.");
             return new ParseResult(items, errors);
         }
 
-        Dictionary<string, int> index = records[0].fields
+        Dictionary<string, int> index = records[0].Fields
             .Select((name, i) => (name: name.Trim(), i))
             .GroupBy(x => x.name, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().i, StringComparer.OrdinalIgnoreCase);
@@ -53,11 +49,11 @@ public static class ScheduleCsv {
                 errors.Add($"Missing required column \"{required}\".");
         if (errors.Count > 0) return new ParseResult(items, errors);
 
-        string Field(List<string> fields, string column) {
-            return index.TryGetValue(column, out int i) && i < fields.Count ? fields[i] : "";
+        string Field(string[] fields, string column) {
+            return index.TryGetValue(column, out int i) && i < fields.Length ? fields[i] : "";
         }
 
-        foreach ((int line, List<string> fields) in records.Skip(1)) {
+        foreach ((int line, string[] fields) in records.Skip(1)) {
             if (fields.All(string.IsNullOrWhiteSpace)) continue;
 
             string dateRaw = Field(fields, nameof(ScheduleItem.Date)).Trim();
@@ -150,71 +146,6 @@ public static class ScheduleCsv {
     private static bool IsSameSlot(ScheduleItem a, ScheduleItem b) {
         return a.Date.Date == b.Date.Date && a.Title == b.Title &&
                a.StartMinute == b.StartMinute && a.EndMinute == b.EndMinute;
-    }
-
-    private static List<(int line, List<string> fields)> ReadRecords(string csv) {
-        var records = new List<(int, List<string>)>();
-        var fields = new List<string>();
-        var field = new StringBuilder();
-        var inQuotes = false;
-        var line = 1;
-        var recordStart = 1;
-        var any = false;
-
-        if (csv.Length > 0 && csv[0] == (char)0xFEFF) csv = csv[1..];
-
-        for (var i = 0; i < csv.Length; i++) {
-            char c = csv[i];
-            if (inQuotes) {
-                if (c == '"' && i + 1 < csv.Length && csv[i + 1] == '"') {
-                    field.Append('"');
-                    i++;
-                }
-                else if (c == '"') {
-                    inQuotes = false;
-                }
-                else {
-                    if (c == '\n') line++;
-                    if (c != '\r') field.Append(c);
-                }
-
-                continue;
-            }
-
-            switch (c) {
-                case '"':
-                    inQuotes = true;
-                    any = true;
-                    break;
-                case ',':
-                    fields.Add(field.ToString());
-                    field.Clear();
-                    any = true;
-                    break;
-                case '\r':
-                    break;
-                case '\n':
-                    fields.Add(field.ToString());
-                    field.Clear();
-                    if (any || fields.Count > 1 || fields[0].Length > 0) records.Add((recordStart, fields));
-                    fields = [];
-                    any = false;
-                    line++;
-                    recordStart = line;
-                    break;
-                default:
-                    field.Append(c);
-                    any = true;
-                    break;
-            }
-        }
-
-        if (any || field.Length > 0) {
-            fields.Add(field.ToString());
-            records.Add((recordStart, fields));
-        }
-
-        return records;
     }
 
     public sealed record ParseResult(List<ScheduleItem> Items, List<string> Errors);

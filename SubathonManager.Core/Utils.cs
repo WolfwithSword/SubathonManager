@@ -21,6 +21,7 @@ public static class Utils {
 
     public static string? PendingOverlayImportPath { get; set; }
     public static string? PendingWidgetPackImportPath { get; set; }
+    public static string? PendingActionImportPath { get; set; }
 
     public static IEnumerable<IntegrationConnection> GetAllConnections() {
         return ConnectionDetails.Values;
@@ -119,6 +120,13 @@ public static class Utils {
         return new TimeSpan(days, hours, minutes, seconds);
     }
 
+    public static string FormatShortDuration(TimeSpan duration) {
+        if (duration.TotalHours >= 1) return $"{(int)duration.TotalHours}h{duration.Minutes:00}m";
+        if (duration.TotalMinutes >= 1) return $"{(int)duration.TotalMinutes}m{duration.Seconds:00}s";
+        if (duration.TotalSeconds >= 1) return $"{(int)duration.TotalSeconds}s";
+        return $"{(int)duration.TotalMilliseconds}ms";
+    }
+
     public static Guid TryParseGuid(string? value) {
         if (value != null && Guid.TryParse(value, out Guid g)) return g;
         return CreateGuidFromUniqueString(value ?? Guid.NewGuid().ToString());
@@ -194,16 +202,6 @@ public static class Utils {
         }
 
         return currency;
-    }
-
-    public static string EscapeCsv(string? value) {
-        if (string.IsNullOrWhiteSpace(value)) return "";
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r')) {
-            value = value.Replace("\"", "\"\"");
-            return $"\"{value}\"";
-        }
-
-        return value;
     }
 
     public static string DescribeTokenPointRate(string? pointsPer100, string unitPlural, string? unitSingular = null) {

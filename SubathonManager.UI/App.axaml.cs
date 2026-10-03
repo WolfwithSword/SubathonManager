@@ -140,7 +140,9 @@ public partial class App : Application {
 
             var window = new MainWindow();
             desktop.MainWindow = window;
-            window.Closing += (_, _) => window.CloseEditor();
+            window.Closing += (_, e) => {
+                if (!window.CloseEditor()) e.Cancel = true;
+            };
 
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
@@ -204,11 +206,15 @@ public partial class App : Application {
                 case ActivationKind.SmwFile:
                     Utils.PendingWidgetPackImportPath = request.Payload;
                     break;
+                case ActivationKind.SmaFile:
+                    Utils.PendingActionImportPath = request.Payload;
+                    break;
                 case ActivationKind.OAuth:
                     AppServices.Provider.GetRequiredService<OAuthService>().HandleCallback(request.Payload);
                     break;
                 default:
-                    _logger?.LogDebug("Activation received with no recognised payload: {Payload}", request.Payload);
+                    if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
+                        _logger?.LogDebug("Activation received with no recognised payload: {Payload}", request.Payload);
                     break;
             }
 

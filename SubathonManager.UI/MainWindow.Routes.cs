@@ -282,8 +282,9 @@ public partial class MainWindow {
         }
     }
 
-    public void CloseEditor() {
-        if (_editWindow != null) _editWindow.Close();
+    public bool CloseEditor() {
+        _editWindow?.Close();
+        return _editWindow == null;
     }
 
     internal void OpenRouteEditor(Route route) {
@@ -293,14 +294,18 @@ public partial class MainWindow {
                 return;
             }
 
-            _editWindow.Close();
+            if (!CloseEditor()) {
+                _editWindow.Activate();
+                return;
+            }
         }
 
-        _editWindow = new EditRouteWindow(route.Id);
+        var editor = new EditRouteWindow(route.Id);
+        _editWindow = editor;
         _editWindow.RouteSaved += LoadRoutes;
         _editWindow.Closed += (_, _) => {
             LoadRoutes();
-            _editWindow = null;
+            if (_editWindow == editor) _editWindow = null;
         };
 
         UiHelpers.CenterOver(_editWindow, this);

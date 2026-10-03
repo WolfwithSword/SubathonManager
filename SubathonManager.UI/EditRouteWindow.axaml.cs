@@ -8,6 +8,8 @@ using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,6 +50,8 @@ public partial class EditRouteWindow : Window {
     private string _editUrl = string.Empty;
     private bool _hasPendingCssChanges;
     private bool _hasPendingJsChanges;
+    private bool _hasPendingWidgetChanges;
+    private bool _closeConfirmed;
     private string _lastFolder = string.Empty;
     private bool _loadedWebView;
     private Route? _route;
@@ -106,6 +110,7 @@ public partial class EditRouteWindow : Window {
         });
 
         Loaded += EditRouteWindow_Loaded;
+        Closing += Window_Closing;
         ObsConnected = ServiceManager.OBS.Connected;
         IntegrationEvents.ConnectionUpdated += OnObsConnectionUpdated;
         Closed += (_, _) => {
@@ -366,6 +371,7 @@ public partial class EditRouteWindow : Window {
 
         Dispatcher.UIThread.Post(() => {
             _suppressCount--;
+            _hasPendingWidgetChanges = realDirty;
             UiHelpers.UpdateButtonPendingBorder(SaveButtonBorder, realDirty);
         }, DispatcherPriority.Background);
     }
@@ -797,6 +803,78 @@ public partial class EditRouteWindow : Window {
     }
 
 
+    private bool HasUnsavedChanges() {
+        if (_hasPendingWidgetChanges || _hasPendingCssChanges || _hasPendingJsChanges) return true;
+        if (_unsavedCssVars.Count > 0 || _unsavedJsVars.Count > 0) return true;
+        if (_route == null) return false;
+        if ((RouteNameBox.Text ?? string.Empty).Trim() != _route.Name) return true;
+        if (int.TryParse(RouteWidthBox.Text, out int w) && w != _route.Width) return true;
+        return int.TryParse(RouteHeightBox.Text, out int h) && h != _route.Height;
+    }
+
+    private async void Window_Closing(object? sender, WindowClosingEventArgs e) {
+        if (_closeConfirmed || !HasUnsavedChanges()) return;
+        e.Cancel = true;
+
+        bool? save = await ShowUnsavedChangesDialogAsync();
+        if (save == null) return;
+        if (save == true) {
+            if (_hasPendingWidgetChanges && !await SaveSelectedWidgetAsync()) return;
+            if (!await SaveCurrentRoute()) return;
+        }
+
+        _closeConfirmed = true;
+        Close();
+    }
+
+    private async Task<bool?> ShowUnsavedChangesDialogAsync() {
+        var dialog = new Window {
+            Title = "Unsaved changes",
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        dialog.SetDynamicResource(BackgroundProperty, "AppGeneralBackground");
+        WindowIcons.Apply(dialog);
+
+        bool? result = null;
+        Button MakeButton(string text, bool? value, string? cls = null) {
+            var button = new Button { Content = text, MinWidth = 90, Height = 32 };
+            if (cls != null) button.Classes.Add(cls);
+            button.Click += (_, _) => {
+                result = value;
+                dialog.Close();
+            };
+            return button;
+        }
+
+        var buttons = new StackPanel {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttons.Children.Add(MakeButton("Cancel", null));
+        buttons.Children.Add(MakeButton("Discard", false, "danger"));
+        buttons.Children.Add(MakeButton("Save", true, "accent"));
+
+        dialog.Content = new StackPanel {
+            Margin = new Thickness(24, 16),
+            Spacing = 16,
+            MaxWidth = 420,
+            Children = {
+                new TextBlock {
+                    Text = $"Save the changes to \"{(RouteNameBox.Text ?? "").Trim()}\" before closing?",
+                    TextWrapping = TextWrapping.Wrap
+                },
+                buttons
+            }
+        };
+
+        await dialog.ShowDialog(this);
+        return result;
+    }
+
     protected override void OnClosed(EventArgs e) {
         WidgetEvents.WidgetPositionUpdated -= OnWidgetPositionUpdated;
         WidgetEvents.WidgetScaleUpdated -= OnWidgetScaleUpdated;
@@ -818,6 +896,7 @@ public partial class EditRouteWindow : Window {
     }
 
     private void UpdateSaveButtonBorder(Border border, bool hasPendingChanges) {
+        if (border == SaveButtonBorder) _hasPendingWidgetChanges = hasPendingChanges;
         Dispatcher.UIThread.Post(() => UiHelpers.UpdateButtonPendingBorder(border, hasPendingChanges));
     }
 

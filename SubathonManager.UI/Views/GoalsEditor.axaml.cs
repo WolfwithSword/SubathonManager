@@ -1,4 +1,3 @@
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -619,28 +618,13 @@ public partial class GoalsEditor : UserControl {
             .FirstOrDefaultAsync(s => s.Id == _activeGoalSet.Id);
         if (set == null) return;
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
-        Directory.CreateDirectory(exportDir);
-
-        string safeName = SafeFileName.Sanitize(set.Name, string.Empty, "goals");
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-        string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
-
         string typeHeader = (set.Type ?? GoalsType.Points) == GoalsType.Money ? "Money" : "Points";
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"Goal,Value,{typeHeader}");
-        foreach (SubathonGoal goal in set.Goals.OrderBy(g => g.Points))
-            sb.AppendLine($"{Utils.EscapeCsv(goal.Text)},{goal.Points}");
-
-        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-
-        try {
-            UiHelpers.OpenFolder(exportDir);
-        }
-        catch {
-            /**/
-        }
+        string path = await CsvUtils.ExportAsync(SafeFileName.Sanitize(set.Name, string.Empty, "goals"),
+            [["Goal", "Value", typeHeader]],
+            set.Goals.OrderBy(g => g.Points),
+            goal => [goal.Text, goal.Points]);
+        UiHelpers.OpenFolder(Path.GetDirectoryName(path));
     }
 
     private async void ImportGoalSet_Click(object? sender, RoutedEventArgs e) {
@@ -656,21 +640,13 @@ public partial class GoalsEditor : UserControl {
         IStorageFile file = picked[0];
         string filePath = file.Path.LocalPath;
 
-        string[] lines;
-        try {
-            lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8);
-        }
-        catch {
+        List<string[]>? lines = await CsvUtils.ReadFileAsync(filePath);
+        if (lines == null || lines.Count < 1) {
             await ShowInvalidGoalCsvPopup();
             return;
         }
 
-        if (lines.Length < 1) {
-            await ShowInvalidGoalCsvPopup();
-            return;
-        }
-
-        string[] headerCols = ParseCsvLine(lines[0]);
+        string[] headerCols = lines[0];
         if (headerCols.Length < 2) {
             await ShowInvalidGoalCsvPopup();
             return;
@@ -682,9 +658,7 @@ public partial class GoalsEditor : UserControl {
             goalType = GoalsType.Money;
 
         var goals = new List<SubathonGoal>();
-        for (var i = 1; i < lines.Length; i++) {
-            if (string.IsNullOrWhiteSpace(lines[i])) continue;
-            string[] cols = ParseCsvLine(lines[i]);
+        foreach (string[] cols in lines.Skip(1)) {
             if (cols.Length < 2 || !long.TryParse(cols[1].Trim(), out long pts)) {
                 await ShowInvalidGoalCsvPopup();
                 return;
@@ -711,45 +685,6 @@ public partial class GoalsEditor : UserControl {
         await db.SaveChangesAsync();
 
         LoadAllSets();
-    }
-
-    private static string[] ParseCsvLine(string line) {
-        var result = new List<string>();
-        var field = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++) {
-            char c = line[i];
-            if (inQuotes)
-                switch (c) {
-                    case '"' when i + 1 < line.Length && line[i + 1] == '"':
-                        field.Append('"');
-                        i++;
-                        break;
-                    case '"':
-                        inQuotes = false;
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-            else
-                switch (c) {
-                    case '"':
-                        inQuotes = true;
-                        break;
-                    case ',':
-                        result.Add(field.ToString());
-                        field.Clear();
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-        }
-
-        result.Add(field.ToString());
-        return result.ToArray();
     }
 
     private async Task ShowInvalidGoalCsvPopup() {
