@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -13,9 +14,10 @@ using SubathonManager.Core.Objects;
 namespace SubathonManager.UI.Views.Actions;
 
 public partial class ActionEditorWindow {
-    
     private const double RightClickSlop = 6;
     private Point? _rightPressAt;
+
+    private string PaletteQuery => (PaletteSearchBox.Text ?? "").Trim();
 
     private void BuildPalette() {
         foreach (IGrouping<string, ActionStepType> group in Enum.GetValues<ActionStepType>()
@@ -57,8 +59,6 @@ public partial class ActionEditorWindow {
             e.Handled = true;
         };
     }
-
-    private string PaletteQuery => (PaletteSearchBox.Text ?? "").Trim();
 
     private static bool PaletteMatches(string group, ActionStepType type, string query) {
         return group.Contains(query, StringComparison.OrdinalIgnoreCase)
@@ -146,27 +146,38 @@ public partial class ActionEditorWindow {
     private void AddConnectionView(ActionEdge edge) {
         ActionNodeVm? from = _nodes.FirstOrDefault(n => n.Node.Id == edge.From);
         ActionNodeVm? to = _nodes.FirstOrDefault(n => n.Node.Id == edge.To);
-        if (from != null && to != null) _connections.Add(new ActionConnectionVm(edge, from.Output, to.Input));
+        if (from == null || to == null) return;
+        _connections.Add(new ActionConnectionVm(edge, edge.Port == ActionEdge.ElsePort ? from.ElseOutput : from.Output,
+            to.Input));
     }
 
     private void RefreshNodes() {
         foreach (ActionNodeVm node in _nodes) node.Refresh(Graph);
+        RefreshRunVariables();
     }
 
     private void OnConnectionCompleted(object? parameter) {
-        if (parameter is not ValueTuple<object, object> { Item1: ActionConnectorVm a, Item2: ActionConnectorVm b }) return;
+        if (parameter is not ValueTuple<object, object> {
+                Item1: ActionConnectorVm a, Item2: ActionConnectorVm b
+            }) return;
         (ActionConnectorVm from, ActionConnectorVm to) = a.IsInput ? (b, a) : (a, b);
         if (from.IsInput || !to.IsInput || from.Owner == to.Owner) return;
+        if (from.Port != null && !from.Owner.IsCondition) return;
 
         string fromId = from.Owner.Node.Id, toId = to.Owner.Node.Id;
-        if (Graph.Edges.Any(e => e.From == fromId && e.To == toId)) return;
+        if (Graph.Edges.Any(e => e.From == fromId && e.To == toId)) {
+            StatusText.Foreground = Brushes.OrangeRed;
+            StatusText.Text = "Error: Those steps are already connected";
+            return;
+        }
+
         if (Graph.WouldLoop(fromId, toId)) {
             StatusText.Foreground = Brushes.OrangeRed;
             StatusText.Text = "Error: That connection would make a loop";
             return;
         }
 
-        var edge = new ActionEdge { From = fromId, To = toId };
+        var edge = new ActionEdge { From = fromId, To = toId, Port = from.Port };
         Graph.Edges.Add(edge);
         AddConnectionView(edge);
         RefreshNodes();
@@ -229,19 +240,21 @@ public partial class ActionEditorWindow {
     }
 
     private void AttachNodeMenus() {
-        Editor.AddHandler(PointerPressedEvent, (_, e) => {
-            _rightPressAt = e.GetCurrentPoint(Editor).Properties.IsRightButtonPressed ? e.GetPosition(Editor) : null;
-        }, RoutingStrategies.Tunnel, true);
+        Editor.AddHandler(PointerPressedEvent,
+            (_, e) => {
+                _rightPressAt = e.GetCurrentPoint(Editor).Properties.IsRightButtonPressed
+                    ? e.GetPosition(Editor)
+                    : null;
+            }, RoutingStrategies.Tunnel, true);
 
         Editor.AddHandler(PointerReleasedEvent, (_, e) => {
             if (e.InitialPressMouseButton != MouseButton.Right || _rightPressAt is not { } start) return;
             _rightPressAt = null;
             Point at = e.GetPosition(Editor);
             if (Math.Abs(at.X - start.X) > RightClickSlop || Math.Abs(at.Y - start.Y) > RightClickSlop) return;
-            if (StepContainerFor(e.Source, at) is not { DataContext: ActionNodeVm clicked } container) {
+            if (StepContainerFor(e.Source, at) is not { DataContext: ActionNodeVm clicked } container)
                 // not an action step right clicked
                 return;
-            }
 
             if (Editor.SelectedItems is { } selected && !selected.Contains(clicked)) {
                 selected.Clear();
@@ -270,15 +283,24 @@ public partial class ActionEditorWindow {
         duplicate.Click += (_, _) => DuplicateNodes(targets);
         var toggle = new MenuItem { Header = $"{(clicked.Node.Disabled ? "Enable" : "Disable")}{suffix}" };
         toggle.Click += (_, _) => ToggleNodes(targets, !clicked.Node.Disabled);
+        var ignore = new MenuItem { Header = "Ignore Errors" };
+        ignore.Click += (_, _) => SetIgnoreErrors(targets, !clicked.Node.IgnoreErrors);
         var delete = new MenuItem { Header = $"Delete{suffix}" };
         delete.Click += (_, _) => DeleteItems(targets, []);
 
-        return new MenuFlyout { Items = { duplicate, toggle, new Separator(), delete } };
+        return new MenuFlyout { Items = { duplicate, toggle, ignore, new Separator(), delete } };
     }
 
     private List<ActionNodeVm> MenuTargets(ActionNodeVm clicked) {
         List<ActionNodeVm> selected = Editor.SelectedItems?.OfType<ActionNodeVm>().ToList() ?? [];
         return selected.Count > 1 && selected.Contains(clicked) ? selected : [clicked];
+    }
+
+    private void SetIgnoreErrors(List<ActionNodeVm> targets, bool ignore) {
+        foreach (ActionNodeVm node in targets) node.Node.IgnoreErrors = ignore;
+        RefreshNodes();
+        if (SelectedVm is { } selected && targets.Contains(selected)) ShowSelection();
+        MarkDirty();
     }
 
     private void ToggleNodes(List<ActionNodeVm> targets, bool disable) {
@@ -301,7 +323,8 @@ public partial class ActionEditorWindow {
                 Step = CloneStep(original.Node.Step),
                 X = original.Node.X + 30,
                 Y = original.Node.Y + StepSpacingY,
-                Disabled = original.Node.Disabled
+                Disabled = original.Node.Disabled,
+                IgnoreErrors = original.Node.IgnoreErrors
             };
             newIds[original.Node.Id] = copy.Id;
             Graph.Nodes.Add(copy);
@@ -313,7 +336,7 @@ public partial class ActionEditorWindow {
         foreach (ActionEdge edge in Graph.Edges.ToList()) {
             if (!newIds.TryGetValue(edge.From, out string? from) || !newIds.TryGetValue(edge.To, out string? to))
                 continue;
-            var copiedEdge = new ActionEdge { From = from, To = to };
+            var copiedEdge = new ActionEdge { From = from, To = to, Port = edge.Port };
             Graph.Edges.Add(copiedEdge);
             AddConnectionView(copiedEdge);
         }
@@ -326,7 +349,7 @@ public partial class ActionEditorWindow {
     }
 
     private static ActionStep CloneStep(ActionStep step) {
-        return System.Text.Json.JsonSerializer.Deserialize<ActionStep>(
-            System.Text.Json.JsonSerializer.Serialize(step, ActionGraph.JsonOptions), ActionGraph.JsonOptions)!;
+        return JsonSerializer.Deserialize<ActionStep>(
+            JsonSerializer.Serialize(step, ActionGraph.JsonOptions), ActionGraph.JsonOptions)!;
     }
 }

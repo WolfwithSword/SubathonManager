@@ -50,6 +50,8 @@ public class AppDbContext : DbContext {
 
     public DbSet<ScheduleItem> ScheduleItems { get; set; }
 
+    public DbSet<ActionGlobal> ActionGlobals { get; set; }
+
     public DbSet<WidgetCatalogEntry> WidgetCatalogEntries => Set<WidgetCatalogEntry>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
@@ -100,6 +102,12 @@ public class AppDbContext : DbContext {
 
         modelBuilder.Entity<ScheduleItem>()
             .HasIndex(i => i.Date);
+
+        modelBuilder.Entity<ActionGlobal>()
+            .HasKey(g => new { g.Kind, g.Name });
+        modelBuilder.Entity<ActionGlobal>()
+            .Property(g => g.Name)
+            .UseCollation("NOCASE");
 
         modelBuilder.Entity<SubathonGoalSet>()
             .HasMany(s => s.Goals)
@@ -303,11 +311,13 @@ public class AppDbContext : DbContext {
             .ToListAsync();
 
         return await CsvUtils.ExportAsync($"subathon-{subathon.Id}",
-            [[
-                "Id", "Source", "Type", "Command", "User", "Seconds Value", "Points Value", "Value", "Currency",
-                "Amount", "Multiplier Seconds", "Multiplier Points", "Processed", "Final Seconds Added",
-                "Final Points Added", "Timestamp", "Secondary Value", "Event Meta Type", "Event Meta Common Type"
-            ]],
+            [
+                [
+                    "Id", "Source", "Type", "Command", "User", "Seconds Value", "Points Value", "Value", "Currency",
+                    "Amount", "Multiplier Seconds", "Multiplier Points", "Processed", "Final Seconds Added",
+                    "Final Points Added", "Timestamp", "Secondary Value", "Event Meta Type", "Event Meta Common Type"
+                ]
+            ],
             events, e => {
                 string val = e.Value;
                 string? commonMeta = string.IsNullOrWhiteSpace(e.EventTypeMeta) ? "" : e.EventTypeMeta;

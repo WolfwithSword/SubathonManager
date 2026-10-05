@@ -20,11 +20,17 @@ public sealed class ActionNodeVm : ActionEditorVm {
         Node = node;
         Input = new ActionConnectorVm(this, true);
         Output = new ActionConnectorVm(this, false);
+        ElseOutput = new ActionConnectorVm(this, false, ActionEdge.ElsePort);
     }
 
     public ActionNode Node { get; }
     public ActionConnectorVm Input { get; }
     public ActionConnectorVm Output { get; }
+
+    public ActionConnectorVm ElseOutput { get; }
+
+    public bool IsCondition => Node.Step.Type == ActionStepType.Condition;
+    public bool IgnoresErrors => Node.IgnoreErrors;
 
     public Point Location {
         get => new(Node.X, Node.Y);
@@ -54,10 +60,14 @@ public sealed class ActionNodeVm : ActionEditorVm {
     public void Refresh(ActionGraph graph) {
         Raise(nameof(IsDisabled));
         Raise(nameof(CardOpacity));
+        Raise(nameof(IgnoresErrors));
         IsStart = !graph.Incoming(Node.Id).Any();
-        Branches = graph.Outgoing(Node.Id).Count();
-        IsEnd = Branches == 0;
+
+        List<ActionEdge> outgoing = graph.Edges.Where(e => e.From == Node.Id).ToList();
+        Branches = outgoing.GroupBy(e => e.Port).Select(g => g.Count()).DefaultIfEmpty(0).Max();
+        IsEnd = outgoing.Count == 0;
         Error = Node.Step.IsValid(out string error) ? null : error;
+
         Raise(nameof(Title));
         Raise(nameof(Summary));
         Raise(nameof(IsStart));
@@ -70,11 +80,12 @@ public sealed class ActionNodeVm : ActionEditorVm {
     }
 }
 
-public sealed class ActionConnectorVm(ActionNodeVm owner, bool isInput) : ActionEditorVm {
+public sealed class ActionConnectorVm(ActionNodeVm owner, bool isInput, string? port = null) : ActionEditorVm {
     private Point _anchor;
 
     public ActionNodeVm Owner { get; } = owner;
     public bool IsInput { get; } = isInput;
+    public string? Port { get; } = port;
 
     public Point Anchor {
         get => _anchor;
@@ -86,7 +97,9 @@ public sealed class ActionConnectorVm(ActionNodeVm owner, bool isInput) : Action
     }
 }
 
-public sealed record ActionConnectionVm(ActionEdge Edge, ActionConnectorVm Source, ActionConnectorVm Target);
+public sealed record ActionConnectionVm(ActionEdge Edge, ActionConnectorVm Source, ActionConnectorVm Target) {
+    public bool IsElse => Edge.Port == ActionEdge.ElsePort;
+}
 
 internal sealed class EditorCommand(Action<object?> execute) : ICommand {
     public event EventHandler? CanExecuteChanged {

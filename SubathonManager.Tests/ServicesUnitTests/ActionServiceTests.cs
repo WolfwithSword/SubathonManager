@@ -8,6 +8,7 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
@@ -19,7 +20,7 @@ namespace SubathonManager.Tests.ServicesUnitTests;
 [Collection("GlobalState")]
 public class ActionServiceTests {
     private static async Task<(ActionService service, FakeRunner runner, DbContextOptions<AppDbContext> options,
-        SqliteConnection conn)> SetupAsync() {
+        SqliteConnection conn)> SetupAsync(ISecureStorage? secureStorage = null) {
         var dbName = $"test_{Guid.NewGuid():N}";
         var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
         var connection = new SqliteConnection(connectionString);
@@ -46,7 +47,8 @@ public class ActionServiceTests {
 
         var runner = new FakeRunner();
         var service = new ActionService(factoryMock.Object, [runner],
-            actionsFolder: Path.Combine(Path.GetTempPath(), $"sm_actions_{Guid.NewGuid():N}"));
+            actionsFolder: Path.Combine(Path.GetTempPath(), $"sm_actions_{Guid.NewGuid():N}"),
+            secureStorage: secureStorage);
         await service.StartAsync(TestContext.Current.CancellationToken);
         return (service, runner, options, connection);
     }
@@ -89,7 +91,7 @@ public class ActionServiceTests {
         WheelEvents.WheelSpinStatusChanged += (h, _) => statusEvents.Add(h.Status);
 
         WheelSpinHistoryStatus? announced = null;
-        var commandsAtAnnounce = -1;
+        int commandsAtAnnounce = -1;
         ActionRunResult result = await service.RunWheelSpinAsync(history.Id, status => {
             announced = status;
             commandsAtAnnounce = created.Count;
@@ -218,7 +220,8 @@ public class ActionServiceTests {
             vts.ToParameterString());
 
         Task<ActionRunResult> run = service.RunWheelSpinAsync(history.Id);
-        for (var i = 0; i < 100 && !service.IsRunning(history.Id); i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        for (var i = 0; i < 100 && !service.IsRunning(history.Id); i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.True(service.IsRunning(history.Id));
 
         await using (var db = new AppDbContext(options)) {
@@ -272,7 +275,8 @@ public class ActionServiceTests {
 
         Assert.True(ActionGraph.TryParse(vts.ToActionGraph().ToJson(), out ActionGraph? graph));
         Assert.True(graph.IsValid(out _));
-        Assert.Equal([ActionOperation.Hold, ActionOperation.None, ActionOperation.Restore], graph.Nodes.Select(n => n.Step.Operation));
+        Assert.Equal([ActionOperation.Hold, ActionOperation.None, ActionOperation.Restore],
+            graph.Nodes.Select(n => n.Step.Operation));
         Assert.Equal("FaceAngleX = 30 (held) -> Wait 10s -> Restore FaceAngleX", graph.Describe());
 
         graph.Edges.Add(new ActionEdge { From = "3", To = "1" });
@@ -433,7 +437,8 @@ public class ActionServiceTests {
         Assert.Equal("SomeMod", runner.LastUser);
 
         ActionEvents.RaiseCustomActionRunRequested(new SubathonEvent { Value = "RunAction Hat Bit" });
-        for (var i = 0; i < 100 && runner.Ran.Count < 2; i++) await Task.Delay(10, TestContext.Current.CancellationToken);
+        for (var i = 0; i < 100 && runner.Ran.Count < 2; i++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
         Assert.Equal("SYSTEM", runner.LastUser);
 
         ActionEvents.RaiseCustomActionRunRequested(new SubathonEvent { Value = "Hat" });
@@ -492,12 +497,211 @@ public class ActionServiceTests {
         Assert.Equal(new[] { ("points", "%points%"), ("message", "hi = there") }, args);
     }
 
+    [Fact]
+    public async Task IfElse_RunsOnlyTakenSide_JoinOfBothSidesRunsOnce() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        ActionGraph Build() {
+            return new ActionGraph {
+                Nodes = [
+                    new ActionNode { Id = "1", Step = Hotkey("fetch") },
+                    new ActionNode {
+                        Id = "2", Step = new ActionStep {
+                            Type = ActionStepType.Condition, Operation = ActionOperation.MoreThan,
+                            Scope = "%resp.data.items[1].count%", Target = "3"
+                        }
+                    },
+                    new ActionNode { Id = "3", Step = Hotkey("then") },
+                    new ActionNode { Id = "4", Step = Hotkey("then-more") },
+                    new ActionNode { Id = "5", Step = Hotkey("else") },
+                    new ActionNode { Id = "6", Step = Hotkey("join") }
+                ],
+                Edges = [
+                    new ActionEdge { From = "1", To = "2" },
+                    new ActionEdge { From = "2", To = "3" },
+                    new ActionEdge { From = "3", To = "4" },
+                    new ActionEdge { From = "2", To = "5", Port = ActionEdge.ElsePort },
+                    new ActionEdge { From = "4", To = "6" },
+                    new ActionEdge { From = "5", To = "6" }
+                ]
+            };
+        }
+
+        Assert.True(ActionGraph.TryParse(Build().ToJson(), out ActionGraph? reloaded));
+        Assert.Equal(ActionEdge.ElsePort, reloaded.Edges.Single(e => e.To == "5").Port);
+        Assert.DoesNotContain("\"port\"", ActionGraph.Sequence(Hotkey("a"), Hotkey("b")).ToJson());
+
+        runner.SetVariables["fetch"] = ("resp", """{"data":{"items":[{"count":1},{"count":5}]}}""");
+        var progress = new ActionRunProgress();
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), reloaded,
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "if-true"), progress));
+        Assert.Equal(["fetch", "then", "then-more", "join"], runner.Ran.ToArray());
+        Assert.Equal(["5"], progress.Skipped.ToArray());
+
+        runner.Ran.Clear();
+        runner.SetVariables["fetch"] = ("resp", """{"data":{"items":[{"count":1},{"count":2}]}}""");
+        progress = new ActionRunProgress();
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), Build(),
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "if-false"), progress));
+        Assert.Equal(["fetch", "else", "join"], runner.Ran.ToArray());
+        Assert.Equal(["3", "4"], progress.Skipped.Order().ToArray());
+
+        ActionRunProgress resumed = ActionRunProgress.Parse(progress.ToJson());
+        Assert.Equal(ActionEdge.ElsePort, resumed.Ports["2"]);
+        Assert.True(resumed.TryReadVariable("RESP.data.items[0].count", out string count));
+        Assert.Equal("1", count);
+    }
+
+    [Fact]
+    public async Task IgnoreErrors_LetsTheRunCarryOn_WhileOtherFailuresStillPause() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        ActionGraph graph = ActionGraph.Sequence(Hotkey("flaky"), Hotkey("after"));
+        graph.Nodes[0].IgnoreErrors = true;
+        Assert.True(ActionGraph.TryParse(graph.ToJson(), out ActionGraph? reloaded));
+        Assert.True(reloaded.Nodes[0].IgnoreErrors);
+        Assert.DoesNotContain("ignore_errors", ActionGraph.Sequence(Hotkey("a")).ToJson());
+
+        runner.FailOnce.Add("flaky");
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), reloaded,
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "ignore")));
+        Assert.Equal(["after"], runner.Ran.ToArray());
+
+        runner.FailOnce.Add("flaky");
+        reloaded.Nodes[0].IgnoreErrors = false;
+        Assert.Equal(ActionRunResult.Paused, await service.RunAsync(Guid.NewGuid(), reloaded,
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "no-ignore")));
+        Assert.Equal(["after"], runner.Ran.ToArray());
+    }
+
+    [Fact]
+    public async Task Secrets_FillIntoSteps_AreAddedEmptyForSavedActions_AndCanBeDeleted() {
+        var store = new Dictionary<string, string>();
+        var storage = new Mock<ISecureStorage>();
+        storage.Setup(s => s.Set(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns((string key, string value) => {
+                store[key] = value;
+                return true;
+            });
+        storage.Setup(s => s.Get(It.IsAny<string>())).Returns((string key) => store.GetValueOrDefault(key));
+        storage.Setup(s => s.Delete(It.IsAny<string>())).Returns((string key) => store.Remove(key));
+
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync(storage.Object);
+        await using SqliteConnection __ = conn;
+
+        Assert.False(await service.SetSecretAsync("bad name", "x"));
+        Assert.True(await service.SetSecretAsync("Api_Key", "abc123"));
+        Assert.Equal("abc123", service.GetSecretValue("api_key"));
+
+        var step = new ActionStep {
+            Type = ActionStepType.MixItUpCommand, Operation = ActionOperation.Run, Target = "cmd",
+            Body = "key=%secret.API_KEY%\nother=%secret.missing_one%\nleft=%resp.x%"
+        };
+        await service.SaveCustomActionAsync(new CustomAction
+            { Name = "Uses secrets", Graph = ActionGraph.Sequence(step) });
+
+        Assert.Equal(["Api_Key", "missing_one"],
+            (await service.GetGlobalsAsync(ActionStoreKind.Secret)).Select(s => s.Name)
+            .Order(StringComparer.OrdinalIgnoreCase).ToArray());
+        Assert.Null(service.GetSecretValue("missing_one"));
+        Assert.Single(service.ActionsUsing(ActionStoreKind.Secret, "api_key"));
+
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), ActionGraph.Sequence(step),
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "secrets")));
+        Assert.Equal("key=abc123\nother=\nleft=%resp.x%", runner.LastBody);
+
+        await service.DeleteGlobalAsync(ActionStoreKind.Secret, "API_KEY");
+        Assert.Null(service.GetSecretValue("api_key"));
+        Assert.Equal(["missing_one"],
+            (await service.GetGlobalsAsync(ActionStoreKind.Secret)).Select(s => s.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task Globals_AreTyped_SetGlobalStepsCheckTheType_AndTypeChangesConvertOrClear() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        Assert.NotNull(await service.SetGlobalAsync("deaths", ActionValueType.Number, "nope"));
+        Assert.Null(await service.SetGlobalAsync("Deaths", ActionValueType.Number, " 2.50 "));
+        Assert.Null(await service.SetGlobalAsync("hat_on", ActionValueType.Boolean, "yes"));
+        Assert.Null(await service.SetGlobalAsync("greeting", ActionValueType.Text, "hi there "));
+
+        ActionStep Set(string name, ActionOperation op, string? body = null) {
+            return new ActionStep { Type = ActionStepType.SetGlobal, Operation = op, Target = name, Body = body };
+        }
+
+        var report = new ActionStep {
+            Type = ActionStepType.MixItUpCommand, Operation = ActionOperation.Run, Target = "report",
+            Body = "d=%global.deaths%\nh=%global.HAT_ON%\ng=%global.greeting%\nm=%global.missing%"
+        };
+        ActionGraph graph = ActionGraph.Sequence(Set("deaths", ActionOperation.Adjust, "1"),
+            Set("hat_on", ActionOperation.Toggle), Set("greeting", ActionOperation.Set, "%user% says hi"), report);
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), graph,
+            new ActionContext(SubathonEventSource.WheelSpin, "Bob", "globals")));
+        Assert.Equal("d=3.5\nh=false\ng=Bob says hi\nm=", runner.LastBody);
+
+        Assert.Equal(ActionRunResult.Paused, await service.RunAsync(Guid.NewGuid(),
+            ActionGraph.Sequence(Set("hat_on", ActionOperation.Set, "maybe")),
+            new ActionContext(SubathonEventSource.WheelSpin, "Bob", "bad-type")));
+        Assert.Equal(ActionRunResult.Paused, await service.RunAsync(Guid.NewGuid(),
+            ActionGraph.Sequence(Set("greeting", ActionOperation.Adjust, "1")),
+            new ActionContext(SubathonEventSource.WheelSpin, "Bob", "bad-op")));
+        Assert.Equal(ActionRunResult.Paused, await service.RunAsync(Guid.NewGuid(),
+            ActionGraph.Sequence(Set("nobody", ActionOperation.Set, "x")),
+            new ActionContext(SubathonEventSource.WheelSpin, "Bob", "missing")));
+
+        Assert.True(await service.SetGlobalTypeAsync("hat_on", ActionValueType.Number));
+        Assert.False(await service.SetGlobalTypeAsync("greeting", ActionValueType.Number));
+        Assert.True(await service.SetGlobalTypeAsync("deaths", ActionValueType.Text));
+        Dictionary<string, ActionGlobal> globals = (await service.GetGlobalsAsync(ActionStoreKind.Global))
+            .ToDictionary(g => g.Name);
+        Assert.Equal(("0", ActionValueType.Number), (globals["hat_on"].Value, globals["hat_on"].ValueType));
+        Assert.Equal("0", globals["greeting"].Value);
+        Assert.Equal("3.5", globals["Deaths"].Value);
+
+        await service.SaveCustomActionAsync(new CustomAction {
+            Name = "Counter", Graph = ActionGraph.Sequence(Set("wins", ActionOperation.Adjust, "1"), report)
+        });
+        ActionGlobal wins = (await service.GetGlobalsAsync(ActionStoreKind.Global)).Single(g => g.Name == "wins");
+        Assert.Equal(ActionValueType.Number, wins.ValueType);
+        Assert.Contains(await service.GetGlobalsAsync(ActionStoreKind.Global), g => g.Name == "missing");
+        Assert.Single(service.ActionsUsing(ActionStoreKind.Global, "WINS"));
+    }
+
+    [Fact]
+    public void JsonPaths_ReadTextNumbersAndNesting_AndAnythingMissingIsEmpty() {
+        const string json = """{"name":"Bob","n":2.5,"ok":true,"list":[{"a":"x"},{"a":"y"}],"obj":{"k":[1,2]}}""";
+        Assert.Equal("Bob", ActionStepTypeHelper.ReadJsonPath(json, ".name"));
+        Assert.Equal("2.5", ActionStepTypeHelper.ReadJsonPath(json, ".n"));
+        Assert.Equal("true", ActionStepTypeHelper.ReadJsonPath(json, ".ok"));
+        Assert.Equal("y", ActionStepTypeHelper.ReadJsonPath(json, ".list[1].a"));
+        Assert.Equal("[1,2]", ActionStepTypeHelper.ReadJsonPath(json, ".obj.k"));
+        Assert.Equal("", ActionStepTypeHelper.ReadJsonPath(json, ".list[5].a"));
+        Assert.Equal("", ActionStepTypeHelper.ReadJsonPath(json, ".nope"));
+        Assert.Equal("", ActionStepTypeHelper.ReadJsonPath("not json", ".a"));
+
+        Assert.True(ActionStepTypeHelper.Compare("10", ActionOperation.MoreThan, "9"));
+        Assert.False(ActionStepTypeHelper.Compare("10", ActionOperation.MoreThan, "9x"));
+        Assert.True(ActionStepTypeHelper.Compare("True", ActionOperation.IsEqual, "true"));
+        Assert.True(ActionStepTypeHelper.Compare(" ", ActionOperation.IsEmpty, ""));
+
+        Assert.False(ActionStep.IsValidOutputName("points"));
+        Assert.False(ActionStep.IsValidOutputName("secret"));
+        Assert.True(ActionStep.IsValidOutputName("resp_2"));
+    }
+
     private sealed class FakeRunner : IActionStepRunner {
         public ConcurrentQueue<string> Ran { get; } = new();
         public HashSet<string> FailOnce { get; } = [];
         public string? LastUser { get; private set; }
+        public string? LastBody { get; private set; }
 
-        public IReadOnlyCollection<ActionStepType> StepTypes { get; } = [ActionStepType.VtsHotkey];
+        public Dictionary<string, (string Name, string Value)> SetVariables { get; } = [];
+
+        public IReadOnlyCollection<ActionStepType> StepTypes { get; } =
+            [ActionStepType.VtsHotkey, ActionStepType.MixItUpCommand];
 
         public Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
             CancellationToken ct) {
@@ -506,6 +710,9 @@ public class ActionServiceTests {
             }
 
             LastUser = ctx.User;
+            LastBody = step.Body;
+            if (SetVariables.TryGetValue(step.Target, out (string Name, string Value) set))
+                progress.SetVariable(set.Name, set.Value);
             Ran.Enqueue(step.Target);
             return Task.FromResult(true);
         }

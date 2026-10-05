@@ -94,7 +94,7 @@ public class EventTypeMetaAttribute : EnumMetaAttribute {
     public bool IsOther { get; init; }
     public bool HasValueConfig { get; init; } = true;
 
-    public bool HasCommissionData{ get; init; }
+    public bool HasCommissionData { get; init; }
 
     public SubathonEventSource Source { get; set; } = SubathonEventSource.Unknown;
 }
@@ -133,8 +133,19 @@ public class ActionStepMetaAttribute : EnumMetaAttribute {
     public string? DurationLabel { get; init; }
     public string? BodyLabel { get; init; }
 
+    public string? OperationLabel { get; init; }
+
     // operations which have parameter vals
     public ActionOperation[] ValueOperations { get; init; } = [];
+
+    // operations which do not use the target, e.g. "is empty"
+    public ActionOperation[] NoTargetOperations { get; init; } = [];
+
+    // operations which do not use the body, e.g. toggling a global
+    public ActionOperation[] NoBodyOperations { get; init; } = [];
+
+    // headers, auth, timeout and an output variable for the response, precanned
+    public bool IsWebRequest { get; init; }
 
     // %variables% in config will be accepted
     public bool AllowsVariables { get; init; }

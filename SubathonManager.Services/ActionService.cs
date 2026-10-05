@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,8 @@ using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
+using SubathonManager.Core.Security;
+using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Data;
 using SubathonManager.Data.Widgets;
 
@@ -20,13 +23,19 @@ public partial class ActionService(
     IEnumerable<IActionStepRunner> runners,
     ILogger<ActionService>? logger = null,
     string? actionsFolder = null,
-    IConfig? config = null) : IAppService, IDisposable {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    IConfig? config = null,
+    ISecureStorage? secureStorage = null) : IAppService, IDisposable {
+    public const string LoggedRunMeta = "logged-run";
 
-    public static string DefaultActionsFolder => Path.GetFullPath("actions");
-    public static string ExportsFolder => Path.GetFullPath(Path.Combine("exports", "actions"));
+    // web step saving to %resp% also sets %resp_status%
+    public const string StatusSuffix = "_status";
+
+    private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
+    private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromMinutes(5);
 
     private readonly string _folder = actionsFolder ?? DefaultActionsFolder;
+    private readonly SemaphoreSlim _globalsLock = new(1, 1);
     private readonly ConcurrentDictionary<Guid, (CustomAction Action, string Path)> _library = new();
 
     private readonly Dictionary<ActionStepType, IActionStepRunner> _runners = runners
@@ -35,11 +44,14 @@ public partial class ActionService(
         .ToDictionary(g => g.Key, g => g.First().Runner);
 
     private readonly ConcurrentDictionary<Guid, LiveRun> _runs = new();
-    private volatile bool _multiplierActive;
     private volatile bool _libraryLoaded;
-    public event Action? CustomActionsChanged;
-    
-    public const string LoggedRunMeta = "logged-run";
+    private volatile bool _multiplierActive;
+
+    public static string DefaultActionsFolder => Path.GetFullPath("actions");
+    public static string ExportsFolder => Path.GetFullPath(Path.Combine("exports", "actions"));
+
+    public IReadOnlyList<CustomAction> CustomActions =>
+        _library.Values.Select(e => e.Action).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
     public async Task StartAsync(CancellationToken ct = default) {
         SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
@@ -66,6 +78,8 @@ public partial class ActionService(
         GC.SuppressFinalize(this);
     }
 
+    public event Action? CustomActionsChanged;
+
     public bool IsRunning(Guid runId) {
         return _runs.ContainsKey(runId);
     }
@@ -73,9 +87,6 @@ public partial class ActionService(
     public void Cancel(Guid runId) {
         if (_runs.TryGetValue(runId, out LiveRun? run)) run.Cancel();
     }
-
-    public IReadOnlyList<CustomAction> CustomActions =>
-        _library.Values.Select(e => e.Action).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
     public CustomAction? FindCustomAction(string name) {
         string wanted = name.Trim();
@@ -117,7 +128,7 @@ public partial class ActionService(
     private void OnCustomActionRunRequested(SubathonEvent ev) {
         if (ev.EventTypeMeta == LoggedRunMeta) return;
         string name = ev.Value?.Trim() ?? "";
-        string prefix = $"{SubathonCommandType.RunAction} ";
+        var prefix = $"{SubathonCommandType.RunAction} ";
 
         if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) name = name[prefix.Length..].Trim();
         if (FindCustomAction(name) is not { } action) {
@@ -129,22 +140,248 @@ public partial class ActionService(
         _ = RunCustomActionAsync(action, user, ev.Source);
     }
 
-    private async Task<ActionStep> FillVariablesAsync(ActionStep step, ActionContext ctx) {
-        string joined = $"{step.Target}\n{step.Scope}\n{step.Body}";
-        List<ActionVariable> used = ActionStepTypeHelper.FindVariables(joined).Distinct().ToList();
-        if (used.Count == 0) return step;
+    private async Task<ActionStep> FillVariablesAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
+        IReadOnlySet<string> outputs) {
+        List<string> tokens = ActionStepTypeHelper.FindTokens(step.AllText)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (tokens.Count == 0) return step;
 
-        Dictionary<ActionVariable, string> values = await ActionVariableResolver.ResolveAsync(factory, used, ctx, config);
-        return new ActionStep {
-            Type = step.Type,
-            Operation = step.Operation,
-            Target = ActionStepTypeHelper.ReplaceVariables(step.Target, values),
-            TargetName = step.TargetName,
-            Scope = step.Scope == null ? null : ActionStepTypeHelper.ReplaceVariables(step.Scope, values),
-            Value = step.Value,
-            Seconds = step.Seconds,
-            Body = step.Body == null ? null : ActionStepTypeHelper.ReplaceVariables(step.Body, values)
-        };
+        List<ActionVariable> builtIns = ActionStepTypeHelper.FindVariables(step.AllText).Distinct().ToList();
+        Dictionary<ActionVariable, string> values = builtIns.Count == 0
+            ? []
+            : await ActionVariableResolver.ResolveAsync(factory, builtIns, ctx, config);
+
+        List<string> globalNames = ActionStepTypeHelper.FindStoreRefs(step.AllText)
+            .Where(r => r.Kind == ActionStoreKind.Global).Select(r => r.Name).ToList();
+        Dictionary<string, string?> globals = globalNames.Count == 0 ? [] : await GetGlobalValuesAsync(globalNames);
+
+        return step.Fill(text => ActionStepTypeHelper.ReplaceTokens(text, token => {
+            if (ActionStepTypeHelper.TryGetStoreRef(token, out ActionStoreKind kind, out string name))
+                return (kind == ActionStoreKind.Secret ? GetSecretValue(name) : globals.GetValueOrDefault(name)) ?? "";
+            if (progress.TryReadVariable(token, out string saved)) return saved;
+
+            string root = ActionStepTypeHelper.TokenRoot(token);
+            if (outputs.Contains(root) || (root.EndsWith(StatusSuffix, StringComparison.OrdinalIgnoreCase)
+                                           && outputs.Contains(root[..^StatusSuffix.Length]))) return "";
+
+            return ActionStepTypeHelper.TryParseToken(token, out ActionVariable variable)
+                   && values.TryGetValue(variable, out string? value)
+                ? value
+                : null;
+        }));
+    }
+
+    ////////////////// globals & secrets
+    public event Action? GlobalsChanged;
+
+    private static string SecretKey(string name) {
+        return $"{StorageKeys.ActionSecretPrefix}{name.ToLowerInvariant()}";
+    }
+
+    public async Task<List<ActionGlobal>> GetGlobalsAsync(ActionStoreKind? kind = null) {
+        await using AppDbContext db = await factory.CreateDbContextAsync();
+        return await db.ActionGlobals.AsNoTracking()
+            .Where(g => kind == null || g.Kind == kind)
+            .OrderBy(g => g.Kind).ThenBy(g => g.Name)
+            .ToListAsync();
+    }
+
+    private async Task<Dictionary<string, string?>> GetGlobalValuesAsync(List<string> names) {
+        var wanted = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+        await using AppDbContext db = await factory.CreateDbContextAsync();
+        return (await db.ActionGlobals.AsNoTracking().Where(g => g.Kind == ActionStoreKind.Global).ToListAsync())
+            .Where(g => wanted.Contains(g.Name))
+            .ToDictionary(g => g.Name, g => g.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public string? GetSecretValue(string name) {
+        return secureStorage?.Get(SecretKey(name));
+    }
+
+    public async Task<bool> SetSecretAsync(string name, string value) {
+        name = name.Trim();
+        if (!ActionStepTypeHelper.IsValidName(name) || secureStorage == null) return false;
+
+        await _globalsLock.WaitAsync();
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync();
+            ActionGlobal? row = await db.ActionGlobals
+                .FirstOrDefaultAsync(g => g.Kind == ActionStoreKind.Secret && g.Name == name);
+            if (row == null)
+                db.ActionGlobals.Add(new ActionGlobal {
+                    Kind = ActionStoreKind.Secret, Name = name, StorageKey = SecretKey(name)
+                });
+            else row.UpdatedAt = DateTime.Now;
+            await db.SaveChangesAsync();
+            if (!secureStorage.Set(SecretKey(name), value)) return false;
+        }
+        finally {
+            _globalsLock.Release();
+        }
+
+        GlobalsChanged?.Invoke();
+        return true;
+    }
+
+    public async Task<string?> SetGlobalAsync(string name, ActionValueType type, string? value) {
+        name = name.Trim();
+        if (!ActionStepTypeHelper.IsValidName(name)) return "Names are letters, numbers, and _ only";
+
+        string? stored = string.IsNullOrEmpty(value) ? type.DefaultValue() : type.NormalizeValue(value);
+        if (stored == null && !string.IsNullOrEmpty(value)) return $"\"{value}\" isn't a {type.GetLabel()} value";
+
+        await _globalsLock.WaitAsync();
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync();
+            ActionGlobal? row = await db.ActionGlobals
+                .FirstOrDefaultAsync(g => g.Kind == ActionStoreKind.Global && g.Name == name);
+            if (row == null) {
+                row = new ActionGlobal { Kind = ActionStoreKind.Global, Name = name };
+                db.ActionGlobals.Add(row);
+            }
+
+            row.ValueType = type;
+            row.Value = stored;
+            row.UpdatedAt = DateTime.Now;
+            await db.SaveChangesAsync();
+        }
+        finally {
+            _globalsLock.Release();
+        }
+
+        GlobalsChanged?.Invoke();
+        return null;
+    }
+
+    public async Task<bool> SetGlobalTypeAsync(string name, ActionValueType type) {
+        bool kept;
+        await _globalsLock.WaitAsync();
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync();
+            ActionGlobal? row = await db.ActionGlobals
+                .FirstOrDefaultAsync(g => g.Kind == ActionStoreKind.Global && g.Name == name);
+            if (row == null) return false;
+            if (row.ValueType == type) return true;
+
+            string? converted = ActionStepTypeHelper.ConvertValue(row.Value, row.ValueType, type);
+            kept = converted != null || string.IsNullOrEmpty(row.Value);
+            row.Value = converted ?? type.DefaultValue();
+            row.ValueType = type;
+            row.UpdatedAt = DateTime.Now;
+            await db.SaveChangesAsync();
+        }
+        finally {
+            _globalsLock.Release();
+        }
+
+        GlobalsChanged?.Invoke();
+        return kept;
+    }
+
+    public async Task DeleteGlobalAsync(ActionStoreKind kind, string name) {
+        await using AppDbContext db = await factory.CreateDbContextAsync();
+        await db.ActionGlobals.Where(g => g.Kind == kind && g.Name == name).ExecuteDeleteAsync();
+        if (kind == ActionStoreKind.Secret) secureStorage?.Delete(SecretKey(name));
+        GlobalsChanged?.Invoke();
+    }
+
+    private async Task<bool> RunSetGlobalAsync(ActionStep step, CancellationToken ct) {
+        string name = step.Target.Trim();
+        await _globalsLock.WaitAsync(ct);
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync(ct);
+            ActionGlobal? row = await db.ActionGlobals
+                .FirstOrDefaultAsync(g => g.Kind == ActionStoreKind.Global && g.Name == name, ct);
+            if (row == null) {
+                logger?.LogWarning("[Actions] There is no global named \"{Name}\" to set", name);
+                return false;
+            }
+
+            string input = row.ValueType == ActionValueType.Text ? step.Body ?? "" : (step.Body ?? "").Trim();
+            string? next = step.Operation switch {
+                ActionOperation.Toggle when row.ValueType == ActionValueType.Boolean =>
+                    row.Value == "true" ? "false" : "true",
+                ActionOperation.Adjust when row.ValueType == ActionValueType.Number
+                                            && ActionValueType.Number.NormalizeValue(input) is { } amount =>
+                    ActionValueType.Number.NormalizeValue(
+                        (double.Parse(row.Value ?? "0", CultureInfo.InvariantCulture)
+                         + double.Parse(amount, CultureInfo.InvariantCulture)).ToString(CultureInfo.InvariantCulture)),
+                ActionOperation.Set => row.ValueType.NormalizeValue(input),
+                _ => null
+            };
+
+            if (next == null) {
+                logger?.LogWarning("[Actions] Can't {Operation} %global.{Name}% ({Type}) with \"{Value}\"",
+                    step.Operation.GetOpLabel().ToLowerInvariant(), row.Name, row.ValueType.GetLabel(), input);
+                return false;
+            }
+
+            row.Value = next;
+            row.UpdatedAt = DateTime.Now;
+            await db.SaveChangesAsync(ct);
+        }
+        finally {
+            _globalsLock.Release();
+        }
+
+        GlobalsChanged?.Invoke();
+        return true;
+    }
+
+    public async Task<int> EnsureGlobalsAsync(CustomAction action) {
+        var used = new Dictionary<(ActionStoreKind, string), ActionValueType>(new StoreKeyComparer());
+        foreach (ActionNode node in action.Graph.Nodes) {
+            foreach ((ActionStoreKind kind, string name) in ActionStepTypeHelper.FindStoreRefs(node.Step.AllText))
+                used.TryAdd((kind, name), ActionValueType.Text);
+            if (node.Step.Type != ActionStepType.SetGlobal ||
+                !ActionStepTypeHelper.IsValidName(node.Step.Target.Trim()))
+                continue;
+
+            used[(ActionStoreKind.Global, node.Step.Target.Trim())] = node.Step.Operation switch {
+                ActionOperation.Adjust => ActionValueType.Number,
+                ActionOperation.Toggle => ActionValueType.Boolean,
+                _ => ActionValueType.Text
+            };
+        }
+
+        if (used.Count == 0) return 0;
+
+        List<ActionGlobal> added;
+        await _globalsLock.WaitAsync();
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync();
+            HashSet<(ActionStoreKind, string)> known = (await db.ActionGlobals.Select(g => new { g.Kind, g.Name })
+                    .ToListAsync())
+                .Select(g => (g.Kind, g.Name)).ToHashSet(new StoreKeyComparer());
+            added = used.Where(u => !known.Contains(u.Key))
+                .Select(u => new ActionGlobal {
+                    Kind = u.Key.Item1, Name = u.Key.Item2, ValueType = u.Value,
+                    Value = u.Key.Item1 == ActionStoreKind.Global ? u.Value.DefaultValue() : null,
+                    StorageKey = u.Key.Item1 == ActionStoreKind.Secret ? SecretKey(u.Key.Item2) : null
+                })
+                .ToList();
+            if (added.Count == 0) return 0;
+            db.ActionGlobals.AddRange(added);
+            await db.SaveChangesAsync();
+        }
+        finally {
+            _globalsLock.Release();
+        }
+
+        logger?.LogInformation("[Actions] \"{Action}\" uses globals / secrets not set up yet: {Names}", action.Name,
+            string.Join(", ", added.Select(g => ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name))));
+        GlobalsChanged?.Invoke();
+        return added.Count;
+    }
+
+    public IReadOnlyList<CustomAction> ActionsUsing(ActionStoreKind kind, string name) {
+        return CustomActions.Where(a => a.Graph.Nodes.Any(n =>
+                ActionStepTypeHelper.FindStoreRefs(n.Step.AllText)
+                    .Any(r => r.Kind == kind && r.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                || (kind == ActionStoreKind.Global && n.Step.Type == ActionStepType.SetGlobal
+                                                   && n.Step.Target.Trim().Equals(name,
+                                                       StringComparison.OrdinalIgnoreCase))))
+            .ToList();
     }
 
     public CustomAction? GetCustomAction(Guid id) {
@@ -178,12 +415,19 @@ public partial class ActionService(
             : NewActionPath(_folder, action.Name);
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        string temp = $"{path}.tmp";
+        var temp = $"{path}.tmp";
         await File.WriteAllTextAsync(temp, action.ToJson());
         File.Move(temp, path, true);
 
         _library[action.Id] = (action, path);
         CustomActionsChanged?.Invoke();
+
+        try {
+            await EnsureGlobalsAsync(action);
+        }
+        catch (Exception ex) {
+            logger?.LogWarning(ex, "[Actions] Could not add the globals and secrets \"{Name}\" uses", action.Name);
+        }
     }
 
     public void DeleteCustomAction(Guid id) {
@@ -311,15 +555,36 @@ public partial class ActionService(
         CancellationToken ct = failCts.Token;
 
         Dictionary<string, ActionNode> pending = graph.Nodes
-            .Where(n => !progress.IsDone(n.Id))
+            .Where(n => !progress.IsResolved(n.Id))
             .ToDictionary(n => n.Id);
         var running = new Dictionary<Task<bool>, ActionNode>();
+        HashSet<string> outputs = graph.OutputVariables();
 
         void StartReady() {
-            foreach (ActionNode node in pending.Values.ToList().Where(node => graph.Incoming(node.Id).All(progress.IsDone))) {
-                pending.Remove(node.Id);
-                running[node.Disabled ? Task.Run(() => true, ct) : RunStepAsync(node.Step, ctx, progress, ct)] = node;
-            }
+            bool changed;
+            do {
+                changed = false;
+                foreach (ActionNode node in pending.Values.ToList()) {
+                    List<ActionEdge> incoming = graph.IncomingEdges(node.Id).ToList();
+                    if (!incoming.All(e => progress.IsResolved(e.From))) continue;
+                    pending.Remove(node.Id);
+
+                    if (incoming.Count > 0 && !incoming.Any(progress.IsLive)) {
+                        progress.MarkSkipped(node.Id);
+                        changed = true;
+                        continue;
+                    }
+
+                    running[StartStep(node)] = node;
+                }
+            } while (changed);
+        }
+
+        Task<bool> StartStep(ActionNode node) {
+            if (node.Disabled) return Task.Run(() => true, ct);
+            return node.Step.Type == ActionStepType.Condition
+                ? RunConditionAsync(node, ctx, progress, outputs, ct)
+                : RunStepAsync(node.Step, ctx, progress, outputs, ct);
         }
 
         StartReady();
@@ -341,6 +606,12 @@ public partial class ActionService(
                 ok = false;
             }
 
+            if (!ok && node.IgnoreErrors && !ct.IsCancellationRequested) {
+                logger?.LogInformation("[Actions] {Label}: \"{Step}\" failed. Ignore Errors = true",
+                    ctx.Label ?? ctx.RepeatKey, node.Step.Describe());
+                ok = true;
+            }
+
             if (ok) {
                 progress.MarkDone(node.Id);
                 if (onProgress != null) await onProgress(progress);
@@ -358,32 +629,35 @@ public partial class ActionService(
         return !failed && pending.Count == 0 && !outerCt.IsCancellationRequested;
     }
 
+    private async Task<bool> RunConditionAsync(ActionNode node, ActionContext ctx, ActionRunProgress progress,
+        IReadOnlySet<string> outputs, CancellationToken ct) {
+        ct.ThrowIfCancellationRequested();
+        ActionStep step = await FillVariablesAsync(node.Step, ctx, progress, outputs);
+
+        bool result = ActionStepTypeHelper.Compare(step.Scope ?? "", step.Operation, step.Target);
+        progress.SetPort(node.Id, result ? null : ActionEdge.ElsePort);
+
+        if (logger?.IsEnabled(LogLevel.Debug) ?? false)
+            logger.LogDebug("[Actions] {Label}: \"{Step}\" was {Result}", ctx.Label ?? ctx.RepeatKey,
+                node.Step.Describe(), result);
+        return true;
+    }
+
     private async Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
-        CancellationToken ct) {
+        IReadOnlySet<string> outputs, CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
         if (!step.Type.IsAvailable()) return false;
 
-        if (step.Type.AllowsVariables()) step = await FillVariablesAsync(step, ctx);
+        ActionStep original = step;
+        if (step.Type.AllowsVariables()) step = await FillVariablesAsync(step, ctx, progress, outputs);
 
         switch (step.Type) {
             case ActionStepType.HttpGet:
-            case ActionStepType.HttpPost: {
-                using var request = new HttpRequestMessage(
-                    step.Type == ActionStepType.HttpGet ? HttpMethod.Get : HttpMethod.Post, step.Target.Trim());
-                if (step.Type == ActionStepType.HttpPost) {
-                    string body = step.Body ?? "";
-                    string start = body.TrimStart();
-                    string mediaType = start.StartsWith('{') || start.StartsWith('[') ? "application/json" : "text/plain";
-                    request.Content = new StringContent(body, Encoding.UTF8, mediaType);
-                }
+            case ActionStepType.HttpPost:
+                return await RunWebRequestAsync(step, original, progress, ct);
 
-                using HttpResponseMessage response =
-                    await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-                if (response.IsSuccessStatusCode) return true;
-                logger?.LogWarning("[Actions] {Method} {Url} answered {Status}", request.Method, step.Target,
-                    (int)response.StatusCode);
-                return false;
-            }
+            case ActionStepType.SetGlobal:
+                return await RunSetGlobalAsync(step, ct);
 
             case ActionStepType.Wait:
                 await Task.Delay(step.Duration, ct); // when here, easier to do a delay vs the timerservice callback
@@ -414,7 +688,7 @@ public partial class ActionService(
                     return false;
                 }
 
-                string amount = (step.Value ?? 1).ToString(CultureInfo.InvariantCulture);
+                var amount = (step.Value ?? 1).ToString(CultureInfo.InvariantCulture);
                 string duration = step.Duration > TimeSpan.Zero ? $"{(int)step.Duration.TotalSeconds}s" : "xs";
                 bool points = step.Operation is ActionOperation.Points or ActionOperation.PointsAndTime;
                 bool time = step.Operation is ActionOperation.Time or ActionOperation.PointsAndTime;
@@ -446,9 +720,69 @@ public partial class ActionService(
         }
     }
 
+    private async Task<bool> RunWebRequestAsync(ActionStep step, ActionStep original, ActionRunProgress progress,
+        CancellationToken ct) {
+        string? output = string.IsNullOrEmpty(step.OutputVariable) ? null : step.OutputVariable;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(step.Duration > TimeSpan.Zero
+            ? step.Duration < MaxRequestTimeout ? step.Duration : MaxRequestTimeout
+            : DefaultRequestTimeout);
+
+        try {
+            using var request = new HttpRequestMessage(
+                step.Type == ActionStepType.HttpGet ? HttpMethod.Get : HttpMethod.Post, step.Target.Trim());
+            if (step.Type == ActionStepType.HttpPost) {
+                string body = step.Body ?? "";
+                string start = body.TrimStart();
+                string mediaType = start.StartsWith('{') || start.StartsWith('[') ? "application/json" : "text/plain";
+                request.Content = new StringContent(body, Encoding.UTF8, mediaType);
+            }
+
+            foreach ((string name, string value) in step.HeaderLines()) {
+                if (name.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) {
+                    if (request.Content != null && MediaTypeHeaderValue.TryParse(value, out MediaTypeHeaderValue? type))
+                        request.Content.Headers.ContentType = type;
+                    continue;
+                }
+
+                if (!request.Headers.TryAddWithoutValidation(name, value))
+                    request.Content?.Headers.TryAddWithoutValidation(name, value);
+            }
+
+            request.Headers.Authorization = step.Auth switch {
+                ActionHttpAuth.Bearer => new AuthenticationHeaderValue("Bearer", step.AuthToken?.Trim()),
+                ActionHttpAuth.Basic => new AuthenticationHeaderValue("Basic",
+                    Convert.ToBase64String(Encoding.UTF8.GetBytes($"{step.AuthUser}:{step.AuthToken}"))),
+                _ => request.Headers.Authorization
+            };
+
+            using HttpResponseMessage response =
+                await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
+            if (output != null) {
+                progress.SetVariable(output, await response.Content.ReadAsStringAsync(timeout.Token));
+                progress.SetVariable($"{output}{StatusSuffix}", $"{(int)response.StatusCode}");
+            }
+
+            if (response.IsSuccessStatusCode) return true;
+            logger?.LogWarning("[Actions] {Method} {Url} answered {Status}", request.Method, original.Target,
+                (int)response.StatusCode);
+            return false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or UriFormatException
+                                   || (ex is OperationCanceledException && !ct.IsCancellationRequested)) {
+            if (output != null) {
+                progress.SetVariable(output, "");
+                progress.SetVariable($"{output}{StatusSuffix}", "0");
+            }
+
+            logger?.LogWarning("[Actions] {Type} {Url} failed: {Message}", original.Type.GetLabel(), original.Target,
+                ex is OperationCanceledException ? "timed out" : ex.Message);
+            return false;
+        }
+    }
+
     public async Task<ActionRunResult> RunWheelSpinAsync(Guid historyId, Func<WheelSpinHistoryStatus,
         Task>? announce = null) {
-
         WheelSpinHistory? history = await LoadHistoryAsync(historyId);
         if (history == null) return ActionRunResult.Skipped;
 
@@ -532,6 +866,16 @@ public partial class ActionService(
         _multiplierActive = data.Multiplier?.IsRunning() ?? false;
     }
 
+    private sealed class StoreKeyComparer : IEqualityComparer<(ActionStoreKind Kind, string Name)> {
+        public bool Equals((ActionStoreKind Kind, string Name) x, (ActionStoreKind Kind, string Name) y) {
+            return x.Kind == y.Kind && string.Equals(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetHashCode((ActionStoreKind Kind, string Name) key) {
+            return HashCode.Combine(key.Kind, StringComparer.OrdinalIgnoreCase.GetHashCode(key.Name));
+        }
+    }
+
     private sealed class LiveRun(Guid id, string repeatKey) : IDisposable {
         private readonly CancellationTokenSource _cts = new();
         public Guid Id { get; } = id;
@@ -539,6 +883,10 @@ public partial class ActionService(
         public CancellationToken Token => _cts.Token;
         public bool Cancelled { get; private set; }
         public bool Superseded { get; set; }
+
+        public void Dispose() {
+            _cts.Dispose();
+        }
 
         public void Cancel() {
             Cancelled = true;
@@ -548,10 +896,6 @@ public partial class ActionService(
             catch (ObjectDisposedException) {
                 /* */
             }
-        }
-
-        public void Dispose() {
-            _cts.Dispose();
         }
     }
 }

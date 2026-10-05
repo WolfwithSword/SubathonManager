@@ -147,10 +147,10 @@
                         <TextBlock x:Name="StatusText" FontSize="12" Foreground="Gray" TextWrapping="Wrap"
                                    Margin="2,8,2,0" />
                     </StackPanel>
-    
+
                     <TextBlock Grid.Row="1" x:Name="NoSelectionText" Margin="2,24,2,0" FontSize="12"
                                Foreground="Gray" Text="Select an action to see its details here." />
-    
+
                     <Border Grid.Row="1" x:Name="DetailsPanel" IsVisible="False" Margin="0,20,0,0" Padding="16"
                             VerticalAlignment="Top" CornerRadius="6" BorderThickness="1"
                             BorderBrush="{DynamicResource UiBrushBorder}"
@@ -177,7 +177,7 @@
                             </Grid>
                             <TextBlock x:Name="DetailMeta" FontSize="12" Foreground="Gray" TextWrapping="Wrap"
                                        Margin="0,4,0,0" />
-    
+
                             <StackPanel Orientation="Horizontal" Spacing="28" Margin="0,14,0,10">
                                 <StackPanel>
                                     <TextBlock x:Name="DetailSteps" FontSize="24" FontWeight="SemiBold" />
@@ -188,11 +188,71 @@
                                     <TextBlock Text="Branches" FontSize="11" Foreground="Gray" />
                                 </StackPanel>
                             </StackPanel>
-    
+
                             <TextBlock x:Name="DetailError" FontSize="12" Foreground="OrangeRed" TextWrapping="Wrap"
                                        Margin="0,0,0,8" />
                             <TextBlock x:Name="DetailDescription" FontSize="13" TextWrapping="Wrap" />
                         </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </TabItem>
+
+        <TabItem Header="Globals &amp; Secrets">
+            <Grid Margin="10" RowDefinitions="*,Auto" ColumnDefinitions="*,16,*">
+                <Grid Grid.Row="0" Grid.Column="0" RowDefinitions="Auto,Auto,*">
+                    <Grid ColumnDefinitions="*,Auto" Margin="6,0,2,0">
+                        <TextBlock Text="Globals" FontWeight="Bold" FontSize="18" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="opaquesecondary" Padding="10,4" Click="AddGlobalRow_Click"
+                                ToolTip.Tip="Add a global">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ctl:SymIcon Glyph="Add16" VerticalAlignment="Center" />
+                                <TextBlock Text="Add Global" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <StackPanel Grid.Row="1" Margin="6,4,2,10">
+                        <TextBlock TextWrapping="Wrap" FontSize="13"
+                                   Text="Values every action can access and modify" />
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="Gray" Margin="0,4,0,0"
+                                   Text="Use as a variable in any action step as %global.name%" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="GlobalsPanel" Spacing="6" Margin="0,0,10,0" />
+                    </ScrollViewer>
+                </Grid>
+
+                <Rectangle Grid.Row="0" Grid.Column="1" Width="2" Fill="#30808080" Margin="7,4"
+                           VerticalAlignment="Stretch" />
+
+                <Grid Grid.Row="0" Grid.Column="2" RowDefinitions="Auto,Auto,*">
+                    <Grid ColumnDefinitions="*,Auto" Margin="6,0,2,0">
+                        <TextBlock Text="Secrets" FontWeight="Bold" FontSize="18" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="opaquesecondary" Padding="10,4" Click="AddSecretRow_Click"
+                                ToolTip.Tip="Add a secret">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ctl:SymIcon Glyph="Add16" VerticalAlignment="Center" />
+                                <TextBlock Text="Add Secret" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <StackPanel Grid.Row="1" Margin="6,4,2,10">
+                        <TextBlock TextWrapping="Wrap" FontSize="13"
+                                   Text="Secrets to use as variables. Values are kept encrypted locally, and are not exported" />
+                        <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="Gray" Margin="0,4,0,0"
+                                   Text="Use as a variable in any action step as %secret.name%" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="SecretsPanel" Spacing="6" Margin="0,0,10,0" />
+                    </ScrollViewer>
+                </Grid>
+
+                <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" Margin="6,10,2,0">
+                    <TextBlock x:Name="StoreStatusText" FontSize="12" Foreground="Gray" TextWrapping="Wrap"
+                               VerticalAlignment="Center" />
+                    <Border Grid.Column="1" x:Name="StoreSaveBorder" CornerRadius="4" BorderThickness="2"
+                            BorderBrush="Transparent">
+                        <Button Height="32" Width="90" Classes="accent" Content="Save" Click="SaveStore_Click" />
                     </Border>
                 </Grid>
             </Grid>

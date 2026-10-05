@@ -81,13 +81,20 @@
                                    ToolTip.Tip="Drag onto another step to run it after this one" />
         </DataTemplate>
 
+        <DataTemplate x:Key="ElseConnectorTemplate" x:DataType="local:ActionConnectorVm">
+            <connections:Connector Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="True"
+                                   VerticalAlignment="Center" Theme="{StaticResource ConnectorRightTheme}"
+                                   Background="#C77C2E"
+                                   ToolTip.Tip="Runs when the expression is false" />
+        </DataTemplate>
+
         <DataTemplate x:Key="StepTemplate" x:DataType="local:ActionNodeVm">
             <StackPanel Orientation="Horizontal" Opacity="{Binding CardOpacity}">
                 <ContentControl Content="{Binding Input}" ContentTemplate="{StaticResource InputConnectorTemplate}" />
                 <Grid Width="200" Margin="6,6" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
                     <TextBlock Text="{Binding Title}" FontSize="10" Foreground="Gray"
                                TextTrimming="CharacterEllipsis" />
-                    
+
                     <!--- TODO check col/row spacing -->
                     <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="3" Margin="4,0,0,0">
                         <Border IsVisible="{Binding HasBranches}" Background="#6A4C93" CornerRadius="3" Padding="4,0"
@@ -101,6 +108,10 @@
                                 ToolTip.Tip="Skipped when the action runs; right click to enable">
                             <TextBlock Text="OFF" FontSize="9" Foreground="White" />
                         </Border>
+                        <Border IsVisible="{Binding IgnoresErrors}" Background="#9A6B12" CornerRadius="3"
+                                Padding="4,0" ToolTip.Tip="If this step fails the action carries on anyway">
+                            <TextBlock Text="ERR OK" FontSize="9" Foreground="White" />
+                        </Border>
                         <Border IsVisible="{Binding IsEnd}" Background="#8E3B46" CornerRadius="3" Padding="4,0"
                                 ToolTip.Tip="Nothing runs after this step">
                             <TextBlock Text="END" FontSize="9" Foreground="White" />
@@ -113,13 +124,28 @@
                                IsVisible="{Binding HasError}" Foreground="OrangeRed" FontSize="10"
                                TextWrapping="Wrap" Margin="0,2,0,0" />
                 </Grid>
-                <ContentControl Content="{Binding Output}" ContentTemplate="{StaticResource OutputConnectorTemplate}" />
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="then" IsVisible="{Binding IsCondition}" FontSize="9" Foreground="Gray"
+                                   VerticalAlignment="Center" Margin="0,0,2,0" />
+                        <ContentControl Content="{Binding Output}"
+                                        ContentTemplate="{StaticResource OutputConnectorTemplate}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                IsVisible="{Binding IsCondition}">
+                        <TextBlock Text="else" FontSize="9" Foreground="#C77C2E" VerticalAlignment="Center"
+                                   Margin="0,0,2,0" />
+                        <ContentControl Content="{Binding ElseOutput}"
+                                        ContentTemplate="{StaticResource ElseConnectorTemplate}" />
+                    </StackPanel>
+                </StackPanel>
             </StackPanel>
         </DataTemplate>
 
         <DataTemplate x:Key="ConnectionTemplate" x:DataType="local:ActionConnectionVm">
             <connections:StepConnection Source="{Binding Source.Anchor}" Target="{Binding Target.Anchor}"
                                         Theme="{StaticResource StepConnectionTheme}"
+                                        Classes.else="{Binding IsElse}"
                                         connections:BaseConnection.IsSelectable="True" />
         </DataTemplate>
 
@@ -128,6 +154,13 @@
                                            Stroke="{DynamicResource AccentFillColorTertiaryBrush}" />
         </DataTemplate>
     </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="connections|StepConnection.else">
+            <Setter Property="Stroke" Value="#C77C2E" />
+            <Setter Property="Fill" Value="#C77C2E" />
+        </Style>
+    </Window.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto">
         <Grid Grid.Row="0" Margin="12,10,12,8" ColumnDefinitions="*,Auto">
@@ -166,7 +199,7 @@
                 <ColumnDefinition Width="*" MinWidth="300" />
                 <ColumnDefinition Width="300" />
             </Grid.ColumnDefinitions>
-            
+
             <Border BorderBrush="#333" BorderThickness="1" CornerRadius="8" Padding="8">
                 <Grid RowDefinitions="Auto,*">
                     <TextBox x:Name="PaletteSearchBox" Height="30" FontSize="12" Margin="0,0,0,6"
@@ -218,96 +251,139 @@
                         <RowDefinition Height="8" />
                         <RowDefinition Height="2*" MinHeight="120" />
                     </Grid.RowDefinitions>
-                <ScrollViewer Grid.Row="0">
-                    <StackPanel>
-                        <StackPanel x:Name="AboutPanel">
-                            <TextBlock Text="About this action" FontSize="13" FontWeight="SemiBold"
-                                       Margin="0,0,0,6" />
-                            <TextBox x:Name="DescriptionBox" Height="110" AcceptsReturn="True"
-                                     TextWrapping="Wrap" PlaceholderText="What it does, what it needs..." />
-                            <!-- todo fiddle with newline -->
-                            <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="2,10,0,0"
-                                       Text="Add new steps from the left. If you have an action selected, it will chain it, else it will start a new parallel branch.&#x0a;&#x0a;You can drag an arrow to and from steps to create new connections and branches.&#x0a;&#x0a;If an action has multiple inputs, it waits for all paths to complete before running.&#x0a;&#x0a;Select actions or a connection and press Delete to remove them." />
-                        </StackPanel>
+                    <ScrollViewer Grid.Row="0">
+                        <StackPanel>
+                            <StackPanel x:Name="AboutPanel">
+                                <TextBlock Text="About this action" FontSize="13" FontWeight="SemiBold"
+                                           Margin="0,0,0,6" />
+                                <TextBox x:Name="DescriptionBox" Height="110" AcceptsReturn="True"
+                                         TextWrapping="Wrap" PlaceholderText="Description..." />
 
-                        <StackPanel x:Name="StepPanel" IsVisible="False">
-                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                <TextBlock x:Name="StepHeader" FontSize="13" FontWeight="SemiBold"
-                                           VerticalAlignment="Center" />
-                                <Button Grid.Column="1" Padding="6,2" Click="DeleteStep_Click"
-                                        ToolTip.Tip="Remove this action" Foreground="IndianRed">
-                                    <ctl:SymIcon Glyph="Delete16" />
-                                </Button>
-                            </Grid>
-
-                            <StackPanel x:Name="OpPanel" Margin="0,0,0,8">
-                                <TextBlock Text="Do:" FontSize="12" Margin="2,0,0,3" />
-                                <ComboBox x:Name="OpBox" Height="34" HorizontalAlignment="Stretch"
-                                          SelectionChanged="StepField_Changed" />
+                                <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="2,10,0,0"
+                                           Text="Add new steps from the left. If you have an action selected, it will chain it, else it will start a new parallel branch.&#x0a;&#x0a;You can drag an arrow to and from steps to create new connections and branches.&#x0a;&#x0a;If an action has multiple inputs, it waits for all paths to complete before running.&#x0a;&#x0a;Select actions or a connection and press Delete to remove them." />
                             </StackPanel>
 
-                            <StackPanel x:Name="ScopePanel" Margin="0,0,0,8">
-                                <TextBlock x:Name="ScopeLabel" Text="Scene:" FontSize="12" Margin="2,0,0,3" />
-                                <AutoCompleteBox x:Name="ScopeBox" Height="34" FilterMode="ContainsOrdinal"
-                                                 ItemTemplate="{StaticResource SuggestionTemplate}"
-                                                 MinimumPrefixLength="0" />
-                            </StackPanel>
-
-                            <StackPanel x:Name="TargetPanel" Margin="0,0,0,8">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock x:Name="TargetLabel" Text="Target:" FontSize="12" Margin="2,0,0,3" />
-                                    <TextBlock Grid.Column="1" x:Name="TargetHint" FontSize="10" Foreground="Gray"
-                                               VerticalAlignment="Bottom" Margin="0,0,2,3" />
-                                </Grid>
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <AutoCompleteBox x:Name="TargetBox" Height="34" Margin="0,0,4,0"
-                                                     ItemTemplate="{StaticResource SuggestionTemplate}"
-                                                     FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
-                                    <Button Grid.Column="1" Height="34" Padding="8,2" Click="RefreshTargets_Click"
-                                            ToolTip.Tip="Reload the list from the connected integration">
-                                        <ctl:SymIcon Glyph="ArrowClockwise16" />
+                            <StackPanel x:Name="StepPanel" IsVisible="False">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                    <TextBlock x:Name="StepHeader" FontSize="13" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Padding="6,2" Click="DeleteStep_Click"
+                                            ToolTip.Tip="Remove this action" Foreground="IndianRed">
+                                        <ctl:SymIcon Glyph="Delete16" />
                                     </Button>
                                 </Grid>
+
+                                <StackPanel x:Name="ScopePanel" Margin="0,0,0,8">
+                                    <TextBlock x:Name="ScopeLabel" Text="Scene:" FontSize="12" Margin="2,0,0,3" />
+                                    <AutoCompleteBox x:Name="ScopeBox" Height="34" FilterMode="ContainsOrdinal"
+                                                     ItemTemplate="{StaticResource SuggestionTemplate}"
+                                                     MinimumPrefixLength="0" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="OpPanel" Margin="0,0,0,8">
+                                    <TextBlock x:Name="OpLabel" Text="Do:" FontSize="12" Margin="2,0,0,3" />
+                                    <ComboBox x:Name="OpBox" Height="34" HorizontalAlignment="Stretch"
+                                              SelectionChanged="StepField_Changed" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="TargetPanel" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock x:Name="TargetLabel" Text="Target:" FontSize="12" Margin="2,0,0,3" />
+                                        <TextBlock Grid.Column="1" x:Name="TargetHint" FontSize="10" Foreground="Gray"
+                                                   VerticalAlignment="Bottom" Margin="0,0,2,3" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <AutoCompleteBox x:Name="TargetBox" Height="34" Margin="0,0,4,0"
+                                                         ItemTemplate="{StaticResource SuggestionTemplate}"
+                                                         FilterMode="ContainsOrdinal" MinimumPrefixLength="0" />
+                                        <Button Grid.Column="1" Height="34" Padding="8,2" Click="RefreshTargets_Click"
+                                                ToolTip.Tip="Reload the list from the connected integration">
+                                            <ctl:SymIcon Glyph="ArrowClockwise16" />
+                                        </Button>
+                                    </Grid>
+                                </StackPanel>
+
+                                <StackPanel x:Name="ValuePanel" Margin="0,0,0,8">
+                                    <TextBlock x:Name="ValueLabel" Text="Value:" FontSize="12" Margin="2,0,0,3" />
+                                    <TextBox x:Name="ValueBox" Height="34"
+                                             val:NumericInputBehaviour.Mode="SignedDecimal" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="DurationPanel" Margin="0,0,0,8">
+                                    <TextBlock x:Name="DurationLabel" Text="Duration:" FontSize="12" Margin="2,0,0,3" />
+                                    <TextBox x:Name="DurationBox" Height="34" PlaceholderText="e.g. 30s, 5m, 1h30m" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="BodyPanel" Margin="0,0,0,8">
+                                    <TextBlock x:Name="BodyLabel" Text="Body:" FontSize="12" Margin="2,0,0,3" />
+                                    <TextBox x:Name="BodyBox" Height="120" AcceptsReturn="True" TextWrapping="Wrap"
+                                             FontFamily="Consolas, Menlo, monospace" FontSize="12" />
+                                </StackPanel>
+
+                                <StackPanel x:Name="WebPanel">
+                                    <StackPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Headers (one Name: value per line):" FontSize="12"
+                                                   Margin="2,0,0,3" />
+                                        <TextBox x:Name="HeadersBox" Height="70" AcceptsReturn="True"
+                                                 TextWrapping="Wrap" FontFamily="Consolas, Menlo, monospace"
+                                                 FontSize="12" PlaceholderText="X-Api-Key: %secret.my_key%" />
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Auth:" FontSize="12" Margin="2,0,0,3" />
+                                        <ComboBox x:Name="AuthBox" Height="34" HorizontalAlignment="Stretch"
+                                                  SelectionChanged="StepField_Changed" />
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="AuthUserPanel" Margin="0,0,0,8">
+                                        <TextBlock Text="Username:" FontSize="12" Margin="2,0,0,3" />
+                                        <TextBox x:Name="AuthUserBox" Height="34" />
+                                    </StackPanel>
+
+                                    <StackPanel x:Name="AuthTokenPanel" Margin="0,0,0,8">
+                                        <TextBlock x:Name="AuthTokenLabel" Text="Token:" FontSize="12" Margin="2,0,0,3" />
+                                        <TextBox x:Name="AuthTokenBox" Height="34" PlaceholderText="%secret.my_token%" />
+                                        <TextBlock x:Name="AuthTokenWarning" FontSize="11" Foreground="Orange"
+                                                   TextWrapping="Wrap" Margin="2,3,0,0"
+                                                   Text="Saved raw into the actions file. Recommend using a %secret.name% for secrets" />
+                                    </StackPanel>
+
+                                    <StackPanel Margin="0,0,0,8">
+                                        <TextBlock Text="Save response as (optional):" FontSize="12" Margin="2,0,0,3" />
+                                        <TextBox x:Name="OutputBox" Height="34" PlaceholderText="e.g. resp" />
+                                        <TextBlock x:Name="OutputHint" FontSize="11" Foreground="Gray"
+                                                   TextWrapping="Wrap"
+                                                   Margin="2,3,0,0" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock x:Name="VariablesHint" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
+                                           Margin="2,0,0,8"
+                                           Text="Variables such as %points% are filled in when this step runs. Click any to copy it" />
+
+                                <CheckBox x:Name="IgnoreErrorsCheck" Content="Ignore errors" Margin="0,0,0,4"
+                                          IsCheckedChanged="IgnoreErrors_Changed"
+                                          ToolTip.Tip="If this step fails, log it and move on" />
+
+                                <TextBlock x:Name="StepError" FontSize="11" Foreground="OrangeRed" TextWrapping="Wrap"
+                                           Margin="2,2,0,0" />
+                                <TextBlock x:Name="StepWarning" FontSize="11" Foreground="Orange" TextWrapping="Wrap"
+                                           Margin="2,2,0,0" />
                             </StackPanel>
-
-                            <StackPanel x:Name="ValuePanel" Margin="0,0,0,8">
-                                <TextBlock x:Name="ValueLabel" Text="Value:" FontSize="12" Margin="2,0,0,3" />
-                                <TextBox x:Name="ValueBox" Height="34"
-                                         val:NumericInputBehaviour.Mode="SignedDecimal" />
-                            </StackPanel>
-
-                            <StackPanel x:Name="DurationPanel" Margin="0,0,0,8">
-                                <TextBlock x:Name="DurationLabel" Text="Duration:" FontSize="12" Margin="2,0,0,3" />
-                                <TextBox x:Name="DurationBox" Height="34" PlaceholderText="e.g. 30s, 5m, 1h30m" />
-                            </StackPanel>
-
-                            <StackPanel x:Name="BodyPanel" Margin="0,0,0,8">
-                                <TextBlock x:Name="BodyLabel" Text="Body:" FontSize="12" Margin="2,0,0,3" />
-                                <TextBox x:Name="BodyBox" Height="120" AcceptsReturn="True" TextWrapping="Wrap"
-                                         FontFamily="Consolas, Menlo, monospace" FontSize="12" />
-                            </StackPanel>
-
-                            <TextBlock x:Name="VariablesHint" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
-                                       Margin="2,0,0,8"
-                                       Text="Variables such as %points% are filled in when this step runs. Click any to copy it" />
-
-                            <TextBlock x:Name="StepError" FontSize="11" Foreground="OrangeRed" TextWrapping="Wrap"
-                                       Margin="2,2,0,0" />
                         </StackPanel>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <GridSplitter Grid.Row="1" Background="Transparent" ResizeDirection="Rows"
-                              ToolTip.Tip="Drag to resize" />
-
-                <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">
-                    <TextBlock Text="Variables" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4" />
-                    <TextBox Grid.Row="1" x:Name="VariableSearchBox" Height="30" FontSize="12" Margin="0,0,0,6"
-                             PlaceholderText="Search variables" />
-                    <ScrollViewer Grid.Row="2">
-                        <StackPanel x:Name="VariablesPanel" Spacing="2" />
                     </ScrollViewer>
-                </Grid>
+
+                    <GridSplitter Grid.Row="1" Background="Transparent" ResizeDirection="Rows"
+                                  ToolTip.Tip="Drag to resize" />
+
+                    <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">
+                        <TextBlock Text="Variables" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4" />
+                        <TextBox Grid.Row="1" x:Name="VariableSearchBox" Height="30" FontSize="12" Margin="0,0,0,6"
+                                 PlaceholderText="Search variables" />
+                        <ScrollViewer Grid.Row="2">
+                            <StackPanel x:Name="VariablesPanel" Spacing="2" />
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>

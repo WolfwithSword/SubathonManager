@@ -3,6 +3,9 @@
 public static class StorageKeys {
     public const string TwitchAccessToken = "SM.Twitch.AccessToken";
 
+    // + lowercase secret name
+    public const string ActionSecretPrefix = "SM.Actions.Secrets.";
+
     public const string FourthWallAccessToken = "SM.FourthWall.AccessToken";
     public const string FourthWallRefreshToken = "SM.FourthWall.RefreshToken";
 

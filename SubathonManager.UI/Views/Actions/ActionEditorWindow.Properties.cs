@@ -4,17 +4,28 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Integration;
+using SubathonManager.Services;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views.Actions;
 
 public partial class ActionEditorWindow {
+    /////////////////////////////// variables check
+
+    private readonly List<(Expander Section, List<(Control Row, string Search)> Rows)> _variableSections = [];
+    private Expander? _globalSection;
+    private Expander? _runSection;
+    private Expander? _secretSection;
+    private List<ActionGlobal> _stored = [];
+
     private static string ToDurationText(double? seconds) {
         if (seconds is not > 0.0) return "";
         TimeSpan span = TimeSpan.FromSeconds(Math.Round(seconds.Value));
@@ -37,10 +48,12 @@ public partial class ActionEditorWindow {
         try {
             StepHeader.Text = $"{type.GetGroup()} - {type.GetLabel()}";
 
+            OpLabel.Text = type.GetOperationLabel();
             OpBox.Items.Clear();
             foreach (ActionOperation op in type.GetOps())
                 OpBox.Items.Add(new ComboBoxItem { Content = op.GetOpLabel(), Tag = op });
-            OpBox.SelectedItem = OpBox.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (ActionOperation?)i.Tag == step.Operation);
+            OpBox.SelectedItem = OpBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => (ActionOperation?)i.Tag == step.Operation);
             OpPanel.IsVisible = OpBox.Items.Count > 1;
 
             ScopePanel.IsVisible = type.HasScope();
@@ -57,10 +70,28 @@ public partial class ActionEditorWindow {
             DurationLabel.Text = type.GetDurationLabel() ?? "";
             DurationBox.Text = ToDurationText(step.Seconds);
 
-            BodyPanel.IsVisible = type.HasBody();
             BodyLabel.Text = type.GetBodyLabel() ?? "";
             BodyBox.Text = step.Body ?? "";
             VariablesHint.IsVisible = type.AllowsVariables();
+
+            WebPanel.IsVisible = type.IsWebRequest();
+            HeadersBox.Text = step.Headers ?? "";
+
+            AuthBox.Items.Clear();
+            foreach ((ActionHttpAuth auth, string label) in new[] {
+                         (ActionHttpAuth.None, "None"), (ActionHttpAuth.Bearer, "Bearer token"),
+                         (ActionHttpAuth.Basic, "Basic (username & password)")
+                     })
+                AuthBox.Items.Add(new ComboBoxItem { Content = label, Tag = auth });
+
+            AuthBox.SelectedItem = AuthBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => (ActionHttpAuth?)i.Tag == (step.Auth ?? ActionHttpAuth.None));
+            AuthUserBox.Text = step.AuthUser ?? "";
+            AuthTokenBox.Text = step.AuthToken ?? "";
+            OutputBox.Text = step.OutputVariable ?? "";
+
+            IgnoreErrorsCheck.IsVisible = type != ActionStepType.Condition;
+            IgnoreErrorsCheck.IsChecked = node.IgnoreErrors;
             RefreshFieldVisibility(step);
         }
         finally {
@@ -71,13 +102,94 @@ public partial class ActionEditorWindow {
     }
 
     private void RefreshFieldVisibility(ActionStep step) {
+        TargetPanel.IsVisible = step.Type.NeedsTarget(step.Operation);
         ValuePanel.IsVisible = step.Type.HasValue(step.Operation);
         DurationPanel.IsVisible = step.Type.HasDuration();
+
+        ActionHttpAuth auth = step.Auth ?? ActionHttpAuth.None;
+        AuthUserPanel.IsVisible = auth == ActionHttpAuth.Basic;
+        AuthTokenPanel.IsVisible = auth != ActionHttpAuth.None;
+        AuthTokenLabel.Text = auth == ActionHttpAuth.Basic ? "Password:" : "Token:";
+        AuthTokenWarning.IsVisible = !string.IsNullOrWhiteSpace(step.AuthToken)
+                                     && ActionStepTypeHelper.FindStoreRefs(step.AuthToken)
+                                         .All(r => r.Kind != ActionStoreKind.Secret);
+
+        BodyPanel.IsVisible = step.Type.NeedsBody(step.Operation);
+        if (step.Type == ActionStepType.SetGlobal)
+            BodyLabel.Text = step.Operation == ActionOperation.Adjust
+                ? "Amount to add (negative removes):"
+                : step.Type.GetBodyLabel() ?? "";
+
+        string? output = step.OutputVariable;
+        OutputHint.Text = string.IsNullOrEmpty(output)
+            ? "Name it to use the response in later steps"
+            : $"Later steps can use %{output}% response, %{output}.some.path[0]% to read into JSON, " +
+              $"and %{output}{ActionService.StatusSuffix}% (status code, 0 if it could not connect)";
+
         StepError.Text = step.IsValid(out string error) ? "" : error;
+        StepWarning.Text = SelectedNode is { } node ? string.Join("\n", StepWarnings(node)) : "";
+    }
+
+    private IEnumerable<string> StepWarnings(ActionNode node) {
+        if (!node.Step.Type.AllowsVariables()) yield break;
+
+        HashSet<string> declared = Graph.OutputVariables();
+        HashSet<string> before = Graph.Upstream(node.Id);
+        HashSet<string> available = Graph.Nodes
+            .Where(n => before.Contains(n.Id) && !string.IsNullOrEmpty(n.Step.OutputVariable))
+            .Select(n => n.Step.OutputVariable!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (node.Step.Type == ActionStepType.SetGlobal && ActionStepTypeHelper.IsValidName(node.Step.Target.Trim())) {
+            string globalName = node.Step.Target.Trim();
+            ActionGlobal? global = FindStored(ActionStoreKind.Global, globalName);
+
+            if (global == null)
+                yield return $"There's no %global.{globalName}% - saving adds it as empty";
+
+            else if ((node.Step.Operation == ActionOperation.Adjust && global.ValueType != ActionValueType.Number)
+                     || (node.Step.Operation == ActionOperation.Toggle && global.ValueType != ActionValueType.Boolean))
+                yield return
+                    $"%global.{global.Name}% is {global.ValueType.GetLabel()} - this step will fail when it runs";
+        }
+
+        foreach (string token in ActionStepTypeHelper.FindTokens(node.Step.AllText)
+                     .Distinct(StringComparer.OrdinalIgnoreCase)) {
+            if (ActionStepTypeHelper.TryGetStoreRef(token, out ActionStoreKind kind, out string name)) {
+                ActionGlobal? stored = FindStored(kind, name);
+
+                if (stored == null)
+                    yield return $"%{token}% isn't created yet - saving adds it as empty";
+
+                else if (kind == ActionStoreKind.Secret
+                             ? string.IsNullOrEmpty(ServiceManager.Actions.GetSecretValue(name))
+                             : string.IsNullOrEmpty(stored.Value))
+                    yield return $"%{token}% has no value yet";
+                continue;
+            }
+
+            string root = OutputRoot(ActionStepTypeHelper.TokenRoot(token));
+            if (declared.Contains(root) && !available.Contains(root))
+                yield return $"%{token}% is saved by a step that doesn't run before this one - it will be empty";
+        }
+    }
+
+    // %resp_status% belongs to %resp%
+    private static string OutputRoot(string root) {
+        return root.EndsWith(ActionService.StatusSuffix, StringComparison.OrdinalIgnoreCase)
+            ? root[..^ActionService.StatusSuffix.Length]
+            : root;
     }
 
     private void StepField_Changed(object? sender, SelectionChangedEventArgs e) {
         ApplyStepFields();
+    }
+
+    private void IgnoreErrors_Changed(object? sender, RoutedEventArgs e) {
+        if (_suppress > 0 || SelectedNode is not { } node) return;
+        node.IgnoreErrors = IgnoreErrorsCheck.IsChecked == true;
+        RefreshNodes();
+        MarkDirty();
     }
 
     private void ApplyStepFields() {
@@ -103,10 +215,22 @@ public partial class ActionEditorWindow {
         step.Value = step.Type.HasValue(step.Operation)
                      && double.TryParse((ValueBox.Text ?? "").Trim(), NumberStyles.Float,
                          CultureInfo.InvariantCulture, out double value)
-            ? value : null;
+            ? value
+            : null;
         TimeSpan duration = Utils.ParseDurationString((DurationBox.Text ?? "").Trim());
         step.Seconds = step.Type.HasDuration() && duration > TimeSpan.Zero ? duration.TotalSeconds : null;
         step.Body = step.Type.HasBody() && !string.IsNullOrEmpty(BodyBox.Text) ? BodyBox.Text : null;
+
+        if (step.Type.IsWebRequest()) {
+            ActionHttpAuth auth = (AuthBox.SelectedItem as ComboBoxItem)?.Tag is ActionHttpAuth picked
+                ? picked
+                : ActionHttpAuth.None;
+            step.Headers = string.IsNullOrWhiteSpace(HeadersBox.Text) ? null : HeadersBox.Text;
+            step.Auth = auth == ActionHttpAuth.None ? null : auth;
+            step.AuthUser = auth == ActionHttpAuth.Basic ? NullIfBlank(AuthUserBox.Text) : null;
+            step.AuthToken = auth != ActionHttpAuth.None ? NullIfBlank(AuthTokenBox.Text) : null;
+            step.OutputVariable = NullIfBlank(OutputBox.Text);
+        }
 
         RefreshFieldVisibility(step);
         RefreshNodes();
@@ -125,7 +249,7 @@ public partial class ActionEditorWindow {
     private async Task LoadTargetSuggestionsAsync() {
         if (SelectedNode is not { } node || !node.Step.Type.HasTarget()) return;
         ActionStepType type = node.Step.Type;
-        
+
         _targetIds.Clear();
         ScopeBox.ItemsSource = null;
         TargetBox.ItemsSource = null;
@@ -179,6 +303,7 @@ public partial class ActionEditorWindow {
                         ids[command.DisplayName] = command.Id.ToString();
                         targets.Add(command.DisplayName);
                     }
+
                     break;
                 }
                 case ActionStepType.StreamerBotAction: {
@@ -205,6 +330,14 @@ public partial class ActionEditorWindow {
                 case ActionStepType.HttpPost:
                     if (SelectedNode?.Id == node.Id)
                         TargetHint.Text = "variables also work in the URL";
+                    return;
+                case ActionStepType.SetGlobal:
+                    targets.AddRange(_stored.Where(g => g.Kind == ActionStoreKind.Global).Select(g => g.Name));
+                    break;
+                case ActionStepType.Condition:
+                    if (SelectedNode?.Id != node.Id) return;
+                    ScopeBox.ItemsSource = ConditionSuggestions(node);
+                    TargetHint.Text = "value or %variable%";
                     return;
                 default: {
                     OBSService obs = ServiceManager.OBS;
@@ -233,41 +366,126 @@ public partial class ActionEditorWindow {
         TargetHint.Text = offline != null ? $"{offline} - type it by hand" : $"{targets.Count} found";
     }
 
-    /////////////////////////////// variables check
-
-    private readonly List<(Expander Section, List<(Control Row, ActionVariable Variable)> Rows)> _variableSections = [];
-    
-    private void BuildVariablesPanel() {
-        foreach (IGrouping<string, ActionVariable> group in Enum.GetValues<ActionVariable>().GroupBy(v => v.GetGroup())) {
-            var rows = new StackPanel { Spacing = 2 };
-            var entries = new List<(Control, ActionVariable)>();
-            foreach (ActionVariable variable in group) {
-                Control row = BuildVariableRow(variable);
-                rows.Children.Add(row);
-                entries.Add((row, variable));
-            }
-
-            var section = new Expander {
-                Header = group.Key, IsExpanded = false, HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(4, 2),
-                Content = rows
-            };
-            _variableSections.Add((section, entries));
-            VariablesPanel.Children.Add(section);
-        }
-
-        VariableSearchBox.TextChanged += (_, _) => FilterVariables();
+    private static string? NullIfBlank(string? text) {
+        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
     }
 
-    private Control BuildVariableRow(ActionVariable variable) {
-        string placeholder = variable.GetPlaceholder();
+    private List<string> ConditionSuggestions(ActionNode node) {
+        HashSet<string> before = Graph.Upstream(node.Id);
+        var suggestions = new List<string>();
+        foreach (ActionNode previous in
+                 Graph.Nodes.Where(n => before.Contains(n.Id)
+                                        && !string.IsNullOrEmpty(n.Step.OutputVariable))) {
+            suggestions.Add($"%{previous.Step.OutputVariable}%");
+            suggestions.Add($"%{previous.Step.OutputVariable}{ActionService.StatusSuffix}%");
+        }
+
+        suggestions.AddRange(_stored.Where(g => g.Kind == ActionStoreKind.Global)
+            .Select(g => ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name)));
+        suggestions.AddRange(Enum.GetValues<ActionVariable>().Select(v => v.GetPlaceholder()));
+        return suggestions;
+    }
+
+    private void BuildVariablesPanel() {
+        _runSection = AddVariableSection("This Run", []);
+        _globalSection = AddVariableSection("Globals", []);
+        _secretSection = AddVariableSection("Secrets", []);
+        foreach (IGrouping<string, ActionVariable> group in Enum.GetValues<ActionVariable>().GroupBy(v => v.GetGroup()))
+            AddVariableSection(group.Key, group.Select(v =>
+                (v.GetPlaceholder(), v.GetValueType(), v.GetDescription(), $"{v.GetGroup()} {v.GetToken()}")));
+
+        RefreshRunVariables();
+        VariableSearchBox.TextChanged += (_, _) => FilterVariables();
+
+        ServiceManager.Actions.GlobalsChanged += OnGlobalsChanged;
+        Closed += (_, _) => ServiceManager.Actions.GlobalsChanged -= OnGlobalsChanged;
+        _ = LoadStoredAsync();
+    }
+
+    private Expander AddVariableSection(string header,
+        IEnumerable<(string Placeholder, string Type, string Description, string Search)> rows) {
+        var section = new Expander {
+            Header = header, IsExpanded = false, HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch, Padding = new Thickness(4, 2)
+        };
+        _variableSections.Add((section, []));
+        VariablesPanel.Children.Add(section);
+        SetVariableRows(section, rows);
+        return section;
+    }
+
+    private void SetVariableRows(Expander section,
+        IEnumerable<(string Placeholder, string Type, string Description, string Search)> rows) {
+        var panel = new StackPanel { Spacing = 2 };
+        var entries = new List<(Control, string)>();
+        foreach ((string placeholder, string type, string description, string search) in rows) {
+            Control row = BuildVariableRow(placeholder, type, description);
+            panel.Children.Add(row);
+            entries.Add((row, $"{placeholder} {description} {search}"));
+        }
+
+        section.Content = panel;
+        int index = _variableSections.FindIndex(s => s.Section == section);
+        _variableSections[index] = (section, entries);
+        FilterVariables();
+    }
+
+    private void RefreshRunVariables() {
+        if (_runSection == null) return;
+        var rows = new List<(string, string, string, string)>();
+        foreach (ActionNode node in Graph.Nodes.Where(n => !string.IsNullOrEmpty(n.Step.OutputVariable))) {
+            string name = node.Step.OutputVariable!;
+            string from = node.Step.Describe();
+            rows.Add(($"%{name}%", "text", $"Response from {from}; add .path or [#] to read into JSON", "this run"));
+            rows.Add(($"%{name}{ActionService.StatusSuffix}%", "number",
+                $"Status code from {from}, 0 if it could not connect", "this run"));
+        }
+
+        SetVariableRows(_runSection, rows);
+    }
+
+    private void OnGlobalsChanged() {
+        Dispatcher.UIThread.Post(() => _ = LoadStoredAsync());
+    }
+
+    private ActionGlobal? FindStored(ActionStoreKind kind, string name) {
+        return _stored.FirstOrDefault(g => g.Kind == kind && g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task LoadStoredAsync() {
+        try {
+            _stored = await ServiceManager.Actions.GetGlobalsAsync();
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "[ActionEditor] Could not load globals and secrets");
+            return;
+        }
+
+        if (_globalSection != null)
+            SetVariableRows(_globalSection, _stored.Where(g => g.Kind == ActionStoreKind.Global).Select(g => (
+                ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name), g.ValueType.GetLabel(),
+                g.Value == null ? "No value yet" : $"Now: {Shorten(g.Value)}", "global")));
+        if (_secretSection != null)
+            SetVariableRows(_secretSection, _stored.Where(g => g.Kind == ActionStoreKind.Secret).Select(g => (
+                ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name), "secret",
+                "Fetched when the step runs, never saved to the .sma file", "secret")));
+        if (SelectedNode is { } node) RefreshFieldVisibility(node.Step);
+    }
+
+    private static string Shorten(string value) {
+        value = value.ReplaceLineEndings(" ");
+        return value.Length > 60 ? $"{value[..57]}..." : value;
+    }
+
+    private Control BuildVariableRow(string placeholder, string valueType, string description) {
         var heading = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         heading.Children.Add(new TextBlock {
             Text = placeholder, FontSize = 12, FontWeight = FontWeight.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
             FontFamily = new FontFamily("Consolas, Menlo, monospace") // looks code-y for looking like vars explicitly
         });
         var type = new TextBlock {
-            Text = variable.GetValueType(), FontSize = 10, Foreground = Brushes.Gray,
+            Text = valueType, FontSize = 10, Foreground = Brushes.Gray,
             VerticalAlignment = VerticalAlignment.Center
         };
         Grid.SetColumn(type, 1);
@@ -282,13 +500,13 @@ public partial class ActionEditorWindow {
                 Children = {
                     heading,
                     new TextBlock {
-                        Text = variable.GetDescription(), FontSize = 11, Foreground = Brushes.Gray,
+                        Text = description, FontSize = 11, Foreground = Brushes.Gray,
                         TextWrapping = TextWrapping.Wrap
                     }
                 }
             }
         };
-        ToolTip.SetTip(row, "Click to copy var name");
+        ToolTip.SetTip(row, "Click to copy");
 
         row.Click += async (_, _) => {
             await UiHelpers.TrySetClipboardTextAsync(placeholder);
@@ -300,13 +518,10 @@ public partial class ActionEditorWindow {
 
     private void FilterVariables() {
         string query = (VariableSearchBox.Text ?? "").Trim().Trim('%');
-        foreach ((Expander section, List<(Control Row, ActionVariable Variable)> rows) in _variableSections) {
+        foreach ((Expander section, List<(Control Row, string Search)> rows) in _variableSections) {
             var any = false;
-            foreach ((Control row, ActionVariable variable) in rows) {
-                bool show = query.Length == 0
-                            || variable.GetToken().Contains(query, StringComparison.OrdinalIgnoreCase)
-                            || variable.GetDescription().Contains(query, StringComparison.OrdinalIgnoreCase)
-                            || variable.GetGroup().Contains(query, StringComparison.OrdinalIgnoreCase);
+            foreach ((Control row, string search) in rows) {
+                bool show = query.Length == 0 || search.Contains(query, StringComparison.OrdinalIgnoreCase);
                 row.IsVisible = show;
                 any |= show;
             }

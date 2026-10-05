@@ -29,16 +29,28 @@ public partial class ActionsView : UserControl {
     public ActionsView() {
         InitializeComponent();
         SearchBox.TextChanged += (_, _) => Refresh();
+        InitStore();
+
         Loaded += (_, _) => {
             ServiceManager.Actions.CustomActionsChanged -= OnLibraryChanged;
             ServiceManager.Actions.CustomActionsChanged += OnLibraryChanged;
+
+            ServiceManager.Actions.GlobalsChanged -= OnGlobalsChanged;
+            ServiceManager.Actions.GlobalsChanged += OnGlobalsChanged;
             Refresh();
+            _ = RefreshStoreAsync();
         };
-        Unloaded += (_, _) => ServiceManager.Actions.CustomActionsChanged -= OnLibraryChanged;
+        Unloaded += (_, _) => {
+            ServiceManager.Actions.CustomActionsChanged -= OnLibraryChanged;
+            ServiceManager.Actions.GlobalsChanged -= OnGlobalsChanged;
+        };
     }
 
     private void OnLibraryChanged() {
-        Dispatcher.UIThread.Post(Refresh);
+        Dispatcher.UIThread.Post(() => {
+            Refresh();
+            _ = RefreshStoreAsync();
+        });
     }
 
     private void Refresh() {
@@ -201,9 +213,9 @@ public partial class ActionsView : UserControl {
     private async void Delete_Click(object? sender, RoutedEventArgs e) {
         if (CardOf(sender) is not { } action) return;
 
-        string id = action.Id.ToString();
+        var id = action.Id.ToString();
         await using AppDbContext db = await _factory.CreateDbContextAsync();
-        
+
         // TODO when more than just wheel spins, check
         int uses = await db.WheelSpinActions
             .CountAsync(a => a.ActionType == WheelSpinActionType.CustomAction && a.Parameter == id);
@@ -283,8 +295,6 @@ public sealed class ActionCard(CustomAction action) : INotifyPropertyChanged {
         }
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
     public string Name => Action.Name;
     public string? Description => Action.Description;
     public bool HasDescription => !string.IsNullOrWhiteSpace(Action.Description);
@@ -293,4 +303,6 @@ public sealed class ActionCard(CustomAction action) : INotifyPropertyChanged {
         $"{Action.Graph.Nodes.Count} step(s) - v{Action.Version}"
         + (string.IsNullOrWhiteSpace(Action.Author) ? "" : $" - by {Action.Author}")
         + (Action.Graph.IsValid(out _) ? "" : " - needs fixing");
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }

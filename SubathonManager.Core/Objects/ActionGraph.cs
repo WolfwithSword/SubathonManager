@@ -16,9 +16,36 @@ public sealed class ActionStep {
     public double? Value { get; set; }
     public double? Seconds { get; set; }
     public string? Body { get; set; }
+    public string? Headers { get; set; }
 
-    [JsonIgnore]
-    public TimeSpan Duration => Seconds is > 0.0 ? TimeSpan.FromSeconds(Seconds.Value) : TimeSpan.Zero;
+    public ActionHttpAuth? Auth { get; set; }
+    public string? AuthUser { get; set; }
+    public string? AuthToken { get; set; }
+    public string? OutputVariable { get; set; }
+
+    [JsonIgnore] public TimeSpan Duration => Seconds is > 0.0 ? TimeSpan.FromSeconds(Seconds.Value) : TimeSpan.Zero;
+
+    [JsonIgnore] public string AllText => string.Join('\n', Target, Scope, Body, Headers, AuthUser, AuthToken);
+
+    private string OutputSuffix => string.IsNullOrEmpty(OutputVariable) ? "" : $" -> %{OutputVariable}%";
+
+    public ActionStep Fill(Func<string, string> fill) {
+        return new ActionStep {
+            Type = Type,
+            Operation = Operation,
+            Target = fill(Target),
+            TargetName = TargetName,
+            Scope = Scope == null ? null : fill(Scope),
+            Value = Value,
+            Seconds = Seconds,
+            Body = Body == null ? null : fill(Body),
+            Headers = Headers == null ? null : fill(Headers),
+            Auth = Auth,
+            AuthUser = AuthUser == null ? null : fill(AuthUser),
+            AuthToken = AuthToken == null ? null : fill(AuthToken),
+            OutputVariable = OutputVariable
+        };
+    }
 
     public bool IsValid(out string error) {
         error = "";
@@ -49,6 +76,30 @@ public sealed class ActionStep {
             case ActionStepType.HttpGet or ActionStepType.HttpPost when !LooksLikeUrl(Target):
                 error = "The URL needs to start with http:// or https://";
                 return false;
+            case ActionStepType.SetGlobal when !ActionStepTypeHelper.IsValidName(Target.Trim()):
+                error = "Pick a global by name";
+                return false;
+            case ActionStepType.SetGlobal when Operation == ActionOperation.Adjust && string.IsNullOrWhiteSpace(Body):
+                error = "Give an amount to add (negative to remove)";
+                return false;
+        }
+
+        if (Type.IsWebRequest()) {
+            if (!string.IsNullOrEmpty(OutputVariable) && !IsValidOutputName(OutputVariable)) {
+                error =
+                    $"\"{OutputVariable}\" can't be an output name: use letters, numbers, _, and not a built-in variable's name";
+                return false;
+            }
+
+            if (Auth == ActionHttpAuth.Bearer && string.IsNullOrWhiteSpace(AuthToken)) {
+                error = "Bearer auth needs a token, e.g. %secret.my_token%";
+                return false;
+            }
+
+            if (Auth == ActionHttpAuth.Basic && string.IsNullOrWhiteSpace(AuthUser)) {
+                error = "Basic auth needs a username";
+                return false;
+            }
         }
 
         if (Type.HasScope() && string.IsNullOrWhiteSpace(Scope)) {
@@ -56,12 +107,20 @@ public sealed class ActionStep {
             return false;
         }
 
-        if (Type.HasTarget() && string.IsNullOrWhiteSpace(Target)) {
-            error = $"{Type.GetGroup()} {Type.GetLabel()} needs a {Type.GetTargetLabel()!.TrimEnd(':').ToLowerInvariant()}";
+        if (Type.NeedsTarget(Operation) && string.IsNullOrWhiteSpace(Target)) {
+            error =
+                $"{Type.GetGroup()} {Type.GetLabel()} needs a {Type.GetTargetLabel()!.TrimEnd(':').ToLowerInvariant()}";
             return false;
         }
 
         return true;
+    }
+
+    public static bool IsValidOutputName(string name) {
+        return ActionStepTypeHelper.IsValidName(name)
+               && !ActionStepTypeHelper.TryParseToken(name, out _)
+               && !Enum.GetValues<ActionStoreKind>()
+                   .Any(k => name.Equals(k.TokenPrefix(), StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool LooksLikeUrl(string url) {
@@ -102,8 +161,16 @@ public sealed class ActionStep {
             ActionStepType.ObsFilter => $"{Operation} filter \"{target}\" on \"{Scope}\"",
             ActionStepType.ObsAudio or ActionStepType.ObsMedia => $"{Operation} \"{target}\"",
             ActionStepType.StreamerBotAction => $"Streamer.bot \"{target}\"",
-            ActionStepType.HttpGet => $"GET {ShortUrl(Target)}",
-            ActionStepType.HttpPost => $"POST {ShortUrl(Target)}",
+            ActionStepType.Condition => Type.NeedsTarget(Operation)
+                ? $"If {Scope} is {Operation.GetOpLabel().ToLowerInvariant()} {Target}"
+                : $"If {Scope} is {Operation.GetOpLabel().ToLowerInvariant()}",
+            ActionStepType.SetGlobal => Operation switch {
+                ActionOperation.Toggle => $"Toggle %global.{Target}%",
+                ActionOperation.Adjust => $"%global.{Target}% += {Body?.Trim()}",
+                _ => $"%global.{Target}% = {Body?.Trim()}"
+            },
+            ActionStepType.HttpGet => $"GET {ShortUrl(Target)}{OutputSuffix}",
+            ActionStepType.HttpPost => $"POST {ShortUrl(Target)}{OutputSuffix}",
             _ => Type.GetLabel()
         };
     }
@@ -112,11 +179,15 @@ public sealed class ActionStep {
         return ParseArguments(Body);
     }
 
-    public static IEnumerable<(string Name, string Value)> ParseArguments(string? body) {
+    public IEnumerable<(string Name, string Value)> HeaderLines() {
+        return ParseArguments(Headers, ':');
+    }
+
+    public static IEnumerable<(string Name, string Value)> ParseArguments(string? body, char separator = '=') {
         if (string.IsNullOrWhiteSpace(body)) yield break;
         foreach (string raw in body.Split('\n')) {
             string line = raw.Trim();
-            int split = line.IndexOf('=');
+            int split = line.IndexOf(separator);
             if (split <= 0) continue;
             yield return (line[..split].Trim(), line[(split + 1)..].Trim());
         }
@@ -139,11 +210,17 @@ public sealed class ActionNode {
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Disabled { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IgnoreErrors { get; set; }
 }
 
 public sealed class ActionEdge {
+    public const string ElsePort = "else";
+
     public string From { get; set; } = "";
     public string To { get; set; } = "";
+    public string? Port { get; set; }
 }
 
 public sealed class ActionGraph {
@@ -176,6 +253,26 @@ public sealed class ActionGraph {
         return Edges.Where(e => e.From == nodeId).Select(e => e.To);
     }
 
+    public IEnumerable<ActionEdge> IncomingEdges(string nodeId) {
+        return Edges.Where(e => e.To == nodeId);
+    }
+
+    public HashSet<string> OutputVariables() {
+        return Nodes.Where(n => !n.Disabled && !string.IsNullOrEmpty(n.Step.OutputVariable))
+            .Select(n => n.Step.OutputVariable!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    public HashSet<string> Upstream(string nodeId) {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var stack = new Stack<string>(Incoming(nodeId));
+        while (stack.TryPop(out string? id))
+            if (seen.Add(id))
+                foreach (string previous in Incoming(id))
+                    stack.Push(previous);
+        return seen;
+    }
+
     public bool WouldLoop(string from, string to) {
         if (from == to) return true;
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -204,9 +301,30 @@ public sealed class ActionGraph {
             }
         }
 
+        var links = new HashSet<(string, string)>();
         foreach (ActionEdge edge in Edges) {
-            if (ids.Contains(edge.From) && ids.Contains(edge.To) && edge.From != edge.To) continue;
-            error = $"Connection {edge.From} -> {edge.To} is not between two different steps";
+            if (!ids.Contains(edge.From) || !ids.Contains(edge.To) || edge.From == edge.To) {
+                error = $"Connection {edge.From} -> {edge.To} is not between two different steps";
+                return false;
+            }
+
+            if (!links.Add((edge.From, edge.To))) {
+                error = $"Steps {edge.From} and {edge.To} are connected twice";
+                return false;
+            }
+
+            if (edge.Port == null) continue;
+            if (edge.Port == ActionEdge.ElsePort
+                && Nodes.First(n => n.Id == edge.From).Step.Type == ActionStepType.Condition) continue;
+            error = $"Connection {edge.From} -> {edge.To} uses an output its step does not have";
+            return false;
+        }
+
+        var outputs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (ActionNode node in Nodes.Where(node => !node.Disabled &&
+                                                        !string.IsNullOrEmpty(node.Step.OutputVariable) &&
+                                                        !outputs.Add(node.Step.OutputVariable))) {
+            error = $"More than one step saves its response as %{node.Step.OutputVariable}%";
             return false;
         }
 
@@ -259,7 +377,6 @@ public sealed class ActionGraph {
     }
 }
 
-
 public sealed class CustomAction {
     public const int CurrentFormatVersion = 1;
     public const string FileExtension = ".sma";
@@ -298,35 +415,99 @@ public sealed class CustomAction {
 public sealed record ActionContext(SubathonEventSource Source, string User, string RepeatKey, string? Label = null);
 
 public sealed class ActionRunProgress {
+    public const int MaxVariableLength = 64 * 1024 * 2;
     private readonly Lock _lock = new();
+
     public HashSet<string> Done { get; set; } = [];
+    public HashSet<string> Skipped { get; set; } = [];
+    public Dictionary<string, string> Ports { get; set; } = [];
+    public Dictionary<string, string> Variables { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     public Dictionary<string, double> Values { get; set; } = [];
 
     public bool IsDone(string nodeId) {
-        lock (_lock) return Done.Contains(nodeId);
+        lock (_lock) {
+            return Done.Contains(nodeId);
+        }
     }
 
     public void MarkDone(string nodeId) {
-        lock (_lock) Done.Add(nodeId);
+        lock (_lock) {
+            Done.Add(nodeId);
+        }
+    }
+
+    public bool IsResolved(string nodeId) {
+        lock (_lock) {
+            return Done.Contains(nodeId) || Skipped.Contains(nodeId);
+        }
+    }
+
+    public void MarkSkipped(string nodeId) {
+        lock (_lock) {
+            Skipped.Add(nodeId);
+        }
+    }
+
+    public void SetPort(string nodeId, string? port) {
+        lock (_lock) {
+            if (port == null) Ports.Remove(nodeId);
+            else Ports[nodeId] = port;
+        }
+    }
+
+    public bool IsLive(ActionEdge edge) {
+        lock (_lock) {
+            return Done.Contains(edge.From) && Ports.GetValueOrDefault(edge.From) == edge.Port;
+        }
+    }
+
+    public void SetVariable(string name, string value) {
+        if (value.Length > MaxVariableLength) value = value[..MaxVariableLength];
+        lock (_lock) {
+            Variables[name] = value;
+        }
+    }
+
+    public bool TryReadVariable(string token, out string value) {
+        string root = ActionStepTypeHelper.TokenRoot(token);
+        string? raw;
+        lock (_lock) {
+            if (!Variables.TryGetValue(root, out raw)) {
+                value = "";
+                return false;
+            }
+        }
+
+        value = root.Length == token.Length ? raw : ActionStepTypeHelper.ReadJsonPath(raw, token[root.Length..]);
+        return true;
     }
 
     public bool TryGetValue(string key, out double value) {
-        lock (_lock) return Values.TryGetValue(key, out value);
+        lock (_lock) {
+            return Values.TryGetValue(key, out value);
+        }
     }
 
     public void Remember(string key, double value) {
-        lock (_lock) Values.TryAdd(key, value);
+        lock (_lock) {
+            Values.TryAdd(key, value);
+        }
     }
 
     public string ToJson() {
-        lock (_lock) return JsonSerializer.Serialize(this, ActionGraph.JsonOptions);
+        lock (_lock) {
+            return JsonSerializer.Serialize(this, ActionGraph.JsonOptions);
+        }
     }
 
     public static ActionRunProgress Parse(string? json) {
         if (string.IsNullOrWhiteSpace(json)) return new ActionRunProgress();
         try {
-            return JsonSerializer.Deserialize<ActionRunProgress>(json, ActionGraph.JsonOptions)
-                   ?? new ActionRunProgress();
+            ActionRunProgress progress = JsonSerializer.Deserialize<ActionRunProgress>(json, ActionGraph.JsonOptions)
+                                         ?? new ActionRunProgress();
+            progress.Variables = new Dictionary<string, string>(progress.Variables, StringComparer.OrdinalIgnoreCase);
+            return progress;
         }
         catch (JsonException) {
             return new ActionRunProgress();

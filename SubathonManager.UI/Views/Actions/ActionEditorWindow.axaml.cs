@@ -20,41 +20,25 @@ public partial class ActionEditorWindow : Window {
     private const double StepSpacingX = 260;
     private const double StepSpacingY = 90;
 
-    private readonly CustomAction _action;
-    private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ActionEditorWindow>>();
-    private readonly ObservableCollection<ActionNodeVm> _nodes = [];
-    private readonly ObservableCollection<ActionConnectionVm> _connections = [];
-
-    private readonly Dictionary<string, string> _targetIds = new(StringComparer.OrdinalIgnoreCase);
-    private IReadOnlyList<MixItUpCommandInfo>? _mixItUpCommands;
-    private IReadOnlyList<StreamerBotActionInfo>? _streamerBotActions;
-
-    private bool _dirty;
-    private string _savedState = "";
-    private readonly List<(string Group, Expander Section, StackPanel Buttons)> _paletteSections = [];
-    private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
-    private bool _closeConfirmed;
-    private int _suppress;
-
     private static readonly Dictionary<Guid, ActionEditorWindow> OpenEditors = [];
 
+    private readonly CustomAction _action;
+    private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
+    private readonly ObservableCollection<ActionConnectionVm> _connections = [];
+    private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ActionEditorWindow>>();
+    private readonly ObservableCollection<ActionNodeVm> _nodes = [];
+    private readonly List<(string Group, Expander Section, StackPanel Buttons)> _paletteSections = [];
+
+    private readonly Dictionary<string, string> _targetIds = new(StringComparer.OrdinalIgnoreCase);
+    private bool _closeConfirmed;
+
+    private bool _dirty;
+    private IReadOnlyList<MixItUpCommandInfo>? _mixItUpCommands;
+    private string _savedState = "";
+    private IReadOnlyList<StreamerBotActionInfo>? _streamerBotActions;
+    private int _suppress;
+
     public ActionEditorWindow() : this(new CustomAction()) {
-    }
-
-    public event Action<Guid>? Saved;
-
-    public static ActionEditorWindow Open(CustomAction action) {
-        if (OpenEditors.TryGetValue(action.Id, out ActionEditorWindow? existing)) {
-            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
-            existing.Activate();
-            return existing;
-        }
-
-        var editor = new ActionEditorWindow(action);
-        OpenEditors[action.Id] = editor;
-        editor.Closed += (_, _) => OpenEditors.Remove(action.Id);
-        editor.Show();
-        return editor;
     }
 
     public ActionEditorWindow(CustomAction action) {
@@ -93,10 +77,13 @@ public partial class ActionEditorWindow : Window {
                 MarkDirty();
                 if (box == NameBox) Title = $"Custom Action - {NameBox.Text}";
             };
-        foreach (TextBox box in new[] { ValueBox, DurationBox, BodyBox })
+        foreach (TextBox box in new[]
+                     { ValueBox, DurationBox, BodyBox, HeadersBox, AuthUserBox, AuthTokenBox, OutputBox })
             box.TextChanged += (_, _) => ApplyStepFields();
+
         foreach (AutoCompleteBox box in new[] { ScopeBox, TargetBox })
             box.TextChanged += (_, _) => ApplyStepFields();
+
         ScopeBox.LostFocus += (_, _) => _ = LoadTargetSuggestionsAsync();
         ScopeBox.SelectionChanged += (_, _) => _ = LoadTargetSuggestionsAsync();
 
@@ -110,9 +97,27 @@ public partial class ActionEditorWindow : Window {
     }
 
     private ActionGraph Graph => _action.Graph;
+
     private ActionNodeVm? SelectedVm =>
         Editor.SelectedItems is { Count: 1 } ? Editor.SelectedItems[0] as ActionNodeVm : null;
+
     private ActionNode? SelectedNode => SelectedVm?.Node;
+
+    public event Action<Guid>? Saved;
+
+    public static ActionEditorWindow Open(CustomAction action) {
+        if (OpenEditors.TryGetValue(action.Id, out ActionEditorWindow? existing)) {
+            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            existing.Activate();
+            return existing;
+        }
+
+        var editor = new ActionEditorWindow(action);
+        OpenEditors[action.Id] = editor;
+        editor.Closed += (_, _) => OpenEditors.Remove(action.Id);
+        editor.Show();
+        return editor;
+    }
 
     private void LoadHeader() {
         _suppress++;
@@ -204,7 +209,9 @@ public partial class ActionEditorWindow : Window {
 
         ResetDirty();
         Validate();
-        StatusText.Text = Graph.IsValid(out string error) ? "Saved" : $"Save - Will not run until errors are fixed: {error}";
+        StatusText.Text = Graph.IsValid(out string error)
+            ? "Saved"
+            : $"Save - Will not run until errors are fixed: {error}";
         Saved?.Invoke(_action.Id);
 
         return true;
@@ -221,7 +228,7 @@ public partial class ActionEditorWindow : Window {
         StatusText.Foreground = Brushes.Gray;
         StatusText.Text = "Test run started...";
         CustomAction snapshot = _action.Clone();
-        ActionRunResult result = await ServiceManager.Actions.RunManuallyAsync(snapshot, unsavedCopy: true);
+        ActionRunResult result = await ServiceManager.Actions.RunManuallyAsync(snapshot, true);
         StatusText.Text = result switch {
             ActionRunResult.Done => "Test run finished",
             ActionRunResult.Skipped => "Test run skipped: one is already running and this action ignores repeats",
