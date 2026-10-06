@@ -731,7 +731,9 @@ public class OBSService : IAppService, IActionStepRunner {
         ActionStepType.ObsSourceVisibility, 
         ActionStepType.ObsFilter,
         ActionStepType.ObsAudio,
-        ActionStepType.ObsMedia
+        ActionStepType.ObsMedia,
+        ActionStepType.ObsBrowserRefresh,
+        ActionStepType.ObsRaw
     ];
 
     public Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
@@ -739,7 +741,7 @@ public class OBSService : IAppService, IActionStepRunner {
         if (!_obs.IsConnected) return Task.FromResult(false);
         return Task.Run(() => {
             try {
-                return RunStep(step);
+                return RunStep(step, progress);
             }
             catch (Exception ex) {
                 _logger?.LogWarning(ex, "[OBSService] Action \"{Step}\" failed", step.Describe());
@@ -748,7 +750,7 @@ public class OBSService : IAppService, IActionStepRunner {
         }, ct);
     }
 
-    private bool RunStep(ActionStep step) {
+    private bool RunStep(ActionStep step, ActionRunProgress progress) {
         switch (step.Type) {
             case ActionStepType.ObsSourceVisibility: {
                 (string scene, int id)? item = FindSceneItem(step.Scope ?? "", step.Target, []);
@@ -804,8 +806,45 @@ public class OBSService : IAppService, IActionStepRunner {
                 });
                 return true;
 
+            case ActionStepType.ObsBrowserRefresh:
+                _obs.SendRequest("PressInputPropertiesButton", new JObject {
+                    ["inputName"] = step.Target, ["propertyName"] = "refreshnocache"
+                });
+                return true;
+
+            case ActionStepType.ObsRaw:
+                return RunRawRequest(step, progress);
+
             default:
                 return false;
+        }
+    }
+
+    private bool RunRawRequest(ActionStep step, ActionRunProgress progress) {
+        string? output = string.IsNullOrEmpty(step.OutputVariable) ? null : step.OutputVariable;
+        try {
+            JObject? data = string.IsNullOrWhiteSpace(step.Body) ? null : JObject.Parse(step.Body);
+            JObject? response = _obs.SendRequest(step.Target.Trim(), data);
+            if (output != null)
+                progress.SetOutput(output, response?.ToString(Newtonsoft.Json.Formatting.None) ?? "{}", "200");
+            return true;
+        }
+        catch (Exception ex) when (ex is ErrorResponseException or Newtonsoft.Json.JsonException) {
+            if (output != null) progress.SetOutput(output, "", "0");
+            _logger?.LogWarning("[OBSService] Raw request {Request} failed: {Message}", step.Target, ex.Message);
+            return false;
+        }
+    }
+
+    private List<string> AvailableRequests() {
+        try {
+            return (_obs.SendRequest("GetVersion")?["availableRequests"] as JArray)?
+                .Select(r => r.ToString()).Order(StringComparer.OrdinalIgnoreCase).ToList() ?? [];
+        }
+        catch (Exception ex) {
+            if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
+                _logger?.LogDebug(ex, "[OBSService] Listing request types failed");
+            return [];
         }
     }
 
@@ -865,6 +904,11 @@ public class OBSService : IAppService, IActionStepRunner {
                 case ActionStepType.ObsMedia:
                     return ([], inputs.Where(i => i.kind.Contains("ffmpeg") || i.kind.Contains("vlc"))
                         .Select(i => i.name).ToList());
+                case ActionStepType.ObsBrowserRefresh:
+                    return ([], inputs.Where(i => i.kind.StartsWith("browser_source", StringComparison.Ordinal))
+                        .Select(i => i.name).ToList());
+                case ActionStepType.ObsRaw:
+                    return ([], AvailableRequests());
                 default:
                     return ([], inputs.Select(i => i.name).ToList());
             }

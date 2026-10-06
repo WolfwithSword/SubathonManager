@@ -19,9 +19,18 @@ public partial class ActionEditorWindow {
 
     private string PaletteQuery => (PaletteSearchBox.Text ?? "").Trim();
 
+    private sealed record PaletteItem(ActionStepType Type, SubathonTrigger? Trigger, string Label);
+
+    private static IEnumerable<PaletteItem> PaletteItems(ActionStepType type) {
+        if (type != ActionStepType.Trigger) return [new PaletteItem(type, null, type.GetLabel())];
+        return Enum.GetValues<SubathonTrigger>().OrderBy(t => t.GetOrderNumber())
+            .Select(t => new PaletteItem(type, t, t.GetLabel()));
+    }
+
     private void BuildPalette() {
         foreach (IGrouping<string, ActionStepType> group in Enum.GetValues<ActionStepType>()
-                     .Where(t => t.IsAvailable()).GroupBy(t => t.GetGroup())) {
+                     .Where(t => t.IsAvailable()).GroupBy(t => t.GetGroup())
+                     .OrderBy(g => g.Contains(ActionStepType.Trigger) ? 0 : 1)) {
             var buttons = new StackPanel { Spacing = 4 };
             var section = new Expander {
                 Header = group.Key, IsExpanded = true, HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -35,16 +44,16 @@ public partial class ActionEditorWindow {
                 if (PaletteQuery.Length == 0) _collapsedGroups.Add(group.Key);
             };
 
-            foreach (ActionStepType type in group) {
+            foreach (PaletteItem item in group.SelectMany(PaletteItems)) {
                 var button = new Button {
-                    Content = $"+ {type.GetLabel()}",
+                    Content = $"+ {item.Label}",
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
                     FontSize = 12,
-                    Tag = type
+                    Tag = item
                 };
-                ToolTip.SetTip(button, "Adds an action; with an action selected it is chained after");
-                button.Click += (_, _) => AddStep(type);
+
+                button.Click += (_, _) => AddStep(item);
                 buttons.Children.Add(button);
             }
 
@@ -54,15 +63,15 @@ public partial class ActionEditorWindow {
 
         PaletteSearchBox.TextChanged += (_, _) => FilterPalette();
         PaletteSearchBox.KeyDown += (_, e) => {
-            if (e.Key != Key.Enter || FirstPaletteMatch() is not { } type) return;
-            AddStep(type);
+            if (e.Key != Key.Enter || FirstPaletteMatch() is not { } item) return;
+            AddStep(item);
             e.Handled = true;
         };
     }
 
-    private static bool PaletteMatches(string group, ActionStepType type, string query) {
+    private static bool PaletteMatches(string group, PaletteItem item, string query) {
         return group.Contains(query, StringComparison.OrdinalIgnoreCase)
-               || type.GetLabel().Contains(query, StringComparison.OrdinalIgnoreCase);
+               || item.Label.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
     private void FilterPalette() {
@@ -70,7 +79,7 @@ public partial class ActionEditorWindow {
         foreach ((string group, Expander section, StackPanel buttons) in _paletteSections) {
             var any = false;
             foreach (Button button in buttons.Children.OfType<Button>()) {
-                bool show = query.Length == 0 || PaletteMatches(group, (ActionStepType)button.Tag!, query);
+                bool show = query.Length == 0 || PaletteMatches(group, (PaletteItem)button.Tag!, query);
                 button.IsVisible = show;
                 any |= show;
             }
@@ -80,18 +89,19 @@ public partial class ActionEditorWindow {
         }
     }
 
-    private ActionStepType? FirstPaletteMatch() {
+    private PaletteItem? FirstPaletteMatch() {
         string query = PaletteQuery;
         if (query.Length == 0) return null;
         foreach ((string group, Expander _, StackPanel buttons) in _paletteSections)
         foreach (Button button in buttons.Children.OfType<Button>())
-            if (PaletteMatches(group, (ActionStepType)button.Tag!, query))
-                return (ActionStepType)button.Tag!;
+            if (PaletteMatches(group, (PaletteItem)button.Tag!, query))
+                return (PaletteItem)button.Tag!;
         return null;
     }
 
-    private void AddStep(ActionStepType type) {
-        var step = new ActionStep { Type = type, Operation = type.DefaultOp() };
+    private void AddStep(PaletteItem item) {
+        ActionStepType type = item.Type;
+        var step = new ActionStep { Type = type, Operation = type.DefaultOp(), Trigger = item.Trigger };
         // set defaults
         switch (type) {
             case ActionStepType.Wait:
@@ -114,7 +124,20 @@ public partial class ActionEditorWindow {
         var node = new ActionNode { Id = $"{next}", Step = step };
 
         ActionNode? after = SelectedNode;
-        if (after != null) {
+        ActionNode? before = null;
+        if (type == ActionStepType.Trigger) {
+            before = after is { Step.Type: not ActionStepType.Trigger } && !Graph.Incoming(after.Id).Any() ? after : null;
+            after = null;
+        }
+
+        if (before != null) {
+            node.X = before.X - StepSpacingX;
+            node.Y = before.Y;
+            while (Graph.Nodes.Any(n => Math.Abs(n.X - node.X) < StepSpacingX - 20
+                                        && Math.Abs(n.Y - node.Y) < StepSpacingY - 10))
+                node.Y += StepSpacingY;
+        }
+        else if (after != null) {
             node.X = after.X + StepSpacingX;
             node.Y = after.Y;
             while (Graph.Nodes.Any(n => Math.Abs(n.X - node.X) < StepSpacingX - 20
@@ -131,8 +154,8 @@ public partial class ActionEditorWindow {
         Graph.Nodes.Add(node);
         var view = new ActionNodeVm(node);
         _nodes.Add(view);
-        if (after != null) {
-            var edge = new ActionEdge { From = after.Id, To = node.Id };
+        if (after != null || before != null) {
+            var edge = new ActionEdge { From = after?.Id ?? node.Id, To = before?.Id ?? node.Id };
             Graph.Edges.Add(edge);
             AddConnectionView(edge);
         }
@@ -154,6 +177,7 @@ public partial class ActionEditorWindow {
     private void RefreshNodes() {
         foreach (ActionNodeVm node in _nodes) node.Refresh(Graph);
         RefreshRunVariables();
+        RefreshRepeatOptions();
     }
 
     private void OnConnectionCompleted(object? parameter) {
@@ -161,8 +185,8 @@ public partial class ActionEditorWindow {
                 Item1: ActionConnectorVm a, Item2: ActionConnectorVm b
             }) return;
         (ActionConnectorVm from, ActionConnectorVm to) = a.IsInput ? (b, a) : (a, b);
-        if (from.IsInput || !to.IsInput || from.Owner == to.Owner) return;
-        if (from.Port != null && !from.Owner.IsCondition) return;
+        if (from.IsInput || !to.IsInput || from.Owner == to.Owner || to.Owner.IsTrigger) return;
+        if (from is { Port: not null, Owner.IsCondition: false }) return;
 
         string fromId = from.Owner.Node.Id, toId = to.Owner.Node.Id;
         if (Graph.Edges.Any(e => e.From == fromId && e.To == toId)) {
@@ -288,7 +312,16 @@ public partial class ActionEditorWindow {
         var delete = new MenuItem { Header = $"Delete{suffix}" };
         delete.Click += (_, _) => DeleteItems(targets, []);
 
-        return new MenuFlyout { Items = { duplicate, toggle, ignore, new Separator(), delete } };
+        var menu = new MenuFlyout { Items = { duplicate, toggle, ignore, new Separator(), delete } };
+        if (clicked.IsTrigger && targets.Count == 1) {
+            var test = new MenuItem { Header = "Test Trigger" };
+            ToolTip.SetTip(test, "Run the action with sample trigger values");
+            test.Click += async (_, _) => await TestTriggerAsync(clicked.Node.Id);
+            menu.Items.Insert(0, test);
+            menu.Items.Insert(1, new Separator());
+        }
+
+        return menu;
     }
 
     private List<ActionNodeVm> MenuTargets(ActionNodeVm clicked) {

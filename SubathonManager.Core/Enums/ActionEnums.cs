@@ -26,6 +26,18 @@ public enum ActionStepType {
         AllowsVariables = true)]
     SetGlobal = 2,
 
+    [ActionStepMeta(Label = "Trigger", Group = "Triggers")]
+    Trigger = 3,
+
+    [ActionStepMeta(Label = "Enable / Disable Action", Group = "Custom Actions",
+        Operations = [ActionOperation.Enable, ActionOperation.Disable, ActionOperation.Toggle],
+        TargetLabel = "Action:")]
+    SetActionEnabled = 4,
+
+    [ActionStepMeta(Label = "Run Action", Group = "Custom Actions",
+        Operations = [ActionOperation.Run, ActionOperation.Start], TargetLabel = "Action:")]
+    RunAction = 5,
+
     [ActionStepMeta(Label = "Add Time", Group = "Subathon", DurationLabel = "Time to add:")]
     AddTime = 100,
 
@@ -82,6 +94,13 @@ public enum ActionStepType {
         TargetLabel = "Input:")]
     ObsMedia = 403,
 
+    [ActionStepMeta(Label = "Refresh Browser", Group = "OBS", TargetLabel = "Browser source:")]
+    ObsBrowserRefresh = 404,
+
+    [ActionStepMeta(Label = "Raw Request", Group = "OBS", TargetLabel = "Request type:",
+        BodyLabel = "Request data (JSON object, optional):", AllowsVariables = true, SavesOutput = true)]
+    ObsRaw = 405,
+
     // "name=value" per line, sent as the action's arguments, found as %name%
     [ActionStepMeta(Label = "Run Action", Group = "Streamer.bot", Operations = [ActionOperation.Run],
         TargetLabel = "Action:", BodyLabel = "Arguments (one name=value per line):", AllowsVariables = true)]
@@ -136,7 +155,10 @@ public enum ActionOperation {
     NotEmpty,
 
     // Set/Adjust Global on a number
-    Adjust
+    Adjust,
+    
+    // Start another action, do not wait for result
+    Start
 }
 
 public enum ActionStoreKind {
@@ -166,7 +188,8 @@ public enum ActionRunResult {
 public enum ActionRepeatMode {
     Restart,
     Parallel,
-    Skip
+    Skip,
+    Queue
 }
 
 public enum ActionVariable {
@@ -351,6 +374,10 @@ public static partial class ActionStepTypeHelper {
         return Meta(type)?.IsWebRequest ?? false;
     }
 
+    public static bool SavesOutput(this ActionStepType type) {
+        return type.IsWebRequest() || (Meta(type)?.SavesOutput ?? false);
+    }
+
     public static bool HasScope(this ActionStepType type) {
         return type.GetScopeLabel() != null;
     }
@@ -394,6 +421,8 @@ public static partial class ActionStepTypeHelper {
             ActionOperation.NotEmpty => "Is Not Empty",
             ActionOperation.Set => "Set To",
             ActionOperation.Adjust => "Add/Subtract (numbers)",
+            ActionOperation.Run => "Run",
+            ActionOperation.Start => "Start - Do not wait",
             _ => $"{operation}"
         };
     }

@@ -147,6 +147,9 @@ public class ActionStepMetaAttribute : EnumMetaAttribute {
     // headers, auth, timeout and an output variable for the response, precanned
     public bool IsWebRequest { get; init; }
 
+    // has output variable but not rest of web stuff
+    public bool SavesOutput { get; init; }
+
     // %variables% in config will be accepted
     public bool AllowsVariables { get; init; }
 }

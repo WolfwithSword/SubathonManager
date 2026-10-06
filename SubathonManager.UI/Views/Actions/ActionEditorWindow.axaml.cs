@@ -66,6 +66,7 @@ public partial class ActionEditorWindow : Window {
 
         BuildPalette();
         BuildVariablesPanel();
+        TriggerEventTypes.SelectionChanged += (_, _) => TriggerField_Changed(null, new RoutedEventArgs());
         AttachNodeMenus();
         LoadHeader();
         ShowSelection();
@@ -85,7 +86,7 @@ public partial class ActionEditorWindow : Window {
             box.TextChanged += (_, _) => ApplyStepFields();
 
         ScopeBox.LostFocus += (_, _) => _ = LoadTargetSuggestionsAsync();
-        ScopeBox.SelectionChanged += (_, _) => _ = LoadTargetSuggestionsAsync();
+        ScopeBox.SelectionChanged += (_, _) => Dispatcher.UIThread.Post(() => _ = LoadTargetSuggestionsAsync());
 
         AddHandler(KeyDownEvent, Window_KeyDown, RoutingStrategies.Tunnel);
         ResetDirty();
@@ -128,15 +129,7 @@ public partial class ActionEditorWindow : Window {
             VersionBox.Text = _action.Version;
             DescriptionBox.Text = _action.Description ?? "";
 
-            RepeatBox.Items.Clear();
-            foreach ((ActionRepeatMode mode, string label) in new[] {
-                         (ActionRepeatMode.Restart, "Restart it"),
-                         (ActionRepeatMode.Parallel, "Run another in parallel"),
-                         (ActionRepeatMode.Skip, "Ignore the new one")
-                     })
-                RepeatBox.Items.Add(new ComboBoxItem { Content = label, Tag = mode });
-            RepeatBox.SelectedItem = RepeatBox.Items.OfType<ComboBoxItem>()
-                .FirstOrDefault(i => (ActionRepeatMode?)i.Tag == Graph.OnRepeat);
+            RefreshRepeatOptions();
         }
         finally {
             _suppress--;
@@ -148,6 +141,43 @@ public partial class ActionEditorWindow : Window {
         _action.Author = string.IsNullOrWhiteSpace(AuthorBox.Text) ? null : AuthorBox.Text.Trim();
         _action.Version = string.IsNullOrWhiteSpace(VersionBox.Text) ? "1.0.0" : VersionBox.Text.Trim();
         _action.Description = string.IsNullOrWhiteSpace(DescriptionBox.Text) ? null : DescriptionBox.Text.Trim();
+    }
+
+    private void RefreshRepeatOptions() {
+        bool triggers = Graph.HasTriggers;
+        List<(ActionRepeatMode Mode, string Label)> options = new[] {
+            (ActionRepeatMode.Restart, "Restart Existing"),
+            (ActionRepeatMode.Parallel, "Run Parallel"),
+            (ActionRepeatMode.Queue, "Queue New"),
+            (ActionRepeatMode.Skip, "Skip New")
+        }.Where(o => !triggers || ActionGraph.AllowedWithTriggers(o.Item1)).ToList();
+
+        bool loaded = RepeatBox.Items.Count > 0;
+        if (triggers && !ActionGraph.AllowedWithTriggers(Graph.OnRepeat)) {
+            Graph.OnRepeat = ActionRepeatMode.Parallel;
+            StatusText.Foreground = Brushes.Gray;
+            StatusText.Text = "Actions with triggers can only run in parallel or queued - this action now runs in parallel";
+            if (loaded && _suppress == 0) MarkDirty();
+        }
+
+        _suppress++;
+        try {
+            if (!RepeatBox.Items.OfType<ComboBoxItem>().Select(i => (ActionRepeatMode)i.Tag!)
+                    .SequenceEqual(options.Select(o => o.Mode))) {
+                RepeatBox.Items.Clear();
+                foreach ((ActionRepeatMode mode, string label) in options)
+                    RepeatBox.Items.Add(new ComboBoxItem { Content = label, Tag = mode });
+            }
+
+            RepeatBox.SelectedItem = RepeatBox.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => (ActionRepeatMode?)i.Tag == Graph.OnRepeat);
+            ToolTip.SetTip(RepeatBox, triggers
+                ? "Triggers can fire many times in a row, so they run either in parallel or in a queue"
+                : null);
+        }
+        finally {
+            _suppress--;
+        }
     }
 
     private void Repeat_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
@@ -198,6 +228,7 @@ public partial class ActionEditorWindow : Window {
         }
 
         try {
+            if (ServiceManager.Actions.GetCustomAction(_action.Id) is { } current) _action.Disabled = current.Disabled;
             await ServiceManager.Actions.SaveCustomActionAsync(_action.Clone());
         }
         catch (Exception ex) {
@@ -225,10 +256,31 @@ public partial class ActionEditorWindow : Window {
             return;
         }
 
+        if (Graph.Nodes.All(n => n.Step.Type == ActionStepType.Trigger || Graph.Incoming(n.Id).Any())) {
+            StatusText.Foreground = Brushes.OrangeRed;
+            StatusText.Text = "Every branch starts with a trigger - right click a trigger to run a Test";
+            return;
+        }
+
         StatusText.Foreground = Brushes.Gray;
         StatusText.Text = "Test run started...";
-        CustomAction snapshot = _action.Clone();
-        ActionRunResult result = await ServiceManager.Actions.RunManuallyAsync(snapshot, true);
+        ShowTestResult(await ServiceManager.Actions.RunManuallyAsync(_action.Clone(), true));
+    }
+
+    private async Task TestTriggerAsync(string nodeId) {
+        ApplyHeader();
+        if (!Graph.IsValid(out string error)) {
+            StatusText.Foreground = Brushes.OrangeRed;
+            StatusText.Text = error;
+            return;
+        }
+
+        StatusText.Foreground = Brushes.Gray;
+        StatusText.Text = "Trigger test started...";
+        ShowTestResult(await ServiceManager.Actions.TestTriggerAsync(_action.Clone(), nodeId, true));
+    }
+
+    private void ShowTestResult(ActionRunResult result) {
         StatusText.Text = result switch {
             ActionRunResult.Done => "Test run finished",
             ActionRunResult.Skipped => "Test run skipped: one is already running and this action ignores repeats",

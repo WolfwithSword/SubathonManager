@@ -44,7 +44,7 @@ public class MixItUpServiceTests {
             MockConfig.MakeMockConfig(config), factory.Object, timerService ?? new Mock<ITimerService>().Object);
     }
 
-    private static Dictionary<(string, string), string> EnabledConfig(MixItUpTrigger trigger) {
+    private static Dictionary<(string, string), string> EnabledConfig(SubathonTrigger trigger) {
         return new Dictionary<(string, string), string> {
             [(MixItUpService.ConfigSection, "Enabled")] = "True",
             [(MixItUpService.ConfigSection, MixItUpService.CommandConfigKey(trigger))] = CommandId.ToString()
@@ -240,29 +240,29 @@ public class MixItUpServiceTests {
 
     [Fact]
     public void Fire_Disabled_DoesNothing() {
-        Dictionary<(string, string), string> config = EnabledConfig(MixItUpTrigger.GoalCompleted);
+        Dictionary<(string, string), string> config = EnabledConfig(SubathonTrigger.GoalCompleted);
         config[(MixItUpService.ConfigSection, "Enabled")] = "False";
         MixItUpService service = MakeService(config: config);
 
-        Assert.False(service.Fire(MixItUpTrigger.GoalCompleted, new Dictionary<string, string>()));
+        Assert.False(service.Fire(SubathonTrigger.GoalCompleted, new Dictionary<string, string>()));
     }
 
     [Fact]
     public void Fire_InvalidCommandId_DoesNothing() {
-        Dictionary<(string, string), string> config = EnabledConfig(MixItUpTrigger.GoalCompleted);
-        config[(MixItUpService.ConfigSection, MixItUpService.CommandConfigKey(MixItUpTrigger.GoalCompleted))] =
+        Dictionary<(string, string), string> config = EnabledConfig(SubathonTrigger.GoalCompleted);
+        config[(MixItUpService.ConfigSection, MixItUpService.CommandConfigKey(SubathonTrigger.GoalCompleted))] =
             "not-a-guid";
         MixItUpService service = MakeService(config: config);
 
-        Assert.False(service.Fire(MixItUpTrigger.GoalCompleted, new Dictionary<string, string>()));
+        Assert.False(service.Fire(SubathonTrigger.GoalCompleted, new Dictionary<string, string>()));
     }
 
     [Fact]
     public async Task Fire_PostsCommandWithSpecialIdentifiers() {
         var handler = new RecordingHandler(HttpStatusCode.Accepted);
-        MixItUpService service = MakeService(handler, EnabledConfig(MixItUpTrigger.GoalCompleted));
+        MixItUpService service = MakeService(handler, EnabledConfig(SubathonTrigger.GoalCompleted));
 
-        bool fired = service.Fire(MixItUpTrigger.GoalCompleted,
+        bool fired = service.Fire(SubathonTrigger.GoalCompleted,
             new Dictionary<string, string> { [Id("goaltext")] = "Hat on" });
         RecordedRequest request = await handler.WaitForRequestAsync(TestContext.Current.CancellationToken);
 
@@ -280,7 +280,7 @@ public class MixItUpServiceTests {
     [Fact]
     public async Task DataUpdate_FiresOnPauseChangeOnly() {
         var handler = new RecordingHandler(HttpStatusCode.Accepted);
-        Dictionary<(string, string), string> config = EnabledConfig(MixItUpTrigger.TimerPaused);
+        Dictionary<(string, string), string> config = EnabledConfig(SubathonTrigger.TimerPaused);
         MixItUpService service = MakeService(handler, config);
         await service.StartAsync(TestContext.Current.CancellationToken);
         try {
@@ -306,7 +306,7 @@ public class MixItUpServiceTests {
     [Fact]
     public async Task PromptEnded_FiresOnlyForEndedRuns() {
         var handler = new RecordingHandler(HttpStatusCode.Accepted);
-        MixItUpService service = MakeService(handler, EnabledConfig(MixItUpTrigger.PromptEnded));
+        MixItUpService service = MakeService(handler, EnabledConfig(SubathonTrigger.PromptEnded));
         await service.StartAsync(TestContext.Current.CancellationToken);
         try {
             var run = new SubathonPromptRun { Status = SubathonPromptRunStatus.Active };
@@ -334,7 +334,7 @@ public class MixItUpServiceTests {
     public async Task EventProcessed_CommandsOnlyWhenIncluded(SubathonEventType type, bool includeCommands,
         bool expectSent) {
         var handler = new RecordingHandler(HttpStatusCode.Accepted);
-        Dictionary<(string, string), string> config = EnabledConfig(MixItUpTrigger.SubathonEvent);
+        Dictionary<(string, string), string> config = EnabledConfig(SubathonTrigger.SubathonEvent);
         config[(MixItUpService.ConfigSection, MixItUpService.IncludeCommandsKey)] = includeCommands.ToString();
         MixItUpService service = MakeService(handler, config);
         await service.StartAsync(TestContext.Current.CancellationToken);
@@ -376,8 +376,8 @@ public class MixItUpServiceTests {
     [Fact]
     public async Task DataUpdate_FiresMultiplierStartAndEnd() {
         var handler = new RecordingHandler(HttpStatusCode.Accepted);
-        Dictionary<(string, string), string> config = EnabledConfig(MixItUpTrigger.MultiplierStarted);
-        config[(MixItUpService.ConfigSection, MixItUpService.CommandConfigKey(MixItUpTrigger.MultiplierEnded))] =
+        Dictionary<(string, string), string> config = EnabledConfig(SubathonTrigger.MultiplierStarted);
+        config[(MixItUpService.ConfigSection, MixItUpService.CommandConfigKey(SubathonTrigger.MultiplierEnded))] =
             CommandId.ToString();
         MixItUpService service = MakeService(handler, config);
         await service.StartAsync(TestContext.Current.CancellationToken);
@@ -417,7 +417,7 @@ public class MixItUpServiceTests {
     [InlineData(false, true)]
     public void MultiplierIdentifiers_SendTimeAndPointsFlags(bool time, bool points) {
         Dictionary<string, string> ids = MixItUpService.MultiplierIdentifiers(
-            new MixItUpService.MultiplierSnapshot(true, 1.5, time, points, null, null, false));
+            new MultiplierSnapshot(true, 1.5, time, points, null, null, false));
 
         Assert.Equal(time.ToString(), ids[Id("multipliertime")]);
         Assert.Equal(points.ToString(), ids[Id("multiplierpoints")]);
@@ -427,7 +427,7 @@ public class MixItUpServiceTests {
 
     [Fact]
     public void SampleIdentifiers_CoverEveryTrigger() {
-        foreach (MixItUpTrigger trigger in Enum.GetValues<MixItUpTrigger>()) {
+        foreach (SubathonTrigger trigger in Enum.GetValues<SubathonTrigger>()) {
             IReadOnlyList<string> names = MixItUpService.IdentifierNames(trigger);
             Assert.Contains($"${Id("trigger")}", names);
             Assert.True(names.Count > 1, $"{trigger} has no identifiers");

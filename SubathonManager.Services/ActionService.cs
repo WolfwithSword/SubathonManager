@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,8 +28,10 @@ public partial class ActionService(
     ISecureStorage? secureStorage = null) : IAppService, IDisposable {
     public const string LoggedRunMeta = "logged-run";
 
+    public const string FromActionMeta = "from-action";
+
     // web step saving to %resp% also sets %resp_status%
-    public const string StatusSuffix = "_status";
+    public const string StatusSuffix = ActionRunProgress.StatusSuffix;
 
     private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
     private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(15);
@@ -57,6 +60,7 @@ public partial class ActionService(
         SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
         WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
         ActionEvents.CustomActionRunRequested += OnCustomActionRunRequested;
+        TriggerWatcher.Start();
         await LoadLibraryAsync();
 
         await using AppDbContext db = await factory.CreateDbContextAsync(ct);
@@ -74,6 +78,7 @@ public partial class ActionService(
         SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
         WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
         ActionEvents.CustomActionRunRequested -= OnCustomActionRunRequested;
+        _triggerWatcher?.Stop();
         foreach (LiveRun run in _runs.Values) run.Cancel();
         GC.SuppressFinalize(this);
     }
@@ -136,8 +141,145 @@ public partial class ActionService(
             return;
         }
 
+        if (action.Disabled) {
+            logger?.LogInformation("[Actions] RunAction asked for disabled action: \"{Name}\"", action.Name);
+            return;
+        }
+
         string user = string.IsNullOrWhiteSpace(ev.User) ? "SYSTEM" : ev.User;
         _ = RunCustomActionAsync(action, user, ev.Source);
+    }
+
+    ////////////////// triggers
+
+    private SubathonTriggerWatcher? _triggerWatcher;
+    private SubathonTriggerWatcher TriggerWatcher => _triggerWatcher ??= new SubathonTriggerWatcher(OnTrigger);
+
+    public IEnumerable<(CustomAction Action, ActionNode Node)> TriggerSteps() {
+        return CustomActions.SelectMany(a => a.Graph.Nodes
+            .Where(n => n.Step.Type == ActionStepType.Trigger)
+            .Select(n => (a, n)));
+    }
+
+    private void OnTrigger(SubathonTrigger trigger, Dictionary<string, string> values, SubathonEvent? subathonEvent) {
+        if (subathonEvent != null) {
+            if (subathonEvent.EventTypeMeta is LoggedRunMeta or FromActionMeta) return;
+            if (!subathonEvent.ProcessedToSubathon && !(config?.GetBool("App", "ShowLockedEvents", false) ?? false))
+                return;
+        }
+
+        foreach (IGrouping<CustomAction, (CustomAction Action, ActionNode Node)> matched in TriggerSteps()
+                     .Where(t => !t.Action.Disabled && !t.Node.Disabled
+                                 && t.Node.Step.MatchesTrigger(trigger, subathonEvent))
+                     .GroupBy(t => t.Action)) {
+            HashSet<string> nodes = matched.Select(t => t.Node.Id).ToHashSet(StringComparer.Ordinal);
+            _ = RunTriggeredAsync(matched.Key, trigger, nodes, values, subathonEvent);
+        }
+    }
+
+    private async Task<ActionRunResult> RunTriggeredAsync(CustomAction action, SubathonTrigger trigger,
+        IReadOnlySet<string> nodes, IReadOnlyDictionary<string, string> values, SubathonEvent? subathonEvent,
+        string? repeatKey = null) {
+        string user = subathonEvent?.User is { } named && !string.IsNullOrWhiteSpace(named) ? named : "SYSTEM";
+        var ctx = new ActionContext(subathonEvent?.Source ?? SubathonEventSource.Unknown, user,
+            repeatKey ?? $"custom-action-{action.Id}", action.Name, trigger, nodes, values);
+        try {
+            LogRun(action.Name, ctx);
+            return await RunAsync(Guid.NewGuid(), action.Graph, ctx);
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "[Actions] Running {Name} from {Trigger} failed", action.Name, trigger);
+            return ActionRunResult.Paused;
+        }
+    }
+
+    ////////////////// actions switching and running other actions
+    public const int MaxActionDepth = 8;
+
+    public CustomAction? ResolveActionTarget(ActionStep step) {
+        if (Guid.TryParse(step.Target.Trim(), out Guid id) && GetCustomAction(id) is { } byId) return byId;
+        string name = string.IsNullOrWhiteSpace(step.TargetName) ? step.Target : step.TargetName;
+        return string.IsNullOrWhiteSpace(name) ? null : FindCustomAction(name);
+    }
+
+    public async Task<bool> SetCustomActionEnabledAsync(Guid id, bool enabled) {
+        if (GetCustomAction(id) is not { } action) return false;
+        if (action.Disabled != enabled) return true;
+        CustomAction copy = action.Clone();
+        copy.Disabled = !enabled;
+        await SaveCustomActionAsync(copy);
+        logger?.LogInformation("[Actions] \"{Name}\" turned {State}", action.Name, enabled ? "on" : "off");
+        return true;
+    }
+
+    private async Task<bool> RunSetActionEnabledAsync(ActionStep step) {
+        if (ResolveActionTarget(step) is not { } target) {
+            logger?.LogWarning("[Actions] There is no action \"{Name}\" to turn on/off", step.TargetName ?? step.Target);
+            return false;
+        }
+
+        bool enable = step.Operation switch {
+            ActionOperation.Enable => true,
+            ActionOperation.Disable => false,
+            _ => target.Disabled
+        };
+        return await SetCustomActionEnabledAsync(target.Id, enable);
+    }
+
+    private async Task<bool> RunOtherActionAsync(ActionStep step, ActionContext ctx, CancellationToken ct) {
+        if (ResolveActionTarget(step) is not { } target) {
+            logger?.LogWarning("[Actions] There is no action \"{Name}\" to run", step.TargetName ?? step.Target);
+            return false;
+        }
+
+        if (target.Disabled) {
+            logger?.LogInformation("[Actions] Not running disabled action \"{Name}\"", target.Name);
+            return true;
+        }
+
+        if (ctx.Depth >= MaxActionDepth) {
+            logger?.LogWarning("[Actions] Not running \"{Name}\": action(s) are running each other more than {Max} levels deep",
+                target.Name, MaxActionDepth);
+            return false;
+        }
+
+        var child = new ActionContext(ctx.Source, ctx.User, $"custom-action-{target.Id}", target.Name,
+            Depth: ctx.Depth + 1);
+        LogRun(target.Name, child);
+        Task<ActionRunResult> run = RunChildAsync(target, child);
+        if (step.Operation == ActionOperation.Start) return true;
+
+        ActionRunResult result = await run.WaitAsync(ct);
+        return result is ActionRunResult.Done or ActionRunResult.Skipped;
+    }
+
+    private async Task<ActionRunResult> RunChildAsync(CustomAction action, ActionContext ctx) {
+        try {
+            return await RunAsync(Guid.NewGuid(), action.Graph, ctx);
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "[Actions] Running {Name} from another action failed", action.Name);
+            return ActionRunResult.Paused;
+        }
+    }
+
+    public Task<ActionRunResult> TestTriggerAsync(CustomAction action, string nodeId, bool unsavedCopy = false) {
+        ActionNode? node = action.Graph.Nodes.FirstOrDefault(n => n.Id == nodeId);
+        if (node?.Step is not { Type: ActionStepType.Trigger, Trigger: { } trigger })
+            return Task.FromResult(ActionRunResult.Skipped);
+
+        Dictionary<string, string> values = SubathonTriggerWatcher.SampleValues(trigger);
+        if (trigger == SubathonTrigger.SubathonEvent
+            && node.Step.EventTypes?.FirstOrDefault() is { } picked
+            && Enum.TryParse(picked, out SubathonEventType eventType)) {
+            values["eventtype"] = $"{eventType}";
+            values["source"] = $"{SubathonEventSource.Simulated}";
+        }
+
+        values["user"] = values.GetValueOrDefault("user") is { Length: > 0 } user ? user : "CustomAction";
+        return RunTriggeredAsync(action, trigger, new HashSet<string>([nodeId]), values,
+            new SubathonEvent { Source = SubathonEventSource.Simulated, User = values["user"] },
+            unsavedCopy ? $"custom-action-test-{action.Id}" : null);
     }
 
     private async Task<ActionStep> FillVariablesAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
@@ -515,7 +657,8 @@ public partial class ActionService(
     public ActionGraph? ResolveGraph(WheelSpinActionType type, string? parameter) {
         if (!type.IsAvailable()) return null;
         if (type != WheelSpinActionType.CustomAction) return type.BuildActionGraph(parameter);
-        return Guid.TryParse(parameter, out Guid id) ? GetCustomAction(id)?.Graph : null;
+        return Guid.TryParse(parameter, out Guid id) && GetCustomAction(id) is { Disabled: false } action
+            ? action.Graph : null;
     }
 
     public async Task<ActionRunResult> RunAsync(Guid runId, ActionGraph graph, ActionContext ctx,
@@ -527,18 +670,36 @@ public partial class ActionService(
             return ActionRunResult.Paused;
         }
 
+        ActionRepeatMode mode = graph.EffectiveRepeat;
         List<LiveRun> overlapping = _runs.Values.Where(r => r.RepeatKey == ctx.RepeatKey && r.Id != runId).ToList();
-        if (overlapping.Count > 0 && graph.OnRepeat == ActionRepeatMode.Skip) return ActionRunResult.Skipped;
-        if (graph.OnRepeat == ActionRepeatMode.Restart)
+        if (overlapping.Count > 0 && mode == ActionRepeatMode.Skip) return ActionRunResult.Skipped;
+        if (mode == ActionRepeatMode.Restart)
             foreach (LiveRun previous in overlapping) {
                 previous.Superseded = true;
                 previous.Cancel();
             }
 
-        var live = new LiveRun(runId, ctx.RepeatKey);
-        if (!_runs.TryAdd(runId, live)) return ActionRunResult.Skipped;
+        // queue logic
+        Task ahead = Task.CompletedTask;
+        TaskCompletionSource? turn = null;
+        if (mode == ActionRepeatMode.Queue) {
+            turn = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_queueTails) {
+                ahead = _queueTails.GetValueOrDefault(ctx.RepeatKey) ?? Task.CompletedTask;
+                _queueTails[ctx.RepeatKey] = turn.Task;
+            }
+        }
 
+        var live = new LiveRun(runId, ctx.RepeatKey);
         try {
+            if (!_runs.TryAdd(runId, live)) return ActionRunResult.Skipped;
+            try {
+                await ahead.WaitAsync(live.Token);
+            }
+            catch (OperationCanceledException) {
+                return ActionRunResult.Cancelled;
+            }
+
             bool finished = await RunGraphAsync(graph, ctx, progress, onProgress, live.Token);
             if (live.Superseded || finished) return ActionRunResult.Done;
             return live.Cancelled ? ActionRunResult.Cancelled : ActionRunResult.Paused;
@@ -546,8 +707,22 @@ public partial class ActionService(
         finally {
             _runs.TryRemove(runId, out _);
             live.Dispose();
+            if (turn != null) {
+                void Release() {
+                    turn.TrySetResult();
+                    lock (_queueTails) {
+                        if (_queueTails.GetValueOrDefault(ctx.RepeatKey) == turn.Task)
+                            _queueTails.Remove(ctx.RepeatKey);
+                    }
+                }
+
+                if (ahead.IsCompleted) Release();
+                else _ = ahead.ContinueWith(_ => Release(), TaskScheduler.Default);
+            }
         }
     }
+
+    private readonly Dictionary<string, Task> _queueTails = new(StringComparer.Ordinal);
 
     private async Task<bool> RunGraphAsync(ActionGraph graph, ActionContext ctx, ActionRunProgress progress,
         Func<ActionRunProgress, Task>? onProgress, CancellationToken outerCt) {
@@ -560,6 +735,15 @@ public partial class ActionService(
         var running = new Dictionary<Task<bool>, ActionNode>();
         HashSet<string> outputs = graph.OutputVariables();
 
+        if (graph.Nodes.Any(n => n.Step.Type == ActionStepType.Trigger)) outputs.Add(ActionRunProgress.TriggerVariable);
+        if (ctx.TriggerValues != null && !progress.TryReadVariable(ActionRunProgress.TriggerVariable, out _))
+            progress.SetVariable(ActionRunProgress.TriggerVariable, JsonSerializer.Serialize(ctx.TriggerValues));
+
+        bool StartsRun(ActionNode node) {
+            return node.Step.Type == ActionStepType.Trigger
+                ? ctx.TriggerNodes?.Contains(node.Id) ?? false : ctx.Trigger == null;
+        }
+
         void StartReady() {
             bool changed;
             do {
@@ -569,7 +753,7 @@ public partial class ActionService(
                     if (!incoming.All(e => progress.IsResolved(e.From))) continue;
                     pending.Remove(node.Id);
 
-                    if (incoming.Count > 0 && !incoming.Any(progress.IsLive)) {
+                    if (incoming.Count > 0 ? !incoming.Any(progress.IsLive) : !StartsRun(node)) {
                         progress.MarkSkipped(node.Id);
                         changed = true;
                         continue;
@@ -581,7 +765,7 @@ public partial class ActionService(
         }
 
         Task<bool> StartStep(ActionNode node) {
-            if (node.Disabled) return Task.Run(() => true, ct);
+            if (node.Disabled || node.Step.Type == ActionStepType.Trigger) return Task.Run(() => true, ct);
             return node.Step.Type == ActionStepType.Condition
                 ? RunConditionAsync(node, ctx, progress, outputs, ct)
                 : RunStepAsync(node.Step, ctx, progress, outputs, ct);
@@ -659,6 +843,12 @@ public partial class ActionService(
             case ActionStepType.SetGlobal:
                 return await RunSetGlobalAsync(step, ct);
 
+            case ActionStepType.SetActionEnabled:
+                return await RunSetActionEnabledAsync(step);
+
+            case ActionStepType.RunAction:
+                return await RunOtherActionAsync(step, ctx, ct);
+
             case ActionStepType.Wait:
                 await Task.Delay(step.Duration, ct); // when here, easier to do a delay vs the timerservice callback
                 return true;
@@ -666,8 +856,7 @@ public partial class ActionService(
             case ActionStepType.AddTime:
             case ActionStepType.SubtractTime: {
                 SubathonCommandType cmd = step.Type == ActionStepType.AddTime
-                    ? SubathonCommandType.AddTime
-                    : SubathonCommandType.SubtractTime;
+                    ? SubathonCommandType.AddTime : SubathonCommandType.SubtractTime;
                 SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
                     Source = ctx.Source,
                     EventTimestamp = DateTime.Now,
@@ -676,7 +865,8 @@ public partial class ActionService(
                     User = ctx.User,
                     Value = $"{cmd} {Utils.FormatShortDuration(step.Duration)}",
                     SecondsValue = step.Duration.TotalSeconds,
-                    PointsValue = 0
+                    PointsValue = 0,
+                    EventTypeMeta = FromActionMeta
                 });
                 return true;
             }
@@ -698,7 +888,8 @@ public partial class ActionService(
                     Command = SubathonCommandType.SetMultiplier,
                     EventType = SubathonEventType.Command,
                     User = ctx.User,
-                    Value = $"{amount}|{duration}|{points}|{time}"
+                    Value = $"{amount}|{duration}|{points}|{time}",
+                    EventTypeMeta = FromActionMeta
                 });
                 _multiplierActive = true;
                 return true;

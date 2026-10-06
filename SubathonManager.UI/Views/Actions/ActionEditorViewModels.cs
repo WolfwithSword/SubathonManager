@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using Avalonia;
+using Avalonia.Media;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Objects;
 
@@ -30,6 +31,13 @@ public sealed class ActionNodeVm : ActionEditorVm {
     public ActionConnectorVm ElseOutput { get; }
 
     public bool IsCondition => Node.Step.Type == ActionStepType.Condition;
+    public bool IsTrigger => Node.Step.Type == ActionStepType.Trigger;
+    public bool HasInput => !IsTrigger;
+
+    private static readonly IBrush TriggerTint = new SolidColorBrush(Color.FromArgb(0x33, 0x1C, 0xB8, 0x96));
+    private static readonly IBrush TriggerBorder = new SolidColorBrush(Color.FromRgb(0x1C, 0xB8, 0x96));
+    public IBrush CardTint => IsTrigger ? TriggerTint : Brushes.Transparent;
+    public IBrush CardBorder => IsTrigger ? TriggerBorder : Brushes.Transparent;
     public bool IgnoresErrors => Node.IgnoreErrors;
 
     public Point Location {
@@ -42,7 +50,8 @@ public sealed class ActionNodeVm : ActionEditorVm {
         }
     }
 
-    public string Title => $"{Node.Step.Type.GetGroup()} - {Node.Step.Type.GetLabel()}";
+    public string Title => IsTrigger
+        ? $"Trigger - {Node.Step.Trigger?.GetLabel() ?? "?"}" : $"{Node.Step.Type.GetGroup()} - {Node.Step.Type.GetLabel()}";
     public string Summary => Node.Step.Describe();
     public bool IsStart { get; private set; }
     public bool IsEnd { get; private set; }
@@ -61,7 +70,7 @@ public sealed class ActionNodeVm : ActionEditorVm {
         Raise(nameof(IsDisabled));
         Raise(nameof(CardOpacity));
         Raise(nameof(IgnoresErrors));
-        IsStart = !graph.Incoming(Node.Id).Any();
+        IsStart = !IsTrigger && !graph.Incoming(Node.Id).Any();
 
         List<ActionEdge> outgoing = graph.Edges.Where(e => e.From == Node.Id).ToList();
         Branches = outgoing.GroupBy(e => e.Port).Select(g => g.Count()).DefaultIfEmpty(0).Max();

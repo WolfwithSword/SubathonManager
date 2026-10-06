@@ -62,6 +62,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="local:ActionCard">
                                     <Border Classes="actioncard" Classes.selected="{Binding IsSelected}"
+                                            Opacity="{Binding CardOpacity}"
                                             Margin="0,0,0,8" Padding="12"
                                             BorderThickness="1" CornerRadius="6"
                                             BorderBrush="{DynamicResource UiBrushBorder}"
@@ -70,8 +71,33 @@
                                             Tapped="Card_Tapped" DoubleTapped="Card_DoubleTapped">
                                         <Grid ColumnDefinitions="*,Auto">
                                             <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
-                                                           FontWeight="SemiBold" FontSize="16" />
+                                                <WrapPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
+                                                               FontWeight="SemiBold" FontSize="16" Margin="0,0,8,0" />
+                                                    <Border Background="#555555" CornerRadius="3" Padding="5,0"
+                                                            Margin="0,0,4,0" VerticalAlignment="Center"
+                                                            IsVisible="{Binding Action.Disabled}"
+                                                            ToolTip.Tip="Turned off">
+                                                        <TextBlock Text="OFF" FontSize="10" FontWeight="Bold"
+                                                                   Foreground="White" />
+                                                    </Border>
+                                                    <Border Background="#555555" CornerRadius="3" Padding="5,0"
+                                                            Margin="0,0,4,0" VerticalAlignment="Center"
+                                                            ToolTip.Tip="{Binding ModeTip}">
+                                                        <TextBlock Text="{Binding ModeLetter}" FontSize="10"
+                                                                   FontWeight="Bold" Foreground="White" />
+                                                    </Border>
+                                                    <Border Background="#1CB896" CornerRadius="3" Padding="4,0"
+                                                            VerticalAlignment="Center" IsVisible="{Binding HasTriggers}"
+                                                            ToolTip.Tip="{Binding TriggerTip}">
+                                                        <StackPanel Orientation="Horizontal" Spacing="2">
+                                                            <ctl:SymIcon Glyph="Flash12" Foreground="White"
+                                                                         VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding TriggerCount}" FontSize="10"
+                                                                       FontWeight="Bold" Foreground="White" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </WrapPanel>
                                                 <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="Gray"
                                                            Margin="0,2,0,0" />
                                                 <TextBlock Text="{Binding Description}" FontSize="12"
@@ -123,14 +149,14 @@
                                    Text="Custom actions can chain from multiple integrations.&#x0a;Double click or press edit to open in the editor. Each action is saved as a .sma file" />
                         <WrapPanel Orientation="Horizontal" Margin="0,16,0,0">
                             <Button Classes="tile" Click="OpenActionsFolder_Click"
-                                    ToolTip.Tip="Open the folder your actions are saved in">
+                                    ToolTip.Tip="Open actions library folder">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <ctl:SymIcon Glyph="FolderOpen20" VerticalAlignment="Center" />
                                     <TextBlock Text="Open Actions" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
                             <Button Classes="tile" Click="OpenExportsFolder_Click"
-                                    ToolTip.Tip="Open the folder exported .sma files are written to">
+                                    ToolTip.Tip="Open actions export folder">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <ctl:SymIcon Glyph="FolderOpen20" VerticalAlignment="Center" />
                                     <TextBlock Text="Open Exports" VerticalAlignment="Center" />
@@ -156,9 +182,13 @@
                             BorderBrush="{DynamicResource UiBrushBorder}"
                             Background="{DynamicResource UiBrushControlBackground}">
                         <StackPanel>
-                            <Grid ColumnDefinitions="*,Auto,Auto">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                 <TextBlock x:Name="DetailTitle" FontSize="20" FontWeight="Bold" TextWrapping="Wrap"
                                            VerticalAlignment="Center" />
+                                <ToggleSwitch Grid.Column="3" x:Name="EnabledSwitch" OnContent="On" OffContent="Off"
+                                              Margin="10,0,0,0" VerticalAlignment="Center"
+                                              IsCheckedChanged="EnabledSwitch_Changed"
+                                              ToolTip.Tip="Off - nothing can run this action except the test button" />
                                 <Button Grid.Column="1" Classes="opaquesecondary" Padding="10,4" Margin="8,0,0,0"
                                         Click="RunSelected_Click"
                                         ToolTip.Tip="Run the saved action now. It runs for real: time, multiplier and reroll steps do change the subathon">
@@ -183,7 +213,7 @@
                                     <TextBlock x:Name="DetailSteps" FontSize="24" FontWeight="SemiBold" />
                                     <TextBlock Text="Steps" FontSize="11" Foreground="Gray" />
                                 </StackPanel>
-                                <StackPanel ToolTip.Tip="Separate paths from a start to an end; a straight chain is 1">
+                                <StackPanel>
                                     <TextBlock x:Name="DetailBranches" FontSize="24" FontWeight="SemiBold" />
                                     <TextBlock Text="Branches" FontSize="11" Foreground="Gray" />
                                 </StackPanel>
@@ -259,7 +289,18 @@
         </TabItem>
 
         <TabItem Header="Triggers">
-            <Grid />
+            <Grid Margin="10" RowDefinitions="Auto,*">
+                <StackPanel Margin="6,0,2,10">
+                    <TextBlock Text="Triggers" FontWeight="Bold" FontSize="18" />
+                    <TextBlock TextWrapping="Wrap" FontSize="13" Margin="0,4,0,0"
+                               Text="Triggers can run your actions automatically if their associated node exists. They also provide their own variables." />
+                    <TextBlock x:Name="TriggersStatusText" FontSize="12" Foreground="Gray" TextWrapping="Wrap"
+                               Margin="0,6,0,0" />
+                </StackPanel>
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="TriggersPanel" Spacing="6" Margin="0,0,10,0" />
+                </ScrollViewer>
+            </Grid>
         </TabItem>
     </TabControl>
 </UserControl>

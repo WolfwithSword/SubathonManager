@@ -89,8 +89,12 @@
         </DataTemplate>
 
         <DataTemplate x:Key="StepTemplate" x:DataType="local:ActionNodeVm">
+            <Border Background="{Binding CardTint}" BorderBrush="{Binding CardBorder}" BorderThickness="1"
+                    CornerRadius="3">
             <StackPanel Orientation="Horizontal" Opacity="{Binding CardOpacity}">
-                <ContentControl Content="{Binding Input}" ContentTemplate="{StaticResource InputConnectorTemplate}" />
+                <ContentControl Content="{Binding Input}" ContentTemplate="{StaticResource InputConnectorTemplate}"
+                                IsVisible="{Binding HasInput}" />
+                <Border Width="14" IsVisible="{Binding IsTrigger}" />
                 <Grid Width="200" Margin="6,6" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
                     <TextBlock Text="{Binding Title}" FontSize="10" Foreground="Gray"
                                TextTrimming="CharacterEllipsis" />
@@ -103,6 +107,10 @@
                         </Border>
                         <Border IsVisible="{Binding IsStart}" Background="#2E7D32" CornerRadius="3" Padding="4,0">
                             <TextBlock Text="START" FontSize="9" Foreground="White" />
+                        </Border>
+                        <Border IsVisible="{Binding IsTrigger}" Background="#1CB896" CornerRadius="3" Padding="4,0"
+                                ToolTip.Tip="Starts the action when this happens">
+                            <TextBlock Text="TRIGGER" FontSize="9" Foreground="White" />
                         </Border>
                         <Border IsVisible="{Binding IsDisabled}" Background="#555555" CornerRadius="3" Padding="4,0"
                                 ToolTip.Tip="Skipped when the action runs; right click to enable">
@@ -140,6 +148,7 @@
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
+            </Border>
         </DataTemplate>
 
         <DataTemplate x:Key="ConnectionTemplate" x:DataType="local:ActionConnectionVm">
@@ -169,8 +178,8 @@
                          PlaceholderText="Action name" />
                 <TextBox x:Name="AuthorBox" Width="140" Height="34" PlaceholderText="Author" />
                 <TextBox x:Name="VersionBox" Width="80" Height="34" PlaceholderText="1.0.0" />
-                <TextBlock Text="If already running:" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <ComboBox x:Name="RepeatBox" Width="170" Height="34" SelectionChanged="Repeat_SelectionChanged" />
+                <TextBlock Text="Concurrency Mode:" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <ComboBox x:Name="RepeatBox" Width="150" Height="34" SelectionChanged="Repeat_SelectionChanged" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
                 <Button Height="34" Click="TestRun_Click"
@@ -273,6 +282,20 @@
                                     </Button>
                                 </Grid>
 
+                                <StackPanel x:Name="TriggerPanel" Margin="0,0,0,8">
+                                    <TextBlock x:Name="TriggerDescription" FontSize="12" TextWrapping="Wrap"
+                                               Margin="2,0,0,6" />
+                                    <StackPanel x:Name="TriggerEventPanel" Margin="0,0,0,8">
+                                        <TextBlock Text="Event types:" FontSize="12" Margin="2,0,0,3" />
+                                        <ctl:FilterPopout x:Name="TriggerEventTypes" EmptyText="None picked yet" />
+                                        <CheckBox x:Name="IgnoreSimulatedCheck" Content="Ignore simulated events"
+                                                  Margin="0,6,0,0" IsCheckedChanged="TriggerField_Changed"
+                                                  ToolTip.Tip="Don't run for events made with the simulate/test buttons" />
+                                    </StackPanel>
+                                    <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="2,0,0,0"
+                                               Text="Steps after this can read data as %trigger.name%" />
+                                </StackPanel>
+
                                 <StackPanel x:Name="ScopePanel" Margin="0,0,0,8">
                                     <TextBlock x:Name="ScopeLabel" Text="Scene:" FontSize="12" Margin="2,0,0,3" />
                                     <AutoCompleteBox x:Name="ScopeBox" Height="34" FilterMode="ContainsOrdinal"
@@ -348,13 +371,13 @@
                                                    Text="Saved raw into the actions file. Recommend using a %secret.name% for secrets" />
                                     </StackPanel>
 
-                                    <StackPanel Margin="0,0,0,8">
-                                        <TextBlock Text="Save response as (optional):" FontSize="12" Margin="2,0,0,3" />
-                                        <TextBox x:Name="OutputBox" Height="34" PlaceholderText="e.g. resp" />
-                                        <TextBlock x:Name="OutputHint" FontSize="11" Foreground="Gray"
-                                                   TextWrapping="Wrap"
-                                                   Margin="2,3,0,0" />
-                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel x:Name="OutputPanel" Margin="0,0,0,8">
+                                    <TextBlock Text="Save response as (optional):" FontSize="12" Margin="2,0,0,3" />
+                                    <TextBox x:Name="OutputBox" Height="34" PlaceholderText="e.g. resp" />
+                                    <TextBlock x:Name="OutputHint" FontSize="11" Foreground="Gray" TextWrapping="Wrap"
+                                               Margin="2,3,0,0" />
                                 </StackPanel>
 
                                 <TextBlock x:Name="VariablesHint" FontSize="11" Foreground="Gray" TextWrapping="Wrap"

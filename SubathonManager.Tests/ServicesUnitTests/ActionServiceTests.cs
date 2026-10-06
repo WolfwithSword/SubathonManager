@@ -37,7 +37,7 @@ public class ActionServiceTests {
             .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new AppDbContext(options));
 
-        foreach (string name in new[] { "SubathonEventCreated", "SubathonDataUpdate" })
+        foreach (string name in new[] { "SubathonEventCreated", "SubathonDataUpdate", "SubathonEventProcessed" })
             typeof(SubathonEvents).GetField(name, BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, null);
         foreach (string name in new[] { "WheelSpinStatusChanged", "OnSpinsOwedUpdateFromEvent" })
             typeof(WheelEvents).GetField(name, BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, null);
@@ -668,6 +668,183 @@ public class ActionServiceTests {
         Assert.Equal(ActionValueType.Number, wins.ValueType);
         Assert.Contains(await service.GetGlobalsAsync(ActionStoreKind.Global), g => g.Name == "missing");
         Assert.Single(service.ActionsUsing(ActionStoreKind.Global, "WINS"));
+    }
+
+    [Fact]
+    public async Task TriggerSteps_StartOnlyForTheirTrigger_PassItsValues_AndManualRunsSkipThem() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        var graph = new ActionGraph {
+            Nodes = [
+                new ActionNode {
+                    Id = "1", Step = new ActionStep {
+                        Type = ActionStepType.Trigger, Trigger = SubathonTrigger.SubathonEvent,
+                        EventTypes = [$"{SubathonEventType.TwitchSub}"], IgnoreSimulated = true
+                    }
+                },
+                new ActionNode {
+                    Id = "2", Step = new ActionStep {
+                        Type = ActionStepType.MixItUpCommand, Operation = ActionOperation.Run, Target = "thanks",
+                        Body = "who=%trigger.user%\ntype=%trigger.eventtype%"
+                    }
+                },
+                new ActionNode { Id = "3", Step = Hotkey("manual") }
+            ],
+            Edges = [new ActionEdge { From = "1", To = "2" }]
+        };
+
+        Assert.True(ActionGraph.TryParse(graph.ToJson(), out ActionGraph? reloaded));
+        Assert.Equal(SubathonTrigger.SubathonEvent, reloaded.Nodes[0].Step.Trigger);
+        Assert.False(ActionStep.IsValidOutputName("trigger"));
+        await service.SaveCustomActionAsync(new CustomAction { Name = "Sub thanks", Graph = reloaded });
+
+        async Task FireAsync(SubathonEvent ev, int expectRuns) {
+            SubathonEvents.RaiseSubathonEventProcessed(ev, true);
+            for (var i = 0; i < 100 && runner.Ran.Count < expectRuns; i++)
+                await Task.Delay(10, TestContext.Current.CancellationToken);
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+        }
+
+        await FireAsync(new SubathonEvent {
+            EventType = SubathonEventType.TwitchSub, Source = SubathonEventSource.Twitch, User = "Bob",
+            ProcessedToSubathon = true
+        }, 1);
+        Assert.Equal(["thanks"], runner.Ran.ToArray());
+        Assert.Equal("who=Bob\ntype=TwitchSub", runner.LastBody);
+
+        await FireAsync(new SubathonEvent {
+            EventType = SubathonEventType.TwitchFollow, Source = SubathonEventSource.Twitch, ProcessedToSubathon = true
+        }, 0);
+        await FireAsync(new SubathonEvent {
+            EventType = SubathonEventType.TwitchSub, Source = SubathonEventSource.Simulated, ProcessedToSubathon = true
+        }, 0);
+        await FireAsync(new SubathonEvent {
+            EventType = SubathonEventType.TwitchSub, Source = SubathonEventSource.Twitch, ProcessedToSubathon = false
+        }, 0);
+        await FireAsync(new SubathonEvent {
+            EventType = SubathonEventType.TwitchSub, Source = SubathonEventSource.Twitch, ProcessedToSubathon = true,
+            EventTypeMeta = ActionService.FromActionMeta
+        }, 0);
+
+        Assert.Single(runner.Ran);
+
+        CustomAction saved = service.FindCustomAction("Sub thanks")!;
+        Assert.Equal(ActionRunResult.Done, await service.RunManuallyAsync(saved));
+        Assert.Equal(["thanks", "manual"], runner.Ran.ToArray());
+
+        Assert.Equal(ActionRunResult.Done, await service.TestTriggerAsync(saved, "1"));
+        Assert.Equal(["thanks", "manual", "thanks"], runner.Ran.ToArray());
+        Assert.Equal("who=TestUser\ntype=TwitchSub", runner.LastBody);
+
+        reloaded.Edges.Add(new ActionEdge { From = "3", To = "1" });
+        Assert.False(reloaded.IsValid(out _));
+    }
+
+    [Fact]
+    public async Task QueuedRepeats_WaitTheirTurn_AndTriggerActionsNeverRestartOrIgnore() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        async Task<string[]> RunTwiceAsync(ActionRepeatMode mode) {
+            runner.Ran.Clear();
+            ActionGraph graph = ActionGraph.Sequence(Hotkey("start"), Wait(0.3), Hotkey("end"));
+            graph.OnRepeat = mode;
+            var ctx = new ActionContext(SubathonEventSource.WheelSpin, "test", $"queue-{mode}");
+            Task<ActionRunResult> first = service.RunAsync(Guid.NewGuid(), graph, ctx);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+            Task<ActionRunResult> second = service.RunAsync(Guid.NewGuid(), graph, ctx);
+            Assert.Equal([ActionRunResult.Done, ActionRunResult.Done], await Task.WhenAll(first, second));
+            return runner.Ran.ToArray();
+        }
+
+        Assert.Equal(["start", "end", "start", "end"], await RunTwiceAsync(ActionRepeatMode.Queue));
+        Assert.Equal(["start", "start", "end", "end"], await RunTwiceAsync(ActionRepeatMode.Parallel));
+
+        var withTrigger = new ActionGraph {
+            OnRepeat = ActionRepeatMode.Restart,
+            Nodes = [
+                new ActionNode {
+                    Id = "1", Step = new ActionStep { Type = ActionStepType.Trigger, Trigger = SubathonTrigger.TimerPaused }
+                }
+            ]
+        };
+
+        Assert.Equal(ActionRepeatMode.Parallel, withTrigger.EffectiveRepeat);
+        withTrigger.OnRepeat = ActionRepeatMode.Queue;
+        Assert.Equal(ActionRepeatMode.Queue, withTrigger.EffectiveRepeat);
+    }
+
+    [Fact]
+    public void TimerEnded_FiresOnceAtZero_AndAgainOnlyAfterTimeWasAddedBack() {
+        typeof(SubathonEvents).GetField("SubathonDataUpdate", BindingFlags.Static | BindingFlags.NonPublic)
+            ?.SetValue(null, null);
+        var fired = new List<SubathonTrigger>();
+        var watcher = new SubathonTriggerWatcher((t, _, _) => fired.Add(t));
+        watcher.Start();
+        try {
+            var id = Guid.NewGuid();
+            void Update(long cumulative, long elapsed) {
+                SubathonEvents.RaiseSubathonDataUpdate(new SubathonData {
+                    Id = id, MillisecondsCumulative = cumulative, MillisecondsElapsed = elapsed
+                }, DateTime.Now);
+            }
+
+            Update(10_000, 0);
+            Update(10_000, 10_000);
+            Update(10_000, 12_000);
+            Assert.Equal([SubathonTrigger.TimerEnded], fired.Where(t => t == SubathonTrigger.TimerEnded).ToArray());
+
+            Update(70_000, 12_000);
+            Update(70_000, 70_000);
+            Assert.Equal(2, fired.Count(t => t == SubathonTrigger.TimerEnded));
+        }
+        finally {
+            watcher.Stop();
+        }
+    }
+
+    [Fact]
+    public async Task RunActionSteps_RunOthers_SkipTurnedOffOnes_AndStopRunningInCircles() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        var child = new CustomAction { Name = "Child", Graph = ActionGraph.Sequence(Hotkey("child")) };
+        await service.SaveCustomActionAsync(child);
+
+        ActionStep Step(ActionStepType type, ActionOperation op, CustomAction target) {
+            return new ActionStep { Type = type, Operation = op, Target = target.Id.ToString(), TargetName = target.Name };
+        }
+
+        var parent = new CustomAction {
+            Name = "Parent",
+            Graph = ActionGraph.Sequence(Step(ActionStepType.RunAction, ActionOperation.Run, child), Hotkey("after"))
+        };
+        Assert.Equal(ActionRunResult.Done, await service.RunManuallyAsync(parent));
+        Assert.Equal(["child", "after"], runner.Ran.ToArray());
+
+        runner.Ran.Clear();
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(),
+            ActionGraph.Sequence(Step(ActionStepType.SetActionEnabled, ActionOperation.Toggle, child)),
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "toggle")));
+        Assert.True(service.GetCustomAction(child.Id)!.Disabled);
+        
+        Assert.Equal(ActionRunResult.Done, await service.RunManuallyAsync(parent));
+        Assert.Equal(["after"], runner.Ran.ToArray());
+        Assert.Null(service.ResolveGraph(WheelSpinActionType.CustomAction, child.Id.ToString()));
+
+        Assert.True(await service.SetCustomActionEnabledAsync(child.Id, true));
+        Assert.Equal(child.Id, service.ResolveActionTarget(new ActionStep {
+            Type = ActionStepType.RunAction, Target = Guid.NewGuid().ToString(), TargetName = "child"
+        })?.Id);
+
+        var loop = new CustomAction { Name = "Loop" };
+        loop.Graph = ActionGraph.Sequence(Hotkey("loop"), Step(ActionStepType.RunAction, ActionOperation.Run, loop));
+        loop.Graph.OnRepeat = ActionRepeatMode.Parallel;
+        await service.SaveCustomActionAsync(loop);
+        runner.Ran.Clear();
+        Assert.Equal(ActionRunResult.Paused, await service.RunManuallyAsync(service.GetCustomAction(loop.Id)!));
+        Assert.Equal(ActionService.MaxActionDepth + 1, runner.Ran.Count);
     }
 
     [Fact]

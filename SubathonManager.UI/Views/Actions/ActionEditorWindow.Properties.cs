@@ -12,6 +12,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
 using SubathonManager.Integration;
 using SubathonManager.Services;
+using SubathonManager.UI.Controls;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 
@@ -23,6 +24,7 @@ public partial class ActionEditorWindow {
     private readonly List<(Expander Section, List<(Control Row, string Search)> Rows)> _variableSections = [];
     private Expander? _globalSection;
     private Expander? _runSection;
+    private Expander? _triggerSection;
     private Expander? _secretSection;
     private List<ActionGlobal> _stored = [];
 
@@ -46,7 +48,18 @@ public partial class ActionEditorWindow {
         ActionStepType type = step.Type;
         _suppress++;
         try {
-            StepHeader.Text = $"{type.GetGroup()} - {type.GetLabel()}";
+            StepHeader.Text = type == ActionStepType.Trigger
+                ? $"Trigger - {step.Trigger?.GetLabel()}" : $"{type.GetGroup()} - {type.GetLabel()}";
+
+            TriggerPanel.IsVisible = type == ActionStepType.Trigger;
+            TriggerDescription.Text = step.Trigger is { } trigger ? $"Runs the steps after this when: {trigger.GetDescription()}" : "";
+            TriggerEventPanel.IsVisible = step.Trigger == SubathonTrigger.SubathonEvent;
+            if (TriggerEventPanel.IsVisible) {
+                TriggerEventTypes.SetOptions(FilterOption.EventTypes(true));
+                TriggerEventTypes.SetSelected(step.EventTypes ?? []);
+            }
+
+            IgnoreSimulatedCheck.IsChecked = step.IgnoreSimulated;
 
             OpLabel.Text = type.GetOperationLabel();
             OpBox.Items.Clear();
@@ -75,6 +88,7 @@ public partial class ActionEditorWindow {
             VariablesHint.IsVisible = type.AllowsVariables();
 
             WebPanel.IsVisible = type.IsWebRequest();
+            OutputPanel.IsVisible = type.SavesOutput();
             HeadersBox.Text = step.Headers ?? "";
 
             AuthBox.Items.Clear();
@@ -90,7 +104,7 @@ public partial class ActionEditorWindow {
             AuthTokenBox.Text = step.AuthToken ?? "";
             OutputBox.Text = step.OutputVariable ?? "";
 
-            IgnoreErrorsCheck.IsVisible = type != ActionStepType.Condition;
+            IgnoreErrorsCheck.IsVisible = type is not (ActionStepType.Condition or ActionStepType.Trigger);
             IgnoreErrorsCheck.IsChecked = node.IgnoreErrors;
             RefreshFieldVisibility(step);
         }
@@ -131,6 +145,17 @@ public partial class ActionEditorWindow {
     }
 
     private IEnumerable<string> StepWarnings(ActionNode node) {
+        if (node.Step.Type is ActionStepType.RunAction or ActionStepType.SetActionEnabled) {
+            CustomAction? target = ServiceManager.Actions.ResolveActionTarget(node.Step);
+
+            if (target == null && !string.IsNullOrWhiteSpace(node.Step.Target))
+                yield return "Action not found in actions library";
+            else if (target?.Id == _action.Id && node.Step.Type == ActionStepType.RunAction)
+                yield return $"Self-Run detected - Will run at most {ActionService.MaxActionDepth}x deep";
+            else if (target is { Disabled: true } && node.Step.Type == ActionStepType.RunAction)
+                yield return "Action is currently disabled - it will not run unless enabled";
+        }
+
         if (!node.Step.Type.AllowsVariables()) yield break;
 
         HashSet<string> declared = Graph.OutputVariables();
@@ -150,7 +175,7 @@ public partial class ActionEditorWindow {
             else if ((node.Step.Operation == ActionOperation.Adjust && global.ValueType != ActionValueType.Number)
                      || (node.Step.Operation == ActionOperation.Toggle && global.ValueType != ActionValueType.Boolean))
                 yield return
-                    $"%global.{global.Name}% is {global.ValueType.GetLabel()} - this step will fail when it runs";
+                    $"%global.{global.Name}% is {global.ValueType.GetLabel()} - this step will fail";
         }
 
         foreach (string token in ActionStepTypeHelper.FindTokens(node.Step.AllText)
@@ -165,6 +190,13 @@ public partial class ActionEditorWindow {
                              ? string.IsNullOrEmpty(ServiceManager.Actions.GetSecretValue(name))
                              : string.IsNullOrEmpty(stored.Value))
                     yield return $"%{token}% has no value yet";
+                continue;
+            }
+
+            if (ActionStepTypeHelper.TokenRoot(token).Equals(ActionRunProgress.TriggerVariable,
+                    StringComparison.OrdinalIgnoreCase)) {
+                if (!Graph.Nodes.Any(n => before.Contains(n.Id) && n.Step.Type == ActionStepType.Trigger))
+                    yield return $"%{token}% only has a value when a trigger leads to this step";
                 continue;
             }
 
@@ -183,6 +215,20 @@ public partial class ActionEditorWindow {
 
     private void StepField_Changed(object? sender, SelectionChangedEventArgs e) {
         ApplyStepFields();
+    }
+
+    private void TriggerField_Changed(object? sender, RoutedEventArgs e) {
+        if (_suppress > 0 || SelectedNode is not { Step.Type: ActionStepType.Trigger } node) return;
+        if (node.Step.Trigger == SubathonTrigger.SubathonEvent) {
+            List<string> picked = TriggerEventTypes.SelectedOptions.Select(o => o.Value).ToList();
+            node.Step.EventTypes = picked.Count == 0 ? null : picked;
+            node.Step.IgnoreSimulated = IgnoreSimulatedCheck.IsChecked == true;
+        }
+
+        RefreshFieldVisibility(node.Step);
+        RefreshNodes();
+        Validate();
+        MarkDirty();
     }
 
     private void IgnoreErrors_Changed(object? sender, RoutedEventArgs e) {
@@ -229,8 +275,9 @@ public partial class ActionEditorWindow {
             step.Auth = auth == ActionHttpAuth.None ? null : auth;
             step.AuthUser = auth == ActionHttpAuth.Basic ? NullIfBlank(AuthUserBox.Text) : null;
             step.AuthToken = auth != ActionHttpAuth.None ? NullIfBlank(AuthTokenBox.Text) : null;
-            step.OutputVariable = NullIfBlank(OutputBox.Text);
         }
+
+        step.OutputVariable = step.Type.SavesOutput() ? NullIfBlank(OutputBox.Text) : null;
 
         RefreshFieldVisibility(step);
         RefreshNodes();
@@ -251,7 +298,8 @@ public partial class ActionEditorWindow {
         ActionStepType type = node.Step.Type;
 
         _targetIds.Clear();
-        ScopeBox.ItemsSource = null;
+        if (_suggestionsFor != node.Id) ScopeBox.ItemsSource = null;
+        _suggestionsFor = node.Id;
         TargetBox.ItemsSource = null;
         TargetHint.Text = "loading...";
 
@@ -331,12 +379,20 @@ public partial class ActionEditorWindow {
                     if (SelectedNode?.Id == node.Id)
                         TargetHint.Text = "variables also work in the URL";
                     return;
+                case ActionStepType.SetActionEnabled:
+                case ActionStepType.RunAction:
+                    foreach (CustomAction other in ServiceManager.Actions.CustomActions) {
+                        ids[other.Name] = other.Id.ToString();
+                        targets.Add(other.Name);
+                    }
+
+                    break;
                 case ActionStepType.SetGlobal:
                     targets.AddRange(_stored.Where(g => g.Kind == ActionStoreKind.Global).Select(g => g.Name));
                     break;
                 case ActionStepType.Condition:
                     if (SelectedNode?.Id != node.Id) return;
-                    ScopeBox.ItemsSource = ConditionSuggestions(node);
+                    SetScopeSuggestions(ConditionSuggestions(node));
                     TargetHint.Text = "value or %variable%";
                     return;
                 default: {
@@ -361,9 +417,16 @@ public partial class ActionEditorWindow {
         if (SelectedNode?.Id != node.Id) return;
         _targetIds.Clear();
         foreach (KeyValuePair<string, string> pair in ids) _targetIds[pair.Key] = pair.Value;
-        ScopeBox.ItemsSource = scopes;
+        SetScopeSuggestions(scopes);
         TargetBox.ItemsSource = targets;
         TargetHint.Text = offline != null ? $"{offline} - type it by hand" : $"{targets.Count} found";
+    }
+
+    private string? _suggestionsFor;
+
+    private void SetScopeSuggestions(List<string> scopes) {
+        if (ScopeBox.ItemsSource is IEnumerable<string> current && current.SequenceEqual(scopes)) return;
+        ScopeBox.ItemsSource = scopes;
     }
 
     private static string? NullIfBlank(string? text) {
@@ -380,6 +443,12 @@ public partial class ActionEditorWindow {
             suggestions.Add($"%{previous.Step.OutputVariable}{ActionService.StatusSuffix}%");
         }
 
+        foreach (SubathonTrigger trigger in Graph.Nodes
+                     .Where(n => before.Contains(n.Id) && n.Step is { Type: ActionStepType.Trigger, Trigger: not null })
+                     .Select(n => n.Step.Trigger!.Value).Distinct())
+            suggestions.AddRange(SubathonTriggerWatcher.SampleValues(trigger).Keys
+                .Select(k => $"%{ActionRunProgress.TriggerVariable}.{k}%"));
+
         suggestions.AddRange(_stored.Where(g => g.Kind == ActionStoreKind.Global)
             .Select(g => ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name)));
         suggestions.AddRange(Enum.GetValues<ActionVariable>().Select(v => v.GetPlaceholder()));
@@ -387,6 +456,7 @@ public partial class ActionEditorWindow {
     }
 
     private void BuildVariablesPanel() {
+        _triggerSection = AddVariableSection("Trigger", []);
         _runSection = AddVariableSection("This Run", []);
         _globalSection = AddVariableSection("Globals", []);
         _secretSection = AddVariableSection("Secrets", []);
@@ -442,6 +512,17 @@ public partial class ActionEditorWindow {
         }
 
         SetVariableRows(_runSection, rows);
+
+        var triggerRows = new List<(string, string, string, string)>();
+        foreach (SubathonTrigger trigger in Graph.Nodes.Select(n => n.Step)
+                     .Where(s => s is { Type: ActionStepType.Trigger, Trigger: not null })
+                     .Select(s => s.Trigger!.Value).Distinct())
+
+        foreach ((string key, string sample) in SubathonTriggerWatcher.SampleValues(trigger))
+            triggerRows.Add(($"%{ActionRunProgress.TriggerVariable}.{key}%", "text",
+                $"{trigger.GetLabel()}, e.g. {Shorten(sample)}", "trigger"));
+
+        if (_triggerSection != null) SetVariableRows(_triggerSection, triggerRows);
     }
 
     private void OnGlobalsChanged() {

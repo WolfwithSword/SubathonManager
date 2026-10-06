@@ -38,6 +38,7 @@ public partial class ActionsView : UserControl {
             ServiceManager.Actions.GlobalsChanged -= OnGlobalsChanged;
             ServiceManager.Actions.GlobalsChanged += OnGlobalsChanged;
             Refresh();
+            RefreshTriggers();
             _ = RefreshStoreAsync();
         };
         Unloaded += (_, _) => {
@@ -49,28 +50,47 @@ public partial class ActionsView : UserControl {
     private void OnLibraryChanged() {
         Dispatcher.UIThread.Post(() => {
             Refresh();
+            RefreshTriggers();
             _ = RefreshStoreAsync();
         });
     }
 
     private void Refresh() {
         IReadOnlyList<CustomAction> all = ServiceManager.Actions.CustomActions;
+        Dictionary<string, int> wheelUses = WheelUses();
         string query = (SearchBox.Text ?? "").Trim();
         List<ActionCard> cards = all
             .Where(a => query.Length == 0
                         || a.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
                         || (a.Author?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
                         || (a.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
-            .Select(a => new ActionCard(a) { IsSelected = a.Id == _selectedId })
+            .Select(a => new ActionCard(a) {
+                IsSelected = a.Id == _selectedId, WheelUses = wheelUses.GetValueOrDefault(a.Id.ToString())
+            })
             .ToList();
 
         _cards = cards;
         ActionsList.ItemsSource = cards;
         EmptyText.IsVisible = cards.Count == 0;
         EmptyText.Text = all.Count == 0
-            ? "No actions yet. Create one, import a .sma file, or convert a VTube Studio / OBS wheel item"
+            ? "No actions yet. Create one, import a .sma file, or convert a compatible wheel action"
             : $"Nothing matches \"{query}\"";
         ShowDetails();
+    }
+
+    private Dictionary<string, int> WheelUses() {
+        try {
+            using AppDbContext db = _factory.CreateDbContext();
+            return db.WheelSpinActions
+                .Where(a => a.ActionType == WheelSpinActionType.CustomAction && !string.IsNullOrWhiteSpace(a.Parameter))
+                .GroupBy(a => a.Parameter!)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionary(g => g.Key, g => g.Count, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "[Actions] Could not count wheel items using actions");
+            return [];
+        }
     }
 
     public void ShowAdded(CustomAction? action, string source) {
@@ -106,6 +126,9 @@ public partial class ActionsView : UserControl {
         }
 
         DetailTitle.Text = action.Name;
+        _detailSuppress = true;
+        EnabledSwitch.IsChecked = !action.Disabled;
+        _detailSuppress = false;
 
         var meta = new List<string> { $"v{action.Version}" };
         if (!string.IsNullOrWhiteSpace(action.Author)) meta.Add($"by {action.Author}");
@@ -137,6 +160,15 @@ public partial class ActionsView : UserControl {
 
     private async void Run_Click(object? sender, RoutedEventArgs e) {
         if (CardOf(sender) is { } action) await RunAsync(action);
+    }
+
+    private bool _detailSuppress;
+
+    private async void EnabledSwitch_Changed(object? sender, RoutedEventArgs e) {
+        if (_detailSuppress || _selectedId is not { } id) return;
+        bool enabled = EnabledSwitch.IsChecked == true;
+        if (!await ServiceManager.Actions.SetCustomActionEnabledAsync(id, enabled)) return;
+        StatusText.Text = enabled ? "Turned on" : "Turned off";
     }
 
     private async void RunSelected_Click(object? sender, RoutedEventArgs e) {
@@ -216,14 +248,18 @@ public partial class ActionsView : UserControl {
         var id = action.Id.ToString();
         await using AppDbContext db = await _factory.CreateDbContextAsync();
 
-        // TODO when more than just wheel spins, check
+        // what stops when it's gone: wheel items pointing at it, and its own trigger steps
         int uses = await db.WheelSpinActions
             .CountAsync(a => a.ActionType == WheelSpinActionType.CustomAction && a.Parameter == id);
+        int triggers = action.Graph.Nodes.Count(n => n.Step.Type == ActionStepType.Trigger && !n.Disabled);
+        var effects = new List<string>();
+        if (uses > 0) effects.Add($"{uses} wheel item(s) use it and will stop running until you pick another action");
+        if (triggers > 0) effects.Add($"its {triggers} trigger(s) will stop firing");
 
         var dialog = new FAContentDialog {
             Title = "Delete action",
-            Content = uses > 0
-                ? $"Delete \"{action.Name}\"? {uses} wheel item(s) use it and will stop running anything until you pick another action."
+            Content = effects.Count > 0
+                ? $"Delete \"{action.Name}\"? {string.Join(", and ", effects)}."
                 : $"Delete \"{action.Name}\"? Its .sma file is removed from the actions folder.",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel"
@@ -296,6 +332,33 @@ public sealed class ActionCard(CustomAction action) : INotifyPropertyChanged {
     }
 
     public string Name => Action.Name;
+    public double CardOpacity => Action.Disabled ? 0.55 : 1;
+    public int WheelUses { get; init; }
+
+    //
+    public string ModeLetter => Action.Graph.EffectiveRepeat switch {
+        ActionRepeatMode.Restart => "R",
+        ActionRepeatMode.Parallel => "P",
+        ActionRepeatMode.Queue => "Q",
+        _ => "S"
+    };
+
+    //
+    public string ModeTip => "Concurrency Mode: " + Action.Graph.EffectiveRepeat switch {
+        ActionRepeatMode.Restart => "Restart",
+        ActionRepeatMode.Parallel => "Parallel",
+        ActionRepeatMode.Queue => "Queued",
+        _ => "Skips New"
+    };
+
+    private int TriggerSteps => Action.Graph.Nodes.Count(n => n.Step.Type == ActionStepType.Trigger && !n.Disabled);
+    public int TriggerCount => TriggerSteps + WheelUses;
+    public bool HasTriggers => TriggerCount > 0;
+
+    public string TriggerTip => string.Join(", ", new[] {
+        TriggerSteps > 0 ? $"{TriggerSteps} trigger step(s)" : null,
+        WheelUses > 0 ? $"{WheelUses} wheel item(s)" : null
+    }.Where(s => s != null)) + " start this action";
     public string? Description => Action.Description;
     public bool HasDescription => !string.IsNullOrWhiteSpace(Action.Description);
 

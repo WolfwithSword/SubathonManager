@@ -1,8 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
 
 namespace SubathonManager.Core.Objects;
 
@@ -22,6 +24,12 @@ public sealed class ActionStep {
     public string? AuthUser { get; set; }
     public string? AuthToken { get; set; }
     public string? OutputVariable { get; set; }
+
+    public SubathonTrigger? Trigger { get; set; }
+    public List<string>? EventTypes { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IgnoreSimulated { get; set; }
 
     [JsonIgnore] public TimeSpan Duration => Seconds is > 0.0 ? TimeSpan.FromSeconds(Seconds.Value) : TimeSpan.Zero;
 
@@ -43,7 +51,10 @@ public sealed class ActionStep {
             Auth = Auth,
             AuthUser = AuthUser == null ? null : fill(AuthUser),
             AuthToken = AuthToken == null ? null : fill(AuthToken),
-            OutputVariable = OutputVariable
+            OutputVariable = OutputVariable,
+            Trigger = Trigger,
+            EventTypes = EventTypes == null ? null : [..EventTypes],
+            IgnoreSimulated = IgnoreSimulated
         };
     }
 
@@ -76,6 +87,12 @@ public sealed class ActionStep {
             case ActionStepType.HttpGet or ActionStepType.HttpPost when !LooksLikeUrl(Target):
                 error = "The URL needs to start with http:// or https://";
                 return false;
+            case ActionStepType.Trigger when Trigger == null:
+                error = "Pick a trigger for this";
+                return false;
+            case ActionStepType.Trigger when Trigger == SubathonTrigger.SubathonEvent && (EventTypes?.Count ?? 0) == 0:
+                error = "Pick at least one event type";
+                return false;
             case ActionStepType.SetGlobal when !ActionStepTypeHelper.IsValidName(Target.Trim()):
                 error = "Pick a global by name";
                 return false;
@@ -84,13 +101,19 @@ public sealed class ActionStep {
                 return false;
         }
 
-        if (Type.IsWebRequest()) {
-            if (!string.IsNullOrEmpty(OutputVariable) && !IsValidOutputName(OutputVariable)) {
-                error =
-                    $"\"{OutputVariable}\" can't be an output name: use letters, numbers, _, and not a built-in variable's name";
-                return false;
-            }
+        if (Type.SavesOutput() && !string.IsNullOrEmpty(OutputVariable) && !IsValidOutputName(OutputVariable)) {
+            error =
+                $"\"{OutputVariable}\" can't be an output name: use letters, numbers, _, and not a built-in variable's name";
+            return false;
+        }
 
+        if (Type == ActionStepType.ObsRaw && !string.IsNullOrWhiteSpace(Body) && !Body.Contains('%')
+            && !IsJsonObject(Body)) {
+            error = "Request data needs to be a valid JSON object, e.g. {\"sceneName\": \"Main\"}";
+            return false;
+        }
+
+        if (Type.IsWebRequest()) {
             if (Auth == ActionHttpAuth.Bearer && string.IsNullOrWhiteSpace(AuthToken)) {
                 error = "Bearer auth needs a token, e.g. %secret.my_token%";
                 return false;
@@ -119,8 +142,33 @@ public sealed class ActionStep {
     public static bool IsValidOutputName(string name) {
         return ActionStepTypeHelper.IsValidName(name)
                && !ActionStepTypeHelper.TryParseToken(name, out _)
+               && !name.Equals(ActionRunProgress.TriggerVariable, StringComparison.OrdinalIgnoreCase)
                && !Enum.GetValues<ActionStoreKind>()
                    .Any(k => name.Equals(k.TokenPrefix(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    public bool MatchesTrigger(SubathonTrigger trigger, SubathonEvent? subathonEvent) {
+        if (Type != ActionStepType.Trigger || Trigger != trigger) return false;
+        if (trigger != SubathonTrigger.SubathonEvent) return true;
+        if (subathonEvent == null) return false;
+        if (IgnoreSimulated && subathonEvent.Source == SubathonEventSource.Simulated) return false;
+
+        string eventType = $"{subathonEvent.EventType}";
+        return EventTypes?.Contains(eventType, StringComparer.OrdinalIgnoreCase) ?? false;
+    }
+
+    private static string EventTypeLabel(string eventType) {
+        return Enum.TryParse(eventType, out SubathonEventType type)
+            ? $"{((SubathonEventType?)type).GetSource()} {((SubathonEventType?)type).GetLabel()}" : eventType;
+    }
+
+    private static bool IsJsonObject(string text) {
+        try {
+            return JsonNode.Parse(text) is JsonObject;
+        }
+        catch (JsonException) {
+            return false;
+        }
     }
 
     private static bool LooksLikeUrl(string url) {
@@ -160,10 +208,25 @@ public sealed class ActionStep {
             ActionStepType.ObsSourceVisibility => $"{Operation} \"{target}\" in \"{Scope}\"",
             ActionStepType.ObsFilter => $"{Operation} filter \"{target}\" on \"{Scope}\"",
             ActionStepType.ObsAudio or ActionStepType.ObsMedia => $"{Operation} \"{target}\"",
+            ActionStepType.SetActionEnabled => $"{Operation} action \"{target}\"",
+            ActionStepType.RunAction => Operation == ActionOperation.Start
+                ? $"Start action \"{target}\""
+                : $"Run action \"{target}\"",
+            ActionStepType.ObsBrowserRefresh => $"Refresh \"{target}\"",
+            ActionStepType.ObsRaw => $"OBS {target}{OutputSuffix}",
             ActionStepType.StreamerBotAction => $"Streamer.bot \"{target}\"",
             ActionStepType.Condition => Type.NeedsTarget(Operation)
                 ? $"If {Scope} is {Operation.GetOpLabel().ToLowerInvariant()} {Target}"
                 : $"If {Scope} is {Operation.GetOpLabel().ToLowerInvariant()}",
+            ActionStepType.Trigger => Trigger switch {
+                null => "When ...",
+                SubathonTrigger.SubathonEvent => (EventTypes?.Count ?? 0) switch {
+                    0 => "When a subathon event (none picked)",
+                    1 => $"When {EventTypeLabel(EventTypes![0])}",
+                    _ => $"When {EventTypeLabel(EventTypes![0])} +{EventTypes!.Count - 1} more"
+                } + (IgnoreSimulated ? ", not simulated" : ""),
+                _ => $"When {Trigger.Value.GetLabel().ToLowerInvariant()}"
+            },
             ActionStepType.SetGlobal => Operation switch {
                 ActionOperation.Toggle => $"Toggle %global.{Target}%",
                 ActionOperation.Adjust => $"%global.{Target}% += {Body?.Trim()}",
@@ -231,6 +294,17 @@ public sealed class ActionGraph {
     };
 
     public ActionRepeatMode OnRepeat { get; set; } = ActionRepeatMode.Restart;
+
+    [JsonIgnore]
+    public bool HasTriggers => Nodes.Any(n => n.Step.Type == ActionStepType.Trigger);
+
+    public static bool AllowedWithTriggers(ActionRepeatMode mode) {
+        return mode is ActionRepeatMode.Parallel or ActionRepeatMode.Queue;
+    }
+
+    [JsonIgnore]
+    public ActionRepeatMode EffectiveRepeat =>
+        HasTriggers && !AllowedWithTriggers(OnRepeat) ? ActionRepeatMode.Parallel : OnRepeat;
     public List<ActionNode> Nodes { get; set; } = [];
     public List<ActionEdge> Edges { get; set; } = [];
 
@@ -313,6 +387,11 @@ public sealed class ActionGraph {
                 return false;
             }
 
+            if (Nodes.First(n => n.Id == edge.To).Step.Type == ActionStepType.Trigger) {
+                error = "Triggers start an action, you cannot lead into them";
+                return false;
+            }
+
             if (edge.Port == null) continue;
             if (edge.Port == ActionEdge.ElsePort
                 && Nodes.First(n => n.Id == edge.From).Step.Type == ActionStepType.Condition) continue;
@@ -389,6 +468,9 @@ public sealed class CustomAction {
     public string? Author { get; set; }
     public string? Description { get; set; }
     public string Version { get; set; } = "1.0.0";
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Disabled { get; set; }
     public ActionGraph Graph { get; set; } = new();
 
     public string ToJson() {
@@ -412,10 +494,22 @@ public sealed class CustomAction {
     }
 }
 
-public sealed record ActionContext(SubathonEventSource Source, string User, string RepeatKey, string? Label = null);
+public sealed record ActionContext(SubathonEventSource Source, string User, string RepeatKey, string? Label = null,
+    SubathonTrigger? Trigger = null, IReadOnlySet<string>? TriggerNodes = null,
+    IReadOnlyDictionary<string, string>? TriggerValues = null, int Depth = 0);
 
 public sealed class ActionRunProgress {
     public const int MaxVariableLength = 64 * 1024 * 2;
+
+    public const string TriggerVariable = "trigger";
+
+    // a step saving to %resp% also sets %resp_status%
+    public const string StatusSuffix = "_status";
+
+    public void SetOutput(string name, string value, string status) {
+        SetVariable(name, value);
+        SetVariable($"{name}{StatusSuffix}", status);
+    }
     private readonly Lock _lock = new();
 
     public HashSet<string> Done { get; set; } = [];
