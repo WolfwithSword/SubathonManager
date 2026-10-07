@@ -316,6 +316,11 @@ public partial class ActionService(
     ////////////////// globals & secrets
     public event Action? GlobalsChanged;
 
+    private void NotifyGlobals(params string[] globalNames) {
+        GlobalsChanged?.Invoke();
+        ActionEvents.RaiseGlobalsUpdated(globalNames);
+    }
+
     private static string SecretKey(string name) {
         return $"{StorageKeys.ActionSecretPrefix}{name.ToLowerInvariant()}";
     }
@@ -326,6 +331,11 @@ public partial class ActionService(
             .Where(g => kind == null || g.Kind == kind)
             .OrderBy(g => g.Kind).ThenBy(g => g.Name)
             .ToListAsync();
+    }
+
+    public async Task<Dictionary<string, ActionValueType>> GetGlobalTypesAsync() {
+        return (await GetGlobalsAsync(ActionStoreKind.Global))
+            .ToDictionary(g => g.Name, g => g.ValueType, StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<Dictionary<string, string?>> GetGlobalValuesAsync(List<string> names) {
@@ -361,7 +371,7 @@ public partial class ActionService(
             _globalsLock.Release();
         }
 
-        GlobalsChanged?.Invoke();
+        NotifyGlobals();
         return true;
     }
 
@@ -391,7 +401,7 @@ public partial class ActionService(
             _globalsLock.Release();
         }
 
-        GlobalsChanged?.Invoke();
+        NotifyGlobals(name);
         return null;
     }
 
@@ -416,7 +426,7 @@ public partial class ActionService(
             _globalsLock.Release();
         }
 
-        GlobalsChanged?.Invoke();
+        NotifyGlobals(name);
         return kept;
     }
 
@@ -424,38 +434,68 @@ public partial class ActionService(
         await using AppDbContext db = await factory.CreateDbContextAsync();
         await db.ActionGlobals.Where(g => g.Kind == kind && g.Name == name).ExecuteDeleteAsync();
         if (kind == ActionStoreKind.Secret) secureStorage?.Delete(SecretKey(name));
-        GlobalsChanged?.Invoke();
+        if (kind == ActionStoreKind.Global) NotifyGlobals(name);
+        else NotifyGlobals();
     }
 
     private async Task<bool> RunSetGlobalAsync(ActionStep step, CancellationToken ct) {
-        string name = step.Target.Trim();
+        (_, _, string? error) = await ChangeGlobalAsync(step.Target, null, step.Operation, step.Body ?? "", false, ct);
+        if (error == null) return true;
+        logger?.LogWarning("[Actions] {Error}", error);
+        return false;
+    }
+
+    public async Task<(ActionGlobal? Global, bool Created, string? Error)> ChangeGlobalAsync(string name,
+        ActionValueType? type, ActionOperation operation, string? value, bool create, CancellationToken ct = default) {
+        name = name.Trim();
+        if (!ActionStepTypeHelper.IsValidName(name))
+            return (null, false, $"\"{name}\" isn't a valid global name (letters, numbers, and _ only)");
+
+        ActionGlobal? row;
+        bool created;
         await _globalsLock.WaitAsync(ct);
         try {
             await using AppDbContext db = await factory.CreateDbContextAsync(ct);
-            ActionGlobal? row = await db.ActionGlobals
-                .FirstOrDefaultAsync(g => g.Kind == ActionStoreKind.Global && g.Name == name, ct);
-            if (row == null) {
-                logger?.LogWarning("[Actions] There is no global named \"{Name}\" to set", name);
-                return false;
-            }
+            row = (await db.ActionGlobals.Where(g => g.Kind == ActionStoreKind.Global).ToListAsync(ct))
+                .FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            created = row == null;
 
-            string input = row.ValueType == ActionValueType.Text ? step.Body ?? "" : (step.Body ?? "").Trim();
-            string? next = step.Operation switch {
-                ActionOperation.Toggle when row.ValueType == ActionValueType.Boolean =>
-                    row.Value == "true" ? "false" : "true",
-                ActionOperation.Adjust when row.ValueType == ActionValueType.Number
+            if (row == null && !create) return (null, false, $"There is no global named \"{name}\" to set");
+            if (row != null && type != null && type != row.ValueType)
+                return (null, false, $"%global.{row.Name}% is {row.ValueType.GetLabel()}, not {type.Value.GetLabel()}");
+
+            ActionValueType? implied = operation switch {
+                ActionOperation.Adjust => ActionValueType.Number,
+                ActionOperation.Toggle => ActionValueType.Boolean,
+                _ => null
+            };
+            if (row == null && (type ?? implied) == null)
+                return (null, false, $"A type is needed to make the global \"{name}\"");
+
+            ActionValueType valueType = row?.ValueType ?? type ?? implied!.Value;
+            string current = valueType.NormalizeValue(row?.Value) ?? valueType.DefaultValue();
+            string input = valueType == ActionValueType.Text ? value ?? "" : (value ?? "").Trim();
+            string? next = operation switch {
+                ActionOperation.Toggle when valueType == ActionValueType.Boolean =>
+                    current == "true" ? "false" : "true",
+                ActionOperation.Adjust when valueType == ActionValueType.Number
                                             && ActionValueType.Number.NormalizeValue(input) is { } amount =>
                     ActionValueType.Number.NormalizeValue(
-                        (double.Parse(row.Value ?? "0", CultureInfo.InvariantCulture)
+                        (double.Parse(current, CultureInfo.InvariantCulture)
                          + double.Parse(amount, CultureInfo.InvariantCulture)).ToString(CultureInfo.InvariantCulture)),
-                ActionOperation.Set => row.ValueType.NormalizeValue(input),
+                ActionOperation.Set when value != null => valueType.NormalizeValue(input),
                 _ => null
             };
 
-            if (next == null) {
-                logger?.LogWarning("[Actions] Can't {Operation} %global.{Name}% ({Type}) with \"{Value}\"",
-                    step.Operation.GetOpLabel().ToLowerInvariant(), row.Name, row.ValueType.GetLabel(), input);
-                return false;
+            if (next == null)
+                return (null, false, operation is ActionOperation.Set or ActionOperation.Adjust && value == null
+                    ? $"A value is needed to {operation.GetOpLabel().ToLowerInvariant()} %global.{row?.Name ?? name}%"
+                    : $"Can't {operation.GetOpLabel().ToLowerInvariant()} %global.{row?.Name ?? name}% " +
+                      $"({valueType.GetLabel()}) with \"{input}\"");
+
+            if (row == null) {
+                row = new ActionGlobal { Kind = ActionStoreKind.Global, Name = name, ValueType = valueType };
+                db.ActionGlobals.Add(row);
             }
 
             row.Value = next;
@@ -466,54 +506,90 @@ public partial class ActionService(
             _globalsLock.Release();
         }
 
-        GlobalsChanged?.Invoke();
-        return true;
+        NotifyGlobals(row.Name);
+        return (row, created, null);
     }
 
-    public async Task<int> EnsureGlobalsAsync(CustomAction action) {
-        var used = new Dictionary<(ActionStoreKind, string), ActionValueType>(new StoreKeyComparer());
+    public async Task<int> EnsureGlobalsAsync(CustomAction action, bool reportConflicts = false) {
+        var used = new Dictionary<(ActionStoreKind, string), (ActionValueType Type, bool Strict)>(
+            new StoreKeyComparer());
         foreach (ActionNode node in action.Graph.Nodes) {
             foreach ((ActionStoreKind kind, string name) in ActionStepTypeHelper.FindStoreRefs(node.Step.AllText))
-                used.TryAdd((kind, name), ActionValueType.Text);
+                used.TryAdd((kind, name), (ActionValueType.Text, false));
             if (node.Step.Type != ActionStepType.SetGlobal ||
                 !ActionStepTypeHelper.IsValidName(node.Step.Target.Trim()))
                 continue;
 
             used[(ActionStoreKind.Global, node.Step.Target.Trim())] = node.Step.Operation switch {
-                ActionOperation.Adjust => ActionValueType.Number,
-                ActionOperation.Toggle => ActionValueType.Boolean,
-                _ => ActionValueType.Text
+                ActionOperation.Adjust => (ActionValueType.Number, true),
+                ActionOperation.Toggle => (ActionValueType.Boolean, true),
+                _ => (ActionValueType.Text, false)
             };
         }
 
-        if (used.Count == 0) return 0;
+        return (await EnsureStoreAsync(used, $"Action \"{action.Name}\"", reportConflicts)).Added;
+    }
+
+    public async Task<IReadOnlyList<GlobalTypeConflict>> EnsureTypedGlobalsAsync(
+        IReadOnlyDictionary<string, ActionValueType> wanted, string source) {
+        Dictionary<(ActionStoreKind, string), (ActionValueType, bool)> used = wanted
+            .Where(w => ActionStepTypeHelper.IsValidName(w.Key.Trim()))
+            .DistinctBy(w => w.Key.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(w => (ActionStoreKind.Global, w.Key.Trim()), w => (w.Value, true), new StoreKeyComparer());
+        return (await EnsureStoreAsync(used, source, true)).Conflicts;
+    }
+
+    public event Action<string, IReadOnlyList<GlobalTypeConflict>>? GlobalTypeConflictsFound;
+
+    private async Task<(int Added, IReadOnlyList<GlobalTypeConflict> Conflicts)> EnsureStoreAsync(
+        Dictionary<(ActionStoreKind, string), (ActionValueType Type, bool Strict)> used, string source,
+        bool reportConflicts) {
+        if (used.Count == 0) return (0, []);
 
         List<ActionGlobal> added;
+        List<GlobalTypeConflict> conflicts;
         await _globalsLock.WaitAsync();
         try {
             await using AppDbContext db = await factory.CreateDbContextAsync();
-            HashSet<(ActionStoreKind, string)> known = (await db.ActionGlobals.Select(g => new { g.Kind, g.Name })
+            Dictionary<(ActionStoreKind, string), ActionGlobal> known = (await db.ActionGlobals.AsNoTracking()
                     .ToListAsync())
-                .Select(g => (g.Kind, g.Name)).ToHashSet(new StoreKeyComparer());
-            added = used.Where(u => !known.Contains(u.Key))
+                .ToDictionary(g => (g.Kind, g.Name), g => g, new StoreKeyComparer());
+
+            conflicts = used.Where(u => u.Value.Strict && known.TryGetValue(u.Key, out ActionGlobal? g)
+                                                       && g.Kind == ActionStoreKind.Global
+                                                       && g.ValueType != u.Value.Type)
+                .Select(u => new GlobalTypeConflict(known[u.Key].Name, known[u.Key].ValueType, u.Value.Type))
+                .ToList();
+
+            added = used.Where(u => !known.ContainsKey(u.Key))
                 .Select(u => new ActionGlobal {
-                    Kind = u.Key.Item1, Name = u.Key.Item2, ValueType = u.Value,
-                    Value = u.Key.Item1 == ActionStoreKind.Global ? u.Value.DefaultValue() : null,
+                    Kind = u.Key.Item1, Name = u.Key.Item2, ValueType = u.Value.Type,
+                    Value = u.Key.Item1 == ActionStoreKind.Global ? u.Value.Type.DefaultValue() : null,
                     StorageKey = u.Key.Item1 == ActionStoreKind.Secret ? SecretKey(u.Key.Item2) : null
                 })
                 .ToList();
-            if (added.Count == 0) return 0;
-            db.ActionGlobals.AddRange(added);
-            await db.SaveChangesAsync();
+            if (added.Count > 0) {
+                db.ActionGlobals.AddRange(added);
+                await db.SaveChangesAsync();
+            }
         }
         finally {
             _globalsLock.Release();
         }
 
-        logger?.LogInformation("[Actions] \"{Action}\" uses globals / secrets not set up yet: {Names}", action.Name,
-            string.Join(", ", added.Select(g => ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name))));
-        GlobalsChanged?.Invoke();
-        return added.Count;
+        if (added.Count > 0) {
+            logger?.LogInformation("[Actions] {Source} uses globals / secrets not set up yet: {Names}", source,
+                string.Join(", ", added.Select(g => ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name))));
+            NotifyGlobals(added.Where(g => g.Kind == ActionStoreKind.Global).Select(g => g.Name).ToArray());
+        }
+
+        if (conflicts.Count > 0 && reportConflicts) {
+            logger?.LogWarning("[Actions] {Source} expects different types for: {Names}", source,
+                string.Join(", ", conflicts.Select(c => $"{c.Name} ({c.Existing} -> {c.Wanted})")));
+            GlobalTypeConflictsFound?.Invoke(source, conflicts);
+        }
+
+        return (added.Count, conflicts);
     }
 
     public IReadOnlyList<CustomAction> ActionsUsing(ActionStoreKind kind, string name) {
@@ -551,7 +627,7 @@ public partial class ActionService(
         CustomActionsChanged?.Invoke();
     }
 
-    public async Task SaveCustomActionAsync(CustomAction action) {
+    public async Task SaveCustomActionAsync(CustomAction action, bool imported = false) {
         string path = _library.TryGetValue(action.Id, out (CustomAction Action, string Path) existing)
             ? existing.Path
             : NewActionPath(_folder, action.Name);
@@ -565,7 +641,7 @@ public partial class ActionService(
         CustomActionsChanged?.Invoke();
 
         try {
-            await EnsureGlobalsAsync(action);
+            await EnsureGlobalsAsync(action, imported);
         }
         catch (Exception ex) {
             logger?.LogWarning(ex, "[Actions] Could not add the globals and secrets \"{Name}\" uses", action.Name);
@@ -588,7 +664,7 @@ public partial class ActionService(
         CustomAction? action = await ReadActionFileAsync(file);
         if (action == null) return null;
         bool replaced = _library.ContainsKey(action.Id);
-        await SaveCustomActionAsync(action);
+        await SaveCustomActionAsync(action, true);
         return (action, replaced);
     }
 
@@ -599,7 +675,7 @@ public partial class ActionService(
 
         if (_library.ContainsKey(action.Id)) action.Id = Guid.NewGuid();
         action.Name = UniqueName(action.Name);
-        await SaveCustomActionAsync(action);
+        await SaveCustomActionAsync(action, true);
         return action;
     }
 

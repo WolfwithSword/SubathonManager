@@ -43,6 +43,8 @@ public partial class WebServer {
         WheelEvents.WheelSpinResult += SendWheelSpinResult;
         WheelEvents.WheelSpinStatusChanged += SendWheelSpinStatusChanged;
         WheelEvents.WheelDataChanged += SendWheelDataChanged;
+
+        ActionEvents.GlobalsUpdated += SendGlobalsUpdate;
     }
 
     private void StopWebsocketServer() {
@@ -66,6 +68,8 @@ public partial class WebServer {
         WheelEvents.WheelSpinResult -= SendWheelSpinResult;
         WheelEvents.WheelSpinStatusChanged -= SendWheelSpinStatusChanged;
         WheelEvents.WheelDataChanged -= SendWheelDataChanged;
+
+        ActionEvents.GlobalsUpdated -= SendGlobalsUpdate;
 
         List<IWebSocketClient> clientsCopy;
         lock (_lock) {
@@ -101,6 +105,93 @@ public partial class WebServer {
             x, y, width, height, scaleX, scaleY
         };
         BroadcastObject(data, WebsocketClientMessageType.Overlay);
+        _ = SendGlobalsSnapshotAsync(null, widgetId);
+    }
+
+    ////////////////// globals for widgets
+    private readonly SemaphoreSlim _globalsSendLock = new(1, 1);
+
+    internal static object GlobalToObject(ActionGlobal global) {
+        return new {
+            name = global.Name,
+            type = global.ValueType.GetJsonType(),
+            value = global.ValueType.ToTypedValue(global.Value)
+        };
+    }
+
+    internal static async Task<List<ActionGlobal>> LoadGlobalsAsync(AppDbContext db) {
+        return (await db.ActionGlobals.AsNoTracking().Where(g => g.Kind == ActionStoreKind.Global).ToListAsync())
+            .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private static object GlobalsMessage(Guid widgetId, bool full, IEnumerable<ActionGlobal> globals,
+        IEnumerable<string> removed) {
+        return new {
+            type = "globals_update",
+            widgetId = widgetId.ToString(),
+            full,
+            globals = globals.Select(GlobalToObject).ToArray(),
+            removed = removed.ToArray()
+        };
+    }
+
+    internal async Task SendGlobalsSnapshotAsync(IWebSocketClient? socket, Guid widgetId) {
+        try {
+            await _globalsSendLock.WaitAsync();
+            try {
+                await using AppDbContext db = await _factory.CreateDbContextAsync();
+                Widget? widget = await db.Widgets.AsNoTracking().FirstOrDefaultAsync(w => w.Id == widgetId);
+                if (widget == null || string.IsNullOrWhiteSpace(widget.GlobalVars)) return;
+
+                object data = GlobalsMessage(widgetId, true,
+                    (await LoadGlobalsAsync(db)).Where(g => widget.ListensToGlobal(g.Name)), []);
+                if (socket != null) await SelectSendAsync(socket, data);
+                else BroadcastObject(data, WebsocketClientTypeHelper.ConsumersList);
+            }
+            finally {
+                _globalsSendLock.Release();
+            }
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to send globals to widget {WidgetId}", widgetId);
+        }
+    }
+
+    internal void SendGlobalsUpdate(IReadOnlyCollection<string> names) {
+        Task.Run(() => SendGlobalsUpdateAsync(names));
+    }
+
+    internal async Task SendGlobalsUpdateAsync(IReadOnlyCollection<string> names) {
+        try {
+            await _globalsSendLock.WaitAsync();
+            try {
+                await using AppDbContext db = await _factory.CreateDbContextAsync();
+                List<Widget> widgets = await db.Widgets.AsNoTracking().Where(w => w.GlobalVars != "").ToListAsync();
+                if (widgets.Count == 0) return;
+
+                var changed = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+                Dictionary<string, ActionGlobal> current = (await LoadGlobalsAsync(db))
+                    .Where(g => changed.Contains(g.Name))
+                    .ToDictionary(g => g.Name, StringComparer.OrdinalIgnoreCase);
+
+                foreach (Widget widget in widgets) {
+                    List<string> wanted = changed.Where(widget.ListensToGlobal).ToList();
+
+                    if (wanted.Count == 0) continue;
+
+                    BroadcastObject(GlobalsMessage(widget.Id, false,
+                            wanted.Where(current.ContainsKey).Select(n => current[n]),
+                            wanted.Where(n => !current.ContainsKey(n))),
+                        WebsocketClientTypeHelper.ConsumersList);
+                }
+            }
+            finally {
+                _globalsSendLock.Release();
+            }
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to send globals update");
+        }
     }
 
     internal void SendPromptData(SubathonPromptRun? run, long progress = 0) {
@@ -456,6 +547,11 @@ public partial class WebServer {
                             _logger?.LogDebug(
                                 $"[WebSocket] [{socket.ClientId}] Hello from {json.RootElement.GetProperty("origin").GetString()}");
                             break;
+                        case "globals":
+                            if (json.RootElement.TryGetProperty("widgetId", out JsonElement widgetEl)
+                                && Guid.TryParse(widgetEl.GetString(), out Guid widgetGuid))
+                                await SendGlobalsSnapshotAsync(socket, widgetGuid);
+                            break;
                     }
 
                     if (Enum.TryParse(type.GetString(), out clientMessageType))
@@ -750,11 +846,13 @@ public partial class WebServer {
                 wheel_spin_result:   'handleWheelSpinResult',
                 wheel_data:          'handleWheelData',
                 wheel_spin_start:    'handleWheelSpinStart',
-                wheel_spin_status:   'handleWheelSpinStatus'
+                wheel_spin_status:   'handleWheelSpinStatus',
+                globals_update:      'handleGlobalVars'
             };
 
             var listeners = {};
             var state = {};
+            var globals = {};
 
             var socket = null, reconnectTimer = null, pingTimer = null, connected = false;
             var relayParent = null, relayTimer = null, relayTries = 0, gaveUpOnRelay = false;
@@ -785,6 +883,7 @@ public partial class WebServer {
 
             function dispatch(data) {
                 if (!data || typeof data.type !== 'string') return;
+                if (data.type === 'globals_update' && !takeGlobals(data)) return;
                 if (STATE_TYPES[data.type]) state[data.type] = data;
 
                 builtin(data);
@@ -792,6 +891,26 @@ public partial class WebServer {
 
                 emit(data.type, data);
                 emit('*', data);
+            }
+
+            function takeGlobals(data) {
+                if (IS_OVERLAY || !api.widgetId || data.widgetId !== api.widgetId) return false;
+                if (data.full) globals = {};
+                var list = data.globals || [], removed = data.removed || [], i;
+                for (i = 0; i < removed.length; i++) delete globals[removed[i]];
+                for (i = 0; i < list.length; i++) globals[list[i].name] = list[i];
+                data.all = Object.assign({}, globals);
+                state.globals_update = {
+                    type: 'globals_update', widgetId: data.widgetId, full: true,
+                    globals: Object.keys(globals).map(function (k) { return globals[k]; }),
+                    removed: [], all: data.all
+                };
+                return true;
+            }
+
+            function requestGlobals() {
+                if (IS_OVERLAY || !api.widgetId) return;
+                api.send({ ws_type: 'globals', widgetId: api.widgetId });
             }
 
             function replayStateToLegacy() {
@@ -837,6 +956,7 @@ public partial class WebServer {
                 connected = isUp;
                 if (IS_OVERLAY) relayPostAll({ kind: 'status', connected: isUp });
                 if (isUp) {
+                    requestGlobals();
                     if (typeof window.handleSubathonConnect === 'function') safe(window.handleSubathonConnect);
                     emit('connect', { type: 'connect' });
                 } else {
@@ -995,6 +1115,9 @@ public partial class WebServer {
                 get transport() { return relayParent ? 'relay' : (socket ? 'socket' : 'pending'); },
                 get state() { return state; },
                 get: function (type) { return state[type] || null; },
+
+                get globals() { return Object.assign({}, globals); },
+                global: function (name) { return globals[name] ? globals[name].value : undefined; },
 
                 on: function (type, fn, opts) {
                     if (typeof fn !== 'function') return api;

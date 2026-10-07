@@ -235,6 +235,27 @@ public partial class Widget {
 
     public WidgetType Type { get; set; } = WidgetType.Html;
 
+    [MaxLength(4096)] public string GlobalVars { get; set; } = string.Empty;
+
+    public const string AllGlobals = "*";
+
+    [NotMapped] public bool ListensToAllGlobals => GlobalVars.Trim() == AllGlobals;
+
+    [NotMapped]
+    public IReadOnlyList<string> GlobalVarNames => ListensToAllGlobals
+        ? []
+        : GlobalVars.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    public bool ListensToGlobal(string name) {
+        return ListensToAllGlobals || GlobalVarNames.Contains(name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public static string JoinGlobalVars(bool all, IEnumerable<string> names) {
+        return all ? AllGlobals : string.Join(",", names.Select(n => n.Trim()).Where(n => n.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
     public Widget(string name, string htmlPath) {
         Name = name;
         HtmlPath = htmlPath;
@@ -253,6 +274,7 @@ public partial class Widget {
         widget.ScaleX = ScaleX;
         widget.ScaleY = ScaleY;
         widget.Type = Type;
+        widget.GlobalVars = GlobalVars;
 
         foreach (JsVariable jsVariable in JsVariables)
             widget.JsVariables.Add(jsVariable.Clone(widget.Id));
@@ -380,6 +402,7 @@ public partial class Widget {
 
             visibility = Visibility,
             docsUrl = DocsUrl,
+            globalVars = GlobalVars,
 
             cssVariables = CssVariables.Select(v => v.ToJson()).ToArray(),
             jsVariables = JsVariables.Select(v => v.ToJson()).ToArray()

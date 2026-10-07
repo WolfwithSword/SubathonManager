@@ -1098,6 +1098,58 @@ public partial class EditRouteWindow {
         SuppressUnsavedChanges(Attach);
     }
 
+    #region GlobalVars
+
+    private int _loadingGlobalVars;
+
+    private async Task PopulateGlobalVarsAsync(Widget widget) {
+        _loadingGlobalVars++;
+        try {
+            List<ActionGlobal> globals = await ServiceManager.Actions.GetGlobalsAsync(ActionStoreKind.Global);
+            if (_selectedWidget?.Id != widget.Id) return;
+
+            IReadOnlyList<string> picked = widget.GlobalVarNames;
+            List<FilterOption> options = globals.Select(g => new FilterOption {
+                Label = g.Name, Value = g.Name, Group = $"{g.ValueType}"
+            }).ToList();
+            options.AddRange(picked
+                .Where(n => !globals.Any(g => g.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                .Select(n => new FilterOption { Label = $"{n} (doesn't exist)", Value = n, Group = "Missing" }));
+
+            GlobalVarsPicker.SetOptions(options, true);
+            GlobalVarsPicker.SetSelected(picked);
+            GlobalVarsModeBox.SelectedIndex = widget.ListensToAllGlobals ? 1
+                : string.IsNullOrWhiteSpace(widget.GlobalVars) ? 0 : 2;
+            GlobalVarsPicker.IsVisible = GlobalVarsModeBox.SelectedIndex == 2;
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Could not load globals for widget editor");
+        }
+        finally {
+            _loadingGlobalVars--;
+        }
+    }
+
+    private void GlobalVarsMode_Changed(object? sender, SelectionChangedEventArgs e) {
+        ApplyGlobalVars();
+    }
+
+    private void ApplyGlobalVars() {
+        GlobalVarsPicker.IsVisible = GlobalVarsModeBox.SelectedIndex == 2;
+        if (_loadingGlobalVars > 0 || _selectedWidget == null) return;
+
+        string value = GlobalVarsModeBox.SelectedIndex switch {
+            1 => Widget.AllGlobals,
+            2 => Widget.JoinGlobalVars(false, GlobalVarsPicker.SelectedOptions.Select(o => o.Value)),
+            _ => string.Empty
+        };
+        if (value == _selectedWidget.GlobalVars) return;
+        _selectedWidget.GlobalVars = value;
+        UpdateSaveButtonBorder(SaveButtonBorder, true);
+    }
+
+    #endregion
+
     private void Value_OnChanged(object? sender, RoutedEventArgs e) {
         bool realChange = DirtySaveGuard.Consume(sender);
         if (_suppressCount > 0 || !realChange) return;

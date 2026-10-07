@@ -14,6 +14,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Data.Overlays;
 using SubathonManager.Data.Widgets;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views;
 
@@ -233,6 +234,10 @@ public partial class MainWindow {
                 _logger?.LogError("Import failed: {Reason}", result.FailReason);
                 return false;
             }
+
+            if (result.RequiredGlobals.Count > 0)
+                await ServiceManager.Actions.EnsureTypedGlobalsAsync(result.RequiredGlobals,
+                    $"Overlay \"{manifest.Name}\"");
 
             if (!result.HasAnythingNew) {
                 _logger?.LogInformation("Import: everything already exists, nothing to add");

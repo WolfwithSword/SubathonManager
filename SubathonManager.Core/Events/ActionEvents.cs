@@ -10,4 +10,10 @@ public static class ActionEvents {
     public static void RaiseCustomActionRunRequested(SubathonEvent ev) {
         CustomActionRunRequested?.Invoke(ev);
     }
+
+    public static event Action<IReadOnlyCollection<string>>? GlobalsUpdated;
+
+    public static void RaiseGlobalsUpdated(IReadOnlyCollection<string> names) {
+        if (names.Count > 0) GlobalsUpdated?.Invoke(names);
+    }
 }

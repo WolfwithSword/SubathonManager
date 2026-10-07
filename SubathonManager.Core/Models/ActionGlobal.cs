@@ -19,3 +19,4 @@ public class ActionGlobal {
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }
+public record GlobalTypeConflict(string Name, ActionValueType Existing, ActionValueType Wanted);

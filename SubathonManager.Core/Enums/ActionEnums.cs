@@ -460,6 +460,24 @@ public static partial class ActionStepTypeHelper {
         };
     }
 
+    public static object ToTypedValue(this ActionValueType type, string? value) {
+        return type switch {
+            ActionValueType.Number => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture,
+                out double number)
+                ? number : 0d,
+            ActionValueType.Boolean => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase),
+            _ => value ?? ""
+        };
+    }
+
+    public static string GetJsonType(this ActionValueType type) {
+        return type switch {
+            ActionValueType.Number => "number",
+            ActionValueType.Boolean => "boolean",
+            _ => "text"
+        };
+    }
+
     public static string? ConvertValue(string? value, ActionValueType from, ActionValueType to) {
         if (value == null) return null;
         if (from == ActionValueType.Boolean && to == ActionValueType.Number) return value == "true" ? "1" : "0";

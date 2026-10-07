@@ -239,3 +239,5 @@ external/streamdeck/**/images/
 # Windows installer build output
 installer/windows/LICENSE.txt
 installer-out/
+
+presets/test/

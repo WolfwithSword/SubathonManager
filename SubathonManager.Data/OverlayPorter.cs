@@ -10,6 +10,7 @@ using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data.Overlays;
 using SubathonManager.Data.Widgets;
 
@@ -29,13 +30,20 @@ public static class OverlayPorter {
         Converters = { new JsonStringEnumConverter() }
     };
 
+    private static readonly JsonSerializerOptions ReadOptions = new() {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     #region EXPORT
 
     public static async Task ExportRouteAsync(Route route, string outputPath, string exportName,
         HashSet<string>? excludedZipEntries = null, string version = "1", string appVersion = "",
-        string author = "", List<string>? tags = null) {
+        string author = "", List<string>? tags = null,
+        IReadOnlyDictionary<string, ActionValueType>? globalTypes = null) {
         List<Widget> widgets = route.Widgets.ToList();
         ExportPlan plan = BuildExportPlan(widgets, excludedZipEntries);
+        plan.GlobalTypes = globalTypes;
 
         await using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var archive = new ZipArchive(fileStream, ZipArchiveMode.Create, false);
@@ -202,6 +210,7 @@ public static class OverlayPorter {
                 scale = new { x = w.ScaleX, y = w.ScaleY },
                 visibility = w.Visibility,
                 docsUrl = w.DocsUrl,
+                globals = WidgetMetaGlobals.From(w, plan.GlobalTypes),
                 cssVariables = w.CssVariables.Select(v => new { name = v.Name, value = v.Value }),
                 jsVariables = jsVars
             };
@@ -329,10 +338,17 @@ public static class OverlayPorter {
         var newCssVariables = new List<CssVariable>();
         var newJsVariables = new List<JsVariable>();
         var repointedWidgets = new List<Widget>();
+        var requiredGlobals = new Dictionary<string, ActionValueType>(StringComparer.OrdinalIgnoreCase);
 
         foreach (ManifestWidget mw in manifestWidgets) {
             JsonElement wEl = mw.Element;
             string htmlAbsPath = mw.HtmlAbsPath;
+            WidgetMetaGlobals? widgetGlobals = ReadGlobals(wEl);
+            if (widgetGlobals != null) {
+                foreach ((string name, ActionValueType type) in widgetGlobals.Vars) {
+                    requiredGlobals.TryAdd(name, type);
+                }
+            }
 
             string widgetExtractFolder = mw.PackFolder != null
                 ? mw.OverlayFolder
@@ -359,7 +375,8 @@ public static class OverlayPorter {
                     Id = Guid.NewGuid(), RouteId = route.Id,
                     Type = widgetType,
                     Visibility = wEl.GetProperty("visibility").GetBoolean(),
-                    DocsUrl = wEl.TryGetProperty("docsUrl", out JsonElement du) ? du.GetString() : null
+                    DocsUrl = wEl.TryGetProperty("docsUrl", out JsonElement du) ? du.GetString() : null,
+                    GlobalVars = widgetGlobals?.ToWidgetValue() ?? string.Empty
                 };
 
                 JsonElement pos = wEl.GetProperty("position");
@@ -430,6 +447,7 @@ public static class OverlayPorter {
             NewCssVariables = newCssVariables,
             NewJsVariables = newJsVariables,
             RepointedWidgets = repointedWidgets,
+            RequiredGlobals = requiredGlobals,
             RouteIsNew = routeIsNew,
             MergedRouteId = routeIsNew ? null : route!.Id,
             MergedRouteName = renameMerged ? routeName : null
@@ -437,6 +455,16 @@ public static class OverlayPorter {
     }
 
     private record ManifestWidget(JsonElement Element, string HtmlAbsPath, string OverlayFolder, string? PackFolder);
+
+    private static WidgetMetaGlobals? ReadGlobals(JsonElement widgetElem) {
+        if (!widgetElem.TryGetProperty("globals", out JsonElement el) || el.ValueKind != JsonValueKind.Object) return null;
+        try {
+            return el.Deserialize<WidgetMetaGlobals>(ReadOptions);
+        }
+        catch (JsonException) {
+            return null;
+        }
+    }
 
     private static ManifestWidget ResolveManifestWidget(JsonElement wEl, string extractDir) {
         string htmlZipRelPath = wEl.TryGetProperty("htmlPath", out JsonElement hp) ? hp.GetString() ?? "" : "";
@@ -624,6 +652,8 @@ public static class OverlayPorter {
         public string? FailReason { get; init; }
 
         public List<Widget> RepointedWidgets { get; init; } = [];
+
+        public Dictionary<string, ActionValueType> RequiredGlobals { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public Guid? MergedRouteId { get; init; }
         public string? MergedRouteName { get; init; }
 
@@ -645,6 +675,7 @@ public static class OverlayPorter {
         public Dictionary<Guid, PackReference> WidgetPacks { get; } = new();
         public List<(string Src, string ZipEntry)> FileCopies { get; } = [];
         public Dictionary<Guid, Dictionary<string, string>> VariableRewrites { get; } = new();
+        public IReadOnlyDictionary<string, ActionValueType>? GlobalTypes { get; set; }
     }
 
     #endregion

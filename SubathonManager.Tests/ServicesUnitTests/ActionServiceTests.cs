@@ -671,6 +671,63 @@ public class ActionServiceTests {
     }
 
     [Fact]
+    public async Task WidgetGlobals_ImportCreatesMissing_WarnsOnTypeMismatch_AndChangesAreAnnounced() {
+        (ActionService service, _, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+
+        var announced = new List<string>();
+        void OnUpdated(IReadOnlyCollection<string> names) {
+            lock (announced) announced.AddRange(names);
+        }
+
+        var warnings = new List<(string Source, IReadOnlyList<GlobalTypeConflict> Conflicts)>();
+        service.GlobalTypeConflictsFound += (source, conflicts) => warnings.Add((source, conflicts));
+        ActionEvents.GlobalsUpdated += OnUpdated;
+        try {
+            Assert.Null(await service.SetGlobalAsync("deaths", ActionValueType.Text, "lots"));
+            Assert.Contains("deaths", announced);
+
+            var widget = new Widget("counter", "counter.html") { GlobalVars = "Deaths, hat_on,deaths" };
+            Assert.Equal(new[] { "Deaths", "hat_on" }, widget.GlobalVarNames);
+            Assert.True(widget.ListensToGlobal("HAT_ON"));
+            Assert.False(widget.ListensToGlobal("other"));
+            Assert.True(new Widget("all", "all.html") { GlobalVars = " * " }.ListensToGlobal("anything"));
+
+            WidgetMetaGlobals meta = WidgetMetaGlobals.From(widget, await service.GetGlobalTypesAsync())!;
+            Assert.Equal(ActionValueType.Text, meta.Vars["Deaths"]);
+            meta.Vars["Deaths"] = ActionValueType.Number;
+            meta.Vars["hat_on"] = ActionValueType.Boolean;
+            Assert.Equal("Deaths,hat_on", meta.ToWidgetValue());
+
+            IReadOnlyList<GlobalTypeConflict> conflicts =
+                await service.EnsureTypedGlobalsAsync(meta.Vars, "Widget \"counter\"");
+            Assert.Equal(new GlobalTypeConflict("deaths", ActionValueType.Text, ActionValueType.Number),
+                Assert.Single(conflicts));
+            Assert.Equal("Widget \"counter\"", Assert.Single(warnings).Source);
+
+            ActionGlobal hat = (await service.GetGlobalsAsync(ActionStoreKind.Global)).Single(g => g.Name == "hat_on");
+            Assert.Equal(("false", ActionValueType.Boolean), (hat.Value, hat.ValueType));
+            Assert.Contains("hat_on", announced);
+            Assert.Equal(false, hat.ValueType.ToTypedValue(hat.Value));
+            Assert.Equal(2.5, ActionValueType.Number.ToTypedValue("2.5"));
+            Assert.Equal(0d, ActionValueType.Number.ToTypedValue("junk"));
+
+            await service.SaveCustomActionAsync(new CustomAction {
+                Name = "Death counter", Graph = ActionGraph.Sequence(new ActionStep {
+                    Type = ActionStepType.SetGlobal, Operation = ActionOperation.Adjust, Target = "deaths", Body = "1"
+                })
+            });
+            Assert.Single(warnings);
+
+            await service.DeleteGlobalAsync(ActionStoreKind.Global, "hat_on");
+            Assert.Equal(2, announced.Count(n => n == "hat_on"));
+        }
+        finally {
+            ActionEvents.GlobalsUpdated -= OnUpdated;
+        }
+    }
+
+    [Fact]
     public async Task TriggerSteps_StartOnlyForTheirTrigger_PassItsValues_AndManualRunsSkipThem() {
         (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
         await using SqliteConnection __ = conn;

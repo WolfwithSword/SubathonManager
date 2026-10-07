@@ -72,6 +72,7 @@ public partial class EditRouteWindow : Window {
         WindowIcons.Apply(this);
         EditorRouteId = routeId;
         WidgetsList.ItemsSource = _widgets;
+        GlobalVarsPicker.SelectionChanged += (_, _) => ApplyGlobalVars();
         BrowserEditorButton.IsVisible = OperatingSystem.IsLinux();
         WebViewWarningButton.IsVisible = OperatingSystem.IsLinux();
         UiHelpers.EnableClickAwayUnfocus(this);
@@ -364,6 +365,7 @@ public partial class EditRouteWindow : Window {
 
         SubscribeCssVarChanges();
         PopulateJsVars();
+        if (!isAsset) _ = PopulateGlobalVarsAsync(widget);
         bool hasStash = _unsavedCssVars.ContainsKey(widget.Id) || _unsavedJsVars.ContainsKey(widget.Id);
         _hasPendingCssChanges = _unsavedCssVars.ContainsKey(widget.Id);
         _hasPendingJsChanges = _unsavedJsVars.ContainsKey(widget.Id);
@@ -641,9 +643,13 @@ public partial class EditRouteWindow : Window {
             newWidget.Width = metadata.Width > 0 ? metadata.Width : 400;
             newWidget.Height = metadata.Height > 0 ? metadata.Height : 400;
             newWidget.DocsUrl = metadata.Url;
+            newWidget.GlobalVars = metadata.Globals?.ToWidgetValue() ?? string.Empty;
 
             db.Widgets.Add(newWidget);
             await db.SaveChangesAsync();
+
+            if (metadata.Globals is { Vars.Count: > 0 } wanted)
+                await ServiceManager.Actions.EnsureTypedGlobalsAsync(wanted.Vars, $"Widget \"{newWidget.Name}\"");
 
             (List<JsVariable> jsVars, _, _) = helper.LoadNewJsVariables(newWidget, metadata);
 
