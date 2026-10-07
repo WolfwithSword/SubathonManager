@@ -60,6 +60,7 @@ public partial class ActionService(
         SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
         WheelEvents.WheelSpinStatusChanged += OnWheelSpinStatusChanged;
         ActionEvents.CustomActionRunRequested += OnCustomActionRunRequested;
+        SubathonEvents.PromptRunUpdate += OnPromptRunUpdate;
         TriggerWatcher.Start();
         await LoadLibraryAsync();
 
@@ -67,6 +68,9 @@ public partial class ActionService(
         await db.WheelSpinHistories
             .Where(h => h.Status == WheelSpinHistoryStatus.Running)
             .ExecuteUpdateAsync(s => s.SetProperty(h => h.Status, WheelSpinHistoryStatus.Pending), ct);
+        await db.SubathonPromptRuns
+            .Where(r => r.ActionStatus == SubathonPromptActionStatus.Running)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.ActionStatus, SubathonPromptActionStatus.Failed), ct);
     }
 
     public Task StopAsync(CancellationToken ct = default) {
@@ -78,6 +82,7 @@ public partial class ActionService(
         SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
         WheelEvents.WheelSpinStatusChanged -= OnWheelSpinStatusChanged;
         ActionEvents.CustomActionRunRequested -= OnCustomActionRunRequested;
+        SubathonEvents.PromptRunUpdate -= OnPromptRunUpdate;
         _triggerWatcher?.Stop();
         foreach (LiveRun run in _runs.Values) run.Cancel();
         GC.SuppressFinalize(this);
@@ -1123,6 +1128,87 @@ public partial class ActionService(
 
         if (raise)
             WheelEvents.RaiseWheelSpinStatusChanged(history, StateValueHelper.Get<int>(db, StateKeys.WheelSpinsOwed));
+    }
+
+    ////////////////// prompts
+    private void OnPromptRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt) {
+        if (run is { Status: SubathonPromptRunStatus.Completed, ActionId: not null })
+            _ = RunPromptActionAsync(run.Id);
+    }
+
+    public async Task<ActionRunResult> RunPromptActionAsync(Guid runId, bool retry = false) {
+        SubathonPromptRun? run;
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync();
+            run = await db.SubathonPromptRuns.Include(r => r.LinkedPrompt).AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Id == runId);
+            if (run is not { Status: SubathonPromptRunStatus.Completed, ActionId: not null })
+                return ActionRunResult.Skipped;
+
+            SubathonPromptActionStatus from = retry ? SubathonPromptActionStatus.Failed : SubathonPromptActionStatus.None;
+            int claimed = await db.SubathonPromptRuns.Where(r => r.Id == runId && r.ActionStatus == from)
+                .ExecuteUpdateAsync(s => s.SetProperty(r => r.ActionStatus, SubathonPromptActionStatus.Running));
+            if (claimed == 0) return ActionRunResult.Skipped;
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "[Actions] Could not start the action for prompt run {Id}", runId);
+            return ActionRunResult.Skipped;
+        }
+
+        run.ActionStatus = SubathonPromptActionStatus.Running;
+        SubathonEvents.RaisePromptRunActionStatusChanged(run);
+
+        CustomAction? action = GetCustomAction(run.ActionId.Value);
+        ActionGraph? graph = ResolveGraph(WheelSpinActionType.CustomAction, run.ActionId.Value.ToString());
+        if (action == null || graph == null) {
+            logger?.LogWarning("[Actions] Prompt \"{Prompt}\" completed, but action {Reason}",
+                run.LinkedPrompt?.Text, action == null ? "is missing from the actions library" : "is disabled");
+            await SavePromptActionAsync(run, SubathonPromptActionStatus.Failed, run.ActionProgress);
+            return ActionRunResult.Skipped;
+        }
+
+        var ctx = new ActionContext(SubathonEventSource.Unknown, "Prompt", $"custom-action-{action.Id}",
+            run.LinkedPrompt?.Text ?? action.Name);
+        LogRun(action.Name, ctx);
+
+        ActionRunProgress progress = ActionRunProgress.Parse(run.ActionProgress);
+        ActionRunResult result;
+        try {
+            result = await RunAsync(runId, graph, ctx, progress, async p => {
+                string json = p.ToJson();
+                await using AppDbContext db = await factory.CreateDbContextAsync();
+                await db.SubathonPromptRuns.Where(r => r.Id == runId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(r => r.ActionProgress, json));
+            });
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "[Actions] \"{Action}\" failed for prompt \"{Prompt}\"", action.Name,
+                run.LinkedPrompt?.Text);
+            result = ActionRunResult.Paused;
+        }
+
+        bool done = result == ActionRunResult.Done;
+        await SavePromptActionAsync(run, done ? SubathonPromptActionStatus.Done : SubathonPromptActionStatus.Failed,
+            done ? null : progress.ToJson());
+        return result;
+    }
+
+    private async Task SavePromptActionAsync(SubathonPromptRun run, SubathonPromptActionStatus status,
+        string? progress) {
+        run.ActionStatus = status;
+        run.ActionProgress = progress;
+        try {
+            await using AppDbContext db = await factory.CreateDbContextAsync();
+            await db.SubathonPromptRuns.Where(r => r.Id == run.Id)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.ActionStatus, status)
+                    .SetProperty(r => r.ActionProgress, progress));
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "[Actions] Could not save action status for prompt run {Id}", run.Id);
+        }
+
+        SubathonEvents.RaisePromptRunActionStatusChanged(run);
     }
 
     private void OnWheelSpinStatusChanged(WheelSpinHistory history, int _) {

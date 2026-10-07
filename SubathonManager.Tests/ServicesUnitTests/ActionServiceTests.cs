@@ -37,7 +37,10 @@ public class ActionServiceTests {
             .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new AppDbContext(options));
 
-        foreach (string name in new[] { "SubathonEventCreated", "SubathonDataUpdate", "SubathonEventProcessed" })
+        foreach (string name in new[] {
+                     "SubathonEventCreated", "SubathonDataUpdate", "SubathonEventProcessed", "PromptRunUpdate",
+                     "PromptRunActionStatusChanged"
+                 })
             typeof(SubathonEvents).GetField(name, BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, null);
         foreach (string name in new[] { "WheelSpinStatusChanged", "OnSpinsOwedUpdateFromEvent" })
             typeof(WheelEvents).GetField(name, BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, null);
@@ -688,7 +691,7 @@ public class ActionServiceTests {
             Assert.Contains("deaths", announced);
 
             var widget = new Widget("counter", "counter.html") { GlobalVars = "Deaths, hat_on,deaths" };
-            Assert.Equal(new[] { "Deaths", "hat_on" }, widget.GlobalVarNames);
+            Assert.Equal(["Deaths", "hat_on"], widget.GlobalVarNames);
             Assert.True(widget.ListensToGlobal("HAT_ON"));
             Assert.False(widget.ListensToGlobal("other"));
             Assert.True(new Widget("all", "all.html") { GlobalVars = " * " }.ListensToGlobal("anything"));
@@ -859,6 +862,79 @@ public class ActionServiceTests {
         finally {
             watcher.Stop();
         }
+    }
+
+    [Fact]
+    public async Task PromptActions_RunOnceWhenCompleted_AndFailedOnesCanBeRetried() {
+        (ActionService service, FakeRunner runner, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupAsync();
+        await using SqliteConnection __ = conn;
+        CancellationToken ct = TestContext.Current.CancellationToken;
+
+        var action = new CustomAction { Name = "Prize", Graph = ActionGraph.Sequence(Hotkey("confetti"), Hotkey("bell")) };
+        await service.SaveCustomActionAsync(action);
+
+        async Task<SubathonPromptRun> AddRun(SubathonPromptRunStatus status, Guid? actionId) {
+            await using var db = new AppDbContext(options);
+            var set = new SubathonPromptSet();
+            var prompt = new SubathonPrompt { Text = "Get 5 subs", LinkedSet = set, CustomActionId = actionId };
+            var run = new SubathonPromptRun {
+                LinkedPrompt = prompt, LinkedSet = set, Status = status, ActionId = actionId,
+                ExpiresAt = DateTime.Now.AddMinutes(5)
+            };
+            db.SubathonPromptRuns.Add(run);
+            await db.SaveChangesAsync(ct);
+            return run;
+        }
+
+        async Task<SubathonPromptRun> Reload(Guid id) {
+            await using var db = new AppDbContext(options);
+            return await db.SubathonPromptRuns.AsNoTracking().FirstAsync(r => r.Id == id, ct);
+        }
+
+        var announced = new ConcurrentQueue<SubathonPromptActionStatus>();
+        SubathonEvents.PromptRunActionStatusChanged += r => announced.Enqueue(r.ActionStatus);
+
+        SubathonPromptRun expired = await AddRun(SubathonPromptRunStatus.Expired, action.Id);
+        Assert.Equal(ActionRunResult.Skipped, await service.RunPromptActionAsync(expired.Id));
+        SubathonPromptRun plain = await AddRun(SubathonPromptRunStatus.Completed, null);
+        Assert.Equal(ActionRunResult.Skipped, await service.RunPromptActionAsync(plain.Id));
+
+        SubathonPromptRun done = await AddRun(SubathonPromptRunStatus.Completed, action.Id);
+        Assert.Equal(ActionRunResult.Done, await service.RunPromptActionAsync(done.Id));
+        Assert.Equal(["confetti", "bell"], runner.Ran.ToArray());
+        Assert.Equal(SubathonPromptActionStatus.Done, (await Reload(done.Id)).ActionStatus);
+        Assert.Equal([SubathonPromptActionStatus.Running, SubathonPromptActionStatus.Done], announced.ToArray());
+
+        Assert.Equal(ActionRunResult.Skipped, await service.RunPromptActionAsync(done.Id));
+        Assert.Equal(ActionRunResult.Skipped, await service.RunPromptActionAsync(done.Id, true));
+        Assert.Equal(2, runner.Ran.Count);
+
+        runner.FailOnce.Add("bell");
+        SubathonPromptRun failed = await AddRun(SubathonPromptRunStatus.Completed, action.Id);
+        SubathonEvents.RaisePromptRunUpdate(failed, null);
+        for (var i = 0; i < 100 && (await Reload(failed.Id)).ActionStatus != SubathonPromptActionStatus.Failed; i++)
+            await Task.Delay(20, ct);
+        SubathonPromptRun afterFail = await Reload(failed.Id);
+        Assert.Equal(SubathonPromptActionStatus.Failed, afterFail.ActionStatus);
+        Assert.NotNull(afterFail.ActionProgress);
+
+        Assert.Equal(ActionRunResult.Done, await service.RunPromptActionAsync(failed.Id, true));
+        Assert.Equal(["confetti", "bell", "confetti", "bell"], runner.Ran.ToArray());
+        SubathonPromptRun retried = await Reload(failed.Id);
+        Assert.Equal((SubathonPromptActionStatus.Done, (string?)null), (retried.ActionStatus, retried.ActionProgress));
+
+        SubathonPromptRun missing = await AddRun(SubathonPromptRunStatus.Completed, Guid.NewGuid());
+        Assert.Equal(ActionRunResult.Skipped, await service.RunPromptActionAsync(missing.Id));
+        Assert.Equal(SubathonPromptActionStatus.Failed, (await Reload(missing.Id)).ActionStatus);
+
+        Assert.True(await service.SetCustomActionEnabledAsync(action.Id, false));
+        SubathonPromptRun off = await AddRun(SubathonPromptRunStatus.Completed, action.Id);
+        Assert.Equal(ActionRunResult.Skipped, await service.RunPromptActionAsync(off.Id));
+        Assert.Equal(SubathonPromptActionStatus.Failed, (await Reload(off.Id)).ActionStatus);
+        Assert.True(await service.SetCustomActionEnabledAsync(action.Id, true));
+        Assert.Equal(ActionRunResult.Done, await service.RunPromptActionAsync(off.Id, true));
+        Assert.Equal(6, runner.Ran.Count);
     }
 
     [Fact]

@@ -57,7 +57,7 @@ public partial class ActionsView : UserControl {
 
     private void Refresh() {
         IReadOnlyList<CustomAction> all = ServiceManager.Actions.CustomActions;
-        Dictionary<string, int> wheelUses = WheelUses();
+        (Dictionary<string, int> wheelUses, Dictionary<Guid, int> promptUses) = Uses();
         string query = (SearchBox.Text ?? "").Trim();
         List<ActionCard> cards = all
             .Where(a => query.Length == 0
@@ -65,7 +65,8 @@ public partial class ActionsView : UserControl {
                         || (a.Author?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
                         || (a.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false))
             .Select(a => new ActionCard(a) {
-                IsSelected = a.Id == _selectedId, WheelUses = wheelUses.GetValueOrDefault(a.Id.ToString())
+                IsSelected = a.Id == _selectedId, WheelUses = wheelUses.GetValueOrDefault(a.Id.ToString()),
+                PromptUses = promptUses.GetValueOrDefault(a.Id)
             })
             .ToList();
 
@@ -78,18 +79,24 @@ public partial class ActionsView : UserControl {
         ShowDetails();
     }
 
-    private Dictionary<string, int> WheelUses() {
+    private (Dictionary<string, int> Wheel, Dictionary<Guid, int> Prompts) Uses() {
         try {
             using AppDbContext db = _factory.CreateDbContext();
-            return db.WheelSpinActions
+            Dictionary<string, int> wheel = db.WheelSpinActions
                 .Where(a => a.ActionType == WheelSpinActionType.CustomAction && !string.IsNullOrWhiteSpace(a.Parameter))
                 .GroupBy(a => a.Parameter!)
                 .Select(g => new { g.Key, Count = g.Count() })
                 .ToDictionary(g => g.Key, g => g.Count, StringComparer.OrdinalIgnoreCase);
+            Dictionary<Guid, int> prompts = db.SubathonPrompts
+                .Where(p => p.CustomActionId != null)
+                .GroupBy(p => p.CustomActionId!.Value)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionary(g => g.Key, g => g.Count);
+            return (wheel, prompts);
         }
         catch (Exception ex) {
-            _logger?.LogWarning(ex, "[Actions] Could not count wheel items using actions");
-            return [];
+            _logger?.LogWarning(ex, "[Actions] Could not count wheel items and prompts using actions");
+            return ([], []);
         }
     }
 
@@ -248,13 +255,14 @@ public partial class ActionsView : UserControl {
         var id = action.Id.ToString();
         await using AppDbContext db = await _factory.CreateDbContextAsync();
 
-        // what stops when it's gone: wheel items pointing at it, and its own trigger steps
         int uses = await db.WheelSpinActions
             .CountAsync(a => a.ActionType == WheelSpinActionType.CustomAction && a.Parameter == id);
+        int promptUses = await db.SubathonPrompts.CountAsync(p => p.CustomActionId == action.Id);
         int triggers = action.Graph.Nodes.Count(n => n.Step.Type == ActionStepType.Trigger && !n.Disabled);
         var effects = new List<string>();
-        if (uses > 0) effects.Add($"{uses} wheel item(s) use it and will stop running until you pick another action");
-        if (triggers > 0) effects.Add($"its {triggers} trigger(s) will stop firing");
+        if (uses > 0) effects.Add($"{uses} wheel item(s) use it");
+        if (promptUses > 0) effects.Add($"{promptUses} prompt(s) currently use it");
+        if (triggers > 0) effects.Add($"{triggers} trigger(s) use it and will all stop");
 
         var dialog = new FAContentDialog {
             Title = "Delete action",
@@ -334,6 +342,7 @@ public sealed class ActionCard(CustomAction action) : INotifyPropertyChanged {
     public string Name => Action.Name;
     public double CardOpacity => Action.Disabled ? 0.55 : 1;
     public int WheelUses { get; init; }
+    public int PromptUses { get; init; }
 
     //
     public string ModeLetter => Action.Graph.EffectiveRepeat switch {
@@ -352,12 +361,13 @@ public sealed class ActionCard(CustomAction action) : INotifyPropertyChanged {
     };
 
     private int TriggerSteps => Action.Graph.Nodes.Count(n => n.Step.Type == ActionStepType.Trigger && !n.Disabled);
-    public int TriggerCount => TriggerSteps + WheelUses;
+    public int TriggerCount => TriggerSteps + WheelUses + PromptUses;
     public bool HasTriggers => TriggerCount > 0;
 
     public string TriggerTip => string.Join(", ", new[] {
         TriggerSteps > 0 ? $"{TriggerSteps} trigger step(s)" : null,
-        WheelUses > 0 ? $"{WheelUses} wheel item(s)" : null
+        WheelUses > 0 ? $"{WheelUses} wheel item(s)" : null,
+        PromptUses > 0 ? $"{PromptUses} prompt(s)" : null
     }.Where(s => s != null)) + " start this action";
     public string? Description => Action.Description;
     public bool HasDescription => !string.IsNullOrWhiteSpace(Action.Description);

@@ -48,6 +48,7 @@ public partial class PromptsEditor : UserControl {
             if (run.Status == SubathonPromptRunStatus.Completed)
                 LoadPromptRows();
         });
+        InitHistory();
 
         Loaded += (_, _) => {
             if (!_initialized) {
@@ -242,6 +243,7 @@ public partial class PromptsEditor : UserControl {
         DeleteSetBtn.IsEnabled = totalSets > 1;
 
         Dispatcher.UIThread.Post(LoadPromptRows);
+        _ = LoadHistoryAsync();
     }
 
     private void SetSelectorBox_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
@@ -652,6 +654,7 @@ public partial class PromptsEditor : UserControl {
             }
 
             UpdateValueLabel(prompt.Type, prompt.SubType);
+            PopulatePromptActionBox(prompt.CustomActionId);
         });
 
         RefreshRowHighlights(clickedRow);
@@ -820,6 +823,7 @@ public partial class PromptsEditor : UserControl {
 
         prompt.Type = SelectedType() ?? prompt.Type;
         prompt.SubType = SelectedSubType() ?? SubathonPromptSubType.Default;
+        prompt.CustomActionId = SelectedPromptActionId;
 
         if (prompt.Type == SubathonPromptType.Event) {
             prompt.FilterEventType = _selectedFilterEventType;
@@ -851,6 +855,7 @@ public partial class PromptsEditor : UserControl {
         tracked.FilterEventType = source.FilterEventType;
         tracked.FilterMeta = source.FilterMeta;
         tracked.FilterSubType = source.FilterSubType;
+        tracked.CustomActionId = source.CustomActionId;
     }
 
     private void MarkPendingChanges() {
@@ -1125,7 +1130,7 @@ public partial class PromptsEditor : UserControl {
     }
 
     private void ApplyEditorLock(bool locked) {
-        PromptDetailBorder.IsEnabled = !locked;
+        PromptDetailFields.IsEnabled = !locked;
         RunningLockText.IsVisible = locked;
         SaveBtn.IsEnabled = !locked;
     }
