@@ -316,8 +316,8 @@ public partial class WebServer {
     }
 
     internal async Task HandleGlobalsSetRequestAsync(IHttpContext ctx) {
-        async Task Fail(int code, string error2) {
-            await ctx.WriteResponse(code, JsonSerializer.Serialize(new { error2 }), true, "application/json");
+        async Task Fail(int code, string error) {
+            await ctx.WriteResponse(code, JsonSerializer.Serialize(new { error }), true, "application/json");
         }
 
         var actions = AppServices.Provider?.GetService<ActionService>();
@@ -407,10 +407,10 @@ public partial class WebServer {
             value = (-double.Parse(amount, CultureInfo.InvariantCulture)).ToString(CultureInfo.InvariantCulture);
         }
 
-        (ActionGlobal? global, bool created, string? error) =
+        (ActionGlobal? global, bool created, string? errorStr) =
             await actions.ChangeGlobalAsync(name, sentType, operation.Value, value, true);
         if (global == null) {
-            await Fail(400, error ?? "Could not set global");
+            await Fail(400, errorStr ?? "Could not set global");
             return;
         }
 
