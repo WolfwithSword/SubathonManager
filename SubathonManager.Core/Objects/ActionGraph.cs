@@ -276,6 +276,9 @@ public sealed class ActionNode {
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IgnoreErrors { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ActionInputMode Inputs { get; set; }
 }
 
 public sealed class ActionEdge {
@@ -515,6 +518,8 @@ public sealed class ActionRunProgress {
     public HashSet<string> Done { get; set; } = [];
     public HashSet<string> Skipped { get; set; } = [];
     public Dictionary<string, string> Ports { get; set; } = [];
+
+    public Dictionary<string, int> Fired { get; set; } = [];
     public Dictionary<string, string> Variables { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public Dictionary<string, double> Values { get; set; } = [];
@@ -550,10 +555,35 @@ public sealed class ActionRunProgress {
         }
     }
 
-    public bool IsLive(ActionEdge edge) {
+    private static string FireKey(string nodeId, string? port) {
+        return $"{nodeId}|{port}";
+    }
+
+    public void RecordRun(string nodeId, string? port) {
         lock (_lock) {
-            return Done.Contains(edge.From) && Ports.GetValueOrDefault(edge.From) == edge.Port;
+            string key = FireKey(nodeId, port);
+            Fired[key] = Fired.GetValueOrDefault(key) + 1;
         }
+    }
+
+    public int Runs(string nodeId) {
+        var prefix = $"{nodeId}|";
+        lock (_lock) {
+            return Fired.Where(f => f.Key.StartsWith(prefix, StringComparison.Ordinal)).Sum(f => f.Value);
+        }
+    }
+
+    public int Firings(ActionEdge edge) {
+        var prefix = $"{edge.From}|";
+        lock (_lock) {
+            if (Fired.TryGetValue(FireKey(edge.From, edge.Port), out int count)) return count;
+            if (Fired.Keys.Any(k => k.StartsWith(prefix, StringComparison.Ordinal))) return 0;
+            return Done.Contains(edge.From) && Ports.GetValueOrDefault(edge.From) == edge.Port ? 1 : 0;
+        }
+    }
+
+    public bool IsLive(ActionEdge edge) {
+        return Firings(edge) > 0;
     }
 
     public void SetVariable(string name, string value) {

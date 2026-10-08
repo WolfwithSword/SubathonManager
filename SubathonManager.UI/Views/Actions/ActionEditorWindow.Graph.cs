@@ -309,10 +309,19 @@ public partial class ActionEditorWindow {
         toggle.Click += (_, _) => ToggleNodes(targets, !clicked.Node.Disabled);
         var ignore = new MenuItem { Header = "Ignore Errors" };
         ignore.Click += (_, _) => SetIgnoreErrors(targets, !clicked.Node.IgnoreErrors);
+        var multiple = new MenuItem {
+            Header = "Run For Each Input",
+            ToggleType = MenuItemToggleType.CheckBox,
+            IsChecked = clicked.Node.Inputs == ActionInputMode.Multiple,
+            IsVisible = targets.Any(t => t.HasInput)
+        };
+
+        multiple.Click += (_, _) => SetInputMode(targets,
+            clicked.Node.Inputs == ActionInputMode.Multiple ? ActionInputMode.Wait : ActionInputMode.Multiple);
         var delete = new MenuItem { Header = $"Delete{suffix}" };
         delete.Click += (_, _) => DeleteItems(targets, []);
 
-        var menu = new MenuFlyout { Items = { duplicate, toggle, ignore, new Separator(), delete } };
+        var menu = new MenuFlyout { Items = { duplicate, toggle, ignore, multiple, new Separator(), delete } };
         if (clicked.IsTrigger && targets.Count == 1) {
             var test = new MenuItem { Header = "Test Trigger" };
             ToolTip.SetTip(test, "Run the action with sample trigger values");
@@ -327,6 +336,13 @@ public partial class ActionEditorWindow {
     private List<ActionNodeVm> MenuTargets(ActionNodeVm clicked) {
         List<ActionNodeVm> selected = Editor.SelectedItems?.OfType<ActionNodeVm>().ToList() ?? [];
         return selected.Count > 1 && selected.Contains(clicked) ? selected : [clicked];
+    }
+
+    private void SetInputMode(List<ActionNodeVm> targets, ActionInputMode mode) {
+        foreach (ActionNodeVm node in targets.Where(t => t.HasInput)) node.Node.Inputs = mode;
+        RefreshNodes();
+        if (SelectedVm is { } selected && targets.Contains(selected)) ShowSelection();
+        MarkDirty();
     }
 
     private void SetIgnoreErrors(List<ActionNodeVm> targets, bool ignore) {
@@ -357,7 +373,8 @@ public partial class ActionEditorWindow {
                 X = original.Node.X + 30,
                 Y = original.Node.Y + StepSpacingY,
                 Disabled = original.Node.Disabled,
-                IgnoreErrors = original.Node.IgnoreErrors
+                IgnoreErrors = original.Node.IgnoreErrors,
+                Inputs = original.Node.Inputs
             };
             newIds[original.Node.Id] = copy.Id;
             Graph.Nodes.Add(copy);

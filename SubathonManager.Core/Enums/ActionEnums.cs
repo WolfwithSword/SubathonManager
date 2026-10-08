@@ -172,6 +172,11 @@ public enum ActionValueType {
     Boolean
 }
 
+public enum ActionInputMode {
+    Wait,
+    Multiple
+}
+
 public enum ActionHttpAuth {
     None,
     Bearer,

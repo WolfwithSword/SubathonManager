@@ -39,6 +39,7 @@ public sealed class ActionNodeVm : ActionEditorVm {
     public IBrush CardTint => IsTrigger ? TriggerTint : Brushes.Transparent;
     public IBrush CardBorder => IsTrigger ? TriggerBorder : Brushes.Transparent;
     public bool IgnoresErrors => Node.IgnoreErrors;
+    public bool IsMultiInput => HasInput && Node.Inputs == ActionInputMode.Multiple;
 
     public Point Location {
         get => new(Node.X, Node.Y);
@@ -70,6 +71,8 @@ public sealed class ActionNodeVm : ActionEditorVm {
         Raise(nameof(IsDisabled));
         Raise(nameof(CardOpacity));
         Raise(nameof(IgnoresErrors));
+        Raise(nameof(IsMultiInput));
+        Input.RefreshMode();
         IsStart = !IsTrigger && !graph.Incoming(Node.Id).Any();
 
         List<ActionEdge> outgoing = graph.Edges.Where(e => e.From == Node.Id).ToList();
@@ -95,6 +98,17 @@ public sealed class ActionConnectorVm(ActionNodeVm owner, bool isInput, string? 
     public ActionNodeVm Owner { get; } = owner;
     public bool IsInput { get; } = isInput;
     public string? Port { get; } = port;
+
+    public bool IsMultiInput => IsInput && Owner.IsMultiInput;
+
+    public string Tip => IsMultiInput
+        ? "Multiple: runs each time any connected step finishes"
+        : "Wait: runs when all connected steps have finished";
+
+    public void RefreshMode() {
+        Raise(nameof(IsMultiInput));
+        Raise(nameof(Tip));
+    }
 
     public Point Anchor {
         get => _anchor;

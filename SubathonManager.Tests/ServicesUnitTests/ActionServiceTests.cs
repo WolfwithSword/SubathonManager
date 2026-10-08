@@ -178,6 +178,65 @@ public class ActionServiceTests {
     }
 
     [Fact]
+    public async Task MultipleInputSteps_RunPerInput_StepsAfterThemRunPerRun_AndResumeRunsWhatsMissing() {
+        (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+        //////////////////////////////////////////////////////////////////
+        //      +-> wait 0.3s -> slow --+
+        // start                        +-> each (Multiple) -> after (Wait)
+        //      +-> fast ---------------+
+        //      +-> no (if false) ------+   (skipped)
+        //////////////////////////////////////////////////////////////////
+        ActionGraph Build() {
+            return new ActionGraph {
+                Nodes = [
+                    new ActionNode { Id = "start", Step = Hotkey("start") },
+                    new ActionNode { Id = "wait", Step = Wait(0.3) },
+                    new ActionNode { Id = "slow", Step = Hotkey("slow") },
+                    new ActionNode { Id = "fast", Step = Hotkey("fast") },
+                    new ActionNode {
+                        Id = "if", Step = new ActionStep {
+                            Type = ActionStepType.Condition, Scope = "1", Operation = ActionOperation.IsEqual, Target = "2"
+                        }
+                    },
+                    new ActionNode { Id = "no", Step = Hotkey("no") },
+                    new ActionNode { Id = "each", Step = Hotkey("each"), Inputs = ActionInputMode.Multiple },
+                    new ActionNode { Id = "after", Step = Hotkey("after") }
+                ],
+                Edges = [
+                    new ActionEdge { From = "start", To = "wait" },
+                    new ActionEdge { From = "wait", To = "slow" },
+                    new ActionEdge { From = "start", To = "fast" },
+                    new ActionEdge { From = "start", To = "if" },
+                    new ActionEdge { From = "if", To = "no" },
+                    new ActionEdge { From = "slow", To = "each" },
+                    new ActionEdge { From = "fast", To = "each" },
+                    new ActionEdge { From = "no", To = "each" },
+                    new ActionEdge { From = "each", To = "after" }
+                ]
+            };
+        }
+
+        var ctx = new ActionContext(SubathonEventSource.WheelSpin, "test", "multiple");
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), Build(), ctx));
+        Assert.Equal(["start", "fast", "each", "after", "slow", "each", "after"], runner.Ran.ToArray());
+
+        runner.Ran.Clear();
+        runner.FailOnce.Add("each");
+        var progress = new ActionRunProgress();
+        Assert.Equal(ActionRunResult.Paused, await service.RunAsync(Guid.NewGuid(), Build(), ctx, progress));
+        Assert.Equal(["start", "fast"], runner.Ran.ToArray());
+
+        ActionRunProgress resumed = ActionRunProgress.Parse(progress.ToJson());
+        Assert.Equal(ActionRunResult.Done, await service.RunAsync(Guid.NewGuid(), Build(), ctx, resumed));
+
+        Assert.Equal(["start", "fast", "each", "after", "slow", "each", "after"], runner.Ran.ToArray());
+        Assert.Equal(2, resumed.Runs("each"));
+        Assert.Equal(2, resumed.Runs("after"));
+        Assert.Contains("no", resumed.Skipped);
+    }
+
+    [Fact]
     public async Task FailedStep_PausesTheRun_AndResumeContinuesFromThatStep() {
         (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
         await using SqliteConnection __ = conn;

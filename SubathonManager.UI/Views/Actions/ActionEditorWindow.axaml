@@ -45,6 +45,9 @@
                     </Border>
                 </ControlTemplate>
             </Setter>
+            <Style Selector="^.multi">
+                <Setter Property="Background" Value="#DEADFF" />
+            </Style>
         </ControlTheme>
 
         <ControlTheme x:Key="ConnectorRightTheme" TargetType="connections:Connector"
@@ -72,7 +75,7 @@
         <DataTemplate x:Key="InputConnectorTemplate" x:DataType="local:ActionConnectorVm">
             <connections:Connector Anchor="{Binding Anchor, Mode=OneWayToSource}" IsConnected="True"
                                    VerticalAlignment="Center" Theme="{StaticResource ConnectorLeftTheme}"
-                                   ToolTip.Tip="Runs after everything connected has finished" />
+                                   Classes.multi="{Binding IsMultiInput}" ToolTip.Tip="{Binding Tip}" />
         </DataTemplate>
 
         <DataTemplate x:Key="OutputConnectorTemplate" x:DataType="local:ActionConnectorVm">
@@ -155,6 +158,7 @@
             <connections:StepConnection Source="{Binding Source.Anchor}" Target="{Binding Target.Anchor}"
                                         Theme="{StaticResource StepConnectionTheme}"
                                         Classes.else="{Binding IsElse}"
+                                        Classes.multi="{Binding Target.IsMultiInput}"
                                         connections:BaseConnection.IsSelectable="True" />
         </DataTemplate>
 
@@ -168,6 +172,9 @@
         <Style Selector="connections|StepConnection.else">
             <Setter Property="Stroke" Value="#C77C2E" />
             <Setter Property="Fill" Value="#C77C2E" />
+        </Style>
+        <Style Selector="connections|StepConnection.multi">
+            <Setter Property="ArrowShape" Value="Ellipse" />
         </Style>
     </Window.Styles>
 
@@ -387,6 +394,9 @@
                                 <CheckBox x:Name="IgnoreErrorsCheck" Content="Ignore errors" Margin="0,0,0,4"
                                           IsCheckedChanged="IgnoreErrors_Changed"
                                           ToolTip.Tip="If this step fails, log it and move on" />
+                                <CheckBox x:Name="MultipleInputsCheck" Content="Run for each input"
+                                          Margin="0,0,0,4" IsCheckedChanged="MultipleInputs_Changed"
+                                          ToolTip.Tip="Off waits for all inputs to finish before running once.&#xA;&#xA;On will run for each successful input and can trigger multiple times." />
 
                                 <TextBlock x:Name="StepError" FontSize="11" Foreground="OrangeRed" TextWrapping="Wrap"
                                            Margin="2,2,0,0" />

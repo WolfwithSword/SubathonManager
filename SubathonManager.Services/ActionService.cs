@@ -813,7 +813,9 @@ public partial class ActionService(
         Dictionary<string, ActionNode> pending = graph.Nodes
             .Where(n => !progress.IsResolved(n.Id))
             .ToDictionary(n => n.Id);
-        var running = new Dictionary<Task<bool>, ActionNode>();
+
+        var running = new Dictionary<Task<(bool Ok, string? Port)>, ActionNode>();
+        var inFlight = new Dictionary<string, int>(StringComparer.Ordinal);
         HashSet<string> outputs = graph.OutputVariables();
 
         if (graph.Nodes.Any(n => n.Step.Type == ActionStepType.Trigger)) outputs.Add(ActionRunProgress.TriggerVariable);
@@ -831,37 +833,71 @@ public partial class ActionService(
                 changed = false;
                 foreach (ActionNode node in pending.Values.ToList()) {
                     List<ActionEdge> incoming = graph.IncomingEdges(node.Id).ToList();
-                    if (!incoming.All(e => progress.IsResolved(e.From))) continue;
-                    pending.Remove(node.Id);
+                    if (incoming.Count == 0) {
+                        pending.Remove(node.Id);
+                        if (StartsRun(node)) {
+                            Start(node);
+                            continue;
+                        }
 
-                    if (incoming.Count > 0 ? !incoming.Any(progress.IsLive) : !StartsRun(node)) {
                         progress.MarkSkipped(node.Id);
                         changed = true;
                         continue;
                     }
 
-                    running[StartStep(node)] = node;
+                    int have = progress.Runs(node.Id) + inFlight.GetValueOrDefault(node.Id);
+                    if (node.Inputs == ActionInputMode.Multiple) {
+                        for (int handedOver = incoming.Sum(progress.Firings); have < handedOver; have++)
+                            Start(node);
+                    }
+                    else {
+                        while (incoming.Any(e => progress.Firings(e) > have)
+                               && incoming.All(e => progress.Firings(e) > have || progress.IsResolved(e.From))) {
+                            Start(node);
+                            have++;
+                        }
+                    }
+
+                    if (inFlight.GetValueOrDefault(node.Id) > 0 || !incoming.All(e => progress.IsResolved(e.From)))
+                        continue;
+
+                    pending.Remove(node.Id);
+                    if (progress.Runs(node.Id) > 0) progress.MarkDone(node.Id);
+                    else progress.MarkSkipped(node.Id);
+                    changed = true;
                 }
             } while (changed);
         }
 
-        Task<bool> StartStep(ActionNode node) {
-            if (node.Disabled || node.Step.Type == ActionStepType.Trigger) return Task.Run(() => true, ct);
-            return node.Step.Type == ActionStepType.Condition
-                ? RunConditionAsync(node, ctx, progress, outputs, ct)
-                : RunStepAsync(node.Step, ctx, progress, outputs, ct);
+        void Start(ActionNode node) {
+            inFlight[node.Id] = inFlight.GetValueOrDefault(node.Id) + 1;
+            running[StartStep(node)] = node;
+        }
+
+        async Task<(bool Ok, string? Port)> StartStep(ActionNode node) {
+            if (node.Disabled || node.Step.Type == ActionStepType.Trigger) {
+                await Task.Yield();
+                ct.ThrowIfCancellationRequested();
+                return (true, null);
+            }
+
+            if (node.Step.Type == ActionStepType.Condition)
+                return (true, await RunConditionAsync(node, ctx, progress, outputs, ct));
+            return (await RunStepAsync(node.Step, ctx, progress, outputs, ct), null);
         }
 
         StartReady();
         var failed = false;
         while (running.Count > 0) {
-            Task<bool> next = await Task.WhenAny(running.Keys);
+            Task<(bool Ok, string? Port)> next = await Task.WhenAny(running.Keys);
             ActionNode node = running[next];
             running.Remove(next);
+            inFlight[node.Id]--;
 
             bool ok;
+            string? port = null;
             try {
-                ok = await next;
+                (ok, port) = await next;
             }
             catch (OperationCanceledException) {
                 ok = false;
@@ -878,7 +914,10 @@ public partial class ActionService(
             }
 
             if (ok) {
-                progress.MarkDone(node.Id);
+                progress.RecordRun(node.Id, port);
+                progress.SetPort(node.Id, port);
+                if (!graph.IncomingEdges(node.Id).Any()) progress.MarkDone(node.Id);
+
                 if (onProgress != null) await onProgress(progress);
                 if (!failed && !ct.IsCancellationRequested) StartReady();
                 continue;
@@ -894,18 +933,17 @@ public partial class ActionService(
         return !failed && pending.Count == 0 && !outerCt.IsCancellationRequested;
     }
 
-    private async Task<bool> RunConditionAsync(ActionNode node, ActionContext ctx, ActionRunProgress progress,
+    private async Task<string?> RunConditionAsync(ActionNode node, ActionContext ctx, ActionRunProgress progress,
         IReadOnlySet<string> outputs, CancellationToken ct) {
         ct.ThrowIfCancellationRequested();
         ActionStep step = await FillVariablesAsync(node.Step, ctx, progress, outputs);
 
         bool result = ActionStepTypeHelper.Compare(step.Scope ?? "", step.Operation, step.Target);
-        progress.SetPort(node.Id, result ? null : ActionEdge.ElsePort);
 
         if (logger?.IsEnabled(LogLevel.Debug) ?? false)
             logger.LogDebug("[Actions] {Label}: \"{Step}\" was {Result}", ctx.Label ?? ctx.RepeatKey,
                 node.Step.Describe(), result);
-        return true;
+        return result ? null : ActionEdge.ElsePort;
     }
 
     private async Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,

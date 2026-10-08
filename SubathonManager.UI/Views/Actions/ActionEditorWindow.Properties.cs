@@ -106,6 +106,8 @@ public partial class ActionEditorWindow {
 
             IgnoreErrorsCheck.IsVisible = type is not (ActionStepType.Condition or ActionStepType.Trigger);
             IgnoreErrorsCheck.IsChecked = node.IgnoreErrors;
+            MultipleInputsCheck.IsVisible = type != ActionStepType.Trigger;
+            MultipleInputsCheck.IsChecked = node.Inputs == ActionInputMode.Multiple;
             RefreshFieldVisibility(step);
         }
         finally {
@@ -228,6 +230,13 @@ public partial class ActionEditorWindow {
         RefreshFieldVisibility(node.Step);
         RefreshNodes();
         Validate();
+        MarkDirty();
+    }
+
+    private void MultipleInputs_Changed(object? sender, RoutedEventArgs e) {
+        if (_suppress > 0 || SelectedNode is not { } node) return;
+        node.Inputs = MultipleInputsCheck.IsChecked == true ? ActionInputMode.Multiple : ActionInputMode.Wait;
+        RefreshNodes();
         MarkDirty();
     }
 
