@@ -194,15 +194,15 @@ public enum ActionRepeatMode {
 
 public enum ActionVariable {
     [ActionVariableMeta(Token = "seconds_remaining", Group = "Timer", ValueType = "number",
-        Description = "Whole seconds left on the timer")]
+        Description = "Seconds left on the timer")]
     SecondsRemaining,
 
     [ActionVariableMeta(Token = "time_remaining", Group = "Timer", ValueType = "text",
-        Description = "Time left as hours:minutes:seconds, e.g. 26:04:59")]
+        Description = "Time left as hh:mm:ss, e.g. 26:04:59")]
     TimeRemaining,
 
     [ActionVariableMeta(Token = "seconds_elapsed", Group = "Timer", ValueType = "number",
-        Description = "Whole seconds the timer has run")]
+        Description = "Seconds the timer has run")]
     SecondsElapsed,
 
     [ActionVariableMeta(Token = "timer_paused", Group = "Timer", ValueType = "true/false",
@@ -210,19 +210,19 @@ public enum ActionVariable {
     TimerPaused,
 
     [ActionVariableMeta(Token = "timer_locked", Group = "Timer", ValueType = "true/false",
-        Description = "Whether the subathon is locked to new events")]
+        Description = "Whether the subathon is locked")]
     TimerLocked,
 
     [ActionVariableMeta(Token = "timer_reversed", Group = "Timer", ValueType = "true/false",
-        Description = "Whether the timer counts up instead of down")]
+        Description = "Is the timer is in reverse mode?")]
     TimerReversed,
 
     [ActionVariableMeta(Token = "multiplier_active", Group = "Multiplier", ValueType = "true/false",
-        Description = "Whether a multiplier is running")]
+        Description = "Whether a multiplier is active")]
     MultiplierActive,
 
     [ActionVariableMeta(Token = "multiplier_amount", Group = "Multiplier", ValueType = "number",
-        Description = "Current multiplier, 1 when none is running")]
+        Description = "Current multiplier amount, 1 if inactive")]
     MultiplierAmount,
 
     [ActionVariableMeta(Token = "multiplier_seconds_remaining", Group = "Multiplier", ValueType = "number",
@@ -251,11 +251,11 @@ public enum ActionVariable {
 
     // should always match subathon currency, but included just in case / to open up config reading
     [ActionVariableMeta(Token = "default_currency", Group = "Points & Money", ValueType = "text",
-        Description = "The primary currency from settings")]
+        Description = "The primary currency from settings, should match subathon currency")]
     DefaultCurrency,
 
     [ActionVariableMeta(Token = "goal_text", Group = "Goals", ValueType = "text",
-        Description = "The goal currently being worked towards, empty once all are done")]
+        Description = "The current unfinished goal, empty once all are done")]
     GoalText,
 
     [ActionVariableMeta(Token = "goal_points", Group = "Goals", ValueType = "number",
@@ -263,20 +263,20 @@ public enum ActionVariable {
     GoalPoints,
 
     [ActionVariableMeta(Token = "goal_index", Group = "Goals", ValueType = "number",
-        Description = "Position of the current goal in the list, starting at 1; 0 when all are done")]
+        Description = "Position of the current goal in the list, starting at 1; 0 when all done")]
     GoalIndex,
 
     [ActionVariableMeta(Token = "goal_count", Group = "Goals", ValueType = "number",
-        Description = "How many goals the active list has")]
+        Description = "How many goals in total")]
     GoalCount,
 
     // should match points or money, but whatever is relevant for goals list
     [ActionVariableMeta(Token = "goal_progress", Group = "Goals", ValueType = "number",
-        Description = "Points (or whole money) counted towards goals")]
+        Description = "Points (or whole money) counted towards all goals")]
     GoalProgress,
 
     [ActionVariableMeta(Token = "last_goal_text", Group = "Goals", ValueType = "text",
-        Description = "The most recently completed goal, empty if none yet")]
+        Description = "Most recently completed goal, empty if none yet")]
     LastGoalText,
 
     [ActionVariableMeta(Token = "last_goal_points", Group = "Goals", ValueType = "number",
@@ -288,7 +288,7 @@ public enum ActionVariable {
     GoalListName,
 
     [ActionVariableMeta(Token = "goal_type", Group = "Goals", ValueType = "text",
-        Description = "What the active goal list counts: Points or Money")]
+        Description = "Are goals tracking `Points` or `Money`?")]
     GoalType,
 
     [ActionVariableMeta(Token = "user", Group = "Action", ValueType = "text",

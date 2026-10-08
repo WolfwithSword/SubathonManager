@@ -140,7 +140,7 @@ public partial class ActionsView : UserControl {
         var meta = new List<string> { $"v{action.Version}" };
         if (!string.IsNullOrWhiteSpace(action.Author)) meta.Add($"by {action.Author}");
         string? path = ServiceManager.Actions.GetCustomActionPath(action.Id);
-        if (path != null && File.Exists(path)) meta.Add($"updated {File.GetLastWriteTime(path):yyyy-MM-dd HH:mm}");
+        if (path != null && File.Exists(path)) meta.Add($"Updated {File.GetLastWriteTime(path):yyyy-MM-dd HH:mm}");
         DetailMeta.Text = string.Join("  -  ", meta);
 
         DetailSteps.Text = $"{action.Graph.Nodes.Count}";
@@ -175,7 +175,6 @@ public partial class ActionsView : UserControl {
         if (_detailSuppress || _selectedId is not { } id) return;
         bool enabled = EnabledSwitch.IsChecked == true;
         if (!await ServiceManager.Actions.SetCustomActionEnabledAsync(id, enabled)) return;
-        StatusText.Text = enabled ? "Turned on" : "Turned off";
     }
 
     private async void RunSelected_Click(object? sender, RoutedEventArgs e) {

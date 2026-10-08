@@ -269,7 +269,7 @@
                                          TextWrapping="Wrap" PlaceholderText="Description..." />
 
                                 <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="2,10,0,0"
-                                           Text="Add new steps from the left. If you have an action selected, it will chain it, else it will start a new parallel branch.&#x0a;&#x0a;You can drag an arrow to and from steps to create new connections and branches.&#x0a;&#x0a;If an action has multiple inputs, it waits for all paths to complete before running.&#x0a;&#x0a;Select actions or a connection and press Delete to remove them." />
+                                           Text="Add new steps from the left. If you have an action selected, it will chain it, else it will start a new parallel branch.&#x0a;&#x0a;Drag an arrow to/from steps to create new connections and branches.&#x0a;&#x0a;If an action has multiple inputs, it waits for all paths to complete before running.&#x0a;&#x0a;Select actions or a connection and press Delete to remove them." />
                             </StackPanel>
 
                             <StackPanel x:Name="StepPanel" IsVisible="False">

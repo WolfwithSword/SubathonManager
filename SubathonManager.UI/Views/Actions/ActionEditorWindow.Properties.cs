@@ -545,7 +545,7 @@ public partial class ActionEditorWindow {
         if (_globalSection != null)
             SetVariableRows(_globalSection, _stored.Where(g => g.Kind == ActionStoreKind.Global).Select(g => (
                 ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name), g.ValueType.GetLabel(),
-                g.Value == null ? "No value yet" : $"Now: {Shorten(g.Value)}", "global")));
+                g.Value == null ? "No value yet" : $"Current: {Shorten(g.Value)}", "global")));
         if (_secretSection != null)
             SetVariableRows(_secretSection, _stored.Where(g => g.Kind == ActionStoreKind.Secret).Select(g => (
                 ActionStepTypeHelper.StorePlaceholder(g.Kind, g.Name), "secret",

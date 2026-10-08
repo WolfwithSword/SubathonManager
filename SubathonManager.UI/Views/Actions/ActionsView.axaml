@@ -175,7 +175,7 @@
                     </StackPanel>
 
                     <TextBlock Grid.Row="1" x:Name="NoSelectionText" Margin="2,24,2,0" FontSize="12"
-                               Foreground="Gray" Text="Select an action to see its details here." />
+                               Foreground="Gray" Text="Select an action to see its details here" />
 
                     <Border Grid.Row="1" x:Name="DetailsPanel" IsVisible="False" Margin="0,20,0,0" Padding="16"
                             VerticalAlignment="Top" CornerRadius="6" BorderThickness="1"
@@ -191,7 +191,7 @@
                                               ToolTip.Tip="Off - nothing can run this action except the test button" />
                                 <Button Grid.Column="1" Classes="opaquesecondary" Padding="10,4" Margin="8,0,0,0"
                                         Click="RunSelected_Click"
-                                        ToolTip.Tip="Run the saved action now. It runs for real: time, multiplier and reroll steps do change the subathon">
+                                        ToolTip.Tip="Run the action now">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <ctl:SymIcon Glyph="Play16" VerticalAlignment="Center" />
                                         <TextBlock Text="Run Now" VerticalAlignment="Center" />
