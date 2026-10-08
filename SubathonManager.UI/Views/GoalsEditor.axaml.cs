@@ -247,7 +247,7 @@ public partial class GoalsEditor : UserControl {
     private Grid AddGoalRow(SubathonGoal goal, bool isUnsaved) {
         var panel = new Grid {
             Margin = new Thickness(4, 0, 4, 8),
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto")
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto")
         };
 
         var textBox = new TextBox {
@@ -272,6 +272,18 @@ public partial class GoalsEditor : UserControl {
         pointsBox.TextChanged += Value_OnChanged;
         DirtySaveGuard.Rebase(pointsBox);
 
+        var doneBox = new CheckBox {
+            IsChecked = goal.IsCompleted,
+            Width = 32,
+            MinWidth = 0,
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0,0, 0)
+        };
+        ToolTip.SetTip(doneBox, "Mark Done");
+        doneBox.IsCheckedChanged += (_, _) => DoneBox_Changed(goal, doneBox.IsChecked == true);
+
         var deleteBtn = new Button {
             Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
             Width = 32, Height = 32,
@@ -290,13 +302,15 @@ public partial class GoalsEditor : UserControl {
 
         Grid.SetColumn(textBox, 1);
         Grid.SetColumn(pointsBox, 2);
-        Grid.SetColumn(deleteBtn, 3);
+        Grid.SetColumn(doneBox, 3);
+        Grid.SetColumn(deleteBtn, 4);
         Grid.SetColumn(grip, 0);
 
         panel.Children.Add(textBox);
         panel.Children.Add(pointsBox);
         panel.Children.Add(deleteBtn);
         panel.Children.Add(grip);
+        panel.Children.Add(doneBox);
         panel.Tag = goal;
 
         if (isUnsaved) _unsavedGoals.Add(goal);
@@ -310,6 +324,21 @@ public partial class GoalsEditor : UserControl {
 
     private static TextBox? RowPointsBox(Grid row) {
         return row.Children[1] as TextBox;
+    }
+
+    private static CheckBox? RowDoneBox(Grid row) {
+        return row.Children[4] as CheckBox;
+    }
+
+    private async void DoneBox_Changed(SubathonGoal goal, bool done) {
+        if (_suppressCount > 0 || goal.IsCompleted == done) return;
+        goal.IsCompleted = done;
+        if (_unsavedGoals.Contains(goal)) return;
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        await db.SubathonGoals
+            .Where(g => g.Id == goal.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.IsCompleted, done));
     }
 
     private List<Grid> GoalRows() {
@@ -509,6 +538,7 @@ public partial class GoalsEditor : UserControl {
 
             goal.Text = textBox.Text ?? "";
             goal.Points = pts;
+            goal.IsCompleted = RowDoneBox(panel)?.IsChecked == true;
 
             if (_unsavedGoals.Contains(goal)) db.SubathonGoals.Add(goal);
             else db.Update(goal);
