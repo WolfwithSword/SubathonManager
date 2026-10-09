@@ -156,7 +156,7 @@ public enum ActionOperation {
 
     // Set/Adjust Global on a number
     Adjust,
-    
+
     // Start another action, do not wait for result
     Start
 }
@@ -469,7 +469,8 @@ public static partial class ActionStepTypeHelper {
         return type switch {
             ActionValueType.Number => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture,
                 out double number)
-                ? number : 0d,
+                ? number
+                : 0d,
             ActionValueType.Boolean => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase),
             _ => value ?? ""
         };

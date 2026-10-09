@@ -153,13 +153,14 @@ public sealed class ActionStep {
         if (subathonEvent == null) return false;
         if (IgnoreSimulated && subathonEvent.Source == SubathonEventSource.Simulated) return false;
 
-        string eventType = $"{subathonEvent.EventType}";
+        var eventType = $"{subathonEvent.EventType}";
         return EventTypes?.Contains(eventType, StringComparer.OrdinalIgnoreCase) ?? false;
     }
 
     private static string EventTypeLabel(string eventType) {
         return Enum.TryParse(eventType, out SubathonEventType type)
-            ? $"{((SubathonEventType?)type).GetSource()} {((SubathonEventType?)type).GetLabel()}" : eventType;
+            ? $"{((SubathonEventType?)type).GetSource()} {((SubathonEventType?)type).GetLabel()}"
+            : eventType;
     }
 
     private static bool IsJsonObject(string text) {
@@ -298,18 +299,18 @@ public sealed class ActionGraph {
 
     public ActionRepeatMode OnRepeat { get; set; } = ActionRepeatMode.Restart;
 
-    [JsonIgnore]
-    public bool HasTriggers => Nodes.Any(n => n.Step.Type == ActionStepType.Trigger);
-
-    public static bool AllowedWithTriggers(ActionRepeatMode mode) {
-        return mode is ActionRepeatMode.Parallel or ActionRepeatMode.Queue;
-    }
+    [JsonIgnore] public bool HasTriggers => Nodes.Any(n => n.Step.Type == ActionStepType.Trigger);
 
     [JsonIgnore]
     public ActionRepeatMode EffectiveRepeat =>
         HasTriggers && !AllowedWithTriggers(OnRepeat) ? ActionRepeatMode.Parallel : OnRepeat;
+
     public List<ActionNode> Nodes { get; set; } = [];
     public List<ActionEdge> Edges { get; set; } = [];
+
+    public static bool AllowedWithTriggers(ActionRepeatMode mode) {
+        return mode is ActionRepeatMode.Parallel or ActionRepeatMode.Queue;
+    }
 
     public static ActionGraph Sequence(params ActionStep[] steps) {
         var graph = new ActionGraph();
@@ -407,6 +408,7 @@ public sealed class ActionGraph {
                                                         !string.IsNullOrEmpty(node.Step.OutputVariable) &&
                                                         !outputs.Add(node.Step.OutputVariable))) {
             error = $"More than one step saves its response as %{node.Step.OutputVariable}%";
+            // should we let people have a toggle to allow overriding vars that are local to an action?
             return false;
         }
 
@@ -474,6 +476,7 @@ public sealed class CustomAction {
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool Disabled { get; set; }
+
     public ActionGraph Graph { get; set; } = new();
 
     public string ToJson() {
@@ -497,9 +500,15 @@ public sealed class CustomAction {
     }
 }
 
-public sealed record ActionContext(SubathonEventSource Source, string User, string RepeatKey, string? Label = null,
-    SubathonTrigger? Trigger = null, IReadOnlySet<string>? TriggerNodes = null,
-    IReadOnlyDictionary<string, string>? TriggerValues = null, int Depth = 0);
+public sealed record ActionContext(
+    SubathonEventSource Source,
+    string User,
+    string RepeatKey,
+    string? Label = null,
+    SubathonTrigger? Trigger = null,
+    IReadOnlySet<string>? TriggerNodes = null,
+    IReadOnlyDictionary<string, string>? TriggerValues = null,
+    int Depth = 0);
 
 public sealed class ActionRunProgress {
     public const int MaxVariableLength = 64 * 1024 * 2;
@@ -508,11 +517,6 @@ public sealed class ActionRunProgress {
 
     // a step saving to %resp% also sets %resp_status%
     public const string StatusSuffix = "_status";
-
-    public void SetOutput(string name, string value, string status) {
-        SetVariable(name, value);
-        SetVariable($"{name}{StatusSuffix}", status);
-    }
     private readonly Lock _lock = new();
 
     public HashSet<string> Done { get; set; } = [];
@@ -523,6 +527,11 @@ public sealed class ActionRunProgress {
     public Dictionary<string, string> Variables { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public Dictionary<string, double> Values { get; set; } = [];
+
+    public void SetOutput(string name, string value, string status) {
+        SetVariable(name, value);
+        SetVariable($"{name}{StatusSuffix}", status);
+    }
 
     public bool IsDone(string nodeId) {
         lock (_lock) {
