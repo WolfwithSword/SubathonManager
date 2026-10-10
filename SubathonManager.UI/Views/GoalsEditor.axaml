@@ -20,11 +20,12 @@
                         <ctl:SymIcon Glyph="Add16" />
                     </Button>
                 </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="4,12,4,2">
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto,Auto,Auto" Margin="4,12,4,2">
                     <Border Grid.Column="0" Width="22" />
                     <TextBlock Grid.Column="1" Text="Goal" Margin="0,0,8,0" />
                     <TextBlock Grid.Column="2" Text="Points" Width="80" Margin="0,0,8,0" />
-                    <Border Grid.Column="3" Width="36" />
+                    <TextBlock Grid.Column="3" Text="Done" Width="40" />
+                    <Border Grid.Column="4" Width="36" />
                 </Grid>
                 <ScrollViewer Grid.Row="2" x:Name="GoalsEditorScroller" MinHeight="200"
                               VerticalScrollBarVisibility="Visible"

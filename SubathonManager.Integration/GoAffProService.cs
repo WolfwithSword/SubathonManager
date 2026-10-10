@@ -22,7 +22,7 @@ public class GoAffProService(
     ILogger<GoAffProService>? logger,
     IConfig config,
     ISecureStorage secureStorage,
-    ITimerService? timerService = null) : IDisposable, IAppService {
+    ITimerService? timerService = null) : IDisposable, IAppService, IMissedEventSource {
     private readonly string _configSection = "GoAffPro";
 
     private GoAffProClient? _client;
@@ -209,7 +209,7 @@ public class GoAffProService(
     }
 
     private async Task<List<UserOrderFeedItem>> FetchOrdersAsync(GoAffProClient client, DateTimeOffset? createdAtMin,
-        string? sinceId, CancellationToken ct) {
+        string? sinceId, CancellationToken ct, DateTimeOffset? createdAtMax = null) {
         List<UserOrderFeedItem> all = new();
         var offset = 0;
 
@@ -220,6 +220,7 @@ public class GoAffProService(
                 reqConfig.QueryParameters.Limit = PageSize;
                 reqConfig.QueryParameters.Offset = pageOffset;
                 if (createdAtMin.HasValue) reqConfig.QueryParameters.CreatedAtMin = createdAtMin.Value;
+                if (createdAtMax.HasValue) reqConfig.QueryParameters.CreatedAtMax = createdAtMax.Value;
                 if (!string.IsNullOrWhiteSpace(sinceId)) reqConfig.QueryParameters.SinceId = sinceId;
             }, ct);
 
@@ -320,14 +321,28 @@ public class GoAffProService(
         HandleOrder(order);
     }
 
+    [ExcludeFromCodeCoverage]
+    public async Task<List<SubathonEvent>> FetchMissedEventsAsync(DateTime from, DateTime to,
+        CancellationToken ct = default) {
+        GoAffProClient client = _client ?? throw new InvalidOperationException("GoAffPro is not connected");
+        List<UserOrderFeedItem> orders = await FetchOrdersAsync(client, from.ToUniversalTime(), null, ct,
+            to.ToUniversalTime());
+        return orders.Select(MapOrder).OfType<SubathonEvent>().ToList();
+    }
+
     private void HandleOrder(UserOrderFeedItem order) {
+        SubathonEvent? ev = MapOrder(order);
+        if (ev != null) SubathonEvents.RaiseSubathonEventCreated(ev);
+    }
+
+    private SubathonEvent? MapOrder(UserOrderFeedItem order) {
         try {
             // If an order comes in as new and then approved, only one is added due to unique id's 
 
             if (order.Id == null || order.SiteId == null || order.LineItems == null ||
                 string.IsNullOrWhiteSpace(order.Status) ||
                 (!string.Equals(order.Status, "approved", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(order.Status, "new", StringComparison.OrdinalIgnoreCase))) return;
+                 !string.Equals(order.Status, "new", StringComparison.OrdinalIgnoreCase))) return null;
             // new and approved can both come in, but same id will mean it doesn't add twice
 
             var ev = new SubathonEvent {
@@ -346,12 +361,12 @@ public class GoAffProService(
             }
 
             int? site = order.SiteId!.Integer;
-            if (site == null || !GoAffProStoreRegistry.TryGetBySiteId((int)site, out GoAffProStore? store)) return;
-            if (!store.Enabled) return;
+            if (site == null || !GoAffProStoreRegistry.TryGetBySiteId((int)site, out GoAffProStore? store)) return null;
+            if (!store.Enabled) return null;
 
             // we will listen for these sites regardless in orders, but will ignore if not enabled.
             bool enabled = config.GetBool(_configSection, $"{store.InternalName}.Enabled", true);
-            if (!enabled) return;
+            if (!enabled) return null;
 
             OrderTypeModes sourceMode = config.GetOrderTypeMode(_configSection,
                 store.InternalName, OrderTypeModes.Dollar);
@@ -368,18 +383,11 @@ public class GoAffProService(
             }
 
             ev.Amount = itemCount;
-            switch (sourceMode) {
-                case OrderTypeModes.Dollar:
-                    ev.Value = $"{order.Subtotal}";
-                    break;
-                case OrderTypeModes.Order:
-                    ev.Value = "New";
-                    break;
-                default: {
-                    ev.Value = $"{itemCount}";
-                    break;
-                }
-            }
+            ev.Value = sourceMode switch {
+                OrderTypeModes.Dollar => $"{order.Subtotal}",
+                OrderTypeModes.Order => "New",
+                _ => $"{itemCount}"
+            };
 
             ev.SecondaryValue = $"{order.Commission}|{order.Currency}";
             ev.EventType = SubathonEventType.GoAffProOrder;
@@ -389,11 +397,12 @@ public class GoAffProService(
             if (ev.Source == SubathonEventSource.Simulated)
                 ev.User = $"SYSTEM {store.InternalName}";
 
-            SubathonEvents.RaiseSubathonEventCreated(ev);
+            return ev;
         }
         catch (Exception e) {
             logger?.LogWarning(e, "[GoAffPro] Failed to consume order. Data: {Serialize}",
                 JsonSerializer.Serialize(order.AdditionalData));
+            return null;
         }
     }
 

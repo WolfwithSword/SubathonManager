@@ -2,8 +2,14 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
+using FluentAvalonia.UI.Controls;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
+using SubathonManager.Core.Objects;
 using SubathonManager.Data.Widgets;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
@@ -26,6 +32,7 @@ public partial class MainWindow : Window {
         InitConnectionStatus();
         InitHome();
         InitOverlays();
+        ServiceManager.Actions.GlobalTypeConflictsFound += OnGlobalTypeConflicts;
 
         RecentEventsList.HiddenTypesChanged += UpdateRecentEventsFilterTip;
         UpdateRecentEventsFilterTip();
@@ -39,6 +46,7 @@ public partial class MainWindow : Window {
             await MaybeShowTelemetryPromptAsync();
             await ImportPendingOverlayAsync();
             await CollectPendingWidgetPackAsync();
+            await ImportPendingActionAsync();
         };
     }
 
@@ -72,7 +80,66 @@ public partial class MainWindow : Window {
             case ActivationKind.SmwFile:
                 _ = CollectPendingWidgetPackAsync();
                 break;
+            case ActivationKind.SmaFile:
+                _ = ImportPendingActionAsync();
+                break;
         }
+    }
+
+    private async Task ImportPendingActionAsync() {
+        string? path = Utils.PendingActionImportPath;
+        Utils.PendingActionImportPath = null;
+        if (string.IsNullOrWhiteSpace(path)) return;
+
+        try {
+            if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase)) {
+                using var client = new HttpClient();
+                string json = await client.GetStringAsync(path);
+                path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}{CustomAction.FileExtension}");
+                await File.WriteAllTextAsync(path, json);
+            }
+
+            CustomAction? added = await ServiceManager.Actions.AddCustomActionCopyAsync(path);
+            MainWindowTabs.SelectedItem = ActionsTabItem;
+            ActionsPage.ShowAdded(added, path);
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to add custom action {Path}", path);
+        }
+    }
+
+    private void OnGlobalTypeConflicts(string source, IReadOnlyList<GlobalTypeConflict> conflicts) {
+        Dispatcher.UIThread.Post(async void () => {
+            try {
+                string lines = string.Join(Environment.NewLine, conflicts.Select(c =>
+                    $"- {c.Name}: is {c.Existing.GetLabel()}, expects {c.Wanted.GetLabel()}"));
+
+                var dialog = new FAContentDialog {
+                    Title = "Global type mismatch",
+                    PrimaryButtonText = "Change types",
+                    CloseButtonText = "Keep current types",
+                    DefaultButton = FAContentDialogButton.Close,
+                    Content = new TextBlock {
+                        Text = $"{source} expects these globals to be a different type:{Environment.NewLine}" +
+                               $"{Environment.NewLine}{lines}{Environment.NewLine}{Environment.NewLine}" +
+                               "Changing a type converts the value where it can, otherwise it resets it. " +
+                               "Please verify or rename globals according to your needs.",
+                        TextWrapping = TextWrapping.Wrap,
+                        Width = 380,
+                        Margin = new Thickness(4)
+                    }
+                };
+
+                Window owner = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+                    ?.Windows.FirstOrDefault(w => w.IsActive) ?? this;
+                if (await dialog.ShowAsync(owner) != FAContentDialogResult.Primary) return;
+                foreach (GlobalTypeConflict conflict in conflicts)
+                    await ServiceManager.Actions.SetGlobalTypeAsync(conflict.Name, conflict.Wanted);
+            }
+            catch (Exception ex) {
+                _logger?.LogWarning(ex, "Could not resolve global type mismatches from {Source}", source);
+            }
+        });
     }
 
     private async Task ImportPendingOverlayAsync() {

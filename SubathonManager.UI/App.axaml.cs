@@ -91,6 +91,10 @@ public partial class App : Application {
                     config.GetBool($"{orderSource.GetSource()}",
                         $"{orderSource.ToString()?.Split("Order")[0]}.CommissionAsDonation", true);
 
+            Utils.DonationSettings[nameof(SubathonEventType.PatreonPledge)] =
+                config.GetBool(nameof(SubathonEventSource.Patreon), 
+                    $"{SubathonEventType.PatreonPledge}.CommissionAsDonation");
+
             _currencyVal = config.Get("Currency", "Primary", "USD")!;
 
             SetThemeVariant(config);
@@ -136,7 +140,9 @@ public partial class App : Application {
 
             var window = new MainWindow();
             desktop.MainWindow = window;
-            window.Closing += (_, _) => window.CloseEditor();
+            window.Closing += (_, e) => {
+                if (!window.CloseEditor()) e.Cancel = true;
+            };
 
             desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
 
@@ -200,11 +206,15 @@ public partial class App : Application {
                 case ActivationKind.SmwFile:
                     Utils.PendingWidgetPackImportPath = request.Payload;
                     break;
+                case ActivationKind.SmaFile:
+                    Utils.PendingActionImportPath = request.Payload;
+                    break;
                 case ActivationKind.OAuth:
                     AppServices.Provider.GetRequiredService<OAuthService>().HandleCallback(request.Payload);
                     break;
                 default:
-                    _logger?.LogDebug("Activation received with no recognised payload: {Payload}", request.Payload);
+                    if (_logger?.IsEnabled(LogLevel.Debug) ?? false)
+                        _logger?.LogDebug("Activation received with no recognised payload: {Payload}", request.Payload);
                     break;
             }
 
@@ -432,6 +442,15 @@ public partial class App : Application {
                 Utils.DonationSettings[$"{orderSource.ToString()?.Split("Order")[0]}"] = asDonation;
             }
 
+            bool patreonAsDonation =
+                config.GetBool(nameof(SubathonEventSource.Patreon),
+                    $"{SubathonEventType.PatreonPledge}.CommissionAsDonation");
+            if (!Utils.DonationSettings.TryGetValue(nameof(SubathonEventType.PatreonPledge), out bool hadPatreon) ||
+                hadPatreon != patreonAsDonation) {
+                optionToggled = true;
+                Utils.DonationSettings[nameof(SubathonEventType.PatreonPledge)] = patreonAsDonation;
+            }
+
             if (currencyChanged || optionToggled)
                 Task.Run(async () => {
                     await using AppDbContext db = await _factory!.CreateDbContextAsync();
@@ -485,7 +504,7 @@ public partial class App : Application {
             if (string.IsNullOrWhiteSpace(ev.Currency)) continue;
             string value = ev.Value;
             string? curr = ev.Currency;
-            if (ev.EventType.IsOrder()) {
+            if (ev.EventType.IsOrder() || ev.EventType == SubathonEventType.PatreonPledge) {
                 string[] parts = ev.SecondaryValue.Split('|');
                 if (parts.Length < 2 || !Utils.TryParseAmount(parts[0], out _)) continue;
                 value = parts[0];

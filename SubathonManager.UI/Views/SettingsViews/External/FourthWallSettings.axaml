@@ -49,6 +49,9 @@
                             x:Name="ConnectBtn" />
                     <Button Content="Disconnect" Margin="4 0" Width="116" Height="34" Click="DisconnectFw_Click"
                             IsVisible="False" x:Name="DisconnBtn" />
+                    <Button Content="Import Missed" Margin="4 0" Width="116" Height="34" Click="ImportMissed_Click"
+                            IsVisible="False" x:Name="ImportMissedBtn"
+                            ToolTip.Tip="Look up events that were missed while disconnected" />
                 </StackPanel>
             </StackPanel>
 

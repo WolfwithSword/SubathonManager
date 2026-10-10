@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -1022,68 +1021,29 @@ public partial class WheelTriggerEditor : UserControl {
             .OrderByDescending(h => h.TriggeredAt)
             .ToListAsync();
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
-        Directory.CreateDirectory(exportDir);
-        string filepath = Path.Combine(exportDir, $"wheel-trigger-history-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
-
-        var sb = new StringBuilder();
-        sb.AppendLine(
-            "Id,TriggerId,TriggerEventType,TriggeredAt,TriggerUser,TriggerSource,SpinsAdded,SubathonEventId,SubathonEventType");
-        foreach (WheelSpinTriggerHistory h in rows) {
-            string eventLabel = h.Trigger != null
-                ? BuildTriggerEventLabel(h.Trigger)
-                : h.SubathonEventType?.GetLabel() ?? "";
-            string user = h.TriggerUser?.Replace("\"", "\"\"") ?? "";
-            sb.AppendLine(
-                $"{h.Id}," +
-                $"{h.TriggerId}," +
-                $"{eventLabel}," +
-                $"{h.TriggeredAt:yyyy-MM-dd HH:mm:ss}," +
-                $"\"{user}\"," +
-                $"{h.TriggerSource}," +
-                $"{h.SpinsAdded}," +
-                $"{h.SubathonEventId?.ToString() ?? ""}," +
-                $"{h.SubathonEventType?.ToString() ?? ""}");
-        }
-
-        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-
-        try {
-            UiHelpers.OpenFolder(exportDir);
-        }
-        catch {
-            /**/
-        }
+        string path = await CsvUtils.ExportAsync("wheel-trigger-history",
+            [[
+                "Id", "TriggerId", "TriggerEventType", "TriggeredAt", "TriggerUser", "TriggerSource", "SpinsAdded",
+                "SubathonEventId", "SubathonEventType"
+            ]],
+            rows,
+            h => [
+                h.Id, h.TriggerId,
+                h.Trigger != null ? BuildTriggerEventLabel(h.Trigger) : h.SubathonEventType?.GetLabel(),
+                h.TriggeredAt, h.TriggerUser, h.TriggerSource, h.SpinsAdded, h.SubathonEventId, h.SubathonEventType
+            ]);
+        UiHelpers.OpenFolder(Path.GetDirectoryName(path));
     }
 
     private async void ExportTriggers_Click(object? sender, RoutedEventArgs e) {
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         List<WheelSpinTrigger> triggers = await db.WheelSpinTriggers.AsNoTracking().ToListAsync();
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
-        Directory.CreateDirectory(exportDir);
-        string filepath = Path.Combine(exportDir, $"wheel-triggers-{DateTime.Now:yyyyMMdd-HHmmss}.csv");
-
-        var sb = new StringBuilder();
-        sb.AppendLine("Enabled,SpinsToAdd,EventType,TierValue,CountThreshold,MoneyThreshold,Currency");
-        foreach (WheelSpinTrigger t in triggers)
-            sb.AppendLine(string.Join(",",
-                t.IsEnabled,
-                t.SpinsToAdd,
-                t.EventType,
-                Utils.EscapeCsv(t.TierValue ?? ""),
-                t.CountThreshold?.ToString() ?? "",
-                t.MoneyThreshold?.ToString("G") ?? "",
-                Utils.EscapeCsv(t.Currency ?? "")));
-
-        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-
-        try {
-            UiHelpers.OpenFolder(exportDir);
-        }
-        catch {
-            /**/
-        }
+        string path = await CsvUtils.ExportAsync("wheel-triggers",
+            [["Enabled", "SpinsToAdd", "EventType", "TierValue", "CountThreshold", "MoneyThreshold", "Currency"]],
+            triggers,
+            t => [t.IsEnabled, t.SpinsToAdd, t.EventType, t.TierValue, t.CountThreshold, t.MoneyThreshold, t.Currency]);
+        UiHelpers.OpenFolder(Path.GetDirectoryName(path));
     }
 
     private async void ImportTriggers_Click(object? sender, RoutedEventArgs e) {
@@ -1093,36 +1053,19 @@ public partial class WheelTriggerEditor : UserControl {
         IReadOnlyList<IStorageFile> picked = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions {
             Title = "Import Triggers",
             AllowMultiple = false,
-            FileTypeFilter = new[] { new FilePickerFileType("CSV Files") { Patterns = new[] { "*.csv" } } }
+            FileTypeFilter = [new FilePickerFileType("CSV Files") { Patterns = ["*.csv"] }]
         });
         if (picked.Count == 0) return;
         string filePath = picked[0].Path.LocalPath;
 
-        string[] lines;
-        try {
-            lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8);
-        }
-        catch {
-            await ShowInvalidTriggerCsvPopup();
-            return;
-        }
-
-        if (lines.Length < 1) {
-            await ShowInvalidTriggerCsvPopup();
-            return;
-        }
-
-        string[] headerCols = ParseTriggerCsvLine(lines[0]);
-        if (headerCols.Length < 3) {
+        List<string[]>? lines = await CsvUtils.ReadFileAsync(filePath);
+        if (lines == null || lines.Count < 1 || lines[0].Length < 3) {
             await ShowInvalidTriggerCsvPopup();
             return;
         }
 
         var parsed = new List<WheelSpinTrigger>();
-        for (var i = 1; i < lines.Length; i++) {
-            if (string.IsNullOrWhiteSpace(lines[i])) continue;
-            string[] cols = ParseTriggerCsvLine(lines[i]);
-
+        foreach (string[] cols in lines.Skip(1)) {
             if (cols.Length < 3
                 || !bool.TryParse(cols[0].Trim(), out bool enabled)
                 || !int.TryParse(cols[1].Trim(), out int spins)) {
@@ -1195,45 +1138,6 @@ public partial class WheelTriggerEditor : UserControl {
         await Dispatcher.UIThread.InvokeAsync(LoadTriggerRows);
         await Dispatcher.UIThread.InvokeAsync(async () => await LoadHistoryAsync(true));
         WheelEvents.RaiseWheelSpinTriggersChanged();
-    }
-
-    private static string[] ParseTriggerCsvLine(string line) {
-        var result = new List<string>();
-        var field = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++) {
-            char c = line[i];
-            if (inQuotes)
-                switch (c) {
-                    case '"' when i + 1 < line.Length && line[i + 1] == '"':
-                        field.Append('"');
-                        i++;
-                        break;
-                    case '"':
-                        inQuotes = false;
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-            else
-                switch (c) {
-                    case '"':
-                        inQuotes = true;
-                        break;
-                    case ',':
-                        result.Add(field.ToString());
-                        field.Clear();
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-        }
-
-        result.Add(field.ToString());
-        return result.ToArray();
     }
 
     private static async Task ShowInvalidTriggerCsvPopup() {

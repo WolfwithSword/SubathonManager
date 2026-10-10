@@ -125,11 +125,12 @@ public class DbContextTests {
 
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        await AppDbContext.ActiveEventsToCsv(db);
+        string? path = await AppDbContext.ActiveEventsToCsv(db);
 
-        string[] files = Directory.GetFiles(Path.Combine(Config.DataFolder, "exports"));
-        Assert.Single(files);
-        File.Delete(files[0]);
+        Assert.NotNull(path);
+        Assert.True(File.Exists(path));
+        Assert.Contains("KoFiDonation", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+        File.Delete(path);
     }
 
     [Fact]

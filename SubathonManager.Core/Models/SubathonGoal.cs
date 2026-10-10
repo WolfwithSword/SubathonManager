@@ -10,6 +10,7 @@ public class SubathonGoal {
 
     public string Text { get; set; } = "New Goal";
     public long Points { get; set; } = 1;
+    public bool IsCompleted { get; set; }
 
     [ForeignKey("SubathonGoalSet")] public Guid? GoalSetId { get; set; }
 

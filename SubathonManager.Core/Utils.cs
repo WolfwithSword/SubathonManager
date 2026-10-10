@@ -21,6 +21,7 @@ public static class Utils {
 
     public static string? PendingOverlayImportPath { get; set; }
     public static string? PendingWidgetPackImportPath { get; set; }
+    public static string? PendingActionImportPath { get; set; }
 
     public static IEnumerable<IntegrationConnection> GetAllConnections() {
         return ConnectionDetails.Values;
@@ -119,6 +120,13 @@ public static class Utils {
         return new TimeSpan(days, hours, minutes, seconds);
     }
 
+    public static string FormatShortDuration(TimeSpan duration) {
+        if (duration.TotalHours >= 1) return $"{(int)duration.TotalHours}h{duration.Minutes:00}m";
+        if (duration.TotalMinutes >= 1) return $"{(int)duration.TotalMinutes}m{duration.Seconds:00}s";
+        if (duration.TotalSeconds >= 1) return $"{(int)duration.TotalSeconds}s";
+        return $"{(int)duration.TotalMilliseconds}ms";
+    }
+
     public static Guid TryParseGuid(string? value) {
         if (value != null && Guid.TryParse(value, out Guid g)) return g;
         return CreateGuidFromUniqueString(value ?? Guid.NewGuid().ToString());
@@ -196,16 +204,6 @@ public static class Utils {
         return currency;
     }
 
-    public static string EscapeCsv(string? value) {
-        if (string.IsNullOrWhiteSpace(value)) return "";
-        if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r')) {
-            value = value.Replace("\"", "\"\"");
-            return $"\"{value}\"";
-        }
-
-        return value;
-    }
-
     public static string DescribeTokenPointRate(string? pointsPer100, string unitPlural, string? unitSingular = null) {
         if (!decimal.TryParse(pointsPer100, NumberStyles.Float, CultureInfo.InvariantCulture, out decimal points))
             return "";
@@ -274,7 +272,26 @@ public static class Utils {
         }
     }
 
+    public static string? GetJsonString(JsonElement element, string property) {
+        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(property, out JsonElement value) &&
+               value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
+
+    // dates without an offset are taken as utc
+    public static DateTimeOffset? ParseDateFromString(string? value) {
+        return DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal,
+            out DateTimeOffset parsed)
+            ? parsed
+            : null;
+    }
+    
+    public const string PerUnitMeta = "PER_UNIT";
+
     public static bool IsCommissionAsDonation(IConfig config, SubathonEvent ev) {
+        if (ev.EventType == SubathonEventType.PatreonPledge)
+            return config.GetBool(nameof(SubathonEventSource.Patreon),$"{ev.EventType}.CommissionAsDonation");
         if (!ev.EventType.IsOrder()) return false;
 
         if (ev.EventType == SubathonEventType.GoAffProOrder) {

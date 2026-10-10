@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using SubathonManager.Core;
 
 namespace SubathonManager.Data.Overlays;
 
@@ -98,10 +99,8 @@ public static class OverlayPackInstaller {
     }
 
     private static string Str(JsonElement el, string name) {
-        return el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out JsonElement v) &&
-               v.ValueKind == JsonValueKind.String
-            ? v.GetString() ?? string.Empty
-            : string.Empty;
+        // just for a default
+        return Utils.GetJsonString(el, name) ?? string.Empty;
     }
 
     private static List<string> StrList(JsonElement el, string name) {

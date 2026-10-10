@@ -11,10 +11,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Data.Widgets;
 using SubathonManager.UI.Controls;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views;
@@ -445,6 +447,8 @@ public partial class ExportWidgetDialog : Window {
         try {
             foreach (FileEntry entry in _allEntries)
                 entry.Entry.DefaultSelected = entry.IsIncluded;
+            foreach ((string name, ActionValueType type) in await ServiceManager.Actions.GetGlobalTypesAsync())
+                _plan.GlobalTypes[name] = type;
 
             await WidgetPorter.ExportWidgetAsync(_plan, BuildOptions(), outputPath);
 

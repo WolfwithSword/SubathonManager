@@ -51,6 +51,7 @@ public partial class TiltifySettings : SettingsControl {
             if (ConnectBtn.Content?.ToString() != connectLabel) ConnectBtn.Content = connectLabel;
 
             DisconnBtn.IsVisible = connection.Status;
+            ImportMissedBtn.IsVisible = connection.Status;
             RefreshCampaignsBtn.IsEnabled = connection.Status;
 
             if (connection.Status && !_wasConnected) _ = LoadCampaignsAsync();
@@ -164,6 +165,10 @@ public partial class TiltifySettings : SettingsControl {
         CampaignsPanel.Children.Clear();
         CampaignsHint.Text = "Connect to load your campaigns";
         SetTestCampaigns([]);
+    }
+
+    private void ImportMissed_Click(object? sender, RoutedEventArgs e) {
+        ImportMissedWindow.Open(this, SubathonEventSource.Tiltify, ServiceManager.Tiltify);
     }
 
     private async void RefreshCampaigns_Click(object? sender, RoutedEventArgs e) {

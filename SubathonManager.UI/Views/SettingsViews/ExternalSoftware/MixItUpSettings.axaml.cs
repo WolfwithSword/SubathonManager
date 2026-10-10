@@ -19,7 +19,7 @@ using SubathonManager.UI.UiUtils;
 namespace SubathonManager.UI.Views.SettingsViews.ExternalSoftware;
 
 public partial class MixItUpSettings : SettingsControl {
-    private readonly Dictionary<MixItUpTrigger, TriggerRow> _rows = new();
+    private readonly Dictionary<SubathonTrigger, TriggerRow> _rows = new();
     private readonly CheckBox _includeCommandsCheck = new() {
         Content = "Send Command events?", Margin = new Thickness(12, 0, 0, 0),
         VerticalAlignment = VerticalAlignment.Center
@@ -45,7 +45,7 @@ public partial class MixItUpSettings : SettingsControl {
             _includeCommandsCheck.IsChecked =
                 config.GetBool(MixItUpService.ConfigSection, MixItUpService.IncludeCommandsKey);
             ApiUrlBox.Text = config.Get(MixItUpService.ConfigSection, "ApiUrl", MixItUpService.DefaultApiUrl);
-            foreach ((MixItUpTrigger trigger, TriggerRow row) in _rows)
+            foreach ((SubathonTrigger trigger, TriggerRow row) in _rows)
                 row.IdBox.Text = config.Get(MixItUpService.ConfigSection,
                     MixItUpService.CommandConfigKey(trigger), "");
         });
@@ -53,9 +53,9 @@ public partial class MixItUpSettings : SettingsControl {
     }
 
     private void BuildTriggerRows() {
-        IEnumerable<MixItUpTrigger> triggers =
-            Enum.GetValues<MixItUpTrigger>().OrderBy(t => t.GetOrderNumber());
-        foreach (MixItUpTrigger trigger in triggers) {
+        IEnumerable<SubathonTrigger> triggers =
+            Enum.GetValues<SubathonTrigger>().OrderBy(t => t.GetOrderNumber());
+        foreach (SubathonTrigger trigger in triggers) {
             
             var panel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
             var label = new TextBlock {
@@ -98,7 +98,7 @@ public partial class MixItUpSettings : SettingsControl {
             panel.Children.Add(idBox);
             panel.Children.Add(picker);
             panel.Children.Add(testBtn);
-            if (trigger == MixItUpTrigger.SubathonEvent) {
+            if (trigger == SubathonTrigger.SubathonEvent) {
                 ToolTip.SetTip(_includeCommandsCheck,
                     "Commands (add time, pause, etc.) also fire this. Don't enable it if this Mix It Up command calls Subathon Manager back, or it may loop");
                 panel.Children.Add(_includeCommandsCheck);
@@ -134,7 +134,7 @@ public partial class MixItUpSettings : SettingsControl {
         }
     }
 
-    private static async Task TestTrigger(MixItUpTrigger trigger, TriggerRow row) {
+    private static async Task TestTrigger(SubathonTrigger trigger, TriggerRow row) {
         row.TestBtn.IsEnabled = false;
         bool ok = await ServiceManager.MixItUp.TestTriggerAsync(trigger, row.IdBox.Text ?? "");
         await Dispatcher.UIThread.InvokeAsync(() => row.TestBtn.Content = ok ? "Sent" : "Failed");
@@ -216,7 +216,7 @@ public partial class MixItUpSettings : SettingsControl {
         hasUpdated |= config.SetBool(MixItUpService.ConfigSection, MixItUpService.IncludeCommandsKey,
             _includeCommandsCheck.IsChecked);
         hasUpdated |= config.Set(MixItUpService.ConfigSection, "ApiUrl", (ApiUrlBox.Text ?? "").Trim());
-        foreach ((MixItUpTrigger trigger, TriggerRow row) in _rows)
+        foreach ((SubathonTrigger trigger, TriggerRow row) in _rows)
             hasUpdated |= config.Set(MixItUpService.ConfigSection, MixItUpService.CommandConfigKey(trigger),
                 (row.IdBox.Text ?? "").Trim());
         return hasUpdated;

@@ -7,7 +7,7 @@ namespace SubathonManager.Core.Events;
 [ExcludeFromCodeCoverage]
 public static class IntegrationEvents {
     public static event Action<IntegrationConnection>? ConnectionUpdated; // status, src, acc name, service
-    public static event Action<Dictionary<string, string>>? FourthWallMembershipsSynced;
+    public static event Action<SubathonEventSource, IReadOnlyCollection<string>>? MembershipTiersSynced;
     public static event Action? DevTunnelLegacyNotification;
     public static event Action<SubathonEventSource>? ExternalSourceSeen;
 
@@ -20,8 +20,8 @@ public static class IntegrationEvents {
         ExternalSourceSeen?.Invoke(source);
     }
 
-    public static void RaiseFourthWallMembershipsSynced(Dictionary<string, string> synced) {
-        FourthWallMembershipsSynced?.Invoke(synced);
+    public static void RaiseMembershipTiersSynced(SubathonEventSource source, IReadOnlyCollection<string> tierNames) {
+        MembershipTiersSynced?.Invoke(source, tierNames);
     }
 
     public static void RaiseDevTunnelLegacyNotification() {

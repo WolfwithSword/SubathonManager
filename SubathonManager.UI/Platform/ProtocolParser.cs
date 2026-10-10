@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Web;
 using SubathonManager.Core;
+using SubathonManager.Core.Objects;
 
 namespace SubathonManager.UI.Platform;
 
@@ -22,6 +23,11 @@ public static class ProtocolParser {
              arg.EndsWith(".smwc", StringComparison.OrdinalIgnoreCase)) && File.Exists(arg)) {
             Utils.PendingWidgetPackImportPath = arg;
             return new ActivationRequest(ActivationKind.SmwFile, arg);
+        }
+
+        if (arg.EndsWith(CustomAction.FileExtension, StringComparison.OrdinalIgnoreCase) && File.Exists(arg)) {
+            Utils.PendingActionImportPath = arg;
+            return new ActivationRequest(ActivationKind.SmaFile, arg);
         }
 
         if (!arg.StartsWith("subathonmanager://"))
@@ -48,6 +54,9 @@ public static class ProtocolParser {
             case ActivationKind.SmwFile:
                 Utils.PendingWidgetPackImportPath = url;
                 return new ActivationRequest(ActivationKind.SmwFile, url);
+            case ActivationKind.SmaFile:
+                Utils.PendingActionImportPath = url;
+                return new ActivationRequest(ActivationKind.SmaFile, url);
             default:
                 return new ActivationRequest(ActivationKind.Unknown, arg);
         }
@@ -63,6 +72,8 @@ public static class ProtocolParser {
         if (path.EndsWith(".smw", StringComparison.OrdinalIgnoreCase) ||
             path.EndsWith(".smwc", StringComparison.OrdinalIgnoreCase))
             return ActivationKind.SmwFile;
+        if (path.EndsWith(CustomAction.FileExtension, StringComparison.OrdinalIgnoreCase))
+            return ActivationKind.SmaFile;
         return ActivationKind.Unknown;
     }
 
@@ -70,6 +81,7 @@ public static class ProtocolParser {
         return host.ToLowerInvariant() switch {
             "overlay" or "smo" => ActivationKind.SmoFile,
             "widget" or "widgets" or "smw" or "smwc" or "collection" => ActivationKind.SmwFile,
+            "action" or "actions" or "sma" => ActivationKind.SmaFile,
             _ => ActivationKind.Unknown
         };
     }

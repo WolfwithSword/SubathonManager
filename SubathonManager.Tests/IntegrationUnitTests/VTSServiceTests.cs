@@ -18,8 +18,7 @@ public class VTSServiceTests {
         bool enabled = false,
         string? host = null,
         string? port = null,
-        string? token = null,
-        ITimerService? timerService = null) {
+        string? token = null) {
         var logger = new Mock<ILogger<VTSService>>();
         var storage = new InMemorySecureStorage(token != null
             ? new Dictionary<string, string> { [StorageKeys.VTubeStudioAuthToken] = token }
@@ -30,7 +29,7 @@ public class VTSServiceTests {
         if (host != null) config.Set(VTSService.ConfigSection, "Host", host);
         if (port != null) config.Set(VTSService.ConfigSection, "Port", port);
 
-        return new VTSService(logger.Object, config, storage, timerService);
+        return new VTSService(logger.Object, config, storage);
     }
 
     private static async Task<List<IntegrationConnection>> CaptureConnectionsAsync(Func<Task> trigger) {
@@ -225,41 +224,12 @@ public class VTSServiceTests {
         Assert.False(await MakeService().ApplyExpressionActionAsync("a.exp3.json", action, TestContext.Current.CancellationToken));
     }
 
-    [Fact]
-    public async Task ExecuteWheelAction_WhenDisconnected_ReturnsFalse() {
-        VTSService service = MakeService();
-        var action = new VTSWheelAction {
-            Kind = VtsTargetKind.Expression,
-            Target = "cat_ears.exp3.json",
-            ToggleAction = VtsToggleAction.On
-        };
-
-        Assert.False(await service.ExecuteWheelActionAsync(action, TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
-    public async Task ExecuteWheelAction_WithInvalidAction_ReturnsFalse() {
-        VTSService service = MakeService();
-        var action = new VTSWheelAction { Kind = VtsTargetKind.Expression, Target = "" };
-
-        Assert.False(await service.ExecuteWheelActionAsync(action, TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
-    public async Task ExecuteWheelAction_WhenDisconnected_SchedulesNoRevertTimer() {
-        var timer = new RecordingTimerService();
-        VTSService service = MakeService(timerService: timer);
-
-        var action = new VTSWheelAction {
-            Kind = VtsTargetKind.Expression,
-            Target = "cat_ears.exp3.json",
-            ToggleAction = VtsToggleAction.On,
-            Duration = TimeSpan.FromSeconds(30),
-            AfterToggle = VtsToggleAction.Off
-        };
-
-        Assert.False(await service.ExecuteWheelActionAsync(action, TestContext.Current.CancellationToken));
-        Assert.Empty(timer.Registered);
+    [Theory]
+    [InlineData(VtsTargetKind.Expression, "cat_ears.exp3.json")]
+    [InlineData(VtsTargetKind.Hotkey, "hotkey-id")]
+    [InlineData(VtsTargetKind.Parameter, "FaceAngleX")]
+    public async Task HasTarget_WhenDisconnected_ReturnsFalse(VtsTargetKind kind, string target) {
+        Assert.False(await MakeService().HasTargetAsync(kind, target, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -360,29 +330,6 @@ public class VTSServiceTests {
 
         public string GetInstallId() {
             return "test-install";
-        }
-    }
-
-    private sealed class RecordingTimerService : ITimerService {
-        public List<(string Key, TimeSpan Interval)> Registered { get; } = [];
-        public List<string> Unregistered { get; } = [];
-
-        public IDisposable Register(string key, TimeSpan interval, Func<CancellationToken, Task> callback) {
-            Registered.Add((key, interval));
-            return new Noop();
-        }
-
-        public IDisposable Register(string key, TimeSpan interval, Action callback) {
-            Registered.Add((key, interval));
-            return new Noop();
-        }
-
-        public void Unregister(string key) {
-            Unregistered.Add(key);
-        }
-
-        private sealed class Noop : IDisposable {
-            public void Dispose() { }
         }
     }
 }

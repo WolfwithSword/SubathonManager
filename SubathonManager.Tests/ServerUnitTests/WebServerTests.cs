@@ -10,6 +10,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Server;
 using SubathonManager.Server.Interfaces;
+using SubathonManager.Services;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.ServerUnitTests;
@@ -176,6 +177,105 @@ public class WebServerTests {
         Assert.Contains("\"AddTime\"", ctx.ResponseBody);
         Assert.Contains("requires_parameter", ctx.ResponseBody);
         Assert.DoesNotContain("\"Unknown\"", ctx.ResponseBody);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Globals_Endpoint_Returns_Typed_Values_Filtered_By_Widget_Or_Name() {
+        WebServer server = CreateServer();
+        var widgetId = Guid.NewGuid();
+        await using (AppDbContext db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken)) {
+            db.ActionGlobals.AddRange(
+                new ActionGlobal { Kind = ActionStoreKind.Global, Name = "deaths", ValueType = ActionValueType.Number, Value = "3.5" },
+                new ActionGlobal { Kind = ActionStoreKind.Global, Name = "hat_on", ValueType = ActionValueType.Boolean, Value = "true" },
+                new ActionGlobal { Kind = ActionStoreKind.Global, Name = "greeting", ValueType = ActionValueType.Text, Value = "hi" },
+                new ActionGlobal { Kind = ActionStoreKind.Secret, Name = "api_key", StorageKey = "x" });
+            db.Widgets.Add(new Widget("counter", "counter.html") { Id = widgetId, GlobalVars = "DEATHS,hat_on,gone" });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        async Task<string> Get(string query) {
+            var ctx = new MockHttpContext { Method = "GET", Path = "/api/data/globals", QueryString = query };
+            await server.InvokeHandleRequest(ctx);
+            Assert.Equal(200, ctx.StatusCode);
+            return ctx.ResponseBody;
+        }
+
+        string all = await Get("");
+        Assert.Contains("{\"name\":\"deaths\",\"type\":\"number\",\"value\":3.5}", all);
+        Assert.Contains("{\"name\":\"hat_on\",\"type\":\"boolean\",\"value\":true}", all);
+        Assert.Contains("{\"name\":\"greeting\",\"type\":\"text\",\"value\":\"hi\"}", all);
+        Assert.DoesNotContain("api_key", all);
+
+        string forWidget = await Get($"?widget={widgetId}");
+        Assert.Contains("deaths", forWidget);
+        Assert.Contains("hat_on", forWidget);
+        Assert.DoesNotContain("greeting", forWidget);
+
+        string byName = await Get("?name=GREETING");
+        Assert.Contains("greeting", byName);
+        Assert.DoesNotContain("deaths", byName);
+
+        var missing = new MockHttpContext {
+            Method = "GET", Path = "/api/data/globals", QueryString = $"?widget={Guid.NewGuid()}"
+        };
+        await server.InvokeHandleRequest(missing);
+        Assert.Equal(404, missing.StatusCode);
+        AppServices.Provider = null!;
+    }
+
+    [Fact]
+    public async Task Globals_Post_Creates_Sets_Adds_Toggles_And_Rejects_Bad_Requests() {
+        WebServer server = CreateServer();
+        var services = new ServiceCollection();
+        services.AddSingleton(new ActionService(server._factory, []));
+        AppServices.Provider = services.BuildServiceProvider();
+
+        async Task<(int Code, string Body)> Post(string query, string body = "") {
+            var ctx = new MockHttpContext {
+                Method = "POST", Path = "/api/data/globals", QueryString = query,
+                Body = new MemoryStream(Encoding.UTF8.GetBytes(body))
+            };
+            await server.InvokeHandleRequest(ctx);
+            return (ctx.StatusCode, ctx.ResponseBody);
+        }
+
+        Assert.Equal((200, "{\"created\":true,\"global\":{\"name\":\"deaths\",\"type\":\"number\",\"value\":2}}"),
+            await Post("?name=deaths&op=add&value=2"));
+        Assert.Contains("\"value\":-1.5", (await Post("?name=debt&op=subtract&value=1.5")).Body);
+        Assert.Contains("\"value\":true", (await Post("", "{\"name\":\"hat_on\",\"op\":\"toggle\"}")).Body);
+        Assert.Equal(400, (await Post("?name=greeting&value=hi")).Code);
+        Assert.Contains("\"value\":\"hi\"", (await Post("?name=greeting&type=text&value=hi")).Body);
+        Assert.Contains("\"value\":7", (await Post("", "{\"name\":\"lives\",\"value\":7}")).Body);
+
+        Assert.Equal((200, "{\"created\":false,\"global\":{\"name\":\"deaths\",\"type\":\"number\",\"value\":1}}"),
+            await Post("?name=DEATHS&op=subtract&value=1"));
+        Assert.Contains("\"value\":false", (await Post("?name=hat_on&op=toggle")).Body);
+        Assert.Contains("\"value\":true", (await Post("", "{\"name\":\"hat_on\",\"value\":true}")).Body);
+        Assert.Contains("\"value\":\"bye\"", (await Post("?name=greeting&value=bye")).Body);
+
+        foreach ((string query, string body) in new[] {
+                     ("?name=greeting&op=add&value=1", ""), // text can only be set
+                     ("?name=greeting&op=toggle", ""),
+                     ("", "{\"name\":\"greeting\",\"value\":5}"), // number sent to text
+                     ("?name=deaths&type=boolean&value=true", ""),
+                     ("?name=deaths&op=add&value=lots", ""),
+                     ("?name=deaths&op=add", ""), // value missing
+                     ("?name=deaths", ""),
+                     ("?name=hat_on&value=maybe", ""),
+                     ("?name=deaths&op=multiply&value=2", ""),
+                     ("?name=deaths&type=float&value=2", ""),
+                     ("?value=2", ""), // name missing
+                     ("?name=bad-name&type=text&value=x", ""),
+                     ("", "[1,2]")
+                 }) {
+            (int code, string error) = await Post(query, body);
+            Assert.True(code == 400, $"{query} {body} -> {code} {error}");
+            Assert.Contains("\"error\"", error);
+        }
+
+        await using AppDbContext db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(5, await db.ActionGlobals.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         AppServices.Provider = null!;
     }
 

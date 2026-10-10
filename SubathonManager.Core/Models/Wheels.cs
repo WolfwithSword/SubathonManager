@@ -73,4 +73,7 @@ public class WheelSpinHistory {
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public WheelSpinHistoryStatus Status { get; set; } = WheelSpinHistoryStatus.Pending;
+
+    // ActionRunProgress json - which steps ran, so resume picks it up
+    public string? ActionProgress { get; set; }
 }

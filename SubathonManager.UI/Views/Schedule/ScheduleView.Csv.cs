@@ -58,7 +58,7 @@ public partial class ScheduleView {
                 ? $"schedule-{range.Value.from:yyyy-MM-dd}"
                 : $"schedule-{range.Value.from:yyyy-MM-dd}-to-{range.Value.to:yyyy-MM-dd}";
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
+        string exportDir = CsvUtils.ExportFolder;
         Directory.CreateDirectory(exportDir);
         IStorageFolder? startFolder = await top.StorageProvider.TryGetFolderFromPathAsync(exportDir);
 

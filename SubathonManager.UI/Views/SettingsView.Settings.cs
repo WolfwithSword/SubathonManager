@@ -68,7 +68,8 @@ public partial class SettingsView {
 
     private async void ExportEvents_Click(object? sender, RoutedEventArgs e) {
         await using AppDbContext db = await _factory.CreateDbContextAsync();
-        await AppDbContext.ActiveEventsToCsv(db);
+        string? path = await AppDbContext.ActiveEventsToCsv(db);
+        if (path != null) UiHelpers.OpenFolder(Path.GetDirectoryName(path));
     }
 
     private void UpdateServerStatus(bool status) {

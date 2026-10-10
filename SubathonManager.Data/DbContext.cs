@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Numerics;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using SubathonManager.Core;
@@ -52,6 +50,8 @@ public class AppDbContext : DbContext {
 
     public DbSet<ScheduleItem> ScheduleItems { get; set; }
 
+    public DbSet<ActionGlobal> ActionGlobals { get; set; }
+
     public DbSet<WidgetCatalogEntry> WidgetCatalogEntries => Set<WidgetCatalogEntry>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
@@ -102,6 +102,12 @@ public class AppDbContext : DbContext {
 
         modelBuilder.Entity<ScheduleItem>()
             .HasIndex(i => i.Date);
+
+        modelBuilder.Entity<ActionGlobal>()
+            .HasKey(g => new { g.Kind, g.Name });
+        modelBuilder.Entity<ActionGlobal>()
+            .Property(g => g.Name)
+            .UseCollation("NOCASE");
 
         modelBuilder.Entity<SubathonGoalSet>()
             .HasMany(s => s.Goals)
@@ -283,8 +289,12 @@ public class AppDbContext : DbContext {
             .Select(s => s.SiteId.ToString())
             .ToHashSet();
 
+        bool includePatreon = Utils.DonationSettings.TryGetValue(nameof(SubathonEventType.PatreonPledge),
+            out bool patreonAsDonation) && patreonAsDonation;
+
         events = events.Where(e => e.EventType != null &&
                                    (e.EventType.IsCurrencyDonation() ||
+                                    (includePatreon && e.EventType == SubathonEventType.PatreonPledge) ||
                                     (e.EventType == SubathonEventType.GoAffProOrder &&
                                      !string.IsNullOrEmpty(e.EventTypeMeta) &&
                                      goAffProMetasToInclude.Contains(e.EventTypeMeta)) ||
@@ -294,75 +304,46 @@ public class AppDbContext : DbContext {
         return events;
     }
 
-    public static async Task ActiveEventsToCsv(AppDbContext db) {
+    public static async Task<string?> ActiveEventsToCsv(AppDbContext db) {
         SubathonData? subathon = await db.SubathonDatas.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
-        if (subathon == null) return;
+        if (subathon == null) return null;
         List<SubathonEvent> events = await db.SubathonEvents.Where(ev => ev.SubathonId == subathon.Id)
             .ToListAsync();
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
-        Directory.CreateDirectory(exportDir);
-        var filepath = $"{exportDir}/subathon-{subathon.Id}.csv";
+        return await CsvUtils.ExportAsync($"subathon-{subathon.Id}",
+            [
+                [
+                    "Id", "Source", "Type", "Command", "User", "Seconds Value", "Points Value", "Value", "Currency",
+                    "Amount", "Multiplier Seconds", "Multiplier Points", "Processed", "Final Seconds Added",
+                    "Final Points Added", "Timestamp", "Secondary Value", "Event Meta Type", "Event Meta Common Type"
+                ]
+            ],
+            events, e => {
+                string val = e.Value;
+                string? commonMeta = string.IsNullOrWhiteSpace(e.EventTypeMeta) ? "" : e.EventTypeMeta;
+                switch (e.EventType) {
+                    case SubathonEventType.TwitchGiftSub or SubathonEventType.TwitchSub:
+                        val = e.Value switch {
+                            "1000" => "T1",
+                            "2000" => "T2",
+                            "3000" => "T3",
+                            _ => val
+                        };
+                        commonMeta = val;
+                        break;
+                    case SubathonEventType.GoAffProOrder
+                        when GoAffProOrderHelper.TryGetStore(e.EventTypeMeta, out GoAffProStore? store):
+                        commonMeta = store.InternalName;
+                        break;
+                }
 
-        var sb = new StringBuilder();
-        sb.AppendLine(
-            "Id,Source,Type,Command,User,Seconds Value,Points Value,Value,Currency,Amount,Multiplier Seconds,Multiplier Points,Processed,Final Seconds Added,Final Points Added,Timestamp,Secondary Value,Event Meta Type, Event Meta Common Type");
-        foreach (SubathonEvent e in events) {
-            string val = e.Value;
-            string? commonMeta = string.IsNullOrWhiteSpace(e.EventTypeMeta) ? "" : e.EventTypeMeta;
-            if (e.EventType is SubathonEventType.TwitchGiftSub or SubathonEventType.TwitchSub) {
-                val = e.Value switch {
-                    "1000" => "T1",
-                    "2000" => "T2",
-                    "3000" => "T3",
-                    _ => val
-                };
-                commonMeta = val;
-            }
-
-            if (e.EventType == SubathonEventType.GoAffProOrder
-                && GoAffProOrderHelper.TryGetStore(e.EventTypeMeta, out GoAffProStore? store))
-                commonMeta = store.InternalName;
-
-            sb.AppendLine(string.Join(",",
-                e.Id,
-                Utils.EscapeCsv(e.Source.ToString()),
-                Utils.EscapeCsv(e.EventType.ToString()),
-                Utils.EscapeCsv(e.Command.ToString()),
-                Utils.EscapeCsv(e.User),
-                e.SecondsValue,
-                e.PointsValue,
-                Utils.EscapeCsv(val),
-                Utils.EscapeCsv(e.Currency),
-                e.Amount,
-                e.MultiplierSeconds,
-                e.MultiplierPoints,
-                e.ProcessedToSubathon,
-                e.GetFinalSecondsValueRaw(),
-                e.GetFinalPointsValue(),
-                e.EventTimestamp.ToString("yyyy-MM-dd HH:mm:ss"),
-                Utils.EscapeCsv(e.SecondaryValue),
-                Utils.EscapeCsv(e.EventTypeMeta),
-                Utils.EscapeCsv(commonMeta)
-            ));
-        }
-
-        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-
-        try {
-            bool isTest =
-                AppDomain.CurrentDomain.GetAssemblies()
-                    .Any(a => a.FullName!.StartsWith("xunit", StringComparison.OrdinalIgnoreCase));
-            if (!isTest)
-                Process.Start(new ProcessStartInfo {
-                    FileName = exportDir,
-                    UseShellExecute = true,
-                    Verb = "open"
-                });
-        }
-        catch {
-            /**/
-        }
+                return [
+                    e.Id, e.Source, e.EventType, e.Command, e.User, e.SecondsValue, e.PointsValue, val, e.Currency,
+                    e.Amount, e.MultiplierSeconds, e.MultiplierPoints, e.ProcessedToSubathon,
+                    e.GetFinalSecondsValueRaw(), e.GetFinalPointsValue(), e.EventTimestamp, e.SecondaryValue,
+                    e.EventTypeMeta, commonMeta
+                ];
+            });
     }
 
     public static async Task PauseAllTimers(AppDbContext db) {
@@ -466,6 +447,8 @@ public class AppDbContext : DbContext {
             new() { EventType = SubathonEventType.TangiaTokens, Seconds = 0.12 },
             new() { EventType = SubathonEventType.PallyGGDonation, Seconds = 12 }, // per 1 USD, Pally is USD only
             new() { EventType = SubathonEventType.TiltifyDonation, Seconds = 12 },
+            new() { EventType = SubathonEventType.PatreonPledge, Meta = "DEFAULT", Seconds = 60, Points = 1 },
+            new() { EventType = SubathonEventType.PatreonPledge, Meta = Utils.PerUnitMeta, Seconds = 12 },
             new() { EventType = SubathonEventType.TreatStreamOrder, Seconds = 600 }, // per treat, always 1 item
             new() {
                 EventType = SubathonEventType.MakeShipPledge, Meta = "DEFAULT", Seconds = 60

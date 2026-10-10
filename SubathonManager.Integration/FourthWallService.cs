@@ -36,7 +36,7 @@ public class FourthWallService(
     IConfig config,
     DevTunnelsService devTunnels,
     OAuthService oAuth)
-    : IWebhookIntegration {
+    : IWebhookIntegration, IMissedEventSource {
     private readonly string _configSection = "FourthWall";
 
     private readonly FourthwallWebhookHandler _handler = new(new FourthwallWebhookSignatureVerifier());
@@ -45,6 +45,8 @@ public class FourthWallService(
         StorageKeys.FourthWallRefreshToken);
 
     public readonly Dictionary<string, string> MembershipNames = new();
+    internal int MaxMissedPages = 50;
+    internal int MissedPageSize = 100;
 
     private string? AccessToken => oAuth.GetAccessToken(OAuthKeys);
     private string? ShopName { get; set; }
@@ -158,20 +160,9 @@ public class FourthWallService(
 
     [ExcludeFromCodeCoverage]
     private async Task InitializeCoreAsync(CancellationToken ct) {
-        IntegrationConnection tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-        if (!tunnelConn.Status) {
-            await devTunnels.StartTunnelAsync(ct);
-            tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
-            if (!tunnelConn.Status) {
-                string reason = !devTunnels.IsCliInstalled ? "the DevTunnels CLI isn't installed"
-                    : !devTunnels.IsLoggedIn ? "DevTunnels isn't logged in"
-                    : "the tunnel failed to start";
-                logger?.LogWarning("[FourthWall] Can't connect: {Reason}", reason);
-                ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.FourthWall),
-                    $"FourthWall needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
-                BroadcastStatus(HasTokenFile(), null);
-                return;
-            }
+        if (await devTunnels.RequireTunnelAsync(SubathonEventSource.FourthWall, ct) is not { } tunnelConn) {
+            BroadcastStatus(HasTokenFile(), null);
+            return;
         }
 
         bool canConnect = await CheckForTokenAsync(ct);
@@ -266,7 +257,7 @@ public class FourthWallService(
 
                 MembershipNames[x.Id] = x.Name;
             });
-        IntegrationEvents.RaiseFourthWallMembershipsSynced(MembershipNames);
+        IntegrationEvents.RaiseMembershipTiersSynced(SubathonEventSource.FourthWall, MembershipNames.Values.ToList());
 
         // Seed status; include public URL if the tunnel is already running
         tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
@@ -315,8 +306,6 @@ public class FourthWallService(
 
     public SubathonEvent? MapToSubathonEvent(FourthwallWebhookEvent fwEvent) {
         try {
-            OrderTypeModes sourceMode = config.GetOrderTypeMode(_configSection,
-                $"{SubathonEventType.FourthWallOrder}", OrderTypeModes.Dollar);
             OrderTypeModes sourceMode2 = config.GetOrderTypeMode(_configSection,
                 $"{SubathonEventType.FourthWallGiftOrder}", OrderTypeModes.Dollar);
             var defaultCurrency = "USD";
@@ -324,87 +313,10 @@ public class FourthWallService(
             if (fwEvent.TestMode) username = "FourthWall Test"; //"SYSTEM";
             SubathonEvent? ev = null;
             if (fwEvent is FourthwallDonationWebhookEvent donationEvent) {
-                DonationV1 d = donationEvent.Data;
-                if (!fwEvent.TestMode && !string.IsNullOrWhiteSpace(d.Username))
-                    username = d.Username.Split(' ').First();
-                ev = new SubathonEvent {
-                    Id = Utils.TryParseGuid(d.Id),
-                    Source = string.Equals(username, "SYSTEM")
-                        ? SubathonEventSource.Simulated
-                        : SubathonEventSource.FourthWall,
-                    EventType = SubathonEventType.FourthWallDonation,
-                    User = username,
-                    Value =
-                        d.Amounts?.Total?.Value?.ToString("F2", CultureInfo.InvariantCulture) ??
-                        "0.00",
-                    Currency = !string.IsNullOrWhiteSpace(d.Amounts?.Total?.Currency)
-                        ? d.Amounts?.Total?.Currency
-                        : defaultCurrency,
-                    EventTimestamp = d.CreatedAt?.LocalDateTime ?? DateTime.Now.ToLocalTime()
-                };
+                ev = MapDonation(donationEvent.Data, fwEvent.TestMode);
             }
             else if (fwEvent is FourthwallOrderPlacedWebhookEvent orderPlacedEvent) {
-                OrderV1 order = orderPlacedEvent.Data;
-                if (!string.Equals("ORDER", order.Source?.Order?.Type ?? "", StringComparison.CurrentCultureIgnoreCase)
-                    && !string.Equals("SAMPLES_ORDER", order.Source?.Order?.Type ?? "",
-                        StringComparison.CurrentCultureIgnoreCase))
-                    return null;
-
-                //if (order.Status != OrderV1_status.CONFIRMED) return null;
-                if (!fwEvent.TestMode && !string.IsNullOrWhiteSpace(order.Username))
-                    username = order.Username.Split(' ').First();
-                if (string.Equals("SAMPLES_ORDER", order.Source?.Order?.Type ?? "",
-                        StringComparison.CurrentCultureIgnoreCase))
-                    username = "Internal Samples";
-                var itemCount = 0;
-                double totalValue = 0;
-                double totalDirect = 0;
-                string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
-                    ? order.Amounts.Subtotal.Currency
-                    : defaultCurrency;
-
-                double costs = 0;
-                double prices = 0;
-                order.Offers?.ForEach(x => {
-                    itemCount += x.Variant?.Quantity ?? 1;
-                    costs += x.Variant?.Cost?.Value ?? 0;
-                    prices += x.Variant?.Price?.Value ?? 0;
-                });
-
-                totalValue += order.Amounts?.Subtotal?.Value ?? 0;
-                totalDirect += order.Amounts?.Donation?.Value ?? 0;
-
-                double profit = Math.Max(prices - costs, 0);
-                if (string.Equals("SAMPLES_ORDER", order.Source?.Order?.Type ?? "",
-                        StringComparison.CurrentCultureIgnoreCase)) {
-                    logger?.LogInformation("[FourthWall] Samples order placed. Setting profit from {Profit} to 0.",
-                        profit);
-                    profit = 0;
-                }
-
-                totalDirect += profit;
-                ev = new SubathonEvent {
-                    Id = Utils.TryParseGuid(order.Id),
-                    Source = string.Equals(username, "SYSTEM")
-                        ? SubathonEventSource.Simulated
-                        : SubathonEventSource.FourthWall,
-                    EventType = SubathonEventType.FourthWallOrder,
-                    User = username,
-                    Value = sourceMode switch {
-                        OrderTypeModes.Item => $"{itemCount}",
-                        OrderTypeModes.Order => "New",
-                        _ => totalValue.ToString("F2", CultureInfo.InvariantCulture)
-                    },
-                    Currency = sourceMode switch {
-                        OrderTypeModes.Item => "items",
-                        OrderTypeModes.Order => "order",
-                        _ => !string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency
-                    },
-                    Amount = Math.Max(itemCount, 1),
-                    SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{
-                        (!string.IsNullOrWhiteSpace(currency) ? currency : defaultCurrency)}",
-                    EventTimestamp = order.CreatedAt?.LocalDateTime ?? DateTime.Now.ToLocalTime()
-                };
+                ev = MapOrder(orderPlacedEvent.Data, fwEvent.TestMode);
             }
             else if (fwEvent is FourthwallGiftPurchaseWebhookEvent giftPurchaseWebhookEvent) {
                 GiftPurchaseV1 order = giftPurchaseWebhookEvent.Data;
@@ -506,5 +418,154 @@ public class FourthWallService(
             logger?.LogWarning(ex, "[FourthWall] Failed to map FourthWall event to SubathonEvent");
             return null;
         }
+    }
+
+    private static SubathonEvent MapDonation(DonationV1 d, bool testMode) {
+        var username = testMode ? "FourthWall Test" : "FourthWall Customer";
+        if (!testMode && !string.IsNullOrWhiteSpace(d.Username))
+            username = d.Username.Split(' ').First();
+        return new SubathonEvent {
+            Id = Utils.TryParseGuid(d.Id),
+            Source = string.Equals(username, "SYSTEM")
+                ? SubathonEventSource.Simulated
+                : SubathonEventSource.FourthWall,
+            EventType = SubathonEventType.FourthWallDonation,
+            User = username,
+            Value = d.Amounts?.Total?.Value?.ToString("F2", CultureInfo.InvariantCulture) ?? "0.00",
+            Currency = !string.IsNullOrWhiteSpace(d.Amounts?.Total?.Currency) ? d.Amounts?.Total?.Currency : "USD",
+            EventTimestamp = d.CreatedAt?.LocalDateTime ?? DateTime.Now.ToLocalTime()
+        };
+    }
+
+    private static string GetOrderType(OrderV1 order) {
+        OrderV1.OrderV1_source? source = order.Source;
+        return source?.Order?.Type ?? source?.SamplesOrder?.Type ?? source?.TwitchGiftRedemption?.Type ??
+            source?.GiveawayLinks?.Type ?? "";
+    }
+
+    private SubathonEvent? MapOrder(OrderV1 order, bool testMode) {
+        string orderType = GetOrderType(order);
+        bool isSamples = string.Equals("SAMPLES_ORDER", orderType, StringComparison.CurrentCultureIgnoreCase);
+        if (!isSamples && !string.Equals("ORDER", orderType, StringComparison.CurrentCultureIgnoreCase))
+            return null;
+
+        OrderTypeModes sourceMode = config.GetOrderTypeMode(_configSection,
+            $"{SubathonEventType.FourthWallOrder}", OrderTypeModes.Dollar);
+        const string defaultCurrency = "USD";
+        var username = testMode ? "FourthWall Test" : "FourthWall Customer";
+        if (!testMode && !string.IsNullOrWhiteSpace(order.Username))
+            username = order.Username.Split(' ').First();
+        if (isSamples) username = "Internal Samples";
+
+        var itemCount = 0;
+        double costs = 0;
+        double prices = 0;
+        order.Offers?.ForEach(x => {
+            itemCount += x.Variant?.Quantity ?? 1;
+            costs += x.Variant?.Cost?.Value ?? 0;
+            prices += x.Variant?.Price?.Value ?? 0;
+        });
+
+        double totalValue = order.Amounts?.Subtotal?.Value ?? 0;
+        double totalDirect = order.Amounts?.Donation?.Value ?? 0;
+        string currency = !string.IsNullOrWhiteSpace(order.Amounts?.Subtotal?.Currency)
+            ? order.Amounts.Subtotal.Currency
+            : defaultCurrency;
+
+        double profit = Math.Max(prices - costs, 0);
+        if (isSamples) {
+            if (logger?.IsEnabled(LogLevel.Information) ?? false)
+                logger?.LogInformation("[FourthWall] Samples order placed. Setting profit from {Profit} to 0.", profit);
+            profit = 0;
+        }
+
+        totalDirect += profit;
+        return new SubathonEvent {
+            Id = Utils.TryParseGuid(order.Id),
+            Source = string.Equals(username, "SYSTEM")
+                ? SubathonEventSource.Simulated
+                : SubathonEventSource.FourthWall,
+            EventType = SubathonEventType.FourthWallOrder,
+            User = username,
+            Value = sourceMode switch {
+                OrderTypeModes.Item => $"{itemCount}",
+                OrderTypeModes.Order => "New",
+                _ => totalValue.ToString("F2", CultureInfo.InvariantCulture)
+            },
+            Currency = sourceMode switch {
+                OrderTypeModes.Item => "items",
+                OrderTypeModes.Order => "order",
+                _ => currency
+            },
+            Amount = Math.Max(itemCount, 1),
+            SecondaryValue = $"{totalDirect.ToString("F2", CultureInfo.InvariantCulture)}|{currency}",
+            EventTimestamp = order.CreatedAt?.LocalDateTime ?? DateTime.Now.ToLocalTime()
+        };
+    }
+
+    [ExcludeFromCodeCoverage]
+    public async Task<List<SubathonEvent>> FetchMissedEventsAsync(DateTime from, DateTime to,
+        CancellationToken ct = default) {
+        if (!HasTokenFile()) throw new InvalidOperationException("FourthWall is not connected");
+        if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct))
+            throw new InvalidOperationException("FourthWall login has expired, reconnect it first");
+
+        var client = new FourthwallApiClient(
+            new HttpClientRequestAdapter(new FourthwallBearerAuthenticationProvider(AccessToken!)));
+        DateTimeOffset start = from.ToUniversalTime();
+        DateTimeOffset end = to.ToUniversalTime();
+        List<SubathonEvent> events = [];
+
+        List<OrderV1> orders = await FetchAllPagesAsync<OrderV1>(async page =>
+            (await client.OpenApi.V10.Order.GetAsync(r => {
+                r.QueryParameters.CreatedAtgt = start;
+                r.QueryParameters.CreatedAtlt = end;
+                r.QueryParameters.Page = page;
+                r.QueryParameters.Size = MissedPageSize;
+            }, ct))?.Results, o => o.Id);
+        List<OrderV1> inRange = orders.Where(o => o.CreatedAt >= start && o.CreatedAt <= end).ToList();
+        int cancelled = inRange.Count(o => o.Status == OrderV1_status.CANCELLED);
+        events.AddRange(inRange.Where(o => o.Status != OrderV1_status.CANCELLED)
+            .Select(o => MapOrder(o, false)).OfType<SubathonEvent>());
+        int mappedOrders = events.Count;
+        string skippedTypes = string.Join(", ", inRange.Where(o => o.Status != OrderV1_status.CANCELLED)
+            .Select(GetOrderType).Where(t => t is not "ORDER" and not "SAMPLES_ORDER")
+            .GroupBy(t => t == "" ? "(no source)" : t).Select(g => $"{g.Key} x{g.Count()}"));
+
+        List<DonationV1> donations = await FetchAllPagesAsync<DonationV1>(async page =>
+            (await client.OpenApi.V10.Donations.GetAsync(r => {
+                r.QueryParameters.Page = page;
+                r.QueryParameters.Size = MissedPageSize;
+            }, ct))?.Results, d => d.Id);
+        List<DonationV1> donationsInRange = donations.Where(d => d.CreatedAt >= start && d.CreatedAt <= end).ToList();
+        events.AddRange(donationsInRange.Where(d => d.Status is null or DonationV1_status.COMPLETED)
+            .Select(d => MapDonation(d, false)));
+
+        if (logger?.IsEnabled(LogLevel.Information) ?? false)
+            logger?.LogInformation(
+                "[FourthWall] Missed event lookup {Start:u} to {End:u}: {Orders} order(s) returned, {InRange} in range, " +
+                "{Cancelled} cancelled, {Mapped} usable, skipped types [{Skipped}]; {Donations} donation(s) checked, " +
+                "{DonationsInRange} in range",
+                start, end, orders.Count, inRange.Count, cancelled, mappedOrders, skippedTypes, donations.Count,
+                donationsInRange.Count);
+        return events;
+    }
+
+    private async Task<List<T>> FetchAllPagesAsync<T>(Func<int, Task<List<T>?>> getPage, Func<T, string?> getId) {
+        List<T> all = [];
+        HashSet<string> seen = [];
+        for (var page = 0; page < MaxMissedPages; page++) {
+            List<T> items = await getPage(page) ?? [];
+            if (items.Count == 0) {
+                if (page == 0) continue;
+                break;
+            }
+
+            List<T> fresh = items.Where(i => seen.Add(getId(i) ?? Guid.NewGuid().ToString())).ToList();
+            if (fresh.Count == 0) break;
+            all.AddRange(fresh);
+        }
+
+        return all;
     }
 }

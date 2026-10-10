@@ -6,6 +6,7 @@ using DevTunnels.Client.Installer;
 using DevTunnels.Client.Ports;
 using DevTunnels.Client.Tunnels;
 using Microsoft.Extensions.Logging;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
@@ -132,6 +133,25 @@ public class DevTunnelsService(
         BroadcastLoginStatus(null);
         BroadcastTunnelStatus(false, null);
         return new DevTunnelLoginStatus { Status = "Logged out" };
+    }
+    
+    [ExcludeFromCodeCoverage]
+    public async Task<IntegrationConnection?> RequireTunnelAsync(SubathonEventSource source,
+        CancellationToken ct = default) {
+        IntegrationConnection tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
+        if (tunnelConn.Status) return tunnelConn;
+
+        await StartTunnelAsync(ct);
+        tunnelConn = Utils.GetConnection(SubathonEventSource.DevTunnels, "Tunnel");
+        if (tunnelConn.Status) return tunnelConn;
+
+        string reason = !IsCliInstalled ? "the DevTunnels CLI isn't installed"
+            : !IsLoggedIn ? "DevTunnels isn't logged in"
+            : "the tunnel failed to start";
+        logger?.LogWarning("[{Source}] Can't connect: {Reason}", source, reason);
+        ErrorMessageEvents.RaiseErrorEvent("WARN", source.ToString(),
+            $"{source} needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
+        return null;
     }
 
     public async Task StartTunnelAsync(CancellationToken ct = default) {

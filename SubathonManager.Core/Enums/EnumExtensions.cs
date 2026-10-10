@@ -94,7 +94,7 @@ public class EventTypeMetaAttribute : EnumMetaAttribute {
     public bool IsOther { get; init; }
     public bool HasValueConfig { get; init; } = true;
 
-    public bool HasCommissionData{ get; init; }
+    public bool HasCommissionData { get; init; }
 
     public SubathonEventSource Source { get; set; } = SubathonEventSource.Unknown;
 }
@@ -116,7 +116,49 @@ public class CommandMetaAttribute : EnumMetaAttribute {
 public class WheelSpinActionMetaAttribute : EnumMetaAttribute {
     public bool IsCommand { get; init; } = false;
     public bool HasAction { get; init; } = true;
-    public bool IsDoneImmediately { get; init; } = false;
+    public bool AutoRun { get; init; } = false;
+
+    public string QuickLabel { get; init; } = "M";
+}
+
+[ExcludeFromCodeCoverage]
+public class ActionStepMetaAttribute : EnumMetaAttribute {
+    public string Group { get; init; } = "";
+    public ActionOperation[] Operations { get; init; } = [];
+
+    // editor labels
+    public string? TargetLabel { get; init; }
+    public string? ScopeLabel { get; init; }
+    public string? ValueLabel { get; init; }
+    public string? DurationLabel { get; init; }
+    public string? BodyLabel { get; init; }
+
+    public string? OperationLabel { get; init; }
+
+    // operations which have parameter vals
+    public ActionOperation[] ValueOperations { get; init; } = [];
+
+    // operations which do not use the target, e.g. "is empty"
+    public ActionOperation[] NoTargetOperations { get; init; } = [];
+
+    // operations which do not use the body, e.g. toggling a global
+    public ActionOperation[] NoBodyOperations { get; init; } = [];
+
+    // headers, auth, timeout and an output variable for the response, precanned
+    public bool IsWebRequest { get; init; }
+
+    // has output variable but not rest of web stuff
+    public bool SavesOutput { get; init; }
+
+    // %variables% in config will be accepted
+    public bool AllowsVariables { get; init; }
+}
+
+[ExcludeFromCodeCoverage]
+public class ActionVariableMetaAttribute : EnumMetaAttribute {
+    public string Token { get; init; } = "";
+    public string Group { get; init; } = "";
+    public string ValueType { get; init; } = "text";
 }
 
 public static class EnumMetaCache {

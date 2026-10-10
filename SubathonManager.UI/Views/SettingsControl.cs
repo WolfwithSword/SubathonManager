@@ -45,6 +45,17 @@ public abstract class SettingsControl : UserControl {
 
     protected virtual bool allowMembershipDelete => true;
 
+    // synced-tier integrations
+    protected virtual TextBox? _DefaultMembershipSecondsBox => null;
+    protected virtual TextBox? _DefaultMembershipPointsBox => null;
+    protected virtual ComboBox? _MembershipTierCombo => null;
+
+    // a non-tier value row
+    protected virtual string? _PerUnitMembershipMeta => null;
+
+    protected virtual void OnMembershipRowsLoaded() {
+    }
+
     public virtual void Init(SettingsView host) {
         Host = host;
     }
@@ -255,6 +266,134 @@ public abstract class SettingsControl : UserControl {
 
         _dynamicSubRows.Remove(subRow);
         _MembershipsPanel.Children.Remove(subRow.RowGrid);
+    }
+
+    internal void SyncMembershipTiers(IEnumerable<string> tierNames) {
+        if (_membershipEventType is not { } type) return;
+        List<string> names = tierNames.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        using AppDbContext db = _factory.CreateDbContext();
+        List<string> existing = db.SubathonValues.Where(v => v.EventType == type && names.Contains(v.Meta))
+            .Select(v => v.Meta).ToList();
+        // new tiers start from the DEFAULT row so they count the same until set
+        SubathonValue? fallback = db.SubathonValues.AsNoTracking()
+            .FirstOrDefault(v => v.EventType == type && v.Meta == "DEFAULT");
+        List<SubathonValue> newValues = names.Where(n => !existing.Contains(n))
+            .Select(n => new SubathonValue {
+                Meta = n, Seconds = fallback?.Seconds ?? 0, Points = fallback?.Points ?? 0, EventType = type
+            })
+            .ToList();
+        if (newValues.Count == 0) return;
+
+        db.SubathonValues.AddRange(newValues);
+        db.SaveChanges();
+        Dispatcher.UIThread.Post(() => SuppressUnsavedChanges(() => LoadMembershipValues(null)));
+    }
+
+    internal void LoadMembershipValues(AppDbContext? db) {
+        if (_membershipEventType is not { } type || _MembershipsPanel == null) return;
+        using AppDbContext? owned = db == null ? _factory.CreateDbContext() : null;
+        db ??= owned!;
+        List<SubathonValue> values = db.SubathonValues.Where(v => v.EventType == type)
+            .OrderBy(v => v.Meta).AsNoTracking().ToList();
+
+        for (int i = _MembershipsPanel.Children.Count - 1; i >= 0; i--) {
+            Control child = _MembershipsPanel.Children[i];
+            if (child.Name != "DefaultMember" && child.Name != "AddBtn")
+                _MembershipsPanel.Children.RemoveAt(i);
+        }
+
+        _dynamicSubRows.Clear();
+        foreach (SubathonValue value in values) {
+            if (value.Meta == _PerUnitMembershipMeta) continue;
+            if (value.Meta != "DEFAULT") {
+                AddMembershipRow(value);
+                continue;
+            }
+
+            if (_DefaultMembershipSecondsBox != null && _DefaultMembershipPointsBox != null)
+                Host.UpdateTimePointsBoxes(_DefaultMembershipSecondsBox, _DefaultMembershipPointsBox,
+                    $"{value.Seconds}", $"{value.Points}");
+        }
+
+        RefreshMembershipTierCombo(values.Select(v => v.Meta).Where(m => m != _PerUnitMembershipMeta));
+        OnMembershipRowsLoaded();
+    }
+
+    internal bool SaveMembershipValues(AppDbContext db) {
+        if (_membershipEventType is not { } type) return false;
+        var hasUpdated = false;
+
+        SubathonValue? defaultValue =
+            db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == "DEFAULT");
+        if (defaultValue != null && double.TryParse(_DefaultMembershipSecondsBox?.Text, out double defaultSeconds) &&
+            !defaultSeconds.Equals(defaultValue.Seconds)) {
+            defaultValue.Seconds = defaultSeconds;
+            hasUpdated = true;
+        }
+
+        if (defaultValue != null && double.TryParse(_DefaultMembershipPointsBox?.Text, out double defaultPoints) &&
+            !defaultPoints.Equals(defaultValue.Points)) {
+            defaultValue.Points = defaultPoints;
+            hasUpdated = true;
+        }
+
+        List<DynamicSubRow> removeRows =
+            _dynamicSubRows.Where(row => string.IsNullOrWhiteSpace(row.NameBox.Text)).ToList();
+        if (removeRows.Count > 0) hasUpdated = true;
+        foreach (DynamicSubRow row in removeRows)
+            DeleteRow(row.SubValue, row);
+
+        EnsureUniqueName(_dynamicSubRows);
+
+        foreach (DynamicSubRow subRow in _dynamicSubRows) {
+            string meta = (subRow.NameBox.Text ?? "").Trim();
+            if (meta == "DEFAULT") continue;
+            if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
+            if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
+
+#pragma warning disable CA1862
+            SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>
+                sv.EventType == type && sv.Meta.ToLower() == meta.ToLower());
+#pragma warning restore CA1862
+            if (existing != null) {
+                hasUpdated |= !seconds.Equals(existing.Seconds) || !points.Equals(existing.Points);
+                existing.Seconds = seconds;
+                existing.Points = points;
+                subRow.SubValue = existing;
+            }
+            else {
+                subRow.SubValue.Meta = meta;
+                subRow.SubValue.Seconds = seconds;
+                subRow.SubValue.Points = points;
+                db.SubathonValues.Add(subRow.SubValue);
+                hasUpdated = true;
+            }
+        }
+
+        List<string> names = ["DEFAULT", .. _dynamicSubRows.Select(row => (row.NameBox.Text ?? "").Trim())];
+        if (_PerUnitMembershipMeta != null) names.Add(_PerUnitMembershipMeta);
+        List<SubathonValue> stale = db.SubathonValues.Where(x => x.EventType == type && !names.Contains(x.Meta))
+            .ToList();
+        if (stale.Count > 0) {
+            db.SubathonValues.RemoveRange(stale);
+            hasUpdated = true;
+        }
+
+        return hasUpdated;
+    }
+
+    private void RefreshMembershipTierCombo(IEnumerable<string> metas) {
+        if (_MembershipTierCombo is not { } combo) return;
+        string selectedTier = (combo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+
+        combo.Items.Clear();
+        combo.Items.Add(new ComboBoxItem { Content = "DEFAULT" });
+        foreach (string meta in metas.Where(m => m != "DEFAULT" && !string.IsNullOrWhiteSpace(m)).Distinct()
+                     .OrderBy(m => m))
+            combo.Items.Add(new ComboBoxItem { Content = meta });
+
+        combo.SelectedItem = combo.Items.OfType<ComboBoxItem>().FirstOrDefault(i =>
+            string.Equals(i.Content?.ToString(), selectedTier, StringComparison.OrdinalIgnoreCase)) ?? combo.Items[0];
     }
 }
 

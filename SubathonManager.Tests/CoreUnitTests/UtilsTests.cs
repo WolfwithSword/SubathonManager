@@ -123,14 +123,4 @@ public class UtilsTests {
         Assert.Equal("INR", Utils.TryParseCurrency("₹"));
         Assert.Equal("CHF", Utils.TryParseCurrency("₣"));
     }
-
-    [Fact]
-    public void EscapeCsvData() {
-        Assert.Equal("Test", Utils.EscapeCsv("Test"));
-        Assert.Equal(string.Empty, Utils.EscapeCsv(string.Empty));
-        Assert.Equal(string.Empty, Utils.EscapeCsv(null));
-        Assert.Equal("\"Test1,Test2\"", Utils.EscapeCsv("Test1,Test2"));
-        Assert.Equal("\"\"\"Test1\"\"\"", Utils.EscapeCsv("\"Test1\""));
-        Assert.Equal("\"Test\r\nTest2\"", Utils.EscapeCsv("Test\r\nTest2"));
-    }
 }

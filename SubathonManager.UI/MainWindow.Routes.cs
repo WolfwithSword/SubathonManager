@@ -14,6 +14,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Data.Overlays;
 using SubathonManager.Data.Widgets;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views;
 
@@ -234,6 +235,10 @@ public partial class MainWindow {
                 return false;
             }
 
+            if (result.RequiredGlobals.Count > 0)
+                await ServiceManager.Actions.EnsureTypedGlobalsAsync(result.RequiredGlobals,
+                    $"Overlay \"{manifest.Name}\"");
+
             if (!result.HasAnythingNew) {
                 _logger?.LogInformation("Import: everything already exists, nothing to add");
                 return false;
@@ -282,8 +287,9 @@ public partial class MainWindow {
         }
     }
 
-    public void CloseEditor() {
-        if (_editWindow != null) _editWindow.Close();
+    public bool CloseEditor() {
+        _editWindow?.Close();
+        return _editWindow == null;
     }
 
     internal void OpenRouteEditor(Route route) {
@@ -293,14 +299,18 @@ public partial class MainWindow {
                 return;
             }
 
-            _editWindow.Close();
+            if (!CloseEditor()) {
+                _editWindow.Activate();
+                return;
+            }
         }
 
-        _editWindow = new EditRouteWindow(route.Id);
+        var editor = new EditRouteWindow(route.Id);
+        _editWindow = editor;
         _editWindow.RouteSaved += LoadRoutes;
         _editWindow.Closed += (_, _) => {
             LoadRoutes();
-            _editWindow = null;
+            if (_editWindow == editor) _editWindow = null;
         };
 
         UiHelpers.CenterOver(_editWindow, this);

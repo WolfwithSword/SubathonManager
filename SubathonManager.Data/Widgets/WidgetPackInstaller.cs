@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 
@@ -237,17 +238,15 @@ public static class WidgetPackInstaller {
     }
 
     private static string Str(JsonElement el, string name) {
-        return el.ValueKind == JsonValueKind.Object && el.TryGetProperty(name, out JsonElement v) &&
-               v.ValueKind == JsonValueKind.String
-            ? v.GetString() ?? string.Empty
-            : string.Empty;
+        // to have a default
+        return Utils.GetJsonString(el, name) ?? string.Empty;
     }
 
     private static List<string> StrList(JsonElement el, string name) {
         if (el.ValueKind != JsonValueKind.Object ||
             !el.TryGetProperty(name, out JsonElement v) ||
             v.ValueKind != JsonValueKind.Array)
-            return new List<string>();
+            return [];
 
         return v.EnumerateArray()
             .Where(item => item.ValueKind == JsonValueKind.String)

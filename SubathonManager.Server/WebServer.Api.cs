@@ -1,7 +1,9 @@
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Text.Json;
 using System.Web;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -10,6 +12,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Integration;
 using SubathonManager.Server.Interfaces;
+using SubathonManager.Services;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -27,6 +30,11 @@ public partial class WebServer {
         _routes.Add((new RouteKey("GET", "/api/data/values"), HandleValuesRequestAsync));
 
         _routes.Add((new RouteKey("GET", "/api/data/commands"), HandleCommandsRequestAsync));
+
+        _routes.Add((new RouteKey("GET", "/api/data/globals"), HandleGlobalsRequestAsync));
+        _routes.Add((new RouteKey("POST", "/api/data/globals"), HandleGlobalsSetRequestAsync));
+        _routes.Add((new RouteKey("PUT", "/api/data/globals"), HandleGlobalsSetRequestAsync));
+        _routes.Add((new RouteKey("PATCH", "/api/data/globals"), HandleGlobalsSetRequestAsync));
 
         _routes.Add((new RouteKey("GET", "/api/data/leaderboard"), HandleLeaderboardRequestAsync));
 
@@ -278,6 +286,136 @@ public partial class WebServer {
     internal async Task HandleCommandsRequestAsync(IHttpContext ctx) {
         string json = JsonSerializer.Serialize(new { commands = BuildCommandCatalog() });
         await ctx.WriteResponse(200, json, true, "application/json");
+    }
+
+    internal async Task HandleGlobalsRequestAsync(IHttpContext ctx) {
+        NameValueCollection query = HttpUtility.ParseQueryString(ctx.QueryString ?? string.Empty);
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        List<ActionGlobal> globals = await LoadGlobalsAsync(db);
+
+        if (query["widget"] is { } widgetParam) {
+            Widget? widget = Guid.TryParse(widgetParam, out Guid widgetId)
+                ? await db.Widgets.AsNoTracking().FirstOrDefaultAsync(w => w.Id == widgetId)
+                : null;
+            if (widget == null) {
+                await ctx.WriteResponse(404, "Widget not found");
+                return;
+            }
+
+            globals = globals.Where(g => widget.ListensToGlobal(g.Name)).ToList();
+        }
+
+        if (query["name"] is { } nameParam) {
+            var names = new HashSet<string>(nameParam.Split(',',
+                StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
+            globals = globals.Where(g => names.Contains(g.Name)).ToList();
+        }
+
+        string json = JsonSerializer.Serialize(new { globals = globals.Select(GlobalToObject) });
+        await ctx.WriteResponse(200, json, true, "application/json");
+    }
+
+    internal async Task HandleGlobalsSetRequestAsync(IHttpContext ctx) {
+        async Task Fail(int code, string error) {
+            await ctx.WriteResponse(code, JsonSerializer.Serialize(new { error }), true, "application/json");
+        }
+
+        var actions = AppServices.Provider?.GetService<ActionService>();
+        if (actions == null) {
+            await Fail(503, "Actions aren't available");
+            return;
+        }
+
+        NameValueCollection query = HttpUtility.ParseQueryString(ctx.QueryString ?? string.Empty);
+        var fields = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase) {
+            ["name"] = query["name"], ["type"] = query["type"], ["op"] = query["op"], ["value"] = query["value"]
+        };
+        ActionValueType? sentType = null;
+
+        string body;
+        using (var reader = new StreamReader(ctx.Body, ctx.Encoding)) {
+            body = await reader.ReadToEndAsync();
+        }
+
+        if (!string.IsNullOrWhiteSpace(body))
+            try {
+                using JsonDocument doc = JsonDocument.Parse(body);
+                if (doc.RootElement.ValueKind != JsonValueKind.Object) throw new JsonException();
+
+                foreach (JsonProperty prop in doc.RootElement.EnumerateObject()) {
+                    fields[prop.Name] = prop.Value.ValueKind switch {
+                        JsonValueKind.String => prop.Value.GetString(),
+                        JsonValueKind.Null or JsonValueKind.Undefined => null,
+                        _ => prop.Value.GetRawText()
+                    };
+
+                    if (!prop.Name.Equals("value", StringComparison.OrdinalIgnoreCase)) continue;
+                    sentType = prop.Value.ValueKind switch {
+                        JsonValueKind.Number => ActionValueType.Number,
+                        JsonValueKind.True or JsonValueKind.False => ActionValueType.Boolean,
+                        _ => null
+                    };
+                }
+            }
+            catch (JsonException) {
+                await Fail(400, "Body must be a JSON object");
+                return;
+            }
+
+        string name = fields.GetValueOrDefault("name")?.Trim() ?? string.Empty;
+        if (name.Length == 0) {
+            await Fail(400, "name is required");
+            return;
+        }
+
+        if (fields.GetValueOrDefault("type") is { } typeText && !string.IsNullOrWhiteSpace(typeText)) {
+            ActionValueType? named = typeText.Trim().ToLowerInvariant() switch {
+                "text" or "string" => ActionValueType.Text,
+                "number" => ActionValueType.Number,
+                "boolean" or "bool" => ActionValueType.Boolean,
+                _ => null
+            };
+            if (named == null || (sentType != null && sentType != named)) {
+                await Fail(400, named == null
+                    ? $"Unknown type \"{typeText}\" (text, number or boolean)"
+                    : $"value is a {sentType!.Value.GetLabel()} but type says {named.Value.GetLabel()}");
+                return;
+            }
+
+            sentType = named;
+        }
+
+        string? value = fields.GetValueOrDefault("value");
+        string op = (fields.GetValueOrDefault("op") ?? "set").Trim().ToLowerInvariant();
+        ActionOperation? operation = op switch {
+            "set" => ActionOperation.Set,
+            "add" or "subtract" => ActionOperation.Adjust,
+            "toggle" => ActionOperation.Toggle,
+            _ => null
+        };
+        if (operation == null) {
+            await Fail(400, $"Unknown operation \"{op}\" (set, add, subtract or toggle)");
+            return;
+        }
+
+        if (op == "subtract" && value != null) {
+            if (ActionValueType.Number.NormalizeValue(value) is not { } amount) {
+                await Fail(400, $"Can't subtract \"{value}\", it isn't a number");
+                return;
+            }
+
+            value = (-double.Parse(amount, CultureInfo.InvariantCulture)).ToString(CultureInfo.InvariantCulture);
+        }
+
+        (ActionGlobal? global, bool created, string? errorStr) =
+            await actions.ChangeGlobalAsync(name, sentType, operation.Value, value, true);
+        if (global == null) {
+            await Fail(400, errorStr ?? "Could not set global");
+            return;
+        }
+
+        await ctx.WriteResponse(200, JsonSerializer.Serialize(new { created, global = GlobalToObject(global) }), true,
+            "application/json");
     }
 
     private async Task HandleValuesRequestAsync(IHttpContext ctx) {

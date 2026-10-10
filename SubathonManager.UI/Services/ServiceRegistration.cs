@@ -32,6 +32,7 @@ public static class ServiceRegistration {
         services.AddSingleton<WebServer>();
         services.AddSingleton<PromptOrchestratorService>();
         services.AddSingleton<WheelSpinTriggerService>();
+        services.AddSingleton<ActionService>();
         services.AddSingleton<TelemetryService>();
 
         services.AddHttpClient(nameof(OAuthService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
@@ -76,10 +77,14 @@ public static class ServiceRegistration {
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<KoFiService>());
         services.AddSingleton<FourthWallService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<FourthWallService>());
+        services.AddHttpClient(nameof(PatreonService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan)
+            .AddHttpMessageHandler(sp =>
+                // logging handler is so client logs responses instead of null return
+                new PatreonService.ErrorLoggingHandler(sp.GetService<ILogger<PatreonService>>()));
+        services.AddSingleton<PatreonService>();
+        services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<PatreonService>());
         services.AddSingleton<ThroneService>();
         services.AddSingleton<IWebhookIntegration>(sp => sp.GetRequiredService<ThroneService>());
-        services.AddSingleton<PallyService>();
-        services.AddSingleton<TiltifyService>();
 
         // Stream Extensions //
         services.AddHttpClient(nameof(TipeeeStreamService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
@@ -90,13 +95,23 @@ public static class ServiceRegistration {
         services.AddSingleton<TreatStreamService>();
 
         // Other //
+        services.AddSingleton<PallyService>();
+        services.AddSingleton<TiltifyService>();
+        
         services.AddHttpClient(nameof(DiscordWebhookService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
-        ;
         services.AddSingleton<DiscordWebhookService>();
+        
+        // External Software
         services.AddSingleton<OBSService>();
+        services.AddSingleton<IActionStepRunner>(sp => sp.GetRequiredService<OBSService>());
         services.AddSingleton<VTSService>();
+        services.AddSingleton<IActionStepRunner>(sp => sp.GetRequiredService<VTSService>());
         services.AddHttpClient(nameof(MixItUpService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         services.AddSingleton<MixItUpService>();
+        services.AddSingleton<IActionStepRunner>(sp => sp.GetRequiredService<MixItUpService>());
+        services.AddHttpClient(nameof(StreamerBotService)).SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        services.AddSingleton<StreamerBotService>();
+        services.AddSingleton<IActionStepRunner>(sp => sp.GetRequiredService<StreamerBotService>());
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder) {
