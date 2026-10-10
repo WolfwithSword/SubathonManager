@@ -107,13 +107,13 @@ public enum ActionStepType {
     StreamerBotAction = 500,
 
     [ActionStepMeta(Label = "GET Request", Group = "Web", TargetLabel = "URL:",
-        DurationLabel = "Timeout (blank = 10s):",
+        DurationLabel = "Timeout (blank = 15s):",
         AllowsVariables = true, IsWebRequest = true)]
     HttpGet = 600,
 
     // body is sent as-is
     [ActionStepMeta(Label = "POST Request", Group = "Web", TargetLabel = "URL:", BodyLabel = "Body:",
-        DurationLabel = "Timeout (blank = 10s):", AllowsVariables = true, IsWebRequest = true)]
+        DurationLabel = "Timeout (blank = 15s):", AllowsVariables = true, IsWebRequest = true)]
     HttpPost = 601
 }
 
