@@ -513,7 +513,8 @@ public class AppDbContext : DbContext {
             new() { SiteId = 7111695, StoreName = "V1 Tech", EventName = "V1 Tech Order" },
             new() { SiteId = 7120088, StoreName = "Plush Foundry", EventName = "PlushFoundry Order" },
             new() { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order" },
-            new() { SiteId = 7181690, StoreName = "Redtail Retail", EventName = "Redtail Order" }
+            new() { SiteId = 7181690, StoreName = "Redtail Retail", EventName = "Redtail Order" },
+            new() { SiteId = 7158345, StoreName = "Xepher Arcade",  EventName = "Xepher Arcade Order" },
         };
 
         foreach (GoAffProStore def in defaults) {
@@ -541,8 +542,8 @@ public class AppDbContext : DbContext {
     }
 
     private static void MigrateLegacyGoAffProData(AppDbContext db) {
-        // Convert rows stored under retired per-store GoAffPro enum values to the single
-        // GoAffProOrder type, SiteId in the meta column
+        // Convert rows stored under legacy per-store GoAffPro enum values to the single
+        // GoAffProOrder type, SiteId in the meta column - only relevant if updating from very old
         var newGoAffProOrderInt = (int)SubathonEventType.GoAffProOrder;
 
         foreach (SubathonEventType legacyType in Enum.GetValues<SubathonEventType>()
@@ -586,39 +587,5 @@ public class AppDbContext : DbContext {
                     s.SetProperty(x => x.ReversedTime, false));
 
         MigrateLegacyGoAffProData(db);
-
-        // var fontTypes = WidgetVariableTypeHelper.FontVariables.ToList();
-        // var widgetsMissingFontTypes = db.Widgets
-        //     .Where(w => !fontTypes.All(ft => w.JsVariables.Any(v => v.Type == ft)))
-        //     .Include(w => w.JsVariables)
-        //     .ToList();
-        // if (widgetsMissingFontTypes.Count > 0)
-        // {
-        //     var newVars = new List<JsVariable>();
-        //     foreach (var widget in widgetsMissingFontTypes)
-        //     {
-        //         var existingTypes = widget.JsVariables
-        //             .Select(v => v.Type)
-        //             .ToHashSet();
-        //
-        //         foreach (var fontVar in fontTypes.Where(ft => !existingTypes.Contains(ft)))
-        //         {
-        //             newVars.Add(new JsVariable
-        //             {
-        //                 WidgetId = widget.Id,
-        //                 Widget = widget,
-        //                 Type = fontVar,
-        //                 Name = $"{fontVar}s",
-        //                 Description = $"Custom font names to include from {fontVar}s, comma separated",
-        //                 Value = string.Empty
-        //             });
-        //         }
-        //     }
-        //     if (newVars.Count > 0)
-        //     {
-        //         db.JsVariables.AddRange(newVars);
-        //         db.SaveChanges();
-        //     }
-        // }
     }
 }
