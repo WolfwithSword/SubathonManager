@@ -199,6 +199,15 @@ public partial class MakeShipSettings : SettingsControl {
             return;
         }
 
+        if (tracking.Blocked) {
+            info.StatusText.Text = "Blocked by MakeShip (403)";
+            info.StatusText.Foreground = Brushes.IndianRed;
+            ToolTip.SetTip(info.StatusText,
+                "MakeShip is refusing requests from the app (403 Forbidden). Retrying in 10 minutes");
+            return;
+        }
+
+        ToolTip.SetTip(info.StatusText, null);
         switch (tracking.ProductType) {
             case MakeShipProductType.Petition:
             case MakeShipProductType.Campaign:

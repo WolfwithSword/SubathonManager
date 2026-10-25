@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -24,13 +25,15 @@ public partial class MakeShipService(
     private const string TimerKey = "makeship-poll";
     private const int InvalidAfterConsecutiveFailures = 3;
 
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan BlockedPollInterval = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan StaggerDelay = TimeSpan.FromSeconds(2);
     private readonly Dictionary<Guid, int> _contentFailures = new();
     private readonly HashSet<Guid> _syncedSinceStart = new();
     private readonly Lock _syncLock = new();
     private bool _lastBroadcastStatus;
+    private bool _backedOff;
     private int _pollSweepRunning;
     private bool _running;
 
@@ -61,6 +64,7 @@ public partial class MakeShipService(
         }
 
         _running = true;
+        _backedOff = false;
 
         timerService?.Register(TimerKey, PollInterval, PollTimerTick);
         logger?.LogInformation("[MakeShip] Tracking started ({Count} urls)", trackings.Count);
@@ -138,7 +142,20 @@ public partial class MakeShipService(
 
         List<MakeShipTracking> trackings = MakeShipTrackingRegistry.All();
         Connected = trackings.Count > 0 && trackings.Any(IsTracked);
+        UpdatePollInterval(trackings.Any(t => t.Blocked));
         BroadcastStatus();
+    }
+
+    private void UpdatePollInterval(bool blocked) {
+        if (!_running || blocked == _backedOff) return;
+        _backedOff = blocked;
+        TimeSpan interval = blocked ? BlockedPollInterval : PollInterval;
+        timerService?.Register(TimerKey, interval, PollTimerTick);
+        if (blocked)
+            logger?.LogWarning("[MakeShip] Requests are being blocked (403). Polling every {Interval} until it clears",
+                interval);
+        else
+            logger?.LogInformation("[MakeShip] No longer blocked. Polling every {Interval}", interval);
     }
 
     private static bool IsTracked(MakeShipTracking t) {
@@ -148,6 +165,7 @@ public partial class MakeShipService(
 
     internal async Task PollTrackingAsync(MakeShipTracking tracking, CancellationToken ct) {
         if (tracking.ProductType == MakeShipProductType.Invalid) return;
+        tracking.Blocked = false;
         if (string.IsNullOrEmpty(tracking.ShopifyProductId) && !await ResolveTrackingAsync(tracking, ct)) {
             MakeShipTrackingRegistry.RaiseTrackingUpdated(tracking);
             return;
@@ -216,7 +234,7 @@ public partial class MakeShipService(
             return false;
         }
 
-        string? html = await GetStringAsync(tracking.Url, ct);
+        string? html = await GetStringAsync(tracking, tracking.Url, ct);
         if (html == null) return false;
 
         string? productId = type == MakeShipProductType.Petition
@@ -241,7 +259,7 @@ public partial class MakeShipService(
     }
 
     private async Task<bool> RefreshPetitionAsync(MakeShipTracking tracking, CancellationToken ct) {
-        string? json = await GetStringAsync(
+        string? json = await GetStringAsync(tracking,
             $"{PreProductApiBase}{tracking.ShopifyProductId}.json{PreProductShopQuery}", ct);
         if (json == null) return false;
 
@@ -265,7 +283,7 @@ public partial class MakeShipService(
     }
 
     private async Task<bool> RefreshCampaignAsync(MakeShipTracking tracking, CancellationToken ct) {
-        string? json = await GetStringAsync(
+        string? json = await GetStringAsync(tracking,
             $"{StorefrontBase}/products/{tracking.ShopifyProductId}/sales-quantity", ct);
         if (json == null) {
             logger?.LogWarning("[MakeShip] No sales-quantity for product {Id} ({Url})",
@@ -288,7 +306,7 @@ public partial class MakeShipService(
     }
 
     private async Task<bool> RefreshPledgeCountAsync(MakeShipTracking tracking, string url, CancellationToken ct) {
-        string? body = await GetStringAsync(url, ct);
+        string? body = await GetStringAsync(tracking, url, ct);
         if (body == null) {
             logger?.LogWarning("[MakeShip] Pledge count request failed for '{Name}' ({Url})", tracking.Name, url);
             return false;
@@ -380,7 +398,7 @@ public partial class MakeShipService(
         });
     }
 
-    private async Task<string?> GetStringAsync(string url, CancellationToken ct) {
+    private async Task<string?> GetStringAsync(MakeShipTracking tracking, string url, CancellationToken ct) {
         using HttpClient client = httpClientFactory.CreateClient(nameof(MakeShipService));
         client.Timeout = HttpTimeout;
         if (!client.DefaultRequestHeaders.UserAgent.Any())
@@ -388,6 +406,16 @@ public partial class MakeShipService(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SubathonManager");
         try {
             HttpResponseMessage response = await client.GetAsync(url, ct);
+            if (response.StatusCode == HttpStatusCode.Forbidden) {
+                tracking.Blocked = true;
+                string headers = string.Join("; ", response.Headers.Concat(response.Content.Headers)
+                    .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
+                string body = await response.Content.ReadAsStringAsync(ct);
+                logger?.LogWarning("[MakeShip] Forbidden (403) from {Url}. Headers: {Headers}. Body: {Body}",
+                    url, headers, Truncate(body, 500));
+                return null;
+            }
+
             if (!response.IsSuccessStatusCode) {
                 logger?.LogDebug("[MakeShip] {Status} from {Url}", response.StatusCode, url);
                 return null;
