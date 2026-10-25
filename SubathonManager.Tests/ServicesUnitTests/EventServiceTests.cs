@@ -1318,6 +1318,37 @@ public class EventServiceTests {
     }
 
     [Fact]
+    public async Task PointsJumpPastMultipleGoals_RaisesEachCompletedGoalInOrder() {
+        (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
+            await SetupServiceWithDb(100, false);
+        await using (var db = new AppDbContext(options)) {
+            SubathonGoalSet set = await db.SubathonGoalSets.Include(s => s.Goals)
+                .FirstAsync(TestContext.Current.CancellationToken);
+            set.Goals.Add(new SubathonGoal { Text = "C", Points = 150 });
+            set.Goals.Add(new SubathonGoal { Text = "A", Points = 110 });
+            set.Goals.Add(new SubathonGoal { Text = "B", Points = 120 });
+            set.Goals.Add(new SubathonGoal { Text = "D", Points = 200 });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var completed = new List<string>();
+        SubathonEvents.SubathonGoalCompleted += (goal, _) => {
+            lock (completed) completed.Add(goal.Text);
+        };
+
+        (bool processed, _) = await service.ProcessSubathonEvent(new SubathonEvent {
+            Id = Guid.NewGuid(), EventType = SubathonEventType.Command,
+            Command = SubathonCommandType.AddPoints, PointsValue = 50
+        });
+
+        Assert.True(processed);
+        Assert.Equal(["A", "B", "C"], completed);
+
+        await service.StopAsync(TestContext.Current.CancellationToken);
+        await conn.CloseAsync();
+    }
+
+    [Fact]
     public async Task CancelledOrder_RemovesTrackedEventAndWarns() {
         (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
             await SetupServiceWithDb(0, false);

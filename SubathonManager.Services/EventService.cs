@@ -582,7 +582,7 @@ public class EventService : IDisposable, IAppService {
                 if (prevCompletedGoal2 != null &&
                     prevCompletedGoal1?.Id != prevCompletedGoal2.Id) {
                     if (prevCompletedGoal1 == null || prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
-                        SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, newPoints);
+                        RaiseGoalsCompletedBetween(goalSet, initialPoints, newPoints);
                     else
                         SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints, (GoalsType)goalSet.Type!);
                 }
@@ -593,6 +593,13 @@ public class EventService : IDisposable, IAppService {
         }
 
         await Task.CompletedTask;
+    }
+
+    private static void RaiseGoalsCompletedBetween(SubathonGoalSet goalSet, long fromPoints, long toPoints) {
+        foreach (SubathonGoal goal in goalSet.Goals
+                     .Where(g => g.Points > fromPoints && g.Points <= toPoints)
+                     .OrderBy(g => g.Points))
+            SubathonEvents.RaiseSubathonGoalCompleted(goal, toPoints);
     }
 
     private void OnSubathonEventCancelled(Guid id, SubathonEventType type, string reference) {
@@ -843,7 +850,7 @@ public class EventService : IDisposable, IAppService {
                     prevCompletedGoal1.Id != prevCompletedGoal2.Id) {
                     // the else is for if we undid stuff
                     if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
-                        SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, pts);
+                        RaiseGoalsCompletedBetween(goalSet, initialPoints, pts);
                     else
                         SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, pts, (GoalsType)goalSet.Type!);
                 }

@@ -408,11 +408,16 @@ public partial class MakeShipService(
             HttpResponseMessage response = await client.GetAsync(url, ct);
             if (response.StatusCode == HttpStatusCode.Forbidden) {
                 tracking.Blocked = true;
-                string headers = string.Join("; ", response.Headers.Concat(response.Content.Headers)
-                    .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
-                string body = await response.Content.ReadAsStringAsync(ct);
-                logger?.LogWarning("[MakeShip] Forbidden (403) from {Url}. Headers: {Headers}. Body: {Body}",
-                    url, headers, Truncate(body, 500));
+                if ((bool)logger?.IsEnabled(LogLevel.Debug)) {
+                    string headers = string.Join("; ", response.Headers.Concat(response.Content.Headers)
+                        .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
+                    string body = await response.Content.ReadAsStringAsync(ct);
+                    logger?.LogDebug("[MakeShip] Forbidden (403) from {Url}. Headers: {Headers}. Body: {Body}",
+                        url, headers, Truncate(body, 500));
+                }
+                else {
+                    logger?.LogWarning("[MakeShip] Forbidden (403) from {Url}", url);
+                }
                 return null;
             }
 
