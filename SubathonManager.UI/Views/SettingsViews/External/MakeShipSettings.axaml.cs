@@ -44,6 +44,11 @@ public partial class MakeShipSettings : SettingsControl {
             UpdateStatus(Utils.GetConnection(SubathonEventSource.MakeShip, nameof(SubathonEventSource.MakeShip)));
         };
         Unloaded += (_, _) => { IntegrationEvents.ConnectionUpdated -= UpdateStatus; };
+
+        if (FeatureFlags.MakeShipMarkAsExperimental) {
+            ExperimentalFlag.IsVisible = true;
+            ExperimentalFlag.Foreground = Brushes.Orange;
+        }
     }
 
     public override void Init(SettingsView host) {
