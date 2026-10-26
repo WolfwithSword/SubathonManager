@@ -155,8 +155,9 @@ public class DevTunnelsService(
     }
 
     public async Task StartTunnelAsync(CancellationToken ct = default) {
-        // Fast path: no lock needed if a session is already running.
-        if (_session != null) return;
+        // Fast path: no lock needed if the tunnel is already up. A session that is still
+        // starting must fall through to the lock so callers wait for it to be ready.
+        if (_session != null && IsTunnelRunning) return;
 
         await _startLock.WaitAsync(ct);
         try {

@@ -60,7 +60,7 @@ public class FourthWallService(
 
         if (enabled) {
             logger?.LogInformation("[FourthWall] Webhook listener ready at {Path}", WebhookPath);
-            _ = devTunnels.StartTunnelAsync(ct);
+            _ = Task.Run(() => Initialize(ct), ct);
         }
         else {
             logger?.LogInformation("[FourthWall] Has not been setup before. Integration is disabled");
@@ -152,6 +152,13 @@ public class FourthWallService(
         if (!await _initLock.WaitAsync(0, ct)) return;
         try {
             await InitializeCoreAsync(ct);
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "[FourthWall] Failed to initialize");
+            ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.FourthWall),
+                "FourthWall failed to connect. Check the logs or try reconnecting in the FourthWall settings.",
+                DateTime.Now);
+            BroadcastStatus(HasTokenFile(), null);
         }
         finally {
             _initLock.Release();
