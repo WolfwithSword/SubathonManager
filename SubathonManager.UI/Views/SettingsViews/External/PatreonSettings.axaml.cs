@@ -84,13 +84,13 @@ public partial class PatreonSettings : DevTunnelSettingsControl {
         bool hasUpdated = SaveMembershipValues(db);
         SubathonValue? perUnit = db.SubathonValues.FirstOrDefault(v =>
             v.EventType == SubathonEventType.PatreonPledge && v.Meta == Utils.PerUnitMeta);
-        if (perUnit != null && double.TryParse(PerUnitBox.Text, out double seconds) &&
+        if (perUnit != null && Utils.TryParseAmount(PerUnitBox.Text, out double seconds) &&
             !seconds.Equals(perUnit.Seconds)) {
             perUnit.Seconds = seconds;
             hasUpdated = true;
         }
 
-        if (perUnit != null && double.TryParse(PerUnitBox2.Text, out double points) &&
+        if (perUnit != null && Utils.TryParseAmount(PerUnitBox2.Text, out double points) &&
             !points.Equals(perUnit.Points)) {
             perUnit.Points = points;
             hasUpdated = true;

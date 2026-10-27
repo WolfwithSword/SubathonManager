@@ -168,7 +168,7 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
                     OrderTypeModes.Dollar);
 
                 data.TryGetValue("price", out object? price);
-                double.TryParse(price?.ToString() ?? "0.00", out double priceInt);
+                Utils.TryParseAmount(price?.ToString() ?? "0.00", out double priceInt);
                 subathonEvent.EventType = SubathonEventType.ThroneGiftPurchase;
                 subathonEvent.Currency =
                     mode == OrderTypeModes.Dollar
@@ -184,13 +184,13 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
                 subathonEvent.Currency = currency;
                 data.TryGetValue("amount", out object? amount);
                 subathonEvent.TertiaryValue = itemName?.ToString() ?? "New Contribution";
-                double.TryParse(amount?.ToString(), out double amountInt);
+                Utils.TryParseAmount(amount?.ToString(), out double amountInt);
                 subathonEvent.Value =
                     (amountInt / 100).ToString("F2", CultureInfo.InvariantCulture);
                 break;
             case "gift_crowdfunded":
                 data.TryGetValue("price", out object? price2);
-                double.TryParse(price2?.ToString() ?? "0.00", out double priceInt2);
+                Utils.TryParseAmount(price2?.ToString() ?? "0.00", out double priceInt2);
                 subathonEvent.EventType = SubathonEventType.ThroneCrowdGiftComplete;
                 subathonEvent.User = itemName?.ToString() ?? "Crowdfunding Complete!";
                 subathonEvent.Currency = currency;

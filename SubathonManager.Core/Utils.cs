@@ -13,7 +13,7 @@ using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Core;
 
-public static class Utils {
+public static partial class Utils {
     public static readonly Dictionary<string, bool> DonationSettings = new();
 
     private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection>
@@ -146,14 +146,16 @@ public static class Utils {
         return new Guid(guidBytes);
     }
 
-    // handles locals where it may be "12,50" instead of "12.50"
     public static bool TryParseAmount(string? text, out double value) {
         value = 0;
         if (string.IsNullOrWhiteSpace(text)) return false;
         text = text.Trim();
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value) ||
-               double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture,
-                   out value);
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) return true;
+        if (DecimalValueCultureCommaRegex().IsMatch(text))
+            return double.TryParse(text.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture,
+                out value);
+        return double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.CurrentCulture,
+            out value);
     }
 
     public static double ParseAmount(string? text) {
@@ -162,7 +164,7 @@ public static class Utils {
 
     public static string TryParseCurrency(string amountString) {
         var currency = "";
-        Match match = Regex.Match(amountString, @"^(?<code>[A-Z]{3})(?![A-Z])");
+        Match match = CurrencyCodeCheckRegex().Match(amountString);
         if (match.Success) {
             currency = match.Groups["code"].Value;
         }
@@ -176,28 +178,28 @@ public static class Utils {
                 else if (amountString.StartsWith("NT$")) currency = "TWD";
                 else if (amountString.StartsWith("NZ$")) currency = "NZD";
             }
-            else if (amountString.Contains("₨")) {
+            else if (amountString.Contains('₨')) {
                 if (amountString.StartsWith("PK₨")) currency = "PKR";
                 else if (amountString.StartsWith("LK₨")) currency = "LKR";
                 else if (amountString.StartsWith("MU₨")) currency = "MUR";
                 else if (amountString.StartsWith("NP₨")) currency = "NPR";
             }
             else {
-                if (amountString.StartsWith("₩")) currency = "KRW";
-                else if (amountString.StartsWith("₱")) currency = "PHP";
-                else if (amountString.StartsWith("₫")) currency = "VND";
-                else if (amountString.StartsWith("₦")) currency = "NGN";
-                else if (amountString.StartsWith("₴")) currency = "UAH";
-                else if (amountString.StartsWith("₲")) currency = "PYG"; // 
-                else if (amountString.StartsWith("₡")) currency = "CRC";
-                else if (amountString.StartsWith("₺")) currency = "TRY";
-                else if (amountString.StartsWith("₼")) currency = "AZN";
-                else if (amountString.StartsWith("₸")) currency = "KZT";
-                else if (amountString.StartsWith("₭")) currency = "LAK";
-                else if (amountString.StartsWith("₾")) currency = "GEL";
-                else if (amountString.StartsWith("₮")) currency = "MNT";
-                else if (amountString.StartsWith("₹")) currency = "INR";
-                else if (amountString.StartsWith("₣")) currency = "CHF";
+                if (amountString.StartsWith('₩')) currency = "KRW";
+                else if (amountString.StartsWith('₱')) currency = "PHP";
+                else if (amountString.StartsWith('₫')) currency = "VND";
+                else if (amountString.StartsWith('₦')) currency = "NGN";
+                else if (amountString.StartsWith('₴')) currency = "UAH";
+                else if (amountString.StartsWith('₲')) currency = "PYG"; // 
+                else if (amountString.StartsWith('₡')) currency = "CRC";
+                else if (amountString.StartsWith('₺')) currency = "TRY";
+                else if (amountString.StartsWith('₼')) currency = "AZN";
+                else if (amountString.StartsWith('₸')) currency = "KZT";
+                else if (amountString.StartsWith('₭')) currency = "LAK";
+                else if (amountString.StartsWith('₾')) currency = "GEL";
+                else if (amountString.StartsWith('₮')) currency = "MNT";
+                else if (amountString.StartsWith('₹')) currency = "INR";
+                else if (amountString.StartsWith('₣')) currency = "CHF";
             }
         }
 
@@ -240,7 +242,7 @@ public static class Utils {
         if (!eventType.IsToken())
             return (false, 1);
         if (eventType != SubathonEventType.TwitchCheer && eventType != SubathonEventType.PicartoTip)
-            double.TryParse(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
+            TryParseAmount(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
 
         bool useAsDonation = config.GetBool("Currency", "BitsLikeAsDonation");
         return (useAsDonation, modifier);
@@ -391,4 +393,9 @@ public static class Utils {
             public IntPtr lpData;
         }
     }
+
+    [GeneratedRegex(@"^[+-]?\d+,\d{1,2}$")]
+    private static partial Regex DecimalValueCultureCommaRegex();
+    [GeneratedRegex(@"^(?<code>[A-Z]{3})(?![A-Z])")]
+    private static partial Regex CurrencyCodeCheckRegex();
 }

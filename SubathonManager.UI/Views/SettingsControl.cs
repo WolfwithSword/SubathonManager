@@ -325,13 +325,13 @@ public abstract class SettingsControl : UserControl {
 
         SubathonValue? defaultValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == "DEFAULT");
-        if (defaultValue != null && double.TryParse(_DefaultMembershipSecondsBox?.Text, out double defaultSeconds) &&
+        if (defaultValue != null && Utils.TryParseAmount(_DefaultMembershipSecondsBox?.Text, out double defaultSeconds) &&
             !defaultSeconds.Equals(defaultValue.Seconds)) {
             defaultValue.Seconds = defaultSeconds;
             hasUpdated = true;
         }
 
-        if (defaultValue != null && double.TryParse(_DefaultMembershipPointsBox?.Text, out double defaultPoints) &&
+        if (defaultValue != null && Utils.TryParseAmount(_DefaultMembershipPointsBox?.Text, out double defaultPoints) &&
             !defaultPoints.Equals(defaultValue.Points)) {
             defaultValue.Points = defaultPoints;
             hasUpdated = true;
@@ -348,8 +348,8 @@ public abstract class SettingsControl : UserControl {
         foreach (DynamicSubRow subRow in _dynamicSubRows) {
             string meta = (subRow.NameBox.Text ?? "").Trim();
             if (meta == "DEFAULT") continue;
-            if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
-            if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
+            if (!Utils.TryParseAmount(subRow.TimeBox.Text, out double seconds)) seconds = 0;
+            if (!Utils.TryParseAmount(subRow.PointsBox.Text, out double points)) points = 0;
 
 #pragma warning disable CA1862
             SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>

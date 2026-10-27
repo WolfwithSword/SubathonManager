@@ -252,7 +252,7 @@ public class PallyService : IAppService, IDisposable {
     }
 
     public static void SimulateTip(string value = "10.00") {
-        if (!double.TryParse(value, out double val) || val <= 0) return;
+        if (!Utils.TryParseAmount(value, out double val) || val <= 0) return;
         SubathonEvents.RaiseSubathonEventCreated(new SubathonEvent {
             User = "SYSTEM",
             Currency = "USD",

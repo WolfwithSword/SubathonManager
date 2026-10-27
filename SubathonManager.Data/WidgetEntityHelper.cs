@@ -293,7 +293,7 @@ public class WidgetEntityHelper {
                     WidgetVariableType.Boolean => bool.TryParse(rawValue, out bool b) && b,
                     WidgetVariableType.Int => int.TryParse(rawValue, out int i) ? i : 0,
                     WidgetVariableType.Percent => int.TryParse(rawValue, out int i) ? i : 0,
-                    WidgetVariableType.Float => float.TryParse(rawValue, out float d) ? d : 0,
+                    WidgetVariableType.Float => (float)Utils.ParseAmount(rawValue),
                     _ => rawValue
                 };
             }

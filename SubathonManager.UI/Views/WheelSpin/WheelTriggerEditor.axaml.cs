@@ -788,7 +788,7 @@ public partial class WheelTriggerEditor : UserControl {
                 }
                 else if (OrderByMoneyRadio.IsChecked == true) {
                     if (string.IsNullOrWhiteSpace(OrderMoneyBox.Text) ||
-                        !double.TryParse(OrderMoneyBox.Text, out double om) || om <= 0) {
+                        !Utils.TryParseAmount(OrderMoneyBox.Text, out double om) || om <= 0) {
                         TriggerStatusText.Text = "Order amount must be a positive number";
                         return;
                     }
@@ -806,7 +806,7 @@ public partial class WheelTriggerEditor : UserControl {
 
             case SubathonEventSubType.DonationLike:
                 if (string.IsNullOrWhiteSpace(DonationMoneyBox.Text) ||
-                    !double.TryParse(DonationMoneyBox.Text, out double dm) || dm <= 0) {
+                    !Utils.TryParseAmount(DonationMoneyBox.Text, out double dm) || dm <= 0) {
                     TriggerStatusText.Text = "Donation amount must be a positive number";
                     return;
                 }

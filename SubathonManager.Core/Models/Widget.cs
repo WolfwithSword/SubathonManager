@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -117,8 +118,8 @@ public class JsVariable {
         else if (Type == WidgetVariableType.Boolean && bool.TryParse(Value, out bool b)) {
             sb.Append($"{b.ToString().ToLower()}");
         }
-        else if (Type == WidgetVariableType.Float && float.TryParse(Value, out float f)) {
-            sb.Append($"{f}");
+        else if (Type == WidgetVariableType.Float && Utils.TryParseAmount(Value, out double f)) {
+            sb.Append(((float)f).ToString(CultureInfo.InvariantCulture));
         }
         else if (Type == WidgetVariableType.Int && int.TryParse(Value, out int intValue)) {
             sb.Append($"{intValue}");

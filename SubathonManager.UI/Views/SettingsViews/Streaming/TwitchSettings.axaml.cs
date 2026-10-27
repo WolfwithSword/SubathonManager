@@ -73,13 +73,13 @@ public partial class TwitchSettings : SettingsControl {
         SubathonValue? cheerValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchCheer && sv.Meta == "");
         // divide by 100 since UI shows "per 100 bits"
-        if (cheerValue != null && double.TryParse(CheerTextBox.Text, out double cheerSeconds) &&
+        if (cheerValue != null && Utils.TryParseAmount(CheerTextBox.Text, out double cheerSeconds) &&
             !cheerValue.Seconds.Equals(cheerSeconds / 100.0)) {
             cheerValue.Seconds = cheerSeconds / 100.0;
             hasUpdated = true;
         }
 
-        if (cheerValue != null && double.TryParse(Cheer2TextBox.Text, out double cheerPoints) &&
+        if (cheerValue != null && Utils.TryParseAmount(Cheer2TextBox.Text, out double cheerPoints) &&
             !cheerValue.Points.Equals(cheerPoints)) {
             cheerValue.Points = cheerPoints;
             hasUpdated = true;
@@ -87,13 +87,13 @@ public partial class TwitchSettings : SettingsControl {
 
         SubathonValue? raidValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchRaid && sv.Meta == "");
-        if (raidValue != null && double.TryParse(RaidTextBox.Text, out double raidSeconds) &&
+        if (raidValue != null && Utils.TryParseAmount(RaidTextBox.Text, out double raidSeconds) &&
             !raidValue.Seconds.Equals(raidSeconds)) {
             raidValue.Seconds = raidSeconds;
             hasUpdated = true;
         }
 
-        if (raidValue != null && double.TryParse(Raid2TextBox.Text, out double raidPoints) &&
+        if (raidValue != null && Utils.TryParseAmount(Raid2TextBox.Text, out double raidPoints) &&
             !raidValue.Points.Equals(raidPoints)) {
             raidValue.Points = raidPoints;
             hasUpdated = true;
@@ -101,13 +101,13 @@ public partial class TwitchSettings : SettingsControl {
 
         SubathonValue? followValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.TwitchFollow && sv.Meta == "");
-        if (followValue != null && double.TryParse(FollowTextBox.Text, out double followSeconds) &&
+        if (followValue != null && Utils.TryParseAmount(FollowTextBox.Text, out double followSeconds) &&
             !followValue.Seconds.Equals(followSeconds)) {
             followValue.Seconds = followSeconds;
             hasUpdated = true;
         }
 
-        if (followValue != null && double.TryParse(Follow2TextBox.Text, out double followPoints) &&
+        if (followValue != null && Utils.TryParseAmount(Follow2TextBox.Text, out double followPoints) &&
             !followValue.Points.Equals(followPoints)) {
             followValue.Points = followPoints;
             hasUpdated = true;
@@ -115,13 +115,13 @@ public partial class TwitchSettings : SettingsControl {
 
         SubathonValue? tcdTipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.TwitchCharityDonation && sv.Meta == "");
-        if (tcdTipValue != null && double.TryParse(DonoBox.Text, out double tcdTipSeconds) &&
+        if (tcdTipValue != null && Utils.TryParseAmount(DonoBox.Text, out double tcdTipSeconds) &&
             !tcdTipValue.Seconds.Equals(tcdTipSeconds)) {
             tcdTipValue.Seconds = tcdTipSeconds;
             hasUpdated = true;
         }
 
-        if (tcdTipValue != null && double.TryParse(DonoBox2.Text, out double tcdTipPoints) &&
+        if (tcdTipValue != null && Utils.TryParseAmount(DonoBox2.Text, out double tcdTipPoints) &&
             !tcdTipValue.Points.Equals(tcdTipPoints)) {
             tcdTipValue.Points = tcdTipPoints;
             hasUpdated = true;
@@ -273,7 +273,7 @@ public partial class TwitchSettings : SettingsControl {
         bool enabled = config.GetBool("Twitch", "HypeTrainMultiplier.Enabled");
         if (HypeTrainMultBox.IsChecked != enabled) HypeTrainMultBox.IsChecked = enabled;
 
-        double.TryParse(config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"), out double parsedAmt);
+        Utils.TryParseAmount(config.Get("Twitch", "HypeTrainMultiplier.Multiplier", "1"), out double parsedAmt);
         if (HypeTrainMultAmt.Text != parsedAmt.ToString("0.00")) HypeTrainMultAmt.Text = parsedAmt.ToString("0.00");
 
         bool applyPts = config.GetBool("Twitch", "HypeTrainMultiplier.Points");

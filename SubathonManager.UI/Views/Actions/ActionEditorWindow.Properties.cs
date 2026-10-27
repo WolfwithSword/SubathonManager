@@ -268,8 +268,7 @@ public partial class ActionEditorWindow {
         }
 
         step.Value = step.Type.HasValue(step.Operation)
-                     && double.TryParse((ValueBox.Text ?? "").Trim(), NumberStyles.Float,
-                         CultureInfo.InvariantCulture, out double value)
+                     && Utils.TryParseAmount(ValueBox.Text, out double value)
             ? value
             : null;
         TimeSpan duration = Utils.ParseDurationString((DurationBox.Text ?? "").Trim());

@@ -38,13 +38,13 @@ public partial class ExternalServiceSettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.ExternalDonation && sv.Meta == "");
-        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out double exSeconds) &&
+        if (externalDonoValue != null && Utils.TryParseAmount(DonoBox.Text, out double exSeconds) &&
             !exSeconds.Equals(externalDonoValue.Seconds)) {
             externalDonoValue.Seconds = exSeconds;
             hasUpdated = true;
         }
 
-        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out double exPoints) &&
+        if (externalDonoValue != null && Utils.TryParseAmount(DonoBox2.Text, out double exPoints) &&
             !exPoints.Equals(externalDonoValue.Points)) {
             externalDonoValue.Points = exPoints;
             hasUpdated = true;
@@ -52,13 +52,13 @@ public partial class ExternalServiceSettings : SettingsControl {
 
         SubathonValue? defaultSubValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.ExternalSub && sv.Meta == "DEFAULT");
-        if (defaultSubValue != null && double.TryParse(SubDTextBox.Text, out double defaultSeconds) &&
+        if (defaultSubValue != null && Utils.TryParseAmount(SubDTextBox.Text, out double defaultSeconds) &&
             !defaultSeconds.Equals(defaultSubValue.Seconds)) {
             defaultSubValue.Seconds = defaultSeconds;
             hasUpdated = true;
         }
 
-        if (defaultSubValue != null && double.TryParse(SubDTextBox2.Text, out double defaultPoints) &&
+        if (defaultSubValue != null && Utils.TryParseAmount(SubDTextBox2.Text, out double defaultPoints) &&
             !defaultPoints.Equals(defaultSubValue.Points)) {
             defaultSubValue.Points = defaultPoints;
             hasUpdated = true;
@@ -82,8 +82,8 @@ public partial class ExternalServiceSettings : SettingsControl {
 
             if (meta == "DEFAULT") continue;
 
-            if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
-            if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
+            if (!Utils.TryParseAmount(subRow.TimeBox.Text, out double seconds)) seconds = 0;
+            if (!Utils.TryParseAmount(subRow.PointsBox.Text, out double points)) points = 0;
 
 #pragma warning disable CA1862
             SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>

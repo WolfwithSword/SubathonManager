@@ -420,7 +420,7 @@ public class YouTubeService : IDisposable, IAppService {
     }
 
     public static void SimulateSuperChat(string value = "10.00", string currency = "USD") {
-        if (!double.TryParse(value, out double val))
+        if (!Utils.TryParseAmount(value, out double val))
             return;
 
         var subathonEvent = new SubathonEvent {

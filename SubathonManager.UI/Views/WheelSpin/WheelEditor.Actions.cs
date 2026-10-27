@@ -62,8 +62,7 @@ public partial class WheelEditor {
     }
 
     private string BuildMultiplierParameter() {
-        if (!double.TryParse(MultiplierAmountBox.Text, NumberStyles.Float,
-                CultureInfo.InvariantCulture, out double amount))
+        if (!Utils.TryParseAmount(MultiplierAmountBox.Text, out double amount))
             amount = 1.0;
         TimeSpan duration = Utils.ParseDurationString((MultiplierDurationBox.Text ?? "").Trim());
         string durationStr = duration == TimeSpan.Zero ? "x" : ((int)duration.TotalSeconds).ToString();
@@ -158,8 +157,7 @@ public partial class WheelEditor {
                 return false;
             }
 
-            if (!double.TryParse(parts[0], NumberStyles.Float,
-                    CultureInfo.InvariantCulture, out double amt) || amt == 0) {
+            if (!Utils.TryParseAmount(parts[0], out double amt) || amt == 0) {
                 error = "Multiplier amount must be a non-zero number";
                 return false;
             }
@@ -433,8 +431,7 @@ public partial class WheelEditor {
     }
 
     private static double ParseDoubleOrZero(string? text) {
-        return double.TryParse((text ?? "").Trim(), NumberStyles.Float,
-            CultureInfo.InvariantCulture, out double v) ? v : 0d;
+        return Utils.ParseAmount(text);
     }
 
     private string BuildVtsParameter() {

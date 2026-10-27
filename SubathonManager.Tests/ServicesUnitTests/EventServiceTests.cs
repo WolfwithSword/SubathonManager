@@ -1322,12 +1322,12 @@ public class EventServiceTests {
         (EventService service, DbContextOptions<AppDbContext> options, SqliteConnection conn) =
             await SetupServiceWithDb(100, false);
         await using (var db = new AppDbContext(options)) {
-            SubathonGoalSet set = await db.SubathonGoalSets.Include(s => s.Goals)
-                .FirstAsync(TestContext.Current.CancellationToken);
-            set.Goals.Add(new SubathonGoal { Text = "C", Points = 150 });
-            set.Goals.Add(new SubathonGoal { Text = "A", Points = 110 });
-            set.Goals.Add(new SubathonGoal { Text = "B", Points = 120 });
-            set.Goals.Add(new SubathonGoal { Text = "D", Points = 200 });
+            SubathonGoalSet set = await db.SubathonGoalSets.FirstAsync(TestContext.Current.CancellationToken);
+            db.SubathonGoals.AddRange(
+                new SubathonGoal { Text = "C", Points = 150, GoalSetId = set.Id },
+                new SubathonGoal { Text = "A", Points = 110, GoalSetId = set.Id },
+                new SubathonGoal { Text = "B", Points = 120, GoalSetId = set.Id },
+                new SubathonGoal { Text = "D", Points = 200, GoalSetId = set.Id });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
@@ -1462,7 +1462,7 @@ public class EventServiceTests {
         SubathonEvent? saved =
             await db.SubathonEvents.FirstOrDefaultAsync(e => e.Id == ev.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(saved);
-        Assert.True(double.Parse(saved.Value) < 0);
+        Assert.True(Utils.ParseAmount(saved.Value) < 0);
 
         await conn.CloseAsync();
     }

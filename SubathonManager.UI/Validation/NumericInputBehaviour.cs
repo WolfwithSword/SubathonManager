@@ -64,6 +64,8 @@ public static class NumericInputBehaviour {
         bool allowSign = mode is NumericMode.SignedInteger or NumericMode.SignedDecimal;
         bool allowDecimal = mode is NumericMode.Decimal or NumericMode.SignedDecimal;
 
+        if (allowDecimal && text.Count(c => c is '.' or ',') <= 1) text = text.Replace(',', '.');
+
         if (text == "-") return allowSign;
         if (text == ".") return allowDecimal;
         if (text == "-.") return allowSign && allowDecimal;

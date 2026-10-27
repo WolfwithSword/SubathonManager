@@ -219,6 +219,6 @@ public sealed class VTSWheelAction {
     }
 
     private static bool TryParseNumber(string text, out double value) {
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        return Utils.TryParseAmount(text, out value);
     }
 }

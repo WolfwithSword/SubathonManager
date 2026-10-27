@@ -67,13 +67,13 @@ public partial class TreatStreamSettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? treatValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.TreatStreamOrder && sv.Meta == "");
-        if (treatValue != null && double.TryParse(TreatBox.Text, out double seconds) &&
+        if (treatValue != null && Utils.TryParseAmount(TreatBox.Text, out double seconds) &&
             !seconds.Equals(treatValue.Seconds)) {
             treatValue.Seconds = seconds;
             hasUpdated = true;
         }
 
-        if (treatValue != null && double.TryParse(TreatBox2.Text, out double points) &&
+        if (treatValue != null && Utils.TryParseAmount(TreatBox2.Text, out double points) &&
             !points.Equals(treatValue.Points)) {
             treatValue.Points = points;
             hasUpdated = true;

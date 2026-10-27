@@ -57,6 +57,7 @@ public class FourthWallService(
         IntegrationEvents.ConnectionUpdated += OnTunnelUpdated;
 
         bool enabled = HasTokenFile();
+        BroadcastStatus(enabled, null);
 
         if (enabled) {
             logger?.LogInformation("[FourthWall] Webhook listener ready at {Path}", WebhookPath);
@@ -64,7 +65,6 @@ public class FourthWallService(
         }
         else {
             logger?.LogInformation("[FourthWall] Has not been setup before. Integration is disabled");
-            BroadcastStatus(false, null);
         }
 
         await Task.CompletedTask;

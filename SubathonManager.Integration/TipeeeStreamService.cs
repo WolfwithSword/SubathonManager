@@ -341,8 +341,7 @@ public class TipeeeStreamService(
     }
 
     public static void SimulateDonation(string amount, string currency) {
-        if (!double.TryParse(amount, NumberStyles.Any,
-                CultureInfo.InvariantCulture, out double amt)) return;
+        if (!Utils.TryParseAmount(amount, out double amt)) return;
         var ev = new SubathonEvent {
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.TipeeeStreamDonation,

@@ -402,7 +402,7 @@ public class TiltifyService(
     }
 
     public static void SimulateDonation(string amount, string currency, CampaignOption? campaign = null) {
-        if (!double.TryParse(amount, NumberStyles.Any, CultureInfo.InvariantCulture, out double amt)) return;
+        if (!Utils.TryParseAmount(amount, out double amt)) return;
         var ev = new SubathonEvent {
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.TiltifyDonation,

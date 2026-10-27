@@ -243,7 +243,7 @@ public partial class VTubeStudioSettings : SettingsControl {
             return;
         }
 
-        if (!double.TryParse((VtsParameterValueBox.Text ?? "").Trim(), out double value)) {
+        if (!Utils.TryParseAmount((VtsParameterValueBox.Text ?? "").Trim(), out double value)) {
             SetHint("Enter a numeric value to set");
             return;
         }

@@ -389,11 +389,11 @@ public partial class EditRouteWindow {
             _selectedWidget.Name = WidgetNameBox.Text ?? string.Empty;
             _selectedWidget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
             _selectedWidget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
-            _selectedWidget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
-            _selectedWidget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
-            _selectedWidget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx :
+            _selectedWidget.X = Utils.TryParseAmount(WidgetXBox.Text, out double x) ? (float)x : _selectedWidget.X;
+            _selectedWidget.Y = Utils.TryParseAmount(WidgetYBox.Text, out double y) ? (float)y : _selectedWidget.Y;
+            _selectedWidget.ScaleX = Utils.TryParseAmount(WidgetScaleXBox.Text, out double sx) ? (float)sx :
                 _selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX;
-            _selectedWidget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy :
+            _selectedWidget.ScaleY = Utils.TryParseAmount(WidgetScaleYBox.Text, out double sy) ? (float)sy :
                 _selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY;
 
             foreach (CssVariable cssVar in _editingCssVars) {
@@ -1252,8 +1252,9 @@ public partial class EditRouteWindow {
     }
 
     private static bool TryParseSliderValue(string? text, out float value) {
-        return float.TryParse((text ?? "").Trim().TrimEnd('%'), NumberStyles.Float,
-            CultureInfo.InvariantCulture, out value);
+        bool ok = Utils.TryParseAmount((text ?? "").Trim().TrimEnd('%'), out double parsed);
+        value = (float)parsed;
+        return ok;
     }
 
     private static string FormatSliderBoxText(CssVariable cssVar, float value) {

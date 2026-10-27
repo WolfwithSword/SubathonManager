@@ -33,13 +33,13 @@ public partial class ChatExtensionSettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? blerpBitsValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.BlerpBits && sv.Meta == "");
-        if (blerpBitsValue != null && double.TryParse(BitsTextBox.Text, out double bitsSeconds) &&
+        if (blerpBitsValue != null && Utils.TryParseAmount(BitsTextBox.Text, out double bitsSeconds) &&
             !bitsSeconds.Equals(blerpBitsValue.Seconds / 100.0)) {
             blerpBitsValue.Seconds = bitsSeconds / 100.0;
             hasUpdated = true;
         }
 
-        if (blerpBitsValue != null && double.TryParse(Bits2TextBox.Text, out double bitsPoints) &&
+        if (blerpBitsValue != null && Utils.TryParseAmount(Bits2TextBox.Text, out double bitsPoints) &&
             !bitsPoints.Equals(blerpBitsValue.Points)) {
             blerpBitsValue.Points = bitsPoints;
             hasUpdated = true;
@@ -47,13 +47,13 @@ public partial class ChatExtensionSettings : SettingsControl {
 
         SubathonValue? blerpBeetsValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.BlerpBits && sv.Meta == "");
-        if (blerpBeetsValue != null && double.TryParse(BeetsTextBox.Text, out double beetsSeconds) &&
+        if (blerpBeetsValue != null && Utils.TryParseAmount(BeetsTextBox.Text, out double beetsSeconds) &&
             !beetsSeconds.Equals(blerpBeetsValue.Seconds / 100.0)) {
             blerpBeetsValue.Seconds = beetsSeconds / 100.0;
             hasUpdated = true;
         }
 
-        if (blerpBeetsValue != null && double.TryParse(Beets2TextBox.Text, out double beetsPoints) &&
+        if (blerpBeetsValue != null && Utils.TryParseAmount(Beets2TextBox.Text, out double beetsPoints) &&
             !beetsPoints.Equals(blerpBeetsValue.Points)) {
             blerpBeetsValue.Points = beetsPoints;
             hasUpdated = true;
@@ -89,9 +89,9 @@ public partial class ChatExtensionSettings : SettingsControl {
     public bool SaveConfigValues() {
         var hasUpdated = false;
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        if (double.TryParse(BitsModifierTextBox.Text, out double blerpBitsMod))
+        if (Utils.TryParseAmount(BitsModifierTextBox.Text, out double blerpBitsMod))
             hasUpdated |= config.Set("Extensions", "BlerpBits.Modifier", $"{blerpBitsMod}");
-        if (double.TryParse(BeetsModifierTextBox.Text, out double blerpBeetsMod))
+        if (Utils.TryParseAmount(BeetsModifierTextBox.Text, out double blerpBeetsMod))
             hasUpdated |= config.Set("Extensions", "BlerpBeets.Modifier", $"{blerpBeetsMod}");
         hasUpdated |= config.SetBool("Extensions", "Blerp.Enabled", EnabledBox.IsChecked ?? true);
         return hasUpdated;
@@ -99,9 +99,9 @@ public partial class ChatExtensionSettings : SettingsControl {
 
     public void LoadConfigValues() {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
-        double.TryParse(config.Get("Extensions", "BlerpBits.Modifier", "1"), out double blerpBitsMod);
+        Utils.TryParseAmount(config.Get("Extensions", "BlerpBits.Modifier", "1"), out double blerpBitsMod);
         BitsModifierTextBox.Text = $"{blerpBitsMod}";
-        double.TryParse(config.Get("Extensions", "BlerpBeets.Modifier", "1"), out double blerpBeetsMod);
+        Utils.TryParseAmount(config.Get("Extensions", "BlerpBeets.Modifier", "1"), out double blerpBeetsMod);
         BeetsModifierTextBox.Text = $"{blerpBeetsMod}";
         EnabledBox.IsChecked = config.GetBool("Extensions", "Blerp.Enabled", true);
     }

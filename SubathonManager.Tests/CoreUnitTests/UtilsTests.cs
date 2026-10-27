@@ -123,4 +123,68 @@ public class UtilsTests {
         Assert.Equal("INR", Utils.TryParseCurrency("₹"));
         Assert.Equal("CHF", Utils.TryParseCurrency("₣"));
     }
+
+    [Theory]
+    [InlineData("fr-CA")]
+    [InlineData("de-DE")]
+    [InlineData("en-US")]
+    public void TryParseAmount_AcceptsDotRegardlessOfCulture(string culture) {
+        System.Globalization.CultureInfo previous = System.Globalization.CultureInfo.CurrentCulture;
+        try {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+
+            Assert.True(Utils.TryParseAmount("10.00", out double tip));
+            Assert.Equal(10, tip);
+            Assert.True(Utils.TryParseAmount(" 0.5 ", out double half));
+            Assert.Equal(0.5, half);
+            Assert.False(Utils.TryParseAmount("abc", out _));
+            Assert.False(Utils.TryParseAmount(null, out _));
+
+            // making sure js will still be fine
+            var jsVar = new Core.Models.JsVariable {
+                Name = "speed", Value = "0.5", Type = Core.Enums.WidgetVariableType.Float
+            };
+            Assert.Contains("= 0.5", jsVar.GetInjectLine());
+        }
+        finally {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Theory]
+    [InlineData("fr-CA")]
+    [InlineData("de-DE")]
+    [InlineData("en-US")]
+    public void TryParseAmount_TreatsTrailingCommaDigitsAsDecimal(string culture) {
+        System.Globalization.CultureInfo previous = System.Globalization.CultureInfo.CurrentCulture;
+        try {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+
+            Assert.True(Utils.TryParseAmount("0,5", out double half));
+            Assert.Equal(0.5, half);
+            Assert.True(Utils.TryParseAmount("12,50", out double tip));
+            Assert.Equal(12.5, tip);
+            Assert.True(Utils.TryParseAmount("-3,25", out double negative));
+            Assert.Equal(-3.25, negative);
+        }
+        finally {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Fact]
+    public void TryParseAmount_KeepsThousandsCommaInDotCulture() {
+        System.Globalization.CultureInfo previous = System.Globalization.CultureInfo.CurrentCulture;
+        try {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("en-US");
+
+            Assert.True(Utils.TryParseAmount("1,250", out double thousands));
+            Assert.Equal(1250, thousands);
+            Assert.True(Utils.TryParseAmount("1,250.00", out double withCents));
+            Assert.Equal(1250, withCents);
+        }
+        finally {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
 }

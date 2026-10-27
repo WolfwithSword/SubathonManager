@@ -126,7 +126,7 @@ public partial class SettingsView {
     public bool SaveSubTier(AppDbContext db, SubathonEventType type, string meta, TextBox tb, TextBox tb2) {
         var hasUpdated = false;
         SubathonValue? val = db.SubathonValues.FirstOrDefault(sv => sv.EventType == type && sv.Meta == meta);
-        if (val != null && double.TryParse(tb.Text, out double seconds) && !seconds.Equals(val.Seconds)) {
+        if (val != null && Utils.TryParseAmount(tb.Text, out double seconds) && !seconds.Equals(val.Seconds)) {
             val.Seconds = seconds;
             hasUpdated = true;
         }

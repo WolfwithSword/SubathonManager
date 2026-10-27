@@ -232,7 +232,7 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
     }
 
     public static void SimulateTip(string value = "10.00", string currency = "USD") {
-        if (!double.TryParse(value, out double val))
+        if (!Utils.TryParseAmount(value, out double val))
             return;
 
         SubathonEvent subathonEvent = new() {

@@ -112,13 +112,13 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         var hasUpdated = false;
         SubathonValue? externalDonoValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.FourthWallDonation && sv.Meta == "");
-        if (externalDonoValue != null && double.TryParse(DonoBox.Text, out double exSeconds) &&
+        if (externalDonoValue != null && Utils.TryParseAmount(DonoBox.Text, out double exSeconds) &&
             !exSeconds.Equals(externalDonoValue.Seconds)) {
             externalDonoValue.Seconds = exSeconds;
             hasUpdated = true;
         }
 
-        if (externalDonoValue != null && double.TryParse(DonoBox2.Text, out double exPoints) &&
+        if (externalDonoValue != null && Utils.TryParseAmount(DonoBox2.Text, out double exPoints) &&
             !exPoints.Equals(externalDonoValue.Points)) {
             externalDonoValue.Points = exPoints;
             hasUpdated = true;
@@ -128,24 +128,24 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
 
         SubathonValue? orderVal =
             db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallOrder && x.Meta == "");
-        if (orderVal != null && double.TryParse(ShopOrderBox.Text, out double osec) && !orderVal.Seconds.Equals(osec)) {
+        if (orderVal != null && Utils.TryParseAmount(ShopOrderBox.Text, out double osec) && !orderVal.Seconds.Equals(osec)) {
             orderVal.Seconds = osec;
             hasUpdated = true;
         }
 
-        if (orderVal != null && double.TryParse(ShopOrderBox2.Text, out double opts) && !orderVal.Points.Equals(opts)) {
+        if (orderVal != null && Utils.TryParseAmount(ShopOrderBox2.Text, out double opts) && !orderVal.Points.Equals(opts)) {
             orderVal.Points = opts;
             hasUpdated = true;
         }
 
         SubathonValue? value =
             db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.FourthWallGiftOrder && x.Meta == "");
-        if (value != null && double.TryParse(gShopOrderBox.Text, out double gosec) && !value.Seconds.Equals(gosec)) {
+        if (value != null && Utils.TryParseAmount(gShopOrderBox.Text, out double gosec) && !value.Seconds.Equals(gosec)) {
             value.Seconds = gosec;
             hasUpdated = true;
         }
 
-        if (value != null && double.TryParse(gShopOrderBox2.Text, out double gpts) && !value.Points.Equals(gpts)) {
+        if (value != null && Utils.TryParseAmount(gShopOrderBox2.Text, out double gpts) && !value.Points.Equals(gpts)) {
             value.Points = gpts;
             hasUpdated = true;
         }
@@ -260,7 +260,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         if (quantity < 1) return;
         oEvent.Quantity = quantity;
 
-        if (!double.TryParse(gOrderTotalSimBox.Text, out double subtotal)) return;
+        if (!Utils.TryParseAmount(gOrderTotalSimBox.Text, out double subtotal)) return;
         oEvent.Amounts = new Fourthwall.Client.Generated.Models.Openapi.Model.GiftPurchaseV1.Amounts {
             Subtotal = new Money { Value = subtotal, Currency = gOrderCurrencyBox.Text },
             Profit = new Money { Value = subtotal * 0.67, Currency = gOrderCurrencyBox.Text },
@@ -293,7 +293,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
         if (!int.TryParse(OrderQuantitySimBox.Text, out int quantity)) return;
         if (quantity < 1) return;
         item.Variant.Quantity = quantity;
-        if (!double.TryParse(OrderTotalSimBox.Text, out double subtotal)) return;
+        if (!Utils.TryParseAmount(OrderTotalSimBox.Text, out double subtotal)) return;
         item.Variant.Price = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal };
         item.Variant.UnitPrice = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal / quantity };
         item.Variant.Cost = new Money { Currency = OrderCurrencyBox.Text, Value = subtotal * 0.67 };
@@ -334,7 +334,7 @@ public partial class FourthWallSettings : DevTunnelSettingsControl {
     private void TestFwTip_Click(object? sender, RoutedEventArgs e) {
         var donoEvent = new DonationV1 { Amounts = new Amounts { Total = new Money() } };
 
-        if (double.TryParse(SimulateFwTipAmountBox.Text, out double tipAmt))
+        if (Utils.TryParseAmount(SimulateFwTipAmountBox.Text, out double tipAmt))
             donoEvent.Amounts.Total.Value = tipAmt;
         else return;
         donoEvent.Amounts.Total.Currency = CurrencyBox.Text;

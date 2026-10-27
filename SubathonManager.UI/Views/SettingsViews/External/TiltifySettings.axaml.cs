@@ -114,12 +114,12 @@ public partial class TiltifySettings : SettingsControl {
         SubathonValue? donoValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.TiltifyDonation && sv.Meta == "");
         if (donoValue != null) {
-            if (double.TryParse(DonoBox.Text, out double s) && !s.Equals(donoValue.Seconds)) {
+            if (Utils.TryParseAmount(DonoBox.Text, out double s) && !s.Equals(donoValue.Seconds)) {
                 donoValue.Seconds = s;
                 hasUpdated = true;
             }
 
-            if (double.TryParse(DonoBox2.Text, out double p) && !p.Equals(donoValue.Points)) {
+            if (Utils.TryParseAmount(DonoBox2.Text, out double p) && !p.Equals(donoValue.Points)) {
                 donoValue.Points = p;
                 hasUpdated = true;
             }

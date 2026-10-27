@@ -33,6 +33,7 @@ public partial class MakeShipService(
     private readonly HashSet<Guid> _syncedSinceStart = new();
     private readonly Lock _syncLock = new();
     private bool _lastBroadcastStatus;
+    private string _lastBroadcastName = "";
     private bool _backedOff;
     private int _pollSweepRunning;
     private bool _running;
@@ -386,13 +387,20 @@ public partial class MakeShipService(
     private void BroadcastStatus(bool force = false) {
         List<MakeShipTracking> trackings = MakeShipTrackingRegistry.All();
         int tracked = trackings.Count(IsTracked);
-        bool status = _running && tracked > 0;
-        if (!force && status == _lastBroadcastStatus) return;
+        int blocked = trackings.Count(t => t.Blocked);
+        bool status = _running && tracked > 0 && blocked == 0;
+        string name = trackings.Count == 0 ? ""
+            : blocked > 0 ? $"{tracked}/{trackings.Count} tracked, {blocked} errors"
+            : $"{tracked}/{trackings.Count} tracked";
+
+        if (!force && status == _lastBroadcastStatus && name == _lastBroadcastName) return;
         _lastBroadcastStatus = status;
+        _lastBroadcastName = name;
+
         IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
             Source = SubathonEventSource.MakeShip,
             Service = nameof(SubathonEventSource.MakeShip),
-            Name = trackings.Count == 0 ? "" : $"{tracked}/{trackings.Count} tracked",
+            Name = name,
             Status = status,
             Configured = trackings.Count > 0
         });

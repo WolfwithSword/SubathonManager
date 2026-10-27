@@ -566,7 +566,7 @@ public static partial class WidgetPorter {
                 return int.TryParse(value, out int i) ? i : 0;
 
             case WidgetVariableType.Float:
-                return float.TryParse(value, out float f) ? f : 0f;
+                return (float)Utils.ParseAmount(value);
 
             default:
                 if (type.IsListType()) return items;

@@ -69,13 +69,13 @@ public partial class TangiaSettings : SettingsControl {
         SubathonValue? tokensValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.TangiaTokens && sv.Meta == "");
 
-        if (tokensValue != null && double.TryParse(TokensSecondsBox.Text, out double seconds) &&
+        if (tokensValue != null && Utils.TryParseAmount(TokensSecondsBox.Text, out double seconds) &&
             !seconds.Equals(Math.Round(tokensValue.Seconds * 100))) {
             tokensValue.Seconds = seconds / 100.0;
             hasUpdated = true;
         }
 
-        if (tokensValue != null && double.TryParse(TokensPointsBox.Text, out double points) &&
+        if (tokensValue != null && Utils.TryParseAmount(TokensPointsBox.Text, out double points) &&
             !points.Equals(tokensValue.Points)) {
             tokensValue.Points = points;
             hasUpdated = true;

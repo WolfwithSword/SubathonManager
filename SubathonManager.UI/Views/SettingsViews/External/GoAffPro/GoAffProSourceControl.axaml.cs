@@ -76,12 +76,12 @@ public partial class GoAffProSourceControl : SettingsControl {
             hasUpdated = true;
         }
 
-        if (double.TryParse(SecondsBox.Text, out double seconds) && !value.Seconds.Equals(seconds)) {
+        if (Utils.TryParseAmount(SecondsBox.Text, out double seconds) && !value.Seconds.Equals(seconds)) {
             value.Seconds = seconds;
             hasUpdated = true;
         }
 
-        if (double.TryParse(PointsBox.Text, out double points) && !value.Points.Equals(points)) {
+        if (Utils.TryParseAmount(PointsBox.Text, out double points) && !value.Points.Equals(points)) {
             value.Points = points;
             hasUpdated = true;
         }
@@ -109,8 +109,8 @@ public partial class GoAffProSourceControl : SettingsControl {
     }
 
     public void SimulateOrder() {
-        decimal total = decimal.TryParse(TotalSimBox.Text, out decimal r) ? r : 0;
-        decimal commTotal = decimal.TryParse(CommSimBox.Text, out decimal r2) ? r2 : 0;
+        decimal total = (decimal)Utils.ParseAmount(TotalSimBox.Text);
+        decimal commTotal = (decimal)Utils.ParseAmount(CommSimBox.Text);
         int itemCount = int.TryParse(QuantitySimBox.Text, out int r3) ? r3 : 0;
         string currency = (CurrencyText.Text ?? "").Replace("[", "").Replace("]", "");
         if (string.IsNullOrWhiteSpace(currency)) currency = "USD";

@@ -251,12 +251,12 @@ public partial class MakeShipSettings : SettingsControl {
             hasUpdated = true;
         }
 
-        if (double.TryParse(secondsBox.Text, out double seconds) && !seconds.Equals(value.Seconds)) {
+        if (Utils.TryParseAmount(secondsBox.Text, out double seconds) && !seconds.Equals(value.Seconds)) {
             value.Seconds = seconds;
             hasUpdated = true;
         }
 
-        if (double.TryParse(pointsBox.Text, out double points) && !points.Equals(value.Points)) {
+        if (Utils.TryParseAmount(pointsBox.Text, out double points) && !points.Equals(value.Points)) {
             value.Points = points;
             hasUpdated = true;
         }
@@ -353,8 +353,8 @@ public partial class MakeShipSettings : SettingsControl {
             return existing.Count > 0;
         }
 
-        double seconds = double.TryParse(secondsText, out double s) ? s : 0;
-        double points = double.TryParse(pointsText, out double p) ? p : 0;
+        double seconds = Utils.TryParseAmount(secondsText, out double s) ? s : 0;
+        double points = Utils.TryParseAmount(pointsText, out double p) ? p : 0;
 
         var updated = false;
         SubathonValue? keep = existing.FirstOrDefault(sv => sv.EventType == desiredType);
