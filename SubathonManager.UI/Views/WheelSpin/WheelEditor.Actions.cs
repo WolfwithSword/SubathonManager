@@ -755,6 +755,10 @@ public partial class WheelEditor {
     private void OpenActionEditor(CustomAction action) {
         Guid? openedFor = _selectedItem?.Id;
         ActionEditorWindow editor = ActionEditorWindow.Open(action);
+        
+        Window? main = TopLevel.GetTopLevel(this) as Window;
+        UiHelpers.CenterOver(editor, main);
+
         editor.Saved += id => {
             if (openedFor == null || _selectedItem?.Id != openedFor || !CustomParamPanel.IsVisible) return;
             if (SelectedCustomActionId == id) {

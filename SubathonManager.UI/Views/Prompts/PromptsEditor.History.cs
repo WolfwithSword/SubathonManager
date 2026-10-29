@@ -360,6 +360,9 @@ public partial class PromptsEditor {
     private void OpenPromptActionEditor(CustomAction action) {
         Guid? openedFor = _selectedPrompt?.Id;
         ActionEditorWindow editor = ActionEditorWindow.Open(action);
+        Window? main = TopLevel.GetTopLevel(this) as Window;
+        UiHelpers.CenterOver(editor, main);
+        
         editor.Saved += id => {
             if (openedFor == null || _selectedPrompt?.Id != openedFor) return;
             if (SelectedPromptActionId == id) {

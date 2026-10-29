@@ -206,6 +206,8 @@ public partial class ActionsView : UserControl {
 
     private void OpenEditor(CustomAction action) {
         ActionEditorWindow editor = ActionEditorWindow.Open(action);
+        Window? main = TopLevel.GetTopLevel(this) as Window;
+        UiHelpers.CenterOver(editor, main);
         editor.Saved -= OnEditorSaved;
         editor.Saved += OnEditorSaved;
     }
