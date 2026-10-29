@@ -128,10 +128,15 @@ public partial class GoAffProSettings : SettingsControl {
         _activeSource = label;
     }
 
+    private void ImportMissed_Click(object? sender, RoutedEventArgs e) {
+        ImportMissedWindow.Open(this, SubathonEventSource.GoAffPro, ServiceManager.GoAffPro);
+    }
+
     internal override void UpdateStatus(IntegrationConnection? connection) {
         if (connection is not { Source: SubathonEventSource.GoAffPro }) return;
         if (connection.Service == nameof(SubathonEventSource.GoAffPro)) {
             Host.UpdateConnectionStatus(connection.Status, StatusText, ConnectBtn);
+            Dispatcher.UIThread.Post(() => ImportMissedBtn.IsVisible = connection.Status);
             return;
         }
 

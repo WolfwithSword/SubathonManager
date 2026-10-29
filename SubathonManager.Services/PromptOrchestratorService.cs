@@ -180,7 +180,8 @@ public class PromptOrchestratorService(
             ExpiresAt = DateTime.Now + prompt.CompletionDuration,
             Status = SubathonPromptRunStatus.Active,
             SnapshotTargetValue = prompt.Value,
-            BaselineCount = baseline
+            BaselineCount = baseline,
+            ActionId = prompt.CustomActionId
         };
 
         db.SubathonPromptRuns.Add(run);

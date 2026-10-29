@@ -15,8 +15,9 @@ public class WheelSpinVtsActionTypeTests {
     }
 
     [Fact]
-    public void VTubeStudio_IsNotDoneImmediately() {
-        Assert.False(WheelSpinActionType.VTubeStudio.IsDoneImmediately());
+    public void VTubeStudio_RunsAsSoonAsTheSpinLands() {
+        Assert.True(WheelSpinActionType.VTubeStudio.IsAutoRun());
+        Assert.False(WheelSpinActionType.SetMultiplier.IsAutoRun());
     }
 
     [Fact]

@@ -108,12 +108,12 @@ public partial class PallySettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? tipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.PallyGGDonation && sv.Meta == "");
-        if (tipValue != null && double.TryParse(TipBox.Text, out double seconds) && !seconds.Equals(tipValue.Seconds)) {
+        if (tipValue != null && Utils.TryParseAmount(TipBox.Text, out double seconds) && !seconds.Equals(tipValue.Seconds)) {
             tipValue.Seconds = seconds;
             hasUpdated = true;
         }
 
-        if (tipValue != null && double.TryParse(TipBox2.Text, out double points) && !points.Equals(tipValue.Points)) {
+        if (tipValue != null && Utils.TryParseAmount(TipBox2.Text, out double points) && !points.Equals(tipValue.Points)) {
             tipValue.Points = points;
             hasUpdated = true;
         }

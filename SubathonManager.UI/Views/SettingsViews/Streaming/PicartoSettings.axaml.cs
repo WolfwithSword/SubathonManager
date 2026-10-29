@@ -127,13 +127,13 @@ public partial class PicartoSettings : SettingsControl {
         SubathonValue? cheerValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.PicartoTip && sv.Meta == "");
         // divide by 100 since UI shows "per 100 kudos"
-        if (cheerValue != null && double.TryParse(KudosTextBox.Text, out double cheerSeconds) &&
+        if (cheerValue != null && Utils.TryParseAmount(KudosTextBox.Text, out double cheerSeconds) &&
             !cheerValue.Seconds.Equals(cheerSeconds / 100.0)) {
             cheerValue.Seconds = cheerSeconds / 100.0;
             hasUpdated = true;
         }
 
-        if (cheerValue != null && double.TryParse(Kudos2TextBox.Text, out double cheerPoints) &&
+        if (cheerValue != null && Utils.TryParseAmount(Kudos2TextBox.Text, out double cheerPoints) &&
             !cheerValue.Points.Equals(cheerPoints)) {
             cheerValue.Points = cheerPoints;
             hasUpdated = true;
@@ -141,13 +141,13 @@ public partial class PicartoSettings : SettingsControl {
 
         SubathonValue? followValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.PicartoFollow && sv.Meta == "");
-        if (followValue != null && double.TryParse(FollowTextBox.Text, out double followSeconds) &&
+        if (followValue != null && Utils.TryParseAmount(FollowTextBox.Text, out double followSeconds) &&
             !followValue.Seconds.Equals(followSeconds)) {
             followValue.Seconds = followSeconds;
             hasUpdated = true;
         }
 
-        if (followValue != null && double.TryParse(Follow2TextBox.Text, out double followPoints) &&
+        if (followValue != null && Utils.TryParseAmount(Follow2TextBox.Text, out double followPoints) &&
             !followValue.Points.Equals(followPoints)) {
             followValue.Points = followPoints;
             hasUpdated = true;
@@ -162,11 +162,11 @@ public partial class PicartoSettings : SettingsControl {
 
     private void TestPicartoTip_Click(object? sender, RoutedEventArgs e) {
         string? value = SimulateTipAmt.Text;
-        if (string.IsNullOrWhiteSpace(value)) return;
+        if (!Utils.TryParseAmount(value, out double amount)) return;
 
         var tip = new PicartoTip {
             Channel = string.IsNullOrWhiteSpace(PicartoUserBox.Text) ? "SYSTEM" : PicartoUserBox.Text,
-            Amount = decimal.Parse(value),
+            Amount = (decimal)amount,
             Username = "SYSTEM"
         };
         PicartoService.ProcessAlert(tip);

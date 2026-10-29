@@ -3,6 +3,9 @@
 public static class StorageKeys {
     public const string TwitchAccessToken = "SM.Twitch.AccessToken";
 
+    // + lowercase secret name
+    public const string ActionSecretPrefix = "SM.Actions.Secrets.";
+
     public const string FourthWallAccessToken = "SM.FourthWall.AccessToken";
     public const string FourthWallRefreshToken = "SM.FourthWall.RefreshToken";
 
@@ -33,4 +36,10 @@ public static class StorageKeys {
     public const string TiltifyAccessToken = "SM.Tiltify.AccessToken";
     public const string TiltifyRefreshToken = "SM.Tiltify.RefreshToken";
     public const string TiltifyTokenExpiry = "SM.Tiltify.TokenExpiry";
+
+    public const string PatreonAccessToken = "SM.Patreon.AccessToken";
+    public const string PatreonRefreshToken = "SM.Patreon.RefreshToken";
+    public const string PatreonTokenExpiry = "SM.Patreon.TokenExpiry";
+    public const string PatreonWebhookId = "SM.Patreon.WebhookId";
+    public const string PatreonWebhookSecret = "SM.Patreon.WebhookSecret";
 }

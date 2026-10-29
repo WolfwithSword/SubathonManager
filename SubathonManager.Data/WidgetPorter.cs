@@ -118,6 +118,8 @@ public static partial class WidgetPorter {
         public Dictionary<string, (string ZipEntry, string Value)> OptionalRewrites { get; }
             = new(StringComparer.OrdinalIgnoreCase);
 
+        public Dictionary<string, ActionValueType> GlobalTypes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
         public bool IsSelected(string zipEntry) {
             return Entries.Any(e => e.ZipEntry.Equals(zipEntry, StringComparison.OrdinalIgnoreCase)
                                     && (e.Locked || e.DefaultSelected));
@@ -542,6 +544,8 @@ public static partial class WidgetPorter {
             metaVar.Value = ToMetaValue(jsVar.Type, plan.ResolveVarValue(jsVar), metaVar);
         }
 
+        meta.Globals = WidgetMetaGlobals.From(widget, plan.GlobalTypes, meta.Globals);
+
         return JsonSerializer.Serialize(meta, MetaOptions);
     }
 
@@ -562,7 +566,7 @@ public static partial class WidgetPorter {
                 return int.TryParse(value, out int i) ? i : 0;
 
             case WidgetVariableType.Float:
-                return float.TryParse(value, out float f) ? f : 0f;
+                return (float)Utils.ParseAmount(value);
 
             default:
                 if (type.IsListType()) return items;

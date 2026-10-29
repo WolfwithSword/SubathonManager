@@ -42,13 +42,13 @@ public partial class StreamElementsSettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? seTipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.StreamElementsDonation && sv.Meta == "");
-        if (seTipValue != null && double.TryParse(DonoBox.Text, out double seTipSeconds) &&
+        if (seTipValue != null && Utils.TryParseAmount(DonoBox.Text, out double seTipSeconds) &&
             !seTipSeconds.Equals(seTipValue.Seconds)) {
             seTipValue.Seconds = seTipSeconds;
             hasUpdated = true;
         }
 
-        if (seTipValue != null && double.TryParse(DonoBox2.Text, out double seTipPoints) &&
+        if (seTipValue != null && Utils.TryParseAmount(DonoBox2.Text, out double seTipPoints) &&
             !seTipPoints.Equals(seTipValue.Points)) {
             seTipValue.Points = seTipPoints;
             hasUpdated = true;

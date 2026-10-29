@@ -216,8 +216,10 @@ public class EventService : IDisposable, IAppService {
             }
             else if (!string.IsNullOrEmpty(ev.Currency) && _currencyService.IsValidCurrency(ev.Currency)
                                                         && (ev.EventType.IsCurrencyDonation() ||
-                                                            ev.EventType
-                                                                .IsOrder())) // includes orders when parsed as money mode
+                                                            ev.EventType.IsOrder() ||
+                                                            ev.EventType == SubathonEventType.PatreonPledge))
+                // includes orders when parsed as money mode, and patreon pledges valued by amount
+                // currency would be "member" if it was not added in currency mode
             {
                 double rate = Task.Run(() =>
                     _currencyService.ConvertAsync(Utils.ParseAmount(ev.Value), ev.Currency)).Result;
@@ -436,6 +438,9 @@ public class EventService : IDisposable, IAppService {
             case SubathonCommandType.SpinWheel:
                 WheelEvents.RaiseWheelSpinRequested();
                 break;
+            case SubathonCommandType.RunAction:
+                ActionEvents.RaiseCustomActionRunRequested(ev);
+                break;
             case SubathonCommandType.AddMoney:
                 ev.EventType = SubathonEventType.DonationAdjustment;
                 break;
@@ -577,7 +582,7 @@ public class EventService : IDisposable, IAppService {
                 if (prevCompletedGoal2 != null &&
                     prevCompletedGoal1?.Id != prevCompletedGoal2.Id) {
                     if (prevCompletedGoal1 == null || prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
-                        SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, newPoints);
+                        RaiseGoalsCompletedBetween(goalSet, initialPoints, newPoints);
                     else
                         SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, newPoints, (GoalsType)goalSet.Type!);
                 }
@@ -588,6 +593,13 @@ public class EventService : IDisposable, IAppService {
         }
 
         await Task.CompletedTask;
+    }
+
+    private static void RaiseGoalsCompletedBetween(SubathonGoalSet goalSet, long fromPoints, long toPoints) {
+        foreach (SubathonGoal goal in goalSet.Goals
+                     .Where(g => g.Points > fromPoints && g.Points <= toPoints)
+                     .OrderBy(g => g.Points))
+            SubathonEvents.RaiseSubathonGoalCompleted(goal, toPoints);
     }
 
     private void OnSubathonEventCancelled(Guid id, SubathonEventType type, string reference) {
@@ -838,7 +850,7 @@ public class EventService : IDisposable, IAppService {
                     prevCompletedGoal1.Id != prevCompletedGoal2.Id) {
                     // the else is for if we undid stuff
                     if (prevCompletedGoal1.Points <= prevCompletedGoal2.Points)
-                        SubathonEvents.RaiseSubathonGoalCompleted(prevCompletedGoal2, pts);
+                        RaiseGoalsCompletedBetween(goalSet, initialPoints, pts);
                     else
                         SubathonEvents.RaiseSubathonGoalListUpdated(goalSet.Goals, pts, (GoalsType)goalSet.Type!);
                 }

@@ -15,6 +15,7 @@ using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Data.Overlays;
 using SubathonManager.UI.Controls;
+using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 
 namespace SubathonManager.UI.Views;
@@ -310,9 +311,9 @@ public partial class ExportOverlayDialog : Window {
             SuggestedFileName = safeFileName,
             DefaultExtension = "smo",
             SuggestedStartLocation = startFolder,
-            FileTypeChoices = new[] {
-                new FilePickerFileType("Subathon Manager Overlay (*.smo)") { Patterns = new[] { "*.smo" } }
-            }
+            FileTypeChoices = [
+                new FilePickerFileType("Subathon Manager Overlay (*.smo)") { Patterns = ["*.smo"] }
+            ]
         });
 
         if (picked == null) return;
@@ -334,8 +335,8 @@ public partial class ExportOverlayDialog : Window {
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             await OverlayPorter.ExportRouteAsync(_route, outputPath, exportName, excludedZipEntries, version,
-                appVersion,
-                AuthorBox.Text?.Trim() ?? string.Empty, WidgetPorter.ParseTags(TagsBox.Text));
+                appVersion, AuthorBox.Text?.Trim() ?? string.Empty, 
+                WidgetPorter.ParseTags(TagsBox.Text), await ServiceManager.Actions.GetGlobalTypesAsync());
             Close();
         }
         catch (Exception ex) {

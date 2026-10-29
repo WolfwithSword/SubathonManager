@@ -105,6 +105,17 @@ public static class CommandService {
 
         var isValid = false;
         switch (subathonEvent.Command) {
+            case SubathonCommandType.RunAction: {
+                string name = string.Join(' ', parts[1..]).Trim();
+                if (name.Length == 0) break;
+
+                ActionService? actions = AppServices.Provider?.GetService<ActionService>();
+                if (actions != null && actions.FindCustomAction(name) == null) break;
+
+                subathonEvent.Value = $"{subathonEvent.Command} {name}";
+                isValid = true;
+                break;
+            }
             case SubathonCommandType.AddMoney:
             case SubathonCommandType.SubtractMoney:
                 if (parts.Length >= 3 && Utils.TryParseAmount(parts[1], out double value)) {

@@ -12,6 +12,9 @@
                     Margin="0,5,0,10" Click="Connect_Click" />
             <Button x:Name="DisconnBtn" Content="Disconnect" Width="120" Height="35"
                     Margin="6,5,0,10" IsVisible="False" Click="Disconnect_Click" />
+            <Button x:Name="ImportMissedBtn" Content="Import Missed" Width="120" Height="35"
+                    Margin="6,5,0,10" IsVisible="False" Click="ImportMissed_Click"
+                    ToolTip.Tip="Look up donations from your selected campaigns that were missed while disconnected" />
             <TextBlock x:Name="TiltifyStatusText" Text="Disconnected" VerticalAlignment="Center"
                        FontSize="12" Margin="14,0,0,10" />
         </StackPanel>

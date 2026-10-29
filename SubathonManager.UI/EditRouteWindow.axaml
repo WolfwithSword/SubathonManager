@@ -691,8 +691,19 @@
                                 <Expander Header="JS Variables" IsExpanded="False" Margin="0,0,4,0">
                                     <ItemsControl x:Name="JsVarsList" ItemTemplate="{StaticResource JsVarSelector}" />
                                 </Expander>
-                                <Expander Header="Custom Fonts" IsExpanded="False" Margin="0,0,4,6">
+                                <Expander Header="Custom Fonts" IsExpanded="False" Margin="0,0,4,0">
                                     <ItemsControl x:Name="JsVarFontList" ItemTemplate="{StaticResource JsVarSelector}" />
+                                </Expander>
+                                <Expander Header="Global Vars" IsExpanded="False" Margin="0,0,4,6">
+                                    <StackPanel Spacing="6">
+                                        <ComboBox x:Name="GlobalVarsModeBox" HorizontalAlignment="Stretch"
+                                                  SelectionChanged="GlobalVarsMode_Changed">
+                                            <ComboBoxItem Content="None" />
+                                            <ComboBoxItem Content="All" />
+                                            <ComboBoxItem Content="Selected" />
+                                        </ComboBox>
+                                        <ctl:FilterPopout x:Name="GlobalVarsPicker" EmptyText="None selected" IsVisible="False" />
+                                    </StackPanel>
                                 </Expander>
                             </StackPanel>
                         </ScrollViewer>

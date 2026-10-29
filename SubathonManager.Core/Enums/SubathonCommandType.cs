@@ -60,7 +60,11 @@ public enum SubathonCommandType {
     SubtractSpins,
 
     [CommandMeta(Description = "Spin the Wheel", IsControlType = true)]
-    SpinWheel
+    SpinWheel,
+
+    // param is full action
+    [CommandMeta(Description = "Run Custom Action", RequiresParameter = true, IsControlType = true)]
+    RunAction
 }
 
 [ExcludeFromCodeCoverage]

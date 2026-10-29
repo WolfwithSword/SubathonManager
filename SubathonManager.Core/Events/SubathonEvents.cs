@@ -32,6 +32,11 @@ public static class SubathonEvents {
     public static event Action<SubathonPromptRun, long>? PromptRunProgressUpdated;
     public static event Action? PromptRunCancelRequested;
     public static event Action<Guid>? PromptRunNowRequested;
+    public static event Action<SubathonPromptRun>? PromptRunActionStatusChanged;
+
+    public static void RaisePromptRunActionStatusChanged(SubathonPromptRun run) {
+        PromptRunActionStatusChanged?.Invoke(run);
+    }
 
     public static void RaiseSubathonTotalsUpdated(SubathonTotals totals) {
         SubathonTotalsUpdated?.Invoke(totals);

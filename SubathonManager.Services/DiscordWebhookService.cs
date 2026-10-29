@@ -479,7 +479,8 @@ public class DiscordWebhookService : IDisposable, IAppService {
     }
 
     private void OnWheelSpinStatusChanged(WheelSpinHistory history, int spinsOwed) {
-        if (string.IsNullOrEmpty(_wheelWebhookUrl) || !_doWheelSpinEvents) return;
+        if (string.IsNullOrEmpty(_wheelWebhookUrl) || !_doWheelSpinEvents
+                                                   || history.Status == WheelSpinHistoryStatus.Running) return;
         _wheelQueue.Enqueue(new WheelLogEntry(history.LinkedWheel?.Name ?? "Unknown", history.LinkedItem, history,
             spinsOwed, true));
     }

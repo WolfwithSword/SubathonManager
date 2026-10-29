@@ -102,16 +102,20 @@ public class FourthWallServiceTests {
             UnitCost = new Money { Value = unitCost, Currency = currency }
         };
         var offer = new OfferOrderV1 { Variant = variant };
+        
+        // don't necessarily care about samples orders, but is useful for testing.
+        // user can delete if they import it or listen for it anyways
+        
         var data = new OrderV1 {
             Id = id ?? Guid.NewGuid().ToString(),
             Username = username,
             Message = "test",
             CreatedAt = DateTimeOffset.UtcNow,
             Status = OrderV1_status.CONFIRMED,
-            Source = new OrderV1.OrderV1_source {
-                Order = new Order { Type = orderType }
-            },
-            Offers = new List<OfferOrderV1> { offer },
+            Source = orderType == "SAMPLES_ORDER"
+                ? new OrderV1.OrderV1_source { SamplesOrder = new SamplesOrder { Type = orderType } }
+                : new OrderV1.OrderV1_source { Order = new Order { Type = orderType } },
+            Offers = [offer],
             Amounts = new OrderAmounts {
                 Subtotal = new Money { Value = subtotal, Currency = currency },
                 Total = new Money { Value = subtotal * 1.10, Currency = currency },

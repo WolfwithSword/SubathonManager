@@ -16,4 +16,5 @@ public class MakeShipTracking {
     public int Orders { get; set; }
 
     [NotMapped] public bool PollFailing { get; set; }
+    [NotMapped] public bool Blocked { get; set; }
 }

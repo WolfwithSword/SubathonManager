@@ -12,6 +12,10 @@
                     Padding="2" Width="120" Height="35" x:Name="ConnectBtn" VerticalAlignment="Center" Margin="0,0,6,0" />
             <TextBlock x:Name="StatusText" Text="Disconnected" VerticalAlignment="Center" FontSize="12"
                        Margin="14 0 0 0" Width="140" />
+            <Button Foreground="{DynamicResource TextFillColorPrimaryBrush}" Content="Import Missed"
+                    Click="ImportMissed_Click" Padding="2" Width="120" Height="35" x:Name="ImportMissedBtn"
+                    VerticalAlignment="Center" IsVisible="False"
+                    ToolTip.Tip="Look up orders from all your stores that were missed while disconnected" />
             <TextBlock Text="Lookback Days"
                        ToolTip.Tip="Number of days to look back on connect for orders that were missed"
                        VerticalAlignment="Center" Margin="48 0 0 0" />

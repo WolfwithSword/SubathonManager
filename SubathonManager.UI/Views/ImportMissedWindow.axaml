@@ -1,0 +1,111 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:ctl="using:SubathonManager.UI.Controls"
+        mc:Ignorable="d"
+        x:CompileBindings="False"
+        x:Class="SubathonManager.UI.Views.ImportMissedWindow"
+        Title="Import Missed Events"
+        Width="1040" Height="680"
+        MinWidth="760" MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppGeneralBackground}">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrushSoft}" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+        <Style Selector="DataGridRow:nth-child(2n)">
+            <Setter Property="Background" Value="#14808080" />
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,*" RowDefinitions="Auto,Auto"
+              Margin="0,0,0,8">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="From" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <DatePicker Grid.Row="0" Grid.Column="1" x:Name="FromDatePicker" VerticalAlignment="Center" />
+            <TimePicker Grid.Row="0" Grid.Column="2" x:Name="FromTimePicker" ClockIdentifier="24HourClock"
+                        VerticalAlignment="Center" Margin="8,0,0,0" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="To" VerticalAlignment="Center" Margin="0,6,8,0" />
+            <DatePicker Grid.Row="1" Grid.Column="1" x:Name="ToDatePicker" VerticalAlignment="Center"
+                        Margin="0,6,0,0" />
+            <TimePicker Grid.Row="1" Grid.Column="2" x:Name="ToTimePicker" ClockIdentifier="24HourClock"
+                        VerticalAlignment="Center" Margin="8,6,0,0" />
+
+            <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="3" x:Name="FetchBtn" Content="Fetch" Width="90"
+                    Height="60" Click="Fetch_Click" Margin="12,0,0,0" />
+            <TextBlock Grid.Row="0" Grid.RowSpan="2" Grid.Column="4" x:Name="StatusText" VerticalAlignment="Center"
+                       Margin="12,0,0,0" Classes="hint" TextWrapping="Wrap"
+                       Text="Pick the time range to look through, then Fetch" />
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,300,*,Auto" Margin="0,0,0,8">
+            <TextBlock Grid.Column="0" Text="Event Types" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <ctl:FilterPopout Grid.Column="1" x:Name="TypePopout" VerticalAlignment="Center" />
+            <CheckBox Grid.Column="3" x:Name="ShowCapturedBox" Content="Show already captured"
+                      IsCheckedChanged="ShowCaptured_Changed" />
+        </Grid>
+
+        <DataGrid Grid.Row="2" x:Name="EventGrid"
+                  AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                  CanUserSortColumns="True" CanUserResizeColumns="True"
+                  GridLinesVisibility="All" SelectionMode="Single"
+                  BorderBrush="{DynamicResource ControlElevationBorderBrush}" BorderThickness="1">
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="" Width="44" SortMemberPath="Selected">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" IsEnabled="{Binding CanSelect}"
+                                      HorizontalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Time" Width="150" IsReadOnly="True"
+                                    Binding="{Binding Timestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}" />
+                <DataGridTextColumn Header="Source" Width="120" IsReadOnly="True" Binding="{Binding TrueSource}" />
+                <DataGridTextColumn Header="Type" Width="150" IsReadOnly="True" Binding="{Binding TypeLabel}" />
+                <DataGridTextColumn Header="User" Width="150" IsReadOnly="True" Binding="{Binding User}" />
+                <DataGridTextColumn Header="Value" Width="120" IsReadOnly="True" Binding="{Binding DisplayValue}" />
+                <DataGridTextColumn Header="Amount" Width="80" IsReadOnly="True" Binding="{Binding Amount}" />
+                <DataGridTextColumn Header="Details" Width="*" IsReadOnly="True" Binding="{Binding Details}" />
+                
+                <DataGridTemplateColumn Header="Status" Width="170" SortMemberPath="StatusText">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"
+                                       VerticalAlignment="Center" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,8,0,0">
+            <Button Grid.Column="0" Content="Select all" Click="SelectAll_Click" Margin="0,0,6,0" />
+            <Button Grid.Column="1" Content="Select none" Click="SelectNone_Click" />
+            
+            <StackPanel Grid.Column="2" Margin="12,0" VerticalAlignment="Center">
+                <TextBlock x:Name="SelectionText" Classes="hint" />
+                <TextBlock x:Name="WarningText" Foreground="#E8A33D" TextWrapping="Wrap" IsVisible="False" />
+            </StackPanel>
+
+            <Button Grid.Column="3" x:Name="ImportBtn" Content="Import Selected" Width="140" IsEnabled="False"
+                    Classes="accent" Click="Import_Click" />
+        </Grid>
+    </Grid>
+</Window>

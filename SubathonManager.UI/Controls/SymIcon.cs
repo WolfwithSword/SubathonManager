@@ -1,6 +1,7 @@
 using Avalonia;
 using FluentIcons.Avalonia;
 using FluentIcons.Common;
+using SubathonManager.Core;
 
 namespace SubathonManager.UI.Controls;
 
@@ -28,7 +29,7 @@ public class SymIcon : SymbolIcon {
 
         if (Enum.TryParse<Symbol>(name, out Symbol sym))
             Symbol = sym;
-        if (double.TryParse(sizeStr, out double size) && size > 0)
+        if (Utils.TryParseAmount(sizeStr, out double size) && size > 0)
             FontSize = size;
     }
 }

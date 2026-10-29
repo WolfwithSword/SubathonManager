@@ -29,6 +29,9 @@ public class SubathonPrompt {
 
     public int Index { get; set; } = 0;
 
+    // optional action
+    public Guid? CustomActionId { get; set; }
+
     public bool HasStock() {
         return IsInfinite || Quantity > 0;
     }
@@ -58,6 +61,10 @@ public class SubathonPromptRun {
     public SubathonPromptRunStatus Status { get; set; } = SubathonPromptRunStatus.Active;
     public long SnapshotTargetValue { get; set; }
     public long BaselineCount { get; set; } = 0;
+
+    public Guid? ActionId { get; set; }
+    public SubathonPromptActionStatus ActionStatus { get; set; } = SubathonPromptActionStatus.None;
+    public string? ActionProgress { get; set; }
 
     public bool IsActive => Status == SubathonPromptRunStatus.Active;
     public bool IsExpired => DateTime.Now >= ExpiresAt && Status == SubathonPromptRunStatus.Active;

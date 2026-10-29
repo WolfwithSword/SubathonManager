@@ -15,4 +15,9 @@
     <icon name="subathonmanager"/>
     <glob pattern="*.smwc"/>
   </mime-type>
+  <mime-type type="application/x-subathonmanager-action">
+    <comment>Subathon Manager Action</comment>
+    <icon name="subathonmanager"/>
+    <glob pattern="*.sma"/>
+  </mime-type>
 </mime-info>

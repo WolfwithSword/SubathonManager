@@ -113,13 +113,13 @@ public partial class YouTubeSettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? superchatValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.YouTubeSuperChat && sv.Meta == "");
-        if (superchatValue != null && double.TryParse(DonoBox.Text, out double scSeconds) &&
+        if (superchatValue != null && Utils.TryParseAmount(DonoBox.Text, out double scSeconds) &&
             !scSeconds.Equals(superchatValue.Seconds)) {
             superchatValue.Seconds = scSeconds;
             hasUpdated = true;
         }
 
-        if (superchatValue != null && double.TryParse(DonoBox2.Text, out double scPoints) &&
+        if (superchatValue != null && Utils.TryParseAmount(DonoBox2.Text, out double scPoints) &&
             !scPoints.Equals(superchatValue.Points)) {
             superchatValue.Points = scPoints;
             hasUpdated = true;
@@ -127,13 +127,13 @@ public partial class YouTubeSettings : SettingsControl {
 
         SubathonValue? redirectValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.YouTubeRedirect && sv.Meta == "");
-        if (redirectValue != null && double.TryParse(RaidBox.Text, out double rdSeconds) &&
+        if (redirectValue != null && Utils.TryParseAmount(RaidBox.Text, out double rdSeconds) &&
             !rdSeconds.Equals(redirectValue.Seconds)) {
             redirectValue.Seconds = rdSeconds;
             hasUpdated = true;
         }
 
-        if (redirectValue != null && double.TryParse(RaidBox2.Text, out double rdPoints) &&
+        if (redirectValue != null && Utils.TryParseAmount(RaidBox2.Text, out double rdPoints) &&
             !rdPoints.Equals(redirectValue.Points)) {
             redirectValue.Points = rdPoints;
             hasUpdated = true;
@@ -162,8 +162,8 @@ public partial class YouTubeSettings : SettingsControl {
 
             if (meta == "DEFAULT") continue;
 
-            if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
-            if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
+            if (!Utils.TryParseAmount(subRow.TimeBox.Text, out double seconds)) seconds = 0;
+            if (!Utils.TryParseAmount(subRow.PointsBox.Text, out double points)) points = 0;
 
 #pragma warning disable CA1862
             SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>

@@ -1,4 +1,3 @@
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -248,7 +247,7 @@ public partial class GoalsEditor : UserControl {
     private Grid AddGoalRow(SubathonGoal goal, bool isUnsaved) {
         var panel = new Grid {
             Margin = new Thickness(4, 0, 4, 8),
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto")
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto")
         };
 
         var textBox = new TextBox {
@@ -273,6 +272,18 @@ public partial class GoalsEditor : UserControl {
         pointsBox.TextChanged += Value_OnChanged;
         DirtySaveGuard.Rebase(pointsBox);
 
+        var doneBox = new CheckBox {
+            IsChecked = goal.IsCompleted,
+            Width = 32,
+            MinWidth = 0,
+            Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0,0, 0)
+        };
+        ToolTip.SetTip(doneBox, "Mark Done");
+        doneBox.IsCheckedChanged += (_, _) => DoneBox_Changed(goal, doneBox.IsChecked == true);
+
         var deleteBtn = new Button {
             Content = new SymIcon { Glyph = "Delete20", HorizontalAlignment = HorizontalAlignment.Center },
             Width = 32, Height = 32,
@@ -291,13 +302,15 @@ public partial class GoalsEditor : UserControl {
 
         Grid.SetColumn(textBox, 1);
         Grid.SetColumn(pointsBox, 2);
-        Grid.SetColumn(deleteBtn, 3);
+        Grid.SetColumn(doneBox, 3);
+        Grid.SetColumn(deleteBtn, 4);
         Grid.SetColumn(grip, 0);
 
         panel.Children.Add(textBox);
         panel.Children.Add(pointsBox);
         panel.Children.Add(deleteBtn);
         panel.Children.Add(grip);
+        panel.Children.Add(doneBox);
         panel.Tag = goal;
 
         if (isUnsaved) _unsavedGoals.Add(goal);
@@ -311,6 +324,21 @@ public partial class GoalsEditor : UserControl {
 
     private static TextBox? RowPointsBox(Grid row) {
         return row.Children[1] as TextBox;
+    }
+
+    private static CheckBox? RowDoneBox(Grid row) {
+        return row.Children[4] as CheckBox;
+    }
+
+    private async void DoneBox_Changed(SubathonGoal goal, bool done) {
+        if (_suppressCount > 0 || goal.IsCompleted == done) return;
+        goal.IsCompleted = done;
+        if (_unsavedGoals.Contains(goal)) return;
+
+        await using AppDbContext db = await _factory.CreateDbContextAsync();
+        await db.SubathonGoals
+            .Where(g => g.Id == goal.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.IsCompleted, done));
     }
 
     private List<Grid> GoalRows() {
@@ -510,6 +538,7 @@ public partial class GoalsEditor : UserControl {
 
             goal.Text = textBox.Text ?? "";
             goal.Points = pts;
+            goal.IsCompleted = RowDoneBox(panel)?.IsChecked == true;
 
             if (_unsavedGoals.Contains(goal)) db.SubathonGoals.Add(goal);
             else db.Update(goal);
@@ -619,28 +648,13 @@ public partial class GoalsEditor : UserControl {
             .FirstOrDefaultAsync(s => s.Id == _activeGoalSet.Id);
         if (set == null) return;
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
-        Directory.CreateDirectory(exportDir);
-
-        string safeName = SafeFileName.Sanitize(set.Name, string.Empty, "goals");
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-        string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
-
         string typeHeader = (set.Type ?? GoalsType.Points) == GoalsType.Money ? "Money" : "Points";
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"Goal,Value,{typeHeader}");
-        foreach (SubathonGoal goal in set.Goals.OrderBy(g => g.Points))
-            sb.AppendLine($"{Utils.EscapeCsv(goal.Text)},{goal.Points}");
-
-        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-
-        try {
-            UiHelpers.OpenFolder(exportDir);
-        }
-        catch {
-            /**/
-        }
+        string path = await CsvUtils.ExportAsync(SafeFileName.Sanitize(set.Name, string.Empty, "goals"),
+            [["Goal", "Value", typeHeader]],
+            set.Goals.OrderBy(g => g.Points),
+            goal => [goal.Text, goal.Points]);
+        UiHelpers.OpenFolder(Path.GetDirectoryName(path));
     }
 
     private async void ImportGoalSet_Click(object? sender, RoutedEventArgs e) {
@@ -656,21 +670,13 @@ public partial class GoalsEditor : UserControl {
         IStorageFile file = picked[0];
         string filePath = file.Path.LocalPath;
 
-        string[] lines;
-        try {
-            lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8);
-        }
-        catch {
+        List<string[]>? lines = await CsvUtils.ReadFileAsync(filePath);
+        if (lines == null || lines.Count < 1) {
             await ShowInvalidGoalCsvPopup();
             return;
         }
 
-        if (lines.Length < 1) {
-            await ShowInvalidGoalCsvPopup();
-            return;
-        }
-
-        string[] headerCols = ParseCsvLine(lines[0]);
+        string[] headerCols = lines[0];
         if (headerCols.Length < 2) {
             await ShowInvalidGoalCsvPopup();
             return;
@@ -682,9 +688,7 @@ public partial class GoalsEditor : UserControl {
             goalType = GoalsType.Money;
 
         var goals = new List<SubathonGoal>();
-        for (var i = 1; i < lines.Length; i++) {
-            if (string.IsNullOrWhiteSpace(lines[i])) continue;
-            string[] cols = ParseCsvLine(lines[i]);
+        foreach (string[] cols in lines.Skip(1)) {
             if (cols.Length < 2 || !long.TryParse(cols[1].Trim(), out long pts)) {
                 await ShowInvalidGoalCsvPopup();
                 return;
@@ -711,45 +715,6 @@ public partial class GoalsEditor : UserControl {
         await db.SaveChangesAsync();
 
         LoadAllSets();
-    }
-
-    private static string[] ParseCsvLine(string line) {
-        var result = new List<string>();
-        var field = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++) {
-            char c = line[i];
-            if (inQuotes)
-                switch (c) {
-                    case '"' when i + 1 < line.Length && line[i + 1] == '"':
-                        field.Append('"');
-                        i++;
-                        break;
-                    case '"':
-                        inQuotes = false;
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-            else
-                switch (c) {
-                    case '"':
-                        inQuotes = true;
-                        break;
-                    case ',':
-                        result.Add(field.ToString());
-                        field.Clear();
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-        }
-
-        result.Add(field.ToString());
-        return result.ToArray();
     }
 
     private async Task ShowInvalidGoalCsvPopup() {

@@ -371,8 +371,15 @@ public partial class EditRouteWindow {
     }
 
     private async void SaveWidgetButton_Click(object? sender, RoutedEventArgs e) {
+        if (!await SaveSelectedWidgetAsync()) return;
+        SaveWidgetButton.Content = "Saved!";
+        await Task.Delay(1500);
+        SaveWidgetButton.Content = "Save";
+    }
+
+    private async Task<bool> SaveSelectedWidgetAsync() {
         try {
-            if (_selectedWidget == null) return;
+            if (_selectedWidget == null) return true;
             var widgetHelper = new WidgetEntityHelper(_factory, null);
 
             widgetHelper.SyncCssVariables(_selectedWidget);
@@ -382,11 +389,11 @@ public partial class EditRouteWindow {
             _selectedWidget.Name = WidgetNameBox.Text ?? string.Empty;
             _selectedWidget.Width = int.TryParse(WidgetWidthBox.Text, out int w) ? w : _selectedWidget.Width;
             _selectedWidget.Height = int.TryParse(WidgetHeightBox.Text, out int h) ? h : _selectedWidget.Height;
-            _selectedWidget.X = float.TryParse(WidgetXBox.Text, out float x) ? x : _selectedWidget.X;
-            _selectedWidget.Y = float.TryParse(WidgetYBox.Text, out float y) ? y : _selectedWidget.Y;
-            _selectedWidget.ScaleX = float.TryParse(WidgetScaleXBox.Text, out float sx) ? sx :
+            _selectedWidget.X = Utils.TryParseAmount(WidgetXBox.Text, out double x) ? (float)x : _selectedWidget.X;
+            _selectedWidget.Y = Utils.TryParseAmount(WidgetYBox.Text, out double y) ? (float)y : _selectedWidget.Y;
+            _selectedWidget.ScaleX = Utils.TryParseAmount(WidgetScaleXBox.Text, out double sx) ? (float)sx :
                 _selectedWidget.ScaleX == 0 ? 1 : _selectedWidget.ScaleX;
-            _selectedWidget.ScaleY = float.TryParse(WidgetScaleYBox.Text, out float sy) ? sy :
+            _selectedWidget.ScaleY = Utils.TryParseAmount(WidgetScaleYBox.Text, out double sy) ? (float)sy :
                 _selectedWidget.ScaleY == 0 ? 1 : _selectedWidget.ScaleY;
 
             foreach (CssVariable cssVar in _editingCssVars) {
@@ -426,12 +433,11 @@ public partial class EditRouteWindow {
 
             await db.Entry(_selectedWidget).ReloadAsync();
             UpdateSaveButtonBorder(SaveButtonBorder, false);
-            SaveWidgetButton.Content = "Saved!";
-            await Task.Delay(1500);
-            SaveWidgetButton.Content = "Save";
+            return true;
         }
         catch (Exception ex) {
             _logger?.LogError(ex, "Failed to save widget");
+            return false;
         }
     }
 
@@ -1002,12 +1008,14 @@ public partial class EditRouteWindow {
     }
 
     private async void SaveRouteButton_Click(object? sender, RoutedEventArgs e) {
-        if (_route == null) return;
-        await SaveCurrentRoute();
+        if (_route == null || !await SaveCurrentRoute()) return;
+        SaveRouteButton.Content = "Saved!";
+        await Task.Delay(1500);
+        SaveRouteButton.Content = "Save";
     }
 
-    private async Task SaveCurrentRoute() {
-        if (_route == null) return;
+    private async Task<bool> SaveCurrentRoute() {
+        if (_route == null) return true;
         try {
             await SaveAllPendingWidgetChangesAsync();
 
@@ -1022,13 +1030,11 @@ public partial class EditRouteWindow {
             UpdateWebViewScale();
             OverlayEvents.RaiseOverlayRefreshRequested(_route.Id);
             RouteSaved?.Invoke();
-
-            SaveRouteButton.Content = "Saved!";
-            await Task.Delay(1500);
-            SaveRouteButton.Content = "Save";
+            return true;
         }
         catch (Exception ex) {
             _logger?.LogError(ex, "Failed to save overlay");
+            return false;
         }
     }
 
@@ -1091,6 +1097,58 @@ public partial class EditRouteWindow {
 
         SuppressUnsavedChanges(Attach);
     }
+
+    #region GlobalVars
+
+    private int _loadingGlobalVars;
+
+    private async Task PopulateGlobalVarsAsync(Widget widget) {
+        _loadingGlobalVars++;
+        try {
+            List<ActionGlobal> globals = await ServiceManager.Actions.GetGlobalsAsync(ActionStoreKind.Global);
+            if (_selectedWidget?.Id != widget.Id) return;
+
+            IReadOnlyList<string> picked = widget.GlobalVarNames;
+            List<FilterOption> options = globals.Select(g => new FilterOption {
+                Label = g.Name, Value = g.Name, Group = $"{g.ValueType}"
+            }).ToList();
+            options.AddRange(picked
+                .Where(n => !globals.Any(g => g.Name.Equals(n, StringComparison.OrdinalIgnoreCase)))
+                .Select(n => new FilterOption { Label = $"{n} (doesn't exist)", Value = n, Group = "Missing" }));
+
+            GlobalVarsPicker.SetOptions(options, true);
+            GlobalVarsPicker.SetSelected(picked);
+            GlobalVarsModeBox.SelectedIndex = widget.ListensToAllGlobals ? 1
+                : string.IsNullOrWhiteSpace(widget.GlobalVars) ? 0 : 2;
+            GlobalVarsPicker.IsVisible = GlobalVarsModeBox.SelectedIndex == 2;
+        }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Could not load globals for widget editor");
+        }
+        finally {
+            _loadingGlobalVars--;
+        }
+    }
+
+    private void GlobalVarsMode_Changed(object? sender, SelectionChangedEventArgs e) {
+        ApplyGlobalVars();
+    }
+
+    private void ApplyGlobalVars() {
+        GlobalVarsPicker.IsVisible = GlobalVarsModeBox.SelectedIndex == 2;
+        if (_loadingGlobalVars > 0 || _selectedWidget == null) return;
+
+        string value = GlobalVarsModeBox.SelectedIndex switch {
+            1 => Widget.AllGlobals,
+            2 => Widget.JoinGlobalVars(false, GlobalVarsPicker.SelectedOptions.Select(o => o.Value)),
+            _ => string.Empty
+        };
+        if (value == _selectedWidget.GlobalVars) return;
+        _selectedWidget.GlobalVars = value;
+        UpdateSaveButtonBorder(SaveButtonBorder, true);
+    }
+
+    #endregion
 
     private void Value_OnChanged(object? sender, RoutedEventArgs e) {
         bool realChange = DirtySaveGuard.Consume(sender);
@@ -1194,8 +1252,9 @@ public partial class EditRouteWindow {
     }
 
     private static bool TryParseSliderValue(string? text, out float value) {
-        return float.TryParse((text ?? "").Trim().TrimEnd('%'), NumberStyles.Float,
-            CultureInfo.InvariantCulture, out value);
+        bool ok = Utils.TryParseAmount((text ?? "").Trim().TrimEnd('%'), out double parsed);
+        value = (float)parsed;
+        return ok;
     }
 
     private static string FormatSliderBoxText(CssVariable cssVar, float value) {

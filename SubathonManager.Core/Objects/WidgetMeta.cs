@@ -11,6 +11,36 @@ public class WidgetMeta {
     public int Width { get; set; } = 300;
     public int Height { get; set; } = 300;
     public Dictionary<string, WidgetMetaVar> Vars { get; set; } = new();
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public WidgetMetaGlobals? Globals { get; set; }
+}
+
+[ExcludeFromCodeCoverage]
+public class WidgetMetaGlobals {
+    public bool All { get; set; }
+
+    public Dictionary<string, ActionValueType> Vars { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public string ToWidgetValue() {
+        return Models.Widget.JoinGlobalVars(All, Vars.Keys);
+    }
+
+    public static WidgetMetaGlobals? From(Models.Widget widget, IReadOnlyDictionary<string, ActionValueType>? types,
+        WidgetMetaGlobals? previous = null) {
+        if (string.IsNullOrWhiteSpace(widget.GlobalVars)) return null;
+
+        var result = new WidgetMetaGlobals { All = widget.ListensToAllGlobals };
+        foreach (string name in widget.GlobalVarNames) {
+            ActionValueType? old = previous?.Vars.FirstOrDefault(v =>
+                string.Equals(v.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+
+            result.Vars[name] = types != null && types.TryGetValue(name, out ActionValueType type)
+                ? type : old ?? ActionValueType.Text;
+        }
+
+        return result;
+    }
 }
 
 [ExcludeFromCodeCoverage]

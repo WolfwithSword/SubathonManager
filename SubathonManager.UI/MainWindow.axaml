@@ -6,6 +6,7 @@
         xmlns:views="using:SubathonManager.UI.Views"
         xmlns:prompts="using:SubathonManager.UI.Views.Prompts"
         xmlns:wheel="using:SubathonManager.UI.Views.WheelSpin"
+        xmlns:actions="using:SubathonManager.UI.Views.Actions"
         xmlns:ctl="using:SubathonManager.UI.Controls"
         xmlns:v="using:SubathonManager.UI.Validation"
         xmlns:schedule="clr-namespace:SubathonManager.UI.Views.Schedule"
@@ -516,6 +517,9 @@
             </TabItem>
             <TabItem Header="Wheel Spin">
                 <wheel:WheelEditor />
+            </TabItem>
+            <TabItem x:Name="ActionsTabItem" Header="Actions">
+                <actions:ActionsView x:Name="ActionsPage" />
             </TabItem>
             <TabItem x:Name="ScheduleTabItem" Header="Schedule">
                 <schedule:ScheduleView x:Name="SchedulePage" />

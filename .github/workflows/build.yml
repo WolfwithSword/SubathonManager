@@ -498,7 +498,7 @@ jobs:
       - name: Upload build artifact (Nextcloud)
         id: nc
         if: ${{ env.PRIMARY == 'nextcloud' || steps.gh.outcome == 'failure' }}
-        uses: trympet/nextcloud-artifacts-action@v2
+        uses: trympet/nextcloud-artifacts-action@v3
         continue-on-error: false
         with:
           name: SubathonManager_${{ matrix.runtime }}_${{ steps.avars.outputs.suffix }}

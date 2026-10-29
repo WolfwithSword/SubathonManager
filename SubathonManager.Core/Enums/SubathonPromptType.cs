@@ -34,6 +34,13 @@ public enum SubathonPromptRunStatus {
     Cancelled
 }
 
+public enum SubathonPromptActionStatus {
+    None,
+    Running,
+    Done,
+    Failed
+}
+
 [ExcludeFromCodeCoverage]
 public static class SubathonPromptTypeExtensions {
     private static readonly ReadOnlyDictionary<SubathonPromptType, SubathonPromptSubType[]> _validSubTypes =

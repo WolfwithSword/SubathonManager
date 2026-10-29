@@ -281,7 +281,7 @@ public partial class MainWindow {
     }
 
     private void AdjustSubathonMoneyBy(int direction) {
-        if (!double.TryParse(AdjustSubathonMoney.Text, out double parsedVal) || parsedVal <= 0) return;
+        if (!Utils.TryParseAmount(AdjustSubathonMoney.Text, out double parsedVal) || parsedVal <= 0) return;
         SubathonCommandType cmd = direction > 0 ? SubathonCommandType.AddMoney : SubathonCommandType.SubtractMoney;
         RaiseCommand(new SubathonEvent {
             EventTimestamp = DateTime.Now - TimeSpan.FromSeconds(1),

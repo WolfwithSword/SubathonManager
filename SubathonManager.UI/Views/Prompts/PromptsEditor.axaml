@@ -6,9 +6,11 @@
              xmlns:val="using:SubathonManager.UI.Validation"
              mc:Ignorable="d" d:DesignHeight="800" d:DesignWidth="1200"
              x:Class="SubathonManager.UI.Views.Prompts.PromptsEditor">
-    <Grid x:Name="RootGrid" Focusable="True" PointerPressed="Grid_PointerPressed" ColumnDefinitions="3*,2*">
+    <Grid x:Name="RootGrid" Focusable="True" PointerPressed="Grid_PointerPressed" ColumnDefinitions="3*,2*"
+          RowDefinitions="*,*">
 
-        <Border Grid.Column="0" Padding="8" Margin="16,16,8,16" BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+        <Border Grid.Column="0" Grid.Row="0" Padding="8" Margin="16,16,8,-72" BorderThickness="1" BorderBrush="#333"
+                CornerRadius="8">
             <Grid RowDefinitions="Auto,Auto,*">
                 <Grid Grid.Row="0" Margin="0,0,0,6" ColumnDefinitions="*,Auto,Auto">
                     <TextBox x:Name="SetNameTextBox" FontWeight="Bold" FontSize="18" IsTabStop="False"
@@ -48,9 +50,53 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Column="1">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="20,16,16,56" VerticalAlignment="Top">
+        <Border Grid.Column="0" Grid.Row="1" Padding="8" Margin="16,80,8,16"
+                BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+            <Grid RowDefinitions="Auto,Auto,*">
+                <Grid Grid.Row="0" Margin="0,0,0,4" ColumnDefinitions="*,Auto,Auto,Auto">
+                    <TextBlock Text="Prompt History" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <ComboBox x:Name="HistoryFilterBox" Grid.Column="1" Width="116" Height="26" Margin="0,0,4,0"
+                              FontSize="10" SelectedIndex="0" Padding="4,0" VerticalContentAlignment="Center"
+                              SelectionChanged="HistoryFilter_SelectionChanged">
+                        <ComboBoxItem Content="All" Tag="All" FontSize="10" />
+                        <ComboBoxItem Content="Active" Tag="Active" FontSize="10" />
+                        <ComboBoxItem Content="Completed" Tag="Completed" FontSize="10" />
+                        <ComboBoxItem Content="Expired" Tag="Expired" FontSize="10" />
+                        <ComboBoxItem Content="Cancelled" Tag="Cancelled" FontSize="10" />
+                    </ComboBox>
+                    <Button Grid.Column="2" Classes="iconbtn" Width="28" Height="28"
+                            ToolTip.Tip="Export all prompt history to CSV" Click="ExportHistory_Click">
+                        <ctl:SymIcon Glyph="ArrowExportUp16" />
+                    </Button>
+                    <Button Grid.Column="3" Classes="iconbtn" Width="28" Height="28" Margin="4,0,0,0"
+                            ToolTip.Tip="Delete the finished prompt history for this set"
+                            Click="DeleteAllPromptHistory_Click" Foreground="Red">
+                        <ctl:SymIcon Glyph="Delete16" />
+                    </Button>
+                </Grid>
+
+                <Border Grid.Row="1" BorderBrush="#444" BorderThickness="0,0,0,1" Margin="0,0,4,2">
+                    <Grid Margin="2,0,2,4" ColumnDefinitions="78,1.7*,64,*,76">
+                        <TextBlock Grid.Column="0" Text="Started" FontSize="10" Foreground="Gray" />
+                        <TextBlock Grid.Column="1" Text="Prompt" FontSize="10" Foreground="Gray" Margin="4,0,0,0" />
+                        <TextBlock Grid.Column="2" Text="Progress" FontSize="10" Foreground="Gray"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Grid.Column="3" Text="Action" FontSize="10" Foreground="Gray" Margin="4,0,0,0" />
+                        <TextBlock Grid.Column="4" Text="Status" FontSize="10" Foreground="Gray"
+                                   HorizontalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <ScrollViewer Grid.Row="2" x:Name="HistoryScroller" VerticalScrollBarVisibility="Auto"
+                              ScrollChanged="HistoryScroller_ScrollChanged">
+                    <StackPanel x:Name="HistoryStack" Orientation="Vertical" Margin="0,2,0,0" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Grid.Row="0" Grid.RowSpan="2">
+            <Grid Margin="20,16,16,56" RowDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Row="0">
 
                     <TextBlock Text="Prompts Editor" FontSize="20" FontWeight="Bold" Margin="0,0,0,10" />
 
@@ -115,19 +161,23 @@
                         </StackPanel>
                     </Border>
 
-                    <Border x:Name="PromptDetailBorder" Padding="10" BorderThickness="1" BorderBrush="#333"
-                            CornerRadius="6"
+                </StackPanel>
+
+                    <Border x:Name="PromptDetailBorder" Grid.Row="1" Padding="10,10,4,10" BorderThickness="1"
+                            BorderBrush="#333" CornerRadius="6" VerticalAlignment="Top"
                             Margin="0,0,0,12" IsVisible="False">
-                        <StackPanel>
+                        <Grid RowDefinitions="Auto,Auto,*">
                             <TextBlock Text="Selected Prompt" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8" />
 
-                            <Border x:Name="RunningLockText" IsVisible="False" Background="#22FF8800"
+                            <Border Grid.Row="1" x:Name="RunningLockText" IsVisible="False" Background="#22FF8800"
                                     BorderBrush="#66FF8800"
-                                    BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
-                                <TextBlock Text="⏵ This prompt is currently running - editing is locked."
+                                    BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,0,6,8">
+                                <TextBlock Text="⏵ This prompt is currently running - editing is locked"
                                            FontSize="12" Foreground="Orange" />
                             </Border>
 
+                            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="PromptDetailFields" Margin="0,0,6,0">
                             <TextBlock Text="Text:" FontSize="12" Margin="2,0,0,3" />
                             <TextBox x:Name="PromptTextBox" PlaceholderText="What should viewers do..." Height="36"
                                      Margin="0,0,0,8" />
@@ -190,12 +240,38 @@
                                               IsCheckedChanged="PromptInfinite_Changed" />
                                 </StackPanel>
                             </Grid>
-                        </StackPanel>
+
+                            <Border BorderBrush="#333" BorderThickness="0,1,0,0" Padding="0,8,0,0" Margin="0,4,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Optional Action:" FontSize="12" Margin="2,0,0,3" />
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                        <ComboBox x:Name="PromptActionBox" Height="36" HorizontalAlignment="Stretch"
+                                                  Margin="0,0,4,0" SelectionChanged="PromptAction_SelectionChanged" />
+                                        <Button Grid.Column="1" Height="36" Padding="8,2" Margin="0,0,4,0"
+                                                Click="EditPromptAction_Click"
+                                                ToolTip.Tip="Open selected action in the editor">
+                                            <ctl:SymIcon Glyph="Edit16" />
+                                        </Button>
+                                        <Button Grid.Column="2" Height="36" Padding="8,2" Margin="0,0,4,0"
+                                                Click="NewPromptAction_Click" ToolTip.Tip="Create a new custom action">
+                                            <ctl:SymIcon Glyph="Add16" />
+                                        </Button>
+                                        <Button Grid.Column="3" Height="36" Padding="8,2"
+                                                Click="ImportPromptAction_Click"
+                                                ToolTip.Tip="Import a .sma file into the actions library">
+                                            <ctl:SymIcon Glyph="ArrowDownload16" />
+                                        </Button>
+                                    </Grid>
+                                    <TextBlock x:Name="PromptActionHint" FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="2,4,0,0" />
+                                </StackPanel>
+                            </Border>
+                            </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
                     </Border>
 
-                    <TextBlock x:Name="StatusText" Foreground="Gray" FontSize="12" Margin="0,0,0,6" />
-                </StackPanel>
-            </ScrollViewer>
+                    <TextBlock Grid.Row="2" x:Name="StatusText" Foreground="Gray" FontSize="12" Margin="0,0,0,6" />
+            </Grid>
 
             <Border x:Name="SaveButtonBorder" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                     CornerRadius="6" BorderThickness="2" BorderBrush="Transparent" Margin="6,10,14,10">

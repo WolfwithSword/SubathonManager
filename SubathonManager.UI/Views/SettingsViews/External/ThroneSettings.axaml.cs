@@ -67,13 +67,13 @@ public partial class ThroneSettings : DevTunnelSettingsControl {
 
         SubathonValue? contribVal = db.SubathonValues.FirstOrDefault(x =>
             x.EventType == SubathonEventType.ThroneGiftContribution && x.Meta == "");
-        if (contribVal != null && double.TryParse(ContribBox.Text, out double osec) &&
+        if (contribVal != null && Utils.TryParseAmount(ContribBox.Text, out double osec) &&
             !contribVal.Seconds.Equals(osec)) {
             contribVal.Seconds = osec;
             hasUpdated = true;
         }
 
-        if (contribVal != null && double.TryParse(ContribBox2.Text, out double opts) &&
+        if (contribVal != null && Utils.TryParseAmount(ContribBox2.Text, out double opts) &&
             !contribVal.Points.Equals(opts)) {
             contribVal.Points = opts;
             hasUpdated = true;
@@ -81,12 +81,12 @@ public partial class ThroneSettings : DevTunnelSettingsControl {
 
         SubathonValue? value =
             db.SubathonValues.FirstOrDefault(x => x.EventType == SubathonEventType.ThroneGiftPurchase && x.Meta == "");
-        if (value != null && double.TryParse(GiftsBox.Text, out double gosec) && !value.Seconds.Equals(gosec)) {
+        if (value != null && Utils.TryParseAmount(GiftsBox.Text, out double gosec) && !value.Seconds.Equals(gosec)) {
             value.Seconds = gosec;
             hasUpdated = true;
         }
 
-        if (value != null && double.TryParse(GiftsBox2.Text, out double gpts) && !value.Points.Equals(gpts)) {
+        if (value != null && Utils.TryParseAmount(GiftsBox2.Text, out double gpts) && !value.Points.Equals(gpts)) {
             value.Points = gpts;
             hasUpdated = true;
         }
@@ -129,7 +129,7 @@ public partial class ThroneSettings : DevTunnelSettingsControl {
     }
 
     private void TestThroneGift_Click(object? sender, RoutedEventArgs e) {
-        double.TryParse(string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
+        Utils.TryParseAmount(string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
             ? "10.00"
             : SimulateThroneContribAmountBox.Text, out double amount);
         amount *= 100;
@@ -154,7 +154,7 @@ public partial class ThroneSettings : DevTunnelSettingsControl {
     }
 
     private void TestThroneContrib_Click(object? sender, RoutedEventArgs e) {
-        double.TryParse(string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
+        Utils.TryParseAmount(string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
             ? "10.00"
             : SimulateThroneContribAmountBox.Text, out double amount);
         amount *= 100;
@@ -177,7 +177,7 @@ public partial class ThroneSettings : DevTunnelSettingsControl {
     }
 
     private void TestThroneCrowdfund_Click(object? sender, RoutedEventArgs e) {
-        double.TryParse(string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
+        Utils.TryParseAmount(string.IsNullOrWhiteSpace(SimulateThroneContribAmountBox.Text)
             ? "10.00"
             : SimulateThroneContribAmountBox.Text, out double amount);
         amount *= 100;

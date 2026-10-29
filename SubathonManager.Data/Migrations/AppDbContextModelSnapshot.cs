@@ -15,7 +15,38 @@ namespace SubathonManager.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+
+            modelBuilder.Entity("SubathonManager.Core.Models.ActionGlobal", b =>
+                {
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ValueType")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Kind", "Name");
+
+                    b.ToTable("ActionGlobals");
+                });
 
             modelBuilder.Entity("SubathonManager.Core.Models.CssVariable", b =>
                 {
@@ -441,6 +472,9 @@ namespace SubathonManager.Data.Migrations
                     b.Property<Guid?>("GoalSetId")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("Points")
                         .HasColumnType("INTEGER");
 
@@ -486,6 +520,9 @@ namespace SubathonManager.Data.Migrations
 
                     b.Property<long>("CompletionDuration")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("CustomActionId")
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
@@ -536,6 +573,15 @@ namespace SubathonManager.Data.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ActionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActionProgress")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ActionStatus")
+                        .HasColumnType("INTEGER");
 
                     b.Property<long>("BaselineCount")
                         .HasColumnType("INTEGER");
@@ -711,6 +757,9 @@ namespace SubathonManager.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ActionProgress")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -808,6 +857,11 @@ namespace SubathonManager.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DocsUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GlobalVars")
+                        .IsRequired()
+                        .HasMaxLength(4096)
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Height")

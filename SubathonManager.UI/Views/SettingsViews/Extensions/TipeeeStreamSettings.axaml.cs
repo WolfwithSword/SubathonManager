@@ -58,12 +58,12 @@ public partial class TipeeeStreamSettings : SettingsControl {
         SubathonValue? tipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.TipeeeStreamDonation && sv.Meta == "");
         if (tipValue != null) {
-            if (double.TryParse(DonoBox.Text, out double s) && !s.Equals(tipValue.Seconds)) {
+            if (Utils.TryParseAmount(DonoBox.Text, out double s) && !s.Equals(tipValue.Seconds)) {
                 tipValue.Seconds = s;
                 hasUpdated = true;
             }
 
-            if (double.TryParse(DonoBox2.Text, out double p) && !p.Equals(tipValue.Points)) {
+            if (Utils.TryParseAmount(DonoBox2.Text, out double p) && !p.Equals(tipValue.Points)) {
                 tipValue.Points = p;
                 hasUpdated = true;
             }

@@ -133,12 +133,12 @@ public partial class KoFiCombinedSettings : SettingsControl {
         SubathonValue? tipValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.KoFiDonation);
         if (tipValue != null) {
-            if (double.TryParse(DonoBox.Text, out double s) && !s.Equals(tipValue.Seconds)) {
+            if (Utils.TryParseAmount(DonoBox.Text, out double s) && !s.Equals(tipValue.Seconds)) {
                 tipValue.Seconds = s;
                 hasUpdated = true;
             }
 
-            if (double.TryParse(DonoBox2.Text, out double p) && !p.Equals(tipValue.Points)) {
+            if (Utils.TryParseAmount(DonoBox2.Text, out double p) && !p.Equals(tipValue.Points)) {
                 tipValue.Points = p;
                 hasUpdated = true;
             }
@@ -147,12 +147,12 @@ public partial class KoFiCombinedSettings : SettingsControl {
         SubathonValue? shopValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.KoFiShopOrder);
         if (shopValue != null) {
-            if (double.TryParse(ShopOrderBox.Text, out double s) && !s.Equals(shopValue.Seconds)) {
+            if (Utils.TryParseAmount(ShopOrderBox.Text, out double s) && !s.Equals(shopValue.Seconds)) {
                 shopValue.Seconds = s;
                 hasUpdated = true;
             }
 
-            if (double.TryParse(ShopOrderBox2.Text, out double p) && !p.Equals(shopValue.Points)) {
+            if (Utils.TryParseAmount(ShopOrderBox2.Text, out double p) && !p.Equals(shopValue.Points)) {
                 shopValue.Points = p;
                 hasUpdated = true;
             }
@@ -161,12 +161,12 @@ public partial class KoFiCombinedSettings : SettingsControl {
         SubathonValue? commValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.KoFiCommissionOrder);
         if (commValue != null) {
-            if (double.TryParse(CommissionBox.Text, out double s) && !s.Equals(commValue.Seconds)) {
+            if (Utils.TryParseAmount(CommissionBox.Text, out double s) && !s.Equals(commValue.Seconds)) {
                 commValue.Seconds = s;
                 hasUpdated = true;
             }
 
-            if (double.TryParse(CommissionBox2.Text, out double p) && !p.Equals(commValue.Points)) {
+            if (Utils.TryParseAmount(CommissionBox2.Text, out double p) && !p.Equals(commValue.Points)) {
                 commValue.Points = p;
                 hasUpdated = true;
             }
@@ -175,12 +175,12 @@ public partial class KoFiCombinedSettings : SettingsControl {
         SubathonValue? defaultSub = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.KoFiSub && sv.Meta == "DEFAULT");
         if (defaultSub != null) {
-            if (double.TryParse(KFSubDTextBox.Text, out double s) && !s.Equals(defaultSub.Seconds)) {
+            if (Utils.TryParseAmount(KFSubDTextBox.Text, out double s) && !s.Equals(defaultSub.Seconds)) {
                 defaultSub.Seconds = s;
                 hasUpdated = true;
             }
 
-            if (double.TryParse(KFSubDTextBox2.Text, out double p) && !p.Equals(defaultSub.Points)) {
+            if (Utils.TryParseAmount(KFSubDTextBox2.Text, out double p) && !p.Equals(defaultSub.Points)) {
                 defaultSub.Points = p;
                 hasUpdated = true;
             }
@@ -203,8 +203,8 @@ public partial class KoFiCombinedSettings : SettingsControl {
 
             if (meta == "DEFAULT") continue;
 
-            if (!double.TryParse(subRow.TimeBox.Text, out double seconds)) seconds = 0;
-            if (!double.TryParse(subRow.PointsBox.Text, out double points)) points = 0;
+            if (!Utils.TryParseAmount(subRow.TimeBox.Text, out double seconds)) seconds = 0;
+            if (!Utils.TryParseAmount(subRow.PointsBox.Text, out double points)) points = 0;
 
 #pragma warning disable CA1862
             SubathonValue? existing = db.SubathonValues.FirstOrDefault(sv =>

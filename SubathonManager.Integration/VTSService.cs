@@ -42,9 +42,8 @@ public class VTSService(
     ILogger<VTSService>? logger,
     IConfig config,
     ISecureStorage secureStorage,
-    ITimerService? timerService = null,
     IDbContextFactory<AppDbContext>? dbFactory = null)
-    : IAppService, IDisposable {
+    : IAppService, IDisposable, IActionStepRunner {
     public const string ConfigSection = "VTubeStudio";
     private const string PluginName = "Subathon Manager";
     private const string PluginDeveloper = "WolfwithSword";
@@ -929,140 +928,90 @@ public class VTSService(
         await RefreshAsync(ct);
     }
 
-    public async Task<bool> ExecuteWheelActionAsync(VTSWheelAction action, CancellationToken ct = default) {
-        if (!Connected) {
-            _logger?.LogInformation(
-                "[VTSService] Wheel action skipped: not connected to VTube Studio. Leaving the spin pending");
-            return false;
-        }
-
-        if (!action.IsValid(out string invalid)) {
-            _logger?.LogWarning("[VTSService] Wheel action is not valid: {Error}", invalid);
-            return false;
-        }
-
-        switch (action.Kind) {
-            case VtsTargetKind.Expression:
-                return await RunExpressionWheelActionAsync(action, ct);
-            case VtsTargetKind.Parameter:
-                return await RunParameterWheelActionAsync(action, ct);
-            case VtsTargetKind.Hotkey:
-                return await RunHotkeyWheelActionAsync(action, ct);
-            default:
-                return false;
-        }
-    }
+    ////////////////////////////// action steps
 
     [ExcludeFromCodeCoverage]
-    private async Task<bool> RunExpressionWheelActionAsync(VTSWheelAction action, CancellationToken ct) {
-        if (!await TargetExistsAsync(action, ct)) return false;
-        if (!await ApplyExpressionActionAsync(action.Target, action.ToggleAction, ct)) return false;
-        ScheduleRevert(action, null);
-        return true;
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task<bool> RunParameterWheelActionAsync(VTSWheelAction action, CancellationToken ct) {
-        double? original = await GetParameterValueAsync(action.Target, ct);
-        if (original == null) {
-            _logger?.LogWarning(
-                "[VTSService] Wheel action target parameter \"{Parameter}\" not found on the current model",
-                action.Target);
-            return false;
-        }
-
-        if (!await SetParameterValueAsync(action.Target, action.Value, ct: ct)) return false;
-        ScheduleRevert(action, original);
-        return true;
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task<bool> RunHotkeyWheelActionAsync(VTSWheelAction action, CancellationToken ct) {
-        if (!await TargetExistsAsync(action, ct)) return false;
-        if (!await TriggerHotkeyAsync(action.Target, ct: ct)) return false;
-        ScheduleRevert(action, null);
-        return true;
-    }
-
-    [ExcludeFromCodeCoverage]
-    private async Task<bool> TargetExistsAsync(VTSWheelAction action, CancellationToken ct) {
+    public async Task<bool> HasTargetAsync(VtsTargetKind kind, string target, CancellationToken ct = default) {
+        if (!Connected || string.IsNullOrWhiteSpace(target)) return false;
         if (Matches()) return true;
 
         await RefreshAsync(ct);
         if (Matches()) return true;
 
-        _logger?.LogWarning(
-            "[VTSService] Wheel action target {Kind} \"{Target}\" is not on the current model ({Model})",
-            action.Kind, action.Target, CurrentModelName ?? "none");
+        _logger?.LogWarning("[VTSService] {Kind} \"{Target}\" is not on the current model ({Model})",
+            kind, target, CurrentModelName ?? "none");
         return false;
 
         bool Matches() {
-            return action.Kind switch {
+            return kind switch {
                 VtsTargetKind.Expression => CachedExpressions.Any(e =>
-                    string.Equals(e.File, action.Target, StringComparison.OrdinalIgnoreCase)),
+                    string.Equals(e.File, target, StringComparison.OrdinalIgnoreCase)),
                 VtsTargetKind.Hotkey => CachedHotkeys.Any(h =>
-                    string.Equals(h.Id, action.Target, StringComparison.OrdinalIgnoreCase)),
+                    string.Equals(h.Id, target, StringComparison.OrdinalIgnoreCase)),
                 VtsTargetKind.Parameter => CachedParameters.Any(p =>
-                    string.Equals(p.Name, action.Target, StringComparison.Ordinal)),
+                    string.Equals(p.Name, target, StringComparison.Ordinal)),
                 _ => false
             };
         }
     }
 
-    [ExcludeFromCodeCoverage]
-    private void ScheduleRevert(VTSWheelAction action, double? originalValue) {
-        if (!action.HasRevert) return;
-
-        if (timerService == null) {
-            _logger?.LogWarning("[VTSService] No timer service available; skipping the wheel action revert.");
-            return;
-        }
-
-        string key = action.TimerKey;
-        timerService.Register(key, action.Duration, async revertCt => {
-            timerService.Unregister(key);
-            await RevertWheelActionAsync(action, originalValue, revertCt);
-        });
-
-        _logger?.LogInformation("[VTSService] Wheel action revert for {Target} scheduled in {Duration}",
-            action.Target, action.Duration);
-    }
+    public IReadOnlyCollection<ActionStepType> StepTypes { get; } =
+        [ActionStepType.VtsExpression, ActionStepType.VtsParameter, ActionStepType.VtsHotkey];
 
     [ExcludeFromCodeCoverage]
-    private async Task RevertWheelActionAsync(VTSWheelAction action, double? originalValue, CancellationToken ct) {
-        if (!Connected) {
-            _logger?.LogInformation("[VTSService] Skipping wheel action revert for {Target}: not connected.",
-                action.Target);
-            return;
-        }
+    public async Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
+        CancellationToken ct) {
+        if (!Connected) return false;
 
-        switch (action.Kind) {
-            case VtsTargetKind.Expression:
-                await ApplyExpressionActionAsync(action.Target, action.AfterToggle, ct);
+        switch (step.Type) {
+            case ActionStepType.VtsExpression:
+                return await HasTargetAsync(VtsTargetKind.Expression, step.Target, ct)
+                       && await ApplyExpressionActionAsync(step.Target, step.Operation switch {
+                           ActionOperation.Off => VtsToggleAction.Off,
+                           ActionOperation.Toggle => VtsToggleAction.Toggle,
+                           _ => VtsToggleAction.On
+                       }, ct);
+
+            case ActionStepType.VtsHotkey:
+                return await HasTargetAsync(VtsTargetKind.Hotkey, step.Target, ct)
+                       && await TriggerHotkeyAsync(step.Target, ct: ct);
+
+            case ActionStepType.VtsParameter:
                 break;
 
-            case VtsTargetKind.Parameter:
-                switch (action.AfterParameter) {
-                    case VtsParameterAfterAction.DoNothing:
-                        ReleaseParameter(action.Target);
-                        break;
-                    case VtsParameterAfterAction.ResetToOriginal:
-                        ReleaseParameter(action.Target);
-                        if (originalValue.HasValue)
-                            await SetParameterValueAsync(action.Target, originalValue.Value, hold: false, ct: ct);
-                        break;
-                    case VtsParameterAfterAction.SetNewValue:
-                        ReleaseParameter(action.Target);
-                        await SetParameterValueAsync(action.Target, action.AfterValue, hold: false, ct: ct);
-                        break;
+            default:
+                return false;
+        }
+
+        var originalKey = $"vts-parameter:{step.Target}";
+        switch (step.Operation) {
+            case ActionOperation.Hold:
+            case ActionOperation.Set: {
+                // remember the value from before this run touched it, for a restore if applicable
+                if (!progress.TryGetValue(originalKey, out _)) {
+                    double? original = await GetParameterValueAsync(step.Target, ct);
+                    if (original == null) {
+                        _logger?.LogWarning("[VTSService] Parameter \"{Parameter}\" not found on the current model",
+                            step.Target);
+                        return false;
+                    }
+
+                    progress.Remember(originalKey, original.Value);
                 }
 
-                break;
+                if (step.Operation == ActionOperation.Set) ReleaseParameter(step.Target);
+                return await SetParameterValueAsync(step.Target, step.Value ?? 0,
+                    hold: step.Operation == ActionOperation.Hold, ct: ct);
+            }
 
-            case VtsTargetKind.Hotkey:
-                if (action.AfterHotkey == VtsHotkeyAfterAction.TriggerAgain)
-                    await TriggerHotkeyAsync(action.Target, ct: ct);
-                break;
+            case ActionOperation.Restore:
+                ReleaseParameter(step.Target);
+                return !progress.TryGetValue(originalKey, out double value)
+                       || await SetParameterValueAsync(step.Target, value, hold: false, ct: ct);
+
+            default:
+                ReleaseParameter(step.Target);
+                return true;
         }
     }
 

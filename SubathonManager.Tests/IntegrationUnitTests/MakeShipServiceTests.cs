@@ -250,6 +250,45 @@ public class MakeShipServiceTests {
         Assert.Equal(MakeShipProductType.Campaign, tracking.ProductType);
         Assert.Equal(CampaignProductId, tracking.ShopifyProductId);
         Assert.True(tracking.PollFailing);
+        Assert.False(tracking.Blocked);
+    }
+
+    [Fact]
+    public async Task Campaign_Forbidden_MarksBlockedAndClearsOnRecovery() {
+        var tracking = new MakeShipTracking { Url = CampaignUrl };
+        MakeShipTrackingRegistry.Upsert(tracking);
+        var handler = new RoutedHttpHandler {
+            [CampaignUrl] = (HttpStatusCode.OK, CampaignHtml),
+            [$"https://storefront.makeship.com/products/{CampaignProductId}/sales-quantity"] =
+                (HttpStatusCode.Forbidden, null)
+        };
+        MakeShipService service = MakeService(handler);
+
+        await service.PollTrackingAsync(tracking, CancellationToken.None);
+
+        Assert.True(tracking.Blocked);
+        Assert.True(tracking.PollFailing);
+
+        await MakeServiceReusingSync(service, CampaignHandler(800, 42))
+            .PollTrackingAsync(tracking, CancellationToken.None);
+
+        Assert.False(tracking.Blocked);
+        Assert.False(tracking.PollFailing);
+        Assert.Equal(800, tracking.Sales);
+    }
+
+    [Fact]
+    public async Task Petition_ForbiddenOnPageResolve_MarksBlocked() {
+        var tracking = new MakeShipTracking { Url = PetitionUrl };
+        MakeShipTrackingRegistry.Upsert(tracking);
+        MakeShipService service = MakeService(new RoutedHttpHandler {
+            [PetitionUrl] = (HttpStatusCode.Forbidden, null)
+        });
+
+        await service.PollTrackingAsync(tracking, CancellationToken.None);
+
+        Assert.True(tracking.Blocked);
+        Assert.True(string.IsNullOrEmpty(tracking.ShopifyProductId));
     }
 
     [Fact]

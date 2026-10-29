@@ -1,10 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
-using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
@@ -22,7 +20,7 @@ public class MixItUpService(
     ILogger<MixItUpService>? logger,
     IConfig config,
     IHttpClientFactory httpClientFactory,
-    ITimerService timerService) : IAppService, IDisposable {
+    ITimerService timerService) : IAppService, IDisposable, IActionStepRunner {
 
     public const string ConfigSection = "MixItUp";
     public const string DefaultApiUrl = "http://localhost:8911/api/v2";
@@ -42,10 +40,8 @@ public class MixItUpService(
 
     private readonly Lock _lock = new();
 
-    private bool _lastLocked;
-    private MultiplierSnapshot? _lastMultiplier;
-    private bool _lastPaused;
-    private Guid? _trackedSubathonId;
+    private SubathonTriggerWatcher? _watcher;
+    private SubathonTriggerWatcher Watcher => _watcher ??= new SubathonTriggerWatcher(OnTrigger);
 
     public static string CommandsFolder => Path.GetFullPath(Path.Combine("external", "mixitup"));
 
@@ -63,11 +59,11 @@ public class MixItUpService(
         }
     }
 
-    public static string CommandConfigKey(MixItUpTrigger trigger) {
+    public static string CommandConfigKey(SubathonTrigger trigger) {
         return $"Command.{trigger}";
     }
 
-    public string GetCommandId(MixItUpTrigger trigger) {
+    public string GetCommandId(SubathonTrigger trigger) {
         return (config.Get(ConfigSection, CommandConfigKey(trigger), "") ?? "").Trim();
     }
 
@@ -86,8 +82,6 @@ public class MixItUpService(
         timerService.Unregister(SeenTimerKey);
         lock (_lock) {
             LastSeen = null;
-            _trackedSubathonId = null;
-            _lastMultiplier = null;
         }
 
         BroadcastStatus();
@@ -103,24 +97,12 @@ public class MixItUpService(
 
     private void Subscribe() {
         IntegrationEvents.ExternalSourceSeen += OnExternalSourceSeen;
-        SubathonEvents.SubathonEventProcessed += OnSubathonEventProcessed;
-        SubathonEvents.SubathonDataUpdate += OnSubathonDataUpdate;
-        SubathonEvents.SubathonGoalCompleted += OnGoalCompleted;
-        SubathonEvents.PromptRunStarted += OnPromptRunStarted;
-        SubathonEvents.PromptRunUpdate += OnPromptRunUpdate;
-        WheelEvents.WheelSpinStarted += OnWheelSpinStarted;
-        WheelEvents.WheelSpinResult += OnWheelSpinResult;
+        Watcher.Start();
     }
 
     private void Unsubscribe() {
         IntegrationEvents.ExternalSourceSeen -= OnExternalSourceSeen;
-        SubathonEvents.SubathonEventProcessed -= OnSubathonEventProcessed;
-        SubathonEvents.SubathonDataUpdate -= OnSubathonDataUpdate;
-        SubathonEvents.SubathonGoalCompleted -= OnGoalCompleted;
-        SubathonEvents.PromptRunStarted -= OnPromptRunStarted;
-        SubathonEvents.PromptRunUpdate -= OnPromptRunUpdate;
-        WheelEvents.WheelSpinStarted -= OnWheelSpinStarted;
-        WheelEvents.WheelSpinResult -= OnWheelSpinResult;
+        _watcher?.Stop();
     }
     
     public async Task<bool> ProbeAsync(CancellationToken ct = default) {
@@ -222,9 +204,30 @@ public class MixItUpService(
             return false;
         }
         catch (Exception ex) {
-            logger?.LogDebug("[MixItUp] Running command {CommandId} failed: {Message}", commandId, ex.Message);
+            if (logger?.IsEnabled(LogLevel.Debug) ?? false)
+                logger?.LogDebug("[MixItUp] Running command {CommandId} failed: {Message}", commandId, ex.Message);
             return false;
         }
+    }
+    
+    public IReadOnlyCollection<ActionStepType> StepTypes { get; } = [ActionStepType.MixItUpCommand];
+
+    public async Task<bool> RunStepAsync(ActionStep step, ActionContext ctx, ActionRunProgress progress,
+        CancellationToken ct) {
+        if (!Enabled || !Guid.TryParse(step.Target, out Guid commandId)) return false;
+        var identifiers = new Dictionary<string, string> {
+            [$"{IdentifierPrefix}trigger"] = "action",
+            [$"{IdentifierPrefix}user"] = ctx.User,
+            [$"{IdentifierPrefix}source"] = $"{ctx.Source}",
+            [$"{IdentifierPrefix}label"] = ctx.Label ?? ""
+        };
+
+        foreach ((string name, string value) in step.BodyArguments()) {
+            string key = name.TrimStart('$').ToLowerInvariant();
+            if (key.Length > 0) identifiers[key] = value;
+        }
+
+        return await RunCommandAsync(commandId, identifiers, ct);
     }
 
     public async Task<IReadOnlyList<MixItUpCommandInfo>?> GetCommandsAsync(CancellationToken ct = default) {
@@ -291,7 +294,7 @@ public class MixItUpService(
         public bool IsEnabled { get; set; }
     }
 
-    internal bool Fire(MixItUpTrigger trigger, Dictionary<string, string> identifiers) {
+    internal bool Fire(SubathonTrigger trigger, Dictionary<string, string> identifiers) {
         if (!Enabled) return false;
         if (!Guid.TryParse(GetCommandId(trigger), out Guid commandId)) return false;
 
@@ -300,243 +303,48 @@ public class MixItUpService(
         return true;
     }
 
-    public Task<bool> TestTriggerAsync(MixItUpTrigger trigger, string commandIdText, CancellationToken ct = default) {
+    public Task<bool> TestTriggerAsync(SubathonTrigger trigger, string commandIdText, CancellationToken ct = default) {
         if (!Guid.TryParse(commandIdText.Trim(), out Guid commandId)) return Task.FromResult(false);
         Dictionary<string, string> identifiers = SampleIdentifiers(trigger);
         identifiers[$"{IdentifierPrefix}trigger"] = trigger.ToString();
         return RunCommandAsync(commandId, identifiers, ct);
     }
 
-    private void OnSubathonEventProcessed(SubathonEvent subathonEvent, bool effective) {
-        if (!config.GetBool("App", "ShowLockedEvents", false) && !subathonEvent.ProcessedToSubathon) return;
-        if (subathonEvent.EventType == SubathonEventType.Command && !IncludeCommands) return;
-        Fire(MixItUpTrigger.SubathonEvent, EventIdentifiers(subathonEvent));
-    }
-
-    private void OnSubathonDataUpdate(SubathonData subathon, DateTime timestamp) {
-        // check for multiplier and pause/lock info
-        var fired = new List<(MixItUpTrigger, Dictionary<string, string>)>(3);
-        MultiplierSnapshot? multiplier = subathon.Multiplier?.SubathonId == subathon.Id
-            ? MultiplierSnapshot.From(subathon.Multiplier)
-            : null;
-        lock (_lock) {
-            if (_trackedSubathonId != subathon.Id) {
-                _trackedSubathonId = subathon.Id;
-                _lastPaused = subathon.IsPaused;
-                _lastLocked = subathon.IsLocked;
-                _lastMultiplier = multiplier;
-                return;
-            }
-
-            if (subathon.IsPaused != _lastPaused) {
-                _lastPaused = subathon.IsPaused;
-                fired.Add((subathon.IsPaused ? MixItUpTrigger.TimerPaused : MixItUpTrigger.TimerResumed,
-                    TimerIdentifiers(subathon)));
-            }
-
-            if (subathon.IsLocked != _lastLocked) {
-                _lastLocked = subathon.IsLocked;
-                fired.Add((subathon.IsLocked ? MixItUpTrigger.TimerLocked : MixItUpTrigger.TimerUnlocked,
-                    TimerIdentifiers(subathon)));
-            }
-
-            if (multiplier != null) {
-                MultiplierSnapshot? previous = _lastMultiplier;
-                _lastMultiplier = multiplier;
-                if (previous != null) {
-                    if (multiplier.Running && multiplier != previous)
-                        fired.Add((MixItUpTrigger.MultiplierStarted, MultiplierIdentifiers(multiplier)));
-                    else if (!multiplier.Running && previous.Running)
-                        fired.Add((MixItUpTrigger.MultiplierEnded, MultiplierIdentifiers(previous)));
-                }
-            }
+    private void OnTrigger(SubathonTrigger trigger, Dictionary<string, string> values, SubathonEvent? subathonEvent) {
+        if (subathonEvent != null) {
+            if (!config.GetBool("App", "ShowLockedEvents", false) && !subathonEvent.ProcessedToSubathon) return;
+            if (subathonEvent.EventType == SubathonEventType.Command && !IncludeCommands) return;
         }
 
-        foreach ((MixItUpTrigger trigger, Dictionary<string, string> identifiers) in fired)
-            Fire(trigger, identifiers);
+        Fire(trigger, Prefixed(values));
     }
 
-    private void OnGoalCompleted(SubathonGoal goal, long currentValue) {
-        Fire(MixItUpTrigger.GoalCompleted, new Dictionary<string, string> {
-            [$"{IdentifierPrefix}goaltext"] = goal.Text,
-            [$"{IdentifierPrefix}goaltarget"] = ToValueStr(goal.Points),
-            [$"{IdentifierPrefix}goalcurrent"] = ToValueStr(currentValue)
-        });
-    }
-
-    private void OnWheelSpinStarted(WheelSet wheel, int delaySeconds) {
-        Fire(MixItUpTrigger.WheelSpinStart, new Dictionary<string, string> {
-            [$"{IdentifierPrefix}wheelname"] = wheel.Name,
-            [$"{IdentifierPrefix}wheelid"] = wheel.Id.ToString(),
-            [$"{IdentifierPrefix}spindelay"] = ToValueStr(delaySeconds)
-        });
-    }
-
-    private void OnWheelSpinResult(WheelSet wheel, WheelItem? item, WheelSpinHistory history, int spinsOwed) {
-        Fire(MixItUpTrigger.WheelSpinEnd, new Dictionary<string, string> {
-            [$"{IdentifierPrefix}wheelname"] = wheel.Name,
-            [$"{IdentifierPrefix}wheelid"] = wheel.Id.ToString(),
-            [$"{IdentifierPrefix}wheelitem"] = item?.Text ?? "",
-            [$"{IdentifierPrefix}spinstatus"] = history.Status.ToString(),
-            [$"{IdentifierPrefix}spinsowed"] = ToValueStr(spinsOwed)
-        });
-    }
-
-    private void OnPromptRunStarted(SubathonPromptRun run, SubathonPrompt? prompt) {
-        Fire(MixItUpTrigger.PromptStarted, PromptIdentifiers(run, prompt));
-    }
-
-    private void OnPromptRunUpdate(SubathonPromptRun run, SubathonPrompt? prompt) {
-        if (run.IsActive) return;
-        Fire(MixItUpTrigger.PromptEnded, PromptIdentifiers(run, prompt));
-    }
-
-    private static string ToValueStr(IFormattable value) {
-        return value.ToString(null, CultureInfo.InvariantCulture);
+    private static Dictionary<string, string> Prefixed(Dictionary<string, string> values) {
+        return values.ToDictionary(kv => $"{IdentifierPrefix}{kv.Key}", kv => kv.Value);
     }
 
     internal static Dictionary<string, string> EventIdentifiers(SubathonEvent subathonEvent) {
-        var eventType = $"{subathonEvent.EventType}";
-        string? trueSource = subathonEvent.EventType.GetTypeTrueSource(subathonEvent.EventTypeMeta);
-        if (subathonEvent.EventType == SubathonEventType.GoAffProOrder
-            && GoAffProOrderHelper.TryGetStore(subathonEvent.EventTypeMeta, out GoAffProStore? store)) {
-            trueSource = store.InternalName;
-            eventType = store.InternalEventName;
-        }
-
-        double seconds = subathonEvent.GetFinalSecondsValueRaw() < 0.5 ? 0 : subathonEvent.GetFinalSecondsValue();
-        return new Dictionary<string, string> {
-            [$"{IdentifierPrefix}eventtype"] = eventType,
-            [$"{IdentifierPrefix}source"] = $"{subathonEvent.Source}",
-            [$"{IdentifierPrefix}truesource"] = trueSource ?? "",
-            [$"{IdentifierPrefix}subtype"] = $"{subathonEvent.EventType.GetSubType()}",
-            [$"{IdentifierPrefix}user"] = subathonEvent.User ?? "",
-            [$"{IdentifierPrefix}value"] = subathonEvent.Value,
-            [$"{IdentifierPrefix}amount"] = ToValueStr(subathonEvent.Amount),
-            [$"{IdentifierPrefix}currency"] = subathonEvent.Currency ?? "",
-            [$"{IdentifierPrefix}command"] = $"{subathonEvent.Command}",
-            [$"{IdentifierPrefix}secondsadded"] = ToValueStr(seconds),
-            [$"{IdentifierPrefix}pointsadded"] = ToValueStr(subathonEvent.GetFinalPointsValue()),
-            [$"{IdentifierPrefix}secondaryvalue"] = subathonEvent.SecondaryValue,
-            [$"{IdentifierPrefix}tertiaryvalue"] = subathonEvent.TertiaryValue,
-            [$"{IdentifierPrefix}reversed"] = $"{subathonEvent.WasReversed}"
-        };
+        return Prefixed(SubathonTriggerWatcher.EventValues(subathonEvent));
     }
 
     internal static Dictionary<string, string> TimerIdentifiers(SubathonData subathon) {
-        TimeSpan remaining = subathon.TimeRemainingRounded();
-        return new Dictionary<string, string> {
-            [$"{IdentifierPrefix}timeremaining"] =
-                $"{(int)remaining.TotalHours:00}:{remaining.Minutes:00}:{remaining.Seconds:00}",
-            [$"{IdentifierPrefix}secondsremaining"] = ToValueStr((long)remaining.TotalSeconds),
-            [$"{IdentifierPrefix}points"] = ToValueStr(subathon.Points),
-            [$"{IdentifierPrefix}paused"] = $"{subathon.IsPaused}",
-            [$"{IdentifierPrefix}locked"] = $"{subathon.IsLocked}"
-        };
-    }
-
-    internal sealed record MultiplierSnapshot(
-        bool Running,
-        double Multiplier,
-        bool Time,
-        bool Points,
-        TimeSpan? Duration,
-        DateTime? Started,
-        bool FromHypeTrain) {
-        public static MultiplierSnapshot From(MultiplierData data) {
-            return new MultiplierSnapshot(data.IsRunning(), data.Multiplier, data.ApplyToSeconds,
-                data.ApplyToPoints, data.Duration, data.Started, data.FromHypeTrain);
-        }
+        return Prefixed(SubathonTriggerWatcher.TimerValues(subathon));
     }
 
     internal static Dictionary<string, string> MultiplierIdentifiers(MultiplierSnapshot multiplier) {
-        return new Dictionary<string, string> {
-            [$"{IdentifierPrefix}multiplier"] = ToValueStr(multiplier.Multiplier),
-            [$"{IdentifierPrefix}multipliertime"] = $"{multiplier.Time}",
-            [$"{IdentifierPrefix}multiplierpoints"] = $"{multiplier.Points}",
-            [$"{IdentifierPrefix}multiplierduration"] = ToValueStr((long)(multiplier.Duration?.TotalSeconds ?? 0)),
-            [$"{IdentifierPrefix}multiplierhypetrain"] = $"{multiplier.FromHypeTrain}"
-        };
+        return Prefixed(SubathonTriggerWatcher.MultiplierValues(multiplier));
     }
 
     internal static Dictionary<string, string> PromptIdentifiers(SubathonPromptRun run, SubathonPrompt? prompt) {
-        prompt ??= run.LinkedPrompt;
-        return new Dictionary<string, string> {
-            [$"{IdentifierPrefix}prompttext"] = prompt?.Text ?? "",
-            [$"{IdentifierPrefix}prompttype"] = $"{prompt?.Type}",
-            [$"{IdentifierPrefix}prompttarget"] = ToValueStr(prompt?.Value ?? run.SnapshotTargetValue),
-            [$"{IdentifierPrefix}promptduration"] =
-                ToValueStr((long)(prompt?.CompletionDuration.TotalSeconds ?? (run.ExpiresAt - run.StartedAt).TotalSeconds)),
-            [$"{IdentifierPrefix}promptstatus"] = $"{run.Status}"
-        };
+        return Prefixed(SubathonTriggerWatcher.PromptValues(run, prompt));
     }
 
-    public static IReadOnlyList<string> IdentifierNames(MixItUpTrigger trigger) {
+    public static IReadOnlyList<string> IdentifierNames(SubathonTrigger trigger) {
         return SampleIdentifiers(trigger).Keys.Prepend($"{IdentifierPrefix}trigger").Select(k => $"${k}").ToList();
     }
 
-    internal static Dictionary<string, string> SampleIdentifiers(MixItUpTrigger trigger) {
-        switch (trigger) {
-            case MixItUpTrigger.SubathonEvent:
-                return EventIdentifiers(new SubathonEvent {
-                    Source = SubathonEventSource.Simulated,
-                    EventType = SubathonEventType.ExternalDonation,
-                    User = "TestUser",
-                    Value = "5",
-                    Currency = "USD",
-                    SecondsValue = 600,
-                    PointsValue = 5,
-                    ProcessedToSubathon = true
-                });
-            case MixItUpTrigger.MultiplierStarted:
-            case MixItUpTrigger.MultiplierEnded:
-                return MultiplierIdentifiers(new MultiplierSnapshot(trigger == MixItUpTrigger.MultiplierStarted,
-                    2, true, true, TimeSpan.FromMinutes(10), DateTime.Now, false));
-            case MixItUpTrigger.TimerPaused:
-            case MixItUpTrigger.TimerResumed:
-            case MixItUpTrigger.TimerLocked:
-            case MixItUpTrigger.TimerUnlocked:
-                return new Dictionary<string, string> {
-                    [$"{IdentifierPrefix}timeremaining"] = "12:34:56",
-                    [$"{IdentifierPrefix}secondsremaining"] = "45296",
-                    [$"{IdentifierPrefix}points"] = "250",
-                    [$"{IdentifierPrefix}paused"] = (trigger == MixItUpTrigger.TimerPaused).ToString(),
-                    [$"{IdentifierPrefix}locked"] = (trigger == MixItUpTrigger.TimerLocked).ToString()
-                };
-            case MixItUpTrigger.GoalCompleted:
-                return new Dictionary<string, string> {
-                    [$"{IdentifierPrefix}goaltext"] = "Test Goal",
-                    [$"{IdentifierPrefix}goaltarget"] = "100",
-                    [$"{IdentifierPrefix}goalcurrent"] = "100"
-                };
-            case MixItUpTrigger.WheelSpinStart:
-                return new Dictionary<string, string> {
-                    [$"{IdentifierPrefix}wheelname"] = "Test Wheel",
-                    [$"{IdentifierPrefix}wheelid"] = Guid.Empty.ToString(),
-                    [$"{IdentifierPrefix}spindelay"] = "0"
-                };
-            case MixItUpTrigger.WheelSpinEnd:
-                return new Dictionary<string, string> {
-                    [$"{IdentifierPrefix}wheelname"] = "Test Wheel",
-                    [$"{IdentifierPrefix}wheelid"] = Guid.Empty.ToString(),
-                    [$"{IdentifierPrefix}wheelitem"] = "Test Item",
-                    [$"{IdentifierPrefix}spinstatus"] = "Pending",
-                    [$"{IdentifierPrefix}spinsowed"] = "0"
-                };
-            case MixItUpTrigger.PromptStarted:
-            case MixItUpTrigger.PromptEnded:
-                return new Dictionary<string, string> {
-                    [$"{IdentifierPrefix}prompttext"] = "Test Prompt",
-                    [$"{IdentifierPrefix}prompttype"] = $"{SubathonPromptType.Points}",
-                    [$"{IdentifierPrefix}prompttarget"] = "10",
-                    [$"{IdentifierPrefix}promptduration"] = "300",
-                    [$"{IdentifierPrefix}promptstatus"] = trigger == MixItUpTrigger.PromptStarted
-                        ? $"{SubathonPromptRunStatus.Active}"
-                        : $"{SubathonPromptRunStatus.Completed}"
-                };
-            default:
-                return new Dictionary<string, string>();
-        }
+    internal static Dictionary<string, string> SampleIdentifiers(SubathonTrigger trigger) {
+        return Prefixed(SubathonTriggerWatcher.SampleValues(trigger));
     }
 }
 

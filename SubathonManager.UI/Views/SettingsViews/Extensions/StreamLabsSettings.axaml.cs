@@ -42,13 +42,13 @@ public partial class StreamLabsSettings : SettingsControl {
         var hasUpdated = false;
         SubathonValue? slTipValue = db.SubathonValues.FirstOrDefault(sv =>
             sv.EventType == SubathonEventType.StreamLabsDonation && sv.Meta == "");
-        if (slTipValue != null && double.TryParse(DonoBox.Text, out double slTipSeconds) &&
+        if (slTipValue != null && Utils.TryParseAmount(DonoBox.Text, out double slTipSeconds) &&
             !slTipSeconds.Equals(slTipValue.Seconds)) {
             slTipValue.Seconds = slTipSeconds;
             hasUpdated = true;
         }
 
-        if (slTipValue != null && double.TryParse(DonoBox2.Text, out double slTipPoints) &&
+        if (slTipValue != null && Utils.TryParseAmount(DonoBox2.Text, out double slTipPoints) &&
             !slTipPoints.Equals(slTipValue.Points)) {
             slTipValue.Points = slTipPoints;
             hasUpdated = true;

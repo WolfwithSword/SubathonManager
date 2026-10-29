@@ -1,4 +1,3 @@
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -49,6 +48,7 @@ public partial class PromptsEditor : UserControl {
             if (run.Status == SubathonPromptRunStatus.Completed)
                 LoadPromptRows();
         });
+        InitHistory();
 
         Loaded += (_, _) => {
             if (!_initialized) {
@@ -83,12 +83,14 @@ public partial class PromptsEditor : UserControl {
         if (e == SubathonEventType.GoAffProOrder)
             return GoAffProStoreRegistry.All().Where(s => s.Enabled)
                 .Select(s => new EventTypeEntry(e, s.EventName, s.SiteId.ToString()));
+
         if (e == SubathonEventType.JuniperMerchSale)
             return JuniperStoreRegistry.AllStores().Where(s => s.Enabled)
                 .SelectMany(s => new[] { new EventTypeEntry(e, "Any Sale", s.RowId.ToString(), s.StoreName) }
                     .Concat(s.Products
                         .OrderBy(p => p.ProductName, StringComparer.OrdinalIgnoreCase)
                         .Select(p => new EventTypeEntry(e, p.ProductName, p.ProductId.ToString(), s.StoreName))));
+
         if (e is SubathonEventType.MakeShipPledge or SubathonEventType.MakeShipSale) {
             bool isPledge = e == SubathonEventType.MakeShipPledge;
             string category = isPledge ? "Pledges" : "Campaign Sales";
@@ -241,6 +243,7 @@ public partial class PromptsEditor : UserControl {
         DeleteSetBtn.IsEnabled = totalSets > 1;
 
         Dispatcher.UIThread.Post(LoadPromptRows);
+        _ = LoadHistoryAsync();
     }
 
     private void SetSelectorBox_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
@@ -651,6 +654,7 @@ public partial class PromptsEditor : UserControl {
             }
 
             UpdateValueLabel(prompt.Type, prompt.SubType);
+            PopulatePromptActionBox(prompt.CustomActionId);
         });
 
         RefreshRowHighlights(clickedRow);
@@ -819,6 +823,7 @@ public partial class PromptsEditor : UserControl {
 
         prompt.Type = SelectedType() ?? prompt.Type;
         prompt.SubType = SelectedSubType() ?? SubathonPromptSubType.Default;
+        prompt.CustomActionId = SelectedPromptActionId;
 
         if (prompt.Type == SubathonPromptType.Event) {
             prompt.FilterEventType = _selectedFilterEventType;
@@ -850,6 +855,7 @@ public partial class PromptsEditor : UserControl {
         tracked.FilterEventType = source.FilterEventType;
         tracked.FilterMeta = source.FilterMeta;
         tracked.FilterSubType = source.FilterSubType;
+        tracked.CustomActionId = source.CustomActionId;
     }
 
     private void MarkPendingChanges() {
@@ -937,38 +943,20 @@ public partial class PromptsEditor : UserControl {
             .FirstOrDefaultAsync(s => s.Id == _activeSet.Id);
         if (set == null) return;
 
-        string exportDir = Path.Combine(Config.DataFolder, "exports");
-        Directory.CreateDirectory(exportDir);
-
-        string safeName = SafeFileName.Sanitize(set.Name, string.Empty, "prompts");
-        var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
-        string filepath = Path.Combine(exportDir, $"{safeName}-{timestamp}.csv");
-
-        var sb = new StringBuilder();
-        sb.AppendLine(
-            $"#Interval={(int)set.Interval.TotalMinutes},Offset={(int)set.RandomOffset.TotalMinutes},Cooldown={(int)set.Cooldown.TotalMinutes}");
-        sb.AppendLine("Text,Value,Duration,Quantity,Infinite,Enabled,Type,SubType,EventType,FilterMeta");
-        foreach (SubathonPrompt p in set.Prompts.OrderBy(p => p.Index))
-            sb.AppendLine(string.Join(",",
-                Utils.EscapeCsv(p.Text),
-                p.Value,
-                (int)p.CompletionDuration.TotalMinutes,
-                p.Quantity,
-                p.IsInfinite,
-                p.Enabled,
-                p.Type,
-                p.SubType,
-                p.FilterEventType?.ToString() ?? "",
-                Utils.EscapeCsv(p.FilterMeta ?? "")));
-
-        await File.WriteAllTextAsync(filepath, sb.ToString(), Encoding.UTF8);
-
-        try {
-            UiHelpers.OpenFolder(exportDir);
-        }
-        catch {
-            /**/
-        }
+        string path = await CsvUtils.ExportAsync(SafeFileName.Sanitize(set.Name, string.Empty, "prompts"),
+            [
+                [
+                    $"#Interval={(int)set.Interval.TotalMinutes}", $"Offset={(int)set.RandomOffset.TotalMinutes}",
+                    $"Cooldown={(int)set.Cooldown.TotalMinutes}"
+                ],
+                ["Text", "Value", "Duration", "Quantity", "Infinite", "Enabled", "Type", "SubType", "EventType", "FilterMeta"]
+            ],
+            set.Prompts.OrderBy(p => p.Index),
+            p => [
+                p.Text, p.Value, (int)p.CompletionDuration.TotalMinutes, p.Quantity, p.IsInfinite, p.Enabled,
+                p.Type, p.SubType, p.FilterEventType, p.FilterMeta
+            ]);
+        UiHelpers.OpenFolder(Path.GetDirectoryName(path));
     }
 
     private async void ImportPromptSet_Click(object? sender, RoutedEventArgs e) {
@@ -983,16 +971,8 @@ public partial class PromptsEditor : UserControl {
         if (picked.Count == 0) return;
         string filePath = picked[0].Path.LocalPath;
 
-        string[] lines;
-        try {
-            lines = await File.ReadAllLinesAsync(filePath, Encoding.UTF8);
-        }
-        catch {
-            await ShowInvalidPromptCsvPopup();
-            return;
-        }
-
-        if (lines.Length < 1) {
+        List<string[]>? lines = await CsvUtils.ReadFileAsync(filePath);
+        if (lines == null || lines.Count < 1) {
             await ShowInvalidPromptCsvPopup();
             return;
         }
@@ -1000,9 +980,9 @@ public partial class PromptsEditor : UserControl {
         var headerIndex = 0;
         int intervalMin = 20, offsetMin = 0, cooldownMin = 20;
 
-        if (lines[0].StartsWith('#')) {
-            foreach (string kv in lines[0][1..].Split(',')) {
-                string[] parts = kv.Split('=');
+        if (lines[0][0].StartsWith('#')) {
+            foreach (string kv in lines[0]) {
+                string[] parts = kv.TrimStart('#').Split('=');
                 if (parts.Length != 2) continue;
                 if (int.TryParse(parts[1].Trim(), out int v)) {
                     if (parts[0].Trim().Equals("Interval", StringComparison.OrdinalIgnoreCase)) intervalMin = v;
@@ -1014,15 +994,13 @@ public partial class PromptsEditor : UserControl {
             headerIndex = 1;
         }
 
-        if (headerIndex >= lines.Length || ParseCsvLine(lines[headerIndex]).Length < 8) {
+        if (headerIndex >= lines.Count || lines[headerIndex].Length < 8) {
             await ShowInvalidPromptCsvPopup();
             return;
         }
 
         var prompts = new List<SubathonPrompt>();
-        for (int i = headerIndex + 1; i < lines.Length; i++) {
-            if (string.IsNullOrWhiteSpace(lines[i])) continue;
-            string[] cols = ParseCsvLine(lines[i]);
+        foreach (string[] cols in lines.Skip(headerIndex + 1)) {
             if (cols.Length < 8
                 || !long.TryParse(cols[1].Trim(), out long value)
                 || !int.TryParse(cols[2].Trim(), out int durMin)
@@ -1104,45 +1082,6 @@ public partial class PromptsEditor : UserControl {
         LoadActiveSet();
     }
 
-    private static string[] ParseCsvLine(string line) {
-        var result = new List<string>();
-        var field = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++) {
-            char c = line[i];
-            if (inQuotes)
-                switch (c) {
-                    case '"' when i + 1 < line.Length && line[i + 1] == '"':
-                        field.Append('"');
-                        i++;
-                        break;
-                    case '"':
-                        inQuotes = false;
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-            else
-                switch (c) {
-                    case '"':
-                        inQuotes = true;
-                        break;
-                    case ',':
-                        result.Add(field.ToString());
-                        field.Clear();
-                        break;
-                    default:
-                        field.Append(c);
-                        break;
-                }
-        }
-
-        result.Add(field.ToString());
-        return result.ToArray();
-    }
-
     private static async Task ShowInvalidPromptCsvPopup() {
         var dialog = new FAContentDialog {
             Title = "Invalid CSV",
@@ -1191,7 +1130,7 @@ public partial class PromptsEditor : UserControl {
     }
 
     private void ApplyEditorLock(bool locked) {
-        PromptDetailBorder.IsEnabled = !locked;
+        PromptDetailFields.IsEnabled = !locked;
         RunningLockText.IsVisible = locked;
         SaveBtn.IsEnabled = !locked;
     }

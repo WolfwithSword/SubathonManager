@@ -8,4 +8,5 @@ public static class FeatureFlags {
     public static readonly bool VTubeStudioEnabled = true;
     public static readonly bool VTubeStudioMarkAsExperimental = true;
     public static readonly bool GoAffProBackfillPollingEnabled = true;
+    public static readonly bool MakeShipMarkAsExperimental = true;
 }

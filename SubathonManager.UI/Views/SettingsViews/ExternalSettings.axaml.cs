@@ -35,6 +35,9 @@ public partial class ExternalSettings : SettingsGroupControl {
             case SubathonEventSource.FourthWall:
                 _settingsControls[eventSource] = new FourthWallSettings();
                 break;
+            case SubathonEventSource.Patreon:
+                _settingsControls[eventSource] = new PatreonSettings();
+                break;
             case SubathonEventSource.Throne:
                 _settingsControls[eventSource] = new ThroneSettings();
                 break;
