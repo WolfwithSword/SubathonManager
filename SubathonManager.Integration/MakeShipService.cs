@@ -416,7 +416,7 @@ public partial class MakeShipService(
             HttpResponseMessage response = await client.GetAsync(url, ct);
             if (response.StatusCode == HttpStatusCode.Forbidden) {
                 tracking.Blocked = true;
-                if ((bool)logger?.IsEnabled(LogLevel.Debug)) {
+                if (logger != null && logger.IsEnabled(LogLevel.Debug)) {
                     string headers = string.Join("; ", response.Headers.Concat(response.Content.Headers)
                         .Select(h => $"{h.Key}: {string.Join(",", h.Value)}"));
                     string body = await response.Content.ReadAsStringAsync(ct);
