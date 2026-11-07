@@ -515,6 +515,7 @@ public class AppDbContext : DbContext {
             new() { SiteId = 7112002, StoreName = "Horizons Merch", EventName = "Horizons Merch Order" },
             new() { SiteId = 7181690, StoreName = "Redtail Retail", EventName = "Redtail Order" },
             new() { SiteId = 7158345, StoreName = "Xepher Arcade",  EventName = "Xepher Arcade Order" },
+            new() { SiteId = 7147308, StoreName = "Neko Alley Anime",  EventName = "Neko Alley Order" },
         };
 
         foreach (GoAffProStore def in defaults) {
