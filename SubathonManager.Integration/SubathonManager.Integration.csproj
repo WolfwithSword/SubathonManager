@@ -27,7 +27,7 @@
         <PackageReference Include="TwitchLib.Client" Version="4.0.1"/>
         <PackageReference Include="TwitchLib.Communication" Version="2.0.1"/>
         <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.8.0"/>
-        <PackageReference Include="VTubeStudio.Client" Version="0.1.4-beta2"/>
+        <PackageReference Include="VTubeStudio.Client" Version="0.1.4-beta3"/>
         <PackageReference Include="WolfwithSword.PicartoEventsLib" Version="0.1.1"/>
         <!-- Streamlabs is locked to 3.X socketio client. -->
         <PackageReference Include="SocketIOClient" Version="3.1.2"/>
