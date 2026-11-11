@@ -136,7 +136,7 @@ jobs:
         
       - name: Merge coverage reports
         if: always()
-        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        uses: danielpalme/ReportGenerator-GitHub-Action@v5
         with:
           reports: '**/*.cobertura.xml'
           targetdir: coverage-merged
