@@ -294,4 +294,43 @@ public class CurrencyServiceTests {
         List<string> list = await service.GetValidCurrenciesAsync();
         Assert.Contains("USD", list);
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetValidCurrenciesAsync_Offline_UsesStaleCacheAndDoesNotThrow(bool hasCache) {
+        var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .ThrowsAsync(new HttpRequestException("offline"));
+
+        IConfig mockConfig = MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
+            { ("Currency", "Primary"), "USD" }
+        });
+        var service = new CurrencyService(null, mockConfig, new HttpClient(handlerMock.Object));
+
+        string tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        typeof(CurrencyService)
+            .GetField("_dataDirectory", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .SetValue(service, tempDir);
+
+        if (hasCache) {
+            string cachePath = Path.Combine(tempDir, "usd.json");
+            await File.WriteAllTextAsync(cachePath, """{ "eur": { "code": "EUR", "rate": 0.9 } }""",
+                TestContext.Current.CancellationToken);
+            File.SetLastWriteTimeUtc(cachePath, DateTime.UtcNow - TimeSpan.FromDays(2));
+        }
+
+        List<string> currencies = await service.GetValidCurrenciesAsync();
+
+        Assert.Contains("USD", currencies);
+        Assert.Equal(hasCache, currencies.Contains("EUR"));
+        Directory.Delete(tempDir, true);
+    }
 }

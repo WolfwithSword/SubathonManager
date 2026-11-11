@@ -30,22 +30,10 @@ public class CurrencyService : IAppService {
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default) {
-        string currencyFilePath = CurrencyFilePath();
-        if (File.Exists(currencyFilePath))
-            try {
-                await LoadFromFileAsync();
-            }
-            catch (Exception ex) {
-                _logger?.LogError(ex, "Failed to load cached rates from file");
-            }
+        await LoadFromFileAsync();
 
         if (IsExpired())
-            try {
-                await FetchBaseAsync();
-            }
-            catch (Exception ex) {
-                _logger?.LogError(ex, "Failed to fetch new rates");
-            }
+            await FetchBaseAsync();
 
         if (Rates.Count == 0) {
             _logger?.LogError(
@@ -67,7 +55,11 @@ public class CurrencyService : IAppService {
 
     public async Task<List<string>> GetValidCurrenciesAsync() {
         if (Rates.Count == 0)
+            await LoadFromFileAsync();
+
+        if (Rates.Count == 0)
             await FetchBaseAsync();
+
         string defaultCurrency = _config.Get("Currency", "Primary", "USD")!.ToUpperInvariant().Trim();
         List<string> currencies = Rates.Keys.ToList();
         currencies.Add(defaultCurrency);
@@ -109,6 +101,9 @@ public class CurrencyService : IAppService {
 
             ParseRatesAsync(json);
         }
+        catch (Exception ex) {
+            _logger?.LogWarning(ex, "Failed to fetch new rates, using cached data if any");
+        }
         finally {
             _refreshLock.Release();
         }
@@ -116,15 +111,22 @@ public class CurrencyService : IAppService {
 
     private async Task LoadFromFileAsync() {
         string currencyFilePath = CurrencyFilePath();
-        string json = await File.ReadAllTextAsync(currencyFilePath);
-        ParseRatesAsync(json);
+
+        if (!File.Exists(currencyFilePath)) return;
+
+        try {
+            string json = await File.ReadAllTextAsync(currencyFilePath);
+            ParseRatesAsync(json);
+        }
+        catch (Exception ex) {
+            _logger?.LogError(ex, "Failed to load cached rates from file");
+        }
     }
 
     private void ParseRatesAsync(string json) {
         using JsonDocument doc = JsonDocument.Parse(json);
         JsonElement root = doc.RootElement;
-
-        Rates.Clear();
+        Dictionary<string, double> rates = new();
 
         foreach (JsonElement item in root.EnumerateObject().Select(kvp => kvp.Value)) {
             if (!item.TryGetProperty("code", out JsonElement codeProp) ||
@@ -133,8 +135,10 @@ public class CurrencyService : IAppService {
             double rate = rateProp.ValueKind == JsonValueKind.String
                 ? double.Parse(rateProp.GetString()!, CultureInfo.InvariantCulture)
                 : rateProp.GetDouble();
-            Rates[code] = rate;
+            rates[code] = rate;
         }
+
+        Rates = rates;
     }
 
     public async Task<double> ConvertAsync(double amount, string fromCurrency, string? toCurrency = null) {
@@ -146,12 +150,7 @@ public class CurrencyService : IAppService {
         if (fromCurrency == toCurrency)
             return amount;
 
-        try {
-            await FetchBaseAsync();
-        }
-        catch (Exception ex) {
-            _logger?.LogWarning(ex, "Failed to refresh rates, using cached data");
-        }
+        await FetchBaseAsync();
 
         if (!IsValidCurrency(fromCurrency)) {
             var message = $"{fromCurrency} is not a valid currency. Cannot convert {amount}";
