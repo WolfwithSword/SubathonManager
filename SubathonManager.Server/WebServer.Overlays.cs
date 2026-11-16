@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -123,14 +122,9 @@ public partial class WebServer {
                                              }
                                              </script>
                                              """;
-                            if (html.Contains("<script>", StringComparison.OrdinalIgnoreCase)) {
-                                var count = 0;
-                                html = Regex.Replace(
-                                    html,
-                                    "<script>",
-                                    m => count++ == 0 ? fontLoader + "\n" + jsOverrides + "\n<script>" : m.Value,
-                                    RegexOptions.IgnoreCase
-                                );
+                            int firstScript = html.IndexOf("<script>", StringComparison.OrdinalIgnoreCase);
+                            if (firstScript >= 0) {
+                                html = html.Insert(firstScript, fontLoader + "\n" + jsOverrides + "\n");
                             }
                             else {
                                 html += fontLoader + "\n";

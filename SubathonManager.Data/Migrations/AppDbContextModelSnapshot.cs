@@ -45,7 +45,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Kind", "Name");
 
-                    b.ToTable("ActionGlobals");
+                    b.ToTable("ActionGlobals", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.CssVariable", b =>
@@ -76,7 +76,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("WidgetId");
 
-                    b.ToTable("CssVariables");
+                    b.ToTable("CssVariables", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.GoAffProStore", b =>
@@ -104,7 +104,7 @@ namespace SubathonManager.Data.Migrations
                     b.HasIndex("SiteId")
                         .IsUnique();
 
-                    b.ToTable("GoAffProStores");
+                    b.ToTable("GoAffProStores", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.JsVariable", b =>
@@ -135,7 +135,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("WidgetId");
 
-                    b.ToTable("JsVariables");
+                    b.ToTable("JsVariables", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.JuniperProduct", b =>
@@ -160,7 +160,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("StoreId");
 
-                    b.ToTable("JuniperProducts");
+                    b.ToTable("JuniperProducts", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.JuniperStore", b =>
@@ -181,7 +181,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("RowId");
 
-                    b.ToTable("JuniperStores");
+                    b.ToTable("JuniperStores", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.MakeShipTracking", b =>
@@ -213,7 +213,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("MakeShipTrackings");
+                    b.ToTable("MakeShipTrackings", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.MultiplierData", b =>
@@ -249,7 +249,7 @@ namespace SubathonManager.Data.Migrations
                     b.HasIndex("SubathonId")
                         .IsUnique();
 
-                    b.ToTable("MultiplierDatas");
+                    b.ToTable("MultiplierDatas", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.Route", b =>
@@ -276,7 +276,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Routes");
+                    b.ToTable("Routes", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.ScheduleItem", b =>
@@ -318,7 +318,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("Date");
 
-                    b.ToTable("ScheduleItems");
+                    b.ToTable("ScheduleItems", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.StateValue", b =>
@@ -336,7 +336,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Name");
 
-                    b.ToTable("StateValues");
+                    b.ToTable("StateValues", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonData", b =>
@@ -382,7 +382,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SubathonDatas");
+                    b.ToTable("SubathonDatas", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonEvent", b =>
@@ -459,7 +459,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("SubathonId");
 
-                    b.ToTable("SubathonEvents");
+                    b.ToTable("SubathonEvents", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonGoal", b =>
@@ -486,7 +486,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("GoalSetId");
 
-                    b.ToTable("SubathonGoals");
+                    b.ToTable("SubathonGoals", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonGoalSet", b =>
@@ -508,7 +508,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SubathonGoalSets");
+                    b.ToTable("SubathonGoalSets", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonPrompt", b =>
@@ -565,7 +565,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("SetId");
 
-                    b.ToTable("SubathonPrompts");
+                    b.ToTable("SubathonPrompts", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptRun", b =>
@@ -613,7 +613,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("SetId");
 
-                    b.ToTable("SubathonPromptRuns");
+                    b.ToTable("SubathonPromptRuns", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonPromptSet", b =>
@@ -644,7 +644,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SubathonPromptSets");
+                    b.ToTable("SubathonPromptSets", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.SubathonValue", b =>
@@ -665,7 +665,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("EventType", "Meta");
 
-                    b.ToTable("SubathonValues");
+                    b.ToTable("SubathonValues", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WheelItem", b =>
@@ -701,7 +701,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("WheelId");
 
-                    b.ToTable("WheelItems");
+                    b.ToTable("WheelItems", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WheelSet", b =>
@@ -723,7 +723,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("WheelSets");
+                    b.ToTable("WheelSets", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinAction", b =>
@@ -748,7 +748,7 @@ namespace SubathonManager.Data.Migrations
                     b.HasIndex("WheelItemId")
                         .IsUnique();
 
-                    b.ToTable("WheelSpinActions");
+                    b.ToTable("WheelSpinActions", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinHistory", b =>
@@ -781,7 +781,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("WheelItemId");
 
-                    b.ToTable("WheelSpinHistories");
+                    b.ToTable("WheelSpinHistories", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinTrigger", b =>
@@ -813,7 +813,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("WheelSpinTriggers");
+                    b.ToTable("WheelSpinTriggers", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WheelSpinTriggerHistory", b =>
@@ -847,7 +847,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("TriggerId");
 
-                    b.ToTable("WheelSpinTriggerHistories");
+                    b.ToTable("WheelSpinTriggerHistories", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.Widget", b =>
@@ -906,7 +906,7 @@ namespace SubathonManager.Data.Migrations
 
                     b.HasIndex("RouteId");
 
-                    b.ToTable("Widgets");
+                    b.ToTable("Widgets", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.WidgetCatalogEntry", b =>
@@ -982,7 +982,7 @@ namespace SubathonManager.Data.Migrations
                     b.HasIndex("PackPath")
                         .IsUnique();
 
-                    b.ToTable("WidgetCatalogEntries");
+                    b.ToTable("WidgetCatalogEntries", (string)null);
                 });
 
             modelBuilder.Entity("SubathonManager.Core.Models.CssVariable", b =>

@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
@@ -13,9 +12,7 @@ namespace SubathonManager.Tests.DataUnitTests;
 [Collection("WorkingDirectory")]
 public class WidgetCatalogTests {
     private static IDbContextFactory<AppDbContext> MakeFactory() {
-        var services = new ServiceCollection();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
-        return services.BuildServiceProvider().GetRequiredService<IDbContextFactory<AppDbContext>>();
+        return TestDb.CreateInMemory();
     }
 
     private static string WritePreset(string folder, string manifestJson,

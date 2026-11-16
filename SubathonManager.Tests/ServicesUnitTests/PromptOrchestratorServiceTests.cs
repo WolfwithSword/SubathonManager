@@ -10,6 +10,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Services;
+using SubathonManager.Tests.Utility;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 
@@ -18,28 +19,11 @@ namespace SubathonManager.Tests.ServicesUnitTests;
 [Collection("SequentialParallel")]
 public class PromptOrchestratorServiceTests : IAsyncDisposable {
     private readonly SqliteConnection _connection;
-    private readonly Mock<IDbContextFactory<AppDbContext>> _factoryMock;
+    private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly DbContextOptions<AppDbContext> _options;
 
     public PromptOrchestratorServiceTests() {
-        var dbName = $"prompt_test_{Guid.NewGuid():N}";
-        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
-
-        _connection = new SqliteConnection(connectionString);
-        _connection.Open();
-
-        _options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connectionString)
-            .Options;
-
-        using var db = new AppDbContext(_options);
-        db.Database.EnsureCreated();
-
-        _factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
-        _factoryMock
-            .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new AppDbContext(_options));
-
+        (_options, _factory, _connection) = TestDb.CreateSqlite();
         ClearStaticEvents();
     }
 
@@ -124,7 +108,7 @@ public class PromptOrchestratorServiceTests : IAsyncDisposable {
     private PromptOrchestratorService CreateService(MockTimerService? timer = null) {
         timer ??= new MockTimerService();
         return new PromptOrchestratorService(
-            _factoryMock.Object,
+            _factory,
             timer,
             Mock.Of<ILogger<PromptOrchestratorService>>());
     }

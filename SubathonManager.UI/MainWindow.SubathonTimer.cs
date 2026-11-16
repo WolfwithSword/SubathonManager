@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
@@ -23,8 +24,8 @@ public partial class MainWindow {
     internal readonly IDbContextFactory<AppDbContext> _factory =
         AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
 
-    private static readonly SolidColorBrush PausedBorderBrush = new(Color.FromRgb(0xF5, 0xA6, 0x23));
-    private static readonly SolidColorBrush LockedBorderBrush = new(Color.FromRgb(0xE0, 0x52, 0x52));
+    private static readonly IBrush PausedBorderBrush = new ImmutableSolidColorBrush(Color.FromRgb(0xF5, 0xA6, 0x23));
+    private static readonly IBrush LockedBorderBrush = new ImmutableSolidColorBrush(Color.FromRgb(0xE0, 0x52, 0x52));
 
     private bool? _capInEffect;
     private DateTime? _lastUpdatedTimerAt;

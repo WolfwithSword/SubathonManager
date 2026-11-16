@@ -4,6 +4,7 @@ using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,9 +21,9 @@ using SubathonManager.UI.UiUtils;
 namespace SubathonManager.UI.Views;
 
 public partial class ImportMissedWindow : Window {
-    private static readonly IBrush MissedBrush = new SolidColorBrush(Color.Parse("#4CAF50"));
-    private static readonly IBrush WarnBrush = new SolidColorBrush(Color.Parse("#E8A33D"));
-    private static readonly IBrush CapturedBrush = new SolidColorBrush(Color.Parse("#808080"));
+    private static readonly IBrush MissedBrush = new ImmutableSolidColorBrush(Color.Parse("#4CAF50"));
+    private static readonly IBrush WarnBrush = new ImmutableSolidColorBrush(Color.Parse("#E8A33D"));
+    private static readonly IBrush CapturedBrush = new ImmutableSolidColorBrush(Color.Parse("#808080"));
 
     private readonly List<ImportRow> _all = [];
     private readonly IDbContextFactory<AppDbContext> _factory =

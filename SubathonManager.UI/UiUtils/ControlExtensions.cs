@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 
 namespace SubathonManager.UI.UiUtils;
 
@@ -15,6 +16,28 @@ public enum Appearance {
 }
 
 public static class ControlExtensions {
+    private static readonly IBrush DangerBrush = new ImmutableSolidColorBrush(Color.Parse("#C42B1C"));
+
+    public static void SubscribeWhileAttached(this Control control, Action subscribe, Action unsubscribe) {
+        var subscribed = false;
+
+        void Attach() {
+            if (subscribed) return;
+            subscribed = true;
+            subscribe();
+        }
+
+        void Detach() {
+            if (!subscribed) return;
+            subscribed = false;
+            unsubscribe();
+        }
+
+        control.AttachedToVisualTree += (_, _) => Attach();
+        control.DetachedFromVisualTree += (_, _) => Detach();
+        if (TopLevel.GetTopLevel(control) != null) Attach();
+    }
+
     public static void SetDynamicResource(this Control control, AvaloniaProperty property, object resourceKey) {
         control.Bind(property, control.GetResourceObservable(resourceKey));
     }
@@ -51,7 +74,7 @@ public static class ControlExtensions {
                 if (!button.Classes.Contains("accent")) button.Classes.Add("accent");
                 break;
             case Appearance.Danger:
-                button.Background = new SolidColorBrush(Color.Parse("#C42B1C"));
+                button.Background = DangerBrush;
                 button.Foreground = Brushes.White;
                 break;
         }

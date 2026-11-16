@@ -21,21 +21,8 @@ namespace SubathonManager.Tests.ServicesUnitTests;
 public class ActionServiceTests {
     private static async Task<(ActionService service, FakeRunner runner, DbContextOptions<AppDbContext> options,
         SqliteConnection conn)> SetupAsync(ISecureStorage? secureStorage = null) {
-        var dbName = $"test_{Guid.NewGuid():N}";
-        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
-        var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync();
-
-        DbContextOptions<AppDbContext> options =
-            new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
-        await using (var db = new AppDbContext(options)) {
-            await db.Database.EnsureCreatedAsync();
-        }
-
-        var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
-        factoryMock
-            .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new AppDbContext(options));
+        (DbContextOptions<AppDbContext> options, IDbContextFactory<AppDbContext> factory, SqliteConnection connection) =
+            TestDb.CreateSqlite();
 
         foreach (string name in new[] {
                      "SubathonEventCreated", "SubathonDataUpdate", "SubathonEventProcessed", "PromptRunUpdate",
@@ -49,7 +36,7 @@ public class ActionServiceTests {
             ?.SetValue(null, null);
 
         var runner = new FakeRunner();
-        var service = new ActionService(factoryMock.Object, [runner],
+        var service = new ActionService(factory, [runner],
             actionsFolder: Path.Combine(Path.GetTempPath(), $"sm_actions_{Guid.NewGuid():N}"),
             secureStorage: secureStorage);
         await service.StartAsync(TestContext.Current.CancellationToken);

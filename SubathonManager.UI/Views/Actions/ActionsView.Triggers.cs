@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Objects;
@@ -12,7 +13,7 @@ using SubathonManager.UI.UiUtils;
 namespace SubathonManager.UI.Views.Actions;
 
 public partial class ActionsView {
-    private static readonly IBrush TriggerAccent = new SolidColorBrush(Color.FromRgb(0x1C, 0xB8, 0x96));
+    private static readonly IBrush TriggerAccent = new ImmutableSolidColorBrush(Color.FromRgb(0x1C, 0xB8, 0x96));
 
     private void RefreshTriggers() {
         List<(CustomAction Action, ActionNode Node)> steps = ServiceManager.Actions.TriggerSteps().ToList();

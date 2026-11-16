@@ -5,14 +5,13 @@ using SubathonManager.Core.Models;
 
 namespace SubathonManager.Integration;
 
-public static class BlerpChatService {
+public static partial class BlerpChatService {
+    [GeneratedRegex(@"^([^\s]+)\s+\w+\s+(\d+)\s+(bits|beets)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex BlerpMessageRegex();
+
     public static bool ParseMessage(string message, SubathonEventSource source) {
         // user Blerp is verified prior to here
-        var regex = new Regex(
-            @"^([^\s]+)\s+\w+\s+(\d+)\s+(bits|beets)\b",
-            RegexOptions.IgnoreCase
-        );
-        Match match = regex.Match(message);
+        Match match = BlerpMessageRegex().Match(message);
 
         if (!match.Success)
             return false;

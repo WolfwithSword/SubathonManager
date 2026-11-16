@@ -9,6 +9,7 @@ using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
 using SubathonManager.Server;
+using SubathonManager.Tests.Utility;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.ServerUnitTests;
@@ -35,16 +36,9 @@ public class WebServerLeaderboardTests {
     }
 
     private static WebServer CreateServer() {
-        var dbName = Guid.NewGuid().ToString();
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
         IConfig config = MockConfig();
-        services.AddSingleton(config);
-        AppServices.Provider = services.BuildServiceProvider();
-
+        IDbContextFactory<AppDbContext> factory = TestDb.SetupAppServices(config);
         var logger = AppServices.Provider.GetRequiredService<ILogger<WebServer>>();
-        var factory = AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
         var server = new WebServer(logger, config, factory);
         return server;
     }

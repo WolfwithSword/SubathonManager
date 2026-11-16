@@ -62,18 +62,10 @@ public class EventServiceTests {
     internal static async Task<(EventService, DbContextOptions<AppDbContext>,
         SqliteConnection)> SetupServiceWithDb(int initialPoints = 10, bool isLocked = true,
         bool showEventsState = false, bool allowPointsLocked = true) {
-        var dbName = $"test_{Guid.NewGuid():N}";
-        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
-
-        var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync();
-
-        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(connectionString)
-            .Options;
+        (DbContextOptions<AppDbContext> options, IDbContextFactory<AppDbContext> factory, SqliteConnection connection) =
+            TestDb.CreateSqlite();
 
         await using (var db = new AppDbContext(options)) {
-            await db.Database.EnsureCreatedAsync();
             db.SubathonDatas.Add(new SubathonData {
                 Id = Guid.NewGuid(), Points = initialPoints, IsActive = true, IsLocked = isLocked, Currency = "USD"
             });
@@ -84,10 +76,6 @@ public class EventServiceTests {
             GoAffProStoreRegistry.Initialize(db.GoAffProStores.ToList());
         }
 
-        var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
-        factoryMock
-            .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new AppDbContext(options));
         typeof(SubathonEvents)
             .GetField("SubathonGoalCompleted", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
@@ -107,7 +95,7 @@ public class EventServiceTests {
             .GetField("ErrorEventOccured", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
-        var service = new EventService(factoryMock.Object, Mock.Of<ILogger<EventService>>(), MockConfig.MakeMockConfig(
+        var service = new EventService(factory, Mock.Of<ILogger<EventService>>(), MockConfig.MakeMockConfig(
             new Dictionary<(string, string), string> {
                 { ("Currency", "Primary"), "USD" },
                 { ("Currency", "BitsLikeAsDonation"), "True" },

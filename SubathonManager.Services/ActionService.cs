@@ -344,11 +344,11 @@ public partial class ActionService(
     }
 
     private async Task<Dictionary<string, string?>> GetGlobalValuesAsync(List<string> names) {
-        var wanted = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
         await using AppDbContext db = await factory.CreateDbContextAsync();
-        return (await db.ActionGlobals.AsNoTracking().Where(g => g.Kind == ActionStoreKind.Global).ToListAsync())
-            .Where(g => wanted.Contains(g.Name))
-            .ToDictionary(g => g.Name, g => g.Value, StringComparer.OrdinalIgnoreCase);
+
+        return await db.ActionGlobals.AsNoTracking()
+            .Where(g => g.Kind == ActionStoreKind.Global && names.Contains(g.Name))
+            .ToDictionaryAsync(g => g.Name, g => g.Value, StringComparer.OrdinalIgnoreCase);
     }
 
     public string? GetSecretValue(string name) {
@@ -461,8 +461,8 @@ public partial class ActionService(
         await _globalsLock.WaitAsync(ct);
         try {
             await using AppDbContext db = await factory.CreateDbContextAsync(ct);
-            row = (await db.ActionGlobals.Where(g => g.Kind == ActionStoreKind.Global).ToListAsync(ct))
-                .FirstOrDefault(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            row = await db.ActionGlobals
+                .FirstOrDefaultAsync(g => g.Kind == ActionStoreKind.Global && g.Name == name, ct);
             created = row == null;
 
             if (row == null && !create) return (null, false, $"There is no global named \"{name}\" to set");
@@ -556,9 +556,10 @@ public partial class ActionService(
         await _globalsLock.WaitAsync();
         try {
             await using AppDbContext db = await factory.CreateDbContextAsync();
-            Dictionary<(ActionStoreKind, string), ActionGlobal> known = (await db.ActionGlobals.AsNoTracking()
-                    .ToListAsync())
-                .ToDictionary(g => (g.Kind, g.Name), g => g, new StoreKeyComparer());
+            List<string> names = used.Keys.Select(k => k.Item2).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            Dictionary<(ActionStoreKind, string), ActionGlobal> known = await db.ActionGlobals.AsNoTracking()
+                .Where(g => names.Contains(g.Name))
+                .ToDictionaryAsync(g => (g.Kind, g.Name), g => g, new StoreKeyComparer());
 
             conflicts = used.Where(u => u.Value.Strict && known.TryGetValue(u.Key, out ActionGlobal? g)
                                                        && g.Kind == ActionStoreKind.Global

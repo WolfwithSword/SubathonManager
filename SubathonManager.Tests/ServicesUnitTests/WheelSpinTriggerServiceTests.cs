@@ -44,21 +44,8 @@ public class WheelSpinTriggerServiceTests {
 
     private static async Task<(WheelSpinTriggerService service, DbContextOptions<AppDbContext> options,
         SqliteConnection conn)> SetupServiceWithDb() {
-        var dbName = $"test_{Guid.NewGuid():N}";
-        var connectionString = $"DataSource={dbName};Mode=Memory;Cache=Shared;Pooling=False";
-        var connection = new SqliteConnection(connectionString);
-        await connection.OpenAsync();
-
-        DbContextOptions<AppDbContext> options =
-            new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connectionString).Options;
-        await using (var db = new AppDbContext(options)) {
-            await db.Database.EnsureCreatedAsync();
-        }
-
-        var factoryMock = new Mock<IDbContextFactory<AppDbContext>>();
-        factoryMock
-            .Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new AppDbContext(options));
+        (DbContextOptions<AppDbContext> options, IDbContextFactory<AppDbContext> factory, SqliteConnection connection) =
+            TestDb.CreateSqlite();
 
         typeof(SubathonEvents)
             .GetField("SubathonEventProcessed", BindingFlags.Static | BindingFlags.NonPublic)
@@ -70,7 +57,7 @@ public class WheelSpinTriggerServiceTests {
             .GetField("OnSpinsOwedUpdateFromEvent", BindingFlags.Static | BindingFlags.NonPublic)
             ?.SetValue(null, null);
 
-        var service = new WheelSpinTriggerService(factoryMock.Object, MakeCurrencyService());
+        var service = new WheelSpinTriggerService(factory, MakeCurrencyService());
         await service.StartAsync();
         return (service, options, connection);
     }

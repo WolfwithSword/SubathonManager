@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
@@ -13,10 +12,7 @@ namespace SubathonManager.Tests.DataUnitTests;
 [Collection("WorkingDirectory")]
 public class WidgetPathRepairTests {
     private static IDbContextFactory<AppDbContext> MakeFactory() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(Guid.NewGuid().ToString()));
-        return services.BuildServiceProvider().GetRequiredService<IDbContextFactory<AppDbContext>>();
+        return TestDb.CreateInMemory();
     }
 
     private static string MakePackedWidget(string entry = "content/widget.html") {

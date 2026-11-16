@@ -187,4 +187,17 @@ public class UtilsTests {
             System.Globalization.CultureInfo.CurrentCulture = previous;
         }
     }
+
+    [Fact]
+    public async Task ReconnectState_IsReconnecting_PeeksWithoutTakingLock() {
+        using var state = new Utils.ServiceReconnectState();
+
+        Assert.False(state.IsReconnecting());
+        Assert.False(state.IsReconnecting());
+        Assert.True(await state.Lock.WaitAsync(0, TestContext.Current.CancellationToken));
+        Assert.True(state.IsReconnecting());
+
+        state.Lock.Release();
+        Assert.False(state.IsReconnecting());
+    }
 }

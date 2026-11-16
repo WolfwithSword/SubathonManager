@@ -8,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,8 @@ using SubathonManager.UI.Views;
 namespace SubathonManager.UI;
 
 public partial class EditRouteWindow {
+    private static readonly IBrush ErroredWidgetBrush = new ImmutableSolidColorBrush(Color.FromArgb(60, 220, 53, 69));
+
     private MenuFlyout? _statusFlyout;
 
     #region GeneralHandlers
@@ -38,7 +41,7 @@ public partial class EditRouteWindow {
         if (sender is not Border { Tag: Guid id } border) return;
         _widgetCardBorders[id] = border;
         if (_erroredWidgets.Contains(id)) {
-            border.Background = new SolidColorBrush(Color.FromArgb(60, 220, 53, 69));
+            border.Background = ErroredWidgetBrush;
             return;
         }
 

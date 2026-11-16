@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.DependencyInjection;
@@ -125,12 +126,23 @@ public static class UiHelpers {
 
         pointsBox.TextChanged += (_, _) => Update();
         if (dollarModeBox != null) dollarModeBox.SelectionChanged += (_, _) => Update();
-        SettingsEvents.PrimaryCurrencyChanged += updated => {
+
+        void OnCurrencyChanged(string updated) {
             currency = updated;
             Dispatcher.UIThread.Post(Update);
-        };
+        }
+
+        hint.SubscribeWhileAttached(
+            () => {
+                currency = PrimaryCurrency();
+                Update();
+                SettingsEvents.PrimaryCurrencyChanged += OnCurrencyChanged;
+            },
+            () => SettingsEvents.PrimaryCurrencyChanged -= OnCurrencyChanged);
         Update();
     }
+
+    private static readonly IBrush PendingBorderBrush = new ImmutableSolidColorBrush(Color.FromRgb(0xF5, 0xC5, 0x18));
 
     private static string PrimaryCurrency() {
         var config = AppServices.Provider.GetRequiredService<IConfig>();
@@ -138,9 +150,7 @@ public static class UiHelpers {
     }
 
     public static void UpdateButtonPendingBorder(Border border, bool hasPendingChanges) {
-        border.BorderBrush = hasPendingChanges
-            ? new SolidColorBrush(Color.FromRgb(0xF5, 0xC5, 0x18))
-            : new SolidColorBrush(Colors.Transparent);
+        border.BorderBrush = hasPendingChanges ? PendingBorderBrush : Brushes.Transparent;
     }
 
     public static bool RevealInFileManager(string? path) {

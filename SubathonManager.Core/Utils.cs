@@ -103,10 +103,8 @@ public static partial class Utils {
 
     private static TimeSpan ParseLetterDurationString(string input) {
         if (input.All(char.IsDigit)) return new TimeSpan(0, 0, 0, int.Parse(input));
-        var regex = new Regex(@"(\d+d|\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase);
-
         int days = 0, hours = 0, minutes = 0, seconds = 0;
-        foreach (Match match in regex.Matches(input.ToLower())) {
+        foreach (Match match in LetterDurationRegex().Matches(input.ToLower())) {
             if (!match.Success) continue;
             if (match.ToString().ToLower().Contains("d"))
                 days += int.Parse(match.ToString().Replace("d", ""));
@@ -343,8 +341,9 @@ public static partial class Utils {
             Cts?.Dispose();
         }
 
-        public async Task<bool> IsReconnecting() {
-            return !await Lock.WaitAsync(0);
+        // just peek
+        public bool IsReconnecting() {
+            return Lock.CurrentCount == 0;
         }
 
         public void Reset() {
@@ -398,4 +397,6 @@ public static partial class Utils {
     private static partial Regex DecimalValueCultureCommaRegex();
     [GeneratedRegex(@"^(?<code>[A-Z]{3})(?![A-Z])")]
     private static partial Regex CurrencyCodeCheckRegex();
+    [GeneratedRegex(@"(\d+d|\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase)]
+    private static partial Regex LetterDurationRegex();
 }

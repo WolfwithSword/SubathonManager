@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Platform.Storage;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +22,10 @@ using SubathonManager.UI.UiUtils;
 namespace SubathonManager.UI.Views;
 
 public partial class ExportOverlayDialog : Window {
-    private static readonly SolidColorBrush InUseBrush = new(Color.FromRgb(230, 170, 60));
+    private static readonly IBrush GeneratedNodeBrush = new ImmutableSolidColorBrush(Color.FromArgb(180, 160, 160, 160));
+    private static readonly IBrush UnusedBrush = new ImmutableSolidColorBrush(Color.FromArgb(200, 180, 60, 60));
+
+    private static readonly IBrush InUseBrush = new ImmutableSolidColorBrush(Color.FromRgb(230, 170, 60));
 
     private readonly List<FileEntry> _allEntries = new();
     private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ExportOverlayDialog>>();
@@ -176,7 +180,7 @@ public partial class ExportOverlayDialog : Window {
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 12,
             Foreground = isGenerated
-                ? new SolidColorBrush(Color.FromArgb(180, 160, 160, 160))
+                ? GeneratedNodeBrush
                 : PrimaryTextBrush()
         };
 
@@ -229,7 +233,7 @@ public partial class ExportOverlayDialog : Window {
         else {
             entry.Label.Foreground = entry.InUse
                 ? InUseBrush
-                : new SolidColorBrush(Color.FromArgb(200, 180, 60, 60));
+                : UnusedBrush;
             entry.Label.Opacity = entry.InUse ? 1.0 : 0.75;
             entry.Icon.Opacity = entry.InUse ? 0.8 : 0.4;
         }

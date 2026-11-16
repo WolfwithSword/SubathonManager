@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using IniParser.Model;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ using SubathonManager.Data;
 using SubathonManager.Server;
 using SubathonManager.Server.Interfaces;
 using SubathonManager.Services;
+using SubathonManager.Tests.Utility;
 
 // ReSharper disable NullableWarningSuppressionIsUsed
 namespace SubathonManager.Tests.ServerUnitTests;
@@ -53,15 +55,9 @@ public class WebServerTests {
 
 
     private static void SetupServices() {
-        var dbName = Guid.NewGuid().ToString();
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        IConfig mockConfig = MockConfig(new Dictionary<(string, string), string> {
+        TestDb.SetupAppServices(MockConfig(new Dictionary<(string, string), string> {
             { ("Server", "Port"), "14045" }
-        });
-        services.AddSingleton(mockConfig);
-        AppServices.Provider = services.BuildServiceProvider();
+        }));
     }
 
     private static WebServer CreateServer() {
@@ -227,8 +223,12 @@ public class WebServerTests {
     [Fact]
     public async Task Globals_Post_Creates_Sets_Adds_Toggles_And_Rejects_Bad_Requests() {
         WebServer server = CreateServer();
+        // sqlite for the NOCASE global name lookups
+        // because ef in-memory is case-sensitive
+        (_, IDbContextFactory<AppDbContext> globalsDb, SqliteConnection connection) = TestDb.CreateSqlite();
+        await using SqliteConnection __ = connection;
         var services = new ServiceCollection();
-        services.AddSingleton(new ActionService(server._factory, []));
+        services.AddSingleton(new ActionService(globalsDb, []));
         AppServices.Provider = services.BuildServiceProvider();
 
         async Task<(int Code, string Body)> Post(string query, string body = "") {
@@ -274,7 +274,7 @@ public class WebServerTests {
             Assert.Contains("\"error\"", error);
         }
 
-        await using AppDbContext db = await server._factory.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        await using AppDbContext db = await globalsDb.CreateDbContextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(5, await db.ActionGlobals.CountAsync(cancellationToken: TestContext.Current.CancellationToken));
         AppServices.Provider = null!;
     }

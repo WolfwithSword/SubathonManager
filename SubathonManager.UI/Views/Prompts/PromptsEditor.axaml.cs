@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
@@ -20,6 +21,9 @@ using SubathonManager.UI.UiUtils;
 namespace SubathonManager.UI.Views.Prompts;
 
 public partial class PromptsEditor : UserControl {
+    private static readonly IBrush ActiveRunRowBrush = new ImmutableSolidColorBrush(Color.FromArgb(40, 50, 200, 80));
+    private static readonly IBrush SelectedRowBrush = new ImmutableSolidColorBrush(Color.FromArgb(30, 100, 149, 237));
+
     private readonly IDbContextFactory<AppDbContext> _factory;
     private Guid? _activeRunPromptId;
     private SubathonPromptSet? _activeSet;
@@ -678,10 +682,8 @@ public partial class PromptsEditor : UserControl {
             bool isSelected = !isActiveRun && (child == clickedRow || p.Id == _selectedPrompt?.Id);
 
             child.Background = isActiveRun
-                ? new SolidColorBrush(Color.FromArgb(40, 50, 200, 80))
-                : isSelected
-                    ? new SolidColorBrush(Color.FromArgb(30, 100, 149, 237))
-                    : Brushes.Transparent;
+                ? ActiveRunRowBrush : isSelected
+                    ? SelectedRowBrush : Brushes.Transparent;
         }
     }
 

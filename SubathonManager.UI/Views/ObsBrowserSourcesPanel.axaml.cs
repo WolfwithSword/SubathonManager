@@ -4,6 +4,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,8 @@ using SubathonManager.UI.Services;
 namespace SubathonManager.UI.Views;
 
 public partial class ObsBrowserSourcesPanel : UserControl {
+    private static readonly IBrush CardBorderBrush = new ImmutableSolidColorBrush(Color.Parse("#333"));
+
     private List<ObsBrowserSourceCard> _lastCards = [];
     private bool? _lastScriptStatus;
     private bool _refreshing;
@@ -145,7 +148,7 @@ public partial class ObsBrowserSourcesPanel : UserControl {
 
     private Control BuildCard(ObsBrowserSourceCard card, string? overlayName, bool unknownOverlay) {
         var border = new Border {
-            BorderBrush = new SolidColorBrush(Color.Parse("#333")),
+            BorderBrush = CardBorderBrush,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 8, 12, 8),

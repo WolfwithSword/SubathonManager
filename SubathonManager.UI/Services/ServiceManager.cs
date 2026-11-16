@@ -153,6 +153,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         await StopAsync<WebServer>();
         await StopAsync<TelemetryService>();
         await StopAsync<PromptOrchestratorService>();
+        await StopAsync<WheelSpinTriggerService>();
     }
 
     private SemaphoreSlim GetLock(Type t) {

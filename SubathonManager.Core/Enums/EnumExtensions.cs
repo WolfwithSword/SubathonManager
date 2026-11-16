@@ -8,26 +8,15 @@ namespace SubathonManager.Core.Enums;
 
 public static class EnumExtensions {
     public static string GetDescription(this Enum value) {
-        FieldInfo? field = value.GetType().GetField(value.ToString());
-        if (field == null) return value.ToString();
-
-        var attr = field.GetCustomAttribute<EnumMetaAttribute>();
-        return attr?.Description ?? value.ToString();
+        return EnumMetaCache.Get<EnumMetaAttribute>(value)?.Description ?? value.ToString();
     }
 
     public static string GetLabel(this Enum value) {
-        FieldInfo? field = value.GetType().GetField(value.ToString());
-        if (field == null) return value.ToString();
-
-        var attr = field.GetCustomAttribute<EnumMetaAttribute>();
-        return attr?.Label ?? value.ToString();
+        return EnumMetaCache.Get<EnumMetaAttribute>(value)?.Label ?? value.ToString();
     }
 
     public static bool IsDisabled(this Enum value) {
-        FieldInfo? field = value.GetType().GetField(value.ToString());
-        if (field == null) return true;
-        var attr = field.GetCustomAttribute<EnumMetaAttribute>();
-        return !attr?.Enabled ?? true;
+        return !EnumMetaCache.Get<EnumMetaAttribute>(value)?.Enabled ?? true;
     }
 
     public static bool IsEnabled(this Enum value) {
@@ -35,10 +24,7 @@ public static class EnumExtensions {
     }
 
     public static int GetOrderNumber(this Enum value) {
-        FieldInfo? field = value.GetType().GetField(value.ToString());
-        if (field == null) return 99999;
-        var attr = field.GetCustomAttribute<EnumMetaAttribute>();
-        return attr?.Order ?? 99999;
+        return EnumMetaCache.Get<EnumMetaAttribute>(value)?.Order ?? 99999;
     }
 }
 

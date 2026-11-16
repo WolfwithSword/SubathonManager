@@ -165,15 +165,7 @@ public class WebServerWebSocketTests(ITestOutputHelper testOutputHelper) {
     }
 
     internal static void SetupServices() {
-        var dbName = Guid.NewGuid().ToString();
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        IConfig mockConfig = MakeMockConfig(new Dictionary<(string, string), string> {
-            { ("Server", "Port"), "14045" }
-        });
-        services.AddSingleton(mockConfig);
-        AppServices.Provider = services.BuildServiceProvider();
+        TestDb.SetupAppServices(MakeMockConfig());
     }
 
     internal static WebServer CreateServer() {

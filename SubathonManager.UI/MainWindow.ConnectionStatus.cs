@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -16,10 +17,10 @@ using SubathonManager.Core.Objects;
 namespace SubathonManager.UI;
 
 public partial class MainWindow {
-    private static readonly IBrush StatusUpBrush = new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50));
-    private static readonly IBrush StatusDownBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0x4A, 0x4A));
-    private static readonly IBrush StatusMixedBrush = new SolidColorBrush(Color.FromRgb(0xE8, 0xA3, 0x3D));
-    private static readonly IBrush StatusNoneBrush = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
+    private static readonly IBrush StatusUpBrush = new ImmutableSolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50));
+    private static readonly IBrush StatusDownBrush = new ImmutableSolidColorBrush(Color.FromRgb(0xE8, 0x4A, 0x4A));
+    private static readonly IBrush StatusMixedBrush = new ImmutableSolidColorBrush(Color.FromRgb(0xE8, 0xA3, 0x3D));
+    private static readonly IBrush StatusNoneBrush = new ImmutableSolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
 
     private MenuFlyout? _statusFlyout;
     private FAContentDialog? _reauthDialog;

@@ -6,6 +6,7 @@ using Moq;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
+using SubathonManager.Tests.Utility;
 
 namespace SubathonManager.Tests.DataUnitTests;
 
@@ -20,11 +21,8 @@ public class SubathonValueConfigHelperTests {
     };
 
     private IDbContextFactory<AppDbContext> CreateInMemoryFactory(string dbName) {
-        DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(dbName)
-            .Options;
-
-        var db = new AppDbContext(options);
+        IDbContextFactory<AppDbContext> factory = TestDb.CreateInMemory(dbName);
+        using AppDbContext db = factory.CreateDbContext();
 
         db.SubathonValues.AddRange(
             new SubathonValue {
@@ -47,15 +45,7 @@ public class SubathonValueConfigHelperTests {
             }
         );
         db.SaveChanges();
-        //db.ChangeTracker.Clear();
-
-        var mockFactory = new Mock<IDbContextFactory<AppDbContext>>();
-        mockFactory.Setup(f => f.CreateDbContext())
-            .Returns(db);
-        mockFactory.Setup(f => f.CreateDbContextAsync(default))
-            .ReturnsAsync(db);
-
-        return mockFactory.Object;
+        return factory;
     }
 
     [Fact]

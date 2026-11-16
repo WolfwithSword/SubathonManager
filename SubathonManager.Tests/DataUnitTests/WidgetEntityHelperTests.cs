@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
@@ -22,13 +21,7 @@ public class WidgetEntityHelperTests {
     }
 
     private static IDbContextFactory<AppDbContext> SetupServices() {
-        var dbName = Guid.NewGuid().ToString();
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        services.AddSingleton(MakeMockConfig());
-        AppServices.Provider = services.BuildServiceProvider();
-        return AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+        return TestDb.SetupAppServices(MakeMockConfig());
     }
 
     private static string CreateTempHtmlWithCss(string cssContent, out string cssPath) {

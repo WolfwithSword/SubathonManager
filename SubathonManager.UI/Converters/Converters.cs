@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
@@ -365,16 +366,23 @@ public class WidgetUpdateLabelConverter : IValueConverter {
 }
 
 public class PromptRunStatusColorConverter : IValueConverter {
+    private static readonly IBrush ActiveBrush = new ImmutableSolidColorBrush(Color.FromRgb(80, 180, 255));
+    private static readonly IBrush CompletedBrush = new ImmutableSolidColorBrush(Color.FromRgb(80, 220, 120));
+    private static readonly IBrush ExpiredBrush = new ImmutableSolidColorBrush(Color.FromRgb(200, 100, 60));
+    private static readonly IBrush CancelledBrush = new ImmutableSolidColorBrush(Color.FromRgb(140, 140, 140));
+
+    public static IBrush For(SubathonPromptRunStatus status) {
+        return status switch {
+            SubathonPromptRunStatus.Active => ActiveBrush,
+            SubathonPromptRunStatus.Completed => CompletedBrush,
+            SubathonPromptRunStatus.Expired => ExpiredBrush,
+            SubathonPromptRunStatus.Cancelled => CancelledBrush,
+            _ => Brushes.White
+        };
+    }
+
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) {
-        if (value is SubathonPromptRunStatus status)
-            return status switch {
-                SubathonPromptRunStatus.Active => new SolidColorBrush(Color.FromRgb(80, 180, 255)),
-                SubathonPromptRunStatus.Completed => new SolidColorBrush(Color.FromRgb(80, 220, 120)),
-                SubathonPromptRunStatus.Expired => new SolidColorBrush(Color.FromRgb(200, 100, 60)),
-                SubathonPromptRunStatus.Cancelled => new SolidColorBrush(Color.FromRgb(140, 140, 140)),
-                _ => new SolidColorBrush(Colors.White)
-            };
-        return new SolidColorBrush(Colors.White);
+        return value is SubathonPromptRunStatus status ? For(status) : Brushes.White;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) {

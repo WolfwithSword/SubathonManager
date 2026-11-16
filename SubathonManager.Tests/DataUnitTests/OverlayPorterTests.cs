@@ -2,7 +2,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Models;
 using SubathonManager.Data;
@@ -28,15 +27,9 @@ public class OverlayPorterTests : IDisposable {
     }
 
     private static IDbContextFactory<AppDbContext> SetupServices() {
-        var dbName = Guid.NewGuid().ToString();
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContextFactory<AppDbContext>(o => o.UseInMemoryDatabase(dbName));
-        services.AddSingleton(MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
+        return TestDb.SetupAppServices(MockConfig.MakeMockConfig(new Dictionary<(string, string), string> {
             [("Server", "Port")] = "14045"
         }));
-        AppServices.Provider = services.BuildServiceProvider();
-        return AppServices.Provider.GetRequiredService<IDbContextFactory<AppDbContext>>();
     }
 
     private string MakeTempWidget(string folderName, string htmlFileName = "widget.html") {

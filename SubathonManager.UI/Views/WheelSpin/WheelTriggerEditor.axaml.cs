@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
@@ -25,7 +26,7 @@ namespace SubathonManager.UI.Views.WheelSpin;
 public partial class WheelTriggerEditor : UserControl {
     private const int HistoryPageSize = 20;
 
-    private static readonly SolidColorBrush SelectedRowBrush = new(Color.FromArgb(30, 100, 149, 237));
+    private static readonly IBrush SelectedRowBrush = new ImmutableSolidColorBrush(Color.FromArgb(30, 100, 149, 237));
 
     private static readonly HashSet<SubathonEventSubType> ValidSubTypes = [
         SubathonEventSubType.SubLike,

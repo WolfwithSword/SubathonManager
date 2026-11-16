@@ -122,7 +122,7 @@ public class YouTubeService : IDisposable, IAppService {
     private async void OnStreamEnd(object? sender, LivestreamEndedEventArgs e) {
         _logger?.LogDebug("YT Stream has ended");
         await Task.Delay(2000);
-        if (await _reconnectState.IsReconnecting() && _reconnectState.Retries < _reconnectState.MaxRetries) {
+        if (_reconnectState.IsReconnecting() && _reconnectState.Retries < _reconnectState.MaxRetries) {
             _logger?.LogInformation("YT Cancelling reconnects. Stream verified as ended. Attempting last try.");
             _reconnectState.Retries = _reconnectState.MaxRetries - 1;
         }
@@ -340,11 +340,11 @@ public class YouTubeService : IDisposable, IAppService {
 
     [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync() {
-        if (await _reconnectState.IsReconnecting())
-            return; // already reconnecting
-
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
             return;
+
+        if (!await _reconnectState.Lock.WaitAsync(0))
+            return; // already reconnecting
 
         try {
             _reconnectState.Cts?.Cancel();

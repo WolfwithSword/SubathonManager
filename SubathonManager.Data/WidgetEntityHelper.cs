@@ -13,7 +13,10 @@ using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Data;
 
-public class WidgetEntityHelper {
+public partial class WidgetEntityHelper {
+    [GeneratedRegex(@"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->", RegexOptions.Singleline)]
+    private static partial Regex WidgetMetaRegex();
+
     private static readonly JsonSerializerOptions JsonOptions = new() {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true,
@@ -307,8 +310,7 @@ public class WidgetEntityHelper {
 
     private Dictionary<string, string> GetMetaDataHtml(string html) {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var pattern = @"<!--\s*WIDGET_META(.*?)END_WIDGET_META\s*-->";
-        Match match = Regex.Match(html, pattern, RegexOptions.Singleline);
+        Match match = WidgetMetaRegex().Match(html);
 
         if (!match.Success)
             return result;

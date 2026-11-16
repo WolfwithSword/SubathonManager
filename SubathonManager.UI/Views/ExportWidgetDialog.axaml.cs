@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using FluentAvalonia.UI.Controls;
@@ -22,6 +23,8 @@ using SubathonManager.UI.UiUtils;
 namespace SubathonManager.UI.Views;
 
 public partial class ExportWidgetDialog : Window {
+    private static readonly IBrush UnusedBrush = new ImmutableSolidColorBrush(Color.FromArgb(160, 150, 150, 150));
+
     private readonly List<FileEntry> _allEntries = new();
     private readonly ILogger? _logger = AppServices.Provider.GetService<ILogger<ExportWidgetDialog>>();
     private readonly WidgetPorter.ExportPlan? _plan;
@@ -220,14 +223,14 @@ public partial class ExportWidgetDialog : Window {
         SyncSelectAllBox();
     }
 
-    private static readonly SolidColorBrush InUseBrush = new(Color.FromRgb(230, 170, 60));
+    private static readonly IBrush InUseBrush = new ImmutableSolidColorBrush(Color.FromRgb(230, 170, 60));
 
     private void ApplyEntryStyle(FileEntry entry, bool isChecked) {
         entry.Label.Foreground = isChecked
             ? PrimaryTextBrush()
             : entry.Entry.InUse
                 ? InUseBrush
-                : new SolidColorBrush(Color.FromArgb(160, 150, 150, 150));
+                : UnusedBrush;
         entry.Label.Opacity = isChecked || entry.Entry.InUse ? 1.0 : 0.75;
         entry.Icon.Opacity = isChecked ? 1.0 : entry.Entry.InUse ? 0.8 : 0.4;
     }

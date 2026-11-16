@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using Avalonia.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,7 @@ public partial class WheelEditor : UserControl {
     private const int SpinCooldownMs = 6000;
     private const int MaxQueuedSpins = 50;
 
-    private static readonly SolidColorBrush SelectedRowBrush = new(Color.FromArgb(30, 100, 149, 237));
+    private static readonly IBrush SelectedRowBrush = new ImmutableSolidColorBrush(Color.FromArgb(30, 100, 149, 237));
 
     private readonly IConfig _config;
     private readonly IDbContextFactory<AppDbContext> _factory;

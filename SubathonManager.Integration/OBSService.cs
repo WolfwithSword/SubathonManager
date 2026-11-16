@@ -31,7 +31,10 @@ public sealed record ObsBrowserSourceCard(
     Guid? RouteId);
 
 [ExcludeFromCodeCoverage]
-public class OBSService : IAppService, IActionStepRunner {
+public partial class OBSService : IAppService, IActionStepRunner {
+    [GeneratedRegex("SCRIPT_VERSION\\s*=\\s*\"([^\"]+)\"")]
+    private static partial Regex ScriptVersionRegex();
+
     private const string HelperHotkeyName = "subathonmanager_apply_tweaks";
     private const string HelperVersionHotkeyPrefix = "subathonmanager_version_";
     private const string ManagedMarkerKey = "subathon_managed";
@@ -415,8 +418,7 @@ public class OBSService : IAppService, IActionStepRunner {
     private static string? ReadEmbeddedScriptVersion() {
         string? content = ReadEmbeddedScriptContent();
         if (content == null) return null;
-        Match match = Regex.Match(
-            content, "SCRIPT_VERSION\\s*=\\s*\"([^\"]+)\"");
+        Match match = ScriptVersionRegex().Match(content);
         return match.Success ? match.Groups[1].Value : null;
     }
 

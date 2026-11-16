@@ -17,6 +17,7 @@ using SubathonManager.Core.Objects;
 using SubathonManager.Data;
 using SubathonManager.Services;
 using SubathonManager.UI.Controls;
+using SubathonManager.UI.Converters;
 using SubathonManager.UI.Services;
 using SubathonManager.UI.UiUtils;
 using SubathonManager.UI.Views.Actions;
@@ -156,7 +157,7 @@ public partial class PromptsEditor {
             Text = run.Status.ToString(),
             FontSize = 10,
             FontWeight = FontWeight.SemiBold,
-            Foreground = RunStatusBrush(run.Status),
+            Foreground = PromptRunStatusColorConverter.For(run.Status),
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center
         };
@@ -224,15 +225,6 @@ public partial class PromptsEditor {
         Grid.SetColumn(playBtn, 1);
         cell.Children.Add(playBtn);
         return cell;
-    }
-
-    private static IBrush RunStatusBrush(SubathonPromptRunStatus status) {
-        return status switch {
-            SubathonPromptRunStatus.Active => new SolidColorBrush(Color.FromRgb(80, 180, 255)),
-            SubathonPromptRunStatus.Completed => new SolidColorBrush(Color.FromRgb(80, 220, 120)),
-            SubathonPromptRunStatus.Expired => new SolidColorBrush(Color.FromRgb(200, 100, 60)),
-            _ => new SolidColorBrush(Color.FromRgb(140, 140, 140))
-        };
     }
 
     private void HistoryFilter_SelectionChanged(object? sender, SelectionChangedEventArgs e) {
