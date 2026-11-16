@@ -52,6 +52,64 @@ public enum ActionStepType {
     [ActionStepMeta(Label = "Add Rerolls", Group = "Subathon", ValueLabel = "Rerolls to add:")]
     Reroll = 103,
 
+    // commands, not including ones under subathon group
+    [ActionStepMeta(Label = "Add Points", Group = "Commands", Command = SubathonCommandType.AddPoints,
+        ValueLabel = "Points to add:")]
+    AddPoints = 150,
+
+    [ActionStepMeta(Label = "Remove Points", Group = "Commands", Command = SubathonCommandType.SubtractPoints,
+        ValueLabel = "Points to remove:")]
+    SubtractPoints = 151,
+
+    [ActionStepMeta(Label = "Set Points", Group = "Commands", Command = SubathonCommandType.SetPoints,
+        ValueLabel = "Set points to:")]
+    SetPoints = 152,
+
+    [ActionStepMeta(Label = "Add Money", Group = "Commands", Command = SubathonCommandType.AddMoney,
+        ValueLabel = "Amount to add:", TargetLabel = "Currency (blank = primary currency):", TargetOptional = true)]
+    AddMoney = 153,
+
+    [ActionStepMeta(Label = "Remove Money", Group = "Commands", Command = SubathonCommandType.SubtractMoney,
+        ValueLabel = "Amount to remove:", TargetLabel = "Currency (blank = primary currency):", TargetOptional = true)]
+    SubtractMoney = 154,
+
+    [ActionStepMeta(Label = "Set Time", Group = "Commands", Command = SubathonCommandType.SetTime,
+        DurationLabel = "Set time remaining to:")]
+    SetTime = 155,
+
+    [ActionStepMeta(Label = "Lock", Group = "Commands", Command = SubathonCommandType.Lock)]
+    Lock = 156,
+
+    [ActionStepMeta(Label = "Unlock", Group = "Commands", Command = SubathonCommandType.Unlock)]
+    Unlock = 157,
+
+    [ActionStepMeta(Label = "Pause Timer", Group = "Commands", Command = SubathonCommandType.Pause)]
+    Pause = 158,
+
+    [ActionStepMeta(Label = "Resume Timer", Group = "Commands", Command = SubathonCommandType.Resume)]
+    Resume = 159,
+
+    [ActionStepMeta(Label = "Stop Multiplier", Group = "Commands", Command = SubathonCommandType.StopMultiplier)]
+    StopMultiplier = 160,
+
+    [ActionStepMeta(Label = "Refresh Overlays", Group = "Commands", Command = SubathonCommandType.RefreshOverlays)]
+    RefreshOverlays = 161,
+
+    [ActionStepMeta(Label = "Set Wheel Spins", Group = "Commands", Command = SubathonCommandType.SetSpins,
+        ValueLabel = "Set spins to:")]
+    SetSpins = 162,
+
+    [ActionStepMeta(Label = "Add Wheel Spins", Group = "Commands", Command = SubathonCommandType.AddSpins,
+        ValueLabel = "Spins to add:")]
+    AddSpins = 163,
+
+    [ActionStepMeta(Label = "Remove Wheel Spins", Group = "Commands", Command = SubathonCommandType.SubtractSpins,
+        ValueLabel = "Spins to remove:")]
+    SubtractSpins = 164,
+
+    [ActionStepMeta(Label = "Spin the Wheel", Group = "Commands", Command = SubathonCommandType.SpinWheel)]
+    SpinWheel = 165,
+
     [ActionStepMeta(Label = "Expression", Group = "VTube Studio",
         Operations = [ActionOperation.On, ActionOperation.Off, ActionOperation.Toggle],
         TargetLabel = "Expression file:")]
@@ -373,6 +431,16 @@ public static partial class ActionStepTypeHelper {
 
     public static bool NeedsTarget(this ActionStepType type, ActionOperation operation) {
         return type.HasTarget() && !(Meta(type)?.NoTargetOperations.Contains(operation) ?? false);
+    }
+
+    public static bool IsTargetOptional(this ActionStepType type) {
+        return Meta(type)?.TargetOptional ?? false;
+    }
+
+    // null when not a command step
+    public static SubathonCommandType? GetCommand(this ActionStepType type) {
+        SubathonCommandType command = Meta(type)?.Command ?? SubathonCommandType.None;
+        return command == SubathonCommandType.None ? null : command;
     }
 
     public static bool IsWebRequest(this ActionStepType type) {

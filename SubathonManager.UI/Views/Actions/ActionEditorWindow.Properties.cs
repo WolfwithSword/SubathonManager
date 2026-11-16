@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
@@ -397,6 +398,11 @@ public partial class ActionEditorWindow {
                     break;
                 case ActionStepType.SetGlobal:
                     targets.AddRange(_stored.Where(g => g.Kind == ActionStoreKind.Global).Select(g => g.Name));
+                    break;
+                case ActionStepType.AddMoney:
+                case ActionStepType.SubtractMoney:
+                    targets.AddRange((await AppServices.Provider.GetRequiredService<CurrencyService>()
+                        .GetValidCurrenciesAsync()).Distinct().Order());
                     break;
                 case ActionStepType.Condition:
                     if (SelectedNode?.Id != node.Id) return;

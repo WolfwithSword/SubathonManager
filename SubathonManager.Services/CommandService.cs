@@ -47,12 +47,32 @@ public static class CommandService {
         if (!validUser) return false;
 
         subathonEvent.User = user.Trim();
+        Dispatch(subathonEvent);
+        return true;
+    }
 
+    internal static bool RunCommand(SubathonEventSource source, SubathonCommandType command, string args,
+        string user, string? meta = null) {
+        // run from internally, skip perm checks
+        var subathonEvent = new SubathonEvent {
+            Source = source,
+            EventTimestamp = DateTime.Now,
+            Command = command,
+            EventType = SubathonEventType.Command,
+            User = user.Trim(),
+            EventTypeMeta = meta
+        };
+
+        if (!ValidateParameters(subathonEvent, $"{command} {args}".Trim())) return false;
+        Dispatch(subathonEvent);
+        return true;
+    }
+
+    private static void Dispatch(SubathonEvent subathonEvent) {
         if (subathonEvent.Command == SubathonCommandType.RefreshOverlays)
             OverlayEvents.RaiseOverlayRefreshAllRequested();
         else
             SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
-        return true;
     }
 
     internal static void SetConfig(IConfig config) {

@@ -101,6 +101,19 @@ public sealed class ActionStep {
                 return false;
         }
 
+        if (Type.GetCommand() is { } command) {
+            if (Type.HasDuration() && Duration <= TimeSpan.Zero) {
+                error = $"{Type.GetLabel()} needs a duration";
+                return false;
+            }
+
+            bool isSet = command is SubathonCommandType.SetPoints or SubathonCommandType.SetSpins;
+            if (Type.HasValue(Operation) && !(isSet ? Value is >= 0.0 : Value is > 0.0)) {
+                error = $"{Type.GetLabel()} needs an amount {(isSet ? "of at least 0" : "above 0")}";
+                return false;
+            }
+        }
+
         if (Type.SavesOutput() && !string.IsNullOrEmpty(OutputVariable) && !IsValidOutputName(OutputVariable)) {
             error =
                 $"\"{OutputVariable}\" can't be an output name: use letters, numbers, _, and not a built-in variable's name";
@@ -130,7 +143,7 @@ public sealed class ActionStep {
             return false;
         }
 
-        if (Type.NeedsTarget(Operation) && string.IsNullOrWhiteSpace(Target)) {
+        if (Type.NeedsTarget(Operation) && !Type.IsTargetOptional() && string.IsNullOrWhiteSpace(Target)) {
             error =
                 $"{Type.GetGroup()} {Type.GetLabel()} needs a {Type.GetTargetLabel()!.TrimEnd(':').ToLowerInvariant()}";
             return false;
@@ -228,13 +241,20 @@ public sealed class ActionStep {
                 } + (IgnoreSimulated ? ", not simulated" : ""),
                 _ => $"When {Trigger.Value.GetLabel().ToLowerInvariant()}"
             },
+            
             ActionStepType.SetGlobal => Operation switch {
                 ActionOperation.Toggle => $"Toggle %global.{Target}%",
                 ActionOperation.Adjust => $"%global.{Target}% += {Body?.Trim()}",
                 _ => $"%global.{Target}% = {Body?.Trim()}"
             },
+            
             ActionStepType.HttpGet => $"GET {ShortUrl(Target)}{OutputSuffix}",
             ActionStepType.HttpPost => $"POST {ShortUrl(Target)}{OutputSuffix}",
+            
+            _ when Type.GetCommand() != null => string.Join(' ', new[] {
+                Type.GetLabel(), Type.HasValue(Operation) ? value : null, Type.HasDuration() ? duration : null,
+                Type.HasTarget() ? Target.Trim() : null
+            }.Where(part => !string.IsNullOrEmpty(part))),
             _ => Type.GetLabel()
         };
     }

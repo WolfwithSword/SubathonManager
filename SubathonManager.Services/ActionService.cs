@@ -1023,11 +1023,32 @@ public partial class ActionService(
             }
 
             default:
+                if (step.Type.GetCommand() is { } command)
+                    return RunCommand(step, command, ctx);
+
                 if (_runners.TryGetValue(step.Type, out IActionStepRunner? runner))
                     return await runner.RunStepAsync(step, ctx, progress, ct);
                 logger?.LogWarning("[Actions] No runner for step type {Type}", step.Type);
                 return false;
         }
+    }
+
+    private bool RunCommand(ActionStep step, SubathonCommandType command, ActionContext ctx) {
+        double value = step.Value ?? 0;
+        string currency = string.IsNullOrWhiteSpace(step.Target)
+            ? (config?.Get("Currency", "Primary", "USD") ?? "USD").Trim()
+            : step.Target.Trim();
+        string args = command switch {
+            SubathonCommandType.AddMoney or SubathonCommandType.SubtractMoney =>
+                $"{value.ToString("F2", CultureInfo.InvariantCulture)} {currency}",
+            _ when step.Type.HasDuration() => $"{(long)step.Duration.TotalSeconds}s",
+            _ when step.Type.HasValue(step.Operation) => $"{(long)value}",
+            _ => ""
+        };
+
+        bool ran = CommandService.RunCommand(ctx.Source, command, args, ctx.User, FromActionMeta);
+        if (!ran) logger?.LogWarning("[Actions] Command \"{Step}\" was rejected", step.Describe());
+        return ran;
     }
 
     private async Task<bool> RunWebRequestAsync(ActionStep step, ActionStep original, ActionRunProgress progress,

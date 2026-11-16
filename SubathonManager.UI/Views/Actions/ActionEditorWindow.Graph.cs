@@ -118,6 +118,12 @@ public partial class ActionEditorWindow {
             case ActionStepType.Reroll:
                 step.Value = 1;
                 break;
+            default:
+                if (type.GetCommand() == null) break;
+
+                if (type.HasValue(step.Operation)) step.Value = 1;
+                if (type.HasDuration()) step.Seconds = 3600;
+                break;
         }
 
         int next = Graph.Nodes.Select(n => int.TryParse(n.Id, out int i) ? i : 0).DefaultIfEmpty(0).Max() + 1;

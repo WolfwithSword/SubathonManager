@@ -152,6 +152,12 @@ public class ActionStepMetaAttribute : EnumMetaAttribute {
 
     // %variables% in config will be accepted
     public bool AllowsVariables { get; init; }
+
+    // target shown but may be left blank
+    public bool TargetOptional { get; init; }
+
+    // runs this subathon command through CommandService
+    public SubathonCommandType Command { get; init; } = SubathonCommandType.None;
 }
 
 [ExcludeFromCodeCoverage]

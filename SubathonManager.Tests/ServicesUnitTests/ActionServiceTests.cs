@@ -178,6 +178,34 @@ public class ActionServiceTests {
     }
 
     [Fact]
+    public async Task CommandSteps_RaiseTheirSubathonCommands() {
+        (ActionService service, _, _, SqliteConnection conn) = await SetupAsync();
+        await using SqliteConnection __ = conn;
+        var created = new List<SubathonEvent>();
+        SubathonEvents.SubathonEventCreated += created.Add;
+
+        ActionGraph graph = ActionGraph.Sequence(
+            new ActionStep { Type = ActionStepType.AddPoints, Value = 5 },
+            new ActionStep { Type = ActionStepType.SetTime, Seconds = 90 },
+            new ActionStep { Type = ActionStepType.Lock },
+            new ActionStep { Type = ActionStepType.AddSpins, Value = 2 });
+        Assert.True(graph.IsValid(out _));
+        Assert.False(ActionGraph.Sequence(new ActionStep { Type = ActionStepType.AddPoints, Value = 0 })
+            .IsValid(out _));
+
+        ActionRunResult result = await service.RunAsync(Guid.NewGuid(), graph,
+            new ActionContext(SubathonEventSource.WheelSpin, "test", "commands"));
+
+        Assert.Equal(ActionRunResult.Done, result);
+        Assert.Equal([SubathonCommandType.AddPoints, SubathonCommandType.SetTime, SubathonCommandType.Lock,
+            SubathonCommandType.AddSpins], created.Select(e => e.Command).ToArray());
+        Assert.Equal(5, created[0].PointsValue);
+        Assert.Equal(90, created[1].SecondsValue);
+        Assert.Equal(2, created[3].Amount);
+        Assert.All(created, e => Assert.Equal(ActionService.FromActionMeta, e.EventTypeMeta));
+    }
+
+    [Fact]
     public async Task MultipleInputSteps_RunPerInput_StepsAfterThemRunPerRun_AndResumeRunsWhatsMissing() {
         (ActionService service, FakeRunner runner, _, SqliteConnection conn) = await SetupAsync();
         await using SqliteConnection __ = conn;
