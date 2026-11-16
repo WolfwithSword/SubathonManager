@@ -12,7 +12,7 @@ namespace SubathonManager.UI.Services;
 
 public class ServiceManager(ILogger<ServiceManager> logger) {
     private readonly ConcurrentDictionary<Type, SemaphoreSlim> _locks = new();
-    private readonly HashSet<Type> _running = new();
+    private readonly ConcurrentDictionary<Type, byte> _running = new();
 
     public static string AppVersion {
         get {
@@ -80,31 +80,44 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     public static DiscordWebhookService? DiscordWebHooksOrNull => Provider.GetService<DiscordWebhookService>();
 
     public async Task StartIntegrationsAsync() {
-        await StartAsync<OBSService>();
-        if (FeatureFlags.VTubeStudioEnabled) await StartAsync<VTSService>();
-        await StartAsync<MixItUpService>();
-        await StartAsync<StreamerBotService>();
-        await StartAsync<ActionService>();
-        await StartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
-        
-        await StartAsync<TwitchService>();
-        await StartAsync<YouTubeService>();
-        await StartAsync<PicartoService>();
-        await StartAsync<StreamElementsService>();
-        await StartAsync<StreamLabsService>();
-        await StartAsync<TipeeeStreamService>();
-        await StartAsync<TreatStreamService>();
-        await StartAsync<GoAffProService>(); //(fireAndForget: true);
-        await StartAsync<MakeShipService>();
-        await StartAsync<JuniperService>();
-        await StartAsync<TangiaService>();
-        await StartAsync<KoFiService>();
-        await StartAsync<FourthWallService>();
-        await StartAsync<PatreonService>();
-        await StartAsync<ThroneService>();
-        await StartAsync<PallyService>();
-        await StartAsync<TiltifyService>();
-        await StartAsync<DiscordWebhookService>();
+        // Background Services & Integrations
+        await TryStartAsync<OBSService>();
+        if (FeatureFlags.VTubeStudioEnabled) await TryStartAsync<VTSService>();
+        await TryStartAsync<MixItUpService>();
+        await TryStartAsync<StreamerBotService>();
+        await TryStartAsync<ActionService>();
+        await TryStartAsync<DevTunnelsService>(); // shared tunnel infrastructure; must start before webhook integrations
+
+        // Independent Services & Integrations
+        // non blocking for any
+        await Task.WhenAll(
+            TryStartAsync<TwitchService>(),
+            TryStartAsync<YouTubeService>(),
+            TryStartAsync<PicartoService>(),
+            TryStartAsync<StreamElementsService>(),
+            TryStartAsync<StreamLabsService>(),
+            TryStartAsync<TipeeeStreamService>(),
+            TryStartAsync<TreatStreamService>(),
+            TryStartAsync<GoAffProService>(),
+            TryStartAsync<MakeShipService>(),
+            TryStartAsync<JuniperService>(),
+            TryStartAsync<TangiaService>(),
+            TryStartAsync<KoFiService>(),
+            TryStartAsync<FourthWallService>(),
+            TryStartAsync<PatreonService>(),
+            TryStartAsync<ThroneService>(),
+            TryStartAsync<PallyService>(),
+            TryStartAsync<TiltifyService>(),
+            TryStartAsync<DiscordWebhookService>());
+    }
+
+    private async Task TryStartAsync<T>() where T : IAppService {
+        try {
+            await StartAsync<T>();
+        }
+        catch (Exception ex) {
+            logger?.LogError(ex, "{Service} failed to start", typeof(T).Name);
+        }
     }
 
     public async Task StopIntegrationsAsync() {
@@ -150,7 +163,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         SemaphoreSlim lk = GetLock(typeof(T));
         await lk.WaitAsync(ct);
         try {
-            if (_running.Contains(typeof(T))) return;
+            if (_running.ContainsKey(typeof(T))) return;
 
             var service = Provider.GetRequiredService<T>();
 
@@ -160,7 +173,7 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             else
                 await service.StartAsync(ct);
-            _running.Add(typeof(T));
+            _running.TryAdd(typeof(T), 0);
             
             if (logger?.IsEnabled(LogLevel.Debug) ?? false)
                 logger?.LogDebug("{Service} started", typeof(T).Name);
@@ -174,12 +187,12 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
         SemaphoreSlim lk = GetLock(typeof(T));
         await lk.WaitAsync(ct);
         try {
-            if (!_running.Contains(typeof(T))) return;
+            if (!_running.ContainsKey(typeof(T))) return;
 
             var service = Provider.GetService<T>();
             if (service != null)
                 await service.StopAsync(ct);
-            _running.Remove(typeof(T));
+            _running.TryRemove(typeof(T), out _);
             if (logger?.IsEnabled(LogLevel.Debug) ?? false)
                 logger?.LogDebug("{Service} stopped", typeof(T).Name);
         }
@@ -189,6 +202,6 @@ public class ServiceManager(ILogger<ServiceManager> logger) {
     }
 
     public bool IsRunning<T>() {
-        return _running.Contains(typeof(T));
+        return _running.ContainsKey(typeof(T));
     }
 }
