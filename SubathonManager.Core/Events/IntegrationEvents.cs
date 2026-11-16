@@ -10,6 +10,11 @@ public static class IntegrationEvents {
     public static event Action<SubathonEventSource, IReadOnlyCollection<string>>? MembershipTiersSynced;
     public static event Action? DevTunnelLegacyNotification;
     public static event Action<SubathonEventSource>? ExternalSourceSeen;
+    public static event Action<SubathonEventSource>? ReauthRequired; // previously connected, startup reauth failed
+
+    public static void RaiseReauthRequired(SubathonEventSource source) {
+        ReauthRequired?.Invoke(source);
+    }
 
     public static void RaiseConnectionUpdate(IntegrationConnection connection) {
         Utils.UpdateConnection(connection);

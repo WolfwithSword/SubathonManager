@@ -245,10 +245,9 @@ public class PatreonService(
             return;
         }
 
-        if (!HasTokens() || (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct))) {
+        if (!HasTokens() || (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
+                             !await oAuth.ReauthorizeAsync(OAuthKeys, SubathonEventSource.Patreon, ct))) {
             logger?.LogWarning("[Patreon] Login is missing or expired");
-            ErrorMessageEvents.RaiseErrorEvent("WARN", nameof(SubathonEventSource.Patreon),
-                "Patreon login has expired. Reconnect it in the Patreon settings.", DateTime.Now);
             BroadcastStatus(null);
             return;
         }

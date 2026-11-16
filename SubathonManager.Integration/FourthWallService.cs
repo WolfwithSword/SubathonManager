@@ -142,7 +142,7 @@ public class FourthWallService(
         if (!HasTokenFile())
             await oAuth.AuthorizeAsync(OAuthKeys, ct);
         else if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct))
-            await oAuth.AuthorizeAsync(OAuthKeys, ct);
+            await oAuth.ReauthorizeAsync(OAuthKeys, SubathonEventSource.FourthWall, ct);
 
         return HasTokenFile() && !oAuth.NeedsRefresh(OAuthKeys);
     }

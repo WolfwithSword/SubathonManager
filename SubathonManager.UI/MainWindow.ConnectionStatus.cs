@@ -1,5 +1,8 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using FluentAvalonia.UI.Controls;
+using Microsoft.Extensions.Logging;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -19,10 +22,14 @@ public partial class MainWindow {
     private static readonly IBrush StatusNoneBrush = new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80));
 
     private MenuFlyout? _statusFlyout;
+    private FAContentDialog? _reauthDialog;
+    private StackPanel? _reauthList;
 
     private void InitConnectionStatus() {
         IntegrationEvents.ConnectionUpdated += OnConnectionStatusChanged;
         Closed += (_, _) => IntegrationEvents.ConnectionUpdated -= OnConnectionStatusChanged;
+        IntegrationEvents.ReauthRequired += OnReauthRequired;
+        Closed += (_, _) => IntegrationEvents.ReauthRequired -= OnReauthRequired;
         UpdateConnectionStatusDot();
     }
 
@@ -303,6 +310,60 @@ public partial class MainWindow {
         if (navigateTo is { } source)
             item.Click += (_, _) => NavigateToSourceSettings(source, navigateDetail);
         return item;
+    }
+
+    private void OnReauthRequired(SubathonEventSource source) {
+        Dispatcher.UIThread.Post(async void () => {
+            if (_reauthDialog != null) {
+                AddReauthItem(source);
+                return;
+            }
+
+            try {
+                _reauthList = new StackPanel { Orientation = Orientation.Vertical, Spacing = 6 };
+                _reauthDialog = new FAContentDialog {
+                    Title = "Services Need Attention",
+                    CloseButtonText = "Later",
+                    Content = new StackPanel {
+                        Width = 340,
+                        Spacing = 12,
+                        Margin = new Thickness(4),
+                        Children = {
+                            new TextBlock {
+                                Text = "These services failed to connect on their own. " +
+                                       "Please try to reconnect them.",
+                                TextWrapping = TextWrapping.Wrap
+                            },
+                            _reauthList
+                        }
+                    }
+                };
+                AddReauthItem(source);
+                await _reauthDialog.ShowAsync(this);
+            }
+            catch (Exception ex) {
+                _logger?.LogWarning(ex, "Could not show reauth prompt for {Source}", source);
+            }
+            finally {
+                _reauthDialog = null;
+                _reauthList = null;
+            }
+        });
+    }
+
+    private void AddReauthItem(SubathonEventSource source) {
+        if (_reauthList == null || _reauthList.Children.Any(c => Equals(c.Tag, source))) return;
+
+        var button = new Button {
+            Content = source.GetDescription(),
+            Tag = source,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        button.Click += (_, _) => {
+            _reauthDialog?.Hide();
+            NavigateToSourceSettings(source);
+        };
+        _reauthList.Children.Add(button);
     }
 
     private void NavigateToSourceSettings(SubathonEventSource source, string? detail = null) {

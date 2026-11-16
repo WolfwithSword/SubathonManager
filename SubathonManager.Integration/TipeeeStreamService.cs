@@ -53,7 +53,8 @@ public class TipeeeStreamService(
             return;
         }
 
-        await InitializeAsync(ct);
+        // do not await, else waiting for auth could block
+        _ = Task.Run(() => InitializeAsync(ct), ct);
     }
 
     public async Task StopAsync(CancellationToken ct = default) {
@@ -66,7 +67,7 @@ public class TipeeeStreamService(
     [ExcludeFromCodeCoverage]
     private async Task InitializeAsync(CancellationToken ct = default) {
         if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
-            !await StartOAuthFlowAsync(ct)) {
+            !await oAuth.ReauthorizeAsync(OAuthKeys, SubathonEventSource.TipeeeStream, ct)) {
             BroadcastStatus(false);
             return;
         }

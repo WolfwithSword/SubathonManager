@@ -3,6 +3,9 @@ using System.Net;
 using System.Text;
 using Moq;
 using Moq.Protected;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
+using SubathonManager.Core.Objects;
 using SubathonManager.Services;
 using SubathonManager.Tests.Utility;
 
@@ -12,7 +15,7 @@ namespace SubathonManager.Tests.ServicesUnitTests;
 
 public class OAuthServiceTests {
     private static readonly OAuthProvider Full = new("tiltify", "SM.T.Access", "SM.T.Refresh", "SM.T.Expiry",
-        "SM.T.ClientId", DefaultLifetime: TimeSpan.FromHours(2), RefreshMargin: TimeSpan.FromMinutes(10));
+        "SM.T.ClientId", TimeSpan.FromHours(2), TimeSpan.FromMinutes(10));
 
     private static readonly OAuthProvider Jwt = new("fourthwall", "SM.F.Access", "SM.F.Refresh");
     private static readonly OAuthProvider AccessOnly = new("twitch", "SM.Tw.Access");
@@ -48,7 +51,9 @@ public class OAuthServiceTests {
         return $"e30.{payload}.sig";
     }
 
-    private static string Iso(DateTime utc) => utc.ToString("O", CultureInfo.InvariantCulture);
+    private static string Iso(DateTime utc) {
+        return utc.ToString("O", CultureInfo.InvariantCulture);
+    }
 
     [Fact]
     public async Task AuthorizeAsync_StoresTokensFromMatchingCallback() {
@@ -127,6 +132,42 @@ public class OAuthServiceTests {
         Assert.False(service.HandleCallback("subathonmanager://oauth/tiltify?access_token=late"));
     }
 
+    [Fact]
+    public async Task ReauthorizeAsync_RaisesReauthRequiredOnlyWhenLoginActuallyFails() {
+        (OAuthService service, InMemorySecureStorage storage, _) = MakeService(
+            new Dictionary<string, string> { ["SM.T.Access"] = "old", ["SM.T.Refresh"] = "old" });
+        List<SubathonEventSource> raised = [];
+
+        // unknown source, so parallel tests won't leak
+        void Handler(SubathonEventSource source) {
+            if (source == SubathonEventSource.Unknown) raised.Add(source);
+        }
+
+        IntegrationEvents.ReauthRequired += Handler;
+        try {
+            service.ReauthTimeout = TimeSpan.FromMilliseconds(50);
+            Assert.False(await service.ReauthorizeAsync(Full, SubathonEventSource.Unknown,
+                TestContext.Current.CancellationToken));
+            Assert.Single(raised);
+            Assert.False(service.HasTokens(Full));
+
+            // superseded by a newer login
+            service.ReauthTimeout = TimeSpan.FromMinutes(1);
+            Task<bool> reauth = service.ReauthorizeAsync(Full, SubathonEventSource.Unknown,
+                TestContext.Current.CancellationToken);
+            Task<bool> manual = service.AuthorizeAsync(Full, TestContext.Current.CancellationToken);
+            Assert.False(await reauth);
+            Assert.Single(raised);
+
+            Assert.True(service.HandleCallback("subathonmanager://oauth/tiltify?access_token=a&refresh_token=r"));
+            Assert.True(await manual);
+            Assert.Equal("a", storage.GetOrDefault("SM.T.Access"));
+        }
+        finally {
+            IntegrationEvents.ReauthRequired -= Handler;
+        }
+    }
+
     [Theory]
     [InlineData("not a url")]
     [InlineData("subathonmanager://overlay?url=https://example.com/a.smo")]
@@ -152,7 +193,7 @@ public class OAuthServiceTests {
     [Fact]
     public void StoreTokens_MissingExpiresIn_UsesDefaultLifetime() {
         (OAuthService service, _, _) = MakeService();
-        service.StoreTokens(Full, new() { AccessToken = "a", RefreshToken = "r" });
+        service.StoreTokens(Full, new OAuthCallback { AccessToken = "a", RefreshToken = "r" });
         Assert.InRange(service.GetExpiry(Full)!.Value, DateTime.UtcNow.AddMinutes(115),
             DateTime.UtcNow.AddMinutes(125));
     }
@@ -164,7 +205,7 @@ public class OAuthServiceTests {
         });
         Assert.False(service.NeedsRefresh(Full));
 
-        service.StoreTokens(Full, new() { AccessToken = "a", ExpiresIn = "300" });
+        service.StoreTokens(Full, new OAuthCallback { AccessToken = "a", ExpiresIn = "300" });
         Assert.True(service.NeedsRefresh(Full));
     }
 
@@ -185,7 +226,7 @@ public class OAuthServiceTests {
         });
         Assert.False(service.NeedsRefresh(Jwt));
 
-        service.StoreTokens(Jwt, new() { AccessToken = MakeJwt(DateTime.UtcNow.AddSeconds(30)) });
+        service.StoreTokens(Jwt, new OAuthCallback { AccessToken = MakeJwt(DateTime.UtcNow.AddSeconds(30)) });
         Assert.True(service.NeedsRefresh(Jwt));
         Assert.Equal("r", service.GetRefreshToken(Jwt));
     }

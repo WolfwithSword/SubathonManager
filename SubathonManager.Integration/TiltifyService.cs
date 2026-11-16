@@ -63,7 +63,8 @@ public class TiltifyService(
             return;
         }
 
-        await InitializeAsync(ct);
+        // do not await, else waiting for auth could block
+        _ = Task.Run(() => InitializeAsync(ct), ct);
     }
 
     public Task StopAsync(CancellationToken ct = default) {
@@ -99,7 +100,7 @@ public class TiltifyService(
     [ExcludeFromCodeCoverage]
     private async Task InitializeAsync(CancellationToken ct = default) {
         if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
-            !await oAuth.AuthorizeAsync(OAuthKeys, ct)) {
+            !await oAuth.ReauthorizeAsync(OAuthKeys, SubathonEventSource.Tiltify, ct)) {
             BroadcastStatus(false);
             return;
         }

@@ -61,17 +61,20 @@ public class TwitchService(
 
     [ExcludeFromCodeCoverage]
     public async Task StartAsync(CancellationToken ct = default) {
-        if (HasTokenFile()) {
-            bool tokenValid = await ValidateTokenAsync();
-            if (!tokenValid) {
-                RevokeTokenFile();
-                logger?.LogWarning("Twitch token expired - deleting token file");
-            }
-            else {
-                logger?.LogInformation("Twitch Service starting up...");
-                await InitializeAsync(ct);
-            }
+        if (!HasTokenFile()) return;
+
+        if (await ValidateTokenAsync()) {
+            logger?.LogInformation("Twitch Service starting up...");
+            await InitializeAsync(ct);
+            return;
         }
+
+        logger?.LogWarning("Twitch token expired - trying to prompt for reauthorization");
+        // do not await, else waiting for auth could block
+        _ = Task.Run(async () => {
+            if (await oAuth.ReauthorizeAsync(OAuthKeys, SubathonEventSource.Twitch, ct))
+                await InitializeAsync(ct);
+        }, ct);
     }
 
     public async Task StopAsync(CancellationToken ct = default) {

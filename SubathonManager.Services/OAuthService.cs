@@ -6,6 +6,8 @@ using System.Text.Json;
 using System.Web;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security.Interfaces;
 
@@ -34,6 +36,9 @@ public class OAuthService(
 
     internal Action<string> OpenBrowser =
         url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+
+    // shorter than a manual connect, user may not be at pc
+    internal TimeSpan ReauthTimeout = TimeSpan.FromMinutes(2);
 
     public static string LoginUrl(string provider) {
         return $"{BaseUrl}/{provider}/login";
@@ -113,9 +118,29 @@ public class OAuthService(
         }
 
         StoreTokens(provider, cb);
-        if (logger?.IsEnabled(LogLevel.Information) ?? false) 
+        if (logger?.IsEnabled(LogLevel.Information) ?? false)
             logger?.LogInformation("[OAuth] {Provider} tokens stored", provider.Name);
         return true;
+    }
+
+    public async Task<bool> ReauthorizeAsync(OAuthProvider provider, SubathonEventSource source,
+        CancellationToken ct = default) {
+        bool authorized;
+        try {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(ReauthTimeout);
+            authorized = await AuthorizeAsync(provider, cts.Token);
+        }
+        catch (Exception ex) {
+            logger?.LogWarning(ex, "[OAuth] {Provider} reauthorization failed", provider.Name);
+            RevokeTokens(provider);
+            authorized = false;
+        }
+
+        // skip when shutting down, or on newer login is stored
+        if (!authorized && !ct.IsCancellationRequested && !_pending.ContainsKey(provider.Name))
+            IntegrationEvents.RaiseReauthRequired(source);
+        return authorized;
     }
 
     private async Task<OAuthCallback?> WaitForCallbackAsync(string name, CancellationToken ct) {

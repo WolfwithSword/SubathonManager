@@ -50,7 +50,8 @@ public class TreatStreamService(
             return;
         }
 
-        await InitializeAsync(ct);
+        // do not await, else waiting for auth could block
+        _ = Task.Run(() => InitializeAsync(ct), ct);
     }
 
     public async Task StopAsync(CancellationToken ct = default) {
@@ -63,7 +64,7 @@ public class TreatStreamService(
     [ExcludeFromCodeCoverage]
     private async Task InitializeAsync(CancellationToken ct = default) {
         if (oAuth.NeedsRefresh(OAuthKeys) && !await oAuth.RefreshAsync(OAuthKeys, ct) &&
-            !await oAuth.AuthorizeAsync(OAuthKeys, ct)) {
+            !await oAuth.ReauthorizeAsync(OAuthKeys, SubathonEventSource.TreatStream, ct)) {
             BroadcastStatus(false);
             return;
         }
