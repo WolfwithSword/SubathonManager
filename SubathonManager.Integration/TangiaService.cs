@@ -9,7 +9,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 
@@ -195,13 +194,12 @@ public class TangiaService(
     }
 
     private void BroadcastStatus(bool connected) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.Tangia,
-            Service = nameof(SubathonEventSource.Tangia),
-            Name = "",
-            Status = connected,
-            Configured = !string.IsNullOrWhiteSpace(EventKey)
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.Tangia,
+            nameof(SubathonEventSource.Tangia),
+            connected,
+            "",
+            configured: !string.IsNullOrWhiteSpace(EventKey));
     }
 
     private class TangiaResponse {

@@ -470,7 +470,7 @@ public class PatreonService(
 
     [ExcludeFromCodeCoverage]
     private void OnTunnelUpdated(IntegrationConnection connection) {
-        if (connection is not { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" }) return;
+        if (!DevTunnelsService.IsTunnelUpdate(connection)) return;
         if (HasTokens() && connection.Status) {
             Task.Run(() => InitializeAsync());
             return;
@@ -480,17 +480,8 @@ public class PatreonService(
     }
 
     private void BroadcastStatus(string? tunnelBaseUrl) {
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
-            ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
-            : null;
-
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Name = fullUrl ?? "",
-            Status = HasTokens() && fullUrl != null,
-            Source = SubathonEventSource.Patreon,
-            Service = nameof(SubathonEventSource.Patreon),
-            Configured = HasTokens()
-        });
+        DevTunnelsService.BroadcastWebhookStatus(SubathonEventSource.Patreon, WebhookPath, HasTokens(), tunnelBaseUrl,
+            logger);
     }
 
     [ExcludeFromCodeCoverage]

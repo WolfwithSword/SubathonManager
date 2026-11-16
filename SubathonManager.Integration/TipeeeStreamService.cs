@@ -12,7 +12,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 using SubathonManager.Services;
@@ -260,50 +259,13 @@ public class TipeeeStreamService(
 
     [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync(CancellationToken ct = default) {
-        if (!await _reconnectState.Lock.WaitAsync(0, ct)) return;
-
-        try {
-            _reconnectState.Cts?.Cancel();
-            _reconnectState.Cts = new CancellationTokenSource();
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _reconnectState.Cts.Token);
-            CancellationToken token = linked.Token;
-
-            while (!token.IsCancellationRequested && !_connected && !_hasAuthError) {
-                if (_reconnectState.Retries >= _reconnectState.MaxRetries) {
-                    var msg = "TipeeeStream disconnected and max reconnect retries were reached.";
-                    ErrorMessageEvents.RaiseErrorEvent(
-                        "ERROR", nameof(SubathonEventSource.TipeeeStream), msg, DateTime.Now.ToLocalTime());
-                    logger?.LogError(msg);
-                    return;
-                }
-
-                _reconnectState.Retries++;
-                TimeSpan delay = _reconnectState.Backoff;
-
-                logger?.LogWarning("[TipeeeStream] Reconnect attempt {Attempt}/{Max} in {Delay}s",
-                    _reconnectState.Retries, _reconnectState.MaxRetries, delay.TotalSeconds);
-
-                try {
-                    await Task.Delay(delay, token);
-                    if (!_connected && _socket != null)
-                        await _socket.ConnectAsync(token);
-                }
-                catch (OperationCanceledException) {
-                    return;
-                }
-                catch (Exception ex) {
-                    logger?.LogWarning(ex, "[TipeeeStream] Reconnect attempt failed");
-                }
-
-                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        _reconnectState.Backoff.TotalMilliseconds * 2,
-                        _reconnectState.MaxBackoff.TotalMilliseconds));
-            }
-        }
-        finally {
-            _reconnectState.Lock.Release();
-        }
+        await _reconnectState.RunAsync("TipeeeStream", SubathonEventSource.TipeeeStream,
+            () => !_connected && !_hasAuthError,
+            async token => {
+                if (!_connected && _socket != null)
+                    await _socket.ConnectAsync(token);
+            },
+            logger, "TipeeeStream disconnected and max reconnect retries were reached.", ct: ct);
     }
 
     [ExcludeFromCodeCoverage]
@@ -485,13 +447,12 @@ public class TipeeeStreamService(
     }
 
     private void BroadcastStatus(bool connected) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.TipeeeStream,
-            Service = nameof(SubathonEventSource.TipeeeStream),
-            Name = connected ? _username ?? "User" : "",
-            Status = connected,
-            Configured = HasTokens()
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.TipeeeStream,
+            nameof(SubathonEventSource.TipeeeStream),
+            connected,
+            connected ? _username ?? "User" : "",
+            configured: HasTokens());
     }
 
 

@@ -117,31 +117,15 @@ public class KoFiService(
     // (e.g. KoFiWebhookSettings) always see the composed public URL without having
     // to know about DevTunnels or manually concatenate paths.
     private void OnTunnelUpdated(IntegrationConnection connection) {
-        if (connection is not { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" }) return;
+        if (!DevTunnelsService.IsTunnelUpdate(connection)) return;
         string? token = secureStorage.Get(StorageKeys.KoFiVerificationToken);
         bool enabled = !string.IsNullOrWhiteSpace(token);
         BroadcastStatus(enabled, connection.Status ? connection.Name : null);
     }
 
     private void BroadcastStatus(bool enabled, string? tunnelBaseUrl) {
-        // Compose the full public URL from the tunnel base + our own path.
-        // WebhookPath is the single source of truth for the path segment.
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
-            ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
-            : null;
-
-        // Only report as connected when both the token is configured and the tunnel
-        // is actually up with a public URL. A token alone means nothing without reachability.
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Name = fullUrl ?? "",
-            Status = enabled && fullUrl != null,
-            Source = SubathonEventSource.KoFiTunnel,
-            Service = nameof(SubathonEventSource.KoFiTunnel),
-            Configured = enabled
-        });
-
-        if (fullUrl != null)
-            logger?.LogInformation("[Ko-Fi] Public webhook URL: {Url}", fullUrl);
+        DevTunnelsService.BroadcastWebhookStatus(SubathonEventSource.KoFiTunnel, WebhookPath, enabled, tunnelBaseUrl,
+            logger);
     }
 
     private SubathonEvent? MapToSubathonEvent(KoFiWebhookEvent koFiEvent) {

@@ -167,13 +167,12 @@ public class MixItUpService(
 
     private void BroadcastStatus() {
         bool seen = Connected;
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.MixItUp,
-            Service = ServiceName,
-            Name = seen && !string.IsNullOrWhiteSpace(Version) ? $"v{Version}" : "",
-            Status = seen,
-            Configured = seen
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.MixItUp,
+            ServiceName,
+            seen,
+            seen && !string.IsNullOrWhiteSpace(Version) ? $"v{Version}" : "",
+            configured: seen);
     }
 
     private HttpClient CreateClient() {

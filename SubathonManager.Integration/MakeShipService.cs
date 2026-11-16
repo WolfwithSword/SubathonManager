@@ -8,7 +8,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Integration;
 
@@ -397,13 +396,12 @@ public partial class MakeShipService(
         _lastBroadcastStatus = status;
         _lastBroadcastName = name;
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.MakeShip,
-            Service = nameof(SubathonEventSource.MakeShip),
-            Name = name,
-            Status = status,
-            Configured = trackings.Count > 0
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.MakeShip,
+            nameof(SubathonEventSource.MakeShip),
+            status,
+            name,
+            configured: trackings.Count > 0);
     }
 
     private async Task<string?> GetStringAsync(MakeShipTracking tracking, string url, CancellationToken ct) {

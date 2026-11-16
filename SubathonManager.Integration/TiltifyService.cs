@@ -12,7 +12,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Services;
 using Tiltify.Client.Generated;
@@ -35,9 +34,6 @@ public class TiltifyService(
         DefaultLifetime: TimeSpan.FromHours(2), RefreshMargin: TimeSpan.FromMinutes(10));
 
     private readonly string _configSection = "Tiltify";
-    private readonly Dictionary<Guid, DateTimeOffset> _seen = new();
-
-    private readonly Dictionary<Guid, DateTimeOffset> _watermarks = new();
     private HttpClientRequestAdapter? _adapter;
 
     private TiltifyApiClient? _client;
@@ -208,8 +204,6 @@ public class TiltifyService(
 
     private void StartPolling() {
         StopPolling();
-        _watermarks.Clear();
-        _seen.Clear();
         _pollCts = new CancellationTokenSource();
         CancellationToken token = _pollCts.Token;
         _ = Task.Run(() => PollAsync(token), token);
@@ -230,11 +224,15 @@ public class TiltifyService(
             return;
         }
 
+        var seen = new Dictionary<Guid, DateTimeOffset>();
+        var watermarks = new Dictionary<Guid, DateTimeOffset>();
+
         logger?.LogInformation("[Tiltify] Polling {Count} campaign(s) for donations...", campaigns.Count);
         while (!ct.IsCancellationRequested) {
             foreach ((Guid id, bool isTeam) in campaigns)
                 try {
-                    await PollCampaignAsync(id, isTeam, _watermarks.GetValueOrDefault(id, startedAt), ct);
+                    await PollCampaignAsync(id, isTeam, watermarks.GetValueOrDefault(id, startedAt), seen, watermarks,
+                        ct);
                 }
                 catch (OperationCanceledException) {
                     return;
@@ -249,7 +247,7 @@ public class TiltifyService(
                     logger?.LogWarning(ex, "[Tiltify] Failed to poll campaign {Campaign}", id);
                 }
 
-            PruneSeen();
+            PruneSeen(seen, watermarks);
             try {
                 await Task.Delay(PollInterval, ct);
             }
@@ -260,16 +258,17 @@ public class TiltifyService(
     }
 
     [ExcludeFromCodeCoverage]
-    private async Task PollCampaignAsync(Guid campaignId, bool isTeam, DateTimeOffset since, CancellationToken ct) {
+    private async Task PollCampaignAsync(Guid campaignId, bool isTeam, DateTimeOffset since,
+        Dictionary<Guid, DateTimeOffset> seen, Dictionary<Guid, DateTimeOffset> watermarks, CancellationToken ct) {
         if (_client == null) return;
         List<Donation> donations = await FetchDonationsAsync(campaignId, isTeam, since - PollOverlap,
             MaxPagesPerPoll, ct);
 
         foreach (Donation donation in donations.OrderBy(d => d.CompletedAt ?? DateTimeOffset.MinValue)) {
             if (donation.Id == null || donation.CompletedAt == null) continue;
-            if (donation.CompletedAt > _watermarks.GetValueOrDefault(campaignId, since))
-                _watermarks[campaignId] = donation.CompletedAt.Value;
-            if (!_seen.TryAdd(donation.Id.Value, donation.CompletedAt.Value)) continue;
+            if (donation.CompletedAt > watermarks.GetValueOrDefault(campaignId, since))
+                watermarks[campaignId] = donation.CompletedAt.Value;
+            if (!seen.TryAdd(donation.Id.Value, donation.CompletedAt.Value)) continue;
             HandleDonation(donation, campaignId);
         }
     }
@@ -323,12 +322,12 @@ public class TiltifyService(
         return (items, after);
     }
 
-    private void PruneSeen() {
-        if (_seen.Count == 0) return;
-        DateTimeOffset cutoff = (_watermarks.Count > 0 ? _watermarks.Values.Min() : DateTimeOffset.UtcNow)
+    private void PruneSeen(Dictionary<Guid, DateTimeOffset> seen, Dictionary<Guid, DateTimeOffset> watermarks) {
+        if (seen.Count == 0) return;
+        DateTimeOffset cutoff = (watermarks.Count > 0 ? watermarks.Values.Min() : DateTimeOffset.UtcNow)
                                 - PollOverlap - PollOverlap;
-        foreach (Guid id in _seen.Where(kv => kv.Value < cutoff).Select(kv => kv.Key).ToList())
-            _seen.Remove(id);
+        foreach (Guid id in seen.Where(kv => kv.Value < cutoff).Select(kv => kv.Key).ToList())
+            seen.Remove(id);
     }
 
     internal void HandleDonation(Donation donation, Guid? polledCampaignId = null) {
@@ -426,13 +425,12 @@ public class TiltifyService(
     }
 
     private void BroadcastStatus(bool connected) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.Tiltify,
-            Service = nameof(SubathonEventSource.Tiltify),
-            Name = connected ? _username ?? "User" : "",
-            Status = connected,
-            Configured = HasTokens()
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.Tiltify,
+            nameof(SubathonEventSource.Tiltify),
+            connected,
+            connected ? _username ?? "User" : "",
+            configured: HasTokens());
     }
 
     public record CampaignOption(Guid Id, string Name, bool IsTeam);

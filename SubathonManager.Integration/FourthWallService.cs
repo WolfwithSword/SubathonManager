@@ -283,7 +283,7 @@ public class FourthWallService(
 
     [ExcludeFromCodeCoverage]
     private void OnTunnelUpdated(IntegrationConnection connection) {
-        if (connection is not { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" }) return;
+        if (!DevTunnelsService.IsTunnelUpdate(connection)) return;
 
         bool enabled = HasTokenFile();
         if (enabled && connection.Status) {
@@ -295,20 +295,8 @@ public class FourthWallService(
     }
 
     private void BroadcastStatus(bool enabled, string? tunnelBaseUrl) {
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
-            ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
-            : null;
-
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Name = fullUrl ?? "",
-            Status = enabled && fullUrl != null,
-            Source = SubathonEventSource.FourthWall,
-            Service = nameof(SubathonEventSource.FourthWall),
-            Configured = enabled
-        });
-
-        if (fullUrl != null)
-            logger?.LogInformation("[FourthWall] Public webhook URL: {Url}", fullUrl);
+        DevTunnelsService.BroadcastWebhookStatus(SubathonEventSource.FourthWall, WebhookPath, enabled,
+            tunnelBaseUrl, logger);
     }
 
     public SubathonEvent? MapToSubathonEvent(FourthwallWebhookEvent fwEvent) {

@@ -10,7 +10,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Services;
 using SocketIOType = SocketIOClient.SocketIO;
@@ -209,62 +208,25 @@ public class TreatStreamService(
 
     [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync(CancellationToken ct = default) {
-        if (!await _reconnectState.Lock.WaitAsync(0, ct)) return;
+        await _reconnectState.RunAsync("TreatStream", SubathonEventSource.TreatStream,
+            () => !_connected && !_hasAuthError,
+            async token => {
+                if (oAuth.NeedsRefresh(OAuthKeys)) await oAuth.RefreshAsync(OAuthKeys, token);
+                string? socketToken = await FetchSocketTokenAsync(token);
+                if (string.IsNullOrWhiteSpace(socketToken) || _connected || _socket == null) return;
 
-        try {
-            _reconnectState.Cts?.Cancel();
-            _reconnectState.Cts = new CancellationTokenSource();
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _reconnectState.Cts.Token);
-            CancellationToken token = linked.Token;
-
-            while (!token.IsCancellationRequested && !_connected && !_hasAuthError) {
-                if (_reconnectState.Retries >= _reconnectState.MaxRetries) {
-                    var msg = "TreatStream disconnected and max reconnect retries were reached.";
-                    ErrorMessageEvents.RaiseErrorEvent(
-                        "ERROR", nameof(SubathonEventSource.TreatStream), msg, DateTime.Now.ToLocalTime());
-                    logger?.LogError(msg);
-                    return;
-                }
-
-                _reconnectState.Retries++;
-                TimeSpan delay = _reconnectState.Backoff;
-                logger?.LogWarning("[TreatStream] Reconnect attempt {Attempt}/{Max} in {Delay}s",
-                    _reconnectState.Retries, _reconnectState.MaxRetries, delay.TotalSeconds);
-
-                try {
-                    await Task.Delay(delay, token);
-
-                    if (oAuth.NeedsRefresh(OAuthKeys)) await oAuth.RefreshAsync(OAuthKeys, token);
-                    string? socketToken = await FetchSocketTokenAsync(token);
-                    if (!string.IsNullOrWhiteSpace(socketToken) && !_connected && _socket != null) {
-                        await DisconnectSocketOnlyAsync();
-                        _socket = new SocketIOType(SocketUrl, new SocketIOOptions {
-                            Query = new List<KeyValuePair<string, string>> { new("token", socketToken) },
-                            EIO = EngineIO.V3,
-                            Transport = TransportProtocol.WebSocket
-                        });
-                        _socket.OnConnected += OnSocketConnected;
-                        _socket.OnDisconnected += OnSocketDisconnected;
-                        _socket.On("realTimeTreat", OnRealTimeTreat);
-                        await _socket.ConnectAsync(token);
-                    }
-                }
-                catch (OperationCanceledException) {
-                    return;
-                }
-                catch (Exception ex) {
-                    logger?.LogWarning(ex, "[TreatStream] Reconnect attempt failed");
-                }
-
-                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        _reconnectState.Backoff.TotalMilliseconds * 2,
-                        _reconnectState.MaxBackoff.TotalMilliseconds));
-            }
-        }
-        finally {
-            _reconnectState.Lock.Release();
-        }
+                await DisconnectSocketOnlyAsync();
+                _socket = new SocketIOType(SocketUrl, new SocketIOOptions {
+                    Query = new List<KeyValuePair<string, string>> { new("token", socketToken) },
+                    EIO = EngineIO.V3,
+                    Transport = TransportProtocol.WebSocket
+                });
+                _socket.OnConnected += OnSocketConnected;
+                _socket.OnDisconnected += OnSocketDisconnected;
+                _socket.On("realTimeTreat", OnRealTimeTreat);
+                await _socket.ConnectAsync(token);
+            },
+            logger, "TreatStream disconnected and max reconnect retries were reached.", ct: ct);
     }
 
     [ExcludeFromCodeCoverage]
@@ -362,12 +324,11 @@ public class TreatStreamService(
     }
 
     private void BroadcastStatus(bool connected) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.TreatStream,
-            Service = "Socket",
-            Name = connected ? "TreatStream" : "",
-            Status = connected,
-            Configured = HasTokens()
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.TreatStream,
+            "Socket",
+            connected,
+            connected ? "TreatStream" : "",
+            configured: HasTokens());
     }
 }

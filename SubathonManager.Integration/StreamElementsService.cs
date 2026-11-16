@@ -9,7 +9,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 
@@ -85,12 +84,7 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
         logger?.LogWarning("[StreamElementsService] Disconnected");
         Connected = false;
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamElements,
-            Service = "Socket",
-            Name = "User",
-            Status = Connected
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.StreamElements, "Socket", Connected, "User");
         if (_hasAuthError) return;
 
         _ = Task.Run(ReconnectWithBackoffAsync);
@@ -101,64 +95,22 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
         if (_client == null)
             return;
 
-        if (!await _reconnectState.Lock.WaitAsync(0))
-            return; // already reconnecting
-
-        try {
-            _reconnectState.Cts?.Cancel();
-            _reconnectState.Cts = new CancellationTokenSource();
-            CancellationToken token = _reconnectState.Cts.Token;
-
-            while (!token.IsCancellationRequested && !Connected && !_hasAuthError) {
-                if (_reconnectState.Retries >= _reconnectState.MaxRetries) {
-                    var message =
-                        "StreamElements disconnected and max reconnect retries were reached.";
-
-                    ErrorMessageEvents.RaiseErrorEvent(
-                        "ERROR",
-                        nameof(SubathonEventSource.StreamElements),
-                        message,
-                        DateTime.Now.ToLocalTime());
-
-                    logger?.LogError(message);
-                    return;
-                }
-
-                _reconnectState.Retries++;
-
-                TimeSpan delay = _reconnectState.Backoff;
-
-                logger?.LogWarning(
-                    "[StreamElementsService] Reconnect attempt {Attempt}/{Max} in {Delay}s",
-                    _reconnectState.Retries,
-                    _reconnectState.MaxRetries,
-                    delay.TotalSeconds);
-
+        await _reconnectState.RunAsync("StreamElementsService", SubathonEventSource.StreamElements,
+            () => !Connected && !_hasAuthError,
+            _ => {
                 try {
-                    await Task.Delay(delay, token);
-
                     if (!Connected && !_hasAuthError && _client != null) _client.Connect(JwtToken);
                 }
-                catch (OperationCanceledException) {
-                    return;
-                }
                 catch (Exception ex) {
-                    var message = $"StreamElements Disconnected with an error. Could not auto-reconnect. {ex.Message}";
-                    logger?.LogWarning(ex, message);
                     ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements),
-                        message, DateTime.Now.ToLocalTime());
+                        $"StreamElements Disconnected with an error. Could not auto-reconnect. {ex.Message}",
+                        DateTime.Now.ToLocalTime());
+                    throw;
                 }
 
-                // exponential backoff
-                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        _reconnectState.Backoff.TotalMilliseconds * 2,
-                        _reconnectState.MaxBackoff.TotalMilliseconds));
-            }
-        }
-        finally {
-            _reconnectState.Lock.Release();
-        }
+                return Task.CompletedTask;
+            },
+            logger, "StreamElements disconnected and max reconnect retries were reached.");
     }
 
     private void _OnAuthenticated(object? sender, Authenticated e) {
@@ -168,12 +120,7 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
 
         _reconnectState.Cts?.Cancel();
         _reconnectState.Reset();
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamElements,
-            Service = "Socket",
-            Name = "User",
-            Status = Connected
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.StreamElements, "Socket", Connected, "User");
     }
 
     private void _OnAuthenticateError(object? sender, EventArgs e) {
@@ -181,12 +128,7 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
         Connected = false;
         _hasAuthError = true;
         _reconnectState.Cts?.Cancel();
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamElements,
-            Service = "Socket",
-            Name = "User",
-            Status = Connected
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.StreamElements, "Socket", Connected, "User");
         ErrorMessageEvents.RaiseErrorEvent("ERROR", nameof(SubathonEventSource.StreamElements),
             "StreamElements Token could not be validated", DateTime.Now.ToLocalTime());
     }
@@ -221,13 +163,12 @@ public class StreamElementsService(ILogger<StreamElementsService>? logger, ISecu
             logger?.LogWarning(ex, "[StreamElementsService] Disconnection Error");
         }
         finally {
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.StreamElements,
-                Service = "Socket",
-                Name = "User",
-                Status = false,
-                Configured = !IsTokenEmpty()
-            });
+            IntegrationEvents.RaiseConnectionUpdate(
+                SubathonEventSource.StreamElements,
+                "Socket",
+                false,
+                "User",
+                configured: !IsTokenEmpty());
         }
     }
 

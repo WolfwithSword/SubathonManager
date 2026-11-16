@@ -9,7 +9,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Services;
 
 namespace SubathonManager.Integration;
@@ -82,20 +81,18 @@ public class PicartoService : IDisposable, IAppService {
         _picartoUsername = _config.Get("Picarto", "Username", string.Empty)!;
         bool configured = !string.IsNullOrWhiteSpace(_picartoUsername);
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.Picarto,
-            Service = "Chat",
-            Name = _picartoUsername,
-            Status = false,
-            Configured = configured
-        });
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.Picarto,
-            Service = "Alerts",
-            Name = _picartoUsername,
-            Status = false,
-            Configured = configured
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.Picarto,
+            "Chat",
+            false,
+            _picartoUsername,
+            configured);
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.Picarto,
+            "Alerts",
+            false,
+            _picartoUsername,
+            configured);
 
         if (!configured)
             return;
@@ -201,23 +198,21 @@ public class PicartoService : IDisposable, IAppService {
             _chatReconnect.Reset();
             _chatReconnect.Cts?.Cancel();
 
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.Picarto,
-                Service = "Chat",
-                Name = _picartoUsername ?? "",
-                Status = _chatConnected
-            });
+            IntegrationEvents.RaiseConnectionUpdate(
+                SubathonEventSource.Picarto,
+                "Chat",
+                _chatConnected,
+                _picartoUsername ?? "");
         }
         else if (sender is PicartoEventsClient) {
             _eventsConnected = true;
             _eventsReconnect.Reset();
             _eventsReconnect.Cts?.Cancel();
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.Picarto,
-                Service = "Alerts",
-                Name = _picartoUsername ?? "",
-                Status = _eventsConnected
-            });
+            IntegrationEvents.RaiseConnectionUpdate(
+                SubathonEventSource.Picarto,
+                "Alerts",
+                _eventsConnected,
+                _picartoUsername ?? "");
         }
     }
 
@@ -226,54 +221,10 @@ public class PicartoService : IDisposable, IAppService {
         PicartoWebSocketConnection client,
         Func<bool> isConnected,
         Utils.ServiceReconnectState state) {
-        if (!await state.Lock.WaitAsync(0))
-            return;
-
-        try {
-            _logger?.LogInformation("Attempting to reconnect {Client}", client.GetType().Name);
-            state.Cts?.Cancel();
-            state.Cts = new CancellationTokenSource();
-            CancellationToken token = state.Cts.Token;
-
-            while (!isConnected() && !token.IsCancellationRequested && !string.IsNullOrWhiteSpace(_picartoUsername)) {
-                TimeSpan delay = state.Backoff;
-                _logger?.LogDebug(
-                    "{Client} reconnect attempt in {Delay}s",
-                    client.GetType().Name,
-                    delay);
-
-                try {
-                    await Task.Delay(delay, token);
-                    await client.ReconnectAsync();
-                }
-                catch (OperationCanceledException) {
-                    return;
-                }
-                catch (Exception ex) {
-                    _logger?.LogError(ex, $"{client.GetType().Name} reconnection failed");
-                }
-
-                state.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        state.Backoff.TotalMilliseconds * 2,
-                        state.MaxBackoff.TotalMilliseconds));
-                state.Retries += 1;
-                if (state.Retries >= state.MaxRetries) {
-                    _logger?.LogError("Max retries exceeded for Picarto connection. Please reconnect");
-
-                    ErrorMessageEvents.RaiseErrorEvent(
-                        "ERROR",
-                        nameof(SubathonEventSource.Picarto),
-                        "Picarto reconnect failed after maximum retries.",
-                        DateTime.Now.ToLocalTime());
-                    state.Cts?.Cancel();
-                    break;
-                }
-            }
-        }
-        finally {
-            state.Lock.Release();
-        }
+        await state.RunAsync($"Picarto {client.GetType().Name}", SubathonEventSource.Picarto,
+            () => !isConnected() && !string.IsNullOrWhiteSpace(_picartoUsername),
+            async _ => await client.ReconnectAsync(),
+            _logger, "Picarto reconnect failed after maximum retries.", LogLevel.Debug);
     }
 
     private void OnDisconnect(object? sender, PicartoWebSocketDisconnectedEventArgs args) {
@@ -291,12 +242,11 @@ public class PicartoService : IDisposable, IAppService {
         if (sender is PicartoChatClient) {
             _chatConnected = false;
 
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.Picarto,
-                Service = "Chat",
-                Name = _picartoUsername ?? "",
-                Status = _chatConnected
-            });
+            IntegrationEvents.RaiseConnectionUpdate(
+                SubathonEventSource.Picarto,
+                "Chat",
+                _chatConnected,
+                _picartoUsername ?? "");
 
             if (shouldReconnect && sender is PicartoWebSocketConnection ws)
                 _ = Task.Run(() =>
@@ -307,12 +257,11 @@ public class PicartoService : IDisposable, IAppService {
         }
         else if (sender is PicartoEventsClient) {
             _eventsConnected = false;
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.Picarto,
-                Service = "Alerts",
-                Name = _picartoUsername ?? "",
-                Status = _eventsConnected
-            });
+            IntegrationEvents.RaiseConnectionUpdate(
+                SubathonEventSource.Picarto,
+                "Alerts",
+                _eventsConnected,
+                _picartoUsername ?? "");
 
             if (shouldReconnect && sender is PicartoWebSocketConnection ws)
                 _ = Task.Run(() =>

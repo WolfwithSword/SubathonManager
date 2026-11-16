@@ -9,7 +9,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 
@@ -48,13 +47,12 @@ public class StreamLabsService : IAppService {
 
     // todo cleanup all names in test for inits
     public async Task<bool> InitClientAsync() {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamLabs,
-            Service = "Socket",
-            Name = "User",
-            Status = false,
-            Configured = !IsTokenEmpty()
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.StreamLabs,
+            "Socket",
+            false,
+            "User",
+            configured: !IsTokenEmpty());
 
         if (string.IsNullOrWhiteSpace(SecretToken)) {
             Connected = false;
@@ -76,12 +74,7 @@ public class StreamLabsService : IAppService {
                 message, DateTime.Now);
         }
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamLabs,
-            Service = "Socket",
-            Name = "User",
-            Status = Connected
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.StreamLabs, "Socket", Connected, "User");
         _logger?.LogInformation("StreamLabs Service Connected");
         return Connected;
     }
@@ -130,13 +123,12 @@ public class StreamLabsService : IAppService {
 
         _client.OnDonation -= OnDonation;
         await _client.DisconnectAsync();
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamLabs,
-            Service = "Socket",
-            Name = "User",
-            Status = Connected,
-            Configured = !IsTokenEmpty()
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.StreamLabs,
+            "Socket",
+            Connected,
+            "User",
+            configured: !IsTokenEmpty());
         _logger?.LogInformation("StreamLabsService Disconnected");
     }
 }

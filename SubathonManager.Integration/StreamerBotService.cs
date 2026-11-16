@@ -72,13 +72,12 @@ public class StreamerBotService(
         if (_lastHttpStatus == reachable && _lastHttpEnabled == enabled) return;
         _lastHttpStatus = reachable;
         _lastHttpEnabled = enabled;
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.StreamerBot,
-            Service = HttpService,
-            Name = HttpUrl,
-            Status = reachable && enabled,
-            Configured = enabled
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.StreamerBot,
+            HttpService,
+            reachable && enabled,
+            HttpUrl,
+            configured: enabled);
     }
 
     public async Task<IReadOnlyList<StreamerBotActionInfo>?> GetActionsAsync(CancellationToken ct = default) {

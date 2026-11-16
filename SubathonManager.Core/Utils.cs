@@ -6,7 +6,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 using SubathonManager.Core.Objects;
@@ -14,6 +16,7 @@ using SubathonManager.Core.Objects;
 namespace SubathonManager.Core;
 
 public static partial class Utils {
+    public const string PerUnitMeta = "PER_UNIT";
     public static readonly Dictionary<string, bool> DonationSettings = new();
 
     private static readonly ConcurrentDictionary<(SubathonEventSource Source, string Service), IntegrationConnection>
@@ -51,7 +54,7 @@ public static partial class Utils {
             (_, _) => connection
         );
     }
-    
+
     public static bool IsTruthy(string? value) {
         return !string.IsNullOrWhiteSpace(value) &&
                value.Trim().ToLowerInvariant() is "1" or "true" or "yes" or "y";
@@ -286,12 +289,10 @@ public static partial class Utils {
             ? parsed
             : null;
     }
-    
-    public const string PerUnitMeta = "PER_UNIT";
 
     public static bool IsCommissionAsDonation(IConfig config, SubathonEvent ev) {
         if (ev.EventType == SubathonEventType.PatreonPledge)
-            return config.GetBool(nameof(SubathonEventSource.Patreon),$"{ev.EventType}.CommissionAsDonation");
+            return config.GetBool(nameof(SubathonEventSource.Patreon), $"{ev.EventType}.CommissionAsDonation");
         if (!ev.EventType.IsOrder()) return false;
 
         if (ev.EventType == SubathonEventType.GoAffProOrder) {
@@ -305,6 +306,15 @@ public static partial class Utils {
             $"{ev.EventType.ToString()?.Split("Order")[0]}.CommissionAsDonation",
             ev.EventType.GetSource() != SubathonEventSource.GoAffPro && ev.EventType.IsOrderWitCommission());
     }
+
+    [GeneratedRegex(@"^[+-]?\d+,\d{1,2}$")]
+    private static partial Regex DecimalValueCultureCommaRegex();
+
+    [GeneratedRegex(@"^(?<code>[A-Z]{3})(?![A-Z])")]
+    private static partial Regex CurrencyCodeCheckRegex();
+
+    [GeneratedRegex(@"(\d+d|\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase)]
+    private static partial Regex LetterDurationRegex();
 
     public sealed class ServiceReconnectState : IDisposable {
         public readonly SemaphoreSlim Lock = new(1, 1);
@@ -344,6 +354,54 @@ public static partial class Utils {
         // just peek
         public bool IsReconnecting() {
             return Lock.CurrentCount == 0;
+        }
+
+        public async Task RunAsync(string name, SubathonEventSource source, Func<bool> shouldRetry,
+            Func<CancellationToken, Task> attempt, ILogger? logger, string? giveUpError = null,
+            LogLevel attemptLogLevel = LogLevel.Warning, CancellationToken ct = default) {
+            if (!await Lock.WaitAsync(0, ct)) return;
+
+            try {
+                Cts?.Cancel();
+                Cts = new CancellationTokenSource();
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, Cts.Token);
+                CancellationToken token = linked.Token;
+
+                while (!token.IsCancellationRequested && shouldRetry()) {
+                    if (!InfiniteRetries && Retries >= MaxRetries) {
+                        logger?.LogError("[{Name}] Max reconnect retries ({Max}) reached, giving up", name, MaxRetries);
+                        if (giveUpError != null)
+                            ErrorMessageEvents.RaiseErrorEvent("ERROR", $"{source}", giveUpError,
+                                DateTime.Now.ToLocalTime());
+                        return;
+                    }
+
+                    Retries++;
+
+                    // quiet long-running retry loops
+                    if (Retries < 3 || Retries % 10 == 0)
+                        logger?.Log(attemptLogLevel, "[{Name}] Reconnect attempt {Attempt} in {Delay}s", name,
+                            Retries, Backoff.TotalSeconds);
+
+                    try {
+                        await Task.Delay(Backoff, token);
+                        await attempt(token);
+                    }
+                    catch (OperationCanceledException) {
+                        return;
+                    }
+                    catch (Exception ex) {
+                        if (Retries < 3) logger?.LogWarning(ex, "[{Name}] Reconnect attempt failed", name);
+                        else logger?.LogDebug("[{Name}] Reconnect attempt failed: {Error}", name, ex.Message);
+                    }
+
+                    Backoff = TimeSpan.FromMilliseconds(
+                        Math.Min(Backoff.TotalMilliseconds * 2, MaxBackoff.TotalMilliseconds));
+                }
+            }
+            finally {
+                Lock.Release();
+            }
         }
 
         public void Reset() {
@@ -392,11 +450,4 @@ public static partial class Utils {
             public IntPtr lpData;
         }
     }
-
-    [GeneratedRegex(@"^[+-]?\d+,\d{1,2}$")]
-    private static partial Regex DecimalValueCultureCommaRegex();
-    [GeneratedRegex(@"^(?<code>[A-Z]{3})(?![A-Z])")]
-    private static partial Regex CurrencyCodeCheckRegex();
-    [GeneratedRegex(@"(\d+d|\d+h|\d+m|\d+s)", RegexOptions.IgnoreCase)]
-    private static partial Regex LetterDurationRegex();
 }

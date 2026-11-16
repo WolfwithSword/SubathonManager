@@ -1,4 +1,8 @@
-﻿namespace SubathonManager.Tests.CoreUnitTests;
+﻿using System.Globalization;
+using SubathonManager.Core.Enums;
+using SubathonManager.Core.Models;
+
+namespace SubathonManager.Tests.CoreUnitTests;
 
 public class UtilsTests {
     [Fact]
@@ -129,9 +133,9 @@ public class UtilsTests {
     [InlineData("de-DE")]
     [InlineData("en-US")]
     public void TryParseAmount_AcceptsDotRegardlessOfCulture(string culture) {
-        System.Globalization.CultureInfo previous = System.Globalization.CultureInfo.CurrentCulture;
+        CultureInfo previous = CultureInfo.CurrentCulture;
         try {
-            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            CultureInfo.CurrentCulture = new CultureInfo(culture);
 
             Assert.True(Utils.TryParseAmount("10.00", out double tip));
             Assert.Equal(10, tip);
@@ -141,13 +145,13 @@ public class UtilsTests {
             Assert.False(Utils.TryParseAmount(null, out _));
 
             // making sure js will still be fine
-            var jsVar = new Core.Models.JsVariable {
-                Name = "speed", Value = "0.5", Type = Core.Enums.WidgetVariableType.Float
+            var jsVar = new JsVariable {
+                Name = "speed", Value = "0.5", Type = WidgetVariableType.Float
             };
             Assert.Contains("= 0.5", jsVar.GetInjectLine());
         }
         finally {
-            System.Globalization.CultureInfo.CurrentCulture = previous;
+            CultureInfo.CurrentCulture = previous;
         }
     }
 
@@ -156,9 +160,9 @@ public class UtilsTests {
     [InlineData("de-DE")]
     [InlineData("en-US")]
     public void TryParseAmount_TreatsTrailingCommaDigitsAsDecimal(string culture) {
-        System.Globalization.CultureInfo previous = System.Globalization.CultureInfo.CurrentCulture;
+        CultureInfo previous = CultureInfo.CurrentCulture;
         try {
-            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            CultureInfo.CurrentCulture = new CultureInfo(culture);
 
             Assert.True(Utils.TryParseAmount("0,5", out double half));
             Assert.Equal(0.5, half);
@@ -168,15 +172,15 @@ public class UtilsTests {
             Assert.Equal(-3.25, negative);
         }
         finally {
-            System.Globalization.CultureInfo.CurrentCulture = previous;
+            CultureInfo.CurrentCulture = previous;
         }
     }
 
     [Fact]
     public void TryParseAmount_KeepsThousandsCommaInDotCulture() {
-        System.Globalization.CultureInfo previous = System.Globalization.CultureInfo.CurrentCulture;
+        CultureInfo previous = CultureInfo.CurrentCulture;
         try {
-            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("en-US");
+            CultureInfo.CurrentCulture = new CultureInfo("en-US");
 
             Assert.True(Utils.TryParseAmount("1,250", out double thousands));
             Assert.Equal(1250, thousands);
@@ -184,7 +188,7 @@ public class UtilsTests {
             Assert.Equal(1250, withCents);
         }
         finally {
-            System.Globalization.CultureInfo.CurrentCulture = previous;
+            CultureInfo.CurrentCulture = previous;
         }
     }
 
@@ -199,5 +203,44 @@ public class UtilsTests {
 
         state.Lock.Release();
         Assert.False(state.IsReconnecting());
+    }
+
+    [Fact]
+    public async Task ReconnectState_RunAsync_RetriesUntilConnected_ThenStops() {
+        using var state =
+            new Utils.ServiceReconnectState(TimeSpan.FromMilliseconds(1), 10, TimeSpan.FromMilliseconds(4));
+        var attempts = 0;
+
+        await state.RunAsync("test", SubathonEventSource.Unknown, () => attempts < 3, _ => {
+            attempts++;
+            if (attempts == 1) throw new InvalidOperationException("first try fails");
+            return Task.CompletedTask;
+        }, null, ct: TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, attempts);
+        Assert.Equal(3, state.Retries);
+        Assert.Equal(TimeSpan.FromMilliseconds(4), state.Backoff);
+        Assert.False(state.IsReconnecting());
+    }
+
+    [Fact]
+    public async Task ReconnectState_RunAsync_GivesUpAtMaxRetries_AndSkipsWhenAlreadyRunning() {
+        using var state =
+            new Utils.ServiceReconnectState(TimeSpan.FromMilliseconds(1), 2, TimeSpan.FromMilliseconds(1));
+        var attempts = 0;
+
+        await state.RunAsync("test", SubathonEventSource.Unknown, () => true, _ => {
+            attempts++;
+            return Task.CompletedTask;
+        }, null, ct: TestContext.Current.CancellationToken);
+        Assert.Equal(2, attempts);
+
+        await state.Lock.WaitAsync(TestContext.Current.CancellationToken);
+        await state.RunAsync("test", SubathonEventSource.Unknown, () => true, _ => {
+            attempts++;
+            return Task.CompletedTask;
+        }, null, ct: TestContext.Current.CancellationToken);
+        state.Lock.Release();
+        Assert.Equal(2, attempts);
     }
 }

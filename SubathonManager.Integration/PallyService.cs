@@ -10,7 +10,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Core.Security;
 using SubathonManager.Core.Security.Interfaces;
 
@@ -263,12 +262,11 @@ public class PallyService : IAppService, IDisposable {
     }
 
     private void BroadcastStatus(bool status) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.PallyGG,
-            Service = "Socket",
-            Name = Room,
-            Status = status,
-            Configured = Enabled && !string.IsNullOrWhiteSpace(ApiKey)
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.PallyGG,
+            "Socket",
+            status,
+            Room,
+            configured: Enabled && !string.IsNullOrWhiteSpace(ApiKey));
     }
 }

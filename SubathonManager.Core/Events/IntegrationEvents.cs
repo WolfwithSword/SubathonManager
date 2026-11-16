@@ -21,6 +21,13 @@ public static class IntegrationEvents {
         ConnectionUpdated?.Invoke(connection);
     }
 
+    public static void RaiseConnectionUpdate(SubathonEventSource source, string service, bool status, string name = "",
+        bool configured = true, string detail = "") {
+        RaiseConnectionUpdate(new IntegrationConnection {
+            Source = source, Service = service, Status = status, Name = name, Configured = configured, Detail = detail
+        });
+    }
+
     public static void RaiseExternalSourceSeen(SubathonEventSource source) {
         ExternalSourceSeen?.Invoke(source);
     }

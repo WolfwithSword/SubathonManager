@@ -134,7 +134,7 @@ public class DevTunnelsService(
         BroadcastTunnelStatus(false, null);
         return new DevTunnelLoginStatus { Status = "Logged out" };
     }
-    
+
     [ExcludeFromCodeCoverage]
     public async Task<IntegrationConnection?> RequireTunnelAsync(SubathonEventSource source,
         CancellationToken ct = default) {
@@ -152,6 +152,27 @@ public class DevTunnelsService(
         ErrorMessageEvents.RaiseErrorEvent("WARN", source.ToString(),
             $"{source} needs a DevTunnel but {reason}. Check the DevTunnels settings.", DateTime.Now);
         return null;
+    }
+
+    public static bool IsTunnelUpdate(IntegrationConnection connection) {
+        return connection is { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" };
+    }
+
+    public static void BroadcastWebhookStatus(SubathonEventSource source, string webhookPath, bool configured,
+        string? tunnelBaseUrl, ILogger? logger) {
+        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && !tunnelBaseUrl.StartsWith('(')
+            ? tunnelBaseUrl.TrimEnd('/') + webhookPath
+            : null;
+
+        IntegrationEvents.RaiseConnectionUpdate(
+            source,
+            $"{source}",
+            configured && fullUrl != null,
+            fullUrl ?? "",
+            configured);
+
+        if (fullUrl != null)
+            logger?.LogInformation("[{Source}] Public webhook URL: {Url}", source, fullUrl);
     }
 
     public async Task StartTunnelAsync(CancellationToken ct = default) {
@@ -351,35 +372,32 @@ public class DevTunnelsService(
     }
 
     private void BroadcastCliStatus(DevTunnelCliProbeResult? probe) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.DevTunnels,
-            Service = "Cli",
-            Name = probe?.IsInstalled == true ? probe.Version?.ToString() ?? "" : "",
-            Status = probe?.IsInstalled ?? false,
-            Configured = probe?.IsInstalled ?? false
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.DevTunnels,
+            "Cli",
+            probe?.IsInstalled ?? false,
+            probe?.IsInstalled == true ? probe.Version?.ToString() ?? "" : "",
+            probe?.IsInstalled ?? false);
     }
 
     private void BroadcastLoginStatus(DevTunnelLoginStatus? login) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.DevTunnels,
-            Service = "Login",
-            Name = login?.Username ?? "",
-            Detail = login?.Provider?.ToString() ?? "",
-            Status = login?.IsLoggedIn ?? false,
-            Configured = login?.IsLoggedIn ?? false
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.DevTunnels,
+            "Login",
+            login?.IsLoggedIn ?? false,
+            login?.Username ?? "",
+            login?.IsLoggedIn ?? false,
+            login?.Provider?.ToString() ?? "");
     }
 
     private void BroadcastTunnelStatus(bool running, string? url, bool starting = false, bool stopping = false) {
         IsTunnelRunning = running;
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.DevTunnels,
-            Service = "Tunnel",
-            Name = starting ? "(starting...)" : stopping ? "(stopping...)" : url ?? "",
-            Status = running,
-            Configured = running
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.DevTunnels,
+            "Tunnel",
+            running,
+            starting ? "(starting...)" : stopping ? "(stopping...)" : url ?? "",
+            running);
     }
 
     [ExcludeFromCodeCoverage]

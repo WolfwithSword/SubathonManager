@@ -103,7 +103,7 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
 
     [ExcludeFromCodeCoverage]
     private void OnTunnelUpdated(IntegrationConnection connection) {
-        if (connection is not { Source: SubathonEventSource.DevTunnels, Service: "Tunnel" }) return;
+        if (!DevTunnelsService.IsTunnelUpdate(connection)) return;
 
         if (Enabled && connection.Status) {
             Task.Run(() => Initialize());
@@ -114,20 +114,8 @@ public class ThroneService(ILogger<ThroneService>? logger, IConfig config, DevTu
     }
 
     private void BroadcastStatus(bool enabled, string? tunnelBaseUrl) {
-        string? fullUrl = !string.IsNullOrWhiteSpace(tunnelBaseUrl) && tunnelBaseUrl != "(starting...)"
-            ? tunnelBaseUrl.TrimEnd('/') + WebhookPath
-            : null;
-
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Name = fullUrl ?? "",
-            Status = enabled && fullUrl != null,
-            Source = SubathonEventSource.Throne,
-            Service = nameof(SubathonEventSource.Throne),
-            Configured = enabled
-        });
-
-        if (fullUrl != null)
-            logger?.LogInformation("[Throne] Public webhook URL: {Url}", fullUrl);
+        DevTunnelsService.BroadcastWebhookStatus(SubathonEventSource.Throne, WebhookPath, enabled, tunnelBaseUrl,
+            logger);
     }
 
     public void ProcessData(string stringData, bool isSim = false) {

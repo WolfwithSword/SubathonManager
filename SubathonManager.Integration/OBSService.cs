@@ -189,12 +189,7 @@ public partial class OBSService : IAppService, IActionStepRunner {
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.OBS,
-            Service = "OBS",
-            Name = "WebSocket",
-            Status = true
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.OBS, "OBS", true, "WebSocket");
 
         _ = Task.Run(async () => {
             await CheckHelperScriptAsync(true);
@@ -241,12 +236,7 @@ public partial class OBSService : IAppService, IActionStepRunner {
 
         BroadcastHelperScriptStatus();
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.OBS,
-            Service = "OBS",
-            Name = "WebSocket",
-            Status = false
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.OBS, "OBS", false, "WebSocket");
 
         if (_reconnectState.Retries < 2) {
             _logger?.LogWarning("[OBSService] Disconnected: {Reason}", e.DisconnectReason ?? "Not Running?");
@@ -256,52 +246,17 @@ public partial class OBSService : IAppService, IActionStepRunner {
 
     [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync() {
-        if (!await _reconnectState.Lock.WaitAsync(0)) return;
+        string? host = _config.Get("OBS", "Host");
+        string? port = _config.Get("OBS", "Port");
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port)) return;
 
-        try {
-            _reconnectState.Cts?.Cancel();
-            _reconnectState.Cts = new CancellationTokenSource();
-            CancellationToken token = _reconnectState.Cts.Token;
-
-            string host = _config.Get("OBS", "Host")!;
-            string port = _config.Get("OBS", "Port")!;
-            if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(port)) return;
-
-            while (!token.IsCancellationRequested && !_obs.IsConnected) {
-                if (!_reconnectState.InfiniteRetries && _reconnectState.Retries >= _reconnectState.MaxRetries) {
-                    _logger?.LogError("[OBSService] Max reconnect retries reached");
-                    return;
-                }
-
-                _reconnectState.Retries++;
-                TimeSpan delay = _reconnectState.Backoff;
-
-                if (!_reconnectState.InfiniteRetries &&
-                    (_reconnectState.Retries < 3 || _reconnectState.Retries % 10 == 0))
-                    _logger?.LogDebug("[OBSService] Reconnect attempt {N} in {Delay}s",
-                        _reconnectState.Retries, delay.TotalSeconds);
-
-                try {
-                    await Task.Delay(delay, token);
-                    if (!_obs.IsConnected)
-                        TryConnect();
-                }
-                catch (OperationCanceledException) {
-                    return;
-                }
-                catch (Exception ex) {
-                    _logger?.LogWarning(ex, "[OBSService] Reconnect error");
-                }
-
-                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        _reconnectState.Backoff.TotalMilliseconds * 2,
-                        _reconnectState.MaxBackoff.TotalMilliseconds));
-            }
-        }
-        finally {
-            _reconnectState.Lock.Release();
-        }
+        await _reconnectState.RunAsync("OBSService", SubathonEventSource.OBS,
+            () => !_obs.IsConnected,
+            _ => {
+                if (!_obs.IsConnected) TryConnect();
+                return Task.CompletedTask;
+            },
+            _logger, attemptLogLevel: LogLevel.Debug);
     }
 
     public bool SaveConfig(string host, string port, string password, bool forceSave = false) {
@@ -394,13 +349,12 @@ public partial class OBSService : IAppService, IActionStepRunner {
     }
 
     private void BroadcastHelperScriptStatus() {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.OBS,
-            Service = "HelperScript",
-            Name = "Helper Script",
-            Detail = HelperScriptVersion != null ? $"v{HelperScriptVersion}" : "",
-            Status = HelperScriptActive
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.OBS,
+            "HelperScript",
+            HelperScriptActive,
+            "Helper Script",
+            detail: HelperScriptVersion != null ? $"v{HelperScriptVersion}" : "");
     }
 
     public void RecheckHelperScript() {

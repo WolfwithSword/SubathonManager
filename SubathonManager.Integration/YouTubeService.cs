@@ -1,12 +1,11 @@
-﻿using System.Globalization;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using SubathonManager.Core;
 using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 using SubathonManager.Services;
 using YTLiveChat.Contracts;
 using YTLiveChat.Contracts.Models;
@@ -22,6 +21,7 @@ public class YouTubeService : IDisposable, IAppService {
     private readonly HttpClient _httpClient;
 
     private readonly ILogger? _logger;
+    private readonly int _pollTime = 1500;
 
     private readonly Utils.ServiceReconnectState _reconnectState =
         new(TimeSpan.FromSeconds(5), 100, TimeSpan.FromMinutes(2));
@@ -30,7 +30,6 @@ public class YouTubeService : IDisposable, IAppService {
 
     private int _canonicalLinkErrorCount;
     private bool _disposed;
-    private readonly int _pollTime = 1500;
     private string? _ytHandle;
     public bool Running;
 
@@ -87,28 +86,17 @@ public class YouTubeService : IDisposable, IAppService {
 
         _ytHandle = handle ?? _config.Get("YouTube", "Handle")!;
         bool configured = !string.IsNullOrWhiteSpace(_ytHandle) && _ytHandle.Trim() != "@";
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.YouTube,
-            Service = "Chat",
-            Name = "None",
-            Status = Running,
-            Configured = configured
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", Running, "None", configured);
 
         if (!configured) {
             _logger?.LogInformation("YouTube Service not connected to any channel. Not running.");
             return Running;
         }
 
-        if (!_ytHandle.StartsWith("@")) _ytHandle = "@" + _ytHandle;
-        _logger?.LogInformation("Youtube Service Starting for " + _ytHandle);
+        if (!_ytHandle.StartsWith('@')) _ytHandle = "@" + _ytHandle;
+        _logger?.LogInformation("Youtube Service Starting for {Handle}", _ytHandle);
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.YouTube,
-            Service = "Chat",
-            Name = _ytHandle!,
-            Status = Running
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", Running, _ytHandle!);
         _ytLiveChat.Start(_ytHandle, overwrite: true);
         return true;
     }
@@ -132,24 +120,14 @@ public class YouTubeService : IDisposable, IAppService {
         Running = true;
         _reconnectState.Reset();
         _reconnectState.Cts?.Cancel();
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.YouTube,
-            Service = "Chat",
-            Name = _ytHandle!,
-            Status = Running
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", Running, _ytHandle!);
         _logger?.LogInformation($"Successfully loaded YouTube Live ID: {e.LiveId}");
     }
 
     private void OnChatStopped(object? sender, ChatStoppedEventArgs e) {
         Running = false;
         _logger?.LogWarning("YT Chat stopped");
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.YouTube,
-            Service = "Chat",
-            Name = _ytHandle!,
-            Status = Running
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", Running, _ytHandle!);
         TryReconnectLoop();
     }
 
@@ -193,12 +171,7 @@ public class YouTubeService : IDisposable, IAppService {
             }
         }
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.YouTube,
-            Service = "Chat",
-            Name = _ytHandle!,
-            Status = Running
-        });
+        IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", Running, _ytHandle!);
     }
 
     private void OnChatReceived(object? sender, ChatReceivedEventArgs e) {
@@ -206,12 +179,7 @@ public class YouTubeService : IDisposable, IAppService {
             return;
 
         if (!Running) {
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.YouTube,
-                Service = "Chat",
-                Name = _ytHandle!,
-                Status = true
-            });
+            IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", true, _ytHandle!);
             _reconnectState.Cts?.Cancel();
             _reconnectState.Reset();
         }
@@ -343,62 +311,14 @@ public class YouTubeService : IDisposable, IAppService {
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle.Trim() == "@")
             return;
 
-        if (!await _reconnectState.Lock.WaitAsync(0))
-            return; // already reconnecting
-
-        try {
-            _reconnectState.Cts?.Cancel();
-            _reconnectState.Cts = new CancellationTokenSource();
-            CancellationToken token = _reconnectState.Cts.Token;
-
-            while (!token.IsCancellationRequested && !Running && _ytHandle?.Trim() != "@" &&
-                   !string.IsNullOrWhiteSpace(_ytHandle)) {
-                if (_reconnectState.Retries >= _reconnectState.MaxRetries) {
-                    _logger?.LogError(
-                        "[YT] Max reconnect retries ({Retries}) reached. Giving up.",
-                        _reconnectState.MaxRetries);
-
-                    ErrorMessageEvents.RaiseErrorEvent(
-                        "ERROR",
-                        nameof(SubathonEventSource.YouTube),
-                        "YouTube reconnect failed after maximum retries.",
-                        DateTime.Now.ToLocalTime());
-                    return;
-                }
-
-                _reconnectState.Retries++;
-
-                TimeSpan delay = _reconnectState.Backoff;
-
-                _logger?.LogWarning(
-                    "[YT] Reconnect attempt {Attempt}/{Max} in {Delay}s",
-                    _reconnectState.Retries,
-                    _reconnectState.MaxRetries,
-                    delay.TotalSeconds);
-
-                try {
-                    await Task.Delay(delay, token);
-
-                    if (!Running && !string.IsNullOrWhiteSpace(_ytHandle))
-                        _ytLiveChat.Start(_ytHandle, overwrite: true);
-                }
-                catch (OperationCanceledException) {
-                    return;
-                }
-                catch (Exception ex) {
-                    _logger?.LogWarning(ex, "[YT] Reconnect attempt failed");
-                }
-
-                // Exponential backoff
-                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        _reconnectState.Backoff.TotalMilliseconds * 2,
-                        _reconnectState.MaxBackoff.TotalMilliseconds));
-            }
-        }
-        finally {
-            _reconnectState.Lock.Release();
-        }
+        await _reconnectState.RunAsync("YT", SubathonEventSource.YouTube,
+            () => !Running && _ytHandle?.Trim() != "@" && !string.IsNullOrWhiteSpace(_ytHandle),
+            _ => {
+                if (!Running && !string.IsNullOrWhiteSpace(_ytHandle))
+                    _ytLiveChat.Start(_ytHandle, overwrite: true);
+                return Task.CompletedTask;
+            },
+            _logger, "YouTube reconnect failed after maximum retries.");
     }
 
     [ExcludeFromCodeCoverage]

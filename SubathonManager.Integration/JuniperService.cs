@@ -6,7 +6,6 @@ using SubathonManager.Core.Enums;
 using SubathonManager.Core.Events;
 using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
-using SubathonManager.Core.Objects;
 
 namespace SubathonManager.Integration;
 
@@ -173,22 +172,20 @@ public class JuniperService(
         if (!force && status == _lastBroadcastStatus) return;
         _lastBroadcastStatus = status;
 
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.JuniperCreates,
-            Service = nameof(SubathonEventSource.JuniperCreates),
-            Name = stores.Count == 0 ? "" : $"{stores.Count} store(s)",
-            Status = status,
-            Configured = stores.Count > 0
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.JuniperCreates,
+            nameof(SubathonEventSource.JuniperCreates),
+            status,
+            stores.Count == 0 ? "" : $"{stores.Count} store(s)",
+            configured: stores.Count > 0);
 
         foreach (JuniperStore store in stores)
-            IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-                Source = SubathonEventSource.JuniperCreates,
-                Service = store.StoreName,
-                Name = $"{store.Products.Count} tracked",
-                Status = status && store.Enabled,
-                Configured = true
-            });
+            IntegrationEvents.RaiseConnectionUpdate(
+                SubathonEventSource.JuniperCreates,
+                store.StoreName,
+                status && store.Enabled,
+                $"{store.Products.Count} tracked",
+                configured: true);
     }
 
     private async Task<string?> GetStringAsync(string url, CancellationToken ct) {

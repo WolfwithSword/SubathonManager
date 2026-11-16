@@ -423,50 +423,13 @@ public class VTSService(
 
     [ExcludeFromCodeCoverage]
     private async Task ReconnectWithBackoffAsync() {
-        if (!await _reconnectState.Lock.WaitAsync(0)) return;
-
-        try {
-            _reconnectState.Cts?.Cancel();
-            _reconnectState.Cts = new CancellationTokenSource();
-            CancellationToken token = _reconnectState.Cts.Token;
-
-            while (!token.IsCancellationRequested && !Connected && !_stopRequested && Enabled) {
-                if (!_reconnectState.InfiniteRetries && _reconnectState.Retries >= _reconnectState.MaxRetries) {
-                    _logger?.LogError("[VTSService] Max reconnect retries reached");
-                    return;
-                }
-
-                _reconnectState.Retries++;
-                TimeSpan delay = _reconnectState.Backoff;
-
-                if (_reconnectState.Retries < 3 || _reconnectState.Retries % 60 == 0)
-                    _logger?.LogDebug("[VTSService] Reconnect attempt {N} in {Delay}s",
-                        _reconnectState.Retries, delay.TotalSeconds);
-
-                try {
-                    await Task.Delay(delay, token);
-                    if (!Connected && !_stopRequested)
-                        await ConnectAsync(token);
-                }
-                catch (OperationCanceledException) {
-                    return;
-                }
-                catch (Exception ex) {
-                    if (_reconnectState.Retries < 2)
-                        _logger?.LogWarning(ex, "[VTSService] Reconnect error");
-                    else
-                        _logger?.LogDebug("[VTSService] Reconnect error: {Reason}", ParseException(ex));
-                }
-
-                _reconnectState.Backoff = TimeSpan.FromMilliseconds(
-                    Math.Min(
-                        _reconnectState.Backoff.TotalMilliseconds * 2,
-                        _reconnectState.MaxBackoff.TotalMilliseconds));
-            }
-        }
-        finally {
-            _reconnectState.Lock.Release();
-        }
+        await _reconnectState.RunAsync("VTSService", SubathonEventSource.VTubeStudio,
+            () => !Connected && !_stopRequested && Enabled,
+            async token => {
+                if (!Connected && !_stopRequested)
+                    await ConnectAsync(token);
+            },
+            _logger, attemptLogLevel: LogLevel.Debug);
     }
 
     private async Task TeardownClientAsync() {
@@ -553,13 +516,12 @@ public class VTSService(
     }
 
     private void BroadcastStatus(bool status) {
-        IntegrationEvents.RaiseConnectionUpdate(new IntegrationConnection {
-            Source = SubathonEventSource.VTubeStudio,
-            Service = ServiceName,
-            Name = "WebSocket",
-            Status = status,
-            Configured = Enabled
-        });
+        IntegrationEvents.RaiseConnectionUpdate(
+            SubathonEventSource.VTubeStudio,
+            ServiceName,
+            status,
+            "WebSocket",
+            configured: Enabled);
     }
 
     [ExcludeFromCodeCoverage]
