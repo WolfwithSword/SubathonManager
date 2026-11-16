@@ -97,6 +97,9 @@ public class AppDbContext : DbContext {
             .HasForeignKey(e => e.SubathonId)
             .IsRequired(false);
 
+        modelBuilder.Entity<SubathonEvent>()
+            .HasIndex(e => new { e.SubathonId, e.EventType, e.EventTimestamp });
+
         modelBuilder.Entity<SubathonValue>()
             .HasKey(sv => new { sv.EventType, sv.Meta });
 
