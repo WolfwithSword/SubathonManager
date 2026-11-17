@@ -439,6 +439,7 @@ public class AppDbContext : DbContext {
             // assuming defaults for order types are by Dollar, we set at 12s
             new() { EventType = SubathonEventType.ExternalSub, Meta = "DEFAULT", Seconds = 60, Points = 1 },
             new() { EventType = SubathonEventType.YouTubeRedirect, Seconds = 0 },
+            new() { EventType = SubathonEventType.YouTubeJewels, Seconds = 0.06 }, // 2 jewels = 0.01 USD
             new() { EventType = SubathonEventType.FourthWallDonation, Seconds = 12 },
             new() { EventType = SubathonEventType.FourthWallMembership, Meta = "DEFAULT", Seconds = 60, Points = 1 },
             new() { EventType = SubathonEventType.FourthWallGiftOrder, Seconds = 12 },

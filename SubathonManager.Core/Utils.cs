@@ -242,7 +242,10 @@ public static partial class Utils {
         double modifier = 1;
         if (!eventType.IsToken())
             return (false, 1);
-        if (eventType != SubathonEventType.TwitchCheer && eventType != SubathonEventType.PicartoTip)
+        // 2 jewels = 1 ruby = 0.01 USD. WHY YOUTUBE WHY
+        if (eventType == SubathonEventType.YouTubeJewels)
+            modifier = 0.5;
+        else if (eventType is not (SubathonEventType.TwitchCheer or SubathonEventType.PicartoTip))
             TryParseAmount(config.Get("Extensions", $"{eventType}.Modifier", "1"), out modifier);
 
         bool useAsDonation = config.GetBool("Currency", "BitsLikeAsDonation");

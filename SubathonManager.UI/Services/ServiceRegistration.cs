@@ -32,6 +32,7 @@ public static class ServiceRegistration {
         services.AddSingleton<WebServer>();
         services.AddSingleton<PromptOrchestratorService>();
         services.AddSingleton<WheelSpinTriggerService>();
+        services.AddSingleton<SubathonTimerService>();
         services.AddSingleton<ActionService>();
         services.AddSingleton<TelemetryService>();
 

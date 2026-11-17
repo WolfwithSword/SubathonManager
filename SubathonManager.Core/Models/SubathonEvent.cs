@@ -83,7 +83,7 @@ public class CurrencyValidationAttribute : ValidationAttribute {
 
         var s = value.ToString()!;
         var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
-            "bits", "sub", "beets", "kudos", "", "???",
+            "bits", "sub", "beets", "kudos", "jewels", "", "???",
             "order", "items", "member", "viewers"
         };
 

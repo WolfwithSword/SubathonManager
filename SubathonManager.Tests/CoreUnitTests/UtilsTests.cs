@@ -1,5 +1,7 @@
 ﻿using System.Globalization;
+using Moq;
 using SubathonManager.Core.Enums;
+using SubathonManager.Core.Interfaces;
 using SubathonManager.Core.Models;
 
 namespace SubathonManager.Tests.CoreUnitTests;
@@ -242,5 +244,19 @@ public class UtilsTests {
         }, null, ct: TestContext.Current.CancellationToken);
         state.Lock.Release();
         Assert.Equal(2, attempts);
+    }
+
+    [Theory]
+    [InlineData(SubathonEventType.TwitchCheer, 1.0)]
+    [InlineData(SubathonEventType.PicartoTip, 1.0)]
+    [InlineData(SubathonEventType.YouTubeJewels, 0.5)]
+    public void AltCurrencyUseAsDonation_UsesFixedModifiers(SubathonEventType type, double expected) {
+        var config = new Mock<IConfig>();
+        config.Setup(c => c.GetBool("Currency", "BitsLikeAsDonation", It.IsAny<bool>())).Returns(true);
+        config.Setup(c => c.Get(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>())).Returns("3");
+
+        (bool asDonation, double modifier) = Utils.GetAltCurrencyUseAsDonation(config.Object, type);
+        Assert.True(asDonation);
+        Assert.Equal(expected, modifier);
     }
 }

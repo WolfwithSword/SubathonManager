@@ -148,6 +148,10 @@ public class EventTypeValueConverter : IMultiValueConverter {
                 val = (values.Count > 4 ? values[4]?.ToString() : null)
                       ?? (values.Count > 3 ? values[3]?.ToString() : null) ?? val;
             }
+            else if (eventType == SubathonEventType.YouTubeJewels &&
+                     values.Count > 3 && !string.IsNullOrWhiteSpace(values[3]?.ToString())) {
+                return $"{values[3]} - {val} {curr}";
+            }
             else if (curr == "item" &&
                      eventType.GetSource() is SubathonEventSource.Throne or SubathonEventSource.TreatStream) {
                 type = "";

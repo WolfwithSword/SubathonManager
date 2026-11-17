@@ -19,6 +19,7 @@ public partial class YouTubeSettings : SettingsControl {
     public YouTubeSettings() {
         InitializeComponent();
         UiHelpers.AttachMoneyPointRateHint(DonoBox2, DonoRateHint);
+        UiHelpers.AttachTokenPointRateHint(Jewels2TextBox, JewelsRateHint, "jewels");
         Loaded += (_, _) => {
             IntegrationEvents.ConnectionUpdated += UpdateStatus;
             RegisterUnsavedChangeHandlers();
@@ -125,6 +126,21 @@ public partial class YouTubeSettings : SettingsControl {
             hasUpdated = true;
         }
 
+        SubathonValue? jewelsValue =
+            db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.YouTubeJewels && sv.Meta == "");
+
+        if (jewelsValue != null && Utils.TryParseAmount(JewelsTextBox.Text, out double jewelsSeconds) &&
+            !jewelsValue.Seconds.Equals(jewelsSeconds / 100.0)) {
+            jewelsValue.Seconds = jewelsSeconds / 100.0;
+            hasUpdated = true;
+        }
+
+        if (jewelsValue != null && Utils.TryParseAmount(Jewels2TextBox.Text, out double jewelsPoints) &&
+            !jewelsValue.Points.Equals(jewelsPoints)) {
+            jewelsValue.Points = jewelsPoints;
+            hasUpdated = true;
+        }
+
         SubathonValue? redirectValue =
             db.SubathonValues.FirstOrDefault(sv => sv.EventType == SubathonEventType.YouTubeRedirect && sv.Meta == "");
         if (redirectValue != null && Utils.TryParseAmount(RaidBox.Text, out double rdSeconds) &&
@@ -214,6 +230,11 @@ public partial class YouTubeSettings : SettingsControl {
             case SubathonEventType.YouTubeSuperChat:
                 box = DonoBox;
                 box2 = DonoBox2;
+                break;
+            case SubathonEventType.YouTubeJewels:
+                v = $"{Math.Round(val.Seconds * 100)}";
+                box = JewelsTextBox;
+                box2 = Jewels2TextBox;
                 break;
             case SubathonEventType.YouTubeRedirect:
                 box = RaidBox;

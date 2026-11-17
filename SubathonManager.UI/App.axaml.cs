@@ -151,8 +151,6 @@ public partial class App : Application {
                 return;
             }
 
-            SubathonEvents.SubathonDataUpdate += UpdateTickStateCache;
-
             var sm = AppServices.Provider.GetRequiredService<ServiceManager>();
 
             Task.Run(async () => {
@@ -175,8 +173,7 @@ public partial class App : Application {
                 await sm.StartAsync<PromptOrchestratorService>();
                 await sm.StartAsync<WheelSpinTriggerService>();
                 await Task.Delay(100);
-                TimerEvents.TimerTickEvent += UpdateSubathonTimers;
-                InitSubathonTimer();
+                await sm.StartAsync<SubathonTimerService>();
 
                 await sm.StartIntegrationsAsync();
 

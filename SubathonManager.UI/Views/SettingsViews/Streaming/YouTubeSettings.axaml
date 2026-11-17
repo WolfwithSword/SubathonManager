@@ -43,6 +43,31 @@
                 </StackPanel>
             </Grid>
 
+            <!-- Jewels -->
+            <Grid Margin="0,2" ColumnDefinitions="*,300">
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Jewels:" Width="100" VerticalAlignment="Center"
+                               ToolTip.Tip="200 Jewels = 100 Rubies = $1 USD" />
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="6"
+                             x:Name="JewelsTextBox" />
+                    <TextBlock Margin="8 0 0 0" Text="Seconds per 100" Width="150" VerticalAlignment="Center" />
+                    <TextBox Width="100" v:NumericInputBehaviour.Mode="SignedDecimal" PlaceholderText="0"
+                             x:Name="Jewels2TextBox" />
+                    <TextBlock Margin="8 0 0 0" Text="Points per 100" Width="150" ToolTip.Tip="Rounded down"
+                               VerticalAlignment="Center" />
+                    <TextBlock x:Name="JewelsRateHint" Text="" FontSize="11"
+                               Foreground="Gray" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBox Margin="10 0 4 0" Width="80" Text="100" PlaceholderText="100" VerticalAlignment="Center"
+                             Height="34" FontSize="12"
+                             views:SettingsProperties.ExcludeFromUnsaved="True" v:NumericInputBehaviour.Mode="Integer"
+                             x:Name="SimulateJewelsAmt" />
+                    <Button Content="Test" Click="TestYTJewels_Click" Width="60" Padding="2" Height="34"
+                            Margin="4,0,0,0" />
+                </StackPanel>
+            </Grid>
+
             <!-- Redirects -->
             <Grid Margin="0,2" ColumnDefinitions="*,300">
                 <StackPanel Grid.Column="0" Orientation="Horizontal">

@@ -221,7 +221,11 @@ public enum SubathonEventType {
     // meta = highest tier title, synced from the campaign, or Utils.PerUnitMeta when valued by the amount pledged
     // buhhhh, this is a subscription but can in a mode be used as donation stuff. Tricky
     [EventTypeMeta(Label = "Membership", Source = SubathonEventSource.Patreon, IsMembership = true, Order = 1)]
-    PatreonPledge
+    PatreonPledge,
+    
+    [EventTypeMeta(Label = "Jewels", Source = SubathonEventSource.YouTube, IsToken = true, Order = 4)]
+    YouTubeJewels,
+
     // any new must be added after the last
 }
 

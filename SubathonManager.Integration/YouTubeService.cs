@@ -59,6 +59,7 @@ public class YouTubeService : IDisposable, IAppService {
         //_ytLiveChat.LivestreamStarted += OnStreamStart;
         _ytLiveChat.BannerAdded += OnBanner;
         _ytLiveChat.LivestreamEnded += OnStreamEnd;
+        _ytLiveChat.GiftReceived += OnJewelsGift;
 
 #pragma warning restore CS0618
     }
@@ -173,6 +174,32 @@ public class YouTubeService : IDisposable, IAppService {
 
         IntegrationEvents.RaiseConnectionUpdate(SubathonEventSource.YouTube, "Chat", Running, _ytHandle!);
     }
+    
+    private void OnJewelsGift(object? sender, GiftReceivedEventArgs e) {
+        if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle == "@")
+            return;
+
+        GiftItem gift = e.Gift;
+        int amount = gift.JewelAmount ?? 0;
+        if (amount <= 0) return;
+        
+        string user = gift.AuthorHandle.Replace("@", "");
+        if (string.IsNullOrWhiteSpace(user)) return;
+
+        string giftName = gift.GiftImageName ?? "Jewels";
+
+        SubathonEvent subathonEvent = new() {
+            User = user,
+            Currency = "jewels",
+            Value = $"{amount}",
+            Source = SubathonEventSource.YouTube,
+            EventType = SubathonEventType.YouTubeJewels,
+            Id = Utils.CreateGuidFromUniqueString(gift.Id),
+            SecondaryValue = giftName
+        };
+        
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
 
     private void OnChatReceived(object? sender, ChatReceivedEventArgs e) {
         if (string.IsNullOrWhiteSpace(_ytHandle) || _ytHandle == "@")
@@ -199,7 +226,7 @@ public class YouTubeService : IDisposable, IAppService {
         if (item.Superchat != null) {
             if (item.IsTicker)
                 return;
-            string currency = item.Superchat.Currency.ToUpper().Trim();
+            string currency = string.IsNullOrWhiteSpace(item.Superchat.Currency) ? "USD" : item.Superchat.Currency.ToUpper().Trim();
             string raw = item.Superchat.AmountString.Trim();
 
             if (currency == "USD" && !raw.StartsWith('$')) // Parsed incorrectly
@@ -229,10 +256,10 @@ public class YouTubeService : IDisposable, IAppService {
             if (item.IsTicker)
                 return;
             SubathonEvent subathonEvent = new() {
-                Source = SubathonEventSource.YouTube
+                Source = SubathonEventSource.YouTube,
+                Id = Guid.TryParse(item.Id, out Guid gid) ? gid : Utils.CreateGuidFromUniqueString(item.Id),
+                EventTimestamp = item.Timestamp.DateTime.ToLocalTime()
             };
-            subathonEvent.Id = Guid.TryParse(item.Id, out Guid gid) ? gid : Utils.CreateGuidFromUniqueString(item.Id);
-            subathonEvent.EventTimestamp = item.Timestamp.DateTime.ToLocalTime();
 
             MembershipDetails? details = item.MembershipDetails;
             string tier = details.HeaderSubtext ?? details.LevelName;
@@ -328,6 +355,7 @@ public class YouTubeService : IDisposable, IAppService {
             _reconnectState.Dispose();
             _ytLiveChat.Stop();
             _ytLiveChat.InitialPageLoaded -= OnInitialPageLoaded;
+            _ytLiveChat.GiftReceived -= OnJewelsGift;
             _ytLiveChat.ChatReceived -= OnChatReceived;
             _ytLiveChat.ChatStopped -= OnChatStopped;
             _ytLiveChat.BannerAdded -= OnBanner;
@@ -349,6 +377,18 @@ public class YouTubeService : IDisposable, IAppService {
             Value = value,
             Source = SubathonEventSource.Simulated,
             EventType = SubathonEventType.YouTubeSuperChat
+        };
+        SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
+    }
+
+    public static void SimulateJewels(int jewelsCount = 100) {
+        var subathonEvent = new SubathonEvent {
+            Source = SubathonEventSource.Simulated,
+            EventType = SubathonEventType.YouTubeJewels,
+            User = "SYSTEM",
+            Currency = "jewels",
+            Value = $"{jewelsCount}",
+            SecondaryValue = "Jewels-Gift"
         };
         SubathonEvents.RaiseSubathonEventCreated(subathonEvent);
     }

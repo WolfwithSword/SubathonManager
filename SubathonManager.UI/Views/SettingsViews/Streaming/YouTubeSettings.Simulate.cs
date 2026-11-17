@@ -14,6 +14,11 @@ public partial class YouTubeSettings {
         YouTubeService.SimulateMembership(selectedTier);
     }
 
+    private void TestYTJewels_Click(object? sender, RoutedEventArgs e) {
+        if (int.TryParse(SimulateJewelsAmt.Text, out int parsedAmount) && parsedAmount >= 0)
+            YouTubeService.SimulateJewels(parsedAmount);
+    }
+
     private void TestYTRaid_Click(object? sender, RoutedEventArgs e) {
         YouTubeService.SimulateRaid();
     }
