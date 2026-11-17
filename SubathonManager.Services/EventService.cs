@@ -27,6 +27,10 @@ public class EventService : IDisposable, IAppService {
     private readonly SemaphoreSlim _signal = new(0);
     private Task? _processingTask;
 
+    private const int TotalsEveryEvents = 5;
+    private bool _totalsDirty;
+    private int _eventsSinceTotals;
+
     public EventService(IDbContextFactory<AppDbContext> factory, ILogger<EventService>? logger, IConfig config,
         CurrencyService currencyService) {
         _factory = factory;
@@ -94,7 +98,7 @@ public class EventService : IDisposable, IAppService {
 
                 if (next == null) continue;
                 try {
-                    (bool wasEffective, bool dupeUneeded) = await ProcessSubathonEvent(next);
+                    (bool wasEffective, bool dupeUneeded) = await ProcessSubathonEvent(next, deferTotals: true);
                     if (!dupeUneeded)
                         SubathonEvents.RaiseSubathonEventProcessed(next, wasEffective);
                 }
@@ -104,6 +108,8 @@ public class EventService : IDisposable, IAppService {
                     ErrorMessageEvents.RaiseErrorEvent("ERROR", next.Source.ToString(),
                         $"Failed to process {next.EventType} event: {ex.Message}", DateTime.Now);
                 }
+
+                await FlushDeferredTotalsAsync();
             }
         }
         catch (OperationCanceledException ex) {
@@ -111,7 +117,30 @@ public class EventService : IDisposable, IAppService {
         }
     }
 
-    public async Task<(bool, bool)> ProcessSubathonEvent(SubathonEvent ev) // effective, dupe-was-processed
+    private async Task FlushDeferredTotalsAsync() {
+        bool queueEmpty;
+        lock (_lock) {
+            queueEmpty = _queue.Count == 0;
+        }
+
+        _eventsSinceTotals++;
+        if (!queueEmpty && _eventsSinceTotals < TotalsEveryEvents) return;
+
+        _eventsSinceTotals = 0;
+        if (!_totalsDirty) return;
+
+        _totalsDirty = false;
+        try {
+            await using AppDbContext db = await _factory.CreateDbContextAsync();
+            await RaiseAllTotalsUpdatedAsync(db);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException) {
+            _logger?.LogError(ex, "Failed to recalculate subathon totals");
+        }
+    }
+
+    // effective, dupe-was-processed. deferTotals leaves the totals recalc to the event loop
+    public async Task<(bool, bool)> ProcessSubathonEvent(SubathonEvent ev, bool deferTotals = false)
     {
         await using AppDbContext db = await _factory.CreateDbContextAsync();
         SubathonData? subathon = await db.SubathonDatas.Include(s => s.Multiplier)
@@ -368,8 +397,12 @@ public class EventService : IDisposable, IAppService {
 
         db.Entry(subathon).State = EntityState.Detached;
 
-        if (affected > 0 || ev.ProcessedToSubathon)
-            await RaiseAllTotalsUpdatedAsync(db);
+        if (affected > 0 || ev.ProcessedToSubathon) {
+            if (deferTotals)
+                _totalsDirty = true;
+            else
+                await RaiseAllTotalsUpdatedAsync(db);
+        }
 
         return (affected > 0 || ev.ProcessedToSubathon, false);
     }
